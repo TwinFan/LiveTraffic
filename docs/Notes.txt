@@ -124,8 +124,6 @@ Packaging: Verify that included frameworks are
 LATER
 =====
 
-GUI for Config File
-
 Ac Status Window
 Show a/c info in a self-designed window
 - Differ Heading from Track e.g. in strong cross wind conditions
@@ -150,6 +148,8 @@ writing livetraffic/dim/date
 all in one go
 
 If misconfigured could enable thousands of aircrafts...set an upper limit of 50
+
+https://github.com/kuroneko/libxplanemp
 
 DOCUMENTATION
 ===========
@@ -196,7 +196,7 @@ CURL - https://curl.haxx.se/libcurl/
     install_name_tool -id @loader_path/libcurl libcurl
     Include libcurl.framework as Linked Framework
     Install 'libcurl' along with mac.xpl into .../Resources/plugins/LiveTraffic/64
-libpng
+libpng - http://www.libpng.org/pub/png/libpng.html
 xplanemp
 X-Plane API
 parson - https://github.com/kgabis/parson
