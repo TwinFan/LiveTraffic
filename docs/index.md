@@ -3,24 +3,30 @@ LiveTraffic is (going to be) a plugin for the flight simulator [X-Plane](https:/
 
 It came into being when I was looking at plugins simulating additional traffic in X-Plane and thinking at that time: Why do they try do simulate traffic and inventing flight models when there is flight data available online which brings yet another piece of reality into the simulation? Why can't one just read the data and display the aircraft?
 
-Well...turned out it's not *that* easy ;-)
+Well...turned out it's not *that* easy :smirk:
+
 I spent an awful lot of time dealing with the inaccuracies of the data sources, see section 'Limitations' below, and ended up inventing my own flight models to make aircrafts move more or less smoothly from one data point to the next. And as an airport is a naturally interesting hot spot of plane movements, but due to simple physics often only sparingly covered with ADS-B receivers and hence live data, there is even lot of code to simulate landing planes after their data trail ands on final approach.
 
 ## Limitations
 LiveTraffic relies mostly on available live flight data. This data
-- can and will be inaccurate,
+- can and will be **inaccurate**,
 - never includes all planes in the air,
 - often misses moving planes on the ground as ADS-B receiver coverage is more difficult the lower a plane flies
 - contains by design only positions for every few seconds but no complete paths or vectors.
 
-This inevitably leads to planes
+This inevitably leads to some aircrafts
 - not sticking exactly to taxi routes on the ground,
-- not touching down at the beginning of the runway or even hovering above it (Flightradar24 especially)
-- appearing and disappearing at will.
-There is a lot of processing to try to smooth all these effects, but it only works so far.
+- touching down before or after the beginning of the runway,
+- hovering above it (Flightradar24 especially),
+- missing the runway by a few meters (seems to be an Embraer specialty) or even landing off-site,
+- appearing and disappearing at will,
+- performing funny maneuvers like full circles or flying extremely slow.
+There is a lot of processing to try to smooth all of these effects, but it only works so far.
 
-TCAS display might work, but don't expect it to work. TCAS display implementations in add-on planes varies and is beyond my control. LiveTraffic uses the same underlying library to display additional aircrafts as XSquawkBox does. If there are issues with XSquawkBox the same will apply to LiveTraffic.
-I can get TCAS display work in the standard X-Plane Cirrus TheJet, see sections 'TCAS' below.
+Live aircrafts will **ignore your plane** and simply fly or drive through you if you are in the way. That can look funny if you are stopping short at the beginning of the active departure runway and a A380 performs its take-off roll through you... 
+
+**TCAS display might or might not work.** TCAS display implementations in add-on planes vary and are beyond my control. LiveTraffic uses the same underlying library to display additional aircrafts as XSquawkBox does. If there are issues with XSquawkBox the same will apply to LiveTraffic.
+I can get TCAS display to work in the standard X-Plane Cirrus TheJet, see sections 'TCAS' below.
 
 If you can't live with these limitations don't try LiveTraffic.
 
@@ -38,7 +44,8 @@ I have not yet fully confirmed that I may use these sources as LiveTraffic curre
 
 ### TCAS
 TCAS might or might not work, also see 'Limitations'.
-in X-Plane 10 I can confirm that the TCAS display *does* work in the Cirrus TheJet using the following workaround:
+
+In X-Plane 10 I can confirm that the TCAS display *does* work in the standard Cirrus TheJet after applying the following workaround:
 1. Startup X-Plane with activated LiveTraffic plugin as usual.
 1. Disable LiveTraffic in the Plugin Admin. This takes a while as X-Plane then configures the additional planes as AI planes.
 1. Re-enable LiveTraffic again.
