@@ -1,0 +1,570 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
+		253C87E320B8C3BA00887CDF /* xplanemp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 253C87E220B8C3BA00887CDF /* xplanemp.framework */; };
+		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
+		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
+		25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9FEF92164E199002BF424 /* libcurl.framework */; };
+		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
+		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
+		25C59458207A296500E52073 /* TextIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59456207A296500E52073 /* TextIO.cpp */; };
+		25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59459207A2B7500E52073 /* DataRefs.cpp */; };
+		25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59461207AB4D800E52073 /* LTAircraft.cpp */; };
+		25C59465207ABDC700E52073 /* LTMain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59464207ABDC700E52073 /* LTMain.cpp */; };
+		25D29ABA207D461000A88505 /* libpng.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29AB9207D461000A88505 /* libpng.framework */; };
+		25D29ABD207D48AA00A88505 /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29ABB207D48AA00A88505 /* XPLM.framework */; };
+		25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29ABC207D48AA00A88505 /* XPWidgets.framework */; };
+		25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */; };
+		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
+		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
+		D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
+		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		25067F69213F175D004A861F /* TFWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TFWidgets.h; sourceTree = "<group>"; };
+		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
+		251CE73121616AF600E9D910 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 10/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
+		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
+		253C87E220B8C3BA00887CDF /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = ../../Frameworks/xplanemp.framework; sourceTree = "<group>"; };
+		2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_zlib.txt; sourceTree = "<group>"; };
+		2540F51820D5AAF500DCCF45 /* OpenSky_ACProfile.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = OpenSky_ACProfile.html; path = Data/OpenSky/OpenSky_ACProfile.html; sourceTree = SOURCE_ROOT; };
+		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
+		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
+		2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = aircraftDatabase.csv; sourceTree = "<group>"; };
+		254EA46F2083E403008A312F /* parson.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = parson.c; sourceTree = "<group>"; };
+		254EA4712083E40F008A312F /* parson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
+		254EA4722083EA8B008A312F /* LICENSE_parson.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_parson.txt; sourceTree = "<group>"; };
+		2558579320950C6700816F65 /* CoordCalc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CoordCalc.cpp; sourceTree = "<group>"; };
+		255857952095155600816F65 /* CoordCalc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordCalc.h; sourceTree = "<group>"; };
+		2558579A2095B86200816F65 /* adsbexchange32001 3x.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "adsbexchange32001 3x.json"; sourceTree = "<group>"; };
+		2558579B2095B86200816F65 /* adsbexchange32001_1x_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = adsbexchange32001_1x_pretty.json; sourceTree = "<group>"; };
+		2558579C2095B86200816F65 /* ADSBExchange_20180402_1955_UTC.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange_20180402_1955_UTC.json; sourceTree = "<group>"; };
+		2558579D2095B86200816F65 /* adsbexchange32001 1x.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "adsbexchange32001 1x.json"; sourceTree = "<group>"; };
+		2558579E2095B86200816F65 /* OpenSky_20180420_1955_UTC.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_20180420_1955_UTC.json; sourceTree = "<group>"; };
+		255857A32095BBB500816F65 /* 2018-04-27-1021Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1021Z.json"; sourceTree = "<group>"; };
+		255857A42095BBB500816F65 /* 2018-04-27-1020Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1020Z.json"; sourceTree = "<group>"; };
+		255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1022Z.json"; sourceTree = "<group>"; };
+		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "/Users/birger/Applications/X-Plane 10/Resources/plugins/DataRefs.txt"; sourceTree = "<absolute>"; };
+		255F35AF2097C0B50080B78E /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "/Users/birger/Applications/X-Plane 10/Log.txt"; sourceTree = "<absolute>"; };
+		255F89EF21695172003053F6 /* Doc8643.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Doc8643.txt; path = "../../../Applications/X-Plane 10/Resources/plugins/LiveTraffic/Resources/Doc8643.txt"; sourceTree = "<group>"; };
+		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
+		2579843920D3201200E331E4 /* OpenSky_504_GatewayTimeout.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = OpenSky_504_GatewayTimeout.html; sourceTree = "<group>"; };
+		2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Log_HoursOfExecution_For_Analysis.txt; sourceTree = "<group>"; wrapsLines = 0; };
+		25A9FEF92164E199002BF424 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = ../../Frameworks/libcurl.framework; sourceTree = "<group>"; };
+		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
+		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
+		25AE00DA2138882E00908E65 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
+		25BFBB9120DEE1EF00D52B6C /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
+		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
+		25C59454207A24D700E52073 /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
+		25C59455207A257100E52073 /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
+		25C59456207A296500E52073 /* TextIO.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TextIO.cpp; sourceTree = "<group>"; };
+		25C59457207A296500E52073 /* TextIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TextIO.h; sourceTree = "<group>"; };
+		25C59459207A2B7500E52073 /* DataRefs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DataRefs.cpp; sourceTree = "<group>"; };
+		25C5945B207A2C1E00E52073 /* DataRefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DataRefs.h; sourceTree = "<group>"; };
+		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
+		25C59463207AB5CB00E52073 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
+		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
+		25D29AB9207D461000A88505 /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = "../../../Library/Developer/Xcode/DerivedData/libpng-burrsbgfggtgpadusswcdzbqxyzb/Build/Products/Release/libpng.framework"; sourceTree = "<group>"; };
+		25D29ABB207D48AA00A88505 /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPLM.framework; path = ../../Frameworks/XPLM.framework; sourceTree = "<group>"; };
+		25D29ABC207D48AA00A88505 /* XPWidgets.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPWidgets.framework; path = ../../Frameworks/XPWidgets.framework; sourceTree = "<group>"; };
+		25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BADA_Aircraft_Performance_Summary_Tables.pdf; sourceTree = "<group>"; };
+		25D6542A210C630800E65D77 /* Calc.xlsx */ = {isa = PBXFileReference; lastKnownFileType = file; path = Calc.xlsx; sourceTree = "<group>"; };
+		25D6542B210C631B00E65D77 /* Deceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Deceleration.psd; sourceTree = "<group>"; };
+		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
+		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
+		25E9C2B0207D5BB000D3C642 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; wrapsLines = 0; };
+		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
+		25FB44502128B7EF00402733 /* Flightradar 24.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Flightradar 24.txt"; sourceTree = "<group>"; };
+		25FB44532128B94F00402733 /* feed_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = feed_pretty.json; sourceTree = "<group>"; };
+		25FB44542128B94F00402733 /* clickhandler_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = clickhandler_pretty.json; sourceTree = "<group>"; };
+		25FB44552128B94F00402733 /* clickhandler_original.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = clickhandler_original.json; sourceTree = "<group>"; wrapsLines = 0; };
+		25FB44562128B94F00402733 /* feed_original.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = feed_original.json; sourceTree = "<group>"; };
+		25FB445E2128C29F00402733 /* feed_list.xlsx */ = {isa = PBXFileReference; lastKnownFileType = file; path = feed_list.xlsx; sourceTree = "<group>"; };
+		D607B19909A556E400699BC3 /* mac.xpl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mac.xpl; sourceTree = BUILT_PRODUCTS_DIR; };
+		D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTraffic.cpp; sourceTree = "<group>"; };
+		D6A7BDA916A1DEA200D1426A /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D607B19709A556E400699BC3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */,
+				D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */,
+				25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */,
+				25D29ABA207D461000A88505 /* libpng.framework in Frameworks */,
+				25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */,
+				25D29ABD207D48AA00A88505 /* XPLM.framework in Frameworks */,
+				25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */,
+				253C87E320B8C3BA00887CDF /* xplanemp.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2540F51720D5AAD900DCCF45 /* OpenSky */ = {
+			isa = PBXGroup;
+			children = (
+				2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */,
+				2540F51A20D5B10C00DCCF45 /* OpenSky API.js */,
+				2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */,
+				2558579E2095B86200816F65 /* OpenSky_20180420_1955_UTC.json */,
+				2579843920D3201200E331E4 /* OpenSky_504_GatewayTimeout.html */,
+				2540F51820D5AAF500DCCF45 /* OpenSky_ACProfile.html */,
+			);
+			path = OpenSky;
+			sourceTree = "<group>";
+		};
+		254EA46D20834D5E008A312F /* docs */ = {
+			isa = PBXGroup;
+			children = (
+				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
+				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
+				25D6542B210C631B00E65D77 /* Deceleration.psd */,
+				25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */,
+				25D6542A210C630800E65D77 /* Calc.xlsx */,
+				25F5CBAA20813880004C232C /* Notes.txt */,
+				254EA4722083EA8B008A312F /* LICENSE_parson.txt */,
+				2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */,
+			);
+			path = docs;
+			sourceTree = "<group>";
+		};
+		255857972095B74300816F65 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				25FB444F2128B7B800402733 /* Flightradar24 */,
+				2540F51720D5AAD900DCCF45 /* OpenSky */,
+				2558579F2095BB6B00816F65 /* ADSB */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		255857992095B78300816F65 /* Src */ = {
+			isa = PBXGroup;
+			children = (
+				D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */,
+				25C59464207ABDC700E52073 /* LTMain.cpp */,
+				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
+				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
+				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
+				2558579320950C6700816F65 /* CoordCalc.cpp */,
+				25C59459207A2B7500E52073 /* DataRefs.cpp */,
+				25C59456207A296500E52073 /* TextIO.cpp */,
+				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
+				254EA46F2083E403008A312F /* parson.c */,
+				25067F6A213F17FE004A861F /* TFWidgets.cpp */,
+			);
+			path = Src;
+			sourceTree = "<group>";
+		};
+		2558579F2095BB6B00816F65 /* ADSB */ = {
+			isa = PBXGroup;
+			children = (
+				255857A22095BB9500816F65 /* Historical */,
+				255857A02095BB7A00816F65 /* REST */,
+				255857A12095BB8800816F65 /* TCP Feed */,
+			);
+			path = ADSB;
+			sourceTree = "<group>";
+		};
+		255857A02095BB7A00816F65 /* REST */ = {
+			isa = PBXGroup;
+			children = (
+				2524805C208932D200E4D419 /* ADSBExchange.json */,
+				2558579C2095B86200816F65 /* ADSBExchange_20180402_1955_UTC.json */,
+			);
+			path = REST;
+			sourceTree = "<group>";
+		};
+		255857A12095BB8800816F65 /* TCP Feed */ = {
+			isa = PBXGroup;
+			children = (
+				2558579D2095B86200816F65 /* adsbexchange32001 1x.json */,
+				2558579A2095B86200816F65 /* adsbexchange32001 3x.json */,
+				2558579B2095B86200816F65 /* adsbexchange32001_1x_pretty.json */,
+			);
+			path = "TCP Feed";
+			sourceTree = "<group>";
+		};
+		255857A22095BB9500816F65 /* Historical */ = {
+			isa = PBXGroup;
+			children = (
+				255857A42095BBB500816F65 /* 2018-04-27-1020Z.json */,
+				255857A32095BBB500816F65 /* 2018-04-27-1021Z.json */,
+				255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */,
+			);
+			path = Historical;
+			sourceTree = "<group>";
+		};
+		2577B6A0216A9397004B432D /* Cfg */ = {
+			isa = PBXGroup;
+			children = (
+				2577B6A1216A93D1004B432D /* FlightModels.prf */,
+			);
+			path = Cfg;
+			sourceTree = "<group>";
+		};
+		25A3889B209884B50015266E /* References */ = {
+			isa = PBXGroup;
+			children = (
+				255F89EF21695172003053F6 /* Doc8643.txt */,
+				251CE73121616AF600E9D910 /* LiveTraffic.prf */,
+				255F35AE2097C0730080B78E /* DataRefs.txt */,
+				255F35AF2097C0B50080B78E /* Log.txt */,
+			);
+			name = References;
+			sourceTree = "<group>";
+		};
+		25C59453207A249E00E52073 /* Include */ = {
+			isa = PBXGroup;
+			children = (
+				25C59454207A24D700E52073 /* Constants.h */,
+				25C59455207A257100E52073 /* LiveTraffic.h */,
+				25C59463207AB5CB00E52073 /* LTAircraft.h */,
+				25E9C2B0207D5BB000D3C642 /* LTFlightData.h */,
+				25BFBB9120DEE1EF00D52B6C /* LTChannel.h */,
+				255857952095155600816F65 /* CoordCalc.h */,
+				25C5945B207A2C1E00E52073 /* DataRefs.h */,
+				25C59457207A296500E52073 /* TextIO.h */,
+				254EA4712083E40F008A312F /* parson.h */,
+				25AE00DA2138882E00908E65 /* SettingsUI.h */,
+				25067F69213F175D004A861F /* TFWidgets.h */,
+			);
+			path = Include;
+			sourceTree = "<group>";
+		};
+		25FB444F2128B7B800402733 /* Flightradar24 */ = {
+			isa = PBXGroup;
+			children = (
+				25FB44552128B94F00402733 /* clickhandler_original.json */,
+				25FB44542128B94F00402733 /* clickhandler_pretty.json */,
+				25FB44562128B94F00402733 /* feed_original.json */,
+				25FB44532128B94F00402733 /* feed_pretty.json */,
+				25FB445E2128C29F00402733 /* feed_list.xlsx */,
+				25FB44502128B7EF00402733 /* Flightradar 24.txt */,
+			);
+			path = Flightradar24;
+			sourceTree = "<group>";
+		};
+		D607B15F09A5563000699BC3 = {
+			isa = PBXGroup;
+			children = (
+				2577B6A0216A9397004B432D /* Cfg */,
+				25A3889B209884B50015266E /* References */,
+				25C59453207A249E00E52073 /* Include */,
+				255857992095B78300816F65 /* Src */,
+				254EA46D20834D5E008A312F /* docs */,
+				255857972095B74300816F65 /* Data */,
+				D6A7BDAD16A1DEA700D1426A /* Frameworks */,
+				D607B19A09A556E400699BC3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D607B19A09A556E400699BC3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D607B19909A556E400699BC3 /* mac.xpl */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */,
+				25A9FEF92164E199002BF424 /* libcurl.framework */,
+				253C87E220B8C3BA00887CDF /* xplanemp.framework */,
+				25D29ABB207D48AA00A88505 /* XPLM.framework */,
+				25D29ABC207D48AA00A88505 /* XPWidgets.framework */,
+				25D29AB9207D461000A88505 /* libpng.framework */,
+				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
+				D6A7BDA916A1DEA200D1426A /* OpenGL.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D607B19809A556E400699BC3 /* mac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D607B19B09A556E400699BC3 /* Build configuration list for PBXNativeTarget "mac" */;
+			buildPhases = (
+				D607B19609A556E400699BC3 /* Sources */,
+				D607B19709A556E400699BC3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = mac;
+			productName = StarterPlugin;
+			productReference = D607B19909A556E400699BC3 /* mac.xpl */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D607B16109A5563100699BC3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1000;
+			};
+			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
+			mainGroup = D607B15F09A5563000699BC3;
+			productRefGroup = D607B19A09A556E400699BC3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D607B19809A556E400699BC3 /* mac */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D607B19609A556E400699BC3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2558579420950C6700816F65 /* CoordCalc.cpp in Sources */,
+				25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */,
+				25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */,
+				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
+				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
+				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
+				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
+				254EA4702083E403008A312F /* parson.c in Sources */,
+				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
+				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
+				25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		D607B16309A5563100699BC3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				EXECUTABLE_EXTENSION = xpl;
+				FRAMEWORK_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"APL=1",
+					"IBM=0",
+					"LIN=0",
+					"XPLM200=1",
+					"XPLM210=1",
+					"__MACH__=1",
+					"XUTILS_EXCLUDE_MAC_CRAP=1",
+					"INIT_LOG_LEVEL=logDEBUG",
+					"DEBUG=1",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
+				GCC_VERSION = "";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(XPSDK_ROOT)/CHeaders/Widgets",
+					"$(XPSDK_ROOT)/CHeaders/XPLM",
+					"$(HEADER_SEARCH_PATHS)",
+				);
+				MACH_O_TYPE = mh_bundle;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
+				PRODUCT_NAME = "${TARGET_NAME}";
+				SDKROOT = macosx;
+				XPSDK_ROOT = /Users/birger/Programming/XPlane/SDK;
+			};
+			name = Debug;
+		};
+		D607B16409A5563100699BC3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				EXECUTABLE_EXTENSION = xpl;
+				FRAMEWORK_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"APL=1",
+					"IBM=0",
+					"LIN=0",
+					"XPLM200=1",
+					"XPLM210=1",
+					"__MACH__=1",
+					"XUTILS_EXCLUDE_MAC_CRAP=1",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
+				GCC_VERSION = "";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(XPSDK_ROOT)/CHeaders/Widgets",
+					"$(XPSDK_ROOT)/CHeaders/XPLM",
+					"$(HEADER_SEARCH_PATHS)",
+				);
+				MACH_O_TYPE = mh_bundle;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
+				PRODUCT_NAME = "${TARGET_NAME}";
+				SDKROOT = macosx;
+				XPSDK_ROOT = /Users/birger/Programming/XPlane/SDK;
+			};
+			name = Release;
+		};
+		D607B19C09A556E400699BC3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				OTHER_LDFLAGS = (
+					"$(OTHER_LDFLAGS)",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginStart",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginEnable",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginReceiveMessage",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginDisable",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginStop",
+				);
+				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
+				PRODUCT_NAME = mac;
+				VALID_ARCHS = x86_64;
+			};
+			name = Debug;
+		};
+		D607B19D09A556E400699BC3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				DEVELOPMENT_TEAM = W5UR4ZV2BP;
+				OTHER_LDFLAGS = (
+					"$(OTHER_LDFLAGS)",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginStart",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginEnable",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginReceiveMessage",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginDisable",
+					"-Wl,-exported_symbol",
+					"-Wl,_XPluginStop",
+				);
+				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
+				PRODUCT_NAME = mac;
+				VALID_ARCHS = x86_64;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D607B16309A5563100699BC3 /* Debug */,
+				D607B16409A5563100699BC3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D607B19B09A556E400699BC3 /* Build configuration list for PBXNativeTarget "mac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D607B19C09A556E400699BC3 /* Debug */,
+				D607B19D09A556E400699BC3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D607B16109A5563100699BC3 /* Project object */;
+}

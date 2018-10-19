@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "LTFlightData::AddNewPos(positionTy const&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "p">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::Positions2String() const:LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "dynData.rcvr">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "Jasmine::next(jsonToken&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LTSetSimDateTime(void*, int):DataRefs.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "FlightradarConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::AircraftMaintenance(double):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::CalcFlightModel():LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "gear">
+            </PersistentString>
+            <PersistentString
+               value = "this-&gt;speed">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::CalcSpeed(positionTy const&amp;, vectorTy const&amp;):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "draw_objects_for_mode(one_obj*, int):XPMPMultiplayerObj8.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "s_cur_plane">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "CSL_DrawObject(XPMPPlane_t*, float, double, double, double, double, double, double, int, int, xpmp_LightStatus, XPLMPlaneDrawState_t*):XPMPMultiplayerCSL.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeHistorical::FetchAllFlightData(positionTy const&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "i">
+            </PersistentString>
+            <PersistentString
+               value = "zuluLastRead">
+            </PersistentString>
+            <PersistentString
+               value = "until">
+            </PersistentString>
+            <PersistentString
+               value = "now">
+            </PersistentString>
+            <PersistentString
+               value = "lnBuf">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeHistorical::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "&amp;selVal.second.ln[800]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::TryDeriveGrndStatus(positionTy&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::LTAircraft(char const*, char const*, char const*, char const*):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "(XPMPPlanePtr)mPlane">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::DataRefs(int):DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "tStartThisYear">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::GetZuluTimeDiff():DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "l">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LTGetDebugAcFilter(void*, void*, int, int):DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "(char*)outValue">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "netData">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "NextCycle(int):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightDataConnection::ReceiveData(char const*, unsigned long, unsigned long, void*):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "me.netData+me.netDataPos-10">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "fm_processModelLine(char const*, int, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;&amp;, LTAircraft::FlightModel&amp;):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "fm">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LoadConfigFile()::$_0::operator()(DataRefs::dataRefDefinitionT const&amp;) const:DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "sDataRef">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::GetSimTime():DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "tStartThisYear">
+            </PersistentString>
+            <PersistentString
+               value = "tStartPrevYear">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "Doc8643::ReadDoc8643File():DataRefs.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "AccelParam::getRatio(double) const:LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightDataRemoveOutdatedAc():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTSettingsUI::Enable():SettingsUI.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "widgetIds[1]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::YProbe():LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "terrainAlt">
+            </PersistentString>
+            <PersistentString
+               value = "pos">
+            </PersistentString>
+            <PersistentString
+               value = "fd.planePosDeque">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "OpenSkyAcMasterdata::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "&amp;ln[0]+400">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "obj_schedule_one_aircraft(CSLPlane_t*, double, double, double, double, double, double, int, xpmp_LightStatus, XPLMPlaneDrawState_t*):XPMPMultiplayerObj8.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::LTAircraft(LTFlightData&amp;):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "AccelParam::AccelParam(double, double, double, double):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "positionTy::operator+=(vectorTy const&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::AddNewPos(positionTy&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "pos">
+            </PersistentString>
+            <PersistentString
+               value = "posDeque">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTSettingsUI::Show(bool):SettingsUI.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "widgetIds[0]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LTGetInt(void*):DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "mapFd">
+            </PersistentString>
+            <PersistentString
+               value = "dataRefs">
+            </PersistentString>
+            <PersistentString
+               value = "sizeof(bool)">
+            </PersistentString>
+            <PersistentString
+               value = "(int*)p">
+            </PersistentString>
+            <PersistentString
+               value = "RenderMap">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "positionTy::deg2rad() const:CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "boundingBoxTy::boundingBoxTy(positionTy const&amp;, double, double):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "std::__1::valarray&lt;double&gt;::valarray(std::__1::valarray&lt;double&gt; const&amp;):valarray">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::TryFetchNewPos(std::__1::deque&lt;positionTy, std::__1::allocator&lt;positionTy&gt; &gt;&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t*):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "gear">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightDataSelectAc():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "MovingParam::get():LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "XPMPDefaultPlaneRenderer(int):XPMPPlaneRenderer.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "cull">
+            </PersistentString>
+            <PersistentString
+               value = "tcas">
+            </PersistentString>
+            <PersistentString
+               value = "iter-&gt;second">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "positionTy::deltaPos(vectorTy const&amp;) const:CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::TryGetSafeCopy(LTFlightData::FDDynamicData&amp;) const:LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeConnection::FetchAllAircrafts(positionTy const&amp;, LTFlightDataMap&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::GetLocalDateDays():DataRefs.h">
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeHistorical::FetchAllData(positionTy const&amp;):LTChannel.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::CalcNextPosMain():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTOnlineChannel::FetchAllData(positionTy const&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "AccelParam::StartSpeedControl(double, double, double, double, double):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "_startTime">
+            </PersistentString>
+            <PersistentString
+               value = "_deltaDist">
+            </PersistentString>
+            <PersistentString
+               value = "_targetTime">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "CoordDistance(positionTy const&amp;, positionTy const&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::CalcNextPos(double):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "pAc">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::~LTAircraft():LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "positionListFindBefore(std::__1::list&lt;positionTy, std::__1::allocator&lt;positionTy&gt; &gt; const&amp;, double):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "CoordPlusVector(positionTy const&amp;, vectorTy const&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightDataCreateNewAc():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "positionTy::rad2deg():CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::FlightModel::FindFlightModel(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::FDStaticData::operator|=(LTFlightData::FDStaticData const&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "positionTy::operator|=(positionTy const&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeHistorical::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ln">
+            </PersistentString>
+            <PersistentString
+               value = "transpIcao">
+            </PersistentString>
+            <PersistentString
+               value = "listFd">
+            </PersistentString>
+            <PersistentString
+               value = "&amp;ln[700]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "CreateMsgWindow(float, char const*, ...):TextIO.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTSettingsUI::HandleMessage(int, long, long):SettingsUI.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "widgetIds[0]">
+            </PersistentString>
+            <PersistentString
+               value = "(XPMouseState_t*)inParam1">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>

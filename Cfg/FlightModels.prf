@@ -1,0 +1,210 @@
+LiveTraffic 1.0
+
+# LiveTraffic FlightModels configuration file
+
+# The file is divided into [sections]. First there are an arbitrary number
+# of sections defining flight models.
+# The last section has the defined name [Map] and maps these flight models
+# with actual aircraft types.
+
+[MediumJets]
+# These values are also the hard-coded defaults in case
+# the entire config file went missing.
+GEAR_DURATION         10    # [s] time for gear up/down
+FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            3    # [s] to rotate before lift off
+VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
+VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
+SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE             25    # [ft] height AGL to start flare
+MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLAPS_UP_SPEED       180    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED     200    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX             18    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         4    # [°] to add if flaps extended
+PITCH_FLARE           10    # [°] pitch during flare
+PITCH_RATE             5    # [°/s] pitch rate of change
+
+[HugeJets]
+GEAR_DURATION         10    # [s] time for gear up/down
+FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            5    # [s] to rotate before lift off
+VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
+VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available
+SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE             30    # [ft] height AGL to start flare
+MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLAPS_UP_SPEED       180    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED     200    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX             18    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         4    # [°] to add if flaps extended
+PITCH_FLARE           10    # [°] pitch during flare
+PITCH_RATE             5    # [°/s] pitch rate of change
+
+[MediumProps]
+GEAR_DURATION         10    # [s] time for gear up/down
+FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            3    # [s] to rotate before lift off
+VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
+VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
+SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE             25    # [ft] height AGL to start flare
+MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX             18    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         4    # [°] to add if flaps extended
+PITCH_FLARE           10    # [°] pitch during flare
+PITCH_RATE             5    # [°/s] pitch rate of change
+
+[BizJet]
+GEAR_DURATION         10    # [s] time for gear up/down
+FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            3    # [s] to rotate before lift off
+VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
+VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
+SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE             25    # [ft] height AGL to start flare
+MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX             18    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         4    # [°] to add if flaps extended
+PITCH_FLARE           10    # [°] pitch during flare
+PITCH_RATE             5    # [°/s] pitch rate of change
+
+[GA]
+GEAR_DURATION         10    # [s] time for gear up/down
+FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            2    # [s] to rotate before lift off
+VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
+VSI_INIT_CLIMB       500    # [ft/min] assumed vsi if take-off-vector not available
+SPEED_INIT_CLIMB      75    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN       1000    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE             10    # [ft] height AGL to start flare
+MAX_TAXI_SPEED        25    # [kt] below that: taxi, above that: take-off/roll-out
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLAPS_UP_SPEED        90    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED     100    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT       2000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX             12    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         2    # [°] to add if flaps extended
+PITCH_FLARE            5    # [°] pitch during flare
+PITCH_RATE             5    # [°/s] pitch rate of change
+
+[LightAC]
+GEAR_DURATION         10    # [s] time for gear up/down
+FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            2    # [s] to rotate before lift off
+VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
+VSI_INIT_CLIMB       400    # [ft/min] assumed vsi if take-off-vector not available
+SPEED_INIT_CLIMB      60    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN       1000    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE             10    # [ft] height AGL to start flare
+MAX_TAXI_SPEED        25    # [kt] below that: taxi, above that: take-off/roll-out
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLAPS_UP_SPEED        80    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED      90    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT       2000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX             12    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         2    # [°] to add if flaps extended
+PITCH_FLARE            5    # [°] pitch during flare
+PITCH_RATE             5    # [°/s] pitch rate of change
+
+[Map]
+# The Map section matches flight models (defined previously,
+# so [Map] has to be last) with aircraft types.
+#
+# First word is the name of the flight model.
+#
+# The remainder of the line is considered a regular expression supposed to
+# match an aircraft type string made up of:
+#     WTC;Classification;Type Designator;Model;Manufacturer
+# with 'Classification' being a combination of Description, Engine Type,
+# Engine Count in a 3-letter/digit code.
+#
+# Examples: Airbus A380, Boing 737-200, Dash 8, Beechcraft Baron 58,
+# Cessna C172 Skyhawk, and the special designator entry for gliders
+# respectively look like this:
+#
+#  H;LJ4;A388;A-380-800;AIRBUS
+#  M;LJ2;B732;737-200;BOEING
+#  M;LT2;DH8A;CT-142 Dash 8;DE HAVILLAND CANADA
+#  L;LP2;BE58;58 Baron;BEECH
+#  L;LP1;C172;172 Skyhawk;CESSNA
+#  -;-;GLID;Glider;(ANY MANUFACTURER)
+#
+# See https://www.icao.int/publications/doc8643 for details and all
+# registered values.
+# LiveTraffic takes the aircraft types from the Doc8643.txt file.
+#
+# The idea is to define a flight model which matches a wide range of aircrafts,
+# like 'huge jets', 'medium jets', 'regional commuters', 'general aviation'.
+#
+# Then for a given aircraft as per live flight data LiveTraffic has to find a
+# matching model. And it does so by computing the above aircraft type string
+# for the given aircraft and then walk from top to bottom through this list
+# and take the first model whose pattern matches the computed type string.
+#
+# It is possible, allowed, and propably helpful to list a
+# flight model name several times at different positions in the list
+# with different patterns.
+HugeJets       ^H;L\dJ
+HugeJets       ^M;L4J
+MediumJets     ^M;L\dJ
+MediumProps    ^M;L\dT
+BizJet         ^L;L\dJ
+GA             ^L;L\dP
+LightAC        ^-
+
+# This last line matches anything and serves as a default:
+
+MediumJets     .*
