@@ -10,7 +10,7 @@ I spent an awful lot of time dealing with the inaccuracies of the data sources, 
 LiveTraffic relies mostly on available live flight data. This data
 - can and will be inaccurate,
 - never includes all planes in the air,
-- often misses moving planes on the ground as ADS-B receiver coverage is more diificult the lower a plane flies
+- often misses moving planes on the ground as ADS-B receiver coverage is more difficult the lower a plane flies
 - contains by design only positions for every few seconds but no complete paths or vectors.
 
 This inevitably leads to planes

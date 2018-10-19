@@ -61,7 +61,7 @@
 		25A9FEF92164E199002BF424 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = ../../Frameworks/libcurl.framework; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2E217A88E00035DC20 /* index.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = index.md; sourceTree = "<group>"; wrapsLines = 1; };
-		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
 		25AE00DA2138882E00908E65 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
 		25BFBB9120DEE1EF00D52B6C /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
