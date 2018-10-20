@@ -255,17 +255,31 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
 }
 
 //MARK: Inform DataRefEditor about our datarefs
-// (see http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor )
+// (see http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
+//      https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp )
+
+// DataRef editors, which we inform about our dataRefs
 #define MSG_ADD_DATAREF 0x01000000
+const char* DATA_REF_EDITORS[] = {
+    "xplanesdk.examples.DataRefEditor",
+    "com.leecbaker.datareftool"
+};
+
+
 float LoopCBInformDRE (float, float, int, void*)
 {
-    XPLMPluginID PluginID = XPLMFindPluginBySignature("xplanesdk.examples.DataRefEditor");
-    if (PluginID == XPLM_NO_PLUGIN_ID)
-        return 0;                           // plugin not found, just return
-    
-    // send message regarding each dataRef we offer
-    for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
-        XPLMSendMessageToPlugin(PluginID, MSG_ADD_DATAREF, (void*)def.dataName.c_str());
+    // loop over all available data ref editor signatures
+    for (const char* szDREditor: DATA_REF_EDITORS) {
+        // find the plugin by signature
+        XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
+        if (PluginID != XPLM_NO_PLUGIN_ID) {
+            // send message regarding each dataRef we offer
+            for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
+                XPLMSendMessageToPlugin(PluginID,
+                                        MSG_ADD_DATAREF,
+                                        (void*)def.dataName.c_str());
+        }
+    }
     
     // don't want to be called again
     return 0;
