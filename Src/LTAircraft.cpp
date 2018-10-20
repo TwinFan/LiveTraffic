@@ -1340,6 +1340,9 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     }
     
     // *** take action based on flight phase (change) ***
+    
+    // must not be FPH_UNKNOWN any longer
+    LOG_ASSERT_FD(fd, phase != FPH_UNKNOWN);
 
 // entered (or positively skipped over) a phase
 #define ENTERED(ph) (bFPhPrev < ph && phase >= ph)
