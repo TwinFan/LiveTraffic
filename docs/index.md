@@ -61,15 +61,15 @@ Not yet available for download.
 Not yet available on [x-plane.org](https://forums.x-plane.org/index.php?/files/).
 
 ## License
-It's going to be freeware.
+[MIT License](https://github.com/TwinFan/LiveTraffic/blob/master/LICENSE), essentially freeware.
 
 ## Requirements
 - [X-Plane](https://www.x-plane.com), version 10 or 11
     - Configure 'other aircrafts' ([X-Plane 10](https://www.x-plane.com/manuals/desktop/10/#changingthenumberofotheraircraft), [X-Plane 11](https://x-plane.com/manuals/desktop/#changingthenumberofotheraircraft))
 - Operating system
     - So far only **developed and tested on Mac**.
-    - I'm willing to try a Windows version in the near future.
-    - I don't have time and resources for a Linux environment; but help appreciated once Mac version is published.
+    - I'm willing to try a **Windows** version in the near future. (Setting up this Githib repository is actually a step in this direction in order to synch developments on both platforms.)
+    - I don't have time and resources for a Linux environment; but help is appreciated once the Mac version is published. Most effort will likely be to set up and maintain config/build scripts. Mac and Windows versions are based on integrated XCode / Visual Studio build environments.
 - CSL packages with aircraft models
     - ["Bluebell" OBJ8 CSL packages](https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/) recommended including the *vertical offset files* (LiveTraffic includes a change to libxplanemp to process the VERT_OFFSET tag)
 
