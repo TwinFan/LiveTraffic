@@ -62,6 +62,7 @@
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		25AC7BFE217BD2D700A93265 /* LT_RefDat_Editors.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = LT_RefDat_Editors.png; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
 		25AE00DA2138882E00908E65 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
 		25BFBB9120DEE1EF00D52B6C /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
@@ -132,6 +133,7 @@
 		254EA46D20834D5E008A312F /* docs */ = {
 			isa = PBXGroup;
 			children = (
+				25AC7BFD217BD2D700A93265 /* pic */,
 				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
 				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
 				25D6542B210C631B00E65D77 /* Deceleration.psd */,
@@ -228,6 +230,14 @@
 				255F35AF2097C0B50080B78E /* Log.txt */,
 			);
 			name = References;
+			sourceTree = "<group>";
+		};
+		25AC7BFD217BD2D700A93265 /* pic */ = {
+			isa = PBXGroup;
+			children = (
+				25AC7BFE217BD2D700A93265 /* LT_RefDat_Editors.png */,
+			);
+			path = pic;
 			sourceTree = "<group>";
 		};
 		25C59453207A249E00E52073 /* Include */ = {
