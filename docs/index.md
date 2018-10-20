@@ -55,6 +55,17 @@ In X-Plane 10 I can confirm that the TCAS display *does* work in the standard Ci
 1. Disable LiveTraffic in the Plugin Admin. This takes a while as X-Plane then configures the additional planes as AI planes.
 1. Re-enable LiveTraffic again.
 
+### Data Refs
+LiveTraffic makes good use of [X-Plane's data ref feature](https://developer.x-plane.com/sdk/XPLMDataAccess/). Historically, this was just meant to ease my development life as I could use the [DataRefEditor plugin](https://developer.x-plane.com/tools/datarefeditor/) to change the configuration and read aircrafts' status. Thus, it became the backbone of the configuration object in LiveTraffic and remains available to the outside world.
+
+- `livetraffic/ac` includes information on one aircraft like position, heading, speed, flight phase... The aircraft is selected by writing the ICAO hex transponder code, converted to decimal, to `livetraffic/ac/key` or by writing an index number (1 through the number of currently displayed aircrafts) to the same `livetraffic/ac/key`.
+- `livetraffic/sim/date` and `livetraffic/sim/time` provide the current simulated date/time. LiveTraffic's date/time might differ from X-Plane's: You can always use live flight data even if you have set X-Plane to some other day of the year (then `livetraffic/sim` is current ime) or you can even *write* to these data refs and actively set X-Plane to the set date while using historical flight data for displaying traffic.
+- `livetraffic/cfg` includes most of the configuration options.
+- `livetraffic/channel` allows to enable/disable the various flight data channels.
+- `livetraffic/dbg` provides debugging options like filter the entire network traffic for one specific aircraft, providing additional log output on the selected aircraft or debugging libxplanemp's model matching.
+
+Nowadays, all configuration and channel enable/disable options are also available in a settings GUI accessible from the plugin's menu and saved into a configuration file. The settings GUI and the config file code essentially just read and write data refs. 
+
 ## Status
 Currently in final stages of development.
 Not yet available for download.
