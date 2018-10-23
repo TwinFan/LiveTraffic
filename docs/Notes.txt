@@ -1,70 +1,3 @@
-TODO / BUG
-=======
-
-
-
-moving constants to DataRef:
-replace with variables
-
-
-Add flight details (from/to/flight code) to dataRefs
-
-check online live data landings (they still look funny at times...)
-'to'-pos after touch-down might be on taxi way already with turned heading
-maybe that position is even reported slightly airborne
-maybe we need to be more radical in forcing to follow negative VSI to grnd...
-
-Sometimes we also see back-and-forth movement around touch down
-(could technically be because of inserted touch-down pos with ts < next pos but physical position beyond)
-
-We might need a logic to just remove an ill-looking pos from dequePos, like:
-Heading turns more than 90° but with next pos we would fly straight (<30°)
-VSI would switch between down/up, but with nex pos we would keep or level
-Look at this example: there is a position, which goes backward, and then we suddenly accelerate to 450+ knots:
-22:53.054 LiveTraffic DEBUG LTFlightData.cpp:667/AddNewPos: DEBUG POS DATA: a/c A7C849 SimTime: 1534968806.1 - 2018-08-22 20:13:26
-a/c A7C849 ppos: ( 40.790, -73.867)    54f GND_OFF     {211°,   7↕︎,   0↔︎} [1534968806.1] Y: -0f Phase: 61 Final
-posList:
-( 40.790, -73.867)    91f GND_OFF     {211°,   2↕︎,   0↔︎} [1534968795.0] <211°,     0m @   0kt, -202ft/m>
-( 40.790, -73.867)    -0f GND_ON      {212°,   7↕︎,   0↔︎} [1534968822.0]
-posDeque:
-( 40.788, -73.869)    -0f GND_ON      {211°,   2↕︎,   0↔︎} [1534968799.7] < 31°,   323m @  28kt,   -0ft/m>
-( 40.790, -73.867)    -0f GND_ON      {212°,   0↕︎,   0↔︎} [1534968822.0] <212°,  1846m @ 461kt,   51ft/m>
-( 40.776, -73.878)     7f GND_ON      {206°,   0↕︎,   0↔︎} [1534968829.8] <204°,   340m @  19kt,    0ft/m>
-( 40.773, -73.880)     7f GND_ON      {204°,   0↕︎,   0↔︎} [1534968865.4]
-
-
-
-Pitch calculation:  the simple linear way based on vsi is too rough
-                    need to add dependence on speed somehow
-                    must make sure that at cruising speed we fly with 2°
-
-
-Double-check on a/c creation...make sure we display the 50 _neareast_ a/c
-In busy airports like KLGA we hit the 50 limit easily...how do we ensure that we draw the a/cs closest to us?
-In AcMaintenance sort all FDs by bearing-distance
-from back to front ensure the last ones have no a/c (check out if DestroyAircraft can safely be called while FD remains)
-and the first x have/create a/c
-x = number of additional planes as per XPlane config (where to get that number from?)
-
-
-Identify Airbus vs Boing and GA models, and if only for light patterns
-
-DEBUG LOG: Write to separate file for new level of logDEBUG
-
-CURL: Can we set shorter timeout, like 2-3s?
-Sure...see setopt option CURLOPT_TIMEOUT
-We should probably make that a parameter, though
-
-change CoordCalc to planar calcs for performance reasons
-
-OpenSky: Can we use "aircraftDatabase.csv"?
-- read it
-- update it
-- Licencing?
-
-1. Enable Aircrafts, then disable plugin, reenable plugin, enable aircrafts
-nothing happens, probably because while disabling plugin we did not correctly disable display
-
 TEST DATA
 ===
 
@@ -92,29 +25,6 @@ much ground traffic     A4D65C=10.802.780 after landing
 
 MUST
 ===
-Additional channels:
-- Read TCP stream of ADSB data for Flight Data
-- Online Master Data: Use ADSB Exchange for fetching a/c master data
-- File-based Master Data: OpenSky provides a downloadable database: https://opensky-network.org/datasets/metadata/aircraftDatabase.csv
-
-
-Aircraft Selection
-- Raw selection some distance around,
-
-Flight Model / Ac Status
-- LTFlightData::CalcNextPos
--- calculate attitude values
--- identify curves
--- maybe even fly bezier curves (though no real a/c does that...)
-
-- Label configurable from various parameters
-
-- Light
--- in flight: landing lights below 10.000 ft
-
-Move Parameters (see Constants.h) to Config file
-
-
 Packaging: Verify that included frameworks are
 - built with full optimizations
 - stripped debug symbols
@@ -123,14 +33,6 @@ Packaging: Verify that included frameworks are
 
 LATER
 =====
-
-Ac Status Window
-Show a/c info in a self-designed window
-- Differ Heading from Track e.g. in strong cross wind conditions
-
-Read and use historic weather, maybe from sites like
-http://www.ogimet.com/metars.phtml.en
-http://www.ogimet.com/display_metars2.php?lang=en&lugar=EDDL&tipo=SA&ord=REV&nil=NO&fmt=txt&ano=2018&mes=04&day=27&hora=10&anof=2018&mesf=04&dayf=27&horaf=11&minf=0&send=send
 
 
 DONE
