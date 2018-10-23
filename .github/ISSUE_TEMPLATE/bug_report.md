@@ -5,7 +5,7 @@ about: Create a report to help LiveTraffic improve
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear and concise description of what the bug is: What's wrong?
 
 **To Reproduce**
 Steps to reproduce the behavior:
@@ -25,7 +25,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Technical Info:**
- - OS: [Max/Win/Linux]
+ - OS: [Mac/Win/Linux]
  - X-Plane version: 
  - LiveTraffic version:
 
