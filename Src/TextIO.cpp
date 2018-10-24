@@ -84,12 +84,15 @@ LTError(_szFile,_ln,_szFunc,_lvl)
 //MARK: custom X-Plane message Window - Globals
 
 // An opaque handle to the window we will create
-static XPLMWindowID    g_window = 0;
+XPLMWindowID    g_window = 0;
 
 // time until window is to be shown, will be destroyed after that
-static float fTimeDispWin = 0.0;                    // time when window to be destroyed
-static logLevelTy lvlDisp = logMSG;                 // level of msg (defines text color)
-static char aszMsgTxt[500] = "";                    // Message to be displayed
+struct dispTextTy {
+    float fTimeDisp;                        // until when to display this line?
+    logLevelTy lvlDisp;                     // level of msg (defines text color)
+    std::string text;                       // text of line
+};
+std::list<dispTextTy> listTexts;     // lines of text to be displayed
 
 float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log level
     {0, 0, 0},                  // 0
@@ -121,15 +124,35 @@ void    draw_msg(XPLMWindowID in_window_id, void * in_refcon)
     
     XPLMDrawTranslucentDarkBox(l, t, r, b);
     
-    b = WIN_WIDTH;                          // word wrap width
+    b = WIN_WIDTH;                          // word wrap width = window width
     
-    // draw text, take color based on msg level
-    XPLMDrawString(COL_LVL[lvlDisp], l, t - 20, aszMsgTxt, &b, xplmFont_Proportional);
+    // for each line of text to be displayed
+    t -= WIN_ROW_HEIGHT;                    // move down to text's baseline
+    for (auto iter = listTexts.cbegin();
+         iter != listTexts.cend();
+         t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
+    {
+        // still a valid entry?
+        if (iter->fTimeDisp > 0 &&
+            dataRefs.GetTotalRunningTimeSec() <= iter->fTimeDisp)
+        {
+            // draw text, take color based on msg level
+            XPLMDrawString(COL_LVL[iter->lvlDisp], l, t,
+                           const_cast<char*>(iter->text.c_str()),
+                           &b, xplmFont_Proportional);
+            // next element
+            iter++;
+        }
+        else {
+            // now outdated. Move on to next line, but remove this one
+            auto iterRemove = iter++;
+            listTexts.erase(iterRemove);
+        }
+    }
     
-    // time's up? -> remove the window, thus, the message
+    // No texts left? Remove window
     if ((g_window == in_window_id) &&
-        (fTimeDispWin > 0) &&           // if a time is set
-        (dataRefs.GetTotalRunningTimeSec() >= fTimeDispWin))
+        listTexts.empty())
     {
         DestroyWindow();
     }
@@ -154,6 +177,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     va_list args;
 
     // save the text in a static buffer queried by the drawing callback
+    char aszMsgTxt[500];
     va_start (args, szMsg);
     vsnprintf(aszMsgTxt,
               sizeof(aszMsgTxt),
@@ -161,14 +185,18 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
               args);
     va_end (args);
     
-    // (re)set the timer if a limit is given
-    fTimeDispWin = fTimeToDisplay ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0;
+    // define the text to display:
+    dispTextTy dispTxt = {
+        // set the timer if a limit is given
+        fTimeToDisplay ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
+        // log level to define the color
+        lvl,
+        // finally the text
+        aszMsgTxt
+    };
     
-    // save the level to be displayed (defines text color)
-    lvlDisp = lvl;
-    
-    // if the window still exists just return
-    if (g_window) return g_window;
+    // add to list of display texts
+    listTexts.emplace_back(std::move(dispTxt));
     
     // Otherwise: Create the message window
     XPLMCreateWindow_t params;
@@ -206,13 +234,20 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
 #endif
     
     // define a window in the top right corner,
-    // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide, WIN_HEIGHT points high
+    // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
+    // enough height for all lines of text
     params.top -= WIN_FROM_TOP;
     params.right -= WIN_FROM_RIGHT;
     params.left = params.right - WIN_WIDTH;
-    params.bottom = params.top - WIN_HEIGHT;
+    params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1));
     
-    g_window = XPLMCreateWindowEx(&params);
+    // if the window still exists just resize it
+    if (g_window)
+        XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
+    else
+        // otherwise create a new one
+        g_window = XPLMCreateWindowEx(&params);
+    
     if ( !g_window ) return NULL;
     
 #if defined(XPLM300)
@@ -223,7 +258,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     XPLMSetWindowTitle(window, LIVE_TRAFFIC);
 #endif
     
-    LOG_MSG(logDEBUG, DBG_WND_CREATED_UNTIL, fTimeDispWin, aszMsgTxt);
+    LOG_MSG(logDEBUG, DBG_WND_CREATED_UNTIL, dispTxt.fTimeDisp, aszMsgTxt);
     
     return g_window;
 }
@@ -235,9 +270,8 @@ void DestroyWindow()
     {
         XPLMDestroyWindow(g_window);
         g_window = NULL;
-        aszMsgTxt[0] = 0;
-        fTimeDispWin = 0.0;
-        LOG_MSG(logDEBUG,DBG_WND_DESTROYED);
+        listTexts.clear();
+//        LOG_MSG(logDEBUG,DBG_WND_DESTROYED);
    }
 }
 
