@@ -188,16 +188,6 @@ void LTChannel::SetEnable (bool bEnable)
 }
 
 //
-//MARK: LTFlightDataChannel
-//
-
-// define new distance of aircrafts to be considered around given position
-void LTFlightDataChannel::SetDistance ( double inDst )
-{
-    dst = inDst * M_per_KM;         // we calculate with meters later on
-}
-
-//
 //MARK: LTACMasterdata
 //
 
@@ -365,7 +355,7 @@ zuluLastRead(0)
 // put together the URL to fetch based on current view position
 std::string OpenSkyConnection::GetURL (const positionTy& pos)
 {
-    boundingBoxTy box (pos, dst);
+    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
     char url[128] = "";
     snprintf(url, sizeof(url),
              OPSKY_URL_ALL,
@@ -499,7 +489,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 // put together the URL to fetch based on current view position
 std::string FlightradarConnection::GetURL (const positionTy& pos)
 {
-    boundingBoxTy box (pos, dst);
+    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
     char url[255] = "";
     snprintf(url, sizeof(url),
              FR24_URL_FEED_BOUNDS,
@@ -665,7 +655,8 @@ bool FlightradarConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {
     char url[128] = "";
-    snprintf(url, sizeof(url), ADSBEX_URL_ALL, pos.lat(), pos.lon(), dst / M_per_KM);
+    snprintf(url, sizeof(url), ADSBEX_URL_ALL, pos.lat(), pos.lon(),
+             dataRefs.GetFdStdDistance());
     return std::string(url);
 }
 
@@ -800,11 +791,10 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 //MARK: ADS-B Exchange Historical Data
 //
 ADSBExchangeHistorical::ADSBExchangeHistorical (std::string base,
-                                                std::string fallback,
-                                                double distance) :
+                                                std::string fallback ) :
 LTChannel(DR_CHANNEL_ADSB_EXCHANGE_HISTORIC),
 LTFileChannel(),
-LTFlightDataChannel(distance)
+LTFlightDataChannel()
 {
     // determine full path (might be local to XP System Path)
     pathBase = LTCalcFullPath(base.c_str());
@@ -842,24 +832,23 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
     std::string lastCheckedPath;
     
     // the bounding box: only aircrafts in this box are considered
-    boundingBoxTy box (pos, dst);
+    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
     
     // simulated "now" in full minutes UTC
     time_t now = stripSecs(dataRefs.GetSimTime());
     
     // first-time read?
-    // then we start from one minute = one file before now
-    // to be sure to read a valid 'from' position
     if ( !zuluLastRead )
-        zuluLastRead = now - SEC_per_M;
+        zuluLastRead = now;
     else {
-        // make sure we don't read too much...for whatever reason
+        // make sure we don't read too much...
+        // if for whatever reason we haven't had time to read files in the past 5 minutes
         zuluLastRead = std::max(zuluLastRead,
                                 now - 5 * SEC_per_M);
     }
     
     // Loop over files until 1 minutes ahead of (current sim time + regular buffering)
-    for (time_t until = now + (FD_BUF_PERIOD + SEC_per_M);
+    for (time_t until = now + (dataRefs.GetFdBufPeriod() + SEC_per_M);
          zuluLastRead <= until;
          zuluLastRead += SEC_per_M)      // increase by one minute per iteration
     {
@@ -1567,7 +1556,7 @@ void LTFlightDataSelectAc ()
         {
             std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
             FDThreadSynchCV.wait_for(lk,
-                                     std::chrono::seconds(FD_REFRESH_INTVL),
+                                     std::chrono::seconds(dataRefs.GetFdRefreshIntvl()),
                                      []{return bFDMainStop;});
             lk.unlock();
         }
@@ -1668,12 +1657,12 @@ void LTFlightDataAcMaintenance()
         // did we see any aircraft yet?
         if ( mapFd.size() > 0 )
             // show messages for FD_BUF_PERIOD time
-            initTimeBufFilled = dataRefs.GetSimTime() + FD_BUF_PERIOD;
+            initTimeBufFilled = dataRefs.GetSimTime() + dataRefs.GetFdBufPeriod();
     }
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(2*FLIGHT_LOOP_INTVL, logMSG, MSG_BUF_FILL_COUNTDOWN,
+        CreateMsgWindow(FLIGHT_LOOP_INTVL - .05, logMSG, MSG_BUF_FILL_COUNTDOWN,
                         int(mapFd.size()),
                         numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));

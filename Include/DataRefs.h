@@ -221,6 +221,7 @@ public:
     DataRefs ( logLevelTy initLogLevel );               // Constructor doesn't do much
     bool Init();                                        // Init DataRefs, return "OK?"
     void Stop();                                        // unregister what's needed
+    
 protected:
     // call XPLMRegisterDataAccessor
     bool RegisterDataAccessors (dataRefDefinitionT aDefs[],
@@ -283,7 +284,13 @@ public:
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
-    
+    int GetMaxNumAc() const { return maxNumAc; }
+    int GetFdStdDistance() const { return fdStdDistance; }
+    int GetFdStdDistance_m() const { return fdStdDistance * M_per_KM; }
+    int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
+    int GetFdBufPeriod() const { return fdBufPeriod; }
+    int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
+
     // livetraffic/channel/...
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }

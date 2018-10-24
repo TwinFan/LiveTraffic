@@ -28,8 +28,8 @@
 #define Constants_h
 
 //MARK: Window Position
-#define WIN_WIDTH       400
-#define WIN_HEIGHT       50
+#define WIN_WIDTH       400         // window width
+#define WIN_ROW_HEIGHT   20         // height of line of text
 #define WIN_FROM_TOP     50
 #define WIN_FROM_RIGHT    0
 
@@ -53,11 +53,11 @@ const double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 const double FLIGHT_LOOP_INTVL  = 2.0;      // seconds (calling a/c maintenance periodically)
 const double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 
-const int MAX_NUM_AC =          50;         // how many aircrafts to create at most?
-const int FD_STD_DISTANCE =     25;         // kilometer to look for a/c around myself
-const int FD_REFRESH_INTVL =    20;         // how often to fetch new flight data
-const int FD_BUF_PERIOD =       90;         // seconds to buffer before simulating aircrafts
-const int AC_OUTDATED_INTVL =   50;         // a/c considered outdated if latest flight data more older than this compare to 'now'
+//const int MAX_NUM_AC =          50;         // how many aircrafts to create at most?
+//const int FD_STD_DISTANCE =     25;         // kilometer to look for a/c around myself
+//const int FD_REFRESH_INTVL =    20;         // how often to fetch new flight data
+//const int FD_BUF_PERIOD =       90;         // seconds to buffer before simulating aircrafts
+//const int AC_OUTDATED_INTVL =   50;         // a/c considered outdated if latest flight data more older than this compare to 'now'
 const double SIMILAR_TS_INTVL = 5;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 const double SIMILAR_POS_DIST = 5;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 const double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to terrain alt but grndStatus OFF then double-check using YProbe
@@ -221,7 +221,7 @@ const int FR24_OP_ICAO        = 18;              // airline/operator icao code
 
 //MARK: ADS-B Exchange
 #define ADSBEX_NAME             "ADSB Exchange Live Online"
-#define ADSBEX_URL_ALL          "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat=%f&lng=%f&fDstU=%f"
+#define ADSBEX_URL_ALL          "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat=%f&lng=%f&fDstU=%d"
 #define ADSBEX_URL_AC           "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?fIcoQ=%s"
 #define ADSBEX_AIRCRAFT_ARR     "acList"
 #define ADSBEX_TRANSP_ICAO      "Icao"          // Key data

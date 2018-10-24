@@ -620,7 +620,7 @@ double DataRefs::GetSimTime() const
             // system time in microseconds
             double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
             // divided by 1000000 to create seconds with fractionals, minus the buffering time
-            / 1000000.0 - FD_BUF_PERIOD;
+            / 1000000.0 - GetFdBufPeriod();
     }
     
 }

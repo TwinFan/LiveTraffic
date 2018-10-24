@@ -186,7 +186,7 @@ bool LTFlightData::outdated (double simTime) const
     
     // flown out of sight? -> outdated, remove
     if (pAc &&
-        pAc->GetVecView().dist > FD_STD_DISTANCE * M_per_KM)
+        pAc->GetVecView().dist > dataRefs.GetFdStdDistance_m())
         return true;
     
     // cover the special case of finishing landing and roll-out without live positions
@@ -202,7 +202,7 @@ bool LTFlightData::outdated (double simTime) const
     // invalid and
     // youngestTS longer ago than allowed?
     return posDeque.empty() &&
-    youngestTS + AC_OUTDATED_INTVL < (isnan(simTime) ? dataRefs.GetSimTime() : simTime);
+    youngestTS + dataRefs.GetAcOutdatedIntvl() < (isnan(simTime) ? dataRefs.GetSimTime() : simTime);
 }
 
 // produce a/c label
@@ -1102,9 +1102,9 @@ bool LTFlightData::CreateAircraft ( double simTime )
     if ( hasAc() ) return true;
     
     // short-cut if too many aircrafts created already
-    if ( dataRefs.GetNumAircrafts() >= MAX_NUM_AC ) {
+    if ( dataRefs.GetNumAircrafts() >= dataRefs.GetMaxNumAc() ) {
         if ( !bTooManyAcMsgShown )              // show warning once only per session
-            SHOW_MSG(logWARN,MSG_TOO_MANY_AC,(int)MAX_NUM_AC);
+            SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
         bTooManyAcMsgShown = true;
         return false;
     }

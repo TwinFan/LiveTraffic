@@ -89,13 +89,8 @@ typedef std::list<ptrLTChannelTy> listPtrLTChannelTy;
 //MARK: LTFlightDataChannel
 //
 class LTFlightDataChannel : virtual public LTChannel {
-protected:
-    double dst;                     // considered distance around location [m]
 public:
-    LTFlightDataChannel (double distance) :
-    dst(distance) {}
-    // input is in Kilometers
-    virtual void SetDistance ( double inDstKM );
+    LTFlightDataChannel () {}
 };
 
 //
@@ -163,10 +158,10 @@ public:
 class OpenSkyConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 public:
-    OpenSkyConnection (double distance=FD_STD_DISTANCE * M_per_KM) :
+    OpenSkyConnection () :
     LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE),
     LTOnlineChannel(),
-    LTFlightDataChannel(distance)  {}
+    LTFlightDataChannel()  {}
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
@@ -177,10 +172,10 @@ public:
 class FlightradarConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 public:
-    FlightradarConnection (double distance=FD_STD_DISTANCE * M_per_KM) :
+    FlightradarConnection () :
     LTChannel(DR_CHANNEL_FLIGHTRADAR24_ONLINE),
     LTOnlineChannel(),
-    LTFlightDataChannel(distance)  {}
+    LTFlightDataChannel()  {}
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
@@ -191,10 +186,10 @@ public:
 class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 public:
-    ADSBExchangeConnection (double distance=FD_STD_DISTANCE * M_per_KM) :
+    ADSBExchangeConnection () :
     LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
     LTOnlineChannel(),
-    LTFlightDataChannel(distance)  {}
+    LTFlightDataChannel()  {}
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
@@ -215,8 +210,7 @@ class ADSBExchangeHistorical : public LTFileChannel, LTFlightDataChannel
     
 public:
     ADSBExchangeHistorical (std::string base = ADSBEX_HIST_PATH,
-                            std::string fallback = ADSBEX_HIST_PATH_2,
-                            double distance =FD_STD_DISTANCE * M_per_KM );
+                            std::string fallback = ADSBEX_HIST_PATH_2);
     virtual bool FetchAllData (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
