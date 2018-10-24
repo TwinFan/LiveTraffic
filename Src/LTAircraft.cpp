@@ -1342,7 +1342,9 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     // *** take action based on flight phase (change) ***
     
     // must not be FPH_UNKNOWN any longer
-    LOG_ASSERT_FD(fd, phase != FPH_UNKNOWN);
+    if (phase == FPH_UNKNOWN)
+        // situation is most likely: stable flight below cruise altitude
+        phase = FPH_CRUISE;
 
 // entered (or positively skipped over) a phase
 #define ENTERED(ph) (bFPhPrev < ph && phase >= ph)
@@ -1376,6 +1378,8 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // Phase Take Off
     if (ENTERED(FPH_TAKE_OFF)) {
+        surfaces.lights.strbLights = 1;
+        surfaces.lights.landLights = 1;
         surfaces.thrust = 1.0;          // a bit late...but anyway ;)
         flaps.down();
     }
@@ -1401,6 +1405,8 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // cruise
     if (ENTERED(FPH_CRUISE)) {
+        // FIXME: Landing lights need to stay on til FL100 (Issue #10)
+        surfaces.lights.landLights = 0;
         surfaces.thrust = 0.6;
     }
 
@@ -1411,6 +1417,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // approach
     if (ENTERED(FPH_APPROACH)) {
+        surfaces.lights.landLights = 1;
         surfaces.thrust = 0.2;
         flaps.down();
     }
