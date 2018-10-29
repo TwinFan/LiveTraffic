@@ -172,6 +172,10 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_BTN_LOG_MODELMATCH,
     UI_ADVCD_CAP_MAX_NUM_AC,
     UI_ADVCD_INT_MAX_NUM_AC,
+    UI_ADVCD_CAP_MAX_FULL_NUM_AC,
+    UI_ADVCD_INT_MAX_FULL_NUM_AC,
+    UI_ADVCD_CAP_FULL_DISTANCE,
+    UI_ADVCD_INT_FULL_DISTANCE,
     UI_ADVCD_CAP_FD_STD_DISTANCE,
     UI_ADVCD_INT_FD_STD_DISTANCE,
     UI_ADVCD_CAP_FD_REFRESH_INTVL,
@@ -189,7 +193,7 @@ enum UI_WIDGET_IDX_T {
 // window will be centered shortly before presenting it
 TFWidgetCreate_t SETTINGS_UI[] =
 {
-    {   0,   0, 400, 300, 0, "LiveTraffic Settings", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
+    {   0,   0, 400, 330, 0, "LiveTraffic Settings", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
     // Buttons to select 'tabs'
     {  10,  30,  75,  10, 1, "Basics",               0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     {  85,  30,  75,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
@@ -217,19 +221,23 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 220,  30,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
     { 290,  30,  10,  10, 1, "Debug",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
     {  10,  50,  10,  10, 1, "Debug: Log a/c positions",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5,  70, 180,  10, 1, "Filter for transponder hex code",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 185,  70,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    {   5,  70, 215,  10, 1, "Filter for transponder hex code",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220,  70,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
     {  10,  90,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5, 110, 180,  10, 1, "Max number of aircrafts",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 185, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 130, 180,  10, 1, "Search distance [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 185, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 150, 180,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 185, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 170, 180,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 185, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 190, 180,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 185, 190,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 110, 215,  10, 1, "Max number of aircrafts",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 130, 215,  10, 1, "Max number of full a/c to draw",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 150, 215,  10, 1, "Max distance for drawing full a/c [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,2, 0,0, 0,0} },
+    {   5, 170, 215,  10, 1, "Search distance [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 190, 215,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 190,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 210, 215,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 210,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 230, 215,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 230,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
 
 
 };
@@ -315,6 +323,10 @@ void LTSettingsUI::Enable()
                                     DATA_REFS_LT[DR_DBG_MODEL_MATCHING]);
         intMaxNumAc.setId(widgetIds[UI_ADVCD_INT_MAX_NUM_AC],
                           DATA_REFS_LT[DR_CFG_MAX_NUM_AC]);
+        intMaxFullNumAc.setId(widgetIds[UI_ADVCD_INT_MAX_FULL_NUM_AC],
+                          DATA_REFS_LT[DR_CFG_MAX_FULL_NUM_AC]);
+        intFullDistance.setId(widgetIds[UI_ADVCD_INT_FULL_DISTANCE],
+                          DATA_REFS_LT[DR_CFG_FULL_DISTANCE]);
         intFdStdDistance.setId(widgetIds[UI_ADVCD_INT_FD_STD_DISTANCE],
                           DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE]);
         intFdRefreshIntvl.setId(widgetIds[UI_ADVCD_INT_FD_REFRESH_INTVL],

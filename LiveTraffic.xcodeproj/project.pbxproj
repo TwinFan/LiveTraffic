@@ -8,12 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
-		253C87E320B8C3BA00887CDF /* xplanemp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 253C87E220B8C3BA00887CDF /* xplanemp.framework */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
 		25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9FEF92164E199002BF424 /* libcurl.framework */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
+		25C0C8CD21866D540049F226 /* xplanemp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25C0C8CC21866D540049F226 /* xplanemp.framework */; };
 		25C59458207A296500E52073 /* TextIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59456207A296500E52073 /* TextIO.cpp */; };
 		25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59459207A2B7500E52073 /* DataRefs.cpp */; };
 		25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59461207AB4D800E52073 /* LTAircraft.cpp */; };
@@ -33,7 +33,6 @@
 		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
 		251CE73121616AF600E9D910 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 10/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
-		253C87E220B8C3BA00887CDF /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = ../../Frameworks/xplanemp.framework; sourceTree = "<group>"; };
 		2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_zlib.txt; sourceTree = "<group>"; };
 		2540F51820D5AAF500DCCF45 /* OpenSky_ACProfile.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = OpenSky_ACProfile.html; path = Data/OpenSky/OpenSky_ACProfile.html; sourceTree = SOURCE_ROOT; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
@@ -67,6 +66,7 @@
 		25AE00DA2138882E00908E65 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
 		25BFBB9120DEE1EF00D52B6C /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
 		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
+		25C0C8CC21866D540049F226 /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = ../../Frameworks/xplanemp.framework; sourceTree = "<group>"; };
 		25C59454207A24D700E52073 /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
 		25C59455207A257100E52073 /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
 		25C59456207A296500E52073 /* TextIO.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TextIO.cpp; sourceTree = "<group>"; };
@@ -110,7 +110,7 @@
 				25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */,
 				25D29ABD207D48AA00A88505 /* XPLM.framework in Frameworks */,
 				25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */,
-				253C87E320B8C3BA00887CDF /* xplanemp.framework in Frameworks */,
+				25C0C8CD21866D540049F226 /* xplanemp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,8 +299,8 @@
 			isa = PBXGroup;
 			children = (
 				25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */,
+				25C0C8CC21866D540049F226 /* xplanemp.framework */,
 				25A9FEF92164E199002BF424 /* libcurl.framework */,
-				253C87E220B8C3BA00887CDF /* xplanemp.framework */,
 				25D29ABB207D48AA00A88505 /* XPLM.framework */,
 				25D29ABC207D48AA00A88505 /* XPWidgets.framework */,
 				25D29AB9207D461000A88505 /* libpng.framework */,
@@ -437,6 +437,7 @@
 					"$(XPSDK_ROOT)/CHeaders/XPLM",
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
 				MACH_O_TYPE = mh_bundle;
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
@@ -501,6 +502,7 @@
 					"$(XPSDK_ROOT)/CHeaders/XPLM",
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
 				MACH_O_TYPE = mh_bundle;
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";

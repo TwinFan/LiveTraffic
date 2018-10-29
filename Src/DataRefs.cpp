@@ -208,6 +208,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/log_level",                   xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetLogLevel}, GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetUseHistData}, GET_VAR, true },
     {"livetraffic/cfg/max_num_ac",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/max_full_num_ac",             xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/full_distance",               xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
     {"livetraffic/cfg/fd_std_distance",             xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
     {"livetraffic/cfg/fd_refresh_intvl",            xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
     {"livetraffic/cfg/fd_buf_period",               xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
@@ -234,6 +236,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
+        case DR_CFG_MAX_FULL_NUM_AC:        return &maxFullNumAc;
+        case DR_CFG_FULL_DISTANCE:          return &fullDistance;
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
@@ -795,6 +799,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
     
     // any configuration value invalid?
     if (maxNumAc        < 5                 || maxNumAc         > 100   ||
+        maxFullNumAc    < 5                 || maxFullNumAc     > 100   ||
+        fullDistance    < 1                 || fullDistance     > 100   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||

@@ -62,7 +62,8 @@ protected:
     TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch;
     TFTextFieldWidget txtAdvcdFilter;
     
-    TFIntFieldDataRef intMaxNumAc, intFdStdDistance, intFdRefreshIntvl;
+    TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
+    TFIntFieldDataRef intFdStdDistance, intFdRefreshIntvl;
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
 
 public:

@@ -128,6 +128,8 @@ enum dataRefsLT {
     DR_CFG_LOG_LEVEL,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
+    DR_CFG_MAX_FULL_NUM_AC,
+    DR_CFG_FULL_DISTANCE,
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
@@ -204,6 +206,8 @@ protected:
     
     // generic config values
     int maxNumAc        = 50;           // how many aircrafts to create at most?
+    int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
+    int fullDistance    = 5;            // kilometer: Farther away a/c is drawn 'lights only'
     int fdStdDistance   = 25;           // kilometer to look for a/c around myself
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
@@ -285,6 +289,9 @@ public:
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
     int GetMaxNumAc() const { return maxNumAc; }
+    int GetMaxFullNumAc() const { return maxFullNumAc; }
+    int GetFullDistance_km() const { return fullDistance; }
+    double GetFullDistance_nm() const { return fullDistance * double(M_per_KM) / double(M_per_NM); }
     int GetFdStdDistance() const { return fdStdDistance; }
     int GetFdStdDistance_m() const { return fdStdDistance * M_per_KM; }
     int GetFdRefreshIntvl() const { return fdRefreshIntvl; }

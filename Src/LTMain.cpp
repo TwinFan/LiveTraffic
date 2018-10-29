@@ -222,11 +222,19 @@ int   MPIntPrefsFunc   (const char* section, const char* key, int   iDefault)
     if ( !strcmp(section,"debug") && !strcmp(key,"model_matching") )
     { return dataRefs.GetDebugModelMatching(); }
     
+    // How many full a/c to draw at max?
+    if ( !strcmp(section,"planes") && !strcmp(key,"max_full_count") )
+    { return dataRefs.GetMaxFullNumAc(); }
+    
     return iDefault;
 }
 
 float MPFloatPrefsFunc (const char* section, const char* key, float fDefault)
 {
+    // Max distance for drawing full a/c (as opposed to 'lights only')?
+    if ( !strcmp(section,"planes") && !strcmp(key,"full_distance") )
+    { return dataRefs.GetFullDistance_nm(); }
+
     return fDefault;
 }
 

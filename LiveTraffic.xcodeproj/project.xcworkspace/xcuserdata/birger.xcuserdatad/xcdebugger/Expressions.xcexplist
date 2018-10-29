@@ -253,10 +253,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -302,10 +302,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -340,10 +340,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -363,6 +363,14 @@
       </ContextState>
       <ContextState
          contextName = "positionListFindBefore(std::__1::list&lt;positionTy, std::__1::allocator&lt;positionTy&gt; &gt; const&amp;, double):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::CalcFlightModel(positionTy const&amp;, positionTy const&amp;):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "surfaces.lights">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
