@@ -90,7 +90,8 @@ const double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground
 #define WHITESPACE              " \t\f\v"
 #define CURL_USER_AGENT         "LiveTraffic/1.0"
 #define CSL_DEFAULT_ICAO        "A320"
-#define FM_MAP_SECTION          "[Map]"
+#define FM_MAP_SECTION          "Map"
+#define FM_PARENT_SEPARATOR     ":"
 
 //MARK: Menu Items
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
@@ -164,6 +165,7 @@ const int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, a
 #define ERR_FM_NOT_BEFORE_SEC   "Lines before first section ignored"
 #define ERR_FM_UNKNOWN_NAME     "Unknown parameter in '%s', line %d: %s"
 #define ERR_FM_UNKNOWN_SECTION  "Referring to unknown model section in '%s', line %d: %s"
+#define ERR_FM_UNKNOWN_PARENT   "Parent section missing in '%s', line %d: %s"
 #define ERR_FM_REGEX            "%s in '%s', line %d: %s"
 const int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while reading config file, then: dead
 

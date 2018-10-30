@@ -33,86 +33,33 @@ PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITC
 PITCH_FLAP_ADD         4    # [°] to add if flaps extended
 PITCH_FLARE           10    # [°] pitch during flare
 PITCH_RATE             5    # [°/s] pitch rate of change
+LIGHT_PATTERN          0    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
+LIGHT_LL_ALT      100000    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
 
-[HugeJets]
-GEAR_DURATION         10    # [s] time for gear up/down
+# The following sections uses [MediumJets] as parent: It only overrides
+# some values of the [MediumJets] section
+[MediumAirbus:MediumJet]
+LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
+
+[HugeJets:MediumJets]
 FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
-VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
 ROTATE_TIME            5    # [s] to rotate before lift off
-VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available
-SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
-AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
-AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             30    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
-TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
-FLAPS_UP_SPEED       180    # [kt] below that: initial climb, above that: climb
-FLAPS_DOWN_SPEED     200    # [kt] above that: descend, below that: approach
-CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
-ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
-PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
-PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-PITCH_MAX             18    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
-PITCH_FLAP_ADD         4    # [°] to add if flaps extended
-PITCH_FLARE           10    # [°] pitch during flare
-PITCH_RATE             5    # [°/s] pitch rate of change
 
-[MediumProps]
-GEAR_DURATION         10    # [s] time for gear up/down
-FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
-VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
-ROTATE_TIME            3    # [s] to rotate before lift off
-VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
-VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
-SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
-AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
-AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
-AGL_FLARE             25    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
-TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+[HugeAirbus:HugeJets]
+LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
+
+[MediumProps:MediumJets]
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
-CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
-ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
-PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
-PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-PITCH_MAX             18    # [°] maximum pitch angle (aoa)
-PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
-PITCH_FLAP_ADD         4    # [°] to add if flaps extended
-PITCH_FLARE           10    # [°] pitch during flare
-PITCH_RATE             5    # [°/s] pitch rate of change
 
-[BizJet]
-GEAR_DURATION         10    # [s] time for gear up/down
-FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
-VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
-ROTATE_TIME            3    # [s] to rotate before lift off
-VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
-VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
-SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
-AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
-AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
-AGL_FLARE             25    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
-TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+[BizJet:MediumJets]
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
-CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
-ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
-PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
-PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-PITCH_MAX             18    # [°] maximum pitch angle (aoa)
-PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
-PITCH_FLAP_ADD         4    # [°] to add if flaps extended
-PITCH_FLARE           10    # [°] pitch during flare
-PITCH_RATE             5    # [°/s] pitch rate of change
 
-[GA]
-GEAR_DURATION         10    # [s] time for gear up/down
-FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
-VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
+[GA:MediumJets]
 ROTATE_TIME            2    # [s] to rotate before lift off
 VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       500    # [ft/min] assumed vsi if take-off-vector not available
@@ -125,7 +72,6 @@ TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
 FLAPS_UP_SPEED        90    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     100    # [kt] above that: descend, below that: approach
 CRUISE_HEIGHT       2000    # [ft] above that height AGL we consider level flight 'cruise'
-ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
 PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
 PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
 PITCH_MAX             12    # [°] maximum pitch angle (aoa)
@@ -133,31 +79,13 @@ PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITC
 PITCH_FLAP_ADD         2    # [°] to add if flaps extended
 PITCH_FLARE            5    # [°] pitch during flare
 PITCH_RATE             5    # [°/s] pitch rate of change
+LIGHT_PATTERN          2    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
+LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
 
-[LightAC]
-GEAR_DURATION         10    # [s] time for gear up/down
-FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
-VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
-ROTATE_TIME            2    # [s] to rotate before lift off
+[LightAC:GA]
 VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       400    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB      60    # [kt] initial climb speed if take-off-vector not available
-AGL_GEAR_DOWN       1000    # [ft] height AGL at which to lower the gear during approach
-AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
-AGL_FLARE             10    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        25    # [kt] below that: taxi, above that: take-off/roll-out
-TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
-FLAPS_UP_SPEED        80    # [kt] below that: initial climb, above that: climb
-FLAPS_DOWN_SPEED      90    # [kt] above that: descend, below that: approach
-CRUISE_HEIGHT       2000    # [ft] above that height AGL we consider level flight 'cruise'
-ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
-PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
-PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-PITCH_MAX             12    # [°] maximum pitch angle (aoa)
-PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
-PITCH_FLAP_ADD         2    # [°] to add if flaps extended
-PITCH_FLARE            5    # [°] pitch during flare
-PITCH_RATE             5    # [°/s] pitch rate of change
 
 [Map]
 # The Map section matches flight models (defined previously,
@@ -175,11 +103,11 @@ PITCH_RATE             5    # [°/s] pitch rate of change
 # Cessna C172 Skyhawk, and the special designator entry for gliders
 # respectively look like this:
 #
-#  H;LJ4;A388;A-380-800;AIRBUS
-#  M;LJ2;B732;737-200;BOEING
-#  M;LT2;DH8A;CT-142 Dash 8;DE HAVILLAND CANADA
-#  L;LP2;BE58;58 Baron;BEECH
-#  L;LP1;C172;172 Skyhawk;CESSNA
+#  H;L4J;A388;A-380-800;AIRBUS
+#  M;L2J;B732;737-200;BOEING
+#  M;L2T;DH8A;CT-142 Dash 8;DE HAVILLAND CANADA
+#  L;L2P;BE58;58 Baron;BEECH
+#  L;L1P;C172;172 Skyhawk;CESSNA
 #  -;-;GLID;Glider;(ANY MANUFACTURER)
 #
 # See https://www.icao.int/publications/doc8643 for details and all
@@ -197,13 +125,16 @@ PITCH_RATE             5    # [°/s] pitch rate of change
 # It is possible, allowed, and propably helpful to list a
 # flight model name several times at different positions in the list
 # with different patterns.
-HugeJets       ^H;L\dJ
-HugeJets       ^M;L4J
-MediumJets     ^M;L\dJ
-MediumProps    ^M;L\dT
-BizJet         ^L;L\dJ
-GA             ^L;L\dP
-LightAC        ^-
+HugeAirbus     ^H;L\dJ;.*;AIRBUS
+HugeJets       ^H;L\dJ;
+HugeAirbus     ^M;L4J;.*;AIRBUS
+HugeJets       ^M;L4J;
+MediumAirbus   ^M;L\dJ;.*;AIRBUS
+MediumJets     ^M;L\dJ;
+MediumProps    ^M;L\dT;
+BizJet         ^L;L\dJ;
+GA             ^L;L\dP;
+LightAC        ^-;
 
 # This last line matches anything and serves as a default:
 

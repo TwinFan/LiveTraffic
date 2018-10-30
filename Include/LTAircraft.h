@@ -162,6 +162,8 @@ public:
         double PITCH_FLAP_ADD =   4;      // [°] to add if flaps extended
         double PITCH_FLARE =      10;     // [°] pitch during flare
         double PITCH_RATE =       5;      // [°/s] pitch rate of change
+        int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
+        double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         
         // modelName is key, so base comparison on it
     public:
@@ -173,6 +175,7 @@ public:
     public:
         static bool ReadFlightModelFile ();
         static const FlightModel& FindFlightModel (const std::string acTypeIcao);
+        static const FlightModel* GetFlightModel (const std::string modelName);
     };
     
 public:

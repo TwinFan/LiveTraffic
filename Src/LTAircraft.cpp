@@ -512,6 +512,8 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_FLAP_ADD);
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN(PITCH_RATE);
+    else FM_ASSIGN(LIGHT_PATTERN);
+    else FM_ASSIGN(LIGHT_LL_ALT);
     else {
         LOG_MSG(logWARN, ERR_FM_UNKNOWN_NAME, fileName, ln, text.c_str());
         return false;
@@ -538,11 +540,8 @@ bool fm_processMapLine (const char* fileName, int ln,
     
     // name must refer to existing section
     std::string sectionName (m[1]);
-    auto fmIt = std::find_if(listFlightModels.cbegin(),
-                             listFlightModels.cend(),
-                             [&sectionName](const LTAircraft::FlightModel& fm)
-                             { return fm.modelName == sectionName; });
-    if (fmIt == listFlightModels.cend()) {
+    const LTAircraft::FlightModel* pFm = LTAircraft::FlightModel::GetFlightModel(sectionName);
+    if (!pFm) {
         LOG_MSG(logWARN, ERR_FM_UNKNOWN_SECTION, fileName, ln, text.c_str());
         return false;
     }
@@ -557,7 +556,7 @@ bool fm_processMapLine (const char* fileName, int ln,
     }
     
     // add a list entry
-    listFMRegex.emplace_back(std::move(sectionRe), *fmIt);
+    listFMRegex.emplace_back(std::move(sectionRe), *pFm);
     return true;
 }
 
@@ -620,6 +619,10 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
         
         // *** start a(nother) [section] ***
         if (text.front() == '[' && text.back() == ']') {
+            // remove brackets (first and last character)
+            text.erase(0,1);
+            text.erase(text.length()-1);
+            
             // finish previous model section first
             // (as [Map] has to be last this will safely be executed for all FlightModel sections)
             if (fm && fmState == FM_MODEL_SECTION) {
@@ -641,8 +644,29 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
             } else {
                 // no, so it must be a new model section
                 fmState = FM_MODEL_SECTION;
+                
+                // init model with default values
                 fm = FlightModel();
-                fm.modelName = text.substr(1, text.length()-2);
+                fm.modelName = text;
+
+                // is the new section a child of another section?
+                std::string::size_type pos = text.find(FM_PARENT_SEPARATOR);
+                if (pos != std::string::npos) {
+                    // parent's name and model
+                    const std::string parent (text.substr(pos+1,
+                                                          text.length()-pos-1));
+                    const FlightModel* pParentFM = GetFlightModel(parent);
+                    
+                    // init model from parent
+                    if (pParentFM)
+                        fm = *pParentFM;
+                    else
+                        LOG_MSG(logWARN, ERR_FM_UNKNOWN_PARENT, sFileName.c_str(), ln,
+                                text.c_str());
+                    
+                    // change name to new section's name (without ":parent")
+                    fm.modelName = text.substr(0,pos);
+                }
             }
         }
         // *** otherwise process section content ***
@@ -708,6 +732,19 @@ const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
     
     // no match: return default
     return MDL_DEFAULT;
+}
+
+// return a ptr to a flight model based on its model or [section] name
+// returns nullptr if not found
+const LTAircraft::FlightModel* LTAircraft::FlightModel::GetFlightModel
+        (const std::string modelName)
+{
+    // search through list of flight models, match by modelName
+    auto fmIt = std::find_if(listFlightModels.cbegin(),
+                             listFlightModels.cend(),
+                             [&modelName](const LTAircraft::FlightModel& fm)
+                             { return fm.modelName == modelName; });
+    return fmIt == listFlightModels.cend() ? nullptr : &*fmIt;
 }
 
 //
