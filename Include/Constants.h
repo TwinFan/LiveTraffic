@@ -161,6 +161,7 @@ const int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, a
 #define ERR_CFG_FILE_TOOMANY    "Too many warnings"
 #define ERR_CFG_FILE_VALUE      "%s: Could not convert '%s' to a number: %s"
 #define ERR_CFG_FORMAT          "Format mismatch in '%s', line %d: %s"
+#define ERR_CFG_VAL_INVALID     "Value invalid in '%s', line %d: %s"
 #define ERR_FM_NOT_AFTER_MAP    "Remainder after [Map] section ignored"
 #define ERR_FM_NOT_BEFORE_SEC   "Lines before first section ignored"
 #define ERR_FM_UNKNOWN_NAME     "Unknown parameter in '%s', line %d: %s"

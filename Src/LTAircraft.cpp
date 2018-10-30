@@ -486,6 +486,12 @@ bool fm_processModelLine (const char* fileName, int ln,
     // name and value
     std::string name (m[1]);
     double val = std::atof(m[2].str().c_str());
+    
+    // some very very basic bounds checking
+    if (val < -10000 || val > 60000) {
+        LOG_MSG(logWARN, ERR_CFG_VAL_INVALID, fileName, ln, text.c_str());
+        return false;
+    }
                            
     // now find correct member variable and assign value
 #define FM_ASSIGN(nameOfVal) if (name == #nameOfVal) fm.nameOfVal = val
@@ -512,7 +518,13 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_FLAP_ADD);
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN(PITCH_RATE);
-    else FM_ASSIGN(LIGHT_PATTERN);
+    else if (name == "LIGHT_PATTERN") {
+        if ((int)val < 0 || (int)val > 2) {
+            LOG_MSG(logWARN, ERR_CFG_VAL_INVALID, fileName, ln, text.c_str());
+            return false;
+        }
+        fm.LIGHT_PATTERN = (int)val;
+    }
     else FM_ASSIGN(LIGHT_LL_ALT);
     else {
         LOG_MSG(logWARN, ERR_FM_UNKNOWN_NAME, fileName, ln, text.c_str());
@@ -790,6 +802,7 @@ XPCAircraft(inFd.WaitForSafeCopyStat().acTypeIcao.c_str(),  // repeated calls to
 // class members
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
+doc8643(Doc8643::get(inFd.WaitForSafeCopyStat().acTypeIcao)),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 tsLastCalcRequested(0),
@@ -1406,8 +1419,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
         surfaces.lights.bcnLights  = 1;
         surfaces.lights.strbLights = 0;
         surfaces.lights.navLights  = 1;
-        // FIXME: Identify Airbus/GA for correct patterns
-        surfaces.lights.flashPattern = xpmp_Lights_Pattern_EADS;
+        surfaces.lights.flashPattern = mdl.LIGHT_PATTERN;
         
         gear.down();
         flaps.up();

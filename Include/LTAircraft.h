@@ -205,6 +205,8 @@ public:
     LTFlightData& fd;
     // reference to the flight model being used
     const FlightModel& mdl;
+    // reference to the matching Doc8643
+    const Doc8643& doc8643;
     
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame
