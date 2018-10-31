@@ -85,6 +85,10 @@
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
 		25E9C2B0207D5BB000D3C642 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; wrapsLines = 0; };
+		25ED1F31218A675900FE614A /* KJFK A78CB4 LT Touch-Down.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK A78CB4 LT Touch-Down.png"; sourceTree = "<group>"; };
+		25ED1F32218A675900FE614A /* KJFK A78CB4 FR24 Arrival.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK A78CB4 FR24 Arrival.png"; sourceTree = "<group>"; };
+		25ED1F33218A675900FE614A /* KJFK AC801E FR24 Path.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK AC801E FR24 Path.png"; sourceTree = "<group>"; };
+		25ED1F34218A675A00FE614A /* KJFK AC801E LT Take Off.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK AC801E LT Take Off.png"; sourceTree = "<group>"; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
 		25FB44502128B7EF00402733 /* Flightradar 24.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Flightradar 24.txt"; sourceTree = "<group>"; };
 		25FB44532128B94F00402733 /* feed_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = feed_pretty.json; sourceTree = "<group>"; };
@@ -235,6 +239,10 @@
 		25AC7BFD217BD2D700A93265 /* pic */ = {
 			isa = PBXGroup;
 			children = (
+				25ED1F32218A675900FE614A /* KJFK A78CB4 FR24 Arrival.png */,
+				25ED1F31218A675900FE614A /* KJFK A78CB4 LT Touch-Down.png */,
+				25ED1F33218A675900FE614A /* KJFK AC801E FR24 Path.png */,
+				25ED1F34218A675A00FE614A /* KJFK AC801E LT Take Off.png */,
 				25AC7BFE217BD2D700A93265 /* LT_RefDat_Editors.png */,
 			);
 			path = pic;
