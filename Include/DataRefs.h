@@ -119,6 +119,10 @@ enum dataRefsLT {
     DR_AC_HEIGHT,
     DR_AC_FLAPS,
     DR_AC_GEAR,
+    DR_AC_LIGHTS_BEACON,
+    DR_AC_LIGHTS_STROBE,
+    DR_AC_LIGHTS_NAV,
+    DR_AC_LIGHTS_LANDING,
     DR_AC_BEARING,
     DR_AC_DIST,                         // last of a/c info
     

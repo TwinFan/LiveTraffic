@@ -200,6 +200,10 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/ac/height",       xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_HEIGHT, false },
     {"livetraffic/ac/flaps",        xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_FLAPS, false },
     {"livetraffic/ac/gear",         xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_GEAR, false },
+    {"livetraffic/ac/lights/beacon",xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_BEACON, false },
+    {"livetraffic/ac/lights/strobe",xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_STROBE, false },
+    {"livetraffic/ac/lights/nav",   xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_NAV, false },
+    {"livetraffic/ac/lights/landing",xplmType_Int,  {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_LANDING, false },
     {"livetraffic/ac/bearing",      xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_BEARING, false },
     {"livetraffic/ac/dist",         xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_DIST, false },
     {"livetraffic/sim/date",        xplmType_Int,   {.i=DataRefs::LTGetSimDateTime}, {.i=DataRefs::LTSetSimDateTime}, (void*)1, false },
@@ -517,6 +521,10 @@ int DataRefs::LTGetAcInfoI(void* p)
         case DR_AC_KEY: return dataRefs.pAc->fd.keyInt();
         case DR_AC_ON_GND: return dataRefs.pAc->IsOnGrnd();
         case DR_AC_PHASE: return dataRefs.pAc->GetFlightPhase();
+        case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->surfaces.lights.bcnLights;
+        case DR_AC_LIGHTS_STROBE: return dataRefs.pAc->surfaces.lights.strbLights;
+        case DR_AC_LIGHTS_NAV: return dataRefs.pAc->surfaces.lights.navLights;
+        case DR_AC_LIGHTS_LANDING: return dataRefs.pAc->surfaces.lights.landLights;
         default:
             LOG_ASSERT(false);              // not allowed...we should handle all value types!
             return 0;

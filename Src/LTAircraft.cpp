@@ -1454,8 +1454,6 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // cruise
     if (ENTERED(FPH_CRUISE)) {
-        // FIXME: Landing lights need to stay on til FL100 (Issue #10)
-        surfaces.lights.landLights = 0;
         surfaces.thrust = 0.6;
     }
 
@@ -1466,13 +1464,13 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // approach
     if (ENTERED(FPH_APPROACH)) {
-        surfaces.lights.landLights = 1;
         surfaces.thrust = 0.2;
         flaps.down();
     }
     
     // final
     if (ENTERED(FPH_FINAL)) {
+        surfaces.lights.landLights = 1;
         surfaces.thrust = 0.3;
         gear.down();
     }
@@ -1501,6 +1499,20 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
         surfaces.thrust = 0.1;
         surfaces.lights.landLights = 0;
         surfaces.lights.strbLights = 0;
+    }
+    
+    // *** landing light ***
+    // is there a landing-light-altitude in the flight model?
+    if (mdl.LIGHT_LL_ALT > 0) {
+        // OK to turn OFF?
+        if (ppos.alt_ft() > mdl.LIGHT_LL_ALT) {
+            if ((phase < FPH_TAKE_OFF) || (FPH_CLIMB <= phase && phase < FPH_FINAL))
+                surfaces.lights.landLights = 0;
+        } else {
+            // need to turn/stay on below LIGHT_LL_ALT
+            if (phase >= FPH_TAKE_OFF)
+                surfaces.lights.landLights = 1;
+        }
     }
     
     // *** safety measures ***

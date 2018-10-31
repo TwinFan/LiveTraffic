@@ -34,7 +34,7 @@ PITCH_FLAP_ADD         4    # [°] to add if flaps extended
 PITCH_FLARE           10    # [°] pitch during flare
 PITCH_RATE             5    # [°/s] pitch rate of change
 LIGHT_PATTERN          0    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
-LIGHT_LL_ALT       10000    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
+LIGHT_LL_ALT       10000    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
 
 # The following sections uses [MediumJets] as parent: It only overrides
 # some values of the [MediumJets] section
