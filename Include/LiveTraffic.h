@@ -90,6 +90,7 @@
 #include "LTChannel.h"
 #include "TFWidgets.h"
 #include "SettingsUI.h"
+#include "ACInfoWnd.h"
 
 // MARK: Global variables
 // Global DataRef object, which also includes 'global' variables

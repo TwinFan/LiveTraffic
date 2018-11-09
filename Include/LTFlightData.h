@@ -108,6 +108,9 @@ public:
         bool            mil;            // military?                                    false
         transpTy        trt;            // transponder type                             ADS_B_unknown=2
         
+        // more aircraft info
+        const Doc8643*  pDoc8643;
+
         // flight details
         std::string     fr24Id;         // internal id in Flightradar24
         std::string     originAp;       // origin Airport
@@ -195,6 +198,9 @@ public:
     void SetKey ( std::string key );
     inline const std::string& key() const   { return transpIcao; }
     inline unsigned int keyInt() const      { return transpIcaoInt; }
+    
+    // Search support: icao, registration, call sign, flight number matches?
+    bool IsMatch (const std::string t) const;
     
     // struct not yet properly filled?
     inline bool empty() const       { return key().empty(); }

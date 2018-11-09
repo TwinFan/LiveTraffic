@@ -194,9 +194,10 @@ float LoopCBAircraftMaintenance (float, float, int, void*)
                 // and reset the re-init flag
                 dataRefs.SetReInitAll(false);
             }
-        } catch (...) {
+        } catch (const std::exception& e) {
             // FIXME: Correct would be to disable the plugin...can I do that?
-            LOG_MSG(logFATAL,"Exception during re-init...I'm dying!!!");
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            // No ideas to recover from here...die
             throw;
         }
         
@@ -204,6 +205,10 @@ float LoopCBAircraftMaintenance (float, float, int, void*)
         try {
             // maintenance (add/remove)
             LTFlightDataAcMaintenance();
+        } catch (const std::exception& e) {
+            // try re-init...
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            dataRefs.SetReInitAll(true);
         } catch (...) {
             // try re-init...
             dataRefs.SetReInitAll(true);

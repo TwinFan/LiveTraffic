@@ -222,7 +222,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 290,  30,  10,  10, 1, "Debug",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
     {  10,  50,  10,  10, 1, "Debug: Log a/c positions",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {   5,  70, 215,  10, 1, "Filter for transponder hex code",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220,  70,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    { 220,  70,  70,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
     {  10,  90,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {   5, 110, 215,  10, 1, "Max number of aircrafts",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 220, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
@@ -312,9 +312,8 @@ void LTSettingsUI::Enable()
         HookButtonGroup(logLevelGrp);
         
         // filter for transponder hex code
-        // FIXME: field not yet linked to dataRefs.uDebugAcFilter
         txtAdvcdFilter.setId(widgetIds[UI_ADVCD_TXT_FILTER]);
-        txtAdvcdFilter.tfFormat = TFTextFieldWidget::TFF_HEX;
+        txtAdvcdFilter.SearchFlightData(dataRefs.GetDebugAcFilter());
         
         // link some buttons directly to dataRefs:
         btnAdvcdLogACPos.setId(widgetIds[UI_ADVCD_BTN_LOG_ACPOS],
@@ -359,6 +358,22 @@ void LTSettingsUI::Show (bool bShow)
         Enable();
     TFWidget::Show(bShow);  // show/hide
 }
+
+// capture entry into 'filter for transponder hex code' field
+bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
+{
+    // not my key field?
+    if (textWidget != txtAdvcdFilter.getId() )
+        return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
+
+    // set the filter a/c if defined
+    if (txtAdvcdFilter.HasTranspIcao())
+        DataRefs::LTSetDebugAcFilter(NULL,txtAdvcdFilter.GetTranspIcaoInt());
+    else
+        DataRefs::LTSetDebugAcFilter(NULL,0);
+    return true;
+}
+
 
 // writes current values out into config file
 bool LTSettingsUI::MsgHidden (XPWidgetID hiddenWidget)

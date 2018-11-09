@@ -27,7 +27,7 @@
 #ifndef SettingsUI_h
 #define SettingsUI_h
 
-#include "TFWidgets.h"
+#include "ACInfoWnd.h"
 
 // Shows simDate/time, updated every second
 class LTCapDateTime : public TFTextFieldWidget
@@ -60,7 +60,7 @@ protected:
     // Advanced tab
     TFButtonGroup logLevelGrp;          // radio buttons to select logging level
     TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch;
-    TFTextFieldWidget txtAdvcdFilter;
+    TFACSearchEditWidget txtAdvcdFilter;
     
     TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
     TFIntFieldDataRef intFdStdDistance, intFdRefreshIntvl;
@@ -78,6 +78,9 @@ public:
     // first creates the structure, then shows the window
     virtual void Show (bool bShow = true);
 
+protected:
+    // capture entry into 'filter for transponder hex code' field
+    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
     // writes current values out into config file
     virtual bool MsgHidden (XPWidgetID hiddenWidget);
 

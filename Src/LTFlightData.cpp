@@ -73,6 +73,9 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
     if (other.trt) trt = other.trt;
     
+    // find DOC8643
+    pDoc8643 = &(Doc8643::get(acTypeIcao));
+    
     // flight
     if (!other.fr24Id.empty()) fr24Id = other.fr24Id;
     if (!other.originAp.empty()) originAp = other.originAp;
@@ -123,7 +126,7 @@ LTFlightData::~LTFlightData()
     }
 }
 
-// Copy assignment operator copies all but the mutex and the bCalcNextPosRunning flag
+// Copy assignment operator copies all but the mutex
 LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
 {
     try {
@@ -156,6 +159,36 @@ void LTFlightData::SetKey( std::string key )
         // convert the hex string to an unsigned int
         transpIcaoInt = (unsigned)strtoul ( key.c_str(), NULL, 16 );        
     }
+}
+
+// Search support: icao, registration, call sign, flight number matches?
+bool LTFlightData::IsMatch (const std::string t) const
+{
+    // we can compare icao without lock
+    if (transpIcao == t)
+        return true;
+    
+    // everything else must be guarded
+    try {
+        // access guarded by a mutex
+        std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+        
+        // compare with registration, flight number
+        if (statData.flight == t || statData.reg == t)
+            return true;
+        
+        // finally compare with call sign
+        if (GetUnsafeDyn().call == t)
+            return true;
+        
+        // no match
+        return false;
+        
+        // copy data
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
+    }
+    return false;
 }
 
 bool LTFlightData::validForAcCreate(double simTime) const
@@ -234,8 +267,13 @@ std::string LTFlightData::ComposeLabel() const
 //  with 'simTime' slightly [~0.5s] into the future,
 //  called by LTAircraft shortly before running out of positions and
 //  calling TryFetchNewPos)
+//
+// simTime should only be set when called from LTAircraft,
+// others should pass in NAN. Then no landing/take off detection takes place,
+// which relies on the actual aircraft being in take of roll / final.
 bool LTFlightData::CalcNextPos ( double simTime )
 {
+    bool bDoLandTODetect = true;
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
@@ -247,8 +285,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** maintenance of flight data deque ***
         
         // if no simTime given use current
-        if (isnan(simTime))
+        if (isnan(simTime)) {
             simTime = dataRefs.GetSimTime();
+            bDoLandTODetect = false;
+        }
 
         // remove from front until [0] <= simTime < [1] (or just one element left)
         while (dynDataDeque.size() >= 2 && dynDataDeque[1].ts <= simTime)
@@ -287,14 +327,14 @@ bool LTFlightData::CalcNextPos ( double simTime )
         }
 
 #ifdef DEBUG
-        std::string deb0 ( posDeque[0] );
-        std::string deb1 ( posDeque.size() >= 2 ? std::string(posDeque[1]) : "<none>" );
+        std::string deb0 ( posDeque[0].dbgTxt() );
+        std::string deb1 ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
         std::string vec  ( posDeque.size() >= 2 ? std::string(posDeque[0].between(posDeque[1])) : "<none>" );
 #endif
         
         // *** Landing / Take-Off Detection ***
         
-        if ( pAc ) {
+        if ( pAc && bDoLandTODetect ) {
             const positionTy& ppos = pAc->GetPPos();
             const LTAircraft::FlightModel& mdl = pAc->mdl;
             positionTy& to   = posDeque[0];
@@ -331,7 +371,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     to.onGrnd = positionTy::GND_ON;
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
-                        LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,std::string(touchDownPos).c_str());
+                        LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
                     }
                 }
             } // (landing case)
@@ -399,7 +439,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         rotateTS = takeOffTS - mdl.ROTATE_TIME;
                         // output debug info on request
                         if (dataRefs.GetDebugAcPos(key())) {
-                            LOG_MSG(logDEBUG,DBG_INVENTED_TO_POS,std::string(takeOffPos).c_str());
+                            LOG_MSG(logDEBUG,DBG_INVENTED_TO_POS,takeOffPos.dbgTxt().c_str());
                         }
 
                     }
@@ -411,7 +451,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     TryDeriveGrndStatus(to);        // set alt to terrain
                 }
             } // (take off case)
-        } // (has a/c)
+        } // (has a/c and do landing / take-off detection)
         
         // if something changed output all positional information as debug info on request
         if (sizeBefore != posDeque.size() && dataRefs.GetDebugAcPos(key())) {
@@ -467,12 +507,15 @@ void LTFlightData::CalcNextPosMain ()
                 LTFlightData& fd = mapFd.at(pair.first);
                 
                 // LiveTraffic Top Level Exception Handling:
-                // CalcNextPos can cause exceptions. If see make fd object invalid and ignore it
+                // CalcNextPos can cause exceptions. If so make fd object invalid and ignore it
                 try {
                     if (fd.IsValid())
                         fd.CalcNextPos(pair.second);
+                } catch (const std::exception& e) {
+                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+                    fd.bValid = false;
                 } catch (...) {
-                    fd.bValid = true;
+                    fd.bValid = false;
                 }
                 
             } catch(const std::out_of_range&) {
@@ -606,7 +649,7 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         if (pAc && pos <= pAc->GetToPos()) {
             // pos is before or close to 'to'-position: don't add!
             if (dataRefs.GetDebugAcPos(key()))
-                LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,std::string(pos).c_str());
+                LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
             return;
         }
         
@@ -625,10 +668,22 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         std::find_if(posDeque.begin(), posDeque.end(),
                      [&pos](const positionTy& p){return p.canBeMergedWith(pos);});
         if (i != posDeque.end()) {      // found merge partner!
-            *i |= pos;                  // merge them
-            bJustMerged = true;
-            if (dataRefs.GetDebugAcPos(key()))
-                LOG_MSG(logDEBUG,DBG_MERGED_POS,std::string(pos).c_str(),i->ts());
+            // make sure we don't overlap we predecessor/successor position
+            if (((i == posDeque.begin()) || (*std::prev(i) < pos)) &&
+                ((std::next(i) == posDeque.end()) || (*std::next(i) > pos)))
+            {
+                *i |= pos;                  // merge them
+                bJustMerged = true;
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_MERGED_POS,pos.dbgTxt().c_str(),i->ts());
+            }
+            else
+            {
+                // pos would overlap with surrounding positions
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
+                return;
+            }
         }
         else
         {
@@ -1072,7 +1127,7 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
                 // then chances are good that we can calculate positions
                 if ( posDeque[0].ts() <= simTime)
                     // start thread for position calculation...next time we might be valid for creation
-                    TriggerCalcNewPos(simTime);
+                    TriggerCalcNewPos(NAN);
         }
         
         // don't delete me

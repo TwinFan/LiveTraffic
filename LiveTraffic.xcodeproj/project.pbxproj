@@ -10,6 +10,7 @@
 		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
+		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9FEF92164E199002BF424 /* libcurl.framework */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
@@ -56,6 +57,8 @@
 		255F89EF21695172003053F6 /* Doc8643.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Doc8643.txt; path = "../../../Applications/X-Plane 10/Resources/plugins/LiveTraffic/Resources/Doc8643.txt"; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		2579843920D3201200E331E4 /* OpenSky_504_GatewayTimeout.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = OpenSky_504_GatewayTimeout.html; sourceTree = "<group>"; };
+		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
+		257A109A2190E211007C1E04 /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
 		2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Log_HoursOfExecution_For_Analysis.txt; sourceTree = "<group>"; wrapsLines = 0; };
 		25A9FEF92164E199002BF424 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = ../../Frameworks/libcurl.framework; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
@@ -172,6 +175,7 @@
 				25C59459207A2B7500E52073 /* DataRefs.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
+				257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */,
 				254EA46F2083E403008A312F /* parson.c */,
 				25067F6A213F17FE004A861F /* TFWidgets.cpp */,
 			);
@@ -262,6 +266,7 @@
 				254EA4712083E40F008A312F /* parson.h */,
 				25AE00DA2138882E00908E65 /* SettingsUI.h */,
 				25067F69213F175D004A861F /* TFWidgets.h */,
+				257A109A2190E211007C1E04 /* ACInfoWnd.h */,
 			);
 			path = Include;
 			sourceTree = "<group>";
@@ -377,6 +382,7 @@
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
+				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
 				254EA4702083E403008A312F /* parson.c in Sources */,
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,

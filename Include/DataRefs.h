@@ -70,7 +70,7 @@ public:
     // and returning information from it
 public:
     static bool ReadDoc8643File ();
-    static const Doc8643& get (const std::string _model);
+    static const Doc8643& get (const std::string _type);
 };
 
 //

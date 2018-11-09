@@ -125,7 +125,7 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
                                               pos.Z(),
                                               &probeInfo);
     if (res != xplm_ProbeHitTerrain)
-    {LOG_MSG(logERR,ERR_Y_PROBE,int(res),std::string(posAt).c_str()); return NAN;}
+    {LOG_MSG(logERR,ERR_Y_PROBE,int(res),posAt.dbgTxt().c_str()); return NAN;}
     
     // convert to World coordinates and save terrain altitude [in ft]
     pos = positionTy(probeInfo);
@@ -191,7 +191,7 @@ const char* positionTy::GrndE2String (onGrndE grnd)
     }
 }
 
-positionTy::operator std::string() const
+std::string positionTy::dbgTxt () const
 {
     char buf[100];
     snprintf(buf, sizeof(buf), "(%7.3f, %7.3f) %5.0ff %s {%3.0f°, %3.0f↕︎, %3.0f↔︎} [%.1f]",
@@ -200,6 +200,15 @@ positionTy::operator std::string() const
              GrndE2String(onGrnd),
              heading(), pitch(), roll(),
              ts());
+    return std::string(buf);
+}
+
+positionTy::operator std::string () const
+{
+    char buf[100];
+    snprintf(buf, sizeof(buf), "%7.3f %c / %7.3f %c",
+             std::abs(lat()), lat() < 0 ? 'S' : 'N',
+             std::abs(lon()), lon() < 0 ? 'W' : 'E');
     return std::string(buf);
 }
 
@@ -356,7 +365,7 @@ std::string positionDeque2String (const dequePositionTy& l)
              iter != l.cend();
              ++iter)
         {
-            ret += *iter;                       // add position info
+            ret += iter->dbgTxt();              // add position info
             if ( std::next(iter) != l.cend() )  // there is a next position
             {
                 ret += ' ';                     // add vector to next position

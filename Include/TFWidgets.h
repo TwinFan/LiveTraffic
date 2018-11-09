@@ -110,6 +110,7 @@ public:
 
     std::string GetDescriptor () const;
     void SetDescriptor (std::string text) { XPSetWidgetDescriptor(me, text.c_str()); }
+    void SetDescriptor (double d, int decimals = 0);
     
     bool IsInFront () const         { return XPIsWidgetInFront(me) != 0; }
     void BringToFront ()            { XPBringRootWidgetToFront(me); }

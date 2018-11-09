@@ -450,6 +450,8 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // non-positional dynamic data
                 dyn.radar.code =        jag_sn(pJAc, OPSKY_RADAR_CODE);
                 dyn.call =              jag_s(pJAc, OPSKY_CALL);
+                while (dyn.call.back() == ' ')      // trim trailing spaces
+                    dyn.call.pop_back();
                 dyn.gnd =               jag_b(pJAc, OPSKY_GND);
                 dyn.heading =           jag_n(pJAc, OPSKY_HEADING);
                 dyn.spd =               jag_n(pJAc, OPSKY_SPD);
@@ -467,7 +469,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( pos.isNormal() )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),std::string(pos).c_str());
+                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -632,7 +634,7 @@ bool FlightradarConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( pos.isNormal() )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),std::string(pos).c_str());
+                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -773,7 +775,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                   jog_n(pJAc, ADSBEX_SIG),
                                   &pos);
                 else
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),std::string(pos).c_str());
+                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -979,7 +981,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
             
             // if the position is within the bounding box then we save for later
 #ifdef DEBUG
-            std::string dbg (acPos);
+            std::string dbg (acPos.dbgTxt());
             dbg += " in ";
             dbg += box;
 #endif
@@ -1199,7 +1201,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                                     json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
                                 // only keep new trail if it is a valid position
                                 if ( !addedTrail.isNormal() ) {
-                                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),std::string(addedTrail).c_str());
+                                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),addedTrail.dbgTxt().c_str());
                                     trails.pop_back();  // otherwise remove right away
                                 }
                             }
@@ -1213,8 +1215,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         // as the last trail item and a similar altitude (+/- 500m)
                         positionTy& lastTrail = trails.back();
 #ifdef DEBUG
-                        std::string dbgMain(mainPos);
-                        std::string dbgLast(lastTrail);
+                        std::string dbgMain(mainPos.dbgTxt());
+                        std::string dbgLast(lastTrail.dbgTxt());
 #endif
                         if (mainPos.hasSimilarTS(lastTrail) &&
                             (abs(mainPos.alt_m() - lastTrail.alt_m()) < 500))
@@ -1324,7 +1326,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     }
                 }
                 else {
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),std::string(mainPos).c_str());
+                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),mainPos.dbgTxt().c_str());
                 }
             } catch(const std::system_error& e) {
                 LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -1537,6 +1539,10 @@ void LTFlightDataSelectAc ()
                         if ( p->FetchAllData(pos) && !bFDMainStop )
                             p->ProcessFetchedData(mapFd);
                     }
+                } catch (const std::exception& e) {
+                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+                    // in case of any exception disable this channel
+                    p->SetValid(false, true);
                 } catch (...) {
                     // in case of any exception disable this channel
                     p->SetValid(false, true);
@@ -1546,6 +1552,10 @@ void LTFlightDataSelectAc ()
                 if ( bFDMainStop )
                     break;
             }
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            // in case of any exception here completely re-init
+            dataRefs.SetReInitAll(true);
         } catch (...) {
             // in case of any exception here completely re-init
             dataRefs.SetReInitAll(true);

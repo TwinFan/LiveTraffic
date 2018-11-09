@@ -309,8 +309,17 @@ std::string TFWidget::GetDescriptor () const
     return TFGetWidgetDescriptor(me);
 }
 
+// format a number as the descriptor
+void TFWidget::SetDescriptor (double d, int decimals)
+{
+    char buf[50];
+    snprintf(buf,sizeof(buf), "%.*f", decimals, d);
+    XPSetWidgetDescriptor(me, buf);
+}
+
 // static function: finds the correct widget object in the map and
 // forwards the message there
+// (This is an entry function into the LiveTraffic plugin, called by XP)
 int TFWidget::DispatchMessages (XPWidgetMessage    inMessage,
                                 XPWidgetID         inWidget,
                                 intptr_t           inParam1,
@@ -318,10 +327,17 @@ int TFWidget::DispatchMessages (XPWidgetMessage    inMessage,
 {
     // get pointer to LTWidget from widget properties
     TFWidget* p = reinterpret_cast<TFWidget*>(XPGetWidgetProperty(inWidget,xpProperty_Object,NULL));
-    if (p)
-        return p->HandleMessage(inMessage, inParam1, inParam2);
-    else
-        return 0;
+    if (p) {
+        // LiveTraffic Top Level Exception handling:
+        // catch all, swallow is best I can do
+        try {
+            return p->HandleMessage(inMessage, inParam1, inParam2);
+        } catch (...) {
+            // can't do much about it...just ignore it then
+        }
+    }
+
+    return 0;
 }
 
 intptr_t TFWidget::GetProperty (XPWidgetPropertyID prop) const

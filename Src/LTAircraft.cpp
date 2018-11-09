@@ -879,7 +879,7 @@ LTAircraft::operator std::string() const
     char buf[500];
     snprintf(buf,sizeof(buf),"a/c %s ppos: %s Y: %.0ff Phase: %02d %s\nposList:\n",
              key().c_str(),
-             std::string(ppos).c_str(), terrainAlt,
+             ppos.dbgTxt().c_str(), terrainAlt,
              phase, FlightPhase2String(phase).c_str());
     return std::string(buf) + positionDeque2String(posList);
 }
@@ -996,8 +996,8 @@ bool LTAircraft::CalcPPos()
     positionTy& to    = posList[1];
     double duration = to.ts() - from.ts();
 #ifdef DEBUG
-    std::string debFrom ( from );
-    std::string debTo   ( to );
+    std::string debFrom ( from.dbgTxt() );
+    std::string debTo   ( to.dbgTxt() );
     std::string debVec  ( from.between(to) );
 #endif
     LOG_ASSERT_FD(fd,duration > 0);
@@ -1196,7 +1196,7 @@ bool LTAircraft::CalcPPos()
         stopPoint.ts() = speed.getTargetTime();
         bArtificalPos = true;                   // flag: we are working with an artifical position now
         if (dataRefs.GetDebugAcPos(key())) {
-            LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,std::string(stopPoint).c_str());
+            LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,stopPoint.dbgTxt().c_str());
         }
     }
     
@@ -1213,7 +1213,7 @@ bool LTAircraft::CalcPPos()
     // catch that case...likely the a/c is to be removed due to outdated data
     // soon anyway
     if (f > 1 && !ppos.isNormal()) {
-        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,key().c_str(),std::string(ppos).c_str());
+        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,key().c_str(),ppos.dbgTxt().c_str());
         for (f -= 0.1; f > 1 && !ppos.isNormal(); f -= 0.1)
             ppos.v = from.v * (1-f) + to.v * f;
     }    
@@ -1231,7 +1231,7 @@ bool LTAircraft::CalcPPos()
     ppos.pitch() = pitch.get();
     
 #ifdef DEBUG
-    std::string debPpos ( ppos );
+    std::string debPpos ( ppos.dbgTxt() );
 #endif
     LOG_ASSERT_FD(fd,ppos.isFullyValid());
 
@@ -1577,6 +1577,19 @@ bool LTAircraft::YProbe ()
     return true;
 }
 
+// return a string indicating the use of nav/beacon/strobe/landing lights
+std::string LTAircraft::GetLightsStr() const
+{
+    char buf[20];
+    sprintf(buf, "%s/%s/%s/%s",
+            surfaces.lights.navLights ? "nav" : "---",
+            surfaces.lights.bcnLights ? "bcn" : "---",
+            surfaces.lights.strbLights ? "strb" : "----",
+            surfaces.lights.landLights ? "land" : "----"
+            );
+    return std::string(buf);
+}
+
 //
 //MARK: XPMP Aircraft Updates (callbacks)
 //
@@ -1608,17 +1621,18 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             outPosition->label[sizeof(outPosition->label)-1] = 0;
             return xpmpData_NewData;
         }
-        else {
-            // no new position available...what a shame, return the last one
-            *outPosition = ppos;
-            return xpmpData_Unchanged;
-        }
-    }
-    catch (...) {
-        // for any kind of exception: don't use this object any more!
-        bValid = false;
-        return xpmpData_Unavailable;
-    }
+
+        // no new position available...what a shame, return the last one
+        *outPosition = ppos;
+        return xpmpData_Unchanged;
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {}
+
+    // for any kind of exception: don't use this object any more!
+    bValid = false;
+    return xpmpData_Unavailable;
 }
 
 XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSurfaces)
@@ -1639,12 +1653,14 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
         *outSurfaces = surfaces;
         
         return xpmpData_NewData;
-    }
-    catch (...) {
-        // for any kind of exception: don't use this object any more!
-        bValid = false;
-        return xpmpData_Unavailable;
-    }
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {}
+
+    // for any kind of exception: don't use this object any more!
+    bValid = false;
+    return xpmpData_Unavailable;
 }
 
 XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
@@ -1674,12 +1690,14 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         
         // assume every 100th cycle something change...not more often at least
         return currCycle.num % 100 == 0 ? xpmpData_NewData : xpmpData_Unchanged;
-    }
-    catch (...) {
-        // for any kind of exception: don't use this object any more!
-        bValid = false;
-        return xpmpData_Unavailable;
-    }
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {}
+
+    // for any kind of exception: don't use this object any more!
+    bValid = false;
+    return xpmpData_Unavailable;
 }
 
 // fetches and then returns the name of the aircraft model in use

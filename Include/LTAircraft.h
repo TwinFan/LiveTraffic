@@ -284,6 +284,7 @@ public:
     inline double GetPHeight_ft() const { return ppos.alt_ft() - terrainAlt; }
     inline double GetPHeight_m() const { return GetPHeight_ft() * M_per_FT; }
     inline vectorTy GetVecView() const { return vecView; }
+    std::string GetLightsStr() const;
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
 

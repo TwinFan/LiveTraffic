@@ -116,6 +116,7 @@ public:
     operator XPMPPlanePosition_t() const;
     // standard string for any output purposes (returns static buffer!)
     static const char* GrndE2String (onGrndE grnd);
+    std::string dbgTxt() const;
     operator std::string() const;
     
     // timestamp-based comparison

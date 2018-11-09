@@ -42,6 +42,7 @@ LTSettingsUI settingsUI;
 //MARK: Reload Plugins menu item
 enum menuItems {
     MENU_ID_TOGGLE_AIRCRAFTS = 0,
+    MENU_ID_AC_INFO_WND,
     MENU_ID_SETTINGS_UI,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -53,22 +54,34 @@ enum menuItems {
 XPLMMenuID menuID = 0;
 int aMenuItems[CNT_MENU_ID];
 
+// Callback called by XP, so this is an entry point into the plugin
 void MenuHandler(void * mRef, void * iRef)
 {
-    unsigned long menuId = (unsigned long)iRef;
-    switch (menuId) {
-            
-        case MENU_ID_TOGGLE_AIRCRAFTS:
-            dataRefs.ToggleAircraftsDisplayed();
-            break;
-        case MENU_ID_SETTINGS_UI:
-            settingsUI.Show();
-            break;
+    // LiveTraffic top level exception handling
+    try {
+        unsigned long menuId = (unsigned long)iRef;
+        switch (menuId) {
+                
+            case MENU_ID_TOGGLE_AIRCRAFTS:
+                dataRefs.ToggleAircraftsDisplayed();
+                break;
+            case MENU_ID_AC_INFO_WND:
+                ACIWnd::OpenNewWnd();
+                break;
+            case MENU_ID_SETTINGS_UI:
+                settingsUI.Show();
+                break;
 #ifdef DEBUG
-        case MENU_ID_RELOAD_PLUGINS:
-            XPLMReloadPlugins();
-            break;
+            case MENU_ID_RELOAD_PLUGINS:
+                XPLMReloadPlugins();
+                break;
 #endif
+        }
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        // otherwise ignore
+    } catch (...) {
+        // ignore
     }
 }
 
@@ -95,6 +108,11 @@ int RegisterMenuItem ()
     // no checkmark symbol (but room for one later)
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
 
+    // Open an aircraft info window
+    aMenuItems[MENU_ID_AC_INFO_WND] =
+    XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,1);
+    if ( aMenuItems[MENU_ID_AC_INFO_WND]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);

@@ -153,10 +153,10 @@ bool Doc8643::ReadDoc8643File ()
 }
 
 // return the matching Doc8643 object from the global map
-const Doc8643& Doc8643::get (const std::string _model)
+const Doc8643& Doc8643::get (const std::string _type)
 try
 {
-    return mapDoc8643.at(_model);
+    return mapDoc8643.at(_type);
 }
 catch (...)
 {
@@ -846,8 +846,12 @@ void DataRefs::LTSetDebugAcFilter( void* /*inRefcon*/, int i )
     if ( 0x000000 <= i && i <= 0xFFFFFF ) {
         dataRefs.uDebugAcFilter = unsigned(i);
         
+        LOG_MSG(logWARN,DBG_FILTER_AC,
+                i > 0 ? dataRefs.GetDebugAcFilter().c_str() : "-");
+        
         // also set the key for the a/c info datarefs
-        LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)), i);
+        if (i > 0x000000)
+            LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)), i);
     }
 }
 

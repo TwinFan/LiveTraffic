@@ -95,6 +95,7 @@ const double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground
 
 //MARK: Menu Items
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
+#define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_SETTINGS_UI        "Settings..."
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload Plugins (Developer!)"
@@ -148,8 +149,8 @@ const int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, a
 #define ERR_POS_UNNORMAL        "Ignoring invalid pos for a/c %s: %s"
 #define ERR_INV_TRANP_ICAO      "Ignoring data for invalid transponder code '%s'"
 #define ERR_TIME_NONLINEAR      "Time moved non-linear/jumped by %.1f seconds, will re-init aircrafts."
+#define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"
 #define ERR_WIDGET_CREATE       "Could not create widget required for settings UI"
-#define ERR_WIDGET_DONT_KNOW    "Received a message %d for an unknown widget"
 #define ERR_CFG_FILE_OPEN_OUT   "Could not create config file '%s': %s"
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
 #define ERR_CFG_FILE_OPEN_IN    "Could not open '%s': %s"
@@ -289,6 +290,7 @@ const int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneou
 #define DBG_MAP_DUP_INSERT      "Duplicate insert into LTAircraftMap with key %s"
 #define DBG_SENDING_HTTP        "%s: Sending HTTP: %s"
 #define DBG_RECEIVED_BYTES      "%s: Received %ld characters"
+#define DBG_FILTER_AC           "DEBUG Filtering for a/c '%s'"
 #define DBG_MERGED_POS          "DEBUG MERGED POS %s into updated TS %.1f"
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"
