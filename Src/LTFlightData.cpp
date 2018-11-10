@@ -77,7 +77,6 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     pDoc8643 = &(Doc8643::get(acTypeIcao));
     
     // flight
-    if (!other.fr24Id.empty()) fr24Id = other.fr24Id;
     if (!other.originAp.empty()) originAp = other.originAp;
     if (!other.destAp.empty()) destAp = other.destAp;
     if (!other.flight.empty()) flight = other.flight;

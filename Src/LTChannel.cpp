@@ -27,7 +27,6 @@
 #include <future>
 #include <fstream>
 #include "LiveTraffic.h"
-#include "parson.h"
 
 // access to chrono literals like s for seconds
 using namespace std::chrono_literals;
@@ -54,73 +53,6 @@ volatile bool bFDMainStop = true;       // will be reset once the main thread st
 listPtrLTChannelTy    listFDC;
 
 //
-//MARK: Helper Functions
-//
-
-// access to JSON string fields, with NULL replaced by ""
-inline const char* jog_s (const JSON_Object *object, const char *name)
-{
-    const char* s = json_object_get_string ( object, name );
-    return s ? s : "";
-}
-
-// access to JSON number fields, encapsulated as string, with NULL replaced by 0
-inline double jog_sn (const JSON_Object *object, const char *name)
-{
-    const char* s = json_object_get_string ( object, name );
-    return s ? strtod(s,NULL) : 0.0;
-}
-
-// access to JSON number field (just a shorter name)
-inline double jog_n (const JSON_Object *object, const char *name)
-{
-    return json_object_get_number (object, name);
-}
-
-// access to JSON boolean field (replaces -1 with false)
-inline bool jog_b (const JSON_Object *object, const char *name)
-{
-    // json_object_get_boolean returns -1 if field doesn't exit, so we
-    // 'convert' -1 and 0 both to false with the following comparison:
-    return json_object_get_boolean (object, name) > 0;
-}
-
-// access to JSON array string fields, with NULL replaced by ""
-inline const char* jag_s (const JSON_Array *array, size_t idx)
-{
-    const char* s = json_array_get_string ( array, idx );
-    return s ? s : "";
-}
-
-// access to JSON array number fields, encapsulated as string, with NULL replaced by 0
-inline double jag_sn (const JSON_Array *array, size_t idx)
-{
-    const char* s = json_array_get_string ( array, idx );
-    return s ? strtod(s,NULL) : 0.0;
-}
-
-// access to JSON array number field (just a shorter name)
-inline double jag_n (const JSON_Array *array, size_t idx)
-{
-    return json_array_get_number (array, idx);
-}
-
-// access to JSON array boolean field (replaces -1 with false)
-inline bool jag_b (const JSON_Array *array, size_t idx)
-{
-    // json_object_get_boolean returns -1 if field doesn't exit, so we
-    // 'convert' -1 and 0 both to false with the following comparison:
-    return json_array_get_boolean (array, idx) > 0;
-}
-
-// normalize a time in seconds since epoch to a full minute
-inline time_t stripSecs ( double time )
-{
-    return time_t(time) - (time_t(time) % SEC_per_M);
-}
-
-
-//
 //MARK: LTChannel
 //
 
@@ -138,8 +70,6 @@ const char* LTChannel::ChId2String (dataRefsLT ch)
             return OPSKY_NAME;
         case DR_CHANNEL_OPEN_SKY_AC_MASTERDATA:
             return OPSKY_MD_NAME;
-        case DR_CHANNEL_FLIGHTRADAR24_ONLINE:
-            return FR24_NAME;
         default:
             return ERR_CH_UNKNOWN_NAME;
     }
@@ -482,172 +412,6 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // success
     return true;
 }
-
-
-//
-//MARK: Flightradar 24
-//
-
-// put together the URL to fetch based on current view position
-std::string FlightradarConnection::GetURL (const positionTy& pos)
-{
-    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
-    char url[255] = "";
-    snprintf(url, sizeof(url),
-             FR24_URL_FEED_BOUNDS,
-             box.nw.lat(),              // North
-             box.se.lat(),              // South
-             box.nw.lon(),              // West
-             box.se.lon() );            // East
-    return std::string(url);
-}
-
-// update shared flight data structures with received flight data
-bool FlightradarConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
-{
-    // any a/c filter defined for debugging purposes?
-    std::string acFilter ( dataRefs.GetDebugAcFilter() );
-    
-    // data is expected to be in netData string
-    // short-cut if there is nothing
-    if ( !netDataPos ) return true;
-    
-    // now try to interpret it as JSON
-    JSON_Value* pRoot = json_parse_string(netData);
-    if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
-    // get the structre's main object
-    JSON_Object* pObj = json_object(pRoot);
-    if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
-
-    // let's cycle the aircrafts
-    // structure is a bit unusual: on root level there is no array,
-    // but there are objects named by Flightradar's internal id, one per a/c,
-    // the actual fields per a/c are then organised as an array (similar to
-    // {"full_count":14906,"version":4,
-    //  "1da52b5b":["4BCDE3",...],
-    //  "1da534f1":["3C6633",...],
-    //  ...}
-    
-
-    // cycle all values under root, they may or may not be 8-digit hex values
-    for ( size_t i=0; i < json_object_get_count(pObj); i++ )
-    {
-        // the value's name at root level. Could be hex id or 'full_count', 'version'...
-        std::string fieldName (json_object_get_name(pObj, i));
-        
-        // if it is not an 8-digit hex number we ignore it
-        if (fieldName.size() != 8 ||
-            strtoul(fieldName.c_str(),NULL,16) == 0)
-            continue;
-        
-        // get the a/c, the JSON value for that 8-digit hex id
-        JSON_Value* pAcVal = json_object_get_value_at(pObj, i);
-        if (!pAcVal) {
-            LOG_MSG(logERR,ERR_JSON_AC,i+1,fieldName.c_str());
-            if (IncErrCnt())
-                continue;
-            else
-                return false;
-        }
-        
-        // get the aircraft data (which is just an array of values)
-        JSON_Array* pJAc = json_value_get_array(pAcVal);
-        if (!pJAc) {
-            LOG_MSG(logERR,ERR_JSON_AC,i+1,fieldName.c_str());
-            if (IncErrCnt())
-                continue;
-            else
-                return false;
-        }
-        
-        // the key: transponder Icao code
-        std::string transpIcao (jag_s(pJAc, FR24_TRANSP_ICAO) );
-        str_toupper(transpIcao);
-        
-        // key invalid? (should not happen...but hey...it does!)
-        if (transpIcao.empty() || strtoul(transpIcao.c_str(), NULL, 16) == 0) {
-            LOG_MSG(logWARN,ERR_INV_TRANP_ICAO,transpIcao.c_str());
-            continue;
-        }
-        
-        // not matching a/c filter? -> skip it
-        if ((!acFilter.empty() && (acFilter != transpIcao)) )
-        {
-            continue;
-        }
-        
-        try {
-            // from here on access to fdMap guarded by a mutex
-            // until FD object is inserted and updated
-            std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
-            
-            // get the fd object from the map, key is the transpIcao
-            // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[transpIcao];
-            
-            // also get the data access lock once and for all
-            // so following fetch/update calls only make quick recursive calls
-            std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-            
-            // completely new? fill key fields
-            if ( fd.empty() )
-                fd.SetKey(transpIcao);
-            
-            // fill static data (block is for local ue of 'stat' only)
-            {
-                LTFlightData::FDStaticData stat;
-                stat.reg =          jag_s(pJAc, FR24_REG);
-                stat.acTypeIcao =   jag_s(pJAc, FR24_AC_TYPE_ICAO);
-                stat.trt =          trt_ADS_B_unknown;
-                stat.fr24Id =       fieldName;
-                stat.originAp =     jag_s(pJAc, FR24_ORIGIN);
-                stat.destAp =       jag_s(pJAc, FR24_DESTINATION);
-                stat.flight =       jag_s(pJAc, FR24_FLIGHT_CODE);
-                stat.opIcao =       jag_s(pJAc, FR24_OP_ICAO);
-                fd.UpdateData(std::move(stat));
-            }
-            
-            // dynamic data
-            {   // unconditional...block is only for limiting local variables
-                LTFlightData::FDDynamicData dyn;
-                
-                // position time
-                double posTime = jag_n(pJAc, FR24_POS_TIME);
-                
-                // non-positional dynamic data
-                dyn.radar.code =        jag_sn(pJAc, FR24_RADAR_CODE);
-                dyn.call =              jag_s(pJAc, FR24_CALL);
-                dyn.gnd =               jag_b(pJAc, FR24_GND);
-                dyn.heading =           jag_n(pJAc, FR24_HEADING);
-                dyn.spd =               jag_n(pJAc, FR24_SPD);
-                dyn.vsi =               jag_n(pJAc, FR24_VSI);
-                dyn.ts =                posTime;
-                
-                // position
-                positionTy pos (jag_n(pJAc, FR24_LAT),
-                                jag_n(pJAc, FR24_LON),
-                                jag_n(pJAc, FR24_ELEVATION) * M_per_FT,
-                                posTime);
-                pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
-                
-                // position is rather important, we check for validity
-                if ( pos.isNormal() )
-                    fd.AddDynData(dyn, 0, 0, &pos);
-                else
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
-            }
-        } catch(const std::system_error& e) {
-            LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
-        }
-    }
-    
-    // cleanup JSON
-    json_value_free (pRoot);
-    
-    // success
-    return true;
-}
-
 
 //
 //MARK: ADS-B Exchange
@@ -1485,7 +1249,6 @@ bool LTFlightDataEnable()
     } else {
         // load live feed readers
         listFDC.emplace_back(new ADSBExchangeConnection);
-        listFDC.emplace_back(new FlightradarConnection);
         listFDC.emplace_back(new OpenSkyConnection);
         // load online master data connections
         listFDC.emplace_back(new OpenSkyAcMasterdata);

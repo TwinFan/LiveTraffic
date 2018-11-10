@@ -200,29 +200,6 @@ const int OPSKY_RADAR_CODE    = 14;              // squawk
 #define OPSKY_MD_REG            "registration"
 #define OPSKY_MD_AC_TYPE_ICAO   "typecode"
 
-//MARK: Fightradar 24
-#define FR24_NAME               "Flightradar 24 Live Online"
-#define FR24_URL_FEED_BOUNDS    "https://data-live.flightradar24.com/zones/fcgi/feed.js?bounds=%.2f,%.2f,%.2f,%.2f&faa=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=0&estimated=0&maxage=14400&gliders=1&stats=0"  // N,S,W,E
-const int FR24_TRANSP_ICAO    = 0;               // icao24
-const int FR24_LAT            = 1;               // latitude
-const int FR24_LON            = 2;               // longitude
-const int FR24_HEADING        = 3;               // heading
-const int FR24_ELEVATION      = 4;               // [ft] altitude (likely 'calibrated')
-const int FR24_SPD            = 5;               // [kn] speed
-const int FR24_RADAR_CODE     = 6;               // aka squawk
-const int FR24_RADAR          = 7;               // like "T-EDDL50", what does it mean?
-const int FR24_AC_TYPE_ICAO   = 8;               // a/c type code
-const int FR24_REG            = 9;               // registration
-const int FR24_POS_TIME       = 10;              // timestamp
-const int FR24_ORIGIN         = 11;              // airport of origin
-const int FR24_DESTINATION    = 12;              // destination airport
-const int FR24_FLIGHT_CODE    = 13;              // flight code
-const int FR24_GND            = 14;              // [0/1] on_ground
-const int FR24_VSI            = 15;              // vertical rate
-const int FR24_CALL           = 16;              // callsign
-const int FR24_UNKNOWN1       = 17;              // [0] (?)
-const int FR24_OP_ICAO        = 18;              // airline/operator icao code
-
 //MARK: ADS-B Exchange
 #define ADSBEX_NAME             "ADSB Exchange Live Online"
 #define ADSBEX_URL_ALL          "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat=%f&lng=%f&fDstU=%d"

@@ -222,7 +222,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/channel/adsb_exchange/historic",  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
     {"livetraffic/channel/open_sky/online",         xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/flightradar24/online",    xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/channel/futuredatachn/online",    xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, false },
     {"livetraffic/dbg/ac_filter",                   xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetDebugAcFilter}, GET_VAR, true },
     {"livetraffic/dbg/ac_pos",                      xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
     {"livetraffic/dbg/model_matching",              xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
@@ -300,10 +300,13 @@ iLogLevel (initLogLevel),
 bDebugAcPos (true)
 #endif
 {
-    // enabled all channels
+    // disabled all channels
     for ( int& i: bChannel )
-        i = true;
-    
+        i = false;
+    // enable OpenSky as a default
+    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE,true);
+    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,true);
+
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));
     memset ( adrLT, 0, sizeof(adrLT));

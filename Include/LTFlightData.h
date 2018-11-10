@@ -112,7 +112,6 @@ public:
         const Doc8643*  pDoc8643;
 
         // flight details
-        std::string     fr24Id;         // internal id in Flightradar24
         std::string     originAp;       // origin Airport
         std::string     destAp;         // destination Airport
         std::string     flight;         // flight code

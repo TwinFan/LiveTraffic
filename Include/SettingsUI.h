@@ -54,7 +54,7 @@ protected:
     TFButtonDataRef btnBasicsEnable,    // enable display of aircrafts
                     btnBasicsHistoric;
     // enable/disable flight data channels
-    TFButtonDataRef btnFR24Live, btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive, btnADSBHistoric;
+    TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive, btnADSBHistoric;
     LTCapDateTime txtDateTime;          // display/edit current simtime
 
     // Advanced tab

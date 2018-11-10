@@ -28,6 +28,7 @@
 
 #include <list>
 #include "curl/curl.h"              // for CURL*
+#include "parson.h"                 // for JSON parsing
 
 // MARK: Generic types
 // just a generic list of strings
@@ -167,20 +168,6 @@ public:
 };
 
 //
-//MARK: Flightradar24
-//
-class FlightradarConnection : public LTOnlineChannel, LTFlightDataChannel
-{
-public:
-    FlightradarConnection () :
-    LTChannel(DR_CHANNEL_FLIGHTRADAR24_ONLINE),
-    LTOnlineChannel(),
-    LTFlightDataChannel()  {}
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-};
-
-//
 //MARK: ADS-B Exchange
 //
 class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
@@ -248,6 +235,72 @@ void LTFlightDataStop();
 //MARK: Aircraft Maintenance (called from flight loop callback)
 //
 void LTFlightDataAcMaintenance();
+
+//
+//MARK: Helper Functions
+//
+
+// access to JSON string fields, with NULL replaced by ""
+inline const char* jog_s (const JSON_Object *object, const char *name)
+{
+    const char* s = json_object_get_string ( object, name );
+    return s ? s : "";
+}
+
+// access to JSON number fields, encapsulated as string, with NULL replaced by 0
+inline double jog_sn (const JSON_Object *object, const char *name)
+{
+    const char* s = json_object_get_string ( object, name );
+    return s ? strtod(s,NULL) : 0.0;
+}
+
+// access to JSON number field (just a shorter name)
+inline double jog_n (const JSON_Object *object, const char *name)
+{
+    return json_object_get_number (object, name);
+}
+
+// access to JSON boolean field (replaces -1 with false)
+inline bool jog_b (const JSON_Object *object, const char *name)
+{
+    // json_object_get_boolean returns -1 if field doesn't exit, so we
+    // 'convert' -1 and 0 both to false with the following comparison:
+    return json_object_get_boolean (object, name) > 0;
+}
+
+// access to JSON array string fields, with NULL replaced by ""
+inline const char* jag_s (const JSON_Array *array, size_t idx)
+{
+    const char* s = json_array_get_string ( array, idx );
+    return s ? s : "";
+}
+
+// access to JSON array number fields, encapsulated as string, with NULL replaced by 0
+inline double jag_sn (const JSON_Array *array, size_t idx)
+{
+    const char* s = json_array_get_string ( array, idx );
+    return s ? strtod(s,NULL) : 0.0;
+}
+
+// access to JSON array number field (just a shorter name)
+inline double jag_n (const JSON_Array *array, size_t idx)
+{
+    return json_array_get_number (array, idx);
+}
+
+// access to JSON array boolean field (replaces -1 with false)
+inline bool jag_b (const JSON_Array *array, size_t idx)
+{
+    // json_object_get_boolean returns -1 if field doesn't exit, so we
+    // 'convert' -1 and 0 both to false with the following comparison:
+    return json_array_get_boolean (array, idx) > 0;
+}
+
+// normalize a time in seconds since epoch to a full minute
+inline time_t stripSecs ( double time )
+{
+    return time_t(time) - (time_t(time) % SEC_per_M);
+}
 
 
 #endif /* LTChannel_h */
