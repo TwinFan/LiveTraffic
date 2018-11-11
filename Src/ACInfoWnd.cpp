@@ -375,7 +375,6 @@ void ACIWnd::UpdateStatValues()
     if (pFD) {
         // get good copies (thread safe)
         LTFlightData::FDStaticData stat (pFD->WaitForSafeCopyStat());
-        LTFlightData::FDDynamicData dyn (pFD->WaitForSafeCopyDyn());
         
         // set static values (we consider the callsign static...)
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_REG], stat.reg.c_str());
@@ -391,7 +390,7 @@ void ACIWnd::UpdateStatValues()
         }
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], atMost(stat.opIcao + " " + stat.op,20).c_str());
 
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], dyn.call.c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], stat.call.c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_FLIGHT], stat.flight.c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_ROUTE], (stat.originAp + " - " + stat.destAp).c_str());
 
@@ -428,7 +427,7 @@ void ACIWnd::UpdateDynValues()
         valPos.SetDescriptor(pos);
         valBearing.SetDescriptor(pAc->GetVecView().angle);
         valDist.SetDescriptor(pAc->GetVecView().dist/M_per_NM, 1);
-        valPhase.SetDescriptor(LTAircraft::FlightPhase2String(pAc->GetFlightPhase()));
+        valPhase.SetDescriptor(pAc->GetFlightPhaseString());
         valGear.SetDescriptor(pAc->GetGearPos(), 1);
         valFlaps.SetDescriptor(pAc->GetFlapsPos(), 1);
         valLights.SetDescriptor(pAc->GetLightsStr());

@@ -58,7 +58,6 @@ public:
     public:
         // communication
         XPMPPlaneRadar_t  radar;        // code=Sqk           5020
-        std::string       call;         // Call sign          EWG8AY
         
         // positional
         bool            gnd;            // on ground?         false
@@ -112,6 +111,7 @@ public:
         const Doc8643*  pDoc8643;
 
         // flight details
+        std::string     call;           // Call sign          EWG8AY
         std::string     originAp;       // origin Airport
         std::string     destAp;         // destination Airport
         std::string     flight;         // flight code
@@ -140,6 +140,9 @@ protected:
     // last used Receiver ID, identifies the receiver of the signal of this flight data
     int             rcvr;
     int             sig;            // signal level
+    
+    std::string     labelStat;      // static part of the a/c label
+    DataRefs::LabelCfgUTy labelCfg = {.i=0};  // the configuration the label was saved for
     
 protected:
     // DYNAMIC DATA (protected, access will be mutex-controlled for thread-safety)
@@ -211,6 +214,7 @@ public:
     bool outdated ( double simTime = NAN ) const;
 
     // produce a/c label
+    void UpdateStaticLabel();
     std::string ComposeLabel() const;
     
     // based on buffered positions calculate the next position to fly to in a separate thread

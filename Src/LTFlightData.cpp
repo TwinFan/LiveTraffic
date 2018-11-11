@@ -77,6 +77,7 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     pDoc8643 = &(Doc8643::get(acTypeIcao));
     
     // flight
+    if (!other.call.empty()) call = other.call;
     if (!other.originAp.empty()) originAp = other.originAp;
     if (!other.destAp.empty()) destAp = other.destAp;
     if (!other.flight.empty()) flight = other.flight;
@@ -177,7 +178,7 @@ bool LTFlightData::IsMatch (const std::string t) const
             return true;
         
         // finally compare with call sign
-        if (GetUnsafeDyn().call == t)
+        if (statData.call == t)
             return true;
         
         // no match
@@ -237,16 +238,69 @@ bool LTFlightData::outdated (double simTime) const
     youngestTS + dataRefs.GetAcOutdatedIntvl() < (isnan(simTime) ? dataRefs.GetSimTime() : simTime);
 }
 
-// produce a/c label
-std::string LTFlightData::ComposeLabel() const
+#define ADD_LABEL(b,txt) if (b && !txt.empty()) { labelStat += txt; labelStat += ' '; }
+// update static data parts of the a/c label for reuse for performance reasons
+void LTFlightData::UpdateStaticLabel()
 {
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
-        // label is at the moment fixed
-        // TODO: configurable label content (but XPMP limits to 32 chars)
-        return key() + " " + statData.acTypeIcao + " " + GetUnsafeDyn().call;
+        // the configuration: which parts to include in the label?
+        const DataRefs::LabelCfgUTy cfg = dataRefs.GetLabelCfg();
+        
+        // add parts as per config
+        labelStat.clear();
+        ADD_LABEL(cfg.b.bIcaoType,    statData.acTypeIcao);
+        ADD_LABEL(cfg.b.bTranspCode,  key());
+        ADD_LABEL(cfg.b.bReg,         statData.reg);
+        ADD_LABEL(cfg.b.bIcaoOp,      statData.opIcao);
+        ADD_LABEL(cfg.b.bCallSign,    statData.call);
+        ADD_LABEL(cfg.b.bFlightNo,    statData.flight);
+        if (cfg.b.bRoute && (!statData.originAp.empty() || !statData.destAp.empty())) {
+            labelStat += statData.originAp;
+            labelStat += '-';
+            labelStat +=statData.destAp;
+            labelStat += ' ';
+        }
+        
+        // this is the config we did the label for
+        labelCfg = cfg;
+        
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
+    }
+}
+
+// produce a/c label
+#define ADD_LABEL_NUM(b,num) if (b) { label += std::to_string(long(num)); label += ' '; }
+std::string LTFlightData::ComposeLabel() const
+{
+    try {
+        // access guarded by a mutex
+        std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
+        // the configuration: which parts to include in the label?
+        const DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg().b;
+        std::string label(labelStat);       // copy static parts
+        
+        // only possible if we have an aircraft
+        if (pAc) {
+            // current position of a/c
+            const positionTy& pos = pAc->GetPPos();
+            // add more items as per configuration
+            if (cfg.bPhase) { label +=  pAc->GetFlightPhaseString(); label += ' '; }
+            ADD_LABEL_NUM(cfg.bHeading,     pos.heading());
+            ADD_LABEL_NUM(cfg.bAlt,         pos.alt_ft());
+            ADD_LABEL_NUM(cfg.bHeightAGL,   pAc->GetPHeight_ft());
+            ADD_LABEL_NUM(cfg.bSpeed,       pAc->GetSpeed_kt());
+            ADD_LABEL_NUM(cfg.bVSI,         pAc->GetVSI_ft());
+        }
+        
+        // remove the trailing space
+        label.pop_back();
+        
+        return label;
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
@@ -1055,6 +1109,10 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
         
         // merge inStat into our statData (copy only filled fields):
         statData |= inStat;
+        
+        // update the static parts of the label
+        UpdateStaticLabel();
+        
    } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
     }
@@ -1114,6 +1172,10 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
         // if outdated just return 'delete me'
         if ( outdated(simTime) )
             return true;
+        
+        // do we need to recalc the static part of the a/c label due to config change?
+        if (dataRefs.GetLabelCfg().i != labelCfg.i)
+            UpdateStaticLabel();
         
         // doesn't yet have an associated aircraft but two positions?
         if ( !hasAc() && posDeque.size() >= 2 ) {

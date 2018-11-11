@@ -96,12 +96,6 @@
 		25ED1F33218A675900FE614A /* KJFK AC801E FR24 Path.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK AC801E FR24 Path.png"; sourceTree = "<group>"; };
 		25ED1F34218A675A00FE614A /* KJFK AC801E LT Take Off.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK AC801E LT Take Off.png"; sourceTree = "<group>"; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
-		25FB44502128B7EF00402733 /* Flightradar 24.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Flightradar 24.txt"; sourceTree = "<group>"; };
-		25FB44532128B94F00402733 /* feed_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = feed_pretty.json; sourceTree = "<group>"; };
-		25FB44542128B94F00402733 /* clickhandler_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = clickhandler_pretty.json; sourceTree = "<group>"; };
-		25FB44552128B94F00402733 /* clickhandler_original.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = clickhandler_original.json; sourceTree = "<group>"; wrapsLines = 0; };
-		25FB44562128B94F00402733 /* feed_original.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = feed_original.json; sourceTree = "<group>"; };
-		25FB445E2128C29F00402733 /* feed_list.xlsx */ = {isa = PBXFileReference; lastKnownFileType = file; path = feed_list.xlsx; sourceTree = "<group>"; };
 		D607B19909A556E400699BC3 /* mac.xpl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mac.xpl; sourceTree = BUILT_PRODUCTS_DIR; };
 		D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTraffic.cpp; sourceTree = "<group>"; };
 		D6A7BDA916A1DEA200D1426A /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
@@ -159,7 +153,6 @@
 		255857972095B74300816F65 /* Data */ = {
 			isa = PBXGroup;
 			children = (
-				25FB444F2128B7B800402733 /* Flightradar24 */,
 				2540F51720D5AAD900DCCF45 /* OpenSky */,
 				2558579F2095BB6B00816F65 /* ADSB */,
 			);
@@ -289,19 +282,6 @@
 				257A109A2190E211007C1E04 /* ACInfoWnd.h */,
 			);
 			path = Include;
-			sourceTree = "<group>";
-		};
-		25FB444F2128B7B800402733 /* Flightradar24 */ = {
-			isa = PBXGroup;
-			children = (
-				25FB44552128B94F00402733 /* clickhandler_original.json */,
-				25FB44542128B94F00402733 /* clickhandler_pretty.json */,
-				25FB44562128B94F00402733 /* feed_original.json */,
-				25FB44532128B94F00402733 /* feed_pretty.json */,
-				25FB445E2128C29F00402733 /* feed_list.xlsx */,
-				25FB44502128B7EF00402733 /* Flightradar 24.txt */,
-			);
-			path = Flightradar24;
 			sourceTree = "<group>";
 		};
 		D607B15F09A5563000699BC3 = {

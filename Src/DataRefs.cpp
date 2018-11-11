@@ -209,6 +209,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/sim/date",        xplmType_Int,   {.i=DataRefs::LTGetSimDateTime}, {.i=DataRefs::LTSetSimDateTime}, (void*)1, false },
     {"livetraffic/sim/time",        xplmType_Int,   {.i=DataRefs::LTGetSimDateTime}, {.i=DataRefs::LTSetSimDateTime}, (void*)2, false },
     {"livetraffic/cfg/aircrafts_displayed",         xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetAircraftsDisplayed}, GET_VAR, false },
+    {"livetraffic/cfg/auto_start",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/labels",                      xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
     {"livetraffic/cfg/log_level",                   xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetLogLevel}, GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetUseHistData}, GET_VAR, true },
     {"livetraffic/cfg/max_num_ac",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
@@ -236,8 +238,10 @@ static_assert(sizeof(DATA_REFS_LT)/sizeof(DATA_REFS_LT[0]) == CNT_DATAREFS_LT,
 void* DataRefs::getVarAddr (dataRefsLT dr)
 {
     switch (dr) {
-        case DR_CFG_LOG_LEVEL:              return &iLogLevel;
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
+        case DR_CFG_AUTO_START:             return &bAutoStart;
+        case DR_CFG_LABELS:                 return &labelCfg.i;
+        case DR_CFG_LOG_LEVEL:              return &iLogLevel;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
         case DR_CFG_MAX_FULL_NUM_AC:        return &maxFullNumAc;
@@ -274,30 +278,49 @@ const char* DATA_REF_EDITORS[] = {
 };
 
 
-float LoopCBInformDRE (float, float, int, void*)
+float LoopCBOneTimeSetup (float, float, int, void*)
 {
-    // loop over all available data ref editor signatures
-    for (const char* szDREditor: DATA_REF_EDITORS) {
-        // find the plugin by signature
-        XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
-        if (PluginID != XPLM_NO_PLUGIN_ID) {
-            // send message regarding each dataRef we offer
-            for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
-                XPLMSendMessageToPlugin(PluginID,
-                                        MSG_ADD_DATAREF,
-                                        (void*)def.dataName.c_str());
-        }
-    }
+    static enum ONCE_CB_STATE
+    { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_CB_DONE }
+    eState = ONCE_CB_ADD_DREFS;
     
-    // don't want to be called again
-    return 0;
+    switch (eState) {
+        case ONCE_CB_ADD_DREFS:
+            // loop over all available data ref editor signatures
+            for (const char* szDREditor: DATA_REF_EDITORS) {
+                // find the plugin by signature
+                XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
+                if (PluginID != XPLM_NO_PLUGIN_ID) {
+                    // send message regarding each dataRef we offer
+                    for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
+                        XPLMSendMessageToPlugin(PluginID,
+                                                MSG_ADD_DATAREF,
+                                                (void*)def.dataName.c_str());
+                }
+            }
+            // next: Auto Start, but wait another 2 seconds for that
+            eState = ONCE_CB_AUTOSTART;
+            return 2;
+            
+        case ONCE_CB_AUTOSTART:
+            // Auto Start display of aircrafts
+            if (dataRefs.GetAutoStart())
+                dataRefs.SetAircraftsDisplayed(true);
+            
+            // done
+            eState = ONCE_CB_DONE;
+            [[fallthrough]];
+        default:
+            // don't want to be called again
+            return 0;
+    }
 }
 
 //MARK: Constructor - just plain variable init, no API calls
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
-iLogLevel (initLogLevel),
+iLogLevel (initLogLevel)
 #ifdef DEBUG
-bDebugAcPos (true)
+,bDebugAcPos (true)
 #endif
 {
     // disabled all channels
@@ -362,7 +385,7 @@ bool DataRefs::Init ()
         return false;
 
     // Register callback to inform DataRef Editor later on
-    XPLMRegisterFlightLoopCallback(LoopCBInformDRE, 1, NULL);
+    XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
     
     // read configuration file if any
     return LoadConfigFile();
@@ -378,7 +401,7 @@ void DataRefs::Stop ()
     }
     
     // unregister the callback for informing DRE
-    XPLMUnregisterFlightLoopCallback(LoopCBInformDRE, NULL);
+    XPLMUnregisterFlightLoopCallback(LoopCBOneTimeSetup, NULL);
 }
 
 // call XPLMRegisterDataAccessor

@@ -361,7 +361,10 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             {
                 LTFlightData::FDStaticData stat;
                 stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
-                stat.trt          = trt_ADS_B_unknown;
+                stat.trt     =    trt_ADS_B_unknown;
+                stat.call    =    jag_s(pJAc, OPSKY_CALL);
+                while (stat.call.back() == ' ')      // trim trailing spaces
+                    stat.call.pop_back();
                 fd.UpdateData(std::move(stat));
                 
                 // openSky doesn't deliver a/c master data with the flight data stream
@@ -379,9 +382,6 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // non-positional dynamic data
                 dyn.radar.code =        jag_sn(pJAc, OPSKY_RADAR_CODE);
-                dyn.call =              jag_s(pJAc, OPSKY_CALL);
-                while (dyn.call.back() == ' ')      // trim trailing spaces
-                    dyn.call.pop_back();
                 dyn.gnd =               jag_b(pJAc, OPSKY_GND);
                 dyn.heading =           jag_n(pJAc, OPSKY_HEADING);
                 dyn.spd =               jag_n(pJAc, OPSKY_SPD);
@@ -502,6 +502,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
                 stat.op =         jog_s(pJAc, ADSBEX_OP);
                 stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
+                stat.call =       jog_s(pJAc, ADSBEX_CALL);
                 fd.UpdateData(std::move(stat));
             }
             
@@ -514,7 +515,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // non-positional dynamic data
                 dyn.radar.code =        jog_sn(pJAc, ADSBEX_RADAR_CODE);
-                dyn.call =              jog_s(pJAc, ADSBEX_CALL);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -901,6 +901,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
                     stat.op =         jog_s(pJAc, ADSBEX_OP);
                     stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
+                    stat.call =       jog_s(pJAc, ADSBEX_CALL);
                     fd.UpdateData(std::move(stat));
                 }
                 
@@ -912,7 +913,6 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // non-positional dynamic data
                 dyn.radar.code =        jog_sn(pJAc, ADSBEX_RADAR_CODE);
-                dyn.call =              jog_s(pJAc, ADSBEX_CALL);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);

@@ -129,6 +129,8 @@ enum dataRefsLT {
     DR_SIM_DATE,
     DR_SIM_TIME,
     DR_CFG_AIRCRAFTS_DISPLAYED,
+    DR_CFG_AUTO_START,
+    DR_CFG_LABELS,
     DR_CFG_LOG_LEVEL,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
@@ -186,6 +188,32 @@ public:
         std::string GetConfigString() const;
     };
     
+    // which elements make up an a/c label?
+    struct LabelCfgTy {
+        unsigned
+        // static info
+        bIcaoType : 1,              // default
+        bTranspCode : 1,
+        bReg : 1,
+        bIcaoOp : 1,
+        bCallSign : 1,              // default
+        bFlightNo : 1,
+        bRoute : 1,
+        // dynamic info
+        bPhase : 1,
+        bHeading : 1,
+        bAlt : 1,                   // default
+        bHeightAGL : 1,
+        bSpeed : 1,                 // default
+        bVSI : 1;
+    };
+    
+    union LabelCfgUTy {
+        LabelCfgTy b;
+        int i;
+    };
+
+    
 public:
     pluginStateTy pluginState = STATE_STOPPED;
     
@@ -209,6 +237,9 @@ protected:
     time_t tStartThisYear = 0, tStartPrevYear = 0;
     
     // generic config values
+    int bAutoStart              = false;// shall display a/c right after startup?
+    // which elements make up an a/c label?
+    LabelCfgUTy labelCfg = { .b = {1,0,0,0,1,0,0,0,0,1,0,1,0} };
     int maxNumAc        = 50;           // how many aircrafts to create at most?
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 5;            // kilometer: Farther away a/c is drawn 'lights only'
@@ -292,6 +323,8 @@ public:
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
+    bool GetAutoStart() const { return bAutoStart != 0; }
+    LabelCfgUTy GetLabelCfg() const { return labelCfg; }
     int GetMaxNumAc() const { return maxNumAc; }
     int GetMaxFullNumAc() const { return maxFullNumAc; }
     int GetFullDistance_km() const { return fullDistance; }

@@ -142,10 +142,12 @@ enum UI_WIDGET_IDX_T {
     UI_MAIN_WND     = 0,
     // Buttons to select 'tabs'
     UI_BTN_BASICS,
-    UI_BTN_DEBUG,
+    UI_BTN_AC_LABELS,
+    UI_BTN_ADVANCED,
     // "Basics" tab
     UI_BASICS_LIVE_SUB_WND,
     UI_BASICS_BTN_ENABLE,
+    UI_BASICS_BTN_AUTO_START,
     UI_BASICS_CAP_FDCHANNELS,
     UI_BASICS_BTN_OPENSKY_LIVE,
     UI_BASICS_BTN_OPENSKY_MASTERDATA,
@@ -157,6 +159,26 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_TXT_DATETIME,
     UI_BASICS_CAP_HISTORICCHANNELS,
     UI_BASICS_BTN_ADSB_HISTORIC,
+    
+    // "A/C Labels" tab
+    UI_LABELS_SUB_WND,
+    UI_LABELS_CAP_STATIC,
+    UI_LABELS_BTN_TYPE,
+    UI_LABELS_BTN_TRANSP,
+    UI_LABELS_BTN_REG,
+    UI_LABELS_BTN_OP,
+    UI_LABELS_BTN_CALL_SIGN,
+    UI_LABELS_BTN_FLIGHT_NO,
+    UI_LABELS_BTN_ROUTE,
+
+    UI_LABELS_CAP_DYNAMIC,
+    UI_LABELS_BTN_PHASE,
+    UI_LABELS_BTN_HEADING,
+    UI_LABELS_BTN_ALT,
+    UI_LABELS_BTN_HEIGHT,
+    UI_LABELS_BTN_SPEED,
+    UI_LABELS_BTN_VSI,
+
     // "Advanced" tab
     UI_ADVCD_SUB_WND,
     UI_ADVCD_CAP_LOGLEVEL,
@@ -195,10 +217,12 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {   0,   0, 400, 330, 0, "LiveTraffic Settings", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
     // Buttons to select 'tabs'
     {  10,  30,  75,  10, 1, "Basics",               0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
-    {  85,  30,  75,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    {  85,  30,  75,  10, 1, "A/C Labels",           0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    { 160,  30,  75,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     // "Basics" tab
     {  10,  50, 190, -10, 0, "Basics Live",          0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
     {  10,  10,  10,  10, 1, "Show Live Aircrafts",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  25,  10,  10, 1, "Auto Start",           0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {   5,  50,  -5,  10, 1, "Flight Data Channels:",0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  10,  70,  10,  10, 1, "OpenSky Network Live", 0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
@@ -210,6 +234,23 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {-140,  30, 130,  15, 1, "",                     0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_TextField, {xpProperty_MaxCharacters,19, 0,0, 0,0} },
     {   5,  50, -10,  10, 1, "Historic Channels:",   0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange Historic",  0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    // "A/C Label" tab
+    {  10,  50, -10, -10, 0, "A/C Label",           0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
+    {   5,  10, 190,  10, 1, "Static info:",        0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10,  30,  10,  10, 1, "ICAO A/C Type Code",  0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  45,  10,  10, 1, "Transponder Hex Code",0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  60,  10,  10, 1, "Registration",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  75,  10,  10, 1, "ICAO Operator Code",  0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  90,  10,  10, 1, "Call Sign",           0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 105,  10,  10, 1, "Flight Number (rare)",0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 120,  10,  10, 1, "Route         (rare)",0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 200,  10, -10,  10, 1, "Dynamic data:",       0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 200,  30,  10,  10, 1, "Flight Phase",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 200,  45,  10,  10, 1, "Heading",             0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 200,  60,  10,  10, 1, "Altitude [ft]",       0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 200,  75,  10,  10, 1, "Height AGL [ft]",     0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 200,  90,  10,  10, 1, "Speed [kn]",          0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 200, 105,  10,  10, 1, "VSI [ft/min]",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     // "Advanced" tab
     {  10,  50, -10, -10, 0, "Advanced",            0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Logging Level:",      0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -266,10 +307,14 @@ void LTSettingsUI::Enable()
         // some widgets with objects
         subBasicsLive.setId(widgetIds[UI_BASICS_LIVE_SUB_WND]);
         subBasicsHistoric.setId(widgetIds[UI_BASICS_HISTORIC_SUB_WND]);
+        subAcLabel.setId(widgetIds[UI_LABELS_SUB_WND]);
         subAdvcd.setId(widgetIds[UI_ADVCD_SUB_WND]);
         
         // organise the tab button group
-        tabGrp.Add({widgetIds[UI_BTN_BASICS], widgetIds[UI_BTN_DEBUG]});
+        tabGrp.Add({
+            widgetIds[UI_BTN_BASICS],
+            widgetIds[UI_BTN_AC_LABELS],
+            widgetIds[UI_BTN_ADVANCED]});
         tabGrp.SetChecked(widgetIds[UI_BTN_BASICS]);
         HookButtonGroup(tabGrp);
         
@@ -282,6 +327,8 @@ void LTSettingsUI::Enable()
         //      Class LTSettingsUI has no more code for handling these:
         btnBasicsEnable.setId(widgetIds[UI_BASICS_BTN_ENABLE],
                               DATA_REFS_LT[DR_CFG_AIRCRAFTS_DISPLAYED]);
+        btnBasicsAutoStart.setId(widgetIds[UI_BASICS_BTN_AUTO_START],
+                              DATA_REFS_LT[DR_CFG_AUTO_START]);
         btnBasicsHistoric.setId(widgetIds[UI_BASICS_BTN_HISTORIC],
                               DATA_REFS_LT[DR_CFG_USE_HISTORIC_DATA]);
         btnOpenSkyLive.setId(widgetIds[UI_BASICS_BTN_OPENSKY_LIVE],
@@ -295,6 +342,10 @@ void LTSettingsUI::Enable()
 
         txtDateTime.setId(widgetIds[UI_BASICS_TXT_DATETIME]);
         txtDateTime.SetCaption();
+        
+        // *** A/C Labels ***
+        drCfgLabels.setDataRef(DATA_REFS_LT[DR_CFG_LABELS]);
+        LabelBtnInit();
         
         // *** Advanced ***
         logLevelGrp.Add({
@@ -400,22 +451,81 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         subBasicsHistoric.Show(bNowChecked);
         bRet = true;
     }
-    else if (widgetIds[UI_BTN_DEBUG] == buttonWidget) {
+    else if (widgetIds[UI_BTN_AC_LABELS] == buttonWidget) {
+        subAcLabel.Show(bNowChecked);
+        bRet = true;
+    }
+    else if (widgetIds[UI_BTN_ADVANCED] == buttonWidget) {
         subAdvcd.Show(bNowChecked);
         bRet = true;
     }
     
+    // if any of the a/c label check boxes changes we set the config accordingly
+    if (widgetIds[UI_LABELS_BTN_TYPE]       == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_TRANSP]     == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_REG]        == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_OP]         == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_CALL_SIGN]  == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_FLIGHT_NO]  == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_ROUTE]      == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_PHASE]      == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_HEADING]    == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_ALT]        == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_HEIGHT]     == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_SPEED]      == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_VSI]        == buttonWidget)
+    {
+        LabelBtnSave();
+        bRet = true;
+    }
+    
     // if any of the log-level radio buttons changes we set log-level accordingly
-    if (bNowChecked &&
-        (widgetIds[UI_ADVCD_BTN_LOG_DEBUG]   == buttonWidget ||
-         widgetIds[UI_ADVCD_BTN_LOG_INFO]    == buttonWidget ||
-         widgetIds[UI_ADVCD_BTN_LOG_WARNING] == buttonWidget ||
-         widgetIds[UI_ADVCD_BTN_LOG_ERROR]   == buttonWidget ||
-         widgetIds[UI_ADVCD_BTN_LOG_FATAL]   == buttonWidget))
+    if (bNowChecked && logLevelGrp.isInGroup(buttonWidget))
     {
         dataRefs.SetLogLevel(logLevelGrp.GetCheckedIndex());
         bRet = true;
     }
     
     return bRet;
+}
+
+// Handle checkboxes for a/c labels
+void LTSettingsUI::LabelBtnInit()
+{
+    // read current label configuration and init the checkboxes accordingly
+    DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg().b;
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,cfg.bIcaoType);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,cfg.bTranspCode);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,cfg.bReg);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,cfg.bIcaoOp);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,cfg.bCallSign);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,cfg.bFlightNo);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,cfg.bRoute);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,cfg.bPhase);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,cfg.bHeading);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,cfg.bAlt);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,cfg.bHeightAGL);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,cfg.bSpeed);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,cfg.bVSI);
+}
+
+void LTSettingsUI::LabelBtnSave()
+{
+    // store the checkboxes states in a zero-inited configuration
+    DataRefs::LabelCfgUTy cfg = { .i=0 };
+    cfg.b.bIcaoType     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,NULL);
+    cfg.b.bTranspCode   = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,NULL);
+    cfg.b.bReg          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,NULL);
+    cfg.b.bIcaoOp       = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,NULL);
+    cfg.b.bCallSign     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,NULL);
+    cfg.b.bFlightNo     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,NULL);
+    cfg.b.bRoute        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,NULL);
+    cfg.b.bPhase        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,NULL);
+    cfg.b.bHeading      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,NULL);
+    cfg.b.bAlt          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,NULL);
+    cfg.b.bHeightAGL    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,NULL);
+    cfg.b.bSpeed        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,NULL);
+    cfg.b.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
+    // save as current config
+    drCfgLabels.Set(cfg.i);
 }

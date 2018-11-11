@@ -67,7 +67,7 @@ bool NextCycle (int newCycle)
     // time should move forward (positive difference) and not too much either
     // (but no problem if no a/c yet displayed, i.e. this call being the first)
     if (dataRefs.GetNumAircrafts() > 0 &&
-        (currCycle.diffTime < 0 || currCycle.diffTime > SIMILAR_TS_INTVL) ) {
+        (currCycle.diffTime < 0 || currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
         dataRefs.SetReInitAll(true);
         SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
         return false;
@@ -1572,6 +1572,8 @@ bool LTAircraft::YProbe ()
     
     // calc current bearing and distance for pure informational purpose ***
     vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
+    // update the a/c label with fresh values
+    labelAc = fd.ComposeLabel();
     
     // Success
     return true;

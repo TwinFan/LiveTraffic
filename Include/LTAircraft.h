@@ -270,6 +270,7 @@ public:
     bool OutOfPositions() const;
     // current a/c configuration
     inline FlightPhase GetFlightPhase() const { return phase; }
+    std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     inline bool IsOnGrnd() const { return bOnGrnd; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
