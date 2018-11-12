@@ -596,7 +596,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     fIn >> sDataRef >> sVal;
     if (!fIn ||
         sDataRef != LIVE_TRAFFIC ||
-        sVal != LT_VERSION)
+        sVal != LT_FM_VERSION)
     {
         SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str());
         return false;

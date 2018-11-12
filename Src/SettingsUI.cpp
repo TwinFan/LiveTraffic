@@ -153,6 +153,9 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_BTN_OPENSKY_MASTERDATA,
     UI_BASICS_BTN_ADSB_LIVE,
 
+    UI_BASICS_CAP_VERSION_TXT,
+    UI_BASICS_CAP_VERSION,
+
     UI_BASICS_HISTORIC_SUB_WND,
     UI_BASICS_BTN_HISTORIC,
     UI_BASICS_CAP_DATETIME,
@@ -227,6 +230,8 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  70,  10,  10, 1, "OpenSky Network Live", 0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange Live",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
     { 200,  50, -10, -10, 0, "Basics Historic",      0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
     {  10,  10,  10,  10, 1, "Use Historic Data",    0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
@@ -340,6 +345,11 @@ void LTSettingsUI::Enable()
         btnADSBHistoric.setId(widgetIds[UI_BASICS_BTN_ADSB_HISTORIC],
                               DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_HISTORIC]);
 
+        // version number
+        XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],
+                              LT_VERSION_FULL);
+        
+        // Historic data timestamp
         txtDateTime.setId(widgetIds[UI_BASICS_TXT_DATETIME]);
         txtDateTime.SetCaption();
         

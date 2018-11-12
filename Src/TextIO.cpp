@@ -258,7 +258,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     XPLMSetWindowTitle(window, LIVE_TRAFFIC);
 #endif
     
-    LOG_MSG(logDEBUG, DBG_WND_CREATED_UNTIL, dispTxt.fTimeDisp, aszMsgTxt);
+//    LOG_MSG(logDEBUG, DBG_WND_CREATED_UNTIL, dispTxt.fTimeDisp, aszMsgTxt);
     
     return g_window;
 }

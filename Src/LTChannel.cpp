@@ -184,7 +184,7 @@ bool LTOnlineChannel::InitCurl ()
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
-    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, CURL_USER_AGENT);
+    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
     
     // success
     return true;

@@ -868,16 +868,20 @@ std::string DataRefs::GetDebugAcFilter() const
 // sets A/C filter
 void DataRefs::LTSetDebugAcFilter( void* /*inRefcon*/, int i )
 {
+    bool bWasFilterDefined = dataRefs.uDebugAcFilter != 0;
+    
     // match hex range of transpIcao codes
     if ( 0x000000 <= i && i <= 0xFFFFFF ) {
         dataRefs.uDebugAcFilter = unsigned(i);
         
-        LOG_MSG(logWARN,DBG_FILTER_AC,
-                i > 0 ? dataRefs.GetDebugAcFilter().c_str() : "-");
-        
         // also set the key for the a/c info datarefs
-        if (i > 0x000000)
+        if (i > 0x000000) {
             LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)), i);
+            LOG_MSG(logWARN,DBG_FILTER_AC,
+                    dataRefs.GetDebugAcFilter().c_str());
+        } else if (bWasFilterDefined) {
+            LOG_MSG(logWARN,DBG_FILTER_AC_REMOVED);
+        }
     }
 }
 
@@ -1005,7 +1009,7 @@ bool DataRefs::LoadConfigFile()
     fIn >> sDataRef >> sVal;
     if (!fIn ||
         sDataRef != LIVE_TRAFFIC ||
-        sVal != LT_VERSION)
+        sVal != LT_CFG_VERSION)
     {
         SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str());
         return false;
@@ -1096,7 +1100,7 @@ bool DataRefs::SaveConfigFile()
     
     // save application and version first...maybe we need to know it in
     // future versions for conversion efforts - who knows?
-    fOut << LIVE_TRAFFIC << ' ' << LT_VERSION << '\n';
+    fOut << LIVE_TRAFFIC << ' ' << LT_CFG_VERSION << '\n';
     
     // loop over our LiveTraffic values and store those meant to be stored
     for (const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT)

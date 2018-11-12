@@ -27,6 +27,9 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+// in LTVersion.cpp:
+extern const char* InitFullVersion ();
+
 //MARK: Globals
 
 #if !defined(INIT_LOG_LEVEL)
@@ -139,6 +142,9 @@ PLUGIN_API int XPluginStart(
 							char *		outSig,
 							char *		outDesc)
 {
+    // init our version number
+    InitFullVersion ();
+
     // init random numbers
      srand((unsigned int)time(NULL));
     
@@ -172,7 +178,7 @@ PLUGIN_API int  XPluginEnable(void)
     if (!LTMainEnable()) return 0;
 
     // Create a message window and say hello
-    SHOW_MSG(logMSG, MSG_WELCOME);
+    SHOW_MSG(logMSG, MSG_WELCOME, LT_VERSION_FULL);
     
     // Success
     return 1;

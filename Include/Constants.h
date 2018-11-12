@@ -70,13 +70,19 @@ const double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
 const double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 const double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
 
+//MARK: Version Information
+extern const char* LT_VERSION;              // like "1.0"
+extern const char* LT_VERSION_FULL;         // like "1.0.181231" with last digits being build date
+extern const char* HTTP_USER_AGENT;         // like "LiveTraffic/1.0"
+
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
-#define LT_VERSION              "1.0"
+#define LT_CFG_VERSION          "1.0"        // version of config file format
+#define LT_FM_VERSION           "1.0"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircrafts based on live traffic."
 #define MSG_DISABLED            "Disabled"
-#define MSG_WELCOME             "LiveTraffic successfully loaded!"
+#define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircrafts"
@@ -88,7 +94,6 @@ const double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground
 #define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
 #define WHITESPACE              " \t\f\v"
-#define CURL_USER_AGENT         "LiveTraffic/1.0"
 #define CSL_DEFAULT_ICAO        "A320"
 #define FM_MAP_SECTION          "Map"
 #define FM_PARENT_SEPARATOR     ":"
@@ -268,6 +273,7 @@ const int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneou
 #define DBG_SENDING_HTTP        "%s: Sending HTTP: %s"
 #define DBG_RECEIVED_BYTES      "%s: Received %ld characters"
 #define DBG_FILTER_AC           "DEBUG Filtering for a/c '%s'"
+#define DBG_FILTER_AC_REMOVED   "DEBUG Filtering for a/c REMOVED"
 #define DBG_MERGED_POS          "DEBUG MERGED POS %s into updated TS %.1f"
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"
