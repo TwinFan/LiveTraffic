@@ -100,6 +100,13 @@ bool LTChannel::IncErrCnt()
     return IsValid();
 }
 
+// decrease error counter
+void LTChannel::DecErrCnt()
+{
+    if (errCnt > 0)
+        --errCnt;
+}
+
 
 // enabled-status is maintained by global dataRef object
 bool LTChannel::IsEnabled() const
@@ -315,10 +322,19 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
-    if (!pJAcList) { LOG_MSG(logERR,ERR_JSON_ACLIST,OPSKY_AIRCRAFT_ARR); IncErrCnt(); return false; }
-    
+    if (!pJAcList) {
+        // a/c array not found: can just mean it is 'null' as in
+        // the empty result set: {"time":1541978120,"states":null}
+        JSON_Value* pJSONVal = json_object_get_value(pObj, OPSKY_AIRCRAFT_ARR);
+        if (!pJSONVal || pJSONVal->type != JSONNull) {
+            // well...it is something else, so it is malformed, bail out
+            LOG_MSG(logERR,ERR_JSON_ACLIST,OPSKY_AIRCRAFT_ARR);
+            IncErrCnt();
+            return false;
+        }
+    }
     // iterate all aircrafts in the received flight data (can be 0)
-    for ( int i=0; i < pJAcList->count; i++ )
+    else for ( int i=0; i < pJAcList->count; i++ )
     {
         // get the aircraft (which is just an array of values)
         JSON_Array* pJAc = json_array_get_array(pJAcList,i);
@@ -1299,8 +1315,12 @@ void LTFlightDataSelectAc ()
                     // fetch all aicrafts
                     if ( p->IsEnabled() ) {
                         
-                        if ( p->FetchAllData(pos) && !bFDMainStop )
-                            p->ProcessFetchedData(mapFd);
+                        if ( p->FetchAllData(pos) && !bFDMainStop ) {
+                            if (p->ProcessFetchedData(mapFd))
+                                // reduce error count if processed successfully
+                                // as a chance to appear OK in the long run
+                                p->DecErrCnt();
+                        }
                     }
                 } catch (const std::exception& e) {
                     LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());

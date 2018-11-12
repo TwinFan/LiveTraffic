@@ -183,6 +183,9 @@
          contextName = "AccelParam::getRatio(double) const:LTAircraft.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTChannel::DecErrCnt():LTChannel.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightDataRemoveOutdatedAc():LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -253,10 +256,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -302,10 +305,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -340,10 +343,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -374,6 +377,14 @@
       </ContextState>
       <ContextState
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightDataSelectAc():LTChannel.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "p-&gt;errCnt">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "CoordPlusVector(positionTy const&amp;, vectorTy const&amp;):CoordCalc.cpp">

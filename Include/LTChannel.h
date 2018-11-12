@@ -66,11 +66,11 @@ public:
     virtual bool IsValid () const {return bValid;}      // good to provide data after init?
     virtual void SetValid (bool _valid, bool bMsg = true);
     virtual bool IncErrCnt();               // increases error counter, returns if (still) valid
+    virtual void DecErrCnt();               // decreases error counter
     virtual bool IsEnabled () const;
     virtual void SetEnable (bool bEnable);
     
 public:
-    // TODO: Rename to FetchAllData
     virtual bool FetchAllData (const positionTy& pos) = 0;
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fd) = 0;
 };
