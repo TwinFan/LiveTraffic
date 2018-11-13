@@ -176,6 +176,19 @@ std::string& str_toupper(std::string& s) {
     return s;
 }
 
+// format timestamp
+std::string ts2string (time_t t)
+{
+    // format it nicely
+    char szBuf[50];
+    const struct tm tm = *gmtime(&t);
+    strftime(szBuf,
+             sizeof(szBuf) - 1,
+             "%F %T",
+             &tm);
+    return std::string(szBuf);
+}
+
 //
 //MARK: Callbacks
 //

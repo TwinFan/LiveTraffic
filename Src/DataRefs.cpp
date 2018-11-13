@@ -663,6 +663,12 @@ double DataRefs::GetSimTime() const
     
 }
 
+// current sim time as human readable string
+std::string DataRefs::GetSimTimeString() const
+{
+    return ts2string(time_t(GetSimTime()));
+}
+
 // livetraffic/sim/date and .../time
 void DataRefs::LTSetSimDateTime(void* p, int i)
 {

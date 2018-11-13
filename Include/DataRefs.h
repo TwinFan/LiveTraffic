@@ -299,6 +299,7 @@ public:
     
     // seconds since epoch including fractionals
     double GetSimTime() const;
+    std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time
     static void LTSetSimDateTime(void* p, int i);

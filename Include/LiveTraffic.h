@@ -117,6 +117,13 @@ std::string LTFindResourcesDirectory ();
 // MARK: Utility Functions
 // change a std::string to uppercase
 std::string& str_toupper(std::string& s);
+// format timestamp
+std::string ts2string (time_t t);
+// limits text to m characters, replacing the last ones with ... if too long
+inline std::string strAtMost(const std::string s, int m) {
+    return s.length() <= m ? s :
+    s.substr(0, m-3) + "...";
+}
 
 // push a new item to the end only if it doesn't exist yet
 template< class ContainerT, class T>

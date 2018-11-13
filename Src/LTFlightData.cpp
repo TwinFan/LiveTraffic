@@ -45,7 +45,8 @@ LTFlightData::FDDynamicData::FDDynamicData () :
 gnd(false), inHg(0.0),                  // positional
 brng(0.0), dst(0.0),                    // relative position
 spd(0.0), vsi(0.0),                     // movement
-ts(0)
+ts(0),
+pChannel(nullptr)
 {
     // radar
     memset(&radar, 0, sizeof(radar));
@@ -87,6 +88,37 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (!other.opIcao.empty()) opIcao = other.opIcao;
 
     return *this;
+}
+
+// route (this is "originAp - destAp", but considers emoty txt)
+std::string LTFlightData::FDStaticData::route () const
+{
+    // keep it an empty string if there is no info at all
+    if (originAp.empty() && destAp.empty())
+        return std::string();
+    
+    // if there is some info then replace missing info with question mark
+    std::string s(originAp.empty() ? "?" : originAp);
+    s += '-';
+    s += destAp.empty() ? "?" : destAp;
+    return s;
+}
+
+std::string LTFlightData::FDStaticData::flightRoute() const
+{
+    const std::string r(route());
+    // keep it an empty string if there is no info at all
+    if (flight.empty() && r.empty())
+        return std::string();
+    
+    // if there is some info missing then just return the other
+    if (flight.empty())
+        return r;
+    if (r.empty())
+        return flight;
+    
+    // we have both...put it together
+    return (flight + ": ") + r;
 }
 
 //
@@ -257,12 +289,7 @@ void LTFlightData::UpdateStaticLabel()
         ADD_LABEL(cfg.b.bIcaoOp,      statData.opIcao);
         ADD_LABEL(cfg.b.bCallSign,    statData.call);
         ADD_LABEL(cfg.b.bFlightNo,    statData.flight);
-        if (cfg.b.bRoute && (!statData.originAp.empty() || !statData.destAp.empty())) {
-            labelStat += statData.originAp;
-            labelStat += '-';
-            labelStat +=statData.destAp;
-            labelStat += ' ';
-        }
+        ADD_LABEL(cfg.b.bRoute,       statData.route());
         
         // this is the config we did the label for
         labelCfg = cfg;
@@ -1036,7 +1063,7 @@ bool LTFlightData::TryGetSafeCopy ( FDDynamicData& outDyn ) const
 }
 
 // waits for lock and returns a copy
-LTFlightData::FDDynamicData LTFlightData::WaitForSafeCopyDyn() const
+LTFlightData::FDDynamicData LTFlightData::WaitForSafeCopyDyn (bool bFirst) const
 {
     LTFlightData::FDDynamicData ret;
     try {
@@ -1044,7 +1071,7 @@ LTFlightData::FDDynamicData LTFlightData::WaitForSafeCopyDyn() const
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         // copy the the data under lock protection
         if (!dynDataDeque.empty())
-            ret = dynDataDeque[0];
+            ret = bFirst ? dynDataDeque.front() : dynDataDeque.back();
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
     }

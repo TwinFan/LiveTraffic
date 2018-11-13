@@ -1,5 +1,5 @@
 //
-//  SettingsUI.cpp
+//  ACInfoWnd.cpp
 //  LiveTraffic
 
 /*
@@ -48,11 +48,17 @@ enum ACI_WIDGET_IDX_T {
     ACI_CAP_OP,
     ACI_TXT_OP,
 
-    ACI_CAP_CALLSIGN_FLIGHT,
+    ACI_CAP_CALLSIGN_SQUAWK,
     ACI_TXT_CALLSIGN,
-    ACI_TXT_FLIGHT,
-    ACI_CAP_ROUTE,
-    ACI_TXT_ROUTE,
+    ACI_TXT_SQUAWK,
+    ACI_CAP_FLIGHT_ROUTE,
+    ACI_TXT_FLIGHT_ROUTE,
+
+    ACI_CAP_SIM_TIME,
+    ACI_TXT_SIM_TIME,
+    ACI_CAP_LAST_DATA_CHNL,
+    ACI_TXT_LAST_DATA,
+    ACI_TXT_CHNL,
 
     // dynamic data
     ACI_CAP_POS,
@@ -88,11 +94,11 @@ enum ACI_WIDGET_IDX_T {
 // window will be centered shortly before presenting it
 TFWidgetCreate_t ACI_WND[] =
 {
-    {   0,   0, 270, 280, 1, "LiveTraffic A/C Info", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
+    {   0,   0, 270, 315, 1, "LiveTraffic A/C Info", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
     {   5,  20,  95,  10, 1, "A/C key | Registr.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  20,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_TextField,{xpProperty_TextFieldType,xpTextTranslucent, xpProperty_MaxCharacters,8, 0,0} },
     { 195,  20,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5,  35,  95,  10, 1, "ICAO Type / Class.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5,  35,  95,  10, 1, "ICAO Type | Class.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  35,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 195,  35,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     {   5,  50,  95,  10, 1, "Manufacturer",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
@@ -102,37 +108,43 @@ TFWidgetCreate_t ACI_WND[] =
     {   5,  80,  95,  10, 1, "Operator",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  80, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 100,  95,  10, 1, "Call Sign | Flight",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 100,  95,  10, 1, "Call Sign | Squawk",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 100,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 195, 100,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 115,  95,  10, 1, "Route",               0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 115,  95,  10, 1, "Flight: Route",       0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 115, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 135,  95,  10, 1, "Position",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 135,  95,  10, 1, "Simulated Time",      0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 135, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 150,  95,  10, 1, "Bearing | Dist. [nm]",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 150,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 150,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 165,  95,  10, 1, "Flight Phase",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 165, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 180,  95,  10, 1, "Gear | Flaps",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 180,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 180,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 195,  95,  10, 1, "Lights",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 195, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 150,  95,  10, 1, "Last Data [s] | Chnl",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 150,  40,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 165, 150, 100,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 215,  95,  10, 1, "Heading [°]",         0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 170,  95,  10, 1, "Position",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 170, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 185,  95,  10, 1, "Bearing | Dist. [nm]",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 185,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 185,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 200,  95,  10, 1, "Flight Phase",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 200, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 215,  95,  10, 1, "Gear | Flaps",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 215,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 230,  95,  10, 1, "Pitch / Roll [°]",    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 230,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 230,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 215,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 230,  95,  10, 1, "Lights",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 230, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 250,  95,  10, 1, "Altitude / AGL [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 250,  95,  10, 1, "Heading [°]",         0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 250,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 250,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 265,  95,  10, 1, "Speed [kn] | VSI [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 265,  95,  10, 1, "Pitch | Roll [°]",    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 265,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 195, 265,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+
+    {   5, 285,  95,  10, 1, "Altitude | AGL [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 285,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 285,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 300,  95,  10, 1, "Speed [kn] | VSI [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 300,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 300,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
 };
 
@@ -283,6 +295,7 @@ widgetIds(nullptr)
     txtAcKey.SetKeyboardFocus();
     
     // value fields
+    valSquawk.setId(widgetIds[ACI_TXT_SQUAWK]);
     valPos.setId(widgetIds[ACI_TXT_POS]);
     valBearing.setId(widgetIds[ACI_TXT_BEARING]);
     valDist.setId(widgetIds[ACI_TXT_DIST]);
@@ -356,13 +369,6 @@ bool ACIWnd::TfwMsgMain1sTime ()
     return true;
 }
 
-// limits text to m characters, replacing the last ones with ... if too long
-inline std::string atMost(const std::string s, int m) {
-    return s.length() <= m ? s :
-    s.substr(0, m-3) + "...";
-}
-
-
 // Update all values in the window.
 // (Note: We can't use the dataRef trick as the dataRef object doesn,
 //        because we support several windows in parallel, but the dataRef object
@@ -374,7 +380,7 @@ void ACIWnd::UpdateStatValues()
     // have selected flight data?
     if (pFD) {
         // get good copies (thread safe)
-        LTFlightData::FDStaticData stat (pFD->WaitForSafeCopyStat());
+        const LTFlightData::FDStaticData stat (pFD->WaitForSafeCopyStat());
         
         // set static values (we consider the callsign static...)
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_REG], stat.reg.c_str());
@@ -382,17 +388,16 @@ void ACIWnd::UpdateStatValues()
         if (stat.pDoc8643) {
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_CLASS], stat.pDoc8643->classification.c_str());
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], stat.pDoc8643->manufacturer.c_str());
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], atMost(stat.pDoc8643->model,20).c_str());
+            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.pDoc8643->model,20).c_str());
         } else {
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_CLASS], "-");
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], stat.man.c_str());
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], atMost(stat.mdl,20).c_str());
+            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.mdl,20).c_str());
         }
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], atMost(stat.opIcao + " " + stat.op,20).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], strAtMost(stat.opIcao + " " + stat.op,20).c_str());
 
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], stat.call.c_str());
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_FLIGHT], stat.flight.c_str());
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_ROUTE], (stat.originAp + " - " + stat.destAp).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_FLIGHT_ROUTE], stat.flightRoute().c_str());
 
         // start the timer for regular dyn data updates
         StartStopTimerMessages(true);
@@ -404,8 +409,7 @@ void ACIWnd::UpdateStatValues()
         // clear static values
         for (int i: {
             ACI_TXT_REG, ACI_TXT_ICAO, ACI_TXT_CLASS, ACI_TXT_MANU, ACI_TXT_MODEL,
-            ACI_TXT_OP, ACI_TXT_CALLSIGN, ACI_TXT_FLIGHT, ACI_TXT_ROUTE
-            
+            ACI_TXT_OP, ACI_TXT_CALLSIGN, ACI_TXT_FLIGHT_ROUTE
         })
             XPSetWidgetDescriptor(widgetIds[i], "");
 
@@ -420,10 +424,30 @@ void ACIWnd::UpdateDynValues()
     const LTAircraft* pAc = txtAcKey.GetAircraft();
 
     if (pAc) {
+        // _last_ dyn data object
+        const LTFlightData::FDDynamicData dyn (pAc->fd.WaitForSafeCopyDyn(false));
+
         // set my own window title
         SetDescriptor(pAc->fd.ComposeLabel());
         // update all field values
         const positionTy& pos = pAc->GetPPos();
+        double ts = dataRefs.GetSimTime();
+        valSquawk.SetDescriptor(dyn.radar.code);
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_SIM_TIME], ts2string(time_t(ts)).c_str());
+        // last update
+        ts -= dyn.ts;                   // difference 'dyn.ts - simTime'
+        ts *= -1;
+        if (-10000 <= ts && ts <= 10000)
+        {
+            char szBuf[20];
+            sprintf(szBuf,"%+.1f", ts);
+            XPSetWidgetDescriptor(widgetIds[ACI_TXT_LAST_DATA], szBuf);
+        }
+        else
+            XPSetWidgetDescriptor(widgetIds[ACI_TXT_LAST_DATA], "~");
+        
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_CHNL],
+                              dyn.pChannel ? strAtMost(dyn.pChannel->ChName(), 15).c_str() : "");
         valPos.SetDescriptor(pos);
         valBearing.SetDescriptor(pAc->GetVecView().angle);
         valDist.SetDescriptor(pAc->GetVecView().dist/M_per_NM, 1);
@@ -444,6 +468,7 @@ void ACIWnd::UpdateDynValues()
         SetDescriptor(ACI_WND[ACI_MAIN_WND].descriptor);
         // clear all values
         for (int i: {
+            ACI_TXT_SQUAWK, ACI_TXT_SIM_TIME, ACI_TXT_LAST_DATA, ACI_TXT_CHNL,
             ACI_TXT_POS, ACI_TXT_BEARING, ACI_TXT_DIST,
             ACI_TXT_PHASE, ACI_TXT_GEAR, ACI_TXT_FLAPS, ACI_TXT_LIGHTS,
             ACI_TXT_HEADING, ACI_TXT_PITCH, ACI_TXT_ROLL,

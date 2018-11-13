@@ -31,6 +31,9 @@
 #include <deque>
 #include "CoordCalc.h"
 
+// from LTChannel.h
+class LTChannel;
+
 // transponder types (as defined by ADSB exchange)
 enum transpTy {
     trt_Unknown=0,
@@ -74,6 +77,9 @@ public:
 
         // timestamp is in seconds since Unix epoch (like time_t) but including fractional seconds
         double          ts;             // last update of dyn data?           1523789873,329 [Epoch s]
+        
+        // Channel which provided the data
+        const LTChannel* pChannel;
         
     public:
         FDDynamicData();
@@ -130,6 +136,10 @@ public:
         FDStaticData& operator |= (const FDStaticData& other);
         // static data not yet properly filled?? (need acType and some operator info)
         inline bool empty() const { return acTypeIcao.empty() || (opIcao.empty() && op.empty()); }
+        // route (this is "originAp-destAp", but considers empty txt)
+        std::string route() const;
+        // flight + route (this is "flight: originAp-destAp", but considers empty txt)
+        std::string flightRoute() const;
     };
     
     // KEY (protected, can be set only once, no mutex-control)
@@ -250,7 +260,7 @@ public:
     void AddDynData ( const FDDynamicData& inDyn, int rcvr, int sig, positionTy* pos = nullptr ); // new data read from stream to be stored
     // access to current dynData, i.e. dnDataDeque[0]
     bool TryGetSafeCopy ( FDDynamicData& outDyn ) const;    // tries to get a copy, fails if lock unavailable
-    FDDynamicData WaitForSafeCopyDyn() const;               // waits for lock and returns a copy
+    FDDynamicData WaitForSafeCopyDyn(bool bFirst = true) const;  // waits for lock and returns a copy
     FDDynamicData GetUnsafeDyn() const;                     // no lock, potentially inconsistent!
     
     inline int GetRcvr() const { return rcvr; }

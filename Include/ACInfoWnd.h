@@ -71,6 +71,7 @@ protected:
     TFACSearchEditWidget txtAcKey;
     
     // data output fields
+    TFWidget valSquawk;
     TFWidget valPos, valBearing, valDist, valPhase;
     TFWidget valGear, valFlaps, valLights;
     TFWidget valHeading, valPitch, valRoll, valAlt, valAGL, valSpeed, valVSI;

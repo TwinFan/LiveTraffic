@@ -402,7 +402,8 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.heading =           jag_n(pJAc, OPSKY_HEADING);
                 dyn.spd =               jag_n(pJAc, OPSKY_SPD);
                 dyn.vsi =               jag_n(pJAc, OPSKY_VSI);
-                dyn.ts =          posTime;
+                dyn.ts =                posTime;
+                dyn.pChannel =          this;
                 
                 // position
                 positionTy pos (jag_n(pJAc, OPSKY_LAT),
@@ -539,6 +540,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.spd =               jog_n(pJAc, ADSBEX_SPD);
                 dyn.vsi =               jog_n(pJAc, ADSBEX_VSI);
                 dyn.ts =                posTime;
+                dyn.pChannel =          this;
                 
                 // position and its ground status
                 positionTy pos (jog_n(pJAc, ADSBEX_LAT),
@@ -936,7 +938,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.dst =               jog_n(pJAc, ADSBEX_DST);
                 dyn.spd =               jog_n(pJAc, ADSBEX_SPD);
                 dyn.vsi =               jog_n(pJAc, ADSBEX_VSI);
-                dyn.ts =          posTime;
+                dyn.ts =                posTime;
+                dyn.pChannel =          this;
                 
                 fd.AddDynData(dyn,
                               jog_n(pJAc, ADSBEX_RCVR),
@@ -1254,6 +1257,7 @@ bool LTFlightDataInit()
     return true;
 }
 
+#include "LTFlightradar24.h"
 bool LTFlightDataEnable()
 {
     // create list of flight and master data connections
@@ -1264,6 +1268,7 @@ bool LTFlightDataEnable()
         // TODO: master data readers for historic data, like reading CSV file
     } else {
         // load live feed readers
+        listFDC.emplace_back(new FlightradarConnection);
         listFDC.emplace_back(new ADSBExchangeConnection);
         listFDC.emplace_back(new OpenSkyConnection);
         // load online master data connections

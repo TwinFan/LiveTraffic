@@ -39,19 +39,8 @@ TFTextFieldWidget(_me)
 
 void LTCapDateTime::SetCaption ()
 {
-    // current sim time
-    time_t t = time_t(dataRefs.GetSimTime());
-    struct tm tm = *gmtime(&t);
-    
-    // format it nicely
-    char szBuf[50];
-    strftime(szBuf,
-             sizeof(szBuf) - 1,
-             "%F %T",
-             &tm);
-
     // set text of widget
-    SetDescriptor(szBuf);
+    SetDescriptor(dataRefs.GetSimTimeString().c_str());
 }
 
 bool LTCapDateTime::TfwMsgMain1sTime ()
