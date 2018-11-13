@@ -1492,15 +1492,6 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
         surfaces.thrust = -0.9;         // reversers...does that work???
     }
     
-    // taxiing off the runway after landing (cycle phase back to beginning)
-    if ( bFPhPrev >= FPH_APPROACH && phase == FPH_TAXI ) {
-        flaps.up();
-        surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
-        surfaces.thrust = 0.1;
-        surfaces.lights.landLights = 0;
-        surfaces.lights.strbLights = 0;
-    }
-    
     // *** landing light ***
     // is there a landing-light-altitude in the flight model?
     if (mdl.LIGHT_LL_ALT > 0) {
@@ -1532,6 +1523,15 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
         if ( speed.kt() > std::max(mdl.FLAPS_UP_SPEED,mdl.FLAPS_DOWN_SPEED) ) {
             flaps.up();
         }
+    }
+    
+    // taxiing (includings rolling off the runway after landing (cycle phase back to beginning))
+    if ( phase == FPH_TAXI ) {
+        flaps.up();
+        surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
+        surfaces.thrust = 0.1;
+        surfaces.lights.landLights = 0;
+        surfaces.lights.strbLights = 0;
     }
     
     // *** Log ***
