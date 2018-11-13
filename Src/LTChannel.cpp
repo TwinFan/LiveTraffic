@@ -158,6 +158,9 @@ bool LTACMasterdataChannel::UpdateStaticData (std::string keyAc,
 //MARK: LTOnlineChannel
 //
 
+// the one (hence static) output file for logging raw network data
+std::ofstream LTOnlineChannel::outRaw;
+
 LTOnlineChannel::LTOnlineChannel () :
 pCurl(NULL),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
@@ -234,6 +237,52 @@ size_t LTOnlineChannel::ReceiveData(const char *ptr, size_t size, size_t nmemb, 
     return realsize;
 }
 
+// debug: log raw network data to a log file
+void LTOnlineChannel::DebugLogRaw(const char *data)
+{
+    // no logging? return (after closing the file if open)
+    if (!dataRefs.GetDebugLogRawFD()) {
+        if (outRaw.is_open()) {
+            outRaw.close();
+            SHOW_MSG(logWARN, DBG_RAW_FD_STOP, PATH_DEBUG_RAW_FD);
+        }
+        return;
+    }
+    
+    // logging enabled. Need to open the file first?
+    if (!outRaw.is_open()) {
+        std::string sFileName (LTCalcFullPath(PATH_DEBUG_RAW_FD));
+#ifdef APL
+        // Mac: convert to Posix
+        LTHFS2Posix(sFileName);
+#endif
+        // open the file, append to it
+        outRaw.open (sFileName, std::ios_base::out | std::ios_base::app);
+        if (!outRaw) {
+            // could not open output file: bail out, decativate logging
+            SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
+                     sFileName.c_str(), std::strerror(errno));
+            dataRefs.SetDebugLogRawFD(false);
+            return;
+        }
+        SHOW_MSG(logWARN, DBG_RAW_FD_START, PATH_DEBUG_RAW_FD);
+    }
+    
+    // timestamp (numerical and human readable)
+    outRaw
+    << std::fixed << dataRefs.GetSimTime()
+    << " - "
+    << dataRefs.GetSimTimeString()
+    << " - "
+    // Channel's name
+    << ChName()
+    << "\n"
+    // the actual given data
+    << data
+    // 2 newlines + flush
+    << "\n" << std::endl;
+}
+
 // fetch flight data from internet (takes time!)
 bool LTOnlineChannel::FetchAllData (const positionTy& pos)
 {
@@ -256,7 +305,9 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // it is assumed that this is called in a separate thread,
     // hence we can use the simple blocking curl_easy_ call
     netDataPos = 0;                 // fill buffer from beginning
-    LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str())
+    netData[0] = 0;
+    LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
+    DebugLogRaw(url.c_str());
     if ( curl_easy_perform(pCurl) != CURLE_OK )
     {
         SHOW_MSG(logERR,ERR_CURL_PERFORM,ChName(),curl_errtxt);
@@ -272,6 +323,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     
     // log number of bytes received
     LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+    DebugLogRaw(netData);
     
     // success
     return true;
@@ -1257,7 +1309,6 @@ bool LTFlightDataInit()
     return true;
 }
 
-#include "LTFlightradar24.h"
 bool LTFlightDataEnable()
 {
     // create list of flight and master data connections
@@ -1268,7 +1319,6 @@ bool LTFlightDataEnable()
         // TODO: master data readers for historic data, like reading CSV file
     } else {
         // load live feed readers
-        listFDC.emplace_back(new FlightradarConnection);
         listFDC.emplace_back(new ADSBExchangeConnection);
         listFDC.emplace_back(new OpenSkyConnection);
         // load online master data connections

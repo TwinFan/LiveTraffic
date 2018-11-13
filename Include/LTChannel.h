@@ -26,6 +26,7 @@
 #ifndef LTChannel_h
 #define LTChannel_h
 
+#include <fstream>
 #include <list>
 #include "curl/curl.h"              // for CURL*
 #include "parson.h"                 // for JSON parsing
@@ -121,6 +122,8 @@ protected:
     char curl_errtxt[CURL_ERROR_SIZE];    // where error text goes
     long httpResponse;              // last HTTP response code
     
+    static std::ofstream outRaw;    // output file for raw logging
+    
 public:
     LTOnlineChannel ();
     virtual ~LTOnlineChannel ();
@@ -130,6 +133,8 @@ protected:
     void CleanupCurl ();
     // CURL callback
     static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
+    // logs raw data to a text file
+    void DebugLogRaw (const char* data);
     
 public:
     virtual bool FetchAllData (const positionTy& pos);

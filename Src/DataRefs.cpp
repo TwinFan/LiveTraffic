@@ -227,6 +227,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/channel/futuredatachn/online",    xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, false },
     {"livetraffic/dbg/ac_filter",                   xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetDebugAcFilter}, GET_VAR, true },
     {"livetraffic/dbg/ac_pos",                      xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/dbg/log_raw_fd",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, false },
     {"livetraffic/dbg/model_matching",              xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
 };
 
@@ -251,9 +252,10 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
 
-        case DR_DBG_AC_FILTER: return &uDebugAcFilter;
-        case DR_DBG_AC_POS: return &bDebugAcPos;
-        case DR_DBG_MODEL_MATCHING: return &bDebugModelMatching;
+        case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
+        case DR_DBG_AC_POS:                 return &bDebugAcPos;
+        case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
+        case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
             
         default:
             // flight channels

@@ -147,6 +147,7 @@ enum dataRefsLT {
     DR_CHANNEL_FUTUREDATACHN_ONLINE,
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
+    DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
     CNT_DATAREFS_LT                     // always last, number of elements
 };
@@ -228,6 +229,7 @@ protected:
     int bShowingAircrafts       = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
+    int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
     int bDebugModelMatching     = false;// output debug info on model matching in xplanemp?
     std::string XPSystemPath;
     std::string DirSeparator;
@@ -351,6 +353,9 @@ public:
     // livetraffic/dbg/ac_pos: Debug Positions for given a/c?
     inline bool GetDebugAcPos(const std::string& key) const
         { return bDebugAcPos && key == GetSelectedAcKey(); }
+    
+    inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
+    void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
     // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP API)
     inline bool GetDebugModelMatching() const   { return bDebugModelMatching; }
