@@ -62,8 +62,8 @@ void MenuHandler(void * mRef, void * iRef)
 {
     // LiveTraffic top level exception handling
     try {
-        unsigned long menuId = (unsigned long)iRef;
-        switch (menuId) {
+        // act based on menu id
+        switch (reinterpret_cast<unsigned long long>(iRef)) {
                 
             case MENU_ID_TOGGLE_AIRCRAFTS:
                 dataRefs.ToggleAircraftsDisplayed();
@@ -149,10 +149,15 @@ PLUGIN_API int XPluginStart(
      srand((unsigned int)time(NULL));
     
     // tell X-Plane who we are
+#if !defined(WIN32)
 	strcpy(outName, LIVE_TRAFFIC);
 	strcpy(outSig,  PLUGIN_SIGNATURE);
 	strcpy(outDesc, PLUGIN_DESCRIPTION);
-    
+#else
+     strcpy_s(outName, 255, LIVE_TRAFFIC);
+     strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
+     strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
+#endif
     // init DataRefs
     if (!dataRefs.Init()) return 0;
     

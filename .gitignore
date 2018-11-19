@@ -1,0 +1,14 @@
+.DS_Store
+.localized
+.vs/
+
+# Build directory
+build/
+ 
+# XCode user specific files
+xcuserdata/
+*.xcworkspace/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.pbxuser

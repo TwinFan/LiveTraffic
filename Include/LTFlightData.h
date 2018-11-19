@@ -64,16 +64,16 @@ public:
         
         // positional
         bool            gnd;            // on ground?         false
-        float           heading;        // heading            231.2 [°]
-        float           inHg;           // air pressure    29.88189 [mm Hg]
+        double          heading;        // heading            231.2 [°]
+        double          inHg;           // air pressure    29.88189 [mm Hg]
         
         // relative position
-        float           brng;           // Bearing            304.0 [°]
-        float           dst;            // Distance           19.54 [km]
+        double          brng;           // Bearing            304.0 [°]
+        double          dst;            // Distance           19.54 [km]
         
         // movement
-        float           spd;            // speed              190.0 [kt]
-        float           vsi;            // vertical speed      2241 [ft/min]
+        double          spd;            // speed              190.0 [kt]
+        double          vsi;            // vertical speed      2241 [ft/min]
 
         // timestamp is in seconds since Unix epoch (like time_t) but including fractional seconds
         double          ts;             // last update of dyn data?           1523789873,329 [Epoch s]
@@ -152,7 +152,7 @@ protected:
     int             sig;            // signal level
     
     std::string     labelStat;      // static part of the a/c label
-    DataRefs::LabelCfgUTy labelCfg = {.i=0};  // the configuration the label was saved for
+    DataRefs::LabelCfgUTy labelCfg = { {0,0,0,0,0,0,0,0,0,0,0,0,0} };  // the configuration the label was saved for
     
 protected:
     // DYNAMIC DATA (protected, access will be mutex-controlled for thread-safety)

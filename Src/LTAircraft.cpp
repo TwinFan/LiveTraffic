@@ -54,7 +54,7 @@ bool NextCycle (int newCycle)
     else
     {
         prevCycle.num = newCycle-1;
-        prevCycle.elapsedTime = XPLMGetElapsedTime() - 0.1;
+        prevCycle.elapsedTime = XPLMGetElapsedTime() - 0.1f;
         prevCycle.simTime  = dataRefs.GetSimTime() - 0.1;
     }
     currCycle.num = newCycle;
@@ -586,8 +586,11 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     if (!fIn) {
         // if there is no FlightModel file just return
         // that's no real problem, we can use defaults, but unexpected
+        // TODO: Test error message handling by having no FlightModel file
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logWARN, ERR_CFG_FILE_OPEN_IN,
-                 sFileName.c_str(), std::strerror(errno));
+                 sFileName.c_str(), sErr);
         return false;
     }
     
@@ -707,8 +710,10 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     
     // problem was not just eof?
     if (!fIn && !fIn.eof()) {
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logERR, ERR_CFG_FILE_READ,
-                 sFileName.c_str(), std::strerror(errno));
+                 sFileName.c_str(), sErr);
         return false;
     }
     
@@ -1413,7 +1418,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
         // i.e during the first call to the function per a/c object
         // -> can be used for flight model initialization
         // some assumption to begin with...
-        surfaces.thrust            = 0.1;
+        surfaces.thrust            = 0.1f;
         surfaces.lights.timeOffset = (unsigned int)rand();
         surfaces.lights.landLights = 0;
         surfaces.lights.bcnLights  = 1;
@@ -1448,30 +1453,30 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // entered climb (from below)
     if (ENTERED(FPH_CLIMB)) {
-        surfaces.thrust = 0.8;
+        surfaces.thrust = 0.8f;
         flaps.up();
     }
     
     // cruise
     if (ENTERED(FPH_CRUISE)) {
-        surfaces.thrust = 0.6;
+        surfaces.thrust = 0.6f;
     }
 
     // descend
     if (ENTERED(FPH_DESCEND)) {
-        surfaces.thrust = 0.1;
+        surfaces.thrust = 0.1f;
     }
     
     // approach
     if (ENTERED(FPH_APPROACH)) {
-        surfaces.thrust = 0.2;
+        surfaces.thrust = 0.2f;
         flaps.down();
     }
     
     // final
     if (ENTERED(FPH_FINAL)) {
         surfaces.lights.landLights = 1;
-        surfaces.thrust = 0.3;
+        surfaces.thrust = 0.3f;
         gear.down();
     }
     
@@ -1489,7 +1494,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // roll-out
     if (ENTERED(FPH_ROLL_OUT)) {
-        surfaces.thrust = -0.9;         // reversers...does that work???
+        surfaces.thrust = -0.9f;         // reversers...does that work???
     }
     
     // *** landing light ***
@@ -1529,7 +1534,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     if ( phase == FPH_TAXI ) {
         flaps.up();
         surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
-        surfaces.thrust = 0.1;
+        surfaces.thrust = 0.1f;
         surfaces.lights.landLights = 0;
         surfaces.lights.strbLights = 0;
     }
@@ -1583,7 +1588,7 @@ bool LTAircraft::YProbe ()
 std::string LTAircraft::GetLightsStr() const
 {
     char buf[20];
-    sprintf(buf, "%s/%s/%s/%s",
+    snprintf(buf, sizeof(buf), "%s/%s/%s/%s",
             surfaces.lights.navLights ? "nav" : "---",
             surfaces.lights.bcnLights ? "bcn" : "---",
             surfaces.lights.strbLights ? "strb" : "----",
@@ -1619,7 +1624,11 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             CalcPPos())
         {
             *outPosition = ppos;                // copy ppos (by type conversion), and add the label
+#if !defined(WIN32)
             strncpy ( outPosition->label, labelAc.c_str(), sizeof(outPosition->label)-1 );
+#else
+            strcpy_s(outPosition->label, sizeof(outPosition->label), labelAc.c_str());
+#endif
             outPosition->label[sizeof(outPosition->label)-1] = 0;
             return xpmpData_NewData;
         }
@@ -1647,8 +1656,8 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
         
         if (!dataRefs.IsReInitAll()) {
             // get current gear/flaps value (might be moving)
-            surfaces.gearPosition = gear.get();
-            surfaces.flapRatio = flaps.get();
+            surfaces.gearPosition = (float)gear.get();
+            surfaces.flapRatio = (float)flaps.get();
         }
         
         // just copy over our entire structure

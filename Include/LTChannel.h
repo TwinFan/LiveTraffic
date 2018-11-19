@@ -104,6 +104,7 @@ protected:
     std::string currKey;
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
+	LTACMasterdataChannel () {}
     virtual bool UpdateStaticData (std::string key,
                                    const LTFlightData::FDStaticData& dat);
 };
@@ -140,7 +141,7 @@ public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos) = 0;
     virtual bool IsLiveFeed () const    { return true; }
-    virtual bool IsValid () const       {return true;}
+// TODO: remove after test    virtual bool IsValid () const       {return true;}
 };
 
 //
@@ -170,6 +171,8 @@ public:
     LTFlightDataChannel()  {}
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
+    virtual bool IsLiveFeed() const { return true; }
+    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
 };
 
 //
@@ -184,6 +187,8 @@ public:
     LTFlightDataChannel()  {}
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
+    virtual bool IsLiveFeed() const { return true; }
+    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
 };
 
 //
@@ -204,6 +209,7 @@ public:
     ADSBExchangeHistorical (std::string base = ADSBEX_HIST_PATH,
                             std::string fallback = ADSBEX_HIST_PATH_2);
     virtual bool FetchAllData (const positionTy& pos);
+    virtual bool IsLiveFeed() const { return false; }
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 
@@ -223,6 +229,7 @@ public:
 public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos);
+    virtual bool IsLiveFeed() const { return true; }
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 

@@ -27,6 +27,8 @@
 #ifndef DataRefs_h
 #define DataRefs_h
 
+#include <variant>
+
 #include "XPLMDataAccess.h"
 #include "TextIO.h"
 #include "CoordCalc.h"
@@ -162,19 +164,20 @@ public:
     struct dataRefDefinitionT {
         std::string dataName;
         XPLMDataTypeID dataType;
-        union { XPLMGetDatai_f i; XPLMGetDataf_f f; } fRead;
-        union { XPLMSetDatai_f i; XPLMSetDataf_f f; } fWrite;
+        std::variant<XPLMGetDatai_f, XPLMGetDataf_f> fRead;
+        std::variant<XPLMSetDatai_f, XPLMSetDataf_f> fWrite;
         void* refCon;
         bool bCfgFile;
         
         // allows using the object in string context -> dataName
         operator const char* () const { return dataName.c_str(); }
         
-        int isWriteable () const { return fWrite.i == NULL ? 0 : 1; }
-        XPLMGetDatai_f getDatai_f () const { return dataType == xplmType_Int ? fRead.i : NULL; }
-        XPLMSetDatai_f setDatai_f () const { return dataType == xplmType_Int ? fWrite.i : NULL; }
-        XPLMGetDataf_f getDataf_f () const { return dataType == xplmType_Float ? fRead.f : NULL; }
-        XPLMSetDataf_f setDataf_f () const { return dataType == xplmType_Float ? fWrite.f : NULL; }
+        int isWriteable () const { return (dataType == xplmType_Int)   && (std::get<XPLMSetDatai_f>(fWrite) == NULL) ? 0 : 
+										  (dataType == xplmType_Float) && (std::get<XPLMSetDataf_f>(fWrite) == NULL); }
+        XPLMGetDatai_f getDatai_f () const { return dataType == xplmType_Int ? std::get<XPLMGetDatai_f>(fRead) : NULL; }
+        XPLMSetDatai_f setDatai_f () const { return dataType == xplmType_Int ? std::get<XPLMSetDatai_f>(fWrite) : NULL; }
+        XPLMGetDataf_f getDataf_f () const { return dataType == xplmType_Float ? std::get<XPLMGetDataf_f>(fRead) : NULL; }
+        XPLMSetDataf_f setDataf_f () const { return dataType == xplmType_Float ? std::get<XPLMSetDataf_f>(fWrite) : NULL; }
         
         // get the actual current value (by calling the getData?_f function)
         int getDatai () const;
@@ -241,7 +244,7 @@ protected:
     // generic config values
     int bAutoStart              = false;// shall display a/c right after startup?
     // which elements make up an a/c label?
-    LabelCfgUTy labelCfg = { .b = {1,0,0,0,1,0,0,0,0,1,0,1,0} };
+    LabelCfgUTy labelCfg = { {1,0,0,0,1,0,0,0,0,1,0,1,0} };
     int maxNumAc        = 50;           // how many aircrafts to create at most?
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 5;            // kilometer: Farther away a/c is drawn 'lights only'
@@ -276,7 +279,7 @@ public:
     inline float GetViewY() const               { return XPLMGetDataf(adrXP[DR_VIEW_Y]); }
     inline float GetViewZ() const               { return XPLMGetDataf(adrXP[DR_VIEW_Z]); }
     inline float GetLocalTimeSec() const        { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
-    inline float GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
+    inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
     inline float GetZuluTimeSec() const         { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
     

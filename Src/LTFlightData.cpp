@@ -377,7 +377,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** maintenance of buffered positions ***
         
         // Differs depending on: is there an a/c yet?
-        const long sizeBefore = posDeque.size();
+        const size_t sizeBefore = posDeque.size();
         if ( pAc ) {
             // if there is an a/c then we just remove all positions before 'simTime'
             while (!posDeque.empty() && posDeque[0].ts() <= simTime)
@@ -971,8 +971,13 @@ std::string LTFlightData::Positions2String () const
         
         // 0. current sim time
         time_t t = time_t(dataRefs.GetSimTime());
-        struct tm tm = *gmtime(&t);
-        
+        struct tm tm;
+#if !defined(WIN32)
+        gmtime_r(&t, &tm);
+#else
+        gmtime_s(&tm, &t);
+#endif
+
         char szBuf[50];
         snprintf(szBuf,sizeof(szBuf),
                  "a/c %s SimTime: %.1f - ",

@@ -217,7 +217,7 @@ const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ke
     }
     
     // not found
-    oldDescriptor.cend();           // avoid going back to previous value with [Esc]
+// TODO: Remove after test    oldDescriptor.cend();           // avoid going back to previous value with [Esc]
     transpIcao.clear();
     return nullptr;
 }
@@ -440,7 +440,7 @@ void ACIWnd::UpdateDynValues()
         if (-10000 <= ts && ts <= 10000)
         {
             char szBuf[20];
-            sprintf(szBuf,"%+.1f", ts);
+            snprintf(szBuf,sizeof(szBuf),"%+.1f", ts);
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_LAST_DATA], szBuf);
         }
         else

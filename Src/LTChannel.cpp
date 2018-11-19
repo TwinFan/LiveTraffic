@@ -24,9 +24,10 @@
  * THE SOFTWARE.
  */
 
+#include "LiveTraffic.h"
+
 #include <future>
 #include <fstream>
-#include "LiveTraffic.h"
 
 // access to chrono literals like s for seconds
 using namespace std::chrono_literals;
@@ -259,9 +260,11 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
         // open the file, append to it
         outRaw.open (sFileName, std::ios_base::out | std::ios_base::app);
         if (!outRaw) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
             // could not open output file: bail out, decativate logging
             SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
-                     sFileName.c_str(), std::strerror(errno));
+                     sFileName.c_str(), sErr);
             dataRefs.SetDebugLogRawFD(false);
             return;
         }
@@ -449,7 +452,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jag_n(pJAc, OPSKY_POS_TIME);
                 
                 // non-positional dynamic data
-                dyn.radar.code =        jag_sn(pJAc, OPSKY_RADAR_CODE);
+                dyn.radar.code =  (long)jag_sn(pJAc, OPSKY_RADAR_CODE);
                 dyn.gnd =               jag_b(pJAc, OPSKY_GND);
                 dyn.heading =           jag_n(pJAc, OPSKY_HEADING);
                 dyn.spd =               jag_n(pJAc, OPSKY_SPD);
@@ -566,7 +569,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                 stat.man =        jog_s(pJAc, ADSBEX_MAN);
                 stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                stat.year =       jog_sn(pJAc, ADSBEX_YEAR);
+                stat.year =  (int)jog_sn(pJAc, ADSBEX_YEAR);
                 stat.mil =        jog_b(pJAc, ADSBEX_MIL);
                 stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
                 stat.op =         jog_s(pJAc, ADSBEX_OP);
@@ -583,7 +586,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
-                dyn.radar.code =        jog_sn(pJAc, ADSBEX_RADAR_CODE);
+                dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -605,8 +608,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // position is rather important, we check for validity
                 if ( pos.isNormal() )
                     fd.AddDynData(dyn,
-                                  jog_n(pJAc, ADSBEX_RCVR),
-                                  jog_n(pJAc, ADSBEX_SIG),
+                                  (int)jog_n(pJAc, ADSBEX_RCVR),
+                                  (int)jog_n(pJAc, ADSBEX_SIG),
                                   &pos);
                 else
                     LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
@@ -690,7 +693,12 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
     {
         // put together path and file name
         char sz[50];
-        struct tm tm_val = *gmtime(&zuluLastRead);
+        struct tm tm_val;
+#if !defined(WIN32)
+        gmtime_r(&zuluLastRead, &tm_val);
+#else
+        gmtime_s(&tm_val, &zuluLastRead);
+#endif
         snprintf(sz,sizeof(sz),ADSBEX_HIST_DATE_PATH,
                  dataRefs.GetDirSeparator()[0],
                  tm_val.tm_year + 1900,
@@ -724,7 +732,9 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
         // open the file
         std::ifstream f(pathDate);
         if ( !f ) {                         // couldn't open
-            SHOW_MSG(logERR,ADSBEX_HIST_FILE_ERR,pathDate.c_str(),std::strerror(errno));
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            SHOW_MSG(logERR,ADSBEX_HIST_FILE_ERR,pathDate.c_str(),sErr);
             IncErrCnt();
             return false;
         }
@@ -886,10 +896,10 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
             
             // the receiver we are dealing with right now
-            int rcvr = jog_n(pJAc, ADSBEX_RCVR);
+            int rcvr = (int)jog_n(pJAc, ADSBEX_RCVR);
             
             // variables we need for quality indicator calculation
-            int sig =               jog_n(pJAc, ADSBEX_SIG);
+            int sig =               (int)jog_n(pJAc, ADSBEX_SIG);
             JSON_Array* pCosList =  json_object_get_array(pJAc, ADSBEX_COS);
             int cosCount =          int(pCosList ? pCosList->count/4 : 0);
             
@@ -966,7 +976,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                     stat.man =        jog_s(pJAc, ADSBEX_MAN);
                     stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                    stat.year =       jog_sn(pJAc, ADSBEX_YEAR);
+                    stat.year =  (int)jog_sn(pJAc, ADSBEX_YEAR);
                     stat.mil =        jog_b(pJAc, ADSBEX_MIL);
                     stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
                     stat.op =         jog_s(pJAc, ADSBEX_OP);
@@ -982,7 +992,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
-                dyn.radar.code =        jog_sn(pJAc, ADSBEX_RADAR_CODE);
+                dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -994,8 +1004,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 fd.AddDynData(dyn,
-                              jog_n(pJAc, ADSBEX_RCVR),
-                              jog_n(pJAc, ADSBEX_SIG));
+                              (int)jog_n(pJAc, ADSBEX_RCVR),
+                              (int)jog_n(pJAc, ADSBEX_SIG));
                 
                 // position data, including short trails
                 positionTy mainPos (jog_n(pJAc, ADSBEX_LAT),
@@ -1510,7 +1520,7 @@ void LTFlightDataAcMaintenance()
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(FLIGHT_LOOP_INTVL - .05, logMSG, MSG_BUF_FILL_COUNTDOWN,
+        CreateMsgWindow(float(FLIGHT_LOOP_INTVL - .05), logMSG, MSG_BUF_FILL_COUNTDOWN,
                         int(mapFd.size()),
                         numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));

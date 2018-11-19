@@ -62,13 +62,18 @@ bool LTCapDateTime::MsgTextFieldChanged (XPWidgetID textWidget, std::string text
     std::regex re("^((\\d{4})-)?(\\d{1,2})-(\\d{1,2}) (\\d{1,2}):(\\d{1,2})(:(\\d{1,2}))?");
     std::smatch m;
     std::regex_search(text, m, re);
-    long n = m.size();                  // how many matches? expected: 9
+    size_t n = m.size();                // how many matches? expected: 9
     
     // matched
     if (n == DT_EXPECTED) {
         time_t t = time(NULL);
-        struct tm tm = *gmtime(&t);     // now contains _current_ time, only use: current year
-        
+        struct tm tm;                   // now contains _current_ time, only use: current year
+#if !defined(WIN32)
+        gmtime_r(&t, &tm);
+#else
+        gmtime_s(&tm, &t);
+#endif
+
         int yyyy = tm.tm_year + 1900;
         if (m[D_Y].matched)
             yyyy = std::stoi(m[D_Y]);
@@ -511,7 +516,7 @@ void LTSettingsUI::LabelBtnInit()
 void LTSettingsUI::LabelBtnSave()
 {
     // store the checkboxes states in a zero-inited configuration
-    DataRefs::LabelCfgUTy cfg = { .i=0 };
+    DataRefs::LabelCfgUTy cfg = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     cfg.b.bIcaoType     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,NULL);
     cfg.b.bTranspCode   = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,NULL);
     cfg.b.bReg          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,NULL);

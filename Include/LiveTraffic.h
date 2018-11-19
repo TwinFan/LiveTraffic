@@ -44,6 +44,9 @@
 // Windows
 #if IBM
 #include <windows.h>
+// we prefer std::max/min of <algorithm>
+#undef max
+#undef min
 #endif
 
 // Open GL
@@ -63,6 +66,7 @@
 #include <list>
 #include <deque>
 #include <thread>
+#include <algorithm>
 
 // X-Plane SDK
 #include "XPLMDisplay.h"
