@@ -33,7 +33,11 @@ extern const char* InitFullVersion ();
 //MARK: Globals
 
 #if !defined(INIT_LOG_LEVEL)
-#define INIT_LOG_LEVEL logERR
+    #if !defined(DEBUG)
+        #define INIT_LOG_LEVEL logERR
+    #else
+        #define INIT_LOG_LEVEL logDEBUG
+    #endif
 #endif
 
 // access to data refs
@@ -58,7 +62,7 @@ XPLMMenuID menuID = 0;
 int aMenuItems[CNT_MENU_ID];
 
 // Callback called by XP, so this is an entry point into the plugin
-void MenuHandler(void * mRef, void * iRef)
+void MenuHandler(void * /*mRef*/, void * iRef)
 {
     // LiveTraffic top level exception handling
     try {
@@ -189,7 +193,7 @@ PLUGIN_API int  XPluginEnable(void)
     return 1;
 }
 
-PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * inParam)
+PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*inFrom*/, int /*inMsg*/, void * /*inParam*/)
 { }
 
 PLUGIN_API void XPluginDisable(void) {

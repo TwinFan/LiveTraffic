@@ -172,8 +172,8 @@ public:
         // allows using the object in string context -> dataName
         operator const char* () const { return dataName.c_str(); }
         
-        int isWriteable () const { return (dataType == xplmType_Int)   && (std::get<XPLMSetDatai_f>(fWrite) == NULL) ? 0 : 
-										  (dataType == xplmType_Float) && (std::get<XPLMSetDataf_f>(fWrite) == NULL); }
+        bool isWriteable () const { return (dataType == xplmType_Int) ? (std::get<XPLMSetDatai_f>(fWrite) != NULL) : 
+                                                                        (std::get<XPLMSetDataf_f>(fWrite) != NULL); }
         XPLMGetDatai_f getDatai_f () const { return dataType == xplmType_Int ? std::get<XPLMGetDatai_f>(fRead) : NULL; }
         XPLMSetDatai_f setDatai_f () const { return dataType == xplmType_Int ? std::get<XPLMSetDatai_f>(fWrite) : NULL; }
         XPLMGetDataf_f getDataf_f () const { return dataType == xplmType_Float ? std::get<XPLMGetDataf_f>(fRead) : NULL; }

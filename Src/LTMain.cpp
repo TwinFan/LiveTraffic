@@ -172,7 +172,7 @@ std::string LTFindResourcesDirectory ()
 // change a string to uppercase
 std::string& str_toupper(std::string& s) {
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) -> unsigned char { return toupper(c); });
+                   [](unsigned char c) -> unsigned char { return (unsigned char) toupper(c); });
     return s;
 }
 

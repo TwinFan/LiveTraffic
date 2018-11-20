@@ -407,9 +407,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
         }
 
 #ifdef DEBUG
-        std::string deb0 ( posDeque[0].dbgTxt() );
-        std::string deb1 ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
-        std::string vec  ( posDeque.size() >= 2 ? std::string(posDeque[0].between(posDeque[1])) : "<none>" );
+        std::string deb0   ( posDeque[0].dbgTxt() );
+        std::string deb1   ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
+        std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque[0].between(posDeque[1])) : "<none>" );
 #endif
         
         // *** Landing / Take-Off Detection ***
@@ -439,12 +439,12 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // but only reasonably a _new_ position if a few seconds before [1]
                 if (timeToTouchDown > SIMILAR_TS_INTVL &&
                     ppos.ts() + timeToTouchDown + SIMILAR_TS_INTVL < to.ts()) {
-                    vectorTy vec(ppos.heading(),                            // angle
-                                 timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
-                                 pAc->GetVSI_m_s(),                         // vsi
-                                 pAc->GetSpeed_m_s());                      // speed
+                    vectorTy vecTouch(ppos.heading(),                            // angle
+                                      timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
+                                      pAc->GetVSI_m_s(),                         // vsi
+                                      pAc->GetSpeed_m_s());                      // speed
                     // insert touch-down point at beginning of posDeque
-                    positionTy& touchDownPos = posDeque.emplace_front(ppos.destPos(vec));
+                    positionTy& touchDownPos = posDeque.emplace_front(ppos.destPos(vecTouch));
                     touchDownPos.onGrnd = positionTy::GND_ON;
                     TryDeriveGrndStatus(touchDownPos);          // will set correct terrain altitude
                     // then, however, next pos should also be on the ground, no longer just approaching

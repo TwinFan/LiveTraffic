@@ -537,7 +537,7 @@ bool fm_processModelLine (const char* fileName, int ln,
 // process a line in the [Map] section by splitting values using a RegEx
 // and then assign the value to the fm object
 bool fm_processMapLine (const char* fileName, int ln,
-                        std::string& text, LTAircraft::FlightModel& fm)
+                        std::string& text)
 {
     // split into name and value
     static std::regex re ("(\\w+)\\s+(.+)$");
@@ -665,11 +665,11 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                 fm.modelName = text;
 
                 // is the new section a child of another section?
-                std::string::size_type pos = text.find(FM_PARENT_SEPARATOR);
-                if (pos != std::string::npos) {
+                std::string::size_type posSep = text.find(FM_PARENT_SEPARATOR);
+                if (posSep != std::string::npos) {
                     // parent's name and model
-                    const std::string parent (text.substr(pos+1,
-                                                          text.length()-pos-1));
+                    const std::string parent (text.substr(posSep+1,
+                                                          text.length()-posSep-1));
                     const FlightModel* pParentFM = GetFlightModel(parent);
                     
                     // init model from parent
@@ -680,7 +680,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                                 text.c_str());
                     
                     // change name to new section's name (without ":parent")
-                    fm.modelName = text.substr(0,pos);
+                    fm.modelName = text.substr(0,posSep);
                 }
             }
         }
@@ -701,7 +701,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                 
                 // process the map of flight models to regEx patterns
             case FM_MAP:
-                if (!fm_processMapLine(sFileName.c_str(), ln, text, fm))
+                if (!fm_processMapLine(sFileName.c_str(), ln, text))
                     errCnt++;
                 break;
         }
@@ -1191,13 +1191,13 @@ bool LTAircraft::CalcPPos()
                          mdl.ROLL_OUT_DECEL);
         
         // the vector to the stopping point
-        vectorTy vec(ppos.heading(),            // keep current heading
-                     speed.getTargetDeltaDist());// distance needed to stop
+        vectorTy vecStop(ppos.heading(),            // keep current heading
+                         speed.getTargetDeltaDist());// distance needed to stop
         
         // add ppos and the stop point (ppos + above vector) to the list of positions
         // (they will be activated with the next frame only)
         posList.emplace_back(ppos);
-        positionTy& stopPoint = posList.emplace_back(ppos.destPos(vec));
+        positionTy& stopPoint = posList.emplace_back(ppos.destPos(vecStop));
         stopPoint.ts() = speed.getTargetTime();
         bArtificalPos = true;                   // flag: we are working with an artifical position now
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1267,7 +1267,7 @@ bool LTAircraft::CalcPPos()
 
 // From ppos and altitudes we derive other a/c parameters like gear, flaps etc.
 // Ultimately, we calculate flight phases based on flight model assumptions
-void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
+void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& to)
 {
     // *** calculate decision parameters ***
     
@@ -1563,7 +1563,7 @@ bool LTAircraft::YProbe ()
     terrainAlt = YProbe_at_m(ppos, probeRef) / M_per_FT;
     
     // lastly determine when to do a probe next, more often if closer to the ground
-    LOG_ASSERT_FD(fd,sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
+    static_assert(sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
     for ( int i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
     {
         if ( ppos.alt_ft() - terrainAlt >= PROBE_HEIGHT_LIM[i] ) {

@@ -173,8 +173,11 @@ std::string TFGetWidgetDescriptor (XPWidgetID me)
 {
     // get length of descriptor first, then only the actual descriptor
     int len = XPGetWidgetDescriptor(me, NULL, 0);
-    std::string ret(len + 1, '\0');
-    XPGetWidgetDescriptor (me, ret.data(), len+1);
+    if (len <= 0)
+        return std::string();
+
+    std::string ret(len, '\0');
+    XPGetWidgetDescriptor (me, ret.data(), len);
     return ret;
 }
 
@@ -436,31 +439,31 @@ bool TFWidget::HandleMessage (XPWidgetMessage    inMessage,
 }
 
 // standard messages: don't do anything, return 'not handled'
-bool TFWidget::MsgCreate  (bool bAddedAsSubclass) { return false; }
-bool TFWidget::MsgKeyTakeFocus (bool bChildGaveUp) { return false; }
-bool TFWidget::MsgKeyLoseFocus (bool bTakenByOtherWidget) { return false; }
-bool TFWidget::MsgMouseDown (const XPMouseState_t& mouse) { return false; }
-bool TFWidget::MsgMouseDrag (const XPMouseState_t& mouse) { return false; }
-bool TFWidget::MsgMouseUp (const XPMouseState_t& mouse) { return false; }
-bool TFWidget::MsgReshape (XPWidgetID originId, const XPWidgetGeometryChange_t& geoChange) { return false; }
-bool TFWidget::MsgAcceptChild (XPWidgetID childId) { return false; }
-bool TFWidget::MsgLoseChild (XPWidgetID childId) { return false; }
-bool TFWidget::MsgAcceptParent (XPWidgetID parentId) { return false; }
-bool TFWidget::MsgShown (XPWidgetID shownWidget) { return false; }
-bool TFWidget::MsgHidden (XPWidgetID hiddenWidget) { return false; }
+bool TFWidget::MsgCreate  (bool /*bAddedAsSubclass*/) { return false; }
+bool TFWidget::MsgKeyTakeFocus (bool /*bChildGaveUp*/) { return false; }
+bool TFWidget::MsgKeyLoseFocus (bool /*bTakenByOtherWidget*/) { return false; }
+bool TFWidget::MsgMouseDown (const XPMouseState_t& /*mouse*/) { return false; }
+bool TFWidget::MsgMouseDrag (const XPMouseState_t& /*mouse*/) { return false; }
+bool TFWidget::MsgMouseUp (const XPMouseState_t& /*mouse*/) { return false; }
+bool TFWidget::MsgReshape (XPWidgetID /*originId*/, const XPWidgetGeometryChange_t& /*geoChange*/) { return false; }
+bool TFWidget::MsgAcceptChild (XPWidgetID /*childId*/) { return false; }
+bool TFWidget::MsgLoseChild (XPWidgetID /*childId*/) { return false; }
+bool TFWidget::MsgAcceptParent (XPWidgetID /*parentId*/) { return false; }
+bool TFWidget::MsgShown (XPWidgetID /*shownWidget*/) { return false; }
+bool TFWidget::MsgHidden (XPWidgetID /*hiddenWidget*/) { return false; }
 bool TFWidget::MsgDescriptorChanged () { return false; }
-bool TFWidget::MsgPropertyChanged (XPWidgetPropertyID propId, intptr_t val) { return false; }
-bool TFWidget::MsgMouseWheel (const XPMouseState_t& mouse) { return false; }
-bool TFWidget::MsgCursorAdjust (const XPMouseState_t& mouse, XPLMCursorStatus& crsrStatus) { return false; }
-bool TFWidget::MsgKeyPress (XPKeyState_t& key) { return false; }
+bool TFWidget::MsgPropertyChanged (XPWidgetPropertyID /*propId*/, intptr_t /*val*/) { return false; }
+bool TFWidget::MsgMouseWheel (const XPMouseState_t& /*mouse*/) { return false; }
+bool TFWidget::MsgCursorAdjust (const XPMouseState_t& /*mouse*/, XPLMCursorStatus& /*crsrStatus*/) { return false; }
+bool TFWidget::MsgKeyPress (XPKeyState_t& /*key*/) { return false; }
 bool TFWidget::MsgPushButtonPressed (XPWidgetID) { return false; }
 bool TFWidget::MsgButtonStateChanged (XPWidgetID, bool) { return false; }
 bool TFWidget::MsgTextFieldChanged (XPWidgetID, std::string) { return false; }
 bool TFWidget::MsgScrollBarSliderPositionChanged (XPWidgetID, int) { return false; }
-bool TFWidget::TfwMsgMainShowHide (XPWidgetID, bool bShow) { return false; }
+bool TFWidget::TfwMsgMainShowHide (XPWidgetID, bool /*bShow*/) { return false; }
 bool TFWidget::TfwMsgMain1sTime () { return false; }
 
-bool TFWidget::MsgDestroy (bool bRecursive)
+bool TFWidget::MsgDestroy (bool /*bRecursive*/)
 {
     // widget is destroyed, invalidate our knowledge of it
     me = 0;
@@ -576,7 +579,7 @@ bool TFTextFieldWidget::MsgKeyPress (XPKeyState_t& key)
     {
         // is the to-upper-converted key different?
         if (toupper(key.key) != key.key) {
-            key.key = toupper(key.key);     // we change the message
+            key.key = (char)toupper(key.key);     // we change the message
             key.flags |= xplm_ShiftFlag;    // and simulate upper case
         }
     }
@@ -1007,9 +1010,9 @@ bool TFDataRefLink::setDataRef (const char* dataRefName)
     if (isValid()) {
         XPLMDataTypeID dtId = XPLMGetDataRefTypes(ref);
         // we decide for the most detailed data type
-        if      (dtId & xplmType_Double)    { dataType = DT_DOUBLE; val.d = NAN; }
-        else if (dtId & xplmType_Float)     { dataType = DT_FLOAT;  val.f = NAN; }
-        else if (dtId & xplmType_Int)       { dataType = DT_INT;    val.i = INT_MIN; }
+        if      (dtId & xplmType_Double)    { dataType = DT_DOUBLE; }
+        else if (dtId & xplmType_Float)     { dataType = DT_FLOAT;  }
+        else if (dtId & xplmType_Int)       { dataType = DT_INT;    }
     }
     
     return isValid();

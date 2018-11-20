@@ -53,8 +53,10 @@
 #undef malloc
 #undef free
 
-static JSON_Malloc_Function parson_malloc = malloc;
-static JSON_Free_Function parson_free = free;
+//static JSON_Malloc_Function parson_malloc = malloc;
+//static JSON_Free_Function parson_free = free;
+#define parson_malloc malloc
+#define parson_free free
 
 #define IS_CONT(b) (((unsigned char)(b) & 0xC0) == 0x80) /* is utf-8 continuation byte */
 
@@ -1962,8 +1964,8 @@ double json_number (const JSON_Value *value) {
 int json_boolean(const JSON_Value *value) {
     return json_value_get_boolean(value);
 }
-
+/*
 void json_set_allocation_functions(JSON_Malloc_Function malloc_fun, JSON_Free_Function free_fun) {
     parson_malloc = malloc_fun;
     parson_free = free_fun;
-}
+} */

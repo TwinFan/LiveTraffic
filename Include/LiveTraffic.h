@@ -124,7 +124,7 @@ std::string& str_toupper(std::string& s);
 // format timestamp
 std::string ts2string (time_t t);
 // limits text to m characters, replacing the last ones with ... if too long
-inline std::string strAtMost(const std::string s, int m) {
+inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
     s.substr(0, m-3) + "...";
 }

@@ -165,8 +165,12 @@ std::ofstream LTOnlineChannel::outRaw;
 LTOnlineChannel::LTOnlineChannel () :
 pCurl(NULL),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
-netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE)
-{}
+netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
+curl_errtxt{0}, httpResponse(HTTP_OK)
+{
+    // initialize a CURL handle
+    SetValid(InitCurl());
+}
 
 LTOnlineChannel::~LTOnlineChannel ()
 {
@@ -434,7 +438,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
                 stat.trt     =    trt_ADS_B_unknown;
                 stat.call    =    jag_s(pJAc, OPSKY_CALL);
-                while (stat.call.back() == ' ')      // trim trailing spaces
+                while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
                     stat.call.pop_back();
                 fd.UpdateData(std::move(stat));
                 
@@ -756,7 +760,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
         listFd.emplace_back(std::string(ADSBEX_HIST_START_FILE) + sz);
         
         // now loop over the positional lines
-        int errCnt = 0;                     // count errors to bail out if file too bad
+        int cntErr = 0;                     // count errors to bail out if file too bad
         
         // we make use of the apparent fact that the hist files
         // contain one aircraft per line. We decide here already if the line
@@ -778,7 +782,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
                 ) {
                 // no significant number of chars read, looks invalid, skip
                 SHOW_MSG(logWARN,ADSBEX_HIST_LN_ERROR,i,pathDate.c_str());
-                if (++errCnt > ADSBEX_HIST_MAX_ERR_CNT) {
+                if (++cntErr > ADSBEX_HIST_MAX_ERR_CNT) {
                     // this file is too bad...skip rest
                     IncErrCnt();
                     break;
@@ -812,7 +816,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
                 pCos = strchr(pCos,',');
                 if ( !pCos ) {                  // no comma is _not_ valid,
                     SHOW_MSG(logWARN,ADSBEX_HIST_LN_ERROR,i,pathDate.c_str());
-                    if (++errCnt > ADSBEX_HIST_MAX_ERR_CNT) {
+                    if (++cntErr > ADSBEX_HIST_MAX_ERR_CNT) {
                         // this file is too bad...skip rest
                         IncErrCnt();
                         break;
@@ -1251,7 +1255,7 @@ std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 }
 
 // process each master data line read from OpenSky
-bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
 {
     // loop all previously collected master data records
     for ( const std::string& ln: listMd) {

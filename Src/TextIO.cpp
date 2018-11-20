@@ -105,7 +105,7 @@ float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log le
 
 //MARK: custom X-Plane message Window - Private Callbacks
 // Callbacks we will register when we create our window
-void    draw_msg(XPLMWindowID in_window_id, void * in_refcon)
+void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
 {
     // Mandatory: We *must* set the OpenGL state before drawing
     // (we can't make any assumptions about it)
@@ -158,16 +158,16 @@ void    draw_msg(XPLMWindowID in_window_id, void * in_refcon)
     }
 }
 
-int dummy_mouse_handler(XPLMWindowID in_window_id, int x, int y, int is_down, void * in_refcon)
+int dummy_mouse_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int /*is_down*/, void * /*in_refcon*/)
 { return 0; }
 
-XPLMCursorStatus dummy_cursor_status_handler(XPLMWindowID in_window_id, int x, int y, void * in_refcon)
+XPLMCursorStatus dummy_cursor_status_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, void * /*in_refcon*/)
 { return xplm_CursorDefault; }
 
-int dummy_wheel_handler(XPLMWindowID in_window_id, int x, int y, int wheel, int clicks, void * in_refcon)
+int dummy_wheel_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int /*wheel*/, int /*clicks*/, void * /*in_refcon*/)
 { return 0; }
 
-void dummy_key_handler(XPLMWindowID in_window_id, char key, XPLMKeyFlags flags, char virtual_key, void * in_refcon, int losing_focus)
+void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags /*flags*/, char /*virtual_key*/, void * /*in_refcon*/, int /*losing_focus*/)
 { }
 
 

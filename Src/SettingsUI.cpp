@@ -55,6 +55,9 @@ bool LTCapDateTime::TfwMsgMain1sTime ()
 bool LTCapDateTime::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 {
     bool bOK = false;
+
+    if (textWidget != *this)
+        return false;
     
     // interpret user input with this regex:
     // [YYYY-][M]M-[D]D [H]H:[M]M[:[S]S]

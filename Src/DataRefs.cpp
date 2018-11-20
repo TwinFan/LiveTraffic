@@ -388,7 +388,6 @@ iLogLevel (initLogLevel)
         
         // now adjust for timezone: current value is midnight as per local time
         // but for our calculations we need midnight UTC
-        // TODO: Test new day-of-year and UTC Offset implementation
         tStartThisYear += timeOffsetUTC();
         
         // previous year
@@ -532,13 +531,17 @@ void DataRefs::LTSetAcKey(void*, int key)
     dataRefs.pAc = nullptr;
     dataRefs.keyAc.clear();
     
+    // 0 means reset
+    if (key == 0) {
+        return;
+    }
     // key can be either index or the decimal representation of an transpIcao
     // for any number below number of a/c displayed we assume: index
-    if ( key < dataRefs.cntAc )
+    else if ( key <= dataRefs.cntAc )
     {
         // let's find the i-th aircraft by looping over all flight data
         // and count those objects, which have an a/c
-        int i = -1;
+        int i = 0;
         for (mapLTFlightDataTy::const_iterator fdIter = mapFd.cbegin();
              fdIter != mapFd.cend();
              ++fdIter)
