@@ -153,15 +153,10 @@ PLUGIN_API int XPluginStart(
      srand((unsigned int)time(NULL));
     
     // tell X-Plane who we are
-#if !defined(WIN32)
-	strcpy(outName, LIVE_TRAFFIC);
-	strcpy(outSig,  PLUGIN_SIGNATURE);
-	strcpy(outDesc, PLUGIN_DESCRIPTION);
-#else
      strcpy_s(outName, 255, LIVE_TRAFFIC);
      strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
      strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
-#endif
+
     // init DataRefs
     if (!dataRefs.Init()) return 0;
     

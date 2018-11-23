@@ -182,11 +182,7 @@ std::string ts2string (time_t t)
     // format it nicely
     char szBuf[50];
     struct tm tm;
-#if !defined(WIN32)
-    gmtime_r(&t, &tm);
-#else
     gmtime_s(&tm, &t);
-#endif
     strftime(szBuf,
              sizeof(szBuf) - 1,
              "%F %T",

@@ -1624,12 +1624,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             CalcPPos())
         {
             *outPosition = ppos;                // copy ppos (by type conversion), and add the label
-#if !defined(WIN32)
-            strncpy ( outPosition->label, labelAc.c_str(), sizeof(outPosition->label)-1 );
-#else
             strcpy_s(outPosition->label, sizeof(outPosition->label), labelAc.c_str());
-#endif
-            outPosition->label[sizeof(outPosition->label)-1] = 0;
             return xpmpData_NewData;
         }
 

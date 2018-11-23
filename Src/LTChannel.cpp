@@ -698,11 +698,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
         // put together path and file name
         char sz[50];
         struct tm tm_val;
-#if !defined(WIN32)
-        gmtime_r(&zuluLastRead, &tm_val);
-#else
         gmtime_s(&tm_val, &zuluLastRead);
-#endif
         snprintf(sz,sizeof(sz),ADSBEX_HIST_DATE_PATH,
                  dataRefs.GetDirSeparator()[0],
                  tm_val.tm_year + 1900,

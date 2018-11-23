@@ -71,11 +71,7 @@ bool LTCapDateTime::MsgTextFieldChanged (XPWidgetID textWidget, std::string text
     if (n == DT_EXPECTED) {
         time_t t = time(NULL);
         struct tm tm;                   // now contains _current_ time, only use: current year
-#if !defined(WIN32)
-        gmtime_r(&t, &tm);
-#else
         gmtime_s(&tm, &t);
-#endif
 
         int yyyy = tm.tm_year + 1900;
         if (m[D_Y].matched)

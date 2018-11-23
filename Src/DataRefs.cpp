@@ -326,20 +326,16 @@ float LoopCBOneTimeSetup (float, float, int, void*)
 // https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
 int timeOffsetUTC()
 {
-	static int cachedOffset = -MAXINT;
+	static int cachedOffset = INT_MIN;
 
-	if (cachedOffset > -MAXINT)
+	if (cachedOffset > INT_MIN)
 		return cachedOffset;
 	else {
 		time_t gmt, rawtime = time(NULL);
 		struct tm gbuf;
-
-#if !defined(WIN32)
-		gmtime_r(&rawtime, &gbuf);
-#else
 		gmtime_s(&gbuf, &rawtime);
-#endif
-		// Request that mktime() looksup dst in timezone database
+
+        // Request that mktime() looksup dst in timezone database
 		gbuf.tm_isdst = -1;
 		gmt = mktime(&gbuf);
 
@@ -372,11 +368,8 @@ iLogLevel (initLogLevel)
     {
         std::tm tm;
         time_t now = time(nullptr);
-#if !defined(WIN32)
-        localtime_r(&now, &tm);
-#else
         localtime_s(&tm, &now);
-#endif
+
         dataRefs.iTodaysDayOfYear = tm.tm_yday;
         
         // also compute start of this and last year for sim-time computations
@@ -759,11 +752,7 @@ int DataRefs::LTGetSimDateTime(void* p)
     // current simulated time, converted to structure
     time_t simTime = (time_t)dataRefs.GetSimTime();
     std::tm tm;
-#if !defined(WIN32)
-    gmtime_r(&simTime, &tm);
-#else
     gmtime_s(&tm, &simTime);
-#endif
 
     // asked for date? Return date as human readable number yyyymmdd:
     if ( bDateTime == 1 ) {

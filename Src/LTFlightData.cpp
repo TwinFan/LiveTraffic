@@ -972,11 +972,7 @@ std::string LTFlightData::Positions2String () const
         // 0. current sim time
         time_t t = time_t(dataRefs.GetSimTime());
         struct tm tm;
-#if !defined(WIN32)
-        gmtime_r(&t, &tm);
-#else
         gmtime_s(&tm, &t);
-#endif
 
         char szBuf[50];
         snprintf(szBuf,sizeof(szBuf),

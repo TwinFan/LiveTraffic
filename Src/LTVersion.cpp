@@ -52,13 +52,8 @@ const char* InitFullVersion ()
     char buildDate[12] = __DATE__;
     buildDate[3]=0;                                     // separate elements
     buildDate[6]=0;
-#if !defined(WIN32)
-    strcat(szLT_VERSION_FULL, buildDate + 9);           // year (last 2 digits)
-    strcat(szLT_VERSION_FULL,                           // month converted to digits
-#else
     strcat_s(szLT_VERSION_FULL, sizeof(szLT_VERSION_FULL), buildDate + 9);  // year (last 2 digits)
     strcat_s(szLT_VERSION_FULL, sizeof(szLT_VERSION_FULL),                  // month converted to digits
-#endif
            strcmp(buildDate,"Jan") == 0 ? "01" :
            strcmp(buildDate,"Feb") == 0 ? "02" :
            strcmp(buildDate,"Mar") == 0 ? "03" :
@@ -72,10 +67,7 @@ const char* InitFullVersion ()
            strcmp(buildDate,"Nov") == 0 ? "11" :
            strcmp(buildDate,"Dec") == 0 ? "12" : "??"
            );
-#if !defined(WIN32)
-    strcat(szLT_VERSION_FULL, buildDate + 4);           // day
-#else
     strcat_s(szLT_VERSION_FULL, sizeof(szLT_VERSION_FULL), buildDate + 4);           // day
-#endif
+
     return szLT_VERSION_FULL;
 }
