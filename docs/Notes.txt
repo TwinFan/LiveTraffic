@@ -78,12 +78,8 @@ CURL - https://curl.haxx.se/download.html
         'LIB Release - DLL Windows SSPI' / 'x64'    build\Win64\VC15\LIB Release - DLL Windows SSPI\libcurl.lib
 
     * Mac OS *
-    Build using the provided script MacOSX-Framework
-    Framework is built as libcurl.framework in libcurl's main folder
-    To change the install name of libcurl before linkink with LiveTRaffic's mac.xpl:
-    install_name_tool -id @loader_path/libcurl libcurl
-    Include libcurl.framework as Linked Framework
-    Install 'libcurl' along with mac.xpl into .../Resources/plugins/LiveTraffic/64
+    Build using the script MacOSX-Framework64Lib provided here in the docs folder,
+    which creates a 64 Bit static library.
 
 libpng - http://www.libpng.org/pub/png/libpng.html
     Download latest Source code
@@ -95,6 +91,10 @@ libpng - http://www.libpng.org/pub/png/libpng.html
         'Debug Library' / 'x64':    projects\vstudio\x64\Debug Library\libpng64.lib     and zlib.lib
         'Release Library' / 'x64':  projects\vstudio\x64\Release Library\libpng64.lib   and zlib.lib
 
+    * Mac OS *
+    Used the provided projects/xcode/libpng.xcodeproj,
+    changed from shared to static library.
+
 xplanemp - Created my own fork at https://github.com/TwinFan/libxplanemp, which includes
 	- processing of VERT_OFFSET commands in xsb_aircraft.txt
 	- changes to reduce warnings
@@ -104,6 +104,7 @@ xplanemp - Created my own fork at https://github.com/TwinFan/libxplanemp, which 
     https://github.com/KhronosGroup/EGL-Registry/tree/master/api/KHR
 	and provided it in central include directories
 
+    * Windows *
     Used Visual Studio to open the folder libxplanemp and used the CMake build system.
     Defined following variables in CMakeSettings.json:
 	- XPSDK_DIR to point to the XPLM SDK
@@ -113,6 +114,8 @@ xplanemp - Created my own fork at https://github.com/TwinFan/libxplanemp, which 
         'x64-Debug':    build\x64-Debug\xplanemp.lib
         'x64-Release':  build\x64-Release\xplanemp.lib
 
+    * Mac OS *
+    
 
 X-Plane API - Download latest version from https://developer.x-plane.com/sdk/plugin-sdk-downloads/
 
