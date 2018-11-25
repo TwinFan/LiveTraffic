@@ -808,6 +808,7 @@ XPCAircraft(inFd.WaitForSafeCopyStat().acTypeIcao.c_str(),  // repeated calls to
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
 doc8643(Doc8643::get(inFd.WaitForSafeCopyStat().acTypeIcao)),
+szLabelAc{ 0 },
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 tsLastCalcRequested(0),
@@ -838,7 +839,8 @@ bValid(true)
         radar = dynCopy.radar;
 
         // standard label
-        labelAc = fd.ComposeLabel();
+        LabelUpdate();
+
         // standard internal label (e.g. for logging) is transpIcao + ac type + company icao
         labelInternal = key() + " (" + statCopy.acTypeIcao + " " + statCopy.opIcao + ")";
         
@@ -887,6 +889,16 @@ LTAircraft::operator std::string() const
              ppos.dbgTxt().c_str(), terrainAlt,
              phase, FlightPhase2String(phase).c_str());
     return std::string(buf) + positionDeque2String(posList);
+}
+
+// Update the aircraft's label
+// We do all logic and string handling here so we can just copy chars later in the callback
+void LTAircraft::LabelUpdate()
+{
+    strcpy_s(
+        szLabelAc,
+        sizeof(szLabelAc),
+        strAtMost(fd.ComposeLabel(), sizeof(szLabelAc) - 1).c_str());
 }
 
 //
@@ -1578,7 +1590,7 @@ bool LTAircraft::YProbe ()
     // calc current bearing and distance for pure informational purpose ***
     vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
     // update the a/c label with fresh values
-    labelAc = fd.ComposeLabel();
+    LabelUpdate();
     
     // Success
     return true;
@@ -1624,7 +1636,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             CalcPPos())
         {
             *outPosition = ppos;                // copy ppos (by type conversion), and add the label
-            strcpy_s(outPosition->label, sizeof(outPosition->label), labelAc.c_str());
+            memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));
             return xpmpData_NewData;
         }
 

@@ -214,7 +214,7 @@ public:
     
     XPMPPlaneSurfaces_t surfaces;
     XPMPPlaneRadar_t    radar;
-    std::string         labelAc;        // label at the a/c
+    char                szLabelAc[sizeof(XPMPPlanePosition_t::label)];  // label at the a/c
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
     // this is "ppos", the present simulated position,
@@ -256,7 +256,8 @@ public:
     // key for maps
     inline const std::string& key() const { return fd.key(); }
     // labels to pin to aircrafts on the screes
-    inline const std::string& label() const { return labelAc; }
+    inline const std::string label() const { return szLabelAc; }
+    void LabelUpdate();
     // stringify e.g. for debugging info purposes
     operator std::string() const;
     // the XPMP model used for displaying this aircraft
