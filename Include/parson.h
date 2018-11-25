@@ -30,13 +30,13 @@ extern "C"
 #endif
 
 #include <stddef.h>   /* size_t */
-    
+
 /* Types and enums */
 typedef struct json_object_t JSON_Object;
 typedef struct json_array_t  JSON_Array;
 typedef struct json_value_t  JSON_Value;
 
-typedef enum json_value_type {
+enum json_value_type {
     JSONError   = -1,
     JSONNull    = 1,
     JSONString  = 2,
@@ -44,45 +44,14 @@ typedef enum json_value_type {
     JSONObject  = 4,
     JSONArray   = 5,
     JSONBoolean = 6
-} JSON_Value_Type;
+};
+typedef int JSON_Value_Type;
 
-typedef enum json_result_t {
+enum json_result_t {
     JSONSuccess = 0,
     JSONFailure = -1
-} JSON_Status;
-
-typedef union json_value_value {
-    char        *string;
-    double       number;
-    JSON_Object *object;
-    JSON_Array  *array;
-    int          boolean;
-    int          null;
-} JSON_Value_Value;
-
-/* Type definitions */
-
-struct json_value_t {
-    JSON_Value      *parent;
-    JSON_Value_Type  type;
-    JSON_Value_Value value;
 };
-
-struct json_object_t {
-    JSON_Value  *wrapping_value;
-    char       **names;
-    JSON_Value **values;
-    size_t       count;
-    size_t       capacity;
-};
-
-struct json_array_t {
-    JSON_Value  *wrapping_value;
-    JSON_Value **items;
-    size_t       count;
-    size_t       capacity;
-};
-
+typedef int JSON_Status;
 
 typedef void * (*JSON_Malloc_Function)(size_t);
 typedef void   (*JSON_Free_Function)(void *);
@@ -205,7 +174,7 @@ double        json_array_get_number (const JSON_Array *array, size_t index); /* 
 int           json_array_get_boolean(const JSON_Array *array, size_t index); /* returns -1 on fail */
 size_t        json_array_get_count  (const JSON_Array *array);
 JSON_Value  * json_array_get_wrapping_value(const JSON_Array *array);
-    
+
 /* Frees and removes value at given index, does nothing and returns JSONFailure if index doesn't exist.
  * Order of values in array may change during execution.  */
 JSON_Status json_array_remove(JSON_Array *array, size_t i);

@@ -385,7 +385,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // a/c array not found: can just mean it is 'null' as in
         // the empty result set: {"time":1541978120,"states":null}
         JSON_Value* pJSONVal = json_object_get_value(pObj, OPSKY_AIRCRAFT_ARR);
-        if (!pJSONVal || pJSONVal->type != JSONNull) {
+        if (!pJSONVal || json_type(pJSONVal) != JSONNull) {
             // well...it is something else, so it is malformed, bail out
             LOG_MSG(logERR,ERR_JSON_ACLIST,OPSKY_AIRCRAFT_ARR);
             IncErrCnt();
@@ -393,7 +393,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
     }
     // iterate all aircrafts in the received flight data (can be 0)
-    else for ( int i=0; i < pJAcList->count; i++ )
+    else for ( int i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft (which is just an array of values)
         JSON_Array* pJAc = json_array_get_array(pJAcList,i);
@@ -524,7 +524,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if (!pJAcList) { LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR); IncErrCnt(); return false; }
     
     // iterate all aircrafts in the received flight data (can be 0)
-    for ( int i=0; i < pJAcList->count; i++ )
+    for ( int i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft
         JSON_Object* pJAc = json_array_get_object(pJAcList,i);
@@ -901,7 +901,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // variables we need for quality indicator calculation
             int sig =               (int)jog_n(pJAc, ADSBEX_SIG);
             JSON_Array* pCosList =  json_object_get_array(pJAc, ADSBEX_COS);
-            int cosCount =          int(pCosList ? pCosList->count/4 : 0);
+            int cosCount =          int(json_array_get_count(pCosList)/4);
             
             // quality is made up of signal level, number of elements of the trail
             int qual = (sig + cosCount);
@@ -1035,10 +1035,10 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         pCosList = NULL;
 
                     // found trails and there are at least 2 quadrupels, i.e. really a "trail" not just a single pos?
-                    if (pCosList && pCosList->count >= 8) {
-                        if (pCosList->count % 4 == 0)    // trails should be made of quadrupels
+                    if (json_array_get_count(pCosList) >= 8) {
+                        if (json_array_get_count(pCosList) % 4 == 0)    // trails should be made of quadrupels
                             // iterate trail data in form of quadrupels (lat,lon,timestamp,alt):
-                            for (int i=0; i<pCosList->count; i += 4) {
+                            for (int i=0; i< json_array_get_count(pCosList); i += 4) {
                                 const positionTy& addedTrail =
                                 trails.emplace_back(json_array_get_number(pCosList, i),         // latitude
                                                     json_array_get_number(pCosList, i+1),       // longitude
