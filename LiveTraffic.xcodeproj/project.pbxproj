@@ -10,9 +10,13 @@
 		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
+		2564042421AAC75F001E2F2A /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9FEF92164E199002BF424 /* libcurl.framework */; };
+		2564042621AAC914001E2F2A /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042521AAC914001E2F2A /* Security.framework */; };
+		2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042921AAC9B5001E2F2A /* GSS.framework */; };
+		2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */; };
+		2564042E21AACB3D001E2F2A /* libpng.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042D21AACB3D001E2F2A /* libpng.framework */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		2591F96C219700C200F0D436 /* LTFlightradar24.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2591F96B219700C200F0D436 /* LTFlightradar24.cpp */; };
-		25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9FEF92164E199002BF424 /* libcurl.framework */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
@@ -21,7 +25,6 @@
 		25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59459207A2B7500E52073 /* DataRefs.cpp */; };
 		25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59461207AB4D800E52073 /* LTAircraft.cpp */; };
 		25C59465207ABDC700E52073 /* LTMain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59464207ABDC700E52073 /* LTMain.cpp */; };
-		25D29ABA207D461000A88505 /* libpng.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29AB9207D461000A88505 /* libpng.framework */; };
 		25D29ABD207D48AA00A88505 /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29ABB207D48AA00A88505 /* XPLM.framework */; };
 		25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29ABC207D48AA00A88505 /* XPWidgets.framework */; };
 		25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */; };
@@ -57,10 +60,16 @@
 		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "/Users/birger/Applications/X-Plane 10/Resources/plugins/DataRefs.txt"; sourceTree = "<absolute>"; };
 		255F35AF2097C0B50080B78E /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "/Users/birger/Applications/X-Plane 10/Log.txt"; sourceTree = "<absolute>"; };
 		255F89EF21695172003053F6 /* Doc8643.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Doc8643.txt; path = "../../../Applications/X-Plane 10/Resources/plugins/LiveTraffic/Resources/Doc8643.txt"; sourceTree = "<group>"; };
+		2564042521AAC914001E2F2A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
+		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
+		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
+		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		2579843920D3201200E331E4 /* OpenSky_504_GatewayTimeout.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = OpenSky_504_GatewayTimeout.html; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
 		257A109A2190E211007C1E04 /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
+		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
 		2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Log_HoursOfExecution_For_Analysis.txt; sourceTree = "<group>"; wrapsLines = 0; };
@@ -84,7 +93,6 @@
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59463207AB5CB00E52073 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
-		25D29AB9207D461000A88505 /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = "../../../Library/Developer/Xcode/DerivedData/libpng-burrsbgfggtgpadusswcdzbqxyzb/Build/Products/Release/libpng.framework"; sourceTree = "<group>"; };
 		25D29ABB207D48AA00A88505 /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPLM.framework; path = ../../Frameworks/XPLM.framework; sourceTree = "<group>"; };
 		25D29ABC207D48AA00A88505 /* XPWidgets.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPWidgets.framework; path = ../../Frameworks/XPWidgets.framework; sourceTree = "<group>"; };
 		25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BADA_Aircraft_Performance_Summary_Tables.pdf; sourceTree = "<group>"; };
@@ -110,10 +118,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */,
+				2564042621AAC914001E2F2A /* Security.framework in Frameworks */,
+				2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */,
+				2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */,
 				D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */,
 				25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */,
-				25D29ABA207D461000A88505 /* libpng.framework in Frameworks */,
-				25A9FEFA2164E199002BF424 /* libcurl.framework in Frameworks */,
+				2564042421AAC75F001E2F2A /* libcurl.framework in Frameworks */,
+				2564042E21AACB3D001E2F2A /* libpng.framework in Frameworks */,
 				25D29ABD207D48AA00A88505 /* XPLM.framework in Frameworks */,
 				25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */,
 				25C0C8CD21866D540049F226 /* xplanemp.framework in Frameworks */,
@@ -139,6 +150,7 @@
 		254EA46D20834D5E008A312F /* docs */ = {
 			isa = PBXGroup;
 			children = (
+				2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */,
 				25AC7BFD217BD2D700A93265 /* pic */,
 				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
 				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
@@ -315,12 +327,16 @@
 		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2564042D21AACB3D001E2F2A /* libpng.framework */,
+				2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */,
+				2564042921AAC9B5001E2F2A /* GSS.framework */,
+				2564042721AAC937001E2F2A /* LDAP.framework */,
+				2564042521AAC914001E2F2A /* Security.framework */,
 				25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */,
 				25C0C8CC21866D540049F226 /* xplanemp.framework */,
 				25A9FEF92164E199002BF424 /* libcurl.framework */,
 				25D29ABB207D48AA00A88505 /* XPLM.framework */,
 				25D29ABC207D48AA00A88505 /* XPWidgets.framework */,
-				25D29AB9207D461000A88505 /* libpng.framework */,
 				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
 				D6A7BDA916A1DEA200D1426A /* OpenGL.framework */,
 			);
@@ -441,6 +457,7 @@
 					"XPLM210=1",
 					"__MACH__=1",
 					"XUTILS_EXCLUDE_MAC_CRAP=1",
+					CURL_STATICLIB,
 					"INIT_LOG_LEVEL=logDEBUG",
 					"DEBUG=1",
 				);
@@ -459,7 +476,6 @@
 				);
 				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
 				MACH_O_TYPE = mh_bundle;
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
@@ -508,6 +524,7 @@
 					"XPLM210=1",
 					"__MACH__=1",
 					"XUTILS_EXCLUDE_MAC_CRAP=1",
+					CURL_STATICLIB,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -524,7 +541,6 @@
 				);
 				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
 				MACH_O_TYPE = mh_bundle;
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;

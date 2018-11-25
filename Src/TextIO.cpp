@@ -95,17 +95,17 @@ struct dispTextTy {
 std::list<dispTextTy> listTexts;     // lines of text to be displayed
 
 float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log level
-    {0, 0, 0},                  // 0
-    {1.0, 1.0, 1.0},            // INFO (white)
-    {1.0, 1.0, 0.0},            // WARN (yellow)
-    {1.0, 0.0, 0.0},            // ERROR (red)
-    {0.63, 0.13, 0.94},         // FATAL (purple)
-    {1.0, 1.0, 1.0}             // MSG (white)
+    {0.00f, 0.00f, 0.00f},              // 0
+    {1.00f, 1.00f, 1.00f},              // INFO (white)
+    {1.00f, 1.00f, 0.00f},              // WARN (yellow)
+    {1.00f, 0.00f, 0.00f},              // ERROR (red)
+    {0.63f, 0.13f, 0.94f},              // FATAL (purple)
+    {1.00f, 1.00f, 1.00f}               // MSG (white)
 };
 
 //MARK: custom X-Plane message Window - Private Callbacks
 // Callbacks we will register when we create our window
-void    draw_msg(XPLMWindowID in_window_id, void * in_refcon)
+void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
 {
     // Mandatory: We *must* set the OpenGL state before drawing
     // (we can't make any assumptions about it)
@@ -158,16 +158,16 @@ void    draw_msg(XPLMWindowID in_window_id, void * in_refcon)
     }
 }
 
-int dummy_mouse_handler(XPLMWindowID in_window_id, int x, int y, int is_down, void * in_refcon)
+int dummy_mouse_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int /*is_down*/, void * /*in_refcon*/)
 { return 0; }
 
-XPLMCursorStatus dummy_cursor_status_handler(XPLMWindowID in_window_id, int x, int y, void * in_refcon)
+XPLMCursorStatus dummy_cursor_status_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, void * /*in_refcon*/)
 { return xplm_CursorDefault; }
 
-int dummy_wheel_handler(XPLMWindowID in_window_id, int x, int y, int wheel, int clicks, void * in_refcon)
+int dummy_wheel_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int /*wheel*/, int /*clicks*/, void * /*in_refcon*/)
 { return 0; }
 
-void dummy_key_handler(XPLMWindowID in_window_id, char key, XPLMKeyFlags flags, char virtual_key, void * in_refcon, int losing_focus)
+void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags /*flags*/, char /*virtual_key*/, void * /*in_refcon*/, int /*losing_focus*/)
 { }
 
 
@@ -295,12 +295,12 @@ const char* GetLogString (const char* szPath, int ln, const char* szFunc,
     {
         const char* szFile = strrchr(szPath,'/');   // extract file from path
         if ( !szFile ) szFile = szPath; else szFile++;
-        sprintf(aszMsg,"%s %.1f %s %s:%d/%s: ",
+        snprintf(aszMsg, sizeof(aszMsg), "%s %.1f %s %s:%d/%s: ",
                 LIVE_TRAFFIC, simTime, LOG_LEVEL[lvl],
                 szFile, ln, szFunc);
     }
     else
-        sprintf(aszMsg,"%s: ", LIVE_TRAFFIC);
+        snprintf(aszMsg, sizeof(aszMsg), "%s: ", LIVE_TRAFFIC);
     
     // append given message
     if (args) {
@@ -311,7 +311,7 @@ const char* GetLogString (const char* szPath, int ln, const char* szFunc,
     }
 
     // ensure there's a trailing CR
-    unsigned long l = strlen(aszMsg);
+    size_t l = strlen(aszMsg);
     if ( aszMsg[l-1] != '\n' )
     {
         aszMsg[l]   = '\n';

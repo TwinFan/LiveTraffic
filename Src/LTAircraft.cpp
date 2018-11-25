@@ -54,7 +54,7 @@ bool NextCycle (int newCycle)
     else
     {
         prevCycle.num = newCycle-1;
-        prevCycle.elapsedTime = XPLMGetElapsedTime() - 0.1;
+        prevCycle.elapsedTime = XPLMGetElapsedTime() - 0.1f;
         prevCycle.simTime  = dataRefs.GetSimTime() - 0.1;
     }
     currCycle.num = newCycle;
@@ -537,7 +537,7 @@ bool fm_processModelLine (const char* fileName, int ln,
 // process a line in the [Map] section by splitting values using a RegEx
 // and then assign the value to the fm object
 bool fm_processMapLine (const char* fileName, int ln,
-                        std::string& text, LTAircraft::FlightModel& fm)
+                        std::string& text)
 {
     // split into name and value
     static std::regex re ("(\\w+)\\s+(.+)$");
@@ -586,8 +586,11 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     if (!fIn) {
         // if there is no FlightModel file just return
         // that's no real problem, we can use defaults, but unexpected
+        // TODO: Test error message handling by having no FlightModel file
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logWARN, ERR_CFG_FILE_OPEN_IN,
-                 sFileName.c_str(), std::strerror(errno));
+                 sFileName.c_str(), sErr);
         return false;
     }
     
@@ -662,11 +665,11 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                 fm.modelName = text;
 
                 // is the new section a child of another section?
-                std::string::size_type pos = text.find(FM_PARENT_SEPARATOR);
-                if (pos != std::string::npos) {
+                std::string::size_type posSep = text.find(FM_PARENT_SEPARATOR);
+                if (posSep != std::string::npos) {
                     // parent's name and model
-                    const std::string parent (text.substr(pos+1,
-                                                          text.length()-pos-1));
+                    const std::string parent (text.substr(posSep+1,
+                                                          text.length()-posSep-1));
                     const FlightModel* pParentFM = GetFlightModel(parent);
                     
                     // init model from parent
@@ -677,7 +680,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                                 text.c_str());
                     
                     // change name to new section's name (without ":parent")
-                    fm.modelName = text.substr(0,pos);
+                    fm.modelName = text.substr(0,posSep);
                 }
             }
         }
@@ -698,7 +701,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                 
                 // process the map of flight models to regEx patterns
             case FM_MAP:
-                if (!fm_processMapLine(sFileName.c_str(), ln, text, fm))
+                if (!fm_processMapLine(sFileName.c_str(), ln, text))
                     errCnt++;
                 break;
         }
@@ -707,8 +710,10 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     
     // problem was not just eof?
     if (!fIn && !fIn.eof()) {
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logERR, ERR_CFG_FILE_READ,
-                 sFileName.c_str(), std::strerror(errno));
+                 sFileName.c_str(), sErr);
         return false;
     }
     
@@ -803,6 +808,7 @@ XPCAircraft(inFd.WaitForSafeCopyStat().acTypeIcao.c_str(),  // repeated calls to
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
 doc8643(Doc8643::get(inFd.WaitForSafeCopyStat().acTypeIcao)),
+szLabelAc{ 0 },
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 tsLastCalcRequested(0),
@@ -833,7 +839,8 @@ bValid(true)
         radar = dynCopy.radar;
 
         // standard label
-        labelAc = fd.ComposeLabel();
+        LabelUpdate();
+
         // standard internal label (e.g. for logging) is transpIcao + ac type + company icao
         labelInternal = key() + " (" + statCopy.acTypeIcao + " " + statCopy.opIcao + ")";
         
@@ -882,6 +889,16 @@ LTAircraft::operator std::string() const
              ppos.dbgTxt().c_str(), terrainAlt,
              phase, FlightPhase2String(phase).c_str());
     return std::string(buf) + positionDeque2String(posList);
+}
+
+// Update the aircraft's label
+// We do all logic and string handling here so we can just copy chars later in the callback
+void LTAircraft::LabelUpdate()
+{
+    strcpy_s(
+        szLabelAc,
+        sizeof(szLabelAc),
+        strAtMost(fd.ComposeLabel(), sizeof(szLabelAc) - 1).c_str());
 }
 
 //
@@ -1186,13 +1203,13 @@ bool LTAircraft::CalcPPos()
                          mdl.ROLL_OUT_DECEL);
         
         // the vector to the stopping point
-        vectorTy vec(ppos.heading(),            // keep current heading
-                     speed.getTargetDeltaDist());// distance needed to stop
+        vectorTy vecStop(ppos.heading(),            // keep current heading
+                         speed.getTargetDeltaDist());// distance needed to stop
         
         // add ppos and the stop point (ppos + above vector) to the list of positions
         // (they will be activated with the next frame only)
         posList.emplace_back(ppos);
-        positionTy& stopPoint = posList.emplace_back(ppos.destPos(vec));
+        positionTy& stopPoint = posList.emplace_back(ppos.destPos(vecStop));
         stopPoint.ts() = speed.getTargetTime();
         bArtificalPos = true;                   // flag: we are working with an artifical position now
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1262,7 +1279,7 @@ bool LTAircraft::CalcPPos()
 
 // From ppos and altitudes we derive other a/c parameters like gear, flaps etc.
 // Ultimately, we calculate flight phases based on flight model assumptions
-void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
+void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& to)
 {
     // *** calculate decision parameters ***
     
@@ -1413,7 +1430,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
         // i.e during the first call to the function per a/c object
         // -> can be used for flight model initialization
         // some assumption to begin with...
-        surfaces.thrust            = 0.1;
+        surfaces.thrust            = 0.1f;
         surfaces.lights.timeOffset = (unsigned int)rand();
         surfaces.lights.landLights = 0;
         surfaces.lights.bcnLights  = 1;
@@ -1448,30 +1465,30 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // entered climb (from below)
     if (ENTERED(FPH_CLIMB)) {
-        surfaces.thrust = 0.8;
+        surfaces.thrust = 0.8f;
         flaps.up();
     }
     
     // cruise
     if (ENTERED(FPH_CRUISE)) {
-        surfaces.thrust = 0.6;
+        surfaces.thrust = 0.6f;
     }
 
     // descend
     if (ENTERED(FPH_DESCEND)) {
-        surfaces.thrust = 0.1;
+        surfaces.thrust = 0.1f;
     }
     
     // approach
     if (ENTERED(FPH_APPROACH)) {
-        surfaces.thrust = 0.2;
+        surfaces.thrust = 0.2f;
         flaps.down();
     }
     
     // final
     if (ENTERED(FPH_FINAL)) {
         surfaces.lights.landLights = 1;
-        surfaces.thrust = 0.3;
+        surfaces.thrust = 0.3f;
         gear.down();
     }
     
@@ -1489,7 +1506,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     
     // roll-out
     if (ENTERED(FPH_ROLL_OUT)) {
-        surfaces.thrust = -0.9;         // reversers...does that work???
+        surfaces.thrust = -0.9f;         // reversers...does that work???
     }
     
     // *** landing light ***
@@ -1529,7 +1546,7 @@ void LTAircraft::CalcFlightModel (const positionTy& from, const positionTy& to)
     if ( phase == FPH_TAXI ) {
         flaps.up();
         surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
-        surfaces.thrust = 0.1;
+        surfaces.thrust = 0.1f;
         surfaces.lights.landLights = 0;
         surfaces.lights.strbLights = 0;
     }
@@ -1558,7 +1575,7 @@ bool LTAircraft::YProbe ()
     terrainAlt = YProbe_at_m(ppos, probeRef) / M_per_FT;
     
     // lastly determine when to do a probe next, more often if closer to the ground
-    LOG_ASSERT_FD(fd,sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
+    static_assert(sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
     for ( int i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
     {
         if ( ppos.alt_ft() - terrainAlt >= PROBE_HEIGHT_LIM[i] ) {
@@ -1573,7 +1590,7 @@ bool LTAircraft::YProbe ()
     // calc current bearing and distance for pure informational purpose ***
     vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
     // update the a/c label with fresh values
-    labelAc = fd.ComposeLabel();
+    LabelUpdate();
     
     // Success
     return true;
@@ -1583,7 +1600,7 @@ bool LTAircraft::YProbe ()
 std::string LTAircraft::GetLightsStr() const
 {
     char buf[20];
-    sprintf(buf, "%s/%s/%s/%s",
+    snprintf(buf, sizeof(buf), "%s/%s/%s/%s",
             surfaces.lights.navLights ? "nav" : "---",
             surfaces.lights.bcnLights ? "bcn" : "---",
             surfaces.lights.strbLights ? "strb" : "----",
@@ -1619,8 +1636,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             CalcPPos())
         {
             *outPosition = ppos;                // copy ppos (by type conversion), and add the label
-            strncpy ( outPosition->label, labelAc.c_str(), sizeof(outPosition->label)-1 );
-            outPosition->label[sizeof(outPosition->label)-1] = 0;
+            memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));
             return xpmpData_NewData;
         }
 
@@ -1647,8 +1663,8 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
         
         if (!dataRefs.IsReInitAll()) {
             // get current gear/flaps value (might be moving)
-            surfaces.gearPosition = gear.get();
-            surfaces.flapRatio = flaps.get();
+            surfaces.gearPosition = (float)gear.get();
+            surfaces.flapRatio = (float)flaps.get();
         }
         
         // just copy over our entire structure

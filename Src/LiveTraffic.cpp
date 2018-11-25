@@ -33,7 +33,11 @@ extern const char* InitFullVersion ();
 //MARK: Globals
 
 #if !defined(INIT_LOG_LEVEL)
-#define INIT_LOG_LEVEL logERR
+    #if !defined(DEBUG)
+        #define INIT_LOG_LEVEL logERR
+    #else
+        #define INIT_LOG_LEVEL logDEBUG
+    #endif
 #endif
 
 // access to data refs
@@ -58,12 +62,12 @@ XPLMMenuID menuID = 0;
 int aMenuItems[CNT_MENU_ID];
 
 // Callback called by XP, so this is an entry point into the plugin
-void MenuHandler(void * mRef, void * iRef)
+void MenuHandler(void * /*mRef*/, void * iRef)
 {
     // LiveTraffic top level exception handling
     try {
-        unsigned long menuId = (unsigned long)iRef;
-        switch (menuId) {
+        // act based on menu id
+        switch (reinterpret_cast<unsigned long long>(iRef)) {
                 
             case MENU_ID_TOGGLE_AIRCRAFTS:
                 dataRefs.ToggleAircraftsDisplayed();
@@ -149,10 +153,10 @@ PLUGIN_API int XPluginStart(
      srand((unsigned int)time(NULL));
     
     // tell X-Plane who we are
-	strcpy(outName, LIVE_TRAFFIC);
-	strcpy(outSig,  PLUGIN_SIGNATURE);
-	strcpy(outDesc, PLUGIN_DESCRIPTION);
-    
+     strcpy_s(outName, 255, LIVE_TRAFFIC);
+     strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
+     strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
+
     // init DataRefs
     if (!dataRefs.Init()) return 0;
     
@@ -184,7 +188,7 @@ PLUGIN_API int  XPluginEnable(void)
     return 1;
 }
 
-PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * inParam)
+PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*inFrom*/, int /*inMsg*/, void * /*inParam*/)
 { }
 
 PLUGIN_API void XPluginDisable(void) {

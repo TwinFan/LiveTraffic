@@ -44,6 +44,9 @@
 // Windows
 #if IBM
 #include <windows.h>
+// we prefer std::max/min of <algorithm>
+#undef max
+#undef min
 #endif
 
 // Open GL
@@ -63,6 +66,7 @@
 #include <list>
 #include <deque>
 #include <thread>
+#include <algorithm>
 
 // X-Plane SDK
 #include "XPLMDisplay.h"
@@ -120,7 +124,7 @@ std::string& str_toupper(std::string& s);
 // format timestamp
 std::string ts2string (time_t t);
 // limits text to m characters, replacing the last ones with ... if too long
-inline std::string strAtMost(const std::string s, int m) {
+inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
     s.substr(0, m-3) + "...";
 }
@@ -132,5 +136,26 @@ void push_back_unique(ContainerT& list, const T& key)
     if ( std::find(list.cbegin(),list.cend(),key) == list.cend() )
         list.push_back(key);
 }
+
+// MARK: Compiler differences
+
+#ifdef APL
+// XCode doesn't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
+inline errno_t strerror_s( char *buf, rsize_t bufsz, errno_t errnum )
+{ return strerror_r(errnum, buf, bufsz); }
+
+// not quite the same but close enough for our purposes
+inline void strcpy_s(char * dest, rsize_t destsz, const char * src)
+{ strncpy(dest, src, destsz); dest[destsz-1]=0; }
+inline void strcat_s(char * dest, rsize_t destsz, const char * src)
+{ strncat(dest, src, destsz - strlen(dest) - 1); }
+
+// these simulate the VC++ version, not the C standard versions!
+inline struct tm *gmtime_s(struct tm * result, const time_t * time)
+{ return gmtime_r(time, result); }
+inline struct tm *localtime_s(struct tm * result, const time_t * time)
+{ return localtime_r(time, result); }
+
+#endif
 
 #endif /* LiveTraffic_h */

@@ -93,8 +93,10 @@ bool Doc8643::ReadDoc8643File ()
     std::ifstream fIn (path);
     if (!fIn) {
         // if there is no config file output a warning (we can use defaults)
+		char sErr[SERR_LEN];
+		strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
-                 path.c_str(), std::strerror(errno));
+                 path.c_str(), sErr);
         return false;
     }
     
@@ -132,8 +134,10 @@ bool Doc8643::ReadDoc8643File ()
             errCnt++;
         } else if (!fIn && !fIn.eof()) {
             // I/O error
-            SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
-                     path.c_str(), ln, std::strerror(errno));
+			char sErr[SERR_LEN];
+			strerror_s(sErr, sizeof(sErr), errno);
+			SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
+                     path.c_str(), ln, sErr);
             errCnt++;
         }
     }
@@ -184,51 +188,51 @@ void* GET_VAR = reinterpret_cast<void*>(INT_MIN);
 
 // list of all datRef definitions offered by LiveTraffic:
 DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
-    {"livetraffic/ac/key",          xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=DataRefs::LTSetAcKey}, (void*)DR_AC_KEY, false },
-    {"livetraffic/ac/num",          xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_NUM, false },
-    {"livetraffic/ac/on_gnd",       xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_ON_GND, false },
-    {"livetraffic/ac/phase",        xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_PHASE, false },
-    {"livetraffic/ac/lat",          xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_LAT, false },
-    {"livetraffic/ac/lon",          xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_LON, false },
-    {"livetraffic/ac/alt",          xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_ALT, false },
-    {"livetraffic/ac/heading",      xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_HEADING, false },
-    {"livetraffic/ac/roll",         xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_ROLL, false },
-    {"livetraffic/ac/pitch",        xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_PITCH, false },
-    {"livetraffic/ac/speed",        xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_SPEED, false },
-    {"livetraffic/ac/vsi",          xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_VSI, false },
-    {"livetraffic/ac/terrain_alt",  xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_TERRAIN_ALT, false },
-    {"livetraffic/ac/height",       xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_HEIGHT, false },
-    {"livetraffic/ac/flaps",        xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_FLAPS, false },
-    {"livetraffic/ac/gear",         xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_GEAR, false },
-    {"livetraffic/ac/lights/beacon",xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_BEACON, false },
-    {"livetraffic/ac/lights/strobe",xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_STROBE, false },
-    {"livetraffic/ac/lights/nav",   xplmType_Int,   {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_NAV, false },
-    {"livetraffic/ac/lights/landing",xplmType_Int,  {.i=DataRefs::LTGetAcInfoI}, {.i=NULL}, (void*)DR_AC_LIGHTS_LANDING, false },
-    {"livetraffic/ac/bearing",      xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_BEARING, false },
-    {"livetraffic/ac/dist",         xplmType_Float, {.f=DataRefs::LTGetAcInfoF}, {.f=NULL}, (void*)DR_AC_DIST, false },
-    {"livetraffic/sim/date",        xplmType_Int,   {.i=DataRefs::LTGetSimDateTime}, {.i=DataRefs::LTSetSimDateTime}, (void*)1, false },
-    {"livetraffic/sim/time",        xplmType_Int,   {.i=DataRefs::LTGetSimDateTime}, {.i=DataRefs::LTSetSimDateTime}, (void*)2, false },
-    {"livetraffic/cfg/aircrafts_displayed",         xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetAircraftsDisplayed}, GET_VAR, false },
-    {"livetraffic/cfg/auto_start",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/labels",                      xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/log_level",                   xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetLogLevel}, GET_VAR, true },
-    {"livetraffic/cfg/use_historic_data",           xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetUseHistData}, GET_VAR, true },
-    {"livetraffic/cfg/max_num_ac",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/max_full_num_ac",             xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/full_distance",               xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/fd_std_distance",             xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/fd_refresh_intvl",            xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/fd_buf_period",               xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/ac_outdated_intvl",           xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/online",    xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/historic",  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/open_sky/online",         xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/open_sky/ac_masterdata",  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/futuredatachn/online",    xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, false },
-    {"livetraffic/dbg/ac_filter",                   xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetDebugAcFilter}, GET_VAR, true },
-    {"livetraffic/dbg/ac_pos",                      xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/dbg/log_raw_fd",                  xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, false },
-    {"livetraffic/dbg/model_matching",              xplmType_Int,   {.i=DataRefs::LTGetInt}, {.i=DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/ac/key",          xplmType_Int,   {DataRefs::LTGetAcInfoI}, {DataRefs::LTSetAcKey}, (void*)DR_AC_KEY, false },
+    {"livetraffic/ac/num",          xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_NUM, false },
+    {"livetraffic/ac/on_gnd",       xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_ON_GND, false },
+    {"livetraffic/ac/phase",        xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_PHASE, false },
+    {"livetraffic/ac/lat",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_LAT, false },
+    {"livetraffic/ac/lon",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_LON, false },
+    {"livetraffic/ac/alt",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_ALT, false },
+    {"livetraffic/ac/heading",      xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_HEADING, false },
+    {"livetraffic/ac/roll",         xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_ROLL, false },
+    {"livetraffic/ac/pitch",        xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_PITCH, false },
+    {"livetraffic/ac/speed",        xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_SPEED, false },
+    {"livetraffic/ac/vsi",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_VSI, false },
+    {"livetraffic/ac/terrain_alt",  xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_TERRAIN_ALT, false },
+    {"livetraffic/ac/height",       xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_HEIGHT, false },
+    {"livetraffic/ac/flaps",        xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_FLAPS, false },
+    {"livetraffic/ac/gear",         xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_GEAR, false },
+    {"livetraffic/ac/lights/beacon",xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_BEACON, false },
+    {"livetraffic/ac/lights/strobe",xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_STROBE, false },
+    {"livetraffic/ac/lights/nav",   xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_NAV, false },
+    {"livetraffic/ac/lights/landing",xplmType_Int,  {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_LANDING, false },
+    {"livetraffic/ac/bearing",      xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_BEARING, false },
+    {"livetraffic/ac/dist",         xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_DIST, false },
+    {"livetraffic/sim/date",        xplmType_Int,   {DataRefs::LTGetSimDateTime}, {DataRefs::LTSetSimDateTime}, (void*)1, false },
+    {"livetraffic/sim/time",        xplmType_Int,   {DataRefs::LTGetSimDateTime}, {DataRefs::LTSetSimDateTime}, (void*)2, false },
+    {"livetraffic/cfg/aircrafts_displayed",         xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetAircraftsDisplayed}, GET_VAR, false },
+    {"livetraffic/cfg/auto_start",                  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/labels",                      xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/log_level",                   xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetLogLevel}, GET_VAR, true },
+    {"livetraffic/cfg/use_historic_data",           xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetUseHistData}, GET_VAR, true },
+    {"livetraffic/cfg/max_num_ac",                  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/max_full_num_ac",             xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/full_distance",               xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/fd_std_distance",             xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/fd_refresh_intvl",            xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/fd_buf_period",               xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/cfg/ac_outdated_intvl",           xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
+    {"livetraffic/channel/adsb_exchange/online",    xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/channel/adsb_exchange/historic",  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/channel/open_sky/online",         xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/channel/open_sky/ac_masterdata",  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/channel/futuredatachn/online",    xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, false },
+    {"livetraffic/dbg/ac_filter",                   xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetDebugAcFilter}, GET_VAR, true },
+    {"livetraffic/dbg/ac_pos",                      xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/dbg/log_raw_fd",                  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, false },
+    {"livetraffic/dbg/model_matching",              xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
 };
 
 static_assert(sizeof(DATA_REFS_LT)/sizeof(DATA_REFS_LT[0]) == CNT_DATAREFS_LT,
@@ -318,6 +322,27 @@ float LoopCBOneTimeSetup (float, float, int, void*)
     }
 }
 
+// returns offset to UTC in seconds
+// https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
+int timeOffsetUTC()
+{
+	static int cachedOffset = INT_MIN;
+
+	if (cachedOffset > INT_MIN)
+		return cachedOffset;
+	else {
+		time_t gmt, rawtime = time(NULL);
+		struct tm gbuf;
+		gmtime_s(&gbuf, &rawtime);
+
+        // Request that mktime() looksup dst in timezone database
+		gbuf.tm_isdst = -1;
+		gmt = mktime(&gbuf);
+
+		return cachedOffset = (int)difftime(rawtime, gmt);
+	}
+}
+
 //MARK: Constructor - just plain variable init, no API calls
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel)
@@ -343,7 +368,8 @@ iLogLevel (initLogLevel)
     {
         std::tm tm;
         time_t now = time(nullptr);
-        tm = *localtime(&now);
+        localtime_s(&tm, &now);
+
         dataRefs.iTodaysDayOfYear = tm.tm_yday;
         
         // also compute start of this and last year for sim-time computations
@@ -355,12 +381,12 @@ iLogLevel (initLogLevel)
         
         // now adjust for timezone: current value is midnight as per local time
         // but for our calculations we need midnight UTC
-        tStartThisYear += tm.tm_gmtoff;
+        tStartThisYear += timeOffsetUTC();
         
         // previous year
         tm.tm_year--;
         tStartPrevYear = mktime(&tm);
-        tStartPrevYear += tm.tm_gmtoff;
+        tStartPrevYear += timeOffsetUTC();
     }
 }
 
@@ -498,13 +524,17 @@ void DataRefs::LTSetAcKey(void*, int key)
     dataRefs.pAc = nullptr;
     dataRefs.keyAc.clear();
     
+    // 0 means reset
+    if (key == 0) {
+        return;
+    }
     // key can be either index or the decimal representation of an transpIcao
     // for any number below number of a/c displayed we assume: index
-    if ( key < dataRefs.cntAc )
+    else if ( key <= dataRefs.cntAc )
     {
         // let's find the i-th aircraft by looping over all flight data
         // and count those objects, which have an a/c
-        int i = -1;
+        int i = 0;
         for (mapLTFlightDataTy::const_iterator fdIter = mapFd.cbegin();
              fdIter != mapFd.cend();
              ++fdIter)
@@ -536,7 +566,7 @@ void DataRefs::LTSetAcKey(void*, int key)
 int DataRefs::LTGetAcInfoI(void* p)
 {
     // don't need an a/c pointer for this one:
-    switch ( reinterpret_cast<long>(p) ) {
+    switch ( reinterpret_cast<long long>(p) ) {
         case DR_AC_NUM: return dataRefs.cntAc;
     }
 
@@ -545,7 +575,7 @@ int DataRefs::LTGetAcInfoI(void* p)
         return 0;
 
     // return a/c info
-    switch ( reinterpret_cast<long>(p) ) {
+    switch ( reinterpret_cast<long long>(p) ) {
         case DR_AC_KEY: return dataRefs.pAc->fd.keyInt();
         case DR_AC_ON_GND: return dataRefs.pAc->IsOnGrnd();
         case DR_AC_PHASE: return dataRefs.pAc->GetFlightPhase();
@@ -564,21 +594,21 @@ float DataRefs::LTGetAcInfoF(void* p)
     if ( !dataRefs.pAc && !dataRefs.FetchPAc() )
         return 0.0;
     
-    switch ( reinterpret_cast<long>(p) ) {
-        case DR_AC_LAT: return dataRefs.pAc->GetPPos().lat();
-        case DR_AC_LON: return dataRefs.pAc->GetPPos().lon();
-        case DR_AC_ALT: return dataRefs.pAc->GetPPos().alt_ft();
-        case DR_AC_HEADING: return dataRefs.pAc->GetPPos().heading();
-        case DR_AC_ROLL: return dataRefs.pAc->GetRoll();
-        case DR_AC_PITCH: return dataRefs.pAc->GetPitch();
-        case DR_AC_SPEED: return dataRefs.pAc->GetSpeed_kt();
-        case DR_AC_VSI: return dataRefs.pAc->GetVSI_ft();
-        case DR_AC_TERRAIN_ALT: return dataRefs.pAc->GetTerrainAlt_ft();
-        case DR_AC_HEIGHT: return dataRefs.pAc->GetPHeight_ft();
-        case DR_AC_FLAPS: return dataRefs.pAc->GetFlapsPos();
-        case DR_AC_GEAR: return dataRefs.pAc->GetGearPos();
-        case DR_AC_BEARING: return dataRefs.pAc->GetVecView().angle;
-        case DR_AC_DIST: return dataRefs.pAc->GetVecView().dist;
+    switch ( reinterpret_cast<long long>(p) ) {
+        case DR_AC_LAT:         return (float)dataRefs.pAc->GetPPos().lat();
+        case DR_AC_LON:         return (float)dataRefs.pAc->GetPPos().lon();
+        case DR_AC_ALT:         return (float)dataRefs.pAc->GetPPos().alt_ft();
+        case DR_AC_HEADING:     return (float)dataRefs.pAc->GetPPos().heading();
+        case DR_AC_ROLL:        return (float)dataRefs.pAc->GetRoll();
+        case DR_AC_PITCH:       return (float)dataRefs.pAc->GetPitch();
+        case DR_AC_SPEED:       return (float)dataRefs.pAc->GetSpeed_kt();
+        case DR_AC_VSI:         return (float)dataRefs.pAc->GetVSI_ft();
+        case DR_AC_TERRAIN_ALT: return (float)dataRefs.pAc->GetTerrainAlt_ft();
+        case DR_AC_HEIGHT:      return (float)dataRefs.pAc->GetPHeight_ft();
+        case DR_AC_FLAPS:       return (float)dataRefs.pAc->GetFlapsPos();
+        case DR_AC_GEAR:        return (float)dataRefs.pAc->GetGearPos();
+        case DR_AC_BEARING:     return (float)dataRefs.pAc->GetVecView().angle;
+        case DR_AC_DIST:        return (float)dataRefs.pAc->GetVecView().dist;
         default:
             LOG_ASSERT(false);              // not allowed...we should handle all value types!
             return 0.0;
@@ -644,7 +674,7 @@ double DataRefs::GetSimTime() const
                 localDateDays * SEC_per_D;
             
             // the zulu hour/date we did the calculation for
-            lastCalcZHour = z / SEC_per_H;
+            lastCalcZHour = int(z / SEC_per_H);
             lastLocalDateDays = localDateDays;
         }
 
@@ -674,7 +704,7 @@ std::string DataRefs::GetSimTimeString() const
 // livetraffic/sim/date and .../time
 void DataRefs::LTSetSimDateTime(void* p, int i)
 {
-    long bDateTime = reinterpret_cast<long>(p);
+    long bDateTime = (long)reinterpret_cast<long long>(p);
     
     // as we are setting a specific date/time we switch XP to "don't use system time"
     dataRefs.SetUseSystemTime(false);
@@ -707,7 +737,7 @@ void DataRefs::LTSetSimDateTime(void* p, int i)
         int sec = i / 10000 * SEC_per_H +           // hour
                   (i % 10000) / 100 * SEC_per_M +   // minute
                   i % 100;
-        dataRefs.SetZuluTimeSec(sec);
+        dataRefs.SetZuluTimeSec((float)sec);
     }
     
     // finally, if we are not already using historic data switch to use it
@@ -717,12 +747,13 @@ void DataRefs::LTSetSimDateTime(void* p, int i)
 
 int DataRefs::LTGetSimDateTime(void* p)
 {
-    long bDateTime = reinterpret_cast<long>(p);
+    long bDateTime = (long)reinterpret_cast<long long>(p);
     
     // current simulated time, converted to structure
     time_t simTime = (time_t)dataRefs.GetSimTime();
-    std::tm tm = *gmtime(&simTime);
-    
+    std::tm tm;
+    gmtime_s(&tm, &simTime);
+
     // asked for date? Return date as human readable number yyyymmdd:
     if ( bDateTime == 1 ) {
         return
@@ -788,7 +819,7 @@ void DataRefs::LTSetUseHistData(void*, int useHistData)
 bool DataRefs::SetUseHistData (bool bUseHistData, bool bForceReload)
 {
     // short-cut if no actual change...cause changing it is expensive
-    if ( !bForceReload && dataRefs.bUseHistoricData == bUseHistData )
+    if ( !bForceReload && dataRefs.bUseHistoricData == (int)bUseHistData )
         return true;
     
     // change to historical data but running with system time?
@@ -908,20 +939,20 @@ std::string DataRefs::GetDirSeparatorMP()
 // get the actual current value (by calling the getData?_f function)
 int DataRefs::dataRefDefinitionT::getDatai () const
 {
-    if (dataType != xplmType_Int || fRead.i == NULL)
+    if (dataType != xplmType_Int || std::get<XPLMGetDatai_f>(fRead) == NULL)
         return 0;
 
     LOG_ASSERT(refCon != GET_VAR);
-    return fRead.i(refCon);
+    return std::get<XPLMGetDatai_f>(fRead)(refCon);
 }
 
 float DataRefs::dataRefDefinitionT::getDataf () const
 {
-    if (dataType != xplmType_Float || fRead.f == NULL)
+    if (dataType != xplmType_Float || std::get<XPLMGetDataf_f>(fRead) == NULL)
         return NAN;
 
     LOG_ASSERT(refCon != GET_VAR);
-    return fRead.f(refCon);
+    return std::get<XPLMGetDataf_f>(fRead)(refCon);
 }
 
 
@@ -950,17 +981,17 @@ std::string DataRefs::dataRefDefinitionT::GetConfigString() const
 // write values to the dataRef
 void DataRefs::dataRefDefinitionT::setData (int i)
 {
-    if (dataType == xplmType_Int && fWrite.i != NULL) {
+    if (dataType == xplmType_Int && std::get<XPLMSetDatai_f>(fWrite) != NULL) {
         LOG_ASSERT(refCon != GET_VAR);
-        fWrite.i (refCon, i);
+		std::get<XPLMSetDatai_f>(fWrite) (refCon, i);
     }
 }
 
 void DataRefs::dataRefDefinitionT::setData (float f)
 {
-    if (dataType == xplmType_Float && fWrite.f != NULL) {
+    if (dataType == xplmType_Float && std::get<XPLMSetDataf_f>(fWrite) != NULL) {
         LOG_ASSERT(refCon != GET_VAR);
-        fWrite.f (refCon, f);
+		std::get<XPLMSetDataf_f>(fWrite) (refCon, f);
     }
 }
 
@@ -1007,8 +1038,10 @@ bool DataRefs::LoadConfigFile()
             return true;
         
         // something else happened
-        SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
-                 sFileName.c_str(), std::strerror(errno));
+		char sErr[SERR_LEN];
+		strerror_s(sErr, sizeof(sErr), errno);
+		SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
+                 sFileName.c_str(), sErr);
         return false;
     }
     
@@ -1072,8 +1105,10 @@ bool DataRefs::LoadConfigFile()
     
     // problem was not just eof?
     if (!fIn && !fIn.eof()) {
-        SHOW_MSG(logERR, ERR_CFG_FILE_READ,
-                 sFileName.c_str(), std::strerror(errno));
+		char sErr[SERR_LEN];
+		strerror_s(sErr, sizeof(sErr), errno);
+		SHOW_MSG(logERR, ERR_CFG_FILE_READ,
+                 sFileName.c_str(), sErr);
         return false;
     }
 
@@ -1101,8 +1136,10 @@ bool DataRefs::SaveConfigFile()
 #endif
     std::ofstream fOut (sFileName, std::ios_base::out | std::ios_base::trunc);
     if (!fOut) {
-        SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_OUT,
-                 sFileName.c_str(), std::strerror(errno));
+		char sErr[SERR_LEN];
+		strerror_s(sErr, sizeof(sErr), errno);
+		SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_OUT,
+                 sFileName.c_str(), sErr);
         return false;
     }
     
@@ -1117,8 +1154,10 @@ bool DataRefs::SaveConfigFile()
     
     // some error checking towards the end
     if (!fOut) {
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logERR, ERR_CFG_FILE_WRITE,
-                 sFileName.c_str(), std::strerror(errno));
+                 sFileName.c_str(), sErr);
         fOut.close();
         return false;
     }

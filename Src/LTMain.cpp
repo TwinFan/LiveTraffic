@@ -172,7 +172,7 @@ std::string LTFindResourcesDirectory ()
 // change a string to uppercase
 std::string& str_toupper(std::string& s) {
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) -> unsigned char { return std::toupper(c); });
+                   [](unsigned char c) -> unsigned char { return (unsigned char) toupper(c); });
     return s;
 }
 
@@ -181,7 +181,8 @@ std::string ts2string (time_t t)
 {
     // format it nicely
     char szBuf[50];
-    const struct tm tm = *gmtime(&t);
+    struct tm tm;
+    gmtime_s(&tm, &t);
     strftime(szBuf,
              sizeof(szBuf) - 1,
              "%F %T",
@@ -251,7 +252,7 @@ float MPFloatPrefsFunc (const char* section, const char* key, float fDefault)
 {
     // Max distance for drawing full a/c (as opposed to 'lights only')?
     if ( !strcmp(section,"planes") && !strcmp(key,"full_distance") )
-    { return dataRefs.GetFullDistance_nm(); }
+    { return (float)dataRefs.GetFullDistance_nm(); }
 
     return fDefault;
 }

@@ -212,7 +212,7 @@ public:
         TFF_UPPER_CASE,
         TFF_HEX,
         TFF_DIGITS
-    } tfFormat;
+    } tfFormat = TFF_ANY;
     TFTextFieldWidget (XPWidgetID _me = NULL) : TFWidget(_me) {}
     
     void SetSelection (int startPos, int endPos);
@@ -230,11 +230,6 @@ class TFDataRefLink
 {
 protected:
     XPLMDataRef     ref;
-    union val_t {
-        int i;
-        float f;
-        double d;
-    } val;
     enum dataType_t {
         DT_UNKNOWN  = 0,    // note: we support just one data type
         DT_INT      = 1,    // while XP's dataRefs theoretically support

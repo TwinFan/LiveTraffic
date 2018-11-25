@@ -24,9 +24,10 @@
  * THE SOFTWARE.
  */
 
+#include "LiveTraffic.h"
+
 #include <future>
 #include <fstream>
-#include "LiveTraffic.h"
 
 // access to chrono literals like s for seconds
 using namespace std::chrono_literals;
@@ -164,8 +165,12 @@ std::ofstream LTOnlineChannel::outRaw;
 LTOnlineChannel::LTOnlineChannel () :
 pCurl(NULL),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
-netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE)
-{}
+netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
+curl_errtxt{0}, httpResponse(HTTP_OK)
+{
+    // initialize a CURL handle
+    SetValid(InitCurl());
+}
 
 LTOnlineChannel::~LTOnlineChannel ()
 {
@@ -259,9 +264,11 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
         // open the file, append to it
         outRaw.open (sFileName, std::ios_base::out | std::ios_base::app);
         if (!outRaw) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
             // could not open output file: bail out, decativate logging
             SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
-                     sFileName.c_str(), std::strerror(errno));
+                     sFileName.c_str(), sErr);
             dataRefs.SetDebugLogRawFD(false);
             return;
         }
@@ -378,7 +385,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // a/c array not found: can just mean it is 'null' as in
         // the empty result set: {"time":1541978120,"states":null}
         JSON_Value* pJSONVal = json_object_get_value(pObj, OPSKY_AIRCRAFT_ARR);
-        if (!pJSONVal || pJSONVal->type != JSONNull) {
+        if (!pJSONVal || json_type(pJSONVal) != JSONNull) {
             // well...it is something else, so it is malformed, bail out
             LOG_MSG(logERR,ERR_JSON_ACLIST,OPSKY_AIRCRAFT_ARR);
             IncErrCnt();
@@ -386,7 +393,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
     }
     // iterate all aircrafts in the received flight data (can be 0)
-    else for ( int i=0; i < pJAcList->count; i++ )
+    else for ( int i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft (which is just an array of values)
         JSON_Array* pJAc = json_array_get_array(pJAcList,i);
@@ -431,7 +438,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
                 stat.trt     =    trt_ADS_B_unknown;
                 stat.call    =    jag_s(pJAc, OPSKY_CALL);
-                while (stat.call.back() == ' ')      // trim trailing spaces
+                while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
                     stat.call.pop_back();
                 fd.UpdateData(std::move(stat));
                 
@@ -449,7 +456,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jag_n(pJAc, OPSKY_POS_TIME);
                 
                 // non-positional dynamic data
-                dyn.radar.code =        jag_sn(pJAc, OPSKY_RADAR_CODE);
+                dyn.radar.code =  (long)jag_sn(pJAc, OPSKY_RADAR_CODE);
                 dyn.gnd =               jag_b(pJAc, OPSKY_GND);
                 dyn.heading =           jag_n(pJAc, OPSKY_HEADING);
                 dyn.spd =               jag_n(pJAc, OPSKY_SPD);
@@ -517,7 +524,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if (!pJAcList) { LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR); IncErrCnt(); return false; }
     
     // iterate all aircrafts in the received flight data (can be 0)
-    for ( int i=0; i < pJAcList->count; i++ )
+    for ( int i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft
         JSON_Object* pJAc = json_array_get_object(pJAcList,i);
@@ -566,7 +573,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                 stat.man =        jog_s(pJAc, ADSBEX_MAN);
                 stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                stat.year =       jog_sn(pJAc, ADSBEX_YEAR);
+                stat.year =  (int)jog_sn(pJAc, ADSBEX_YEAR);
                 stat.mil =        jog_b(pJAc, ADSBEX_MIL);
                 stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
                 stat.op =         jog_s(pJAc, ADSBEX_OP);
@@ -583,7 +590,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
-                dyn.radar.code =        jog_sn(pJAc, ADSBEX_RADAR_CODE);
+                dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -605,8 +612,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // position is rather important, we check for validity
                 if ( pos.isNormal() )
                     fd.AddDynData(dyn,
-                                  jog_n(pJAc, ADSBEX_RCVR),
-                                  jog_n(pJAc, ADSBEX_SIG),
+                                  (int)jog_n(pJAc, ADSBEX_RCVR),
+                                  (int)jog_n(pJAc, ADSBEX_SIG),
                                   &pos);
                 else
                     LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
@@ -690,7 +697,8 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
     {
         // put together path and file name
         char sz[50];
-        struct tm tm_val = *gmtime(&zuluLastRead);
+        struct tm tm_val;
+        gmtime_s(&tm_val, &zuluLastRead);
         snprintf(sz,sizeof(sz),ADSBEX_HIST_DATE_PATH,
                  dataRefs.GetDirSeparator()[0],
                  tm_val.tm_year + 1900,
@@ -724,7 +732,9 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
         // open the file
         std::ifstream f(pathDate);
         if ( !f ) {                         // couldn't open
-            SHOW_MSG(logERR,ADSBEX_HIST_FILE_ERR,pathDate.c_str(),std::strerror(errno));
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            SHOW_MSG(logERR,ADSBEX_HIST_FILE_ERR,pathDate.c_str(),sErr);
             IncErrCnt();
             return false;
         }
@@ -746,7 +756,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
         listFd.emplace_back(std::string(ADSBEX_HIST_START_FILE) + sz);
         
         // now loop over the positional lines
-        int errCnt = 0;                     // count errors to bail out if file too bad
+        int cntErr = 0;                     // count errors to bail out if file too bad
         
         // we make use of the apparent fact that the hist files
         // contain one aircraft per line. We decide here already if the line
@@ -768,7 +778,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
                 ) {
                 // no significant number of chars read, looks invalid, skip
                 SHOW_MSG(logWARN,ADSBEX_HIST_LN_ERROR,i,pathDate.c_str());
-                if (++errCnt > ADSBEX_HIST_MAX_ERR_CNT) {
+                if (++cntErr > ADSBEX_HIST_MAX_ERR_CNT) {
                     // this file is too bad...skip rest
                     IncErrCnt();
                     break;
@@ -802,7 +812,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
                 pCos = strchr(pCos,',');
                 if ( !pCos ) {                  // no comma is _not_ valid,
                     SHOW_MSG(logWARN,ADSBEX_HIST_LN_ERROR,i,pathDate.c_str());
-                    if (++errCnt > ADSBEX_HIST_MAX_ERR_CNT) {
+                    if (++cntErr > ADSBEX_HIST_MAX_ERR_CNT) {
                         // this file is too bad...skip rest
                         IncErrCnt();
                         break;
@@ -886,12 +896,12 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
             
             // the receiver we are dealing with right now
-            int rcvr = jog_n(pJAc, ADSBEX_RCVR);
+            int rcvr = (int)jog_n(pJAc, ADSBEX_RCVR);
             
             // variables we need for quality indicator calculation
-            int sig =               jog_n(pJAc, ADSBEX_SIG);
+            int sig =               (int)jog_n(pJAc, ADSBEX_SIG);
             JSON_Array* pCosList =  json_object_get_array(pJAc, ADSBEX_COS);
-            int cosCount =          int(pCosList ? pCosList->count/4 : 0);
+            int cosCount =          int(json_array_get_count(pCosList)/4);
             
             // quality is made up of signal level, number of elements of the trail
             int qual = (sig + cosCount);
@@ -966,7 +976,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                     stat.man =        jog_s(pJAc, ADSBEX_MAN);
                     stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                    stat.year =       jog_sn(pJAc, ADSBEX_YEAR);
+                    stat.year =  (int)jog_sn(pJAc, ADSBEX_YEAR);
                     stat.mil =        jog_b(pJAc, ADSBEX_MIL);
                     stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
                     stat.op =         jog_s(pJAc, ADSBEX_OP);
@@ -982,7 +992,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
-                dyn.radar.code =        jog_sn(pJAc, ADSBEX_RADAR_CODE);
+                dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -994,8 +1004,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 fd.AddDynData(dyn,
-                              jog_n(pJAc, ADSBEX_RCVR),
-                              jog_n(pJAc, ADSBEX_SIG));
+                              (int)jog_n(pJAc, ADSBEX_RCVR),
+                              (int)jog_n(pJAc, ADSBEX_SIG));
                 
                 // position data, including short trails
                 positionTy mainPos (jog_n(pJAc, ADSBEX_LAT),
@@ -1025,10 +1035,10 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         pCosList = NULL;
 
                     // found trails and there are at least 2 quadrupels, i.e. really a "trail" not just a single pos?
-                    if (pCosList && pCosList->count >= 8) {
-                        if (pCosList->count % 4 == 0)    // trails should be made of quadrupels
+                    if (json_array_get_count(pCosList) >= 8) {
+                        if (json_array_get_count(pCosList) % 4 == 0)    // trails should be made of quadrupels
                             // iterate trail data in form of quadrupels (lat,lon,timestamp,alt):
-                            for (int i=0; i<pCosList->count; i += 4) {
+                            for (int i=0; i< json_array_get_count(pCosList); i += 4) {
                                 const positionTy& addedTrail =
                                 trails.emplace_back(json_array_get_number(pCosList, i),         // latitude
                                                     json_array_get_number(pCosList, i+1),       // longitude
@@ -1241,7 +1251,7 @@ std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 }
 
 // process each master data line read from OpenSky
-bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
 {
     // loop all previously collected master data records
     for ( const std::string& ln: listMd) {
@@ -1510,7 +1520,7 @@ void LTFlightDataAcMaintenance()
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(FLIGHT_LOOP_INTVL - .05, logMSG, MSG_BUF_FILL_COUNTDOWN,
+        CreateMsgWindow(float(FLIGHT_LOOP_INTVL - .05), logMSG, MSG_BUF_FILL_COUNTDOWN,
                         int(mapFd.size()),
                         numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));

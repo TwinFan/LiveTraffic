@@ -33,7 +33,7 @@
 #define WIN_FROM_TOP     50
 #define WIN_FROM_RIGHT    0
 
-const float WIN_TIME_DISPLAY=8;     // duration of displaying a message windows
+const int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
 
 //MARK: Unit conversions
 const int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a lat degree
@@ -124,6 +124,7 @@ extern const char* HTTP_USER_AGENT;         // like "LiveTraffic/1.0"
 const long HTTP_OK =            200;
 const long HTTP_NOT_FOUND =     404;
 const int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
+const int SERR_LEN = 10;                    // size of buffer for IO error texts (strerror_s) 
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
 #define ERR_ENABLE_XPMP         "Could not enable XPMPMultiplayer: %s"

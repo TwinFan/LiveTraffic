@@ -179,14 +179,14 @@ const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ke
     mapLTFlightDataTy::const_iterator fdIter = mapFd.cend();
     
     if (!key.empty()) {
-        // if the key is just a number then it says "i-th aircraft"
+        // is it a small integer number, i.e. used as index?
         if (key.length() <= 3 &&
             key.find_first_not_of("0123456789") == std::string::npos)
         {
             int i = std::stoi(key);
             // let's find the i-th aircraft by looping over all flight data
             // and count those objects, which have an a/c
-            for (fdIter = mapFd.cbegin();
+            if (i > 0) for (fdIter = mapFd.cbegin();
                  fdIter != mapFd.cend();
                  ++fdIter)
             {
@@ -217,7 +217,6 @@ const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ke
     }
     
     // not found
-    oldDescriptor.cend();           // avoid going back to previous value with [Esc]
     transpIcao.clear();
     return nullptr;
 }
@@ -440,7 +439,7 @@ void ACIWnd::UpdateDynValues()
         if (-10000 <= ts && ts <= 10000)
         {
             char szBuf[20];
-            sprintf(szBuf,"%+.1f", ts);
+            snprintf(szBuf,sizeof(szBuf),"%+.1f", ts);
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_LAST_DATA], szBuf);
         }
         else

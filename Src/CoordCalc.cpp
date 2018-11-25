@@ -28,13 +28,13 @@
  * THE SOFTWARE.
  */
 
+#include "LiveTraffic.h"
+
 #include<iostream>
 #include<iomanip>
 #include<cmath>
 
-#include "LiveTraffic.h"
-
-//
+ //
 //MARK: Coordinate Calc
 //      (as per stackoverflow post, adapted)
 //
@@ -120,9 +120,9 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
     // let the probe drop...
     XPLMProbeInfo_t probeInfo { sizeof(probeInfo), 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     XPLMProbeResult res = XPLMProbeTerrainXYZ(probeRef,
-                                              pos.X(),
-                                              pos.Y(),
-                                              pos.Z(),
+                                              (float)pos.X(),
+                                              (float)pos.Y(),
+                                              (float)pos.Z(),
                                               &probeInfo);
     if (res != xplm_ProbeHitTerrain)
     {LOG_MSG(logERR,ERR_Y_PROBE,int(res),posAt.dbgTxt().c_str()); return NAN;}
@@ -157,7 +157,15 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     // heading needs special treatment
     const double h = AvgHeading(heading(), pos.heading(), mergeCount, pos.mergeCount);
     // take into account how many other objects made up the current pos! ("* count")
-    v = (v * mergeCount + pos.v) / (mergeCount+1);
+
+	// TODO: Test new implementation
+	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
+	for (double &d : v) d *= mergeCount;						// (v * mergeCount           (VS doesn't compile v.apply with lambda function)
+	v += pos.v;													//                 + pos.v)
+	for (double &d : v) d /= (mergeCount + 1);					//                          / (mergeCount+1)
+	// v = v.apply([=](double d)->double {return d * mergeCount; });		
+	//v = v.apply([=](double d)->double {return d * (mergeCount+1); });	
+
     heading() = h;
     
     mergeCount++;               // one more position object making up this position
