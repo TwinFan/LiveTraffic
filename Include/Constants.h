@@ -93,7 +93,7 @@ extern const char* HTTP_USER_AGENT;         // like "LiveTraffic/1.0"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
-#define WHITESPACE              " \t\f\v"
+#define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO        "A320"
 #define FM_MAP_SECTION          "Map"
 #define FM_PARENT_SEPARATOR     ":"
@@ -124,7 +124,7 @@ extern const char* HTTP_USER_AGENT;         // like "LiveTraffic/1.0"
 const long HTTP_OK =            200;
 const long HTTP_NOT_FOUND =     404;
 const int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
-const int SERR_LEN = 10;                    // size of buffer for IO error texts (strerror_s) 
+const int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s) 
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
 #define ERR_ENABLE_XPMP         "Could not enable XPMPMultiplayer: %s"

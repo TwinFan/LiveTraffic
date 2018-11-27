@@ -100,6 +100,14 @@ bool Doc8643::ReadDoc8643File ()
         return false;
     }
     
+    // regular expression to extract individual values, separated by TABs
+    enum { DOC_MANU=1, DOC_MODEL, DOC_TYPE, DOC_CLASS, DOC_WTC, DOC_EXPECTED };
+    const std::regex re("^([^\\t]+)\\t"                   // manufacturer
+                        "([^\\t]+)\\t"                    // model
+                        "([[:alnum:]]{2,4})\\t"           // type designator
+                        "(-|[AGHLST][C1-8][EJPRT])\\t"    // classification
+                        "(-|[HLM]|L/M)");                 // wtc
+
     // loop over lines of the file
     int errCnt = 0;
     for (int ln=1; fIn && errCnt <= ERR_CFG_FILE_MAXWARN; ln++) {
@@ -109,13 +117,7 @@ bool Doc8643::ReadDoc8643File ()
         fIn.getline(lnBuf, sizeof(lnBuf));
         std::string text(lnBuf);
         
-        // apply a regular expression to extract individual values, separated by TABs
-        enum { DOC_MANU=1, DOC_MODEL, DOC_TYPE, DOC_CLASS, DOC_WTC, DOC_EXPECTED };
-        std::regex re("^([^\\t]+)\\t"                   // manufacturer
-                      "([^\\t]+)\\t"                    // model
-                      "([[:alnum:]]{2,4})\\t"           // type designator
-                      "(-|[AGHLST][C1-8][EJPRT])\\t"    // classification
-                      "(-|[HLM]|L/M)");                 // wtc
+        // apply the regex to extract values
         std::smatch m;
         std::regex_search(text, m, re);
         

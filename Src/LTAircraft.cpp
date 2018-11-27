@@ -576,6 +576,8 @@ bool fm_processMapLine (const char* fileName, int ln,
 // read and process the FlightNodel.prf file
 bool LTAircraft::FlightModel::ReadFlightModelFile ()
 {
+    const std::string ws(WHITESPACE);
+    
     // open the Flight Model file
     std::string sFileName (LTCalcFullPath(PATH_FLIGHT_MODELS));
 #ifdef APL
@@ -623,11 +625,16 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
             text.erase(pos);
     
         // remove leading and trailing white space
-        if ((pos = text.find_first_not_of(WHITESPACE)) != std::string::npos)
+        if ((pos = text.find_first_not_of(ws)) != std::string::npos)
             text.erase(0, pos);
-        if ((pos = text.find_last_not_of(WHITESPACE)) != std::string::npos)
+        if ((pos = text.find_last_not_of(ws)) != std::string::npos)
             text.erase(pos + 1);
-                   
+        // the above assume that there is at least one non-WHITESPACE character
+        // now handle the case that the entire string is all WHITESPACES:
+        // As long as the last char is one of the whitespaces keep removing it
+        while (ws.find_first_of(text.back()) != std::string::npos)
+            text.pop_back();
+        
         // ignore empty lines
         if (text.empty())
             continue;
