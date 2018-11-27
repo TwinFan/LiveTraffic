@@ -156,6 +156,8 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_CAP_HISTORICCHANNELS,
     UI_BASICS_BTN_ADSB_HISTORIC,
     
+    UI_BASICS_CAP_DBG_LIMIT,
+    
     // "A/C Labels" tab
     UI_LABELS_SUB_WND,
     UI_LABELS_CAP_STATIC,
@@ -232,6 +234,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {-140,  30, 130,  15, 1, "",                     0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_TextField, {xpProperty_MaxCharacters,19, 0,0, 0,0} },
     {   5,  50, -10,  10, 1, "Historic Channels:",   0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange Historic",  0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5, -15,  -5,  10, 1, "",                    0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     // "A/C Label" tab
     {  10,  50, -10, -10, 0, "A/C Label",           0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10, 190,  10, 1, "Static info:",        0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -341,6 +344,14 @@ void LTSettingsUI::Enable()
         // version number
         XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],
                               LT_VERSION_FULL);
+#ifdef DEBUG
+        {
+            char dbgLimit[100];
+            snprintf(dbgLimit,sizeof(dbgLimit),DBG_LIMITED_TO,LT_LT_DEBUG_VER_LIMIT_TXT);
+            XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_DBG_LIMIT],
+                                  dbgLimit);
+        }
+#endif
         
         // Historic data timestamp
         txtDateTime.setId(widgetIds[UI_BASICS_TXT_DATETIME]);

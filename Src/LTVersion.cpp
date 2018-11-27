@@ -27,47 +27,103 @@
 #include "LiveTraffic.h"
 
 //
-// MARK: Version Information (CHANGE VERSION HERE)
+// MARK: Version Information
 //
-#define LIVETRAFFIC_VERSION_NUMBER "0.8"
+#if !defined(VERSION_NR)
+#error Define VERSION_NR to be the current version number!
+#endif
 
 //
 // MARK: global variables referred to via extern declarations in Constants.h
 //
-char szLT_VERSION_FULL[30] = LIVETRAFFIC_VERSION_NUMBER ".";
+char LT_VERSION[10] = "";
+char LT_VERSION_FULL[30] = "";
+char HTTP_USER_AGENT[50] = "";
 
-const char* LT_VERSION = LIVETRAFFIC_VERSION_NUMBER;
-const char* LT_VERSION_FULL = szLT_VERSION_FULL;
-const char* HTTP_USER_AGENT = LIVE_TRAFFIC "/" LIVETRAFFIC_VERSION_NUMBER;
+#ifdef DEBUG
+// Debug versions are limited for 30 days...people shall use release versions!
+time_t LT_DEBUG_VER_LIMIT = 30 * SEC_per_D;
+char LT_LT_DEBUG_VER_LIMIT_TXT[12] = "";
 
-//
-// As __DATE__ has weird format
-// we fill the internal buffer once...need to rely on being called, though
-//
-
-const char* InitFullVersion ()
+bool CalcLtDebugVerTimeLimit()
 {
     // Example of __DATE__ string: "Nov 12 2018"
     //                              01234567890
     char buildDate[12] = __DATE__;
     buildDate[3]=0;                                     // separate elements
     buildDate[6]=0;
-    strcat_s(szLT_VERSION_FULL, sizeof(szLT_VERSION_FULL), buildDate + 9);  // year (last 2 digits)
-    strcat_s(szLT_VERSION_FULL, sizeof(szLT_VERSION_FULL),                  // month converted to digits
-           strcmp(buildDate,"Jan") == 0 ? "01" :
-           strcmp(buildDate,"Feb") == 0 ? "02" :
-           strcmp(buildDate,"Mar") == 0 ? "03" :
-           strcmp(buildDate,"Apr") == 0 ? "04" :
-           strcmp(buildDate,"May") == 0 ? "05" :
-           strcmp(buildDate,"Jun") == 0 ? "06" :
-           strcmp(buildDate,"Jul") == 0 ? "07" :
-           strcmp(buildDate,"Aug") == 0 ? "08" :
-           strcmp(buildDate,"Sep") == 0 ? "09" :
-           strcmp(buildDate,"Oct") == 0 ? "10" :
-           strcmp(buildDate,"Nov") == 0 ? "11" :
-           strcmp(buildDate,"Dec") == 0 ? "12" : "??"
-           );
-    strcat_s(szLT_VERSION_FULL, sizeof(szLT_VERSION_FULL), buildDate + 4);           // day
+    
+    struct tm tm = {0, 0, 0, 0, 0, 0, 0, 0};
+    tm.tm_mday = atoi(buildDate+4);
+    tm.tm_year = atoi(buildDate+7) - 1900;
+    tm.tm_mon = strcmp(buildDate,"Jan") == 0 ?  0 :
+                strcmp(buildDate,"Feb") == 0 ?  1 :
+                strcmp(buildDate,"Mar") == 0 ?  2 :
+                strcmp(buildDate,"Apr") == 0 ?  3 :
+                strcmp(buildDate,"May") == 0 ?  4 :
+                strcmp(buildDate,"Jun") == 0 ?  5 :
+                strcmp(buildDate,"Jul") == 0 ?  6 :
+                strcmp(buildDate,"Aug") == 0 ?  7 :
+                strcmp(buildDate,"Sep") == 0 ?  8 :
+                strcmp(buildDate,"Oct") == 0 ?  9 :
+                strcmp(buildDate,"Nov") == 0 ? 10 : 11;
+    LT_DEBUG_VER_LIMIT += mktime(&tm);
+    localtime_s(&tm, &LT_DEBUG_VER_LIMIT);
+    
+    // tell the world we're limited
+    strftime(LT_LT_DEBUG_VER_LIMIT_TXT,sizeof(LT_LT_DEBUG_VER_LIMIT_TXT),"%d-%b-%Y",&tm);
+    // still within limit time frame?
+    if (time(NULL) <= LT_DEBUG_VER_LIMIT) {
+        LOG_MSG(logINFO,DBG_LIMITED_VERSION,LT_LT_DEBUG_VER_LIMIT_TXT);
+        return true;
+    }
+    LOG_MSG(logFATAL,DBG_LIMITED_EXPIRED,LT_LT_DEBUG_VER_LIMIT_TXT);
+    return false;
+}
+#endif
 
-    return szLT_VERSION_FULL;
+//
+// As __DATE__ has weird format
+// we fill the internal buffer once...need to rely on being called, though
+//
+
+bool InitFullVersion ()
+{
+    // fill char arrays
+    snprintf(LT_VERSION, sizeof(LT_VERSION), "%0.1f", VERSION_NR);
+    snprintf(HTTP_USER_AGENT, sizeof(HTTP_USER_AGENT), "%s/%s", LIVE_TRAFFIC, LT_VERSION);
+    
+    // Example of __DATE__ string: "Nov 12 2018"
+    //                              01234567890
+    char buildDate[12] = __DATE__;
+    buildDate[3]=0;                                     // separate elements
+    buildDate[6]=0;
+    
+    snprintf(LT_VERSION_FULL, sizeof(LT_VERSION_FULL), "%s.%s%s%s",
+             LT_VERSION,
+             // year (last 2 digits)
+             buildDate + 9,
+             // month converted to digits
+             strcmp(buildDate,"Jan") == 0 ? "01" :
+             strcmp(buildDate,"Feb") == 0 ? "02" :
+             strcmp(buildDate,"Mar") == 0 ? "03" :
+             strcmp(buildDate,"Apr") == 0 ? "04" :
+             strcmp(buildDate,"May") == 0 ? "05" :
+             strcmp(buildDate,"Jun") == 0 ? "06" :
+             strcmp(buildDate,"Jul") == 0 ? "07" :
+             strcmp(buildDate,"Aug") == 0 ? "08" :
+             strcmp(buildDate,"Sep") == 0 ? "09" :
+             strcmp(buildDate,"Oct") == 0 ? "10" :
+             strcmp(buildDate,"Nov") == 0 ? "11" :
+             strcmp(buildDate,"Dec") == 0 ? "12" : "??",
+             // day
+             buildDate + 4
+           );
+    
+#ifdef DEBUG
+    if (!CalcLtDebugVerTimeLimit())
+        return false;
+#endif
+
+    return true;
 }

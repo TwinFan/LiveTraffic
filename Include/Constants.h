@@ -71,9 +71,9 @@ const double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 const double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
 
 //MARK: Version Information
-extern const char* LT_VERSION;              // like "1.0"
-extern const char* LT_VERSION_FULL;         // like "1.0.181231" with last digits being build date
-extern const char* HTTP_USER_AGENT;         // like "LiveTraffic/1.0"
+extern char LT_VERSION[];              // like "1.0"
+extern char LT_VERSION_FULL[];         // like "1.0.181231" with last digits being build date
+extern char HTTP_USER_AGENT[];         // like "LiveTraffic/1.0"
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
@@ -288,5 +288,12 @@ const int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneou
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
+#ifdef DEBUG
+extern time_t LT_DEBUG_VER_LIMIT;
+extern char LT_LT_DEBUG_VER_LIMIT_TXT[];
+#define DBG_LIMITED_VERSION     "DEBUG-Version limited to %s"
+#define DBG_LIMITED_TO          "limited to %s"
+#define DBG_LIMITED_EXPIRED     "DEBUG-Version limited to %s, EXPIRED -> SHUTTING DOWN!"
+#endif
 
 #endif /* Constants_h */

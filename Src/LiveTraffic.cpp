@@ -28,7 +28,7 @@
 #include "LiveTraffic.h"
 
 // in LTVersion.cpp:
-extern const char* InitFullVersion ();
+extern bool InitFullVersion ();
 
 //MARK: Globals
 
@@ -147,7 +147,7 @@ PLUGIN_API int XPluginStart(
 							char *		outDesc)
 {
     // init our version number
-    InitFullVersion ();
+    if (!InitFullVersion ()) return 0;
 
     // init random numbers
      srand((unsigned int)time(NULL));
