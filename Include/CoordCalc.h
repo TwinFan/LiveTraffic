@@ -77,7 +77,7 @@ struct vectorTy {
     vectorTy ( double dAngle, double dDist, double dVsi=NAN, double dSpeed=NAN ) :
     angle(dAngle), dist(dDist), vsi(dVsi), speed(dSpeed) {}
 
-    // standard string for any output purposes (returns static buffer!)
+    // standard string for any output purposes
     operator std::string() const;
     
     // convert to nautical units
@@ -114,7 +114,7 @@ public:
     
     // typecast to what XPMP API needs
     operator XPMPPlanePosition_t() const;
-    // standard string for any output purposes (returns static buffer!)
+    // standard string for any output purposes
     static const char* GrndE2String (onGrndE grnd);
     std::string dbgTxt() const;
     operator std::string() const;

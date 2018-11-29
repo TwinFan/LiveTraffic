@@ -33,47 +33,45 @@
 #define WIN_FROM_TOP     50
 #define WIN_FROM_RIGHT    0
 
-const int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
+constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
 
 //MARK: Unit conversions
-const int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a lat degree
-const double M_per_FT   = 0.3048;   // meter per 1 foot
-const int M_per_KM      = 1000;
-const double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
-const int SEC_per_M     = 60;       // 60 seconds per minute
-const int SEC_per_H     = 3600;     // 3600 seconds per hour
-const int H_per_D       = 24;       // 24 hours per day
-const int M_per_D       = 1440;     // 24*60 minutes per day
-const int SEC_per_D     = SEC_per_H * H_per_D;        // seconds per day
-const double Ms_per_FTm = M_per_FT / SEC_per_M;     //1 m/s = 196.85... ft/min
-const double PI         = 3.1415926535897932384626433832795028841971693993751;
-const double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
+constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a lat degree
+constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
+constexpr int M_per_KM      = 1000;
+constexpr double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
+constexpr int SEC_per_M     = 60;       // 60 seconds per minute
+constexpr int SEC_per_H     = 3600;     // 3600 seconds per hour
+constexpr int H_per_D       = 24;       // 24 hours per day
+constexpr int M_per_D       = 1440;     // 24*60 minutes per day
+constexpr int SEC_per_D     = SEC_per_H * H_per_D;        // seconds per day
+constexpr double Ms_per_FTm = M_per_FT / SEC_per_M;     //1 m/s = 196.85... ft/min
+constexpr double PI         = 3.1415926535897932384626433832795028841971693993751;
+constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 
 //MARK: Flight Data-related
-const double FLIGHT_LOOP_INTVL  = 2.0;      // seconds (calling a/c maintenance periodically)
-const double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
-
-//const int MAX_NUM_AC =          50;         // how many aircrafts to create at most?
-//const int FD_STD_DISTANCE =     25;         // kilometer to look for a/c around myself
-//const int FD_REFRESH_INTVL =    20;         // how often to fetch new flight data
-//const int FD_BUF_PERIOD =       90;         // seconds to buffer before simulating aircrafts
-//const int AC_OUTDATED_INTVL =   50;         // a/c considered outdated if latest flight data more older than this compare to 'now'
-const double SIMILAR_TS_INTVL = 5;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-const double SIMILAR_POS_DIST = 5;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
-const double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to terrain alt but grndStatus OFF then double-check using YProbe
-const double FD_GND_AGL =       10;         // [ft] consider pos 'ON GRND' if this close to YProbe
-const double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
-const double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
+constexpr double FLIGHT_LOOP_INTVL  = 2.0;      // seconds (calling a/c maintenance periodically)
+constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
+constexpr double SIMILAR_TS_INTVL = 5;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
+constexpr double SIMILAR_POS_DIST = 5;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to terrain alt but grndStatus OFF then double-check using YProbe
+constexpr double FD_GND_AGL =       10;         // [ft] consider pos 'ON GRND' if this close to YProbe
+constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
+constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
 
 //MARK: Flight Model
-const double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
-const double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
-const double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
+constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
+constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
+constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
 
 //MARK: Version Information
-extern char LT_VERSION[];              // like "1.0"
-extern char LT_VERSION_FULL[];         // like "1.0.181231" with last digits being build date
-extern char HTTP_USER_AGENT[];         // like "LiveTraffic/1.0"
+extern char LT_VERSION[];               // like "1.0"
+extern char LT_VERSION_FULL[];          // like "1.0.181231" with last digits being build date
+extern char HTTP_USER_AGENT[];          // like "LiveTraffic/1.0"
+extern time_t LT_BETA_VER_LIMIT;        // BETA versions are limited
+extern char LT_BETA_VER_LIMIT_TXT[];
+#define BETA_LIMITED_VERSION    "BETA limited to %s"
+#define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN!"
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
@@ -89,7 +87,7 @@ extern char HTTP_USER_AGENT[];         // like "LiveTraffic/1.0"
 #define MSG_NUM_AC_ZERO         "No more aircrafts displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircrafts, displaying %d, still %d seconds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
-#define INFO_AC_ADDED           "Added aircraft %s, a/c model '%s', flight model [%s], bearing %.0f°, distance %.1fkm"
+#define INFO_AC_ADDED           "Added aircraft %s, a/c model '%s', flight model [%s], bearing %.0f, distance %.1fkm"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
@@ -121,10 +119,10 @@ extern char HTTP_USER_AGENT[];         // like "LiveTraffic/1.0"
 #define FILE_DOC8643_TXT        "Doc8643.txt"
 
 //MARK: Error Texsts
-const long HTTP_OK =            200;
-const long HTTP_NOT_FOUND =     404;
-const int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
-const int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s) 
+constexpr long HTTP_OK =            200;
+constexpr long HTTP_NOT_FOUND =     404;
+constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
+constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s) 
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
 #define ERR_ENABLE_XPMP         "Could not enable XPMPMultiplayer: %s"
@@ -176,24 +174,24 @@ const int SERR_LEN = 100;                   // size of buffer for IO error texts
 #define ERR_FM_UNKNOWN_SECTION  "Referring to unknown model section in '%s', line %d: %s"
 #define ERR_FM_UNKNOWN_PARENT   "Parent section missing in '%s', line %d: %s"
 #define ERR_FM_REGEX            "%s in '%s', line %d: %s"
-const int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while reading config file, then: dead
+constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while reading config file, then: dead
 
 //MARK: OpenSky
 #define OPSKY_NAME              "OpenSky Live Online"
 #define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
 #define OPSKY_AIRCRAFT_ARR      "states"
-const int OPSKY_TRANSP_ICAO   = 0;               // icao24
-const int OPSKY_CALL          = 1;               // callsign
-const int OPSKY_COUNTRY       = 2;               // origin_county
-const int OPSKY_POS_TIME      = 3;               // time_position
-const int OPSKY_LON           = 5;               // longitude
-const int OPSKY_LAT           = 6;               // latitude
-const int OPSKY_ELEVATION     = 7;               // geo_altitude
-const int OPSKY_GND           = 8;               // on_ground
-const int OPSKY_SPD           = 9;               // velocity
-const int OPSKY_HEADING       = 10;              // heading
-const int OPSKY_VSI           = 11;              // vertical rate
-const int OPSKY_RADAR_CODE    = 14;              // squawk
+constexpr int OPSKY_TRANSP_ICAO   = 0;               // icao24
+constexpr int OPSKY_CALL          = 1;               // callsign
+constexpr int OPSKY_COUNTRY       = 2;               // origin_county
+constexpr int OPSKY_POS_TIME      = 3;               // time_position
+constexpr int OPSKY_LON           = 5;               // longitude
+constexpr int OPSKY_LAT           = 6;               // latitude
+constexpr int OPSKY_ELEVATION     = 7;               // geo_altitude
+constexpr int OPSKY_GND           = 8;               // on_ground
+constexpr int OPSKY_SPD           = 9;               // velocity
+constexpr int OPSKY_HEADING       = 10;              // heading
+constexpr int OPSKY_VSI           = 11;              // vertical rate
+constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 
 //MARK: OpenSky Master Data
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
@@ -243,8 +241,8 @@ const int OPSKY_RADAR_CODE    = 14;              // squawk
 #define ADSBEX_COS              "Cos"               // array of short trails
 
 #define ADSBEX_HIST_NAME        "ADSB Exchange Historic File"
-const int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line
-const int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneous line we stop reading
+constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line
+constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneous line we stop reading
 #define ADSBEX_HIST_PATH        "Custom Data/ADSB"  // TODO: Move to options: relative to XP main
 #define ADSBEX_HIST_PATH_2      "Custom Data/ADSB2" // TODO: Move to options: fallback, if first one doesn't work
 #define ADSBEX_HIST_DATE_PATH   "%c%04d-%02d-%02d"
@@ -289,11 +287,7 @@ const int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneou
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
 #ifdef DEBUG
-extern time_t LT_DEBUG_VER_LIMIT;
-extern char LT_LT_DEBUG_VER_LIMIT_TXT[];
-#define DBG_LIMITED_VERSION     "DEBUG-Version limited to %s"
-#define DBG_LIMITED_TO          "limited to %s"
-#define DBG_LIMITED_EXPIRED     "DEBUG-Version limited to %s, EXPIRED -> SHUTTING DOWN!"
+#define DBG_DEBUG_BUILD         "DEBUG BUILD with additional run-time checks and no optimizations"
 #endif
 
 #endif /* Constants_h */

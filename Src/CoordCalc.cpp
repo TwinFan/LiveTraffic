@@ -140,7 +140,7 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
 vectorTy::operator std::string() const
 {
     char buf[50];
-    snprintf(buf, sizeof(buf), "<%3.0f°, %5.0fm @ %3.0fkt, %4.0fft/m>",
+    snprintf(buf, sizeof(buf), "<h %3.0f, %5.0fm @ %3.0fkt, %4.0fft/m>",
              angle, dist,
              speed_kn(),
              vsi_ft());
@@ -202,7 +202,7 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "(%7.3f, %7.3f) %5.0ff %s {%3.0f°, %3.0f↕︎, %3.0f↔︎} [%.1f]",
+    snprintf(buf, sizeof(buf), "(%7.3f, %7.3f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f]",
              lat(), lon(),
              alt_ft(),
              GrndE2String(onGrnd),
@@ -362,25 +362,28 @@ positionTy::onGrndE positionTy::DeriveGrndStatus (positionTy::onGrndE from,
 //
 
 // stringify all elements of a list
-std::string positionDeque2String (const dequePositionTy& l)
+std::string positionDeque2String (const dequePositionTy& _l)
 {
     std::string ret;
     
-    if (l.empty())
+    if (_l.empty())
         ret = "<empty>\n";
-    else
+    else {
+        // copy for better thread safety
+        const dequePositionTy l(_l);
         for (dequePositionTy::const_iterator iter = l.cbegin();
-             iter != l.cend();
-             ++iter)
+            iter != l.cend();
+            ++iter)
         {
             ret += iter->dbgTxt();              // add position info
-            if ( std::next(iter) != l.cend() )  // there is a next position
+            if (std::next(iter) != l.cend())    // there is a next position
             {
                 ret += ' ';                     // add vector to next position
                 ret += iter->between(*std::next(iter));
             }
             ret += '\n';
         }
+    }
     return ret;
 }
 
@@ -458,7 +461,7 @@ nw(center), se(center)          // corners initialized with center position
     se += vectorTy ( 135, d, NAN, NAN );
 }
 
-// standard string for any output purposes (returns static buffer!)
+// standard string for any output purposes
 boundingBoxTy::operator std::string() const
 {
     char buf[100];
