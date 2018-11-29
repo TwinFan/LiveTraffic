@@ -27,11 +27,10 @@
 #include "LiveTraffic.h"
 
 //
-// MARK: Version Information
+// MARK: Version Information (CHANGE VERSION HERE)
 //
-#if !defined(VERSION_NR)
-#error Define VERSION_NR to be the current version number!
-#endif
+const float VERSION_NR = 0.80f;
+const bool VERSION_BETA = true;
 
 //
 // MARK: global variables referred to via extern declarations in Constants.h
@@ -40,12 +39,11 @@ char LT_VERSION[10] = "";
 char LT_VERSION_FULL[30] = "";
 char HTTP_USER_AGENT[50] = "";
 
-#ifdef DEBUG
-// Debug versions are limited for 30 days...people shall use release versions!
-time_t LT_DEBUG_VER_LIMIT = 30 * SEC_per_D;
-char LT_LT_DEBUG_VER_LIMIT_TXT[12] = "";
+// BETA versions are limited for 30 days...people shall use release versions!
+time_t LT_BETA_VER_LIMIT = 0;
+char LT_BETA_VER_LIMIT_TXT[12] = "";
 
-bool CalcLtDebugVerTimeLimit()
+bool CalcBetaVerTimeLimit()
 {
     // Example of __DATE__ string: "Nov 12 2018"
     //                              01234567890
@@ -67,20 +65,20 @@ bool CalcLtDebugVerTimeLimit()
                 strcmp(buildDate,"Sep") == 0 ?  8 :
                 strcmp(buildDate,"Oct") == 0 ?  9 :
                 strcmp(buildDate,"Nov") == 0 ? 10 : 11;
-    LT_DEBUG_VER_LIMIT += mktime(&tm);
-    localtime_s(&tm, &LT_DEBUG_VER_LIMIT);
+    // Limit is: build date plus 30 days
+    LT_BETA_VER_LIMIT = mktime(&tm) + 30 * SEC_per_D;
+    localtime_s(&tm, &LT_BETA_VER_LIMIT);
     
     // tell the world we're limited
-    strftime(LT_LT_DEBUG_VER_LIMIT_TXT,sizeof(LT_LT_DEBUG_VER_LIMIT_TXT),"%d-%b-%Y",&tm);
+    strftime(LT_BETA_VER_LIMIT_TXT,sizeof(LT_BETA_VER_LIMIT_TXT),"%d-%b-%Y",&tm);
     // still within limit time frame?
-    if (time(NULL) <= LT_DEBUG_VER_LIMIT) {
-        LOG_MSG(logINFO,DBG_LIMITED_VERSION,LT_LT_DEBUG_VER_LIMIT_TXT);
-        return true;
+    if (time(NULL) > LT_BETA_VER_LIMIT) {
+        LOG_MSG(logFATAL, BETA_LIMITED_EXPIRED, LT_BETA_VER_LIMIT_TXT);
+        return false;
     }
-    LOG_MSG(logFATAL,DBG_LIMITED_EXPIRED,LT_LT_DEBUG_VER_LIMIT_TXT);
-    return false;
+
+    return true;
 }
-#endif
 
 //
 // As __DATE__ has weird format
@@ -90,7 +88,7 @@ bool CalcLtDebugVerTimeLimit()
 bool InitFullVersion ()
 {
     // fill char arrays
-    snprintf(LT_VERSION, sizeof(LT_VERSION), "%0.1f", VERSION_NR);
+    snprintf(LT_VERSION, sizeof(LT_VERSION), "%0.2f", VERSION_NR);
     snprintf(HTTP_USER_AGENT, sizeof(HTTP_USER_AGENT), "%s/%s", LIVE_TRAFFIC, LT_VERSION);
     
     // Example of __DATE__ string: "Nov 12 2018"
@@ -120,10 +118,8 @@ bool InitFullVersion ()
              buildDate + 4
            );
     
-#ifdef DEBUG
-    if (!CalcLtDebugVerTimeLimit())
+    if (VERSION_BETA && !CalcBetaVerTimeLimit())
         return false;
-#endif
 
     return true;
 }

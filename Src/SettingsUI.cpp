@@ -344,14 +344,13 @@ void LTSettingsUI::Enable()
         // version number
         XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],
                               LT_VERSION_FULL);
-#ifdef DEBUG
+        if (LT_BETA_VER_LIMIT)
         {
             char dbgLimit[100];
-            snprintf(dbgLimit,sizeof(dbgLimit),DBG_LIMITED_TO,LT_LT_DEBUG_VER_LIMIT_TXT);
+            snprintf(dbgLimit,sizeof(dbgLimit), BETA_LIMITED_VERSION,LT_BETA_VER_LIMIT_TXT);
             XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_DBG_LIMIT],
                                   dbgLimit);
         }
-#endif
         
         // Historic data timestamp
         txtDateTime.setId(widgetIds[UI_BASICS_TXT_DATETIME]);
