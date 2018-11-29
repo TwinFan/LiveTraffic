@@ -82,7 +82,14 @@
 #include "XPStandardWidgets.h"
 
 // XP Multiplayer API
+#ifdef _MSC_VER                 // in Visual C++ suppress one warning (warning C4201: nonstandard extension used: nameless struct/union)
+#pragma warning (push)
+#pragma warning (disable: 4201)
+#endif
 #include "xplanemp/XPMPMultiplayer.h"
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
 
 // LiveTraffic Includes
 #include "Constants.h"
