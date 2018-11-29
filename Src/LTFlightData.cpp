@@ -325,7 +325,8 @@ std::string LTFlightData::ComposeLabel() const
         }
         
         // remove the trailing space
-        label.pop_back();
+        if (!label.empty())
+            label.pop_back();
         
         return label;
         

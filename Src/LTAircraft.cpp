@@ -632,7 +632,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
         // the above assume that there is at least one non-WHITESPACE character
         // now handle the case that the entire string is all WHITESPACES:
         // As long as the last char is one of the whitespaces keep removing it
-        while (ws.find_first_of(text.back()) != std::string::npos)
+        while (!text.empty() && ws.find_first_of(text.back()) != std::string::npos)
             text.pop_back();
         
         // ignore empty lines
