@@ -88,6 +88,24 @@ std::string LTCalcFullPath ( const char* path )
     return ret;
 }
 
+// same as above, but relative to plugin directory
+std::string LTCalcFullPluginPath ( const char* path )
+{
+    std::string ret;
+    
+    // starts with DirSeparator or [windows] second char is a colon?
+    if (dataRefs.GetDirSeparatorMP()[0] == path[0] ||
+        (strlen(path) >= 2 && path[1] == ':' ) ) {
+        // just take the given path
+        ret = LTPathToLocal(path,false);
+    } else {
+        // otherwise it shall be a local path relative to the plugin's dir
+        ret = dataRefs.GetLTPluginPath() + LTPathToLocal(path,false);
+    }
+    
+    return ret;
+}
+
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
 int LTNumFilesInPath ( const char* path )
@@ -136,33 +154,27 @@ int LTHasDirectoryResources ( std::string& path )
 // finds the directory with the necessary resources
 std::string LTFindResourcesDirectory ()
 {
-    std::string path;
     // the paths to cycle (LiveTraffic, XSquawkBox)
     // TODO: X-IvAp path to include
-    const char* aszPaths[] = {
-        PATH_RESOURCES_LT, PATH_RESOURCES_XSB, ""
+    // TODO: Configurable Resources(/CSL) directory
+    std::string sPaths[2] = {
+        LTCalcFullPluginPath(PATH_RESOURCES_LT),
+        LTCalcFullPath(PATH_RESOURCES_XSB),
     };
-    for ( int i=0; aszPaths[i][0] != 0; i++ )
+    for ( std::string path: sPaths )
     {
-        // put together absolut path by prepending with XP System Path
-        path = dataRefs.GetXPSystemPath() + LTPathToLocal(aszPaths[i],false);
         // check if it has all necessary files
         if (LTHasDirectoryResources (path))
-            break;
-        else
-            path.clear();
+            return path;
     }
     
     // no path found??? Log error msg including all paths tried
-    if ( path.empty() )
-    {
-        LOG_MSG(logFATAL,ERR_RES_NOT_FOUND);
-        for ( int i=0; aszPaths[i][0] != 0; i++ )
-            LOG_MSG(logERR,aszPaths[i]);
-    }
+    LOG_MSG(logFATAL,ERR_RES_NOT_FOUND);
+    for ( std::string path: sPaths )
+        LOG_MSG(logERR,path.c_str());
     
     // empty in case of failure
-    return path;
+    return "";
 }
 
 //
@@ -318,13 +330,6 @@ bool LTMainEnable ()
     // Enable fetching flight data
     if (!LTFlightDataEnable()) return false;
 
-    // Refresh set of aircrafts loaded
-    XPMPLoadPlanesIfNecessary();
-
-    // Enable Multiplayer plane drawing
-    const char* cszResult = XPMPMultiplayerEnable();
-    if ( cszResult[0] ) { LOG_MSG(logFATAL,ERR_ENABLE_XPMP, cszResult); return false; }
-
     // Success
     dataRefs.pluginState = STATE_ENABLED;
     LOG_MSG(logDEBUG,DBG_LT_MAIN_ENABLE);
@@ -338,6 +343,17 @@ bool LTMainShowAircraft ()
     
     // short cut if already showing
     if ( dataRefs.GetAircraftsDisplayed() ) return true;
+    
+    // Now only enable multiplay lib - this acquires multiplayer planes
+    //   and is the possible point of conflict with other plugins
+    //   using xplanemp, so we push it out to as late as possible.
+    
+    // Refresh set of aircrafts loaded
+    XPMPLoadPlanesIfNecessary();
+    
+    // Enable Multiplayer plane drawing, acquire multiuser planes
+    const char* cszResult = XPMPMultiplayerEnable();
+    if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_ENABLE_XPMP, cszResult); return false; }
     
     // select aircrafts for display
     if ( !LTFlightDataShowAircraft() ) return false;
@@ -370,6 +386,9 @@ void LTMainHideAircraft ()
                                       1,            // relative to now
                                       NULL);
     
+    // disable aircraft drawing, free up multiplayer planes
+    XPMPMultiplayerDisable();
+    
     // tell the user there are no more
     SHOW_MSG(logINFO, MSG_NUM_AC_ZERO);
     dataRefs.pluginState = STATE_ENABLED;
@@ -382,9 +401,6 @@ void LTMainDisable ()
 
     // remove aircrafts...just to be sure
     LTMainHideAircraft();
-    
-    // disable aircraft drawing
-    XPMPMultiplayerDisable();
     
     // disable fetching flight data
     LTFlightDataDisable();

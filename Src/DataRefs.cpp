@@ -352,6 +352,15 @@ iLogLevel (initLogLevel)
 ,bDebugAcPos (true)
 #endif
 {
+    // override log level in Beta and DEBUG cases
+    // (config file is read later, that may reduce the level again)
+#ifdef DEBUG
+    iLogLevel = logDEBUG;
+#else
+    if ( LT_BETA_VER_LIMIT )
+        iLogLevel = logDEBUG;
+#endif
+    
     // disabled all channels
     for ( int& i: bChannel )
         i = false;
@@ -402,6 +411,24 @@ bool DataRefs::Init ()
     
     // Directory Separator provided by XP
     DirSeparator = XPLMGetDirectorySeparator();
+    
+    // my own plugin path
+    pluginID = XPLMGetMyID();
+    aszPath[0] = 0;
+    XPLMGetPluginInfo(pluginID, NULL, aszPath, NULL, NULL);
+    LTPluginPath = aszPath;
+    LOG_ASSERT(!LTPluginPath.empty());
+    
+    // LTPluginPath is now something like "...:Resources:plugins:LiveTraffic:64:mac.xpl"
+    // we now reduce the path to the beginning of the plugin:
+    // remove the file name
+    std::string::size_type pos = LTPluginPath.rfind(DirSeparator);
+    LOG_ASSERT(pos != std::string::npos);
+    LTPluginPath.erase(pos);
+    // remove the 64 subdirectory, but leave the separator at the end
+    pos = LTPluginPath.rfind(DirSeparator);
+    LOG_ASSERT(pos != std::string::npos);
+    LTPluginPath.erase(pos+1);
     
     // Fetch all XP-provided data refs and verify if OK
     for ( int i=0; i < CNT_DATAREFS_XP; i++ )

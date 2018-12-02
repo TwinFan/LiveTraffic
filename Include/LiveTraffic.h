@@ -117,6 +117,7 @@ std::string LTPathToLocal ( const char* p, bool bXPMPStyle );
 
 // deal with paths: make a full one from a relative one or keep a full path
 std::string LTCalcFullPath ( const char* path );
+std::string LTCalcFullPluginPath ( const char* path );
 
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors

@@ -228,6 +228,7 @@ protected:
     
 //MARK: Provided Data, i.e. global variables
 protected:
+    XPLMPluginID pluginID       = 0;
     logLevelTy iLogLevel        = logWARN;
     int bShowingAircrafts       = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
@@ -235,6 +236,7 @@ protected:
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
     int bDebugModelMatching     = false;// output debug info on model matching in xplanemp?
     std::string XPSystemPath;
+    std::string LTPluginPath;           // path to plugin directory
     std::string DirSeparator;
     int bUseHistoricData        = false;
     int bChannel[CNT_DR_CHANNELS];     // is channel enabled?
@@ -374,6 +376,7 @@ public:
 
     // Get XP System Path
     inline std::string GetXPSystemPath() const  { return XPSystemPath; }
+    inline std::string GetLTPluginPath() const  { return LTPluginPath; }
     inline std::string GetDirSeparator() const  { return DirSeparator; }
     // this one returns the directory separator as used by the XPMP API
     std::string GetDirSeparatorMP();

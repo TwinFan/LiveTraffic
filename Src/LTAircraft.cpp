@@ -579,7 +579,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     const std::string ws(WHITESPACE);
     
     // open the Flight Model file
-    std::string sFileName (LTCalcFullPath(PATH_FLIGHT_MODELS));
+	    std::string sFileName (LTCalcFullPluginPath(PATH_FLIGHT_MODELS));
 #ifdef APL
     // Mac: convert to Posix
     LTHFS2Posix(sFileName);

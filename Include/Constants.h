@@ -100,15 +100,13 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
 #define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_SETTINGS_UI        "Settings..."
-#ifdef DEBUG
-#define MENU_RELOAD_PLUGINS     "Reload Plugins (Developer!)"
-#endif
+#define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 
 //MARK: File Paths
-#define PATH_RESOURCES_LT       "Resources/plugins/LiveTraffic/Resources"
-#define PATH_RESOURCES_XSB      "Resources/plugins/XSquawkBox/Resources"
+#define PATH_RESOURCES_LT       "Resources"         // this is under the plugins directory
+#define PATH_RESOURCES_XSB      "Resources/plugins/XSquawkBox/Resources"    // this is under X-Planes's system directory
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
-#define PATH_FLIGHT_MODELS      "Resources/plugins/LiveTraffic/FlightModels.prf"
+#define PATH_FLIGHT_MODELS      "FlightModels.prf"  // this is under the plugins directory
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"
 #define PATH_STD_SEPARATOR      "/"             // the one used here in the constants
 #define PATH_HFS_SEPARATOR      ":"

@@ -60,6 +60,7 @@
 		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "/Users/birger/Applications/X-Plane 10/Resources/plugins/DataRefs.txt"; sourceTree = "<absolute>"; };
 		255F35AF2097C0B50080B78E /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "/Users/birger/Applications/X-Plane 10/Log.txt"; sourceTree = "<absolute>"; };
 		255F89EF21695172003053F6 /* Doc8643.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Doc8643.txt; path = "../../../Applications/X-Plane 10/Resources/plugins/LiveTraffic/Resources/Doc8643.txt"; sourceTree = "<group>"; };
+		25606F8D21B362790017D1EE /* readme.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = readme.html; sourceTree = "<group>"; };
 		2564042521AAC914001E2F2A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
@@ -78,7 +79,6 @@
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
-		25AC7BFE217BD2D700A93265 /* LT_RefDat_Editors.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = LT_RefDat_Editors.png; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
 		25AE00DA2138882E00908E65 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
 		25BFBB9120DEE1EF00D52B6C /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
@@ -101,10 +101,6 @@
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
 		25E9C2B0207D5BB000D3C642 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; wrapsLines = 0; };
-		25ED1F31218A675900FE614A /* KJFK A78CB4 LT Touch-Down.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK A78CB4 LT Touch-Down.png"; sourceTree = "<group>"; };
-		25ED1F32218A675900FE614A /* KJFK A78CB4 FR24 Arrival.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK A78CB4 FR24 Arrival.png"; sourceTree = "<group>"; };
-		25ED1F33218A675900FE614A /* KJFK AC801E FR24 Path.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK AC801E FR24 Path.png"; sourceTree = "<group>"; };
-		25ED1F34218A675A00FE614A /* KJFK AC801E LT Take Off.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "KJFK AC801E LT Take Off.png"; sourceTree = "<group>"; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
 		D607B19909A556E400699BC3 /* mac.xpl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mac.xpl; sourceTree = BUILT_PRODUCTS_DIR; };
 		D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTraffic.cpp; sourceTree = "<group>"; };
@@ -150,8 +146,8 @@
 		254EA46D20834D5E008A312F /* docs */ = {
 			isa = PBXGroup;
 			children = (
+				25606F8D21B362790017D1EE /* readme.html */,
 				2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */,
-				25AC7BFD217BD2D700A93265 /* pic */,
 				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
 				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
 				25D6542B210C631B00E65D77 /* Deceleration.psd */,
@@ -266,18 +262,6 @@
 				2591F9692197008C00F0D436 /* Src */,
 			);
 			path = NoGit;
-			sourceTree = "<group>";
-		};
-		25AC7BFD217BD2D700A93265 /* pic */ = {
-			isa = PBXGroup;
-			children = (
-				25ED1F32218A675900FE614A /* KJFK A78CB4 FR24 Arrival.png */,
-				25ED1F31218A675900FE614A /* KJFK A78CB4 LT Touch-Down.png */,
-				25ED1F33218A675900FE614A /* KJFK AC801E FR24 Path.png */,
-				25ED1F34218A675A00FE614A /* KJFK AC801E LT Take Off.png */,
-				25AC7BFE217BD2D700A93265 /* LT_RefDat_Editors.png */,
-			);
-			path = pic;
 			sourceTree = "<group>";
 		};
 		25C59453207A249E00E52073 /* Include */ = {
