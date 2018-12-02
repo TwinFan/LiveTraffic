@@ -461,6 +461,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
 				MACH_O_TYPE = mh_dylib;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
@@ -528,6 +529,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
 				MACH_O_TYPE = mh_dylib;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;

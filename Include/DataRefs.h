@@ -27,8 +27,6 @@
 #ifndef DataRefs_h
 #define DataRefs_h
 
-#include <variant>
-
 #include "XPLMDataAccess.h"
 #include "TextIO.h"
 #include "CoordCalc.h"
@@ -162,22 +160,52 @@ class DataRefs
 public:
     //MARK: dataRefDefinitionT
     struct dataRefDefinitionT {
+    protected:
         std::string dataName;
-        XPLMDataTypeID dataType;
-        std::variant<XPLMGetDatai_f, XPLMGetDataf_f> fRead;
-        std::variant<XPLMSetDatai_f, XPLMSetDataf_f> fWrite;
-        void* refCon;
-        bool bCfgFile;
+        XPLMDataTypeID dataType     = xplmType_Unknown;
+        XPLMGetDatai_f ifRead       = NULL;
+        XPLMSetDatai_f ifWrite      = NULL;
+        XPLMGetDataf_f ffRead       = NULL;
+        XPLMSetDataf_f ffWrite      = NULL;
+        void* refCon                = NULL;
+        bool bCfgFile               = false;
         
+    public:
+        // constructor for xplmType_Int
+        dataRefDefinitionT (const char* name,
+                            XPLMGetDatai_f _ifRead, XPLMSetDatai_f _ifWrite = NULL,
+                            void* _refCon = NULL,
+                            bool _bCfg = false) :
+        dataName(name), dataType(xplmType_Int),
+        ifRead(_ifRead), ifWrite(_ifWrite),
+        refCon(_refCon), bCfgFile(_bCfg) {}
+
+        // constructor for xplmType_Float
+        dataRefDefinitionT (const char* name,
+                            XPLMGetDataf_f _ffRead, XPLMSetDataf_f _ffWrite = NULL,
+                            void* _refCon = NULL,
+                            bool _bCfg = false) :
+        dataName(name), dataType(xplmType_Float),
+        ffRead(_ffRead), ffWrite(_ffWrite),
+        refCon(_refCon), bCfgFile(_bCfg) {}
+
         // allows using the object in string context -> dataName
-        operator const char* () const { return dataName.c_str(); }
+        inline const std::string getDataNameStr() const { return dataName; }
+        inline const char* getDataName() const { return dataName.c_str(); }
+        operator const char* () const { return getDataName(); }
         
-        bool isWriteable () const { return (dataType == xplmType_Int) ? (std::get<XPLMSetDatai_f>(fWrite) != NULL) : 
-                                                                        (std::get<XPLMSetDataf_f>(fWrite) != NULL); }
-        XPLMGetDatai_f getDatai_f () const { return dataType == xplmType_Int ? std::get<XPLMGetDatai_f>(fRead) : NULL; }
-        XPLMSetDatai_f setDatai_f () const { return dataType == xplmType_Int ? std::get<XPLMSetDatai_f>(fWrite) : NULL; }
-        XPLMGetDataf_f getDataf_f () const { return dataType == xplmType_Float ? std::get<XPLMGetDataf_f>(fRead) : NULL; }
-        XPLMSetDataf_f setDataf_f () const { return dataType == xplmType_Float ? std::get<XPLMSetDataf_f>(fWrite) : NULL; }
+        inline bool isWriteable () const { return (dataType == xplmType_Int)   ? (ifWrite != NULL) :
+                                                  (dataType == xplmType_Float) ? (ffWrite != NULL) : false; }
+        inline XPLMDataTypeID getDataTpe () const { return dataType; }
+        inline XPLMGetDatai_f getDatai_f () const { return ifRead; }
+        inline XPLMSetDatai_f setDatai_f () const { return ifWrite; }
+        inline XPLMGetDataf_f getDataf_f () const { return ffRead; }
+        inline XPLMSetDataf_f setDataf_f () const { return ffWrite; }
+        
+        inline XPLMDataTypeID getDataType() const { return dataType; }
+        inline void* getRefCon() const { return refCon; }
+        inline void setRefCon (void* _refCon) { refCon = _refCon; }
+        inline bool isCfgFile() const { return bCfgFile; }
         
         // get the actual current value (by calling the getData?_f function)
         int getDatai () const;

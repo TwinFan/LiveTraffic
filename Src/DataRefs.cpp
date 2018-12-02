@@ -190,51 +190,51 @@ void* GET_VAR = reinterpret_cast<void*>(INT_MIN);
 
 // list of all datRef definitions offered by LiveTraffic:
 DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
-    {"livetraffic/ac/key",          xplmType_Int,   {DataRefs::LTGetAcInfoI}, {DataRefs::LTSetAcKey}, (void*)DR_AC_KEY, false },
-    {"livetraffic/ac/num",          xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_NUM, false },
-    {"livetraffic/ac/on_gnd",       xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_ON_GND, false },
-    {"livetraffic/ac/phase",        xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_PHASE, false },
-    {"livetraffic/ac/lat",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_LAT, false },
-    {"livetraffic/ac/lon",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_LON, false },
-    {"livetraffic/ac/alt",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_ALT, false },
-    {"livetraffic/ac/heading",      xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_HEADING, false },
-    {"livetraffic/ac/roll",         xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_ROLL, false },
-    {"livetraffic/ac/pitch",        xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_PITCH, false },
-    {"livetraffic/ac/speed",        xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_SPEED, false },
-    {"livetraffic/ac/vsi",          xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_VSI, false },
-    {"livetraffic/ac/terrain_alt",  xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_TERRAIN_ALT, false },
-    {"livetraffic/ac/height",       xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_HEIGHT, false },
-    {"livetraffic/ac/flaps",        xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_FLAPS, false },
-    {"livetraffic/ac/gear",         xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_GEAR, false },
-    {"livetraffic/ac/lights/beacon",xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_BEACON, false },
-    {"livetraffic/ac/lights/strobe",xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_STROBE, false },
-    {"livetraffic/ac/lights/nav",   xplmType_Int,   {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_NAV, false },
-    {"livetraffic/ac/lights/landing",xplmType_Int,  {DataRefs::LTGetAcInfoI}, {XPLMSetDatai_f(NULL)}, (void*)DR_AC_LIGHTS_LANDING, false },
-    {"livetraffic/ac/bearing",      xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_BEARING, false },
-    {"livetraffic/ac/dist",         xplmType_Float, {DataRefs::LTGetAcInfoF}, {XPLMSetDataf_f(NULL)}, (void*)DR_AC_DIST, false },
-    {"livetraffic/sim/date",        xplmType_Int,   {DataRefs::LTGetSimDateTime}, {DataRefs::LTSetSimDateTime}, (void*)1, false },
-    {"livetraffic/sim/time",        xplmType_Int,   {DataRefs::LTGetSimDateTime}, {DataRefs::LTSetSimDateTime}, (void*)2, false },
-    {"livetraffic/cfg/aircrafts_displayed",         xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetAircraftsDisplayed}, GET_VAR, false },
-    {"livetraffic/cfg/auto_start",                  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/labels",                      xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/log_level",                   xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetLogLevel}, GET_VAR, true },
-    {"livetraffic/cfg/use_historic_data",           xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetUseHistData}, GET_VAR, true },
-    {"livetraffic/cfg/max_num_ac",                  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/max_full_num_ac",             xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/full_distance",               xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/fd_std_distance",             xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/fd_refresh_intvl",            xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/fd_buf_period",               xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/cfg/ac_outdated_intvl",           xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetCfgValue}, GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/online",    xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/historic",  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/open_sky/online",         xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/open_sky/ac_masterdata",  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/channel/futuredatachn/online",    xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, false },
-    {"livetraffic/dbg/ac_filter",                   xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetDebugAcFilter}, GET_VAR, true },
-    {"livetraffic/dbg/ac_pos",                      xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
-    {"livetraffic/dbg/log_raw_fd",                  xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, false },
-    {"livetraffic/dbg/model_matching",              xplmType_Int,   {DataRefs::LTGetInt}, {DataRefs::LTSetBool}, GET_VAR, true },
+    {"livetraffic/ac/key",                          DataRefs::LTGetAcInfoI, DataRefs::LTSetAcKey,   (void*)DR_AC_KEY, false },
+    {"livetraffic/ac/num",                          DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_NUM, false },
+    {"livetraffic/ac/on_gnd",                       DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_ON_GND, false },
+    {"livetraffic/ac/phase",                        DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_PHASE, false },
+    {"livetraffic/ac/lat",                          DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_LAT, false },
+    {"livetraffic/ac/lon",                          DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_LON, false },
+    {"livetraffic/ac/alt",                          DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_ALT, false },
+    {"livetraffic/ac/heading",                      DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_HEADING, false },
+    {"livetraffic/ac/roll",                         DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_ROLL, false },
+    {"livetraffic/ac/pitch",                        DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_PITCH, false },
+    {"livetraffic/ac/speed",                        DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_SPEED, false },
+    {"livetraffic/ac/vsi",                          DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_VSI, false },
+    {"livetraffic/ac/terrain_alt",                  DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_TERRAIN_ALT, false },
+    {"livetraffic/ac/height",                       DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_HEIGHT, false },
+    {"livetraffic/ac/flaps",                        DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_FLAPS, false },
+    {"livetraffic/ac/gear",                         DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_GEAR, false },
+    {"livetraffic/ac/lights/beacon",                DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_BEACON, false },
+    {"livetraffic/ac/lights/strobe",                DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_STROBE, false },
+    {"livetraffic/ac/lights/nav",                   DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_NAV, false },
+    {"livetraffic/ac/lights/landing",               DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_LANDING, false },
+    {"livetraffic/ac/bearing",                      DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_BEARING, false },
+    {"livetraffic/ac/dist",                         DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_DIST, false },
+    {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)1, false },
+    {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
+    {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
+    {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
+    {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, true },
+    {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/max_full_num_ac",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/full_distance",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, true },
+    {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
 };
 
 static_assert(sizeof(DATA_REFS_LT)/sizeof(DATA_REFS_LT[0]) == CNT_DATAREFS_LT,
@@ -303,7 +303,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
                     for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
                         XPLMSendMessageToPlugin(PluginID,
                                                 MSG_ADD_DATAREF,
-                                                (void*)def.dataName.c_str());
+                                                (void*)def.getDataName());
                 }
             }
             // next: Auto Start, but wait another 2 seconds for that
@@ -474,13 +474,13 @@ bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
         
         // look up _and update_ refCon first if required
         // (can look up variable addresses only when object is known but not at compile time in definition of DATA_REFS_LT)
-        if (def.refCon == GET_VAR)
-            def.refCon = getVarAddr(eDataRef);
+        if (def.getRefCon() == GET_VAR)
+            def.setRefCon(getVarAddr(eDataRef));
         
         // register data accessor
         if ( (adrLT[i] =
-              XPLMRegisterDataAccessor(def.dataName.c_str(),    // inDataName
-                                       def.dataType,            // inDataType
+              XPLMRegisterDataAccessor(def.getDataName(),       // inDataName
+                                       def.getDataType(),       // inDataType
                                        def.isWriteable(),       // inIsWritable
                                        def.getDatai_f(),        // int
                                        def.setDatai_f(),
@@ -490,10 +490,10 @@ bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
                                        NULL,NULL,               // int array
                                        NULL,NULL,               // float array
                                        NULL,NULL,               // data
-                                       def.refCon,              // read refCon
-                                       def.refCon               // write refCon
+                                       def.getRefCon(),         // read refCon
+                                       def.getRefCon()          // write refCon
                                        )) == NULL )
-        { LOG_MSG(logERR,ERR_DATAREF_ACCESSOR,def.dataName.c_str()); bRet = false; }
+        { LOG_MSG(logERR,ERR_DATAREF_ACCESSOR,def.getDataName()); bRet = false; }
     }
     return bRet;
 }
@@ -968,20 +968,20 @@ std::string DataRefs::GetDirSeparatorMP()
 // get the actual current value (by calling the getData?_f function)
 int DataRefs::dataRefDefinitionT::getDatai () const
 {
-    if (dataType != xplmType_Int || std::get<XPLMGetDatai_f>(fRead) == NULL)
+    if (dataType != xplmType_Int || ifRead == NULL)
         return 0;
 
     LOG_ASSERT(refCon != GET_VAR);
-    return std::get<XPLMGetDatai_f>(fRead)(refCon);
+    return (ifRead)(refCon);
 }
 
 float DataRefs::dataRefDefinitionT::getDataf () const
 {
-    if (dataType != xplmType_Float || std::get<XPLMGetDataf_f>(fRead) == NULL)
+    if (dataType != xplmType_Float || ffRead == NULL)
         return NAN;
 
     LOG_ASSERT(refCon != GET_VAR);
-    return std::get<XPLMGetDataf_f>(fRead)(refCon);
+    return (ffRead)(refCon);
 }
 
 
@@ -1010,17 +1010,17 @@ std::string DataRefs::dataRefDefinitionT::GetConfigString() const
 // write values to the dataRef
 void DataRefs::dataRefDefinitionT::setData (int i)
 {
-    if (dataType == xplmType_Int && std::get<XPLMSetDatai_f>(fWrite) != NULL) {
+    if (dataType == xplmType_Int && ifWrite != NULL) {
         LOG_ASSERT(refCon != GET_VAR);
-		std::get<XPLMSetDatai_f>(fWrite) (refCon, i);
+		(ifWrite) (refCon, i);
     }
 }
 
 void DataRefs::dataRefDefinitionT::setData (float f)
 {
-    if (dataType == xplmType_Float && std::get<XPLMSetDataf_f>(fWrite) != NULL) {
+    if (dataType == xplmType_Float && ffWrite != NULL) {
         LOG_ASSERT(refCon != GET_VAR);
-		std::get<XPLMSetDataf_f>(fWrite) (refCon, f);
+		(ffWrite) (refCon, f);
     }
 }
 
@@ -1115,9 +1115,9 @@ bool DataRefs::LoadConfigFile()
             dataRefDefinitionT* i = std::find_if(std::begin(DATA_REFS_LT),
                                                  std::end(DATA_REFS_LT),
                                                  [&](const DataRefs::dataRefDefinitionT& def)
-                                                 { return def.dataName == sDataRef; } );
+                                                 { return def.getDataNameStr() == sDataRef; } );
             if ( i != nullptr && i != std::cend(DATA_REFS_LT) &&
-                 i->bCfgFile) {         // and it is a configurable one
+                 i->isCfgFile()) {         // and it is a configurable one
                 // *** valid config entry, now process it ***
                 i->setData(sVal);
             }
@@ -1178,7 +1178,7 @@ bool DataRefs::SaveConfigFile()
     
     // loop over our LiveTraffic values and store those meant to be stored
     for (const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT)
-        if (def.bCfgFile)                   // only for values which are to be saved
+        if (def.isCfgFile())                   // only for values which are to be saved
             fOut << def.GetConfigString() << '\n';
     
     // some error checking towards the end
