@@ -109,12 +109,13 @@ public:
         std::string     acTypeIcao;     // XPMP API: "ICAOCode" as the aircraft type    DH8D
         std::string     man;            // aircraft manufacturer                        Bombardier
         std::string     mdl;            // aircraft model (long text)                   Bombardier DHC-8 402
-        int             year;           // year built                                   2008
-        bool            mil;            // military?                                    false
-        transpTy        trt;            // transponder type                             ADS_B_unknown=2
+        int             year = 0;       // year built                                   2008
+        bool            mil  = false;   // military?                                    false
+        transpTy        trt  = trt_Unknown; // transponder type                             ADS_B_unknown=2
         
         // more aircraft info
-        const Doc8643*  pDoc8643;
+        const Doc8643*  pDoc8643 = NULL;
+        bool            bInit    = false;   // has been initialized at least once?
 
         // flight details
         std::string     call;           // Call sign          EWG8AY
@@ -126,7 +127,7 @@ public:
         std::string     op;             // operator                                     Air Berlin
         std::string     opIcao;         // XPMP API: "Airline"                          BER
     public:
-        FDStaticData();
+        FDStaticData() {}
         // default move/copy constructor/operators
         FDStaticData(const FDStaticData&) = default;
         FDStaticData(FDStaticData&&) = default;
@@ -134,12 +135,15 @@ public:
         FDStaticData& operator=(FDStaticData&&) = default;
         // 'merge' data, i.e. copy only filled fields from 'other'
         FDStaticData& operator |= (const FDStaticData& other);
-        // static data not yet properly filled?? (need acType and some operator info)
-        inline bool empty() const { return acTypeIcao.empty() || (opIcao.empty() && op.empty()); }
         // route (this is "originAp-destAp", but considers empty txt)
         std::string route() const;
         // flight + route (this is "flight: originAp-destAp", but considers empty txt)
         std::string flightRoute() const;
+        // has been initialized at least once?
+        bool isInit() const { return bInit; }
+        // manufacturer / model: primary source doc8643, but local data if doc8643 unavail
+        std::string getMan() const;
+        std::string getMdl() const;
     };
     
     // KEY (protected, can be set only once, no mutex-control)
@@ -266,7 +270,7 @@ public:
     inline int GetRcvr() const { return rcvr; }
     
     // access static data
-    void UpdateData ( const FDStaticData& inStat );
+    void UpdateData ( const FDStaticData& inStat, bool bFullInit );
     bool TryGetSafeCopy ( FDStaticData& outStat ) const;
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!

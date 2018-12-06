@@ -383,17 +383,14 @@ void ACIWnd::UpdateStatValues()
         
         // set static values (we consider the callsign static...)
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_REG], stat.reg.c_str());
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_ICAO], stat.acTypeIcao.c_str());
-        if (stat.pDoc8643) {
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_CLASS], stat.pDoc8643->classification.c_str());
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], stat.pDoc8643->manufacturer.c_str());
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.pDoc8643->model,20).c_str());
-        } else {
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_CLASS], "-");
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], stat.man.c_str());
-            XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.mdl,20).c_str());
-        }
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], strAtMost(stat.opIcao + " " + stat.op,20).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_ICAO],
+                              stat.acTypeIcao.empty() ? "?" : stat.acTypeIcao.c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_CLASS],
+                              stat.pDoc8643 ?
+                              stat.pDoc8643->classification.c_str() : "-");
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], strAtMost(stat.getMan(),25).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.getMdl(),25).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], strAtMost(stat.opIcao + " " + stat.op,25).c_str());
 
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], stat.call.c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_FLIGHT_ROUTE], stat.flightRoute().c_str());

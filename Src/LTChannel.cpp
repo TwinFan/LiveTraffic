@@ -144,7 +144,7 @@ bool LTACMasterdataChannel::UpdateStaticData (std::string keyAc,
             return false;                   // not found
         
         // do the actual update
-        fdIter->second.UpdateData(dat);
+        fdIter->second.UpdateData(dat, true);
         return true;
         
     } catch(const std::system_error& e) {
@@ -440,11 +440,11 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.call    =    jag_s(pJAc, OPSKY_CALL);
                 while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
                     stat.call.pop_back();
-                fd.UpdateData(std::move(stat));
+                fd.UpdateData(std::move(stat), false);
                 
                 // openSky doesn't deliver a/c master data with the flight data stream
                 // so fetch the master data afterwards
-                if ( fd.GetUnsafeStat().empty() )
+                if ( !fd.GetUnsafeStat().isInit() )
                     push_back_unique<listStringTy, listStringTy::value_type>(listAcStatUpdate,transpIcao);
             }
             
@@ -579,7 +579,10 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.op =         jog_s(pJAc, ADSBEX_OP);
                 stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                fd.UpdateData(std::move(stat));
+                // update the a/c's master data
+                if ( stat.acTypeIcao.empty() )
+                    LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+                fd.UpdateData(std::move(stat), true);
             }
             
             // dynamic data
@@ -966,9 +969,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( fd.empty() )
                     fd.SetKey(transpIcao);
                 
-                // fill static data if they are still empy
-                // (a/c could have been created by a stream with no static data)
-                if ( fd.WaitForSafeCopyStat().empty() )
+                // fill static
                 {
                     LTFlightData::FDStaticData stat;
                     stat.reg =        jog_s(pJAc, ADSBEX_REG);
@@ -982,7 +983,10 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.op =         jog_s(pJAc, ADSBEX_OP);
                     stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                     stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                    fd.UpdateData(std::move(stat));
+                    // update the a/c's master data
+                    if ( stat.acTypeIcao.empty() )
+                        LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+                    fd.UpdateData(std::move(stat), true);
                 }
                 
                 // dynamic data
@@ -1247,7 +1251,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
 // returns the openSky a/c master data URL per a/c
 std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 {
-    return std::string(OPSKY_MD_URL) + currKey;
+	    return std::string(OPSKY_MD_URL) + currKey;
 }
 
 // process each master data line read from OpenSky
@@ -1287,13 +1291,10 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
         statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
         statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
         
-        // update the a/c's master data if this one's valid
-        if ( !statDat.empty() )
-            UpdateStaticData(transpIcao, statDat);
-        else {
+        // update the a/c's master data
+        if ( statDat.acTypeIcao.empty() )
             LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
-            invIcaos.emplace_back(std::move(transpIcao));
-        }
+        UpdateStaticData(transpIcao, statDat);
     }
     
     // we've processed all data, clear it and return success
@@ -1353,7 +1354,10 @@ void LTFlightDataDisable()
 }
 
 void LTFlightDataStop()
-{}
+{
+    // cleanup global CURL stuff
+    curl_global_cleanup();
+}
 
 //
 //MARK: Show/Select Aircrafts / Thread Control

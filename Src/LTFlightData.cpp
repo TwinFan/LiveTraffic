@@ -54,11 +54,6 @@ pChannel(nullptr)
     radar.mode = xpmpTransponderMode_ModeC;
 }
 
-LTFlightData::FDStaticData::FDStaticData () :
-trt(trt_Unknown),                       // communication
-year(0), mil(false)                     // aircraft details
-{}
-
 LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDStaticData& other)
 {
     // copy filled, and only filled data over current data
@@ -119,6 +114,16 @@ std::string LTFlightData::FDStaticData::flightRoute() const
     
     // we have both...put it together
     return (flight + ": ") + r;
+}
+
+std::string LTFlightData::FDStaticData::getMan() const
+{
+    return pDoc8643 && !pDoc8643->manufacturer.empty() ? pDoc8643->manufacturer : man;
+}
+
+std::string LTFlightData::FDStaticData::getMdl() const
+{
+    return pDoc8643 && !pDoc8643->model.empty() ? pDoc8643->model : mdl;
 }
 
 //
@@ -1130,7 +1135,8 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
 //
 
 // update static data
-void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
+void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
+                               bool bFullInit)
 {
     try {
         // access guarded by a mutex
@@ -1138,6 +1144,8 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
         
         // merge inStat into our statData (copy only filled fields):
         statData |= inStat;
+        if (bFullInit)
+            statData.bInit = true;
         
         // update the static parts of the label
         UpdateStaticLabel();
