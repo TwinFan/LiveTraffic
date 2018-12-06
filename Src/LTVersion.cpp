@@ -97,6 +97,10 @@ bool InitFullVersion ()
     buildDate[3]=0;                                     // separate elements
     buildDate[6]=0;
     
+    // if day's first digit is space make it a '0', ie. change ' 5' to '05'
+    if (buildDate[4] == ' ')
+        buildDate[4] = '0';
+    
     snprintf(LT_VERSION_FULL, sizeof(LT_VERSION_FULL), "%s.%s%s%s",
              LT_VERSION,
              // year (last 2 digits)

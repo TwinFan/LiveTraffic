@@ -11,6 +11,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "::XPluginStart(char *, char *, char *):LiveTraffic.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -162,6 +165,14 @@
          <PersistentStrings>
             <PersistentString
                value = "sDataRef">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTFindCSLDirectories(std::__1::list&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, std::__1::allocator&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt; &gt;&amp;):LTMain.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "dataRefs">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -379,6 +390,9 @@
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTMainInit():LTMain.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightDataSelectAc():LTChannel.cpp">
          <PersistentStrings>
             <PersistentString
@@ -403,6 +417,14 @@
       </ContextState>
       <ContextState
          contextName = "positionTy::operator|=(positionTy const&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "OpenSkyAcMasterdata::GetURL(positionTy const&amp;):LTChannel.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "currKey">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "ADSBExchangeHistorical::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">

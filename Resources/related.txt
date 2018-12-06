@@ -1,0 +1,200 @@
+; This file specifies aircraft equipment types that are very similar to one another
+;
+;
+; Semicolons for comments
+; Whitespace ignored
+; Each line contains a group of whitespace delimited equipment codes that are visually similar.
+; No equipment code can occur in the file more than once.
+
+; Jet 4 engine
+;
+; Airbus A340 series
+;
+A342 A343 A345 A346
+
+; Avro / BAe 146 series 4 engine "Jumbolino" jet
+;
+B461 B462 B463 RJ1H RJ70 RJ85
+
+; Boeing 707 series
+;
+B701 B703 B720 K35A K35E K35R
+
+; Boeing 747 series
+;
+B741 B742 B743 B744 B74D B74R B74S BSCA B748
+
+; Convair Jetliners
+;
+_CV8 CV99
+
+; DC-8 series
+;
+DC85 DC86 DC87
+
+; Ilyushin
+;
+IL86 IL96
+
+
+; Jet 3 engine
+;
+; Boeing 727 series & Tupolev
+;
+B721 B722 T154
+
+; DC-10 / MD-11 Series
+;
+DC10 MD11
+
+
+; Jet 2 engine
+;
+; Airbus A300 series
+;
+A306 A30B
+
+; Airbus A320 series
+;
+A318 A319 A320 A321 A19N A20N A21N
+
+; Airbus A330 series
+;
+A332 A333
+
+; Airbus A350 series
+A358 A359 A35K
+
+; Boeing 737 series
+;
+B731 B732 B733 B734 B735 B736 B737 B738 B739
+
+; Boeing 757 series
+;
+B752 B753 T204
+
+; Boeing 767 series
+;
+B762 B763 B764
+
+; Boeing 777 series
+;
+B772 B77L B773 B77W B778 B779
+
+; Boeing 787 series
+B788 B789 B78X
+
+; DC-9 series
+;
+DC91 DC92 DC93 DC94 DC95 T134 S210
+
+; MD-80/MD-90 series
+;
+MD81 MD82 MD83 MD87 MD88 MD90 B712
+
+
+; Regional Jets
+;
+; Canadair & Embraer
+;
+CRJ1 CRJ2 CRJ7 CRJ9
+
+; Fokker, BAC, Gulfstream
+;
+F28 F70 F100 BA11 GL5T GLEX
+
+; Business Jets
+;
+; Learjet, Gulfstream, Citation
+;
+BE40 C25A C25B C500 C501 C525 C526 C550 C551 C560 C56X C650 C680 C750 CL30 G150 G159 GALX GLF2 GLF3 GLF4 GLF5 LJ45
+
+; Commuters
+;
+; BAe Jetstream Series
+;
+JS31 JS32 JS41
+
+; Fokker Props
+;
+F27 F50 F60
+
+; ATR props
+;
+AT43 AT44 AT45 AT72 D328
+
+; Embraer, Gulf, Saab, Mitsubishi Turboprops
+;
+E120 G159 SB20 SF34 YS11
+
+; Small Props
+;
+; Cessna 1-mot
+;
+C120 C140 C150 C152 C170 C172 C175 C177 C180 C182 C185 C188 C190 C195 C205 C206 C207 C208 C210 C72R C82R C77R CMAS
+
+;
+; Dash-8 (DH8) family
+;
+DH8A DH8B DH8C DH8D
+
+; Beavers and Otters
+;
+DH2T DH3T DHC2 DHC3 DHC6
+
+; Maule
+;
+M4 M5 M6 M7 M7T M8
+
+; Mooney 1-mot
+;
+M20T M20P
+
+; Piper 1-mot
+;
+P28A P28B P28R P28T P32R P32T P46T PA24 PA25 PA32 PA36 PA46 PILL S108
+
+; GA 1-mot tail dragger
+;
+BL8 BL17 B14A BE33 BE35 BE36 J2 J3 J4 J5 PA11 PA12 PA14 PA15 PA16 PA17 PA18 PA20 PA22 SF23
+
+; Biplane
+;
+BIPL CAML G164 G64T PTMS PTS1 PTS2 PTSS
+
+; Motorized Sailplanes / Gliders
+;
+; Diamond Aircraft
+;
+DA40 DIMO DV20 DG40 DG50 DG60 DG80 DISC JANU NIMB VENT LS9 GLID HU1 HU2 PA38 SF24 SF25
+
+; TwinProps
+;
+; Beech King Air Series
+;
+B18T B190 B350 BE10 BE18 BE20 BE30 BE50 BE55 BE56 BE58 BE60 BE65 BE70 BE76 BE80 BE88 BE95 BE99 BE9L BE9T
+
+; Cessna
+;
+C02T C04T C14T C21T C303 C310 C320 C340 C402 C404 C411 C414 C421 C425 C441 F406 GA7 T50
+
+; Cessna Push / Pull
+;
+C335 C336 C337 P337
+
+; Diamond
+;
+DA42 DA50 DA62
+
+; Piper
+;
+AEST PA23 PA27 PA30 PA31 PA34 PA44 PAT4 PAY1 PAY2 PAY3 PAY4
+
+; Helicopters
+;
+A109 A119 A129 ALH ALO2 ALO3 ANST AS32 AS50 AS55 AS65 B06 B06T B105 B209 B212 B214 B230 B305 B407 B412 B427 B430 B47G B47J B47T BABY BK17 BRB2 BSTP CH7 COMU DJIN DRAG EC20 EC20 EC25 EC30 EC35 EC45 EC55 EH10 ELTO EN28 EN48 EXEC EXPL FH11 FREL GAZL GYRO H12T H2 H21 H269 H43A H43B H46 H47 H500 H53 H53S H60 H64 H66 HUCO IS2 JAG2 K126 K226 KA25 KA27 KA50 KA52 KA62 KH4 KMAX LAMA LR2T LYNX M34V M74 MD52 MD60 MH20 MI10 MI14 MI2 MI24 MI26 MI28 MI34 MI38 MI4 MI6 MI8 NA40 NH90 OH1 PHIL PSW4 PUMA R22 R4 R44 RMOU RP1 RVAL S330 S360 S51 S52 S55 S55P S55T S58 S58P S58T S61 S61R S62 S64 S65 S65C S76 S92 SCOR SCOU SH4 SUCO SYCA TIGR UH1 UH12 ULTS V500 W3 WASP WESX WG30
+
+; ### added by TwinFan ###
+
+; Embraer 170/175
+E170 E75S E75L

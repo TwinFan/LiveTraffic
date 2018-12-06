@@ -99,7 +99,7 @@ float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log le
     {1.00f, 1.00f, 1.00f},              // INFO (white)
     {1.00f, 1.00f, 0.00f},              // WARN (yellow)
     {1.00f, 0.00f, 0.00f},              // ERROR (red)
-    {0.63f, 0.13f, 0.94f},              // FATAL (purple)
+    {1.00f, 0.54f, 0.83f},              // FATAL (purple, FF8AD4)
     {1.00f, 1.00f, 1.00f}               // MSG (white)
 };
 

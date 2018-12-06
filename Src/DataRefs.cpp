@@ -79,15 +79,11 @@ bool Doc8643::ReadDoc8643File ()
     mapDoc8643.clear();
     
     // Put together path to Doc8643.txt
-    std::string path (LTFindResourcesDirectory());
-    if (path.empty())
-        return false;
+    std::string path (LTCalcFullPluginPath(PATH_DOC8643_TXT));
 #ifdef APL
     // Mac: convert to Posix
     LTHFS2Posix(path);
 #endif
-    path += dataRefs.GetDirSeparatorMP();
-    path += LTPathToLocal(FILE_DOC8643_TXT,true);
     
     // open the file for reading
     std::ifstream fIn (path);
@@ -912,6 +908,12 @@ bool DataRefs::SetCfgValue (void* p, int val)
         *reinterpret_cast<int*>(p) = oldVal;
         return false;
     }
+    
+    // Tell XPMP if we need labels
+    if (labelCfg.i > 0)
+        XPMPEnableAircraftLabels();
+    else
+        XPMPDisableAircraftLabels();
     
     // success
     return true;

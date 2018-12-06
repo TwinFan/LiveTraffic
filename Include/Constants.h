@@ -80,6 +80,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircrafts based on live traffic."
 #define MSG_DISABLED            "Disabled"
+#define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
@@ -103,18 +104,21 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 
 //MARK: File Paths
-#define PATH_RESOURCES_LT       "Resources"         // this is under the plugins directory
-#define PATH_RESOURCES_XSB      "Resources/plugins/XSquawkBox/Resources"    // this is under X-Planes's system directory
+#define FILE_RESOURCES          "Resources"     // actually folders, but XPLMGetDirectoryContents doesn't distinguish
+#define FILE_CSL                "CSL"
+// these are under the plugins directory
+#define PATH_FLIGHT_MODELS      "Resources/FlightModels.prf"
+#define PATH_RELATED_TXT        "Resources/related.txt"
+#define PATH_LIGHTS_PNG         "Resources/lights.png"
+#define PATH_DOC8643_TXT        "Resources/Doc8643.txt"
+// these are under X-Plane's root dir
+#define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
+#define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
-#define PATH_FLIGHT_MODELS      "FlightModels.prf"  // this is under the plugins directory
-#define PATH_DEBUG_RAW_FD       "LTRawFD.log"
+
 #define PATH_STD_SEPARATOR      "/"             // the one used here in the constants
 #define PATH_HFS_SEPARATOR      ":"
 #define PATH_POSIX_SEPARATOR    "/"
-#define FILE_CSL                "CSL"           // actually a folder, but XPLMGetDirectoryContents doesn't distinguish
-#define FILE_RELATED_TXT        "related.txt"
-#define FILE_LIGHTS_PNG         "lights.png"
-#define FILE_DOC8643_TXT        "Doc8643.txt"
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
@@ -123,7 +127,8 @@ constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated error
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s) 
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
-#define ERR_ENABLE_XPMP         "Could not enable XPMPMultiplayer: %s"
+#define ERR_XPMP_ENABLE         "Could not enable XPMPMultiplayer: %s"
+#define ERR_XPMP_ADD_CSL        "Could not add additional CSL package: %s"
 #define ERR_APPEND_MENU_ITEM    "Could not append menu item"
 #define ERR_CREATE_MENU         "Could not create menu"
 #define ERR_CURL_INIT           "Could not initialize CURL: %s"
@@ -133,11 +138,11 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
-#define ERR_CH_INV_DATA         "%s: Ignoring invalid data for '%s'"
+#define ERR_CH_INV_DATA         "%s: Data for '%s' lacks ICAO a/c type code, will be rendered with standard a/c " CSL_DEFAULT_ICAO
 #define ERR_DATAREF_FIND        "Could not find DataRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
 #define ERR_DIR_CONTENT         "Could not retrieve directory content for %s"
-#define ERR_RES_NOT_FOUND       "Did not find resources (CSL directory, related.txt, Doc8643.txt, lights.png) in:"
+#define ERR_RES_CSL_NOT_FOUND   "Did not find any Resources/CSL directory in _any_ plugin directory under %s"
 #define ERR_JSON_PARSE          "Parsing flight data as JSON failed"
 #define ERR_JSON_MAIN_OBJECT    "JSON: Getting main object failed"
 #define ERR_JSON_ACLIST         "JSON: List of aircrafts (%s) not found"

@@ -142,6 +142,9 @@ PLUGIN_API int XPluginStart(
      strcpy_s(outName, 255, LIVE_TRAFFIC);
      strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
      strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
+    
+    // tell the world we are trying to start up
+    LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
 
     // init DataRefs
     if (!dataRefs.Init()) return 0;
