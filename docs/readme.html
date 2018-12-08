@@ -25,6 +25,41 @@
     <h2>Release Notes</h2>
     
         <p>The number-link refers to the issue in GitHub with (technical) details.</p>
+        
+        <h3>v0.82.20181209</h3>
+        
+        <P>This version does not solve any issue completely but lays the
+        foundation to do so with the next version.</P>
+        
+        <ul>
+            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/38">#38 (still open)</a>
+                Reorganized Resources directory, <b>now also includes FlightModels.prf</b>,
+                comes completely with the LT package.
+            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
+                Identify, log, accept a/c master data without ICAO type code,
+                but will still be rendered as A320.
+            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42 (still open)</a>
+                Started to change how LT looks for CSL directories. Will
+                become a config option. Location will now default to
+                <code>LiveTraffic/Resources/CSL</code> <b>only</b>,
+                but additional places can be added.<br>
+                At the moment adding is
+                only possible by adding lines to <code>Output/preferences/LiveTraffic.prf</code>
+                (start/stop the new version once so that LT writes the
+                first path to the end of the file, edit file only when
+                X-Plane is off.)<br>
+                My file currently ends like this to also include XSquawkBox resources for testing purposes:<BR>
+                <code>[CSLPaths]<br>
+                    1|Resources/plugins/LiveTraffic/Resources/CSL<br>
+                    1|Resources/plugins/XSquawkBox/Resources/CSL<br></code>
+                Paths are relative to X-Plane dir. (Theoretically you could
+                specify full paths beginning with / or drive letter...but I
+                have not yet tested that.)<br>
+                The <code>1</code> in the beginning means 'enabled'.
+                Guess what 'disabled' means...<br>
+                New tab in the settings window yet to come so that later
+                nobody needs to fiddle with the preferences file.
+        </ul>
     
         <h3>v0.81.20181202</h3>
         <ul>
@@ -50,15 +85,6 @@
 
     <h2>Essential Installation</h2>
     
-        <P>
-            The simplest way to get it up and running is as follows.
-            If you have XSquawkBox already and want to run both plugins in
-            parallel please refer to the comprehensive
-            <a href="https://twinfan.gitbook.io/livetraffic/installation">
-                installation instructions
-            </a>.
-        </P>
-
         <h3>LiveTraffic plugin</h3>
 
             <P>
@@ -66,28 +92,25 @@
                 <code>Resources/plugins</code> folder, the same as with other plugins.
             </P>
 
-        <h3>XSquawkBox</h3>
+        <h3>CSL Packages</h3>
 
             <P>
-                Download from <a href="">here</a>, unzip, and move the entire
-                <code>XSquawkBox</code> folder under X-Plane's
-                <code>Resources/plugins</code> folder, i.e. parallel to
-                LiveTraffic.
-                
-                No further configuration is necessary for the purposes of LiveTraffic.
+                You must install CSL packages, otherwise there will be no
+                aircraft models to display and LiveTraffic will fail to
+                start up.
             </P>
 
+            <P>
+                Recommended are the "Bluebell" OBJ8 CSL packages found
+                at the <a href="https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/">X-Plane.org forums</a>.
+                Follow their instructions. Also download and install the
+                <code>BB_IVAO_vert_offsets_*</code> files in the downloads as recommended
+                for the X-IvAp users. LiveTraffic can handle them, too.
+            </P>
 
             <P>
-                The LiveTraffic installation archive contains one file
-                <code>LiveTraffic/Resources/related.txt</code>, which is a
-                minimal enhanced version of the one which comes with the
-                XSquawkBox package and is supposed to be a drop-in replacement.
-                It matches the A320 Neo with the A320 model
-                and the Empbraer 175 with the 170 models, which otherwise
-                would be displayed with an A320 model as that is the default
-                in case of no match. Copy it over the existing version in
-                <code>XSquawkBox/Resources</code>.
+                Place the CSL packages into
+                <code>Resources/plugins/LiveTraffic/Resources/CSL</code>.
             </P>
             
         <h3>Resulting Directory Structure</h3>
@@ -96,22 +119,14 @@
 
             <P>
                 <code>LiveTraffic/</code><br>
-                <code>LiveTraffic/FlightModels.prf</code><br>
                 <code>LiveTraffic/64/</code><br>
                 <code>LiveTraffic/64/mac.xpl</code><br>
                 <code>LiveTraffic/64/win.xpl</code><br>
-                <br>
-                <code>XSquawkBox/32/...</code><br>
-                <code>XSquawkBox/64/...</code><br>
-                <code>XSquawkBox/Docs/...</code><br>
-                <code>XSquawkBox/Resources/</code><br>
-                <code>XSquawkBox/Resources/Doc8643.txt</code><br>
-                <code>XSquawkBox/Resources/csl_legacy.csv</code><br>
-                <code>XSquawkBox/Resources/lights.png</code><br>
-                <code>XSquawkBox/Resources/related.txt</code><br>
-                <code>XSquawkBox/Resources/liveries.txt</code><br>
-                <code>XSquawkBox/Resources/airlines.txt</code><br>
-                <code>XSquawkBox/Resources/CSL/...</code>
+                <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
+                <code>LiveTraffic/Resources/Doc8643.txt</code><br>
+                <code>LiveTraffic/Resources/FlightModels.prf</code><br>
+                <code>LiveTraffic/Resources/lights.png</code><br>
+                <code>LiveTraffic/Resources/related.txt</code><br>
             </P>
 
   </body>
