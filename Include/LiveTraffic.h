@@ -114,17 +114,19 @@ std::string& LTHFS2Posix ( std::string& path );
 // if necessary exchange the directory separator from / to a local one.
 // (works only well on partial paths as defined in Constants.h!)
 std::string LTPathToLocal ( const char* p, bool bXPMPStyle );
+// ...and back from system separator to /
+std::string LTPathToStd ( std::string path );
 
 // deal with paths: make a full one from a relative one or keep a full path
 std::string LTCalcFullPath ( const char* path, bool bXPMPStyle = false );
 std::string LTCalcFullPluginPath ( const char* path, bool bXPMPStyle = false );
 
+// if path starts with the XP system path it is removed
+std::string LTRemoveXPSystemPath (std::string path, bool bToStd);
+
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
 int LTNumFilesInPath ( const char* path );
-
-// return the directory containing resources like Doc8643.txt and CSLs
-std::string LTFindResourcesDirectory ();
 
 // MARK: Utility Functions
 // change a std::string to uppercase
@@ -143,6 +145,15 @@ void push_back_unique(ContainerT& list, const T& key)
 {
     if ( std::find(list.cbegin(),list.cend(),key) == list.cend() )
         list.push_back(key);
+}
+
+// verifies if one container begins with the same content as the other
+// https://stackoverflow.com/questions/931827/stdstring-comparison-check-whether-string-begins-with-another-string
+template<class TContainer>
+bool begins_with(const TContainer& input, const TContainer& match)
+{
+    return input.size() >= match.size()
+    && std::equal(match.cbegin(), match.cend(), input.cbegin());
 }
 
 // MARK: Compiler differences

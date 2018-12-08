@@ -441,7 +441,17 @@ bool DataRefs::Init ()
     XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
     
     // read configuration file if any
-    return LoadConfigFile();
+    if (!LoadConfigFile())
+        return false;
+    
+    // if there's no CSL path yet then add as a default the one to our own plugin dir
+    if (vCSLPaths.empty()) {
+        // ...but only store the part relative to XP's system dir
+        std::string path ( LTRemoveXPSystemPath(LTCalcFullPluginPath(PATH_RESOURCES_CSL), true));
+        vCSLPaths.emplace_back(true, std::move(path));
+    }
+    
+    return true;
 }
 
 // Unregister (destructor would be too late for reasonable API calls)
@@ -1057,11 +1067,7 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
 bool DataRefs::LoadConfigFile()
 {
     // open a config file
-    std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
-#ifdef APL
-    // Mac: convert to Posix
-    LTHFS2Posix(sFileName);
-#endif
+    std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE, true));
     std::ifstream fIn (sFileName);
     if (!fIn) {
         // if there is no config file just return...that's no problem, we use defaults
@@ -1090,13 +1096,18 @@ bool DataRefs::LoadConfigFile()
     // then follow the config entries
     // supposingly they are just 'dataRef <space> value',
     // but to prevent misuse we certainly validate that we support
-    // those dataRefs:
+    // those dataRefs.
+    // The file could end with a [CSLPaths] section, too.
     int errCnt = 0;
     while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN) {
         // read dataRef name and supposed value
         sDataRef.clear();
         sVal.clear();
         fIn >> sDataRef >> sVal;
+        
+        // also break out of loop if reading [CSLPaths]
+        if (sDataRef == CFG_CSL_SECTION)
+            break;
         
         // next char should be a line's end, otherwise we are off somehow
         if (fIn.peek() != '\n' && fIn.peek() != EOF) {
@@ -1142,6 +1153,38 @@ bool DataRefs::LoadConfigFile()
                  sFileName.c_str(), sErr);
         return false;
     }
+    
+    // maybe there's a [CSLPath] section?
+    if (sDataRef == CFG_CSL_SECTION && errCnt <= ERR_CFG_FILE_MAXWARN) {
+        // then the first path is already in sVal... ;)
+        
+        // loop until EOF
+        do {
+            // skip empty lines without warning
+            if (sVal.empty())
+                continue;
+            
+            // line has to start with 0 or 1 and | to separate "enabled?" from path
+            if ( sVal.size() < 4 ||
+                 (sVal[0] != '0' && sVal[0] != '1') ||
+                sVal[1] != '|') {
+                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), sVal.c_str());
+                errCnt++;
+                continue;
+            }
+            
+            // enabled?
+            bool bEnabled = sVal[0] == '1';
+            sVal.erase(0, 2);               // remove enabled flag and pipe, remains: path
+            
+            // add the path to the list (unvalidated!)
+            vCSLPaths.emplace_back(bEnabled, std::move(sVal));
+            
+            // read the next line
+            fIn >> sVal;
+        }
+        while (fIn&& errCnt <= ERR_CFG_FILE_MAXWARN);
+    }
 
     // close file
     fIn.close();
@@ -1182,6 +1225,14 @@ bool DataRefs::SaveConfigFile()
     for (const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT)
         if (def.isCfgFile())                   // only for values which are to be saved
             fOut << def.GetConfigString() << '\n';
+    
+    // add section of CSL paths to the end
+    if (!vCSLPaths.empty()) {
+        fOut << CFG_CSL_SECTION << '\n';
+        for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
+            fOut << (cslPath.bEnabled ? "1|" : "0|") <<
+            LTRemoveXPSystemPath(cslPath.path, true) << '\n';
+    }
     
     // some error checking towards the end
     if (!fOut) {

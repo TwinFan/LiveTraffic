@@ -96,6 +96,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define CSL_DEFAULT_ICAO        "A320"
 #define FM_MAP_SECTION          "Map"
 #define FM_PARENT_SEPARATOR     ":"
+#define CFG_CSL_SECTION         "[CSLPaths]"
 
 //MARK: Menu Items
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
@@ -104,13 +105,12 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 
 //MARK: File Paths
-#define FILE_RESOURCES          "Resources"     // actually folders, but XPLMGetDirectoryContents doesn't distinguish
-#define FILE_CSL                "CSL"
 // these are under the plugins directory
 #define PATH_FLIGHT_MODELS      "Resources/FlightModels.prf"
 #define PATH_RELATED_TXT        "Resources/related.txt"
 #define PATH_LIGHTS_PNG         "Resources/lights.png"
 #define PATH_DOC8643_TXT        "Resources/Doc8643.txt"
+#define PATH_RESOURCES_CSL      "Resources/CSL"
 // these are under X-Plane's root dir
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
 #define PATH_RES_PLUGINS        "Resources/plugins"
@@ -171,6 +171,9 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_FILE_VALUE      "%s: Could not convert '%s' to a number: %s"
 #define ERR_CFG_FORMAT          "Format mismatch in '%s', line %d: %s"
 #define ERR_CFG_VAL_INVALID     "Value invalid in '%s', line %d: %s"
+#define ERR_CFG_CSL_INVALID     "CSL Path config invalid in '%s': '%s'"
+#define ERR_CFG_CSL_DISABLED    "CSL Path '%s' disabled, skipping"
+#define ERR_CFG_CSL_EMPTY       "CSL Path '%s' does not exist or is empty, skipping"
 #define ERR_FM_NOT_AFTER_MAP    "Remainder after [Map] section ignored"
 #define ERR_FM_NOT_BEFORE_SEC   "Lines before first section ignored"
 #define ERR_FM_UNKNOWN_NAME     "Unknown parameter in '%s', line %d: %s"

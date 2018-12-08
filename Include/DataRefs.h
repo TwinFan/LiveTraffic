@@ -245,6 +245,14 @@ public:
         int i;
     };
 
+    struct CSLPathCfgTy {           // represents a line in the [CSLPath] section of LiveTrafic.prg
+        bool        bEnabled = true;
+        std::string path;
+        
+        CSLPathCfgTy () {}
+        CSLPathCfgTy (bool b, std::string&& p) : bEnabled(b), path(std::move(p)) {}
+    };
+    typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     
 public:
     pluginStateTy pluginState = STATE_STOPPED;
@@ -282,6 +290,8 @@ protected:
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
+
+    vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -370,6 +380,8 @@ public:
     int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
     int GetFdBufPeriod() const { return fdBufPeriod; }
     int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
+    
+    const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
 
     // livetraffic/channel/...
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }

@@ -57,15 +57,20 @@ std::string LTPathToLocal ( const char* p, bool bXPMPStyle )
                        dataRefs.GetDirSeparatorMP() :
                        dataRefs.GetDirSeparator());
     
-    // if necessary exchange dir separator
-    if ( dataRefs.GetDirSeparator() != PATH_STD_SEPARATOR )
-    {
-        // replace all "/" with DirSeparator
-        for (std::string::size_type pos = path.find(PATH_STD_SEPARATOR);
-             pos != std::string::npos;
-             pos = path.find(PATH_STD_SEPARATOR))
-            path.replace(pos,1,dirSep);
-    }
+    // replace all "/" with DirSeparator
+    std::replace (path.begin(), path.end(),
+                  PATH_STD_SEPARATOR[0], dirSep[0]);
+
+    return path;
+}
+
+// ...and back from system separator to /
+std::string LTPathToStd ( std::string path )
+{
+    // replace all "/" with DirSeparator
+    std::replace (path.begin(), path.end(),
+                  dataRefs.GetDirSeparator()[0],
+                  PATH_STD_SEPARATOR[0]);
     return path;
 }
 
@@ -74,6 +79,10 @@ std::string LTPathToLocal ( const char* p, bool bXPMPStyle )
 std::string LTCalcFullPath ( const char* path, bool bXPMPStyle )
 {
     std::string ret;
+    
+    // starts already with system path? -> nothing to so
+    if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
+        return path;
     
     // starts with DirSeparator or [windows] second char is a colon?
     if (dataRefs.GetDirSeparator()[0] == path[0] ||
@@ -118,6 +127,19 @@ std::string LTCalcFullPluginPath ( const char* path, bool bXPMPStyle )
     return ret;
 }
 
+// if path starts with the XP system path it is removed
+std::string LTRemoveXPSystemPath (std::string path, bool bToStd)
+{
+    if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
+        path.erase(0, dataRefs.GetXPSystemPath().length());
+
+    // if requested return the to-standard version
+    if (bToStd)
+        return LTPathToStd(path);
+    else
+        return path;
+}
+
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
 int LTNumFilesInPath ( const char* path )
@@ -131,62 +153,6 @@ int LTNumFilesInPath ( const char* path )
     { LOG_MSG(logERR,ERR_DIR_CONTENT,path); }
     
     return iTotalFiles;
-}
-
-// finds 'plugins/.../Resources/CSL' directories, returns in XPMP style
-bool LTFindCSLDirectories (std::list<std::string>& lstCSLDirs)
-{
-    // nothing found yet
-    lstCSLDirs.clear();
-    
-    // Get plugins directories content
-    char aszFileNames[513] = "";
-    int iTotalFiles = 1;
-    
-    // looping plugin directories (we do it one directory at a time...
-    // not totally efficient, but OK for a one-time init)
-    const std::string pluginsPath(LTCalcFullPath(PATH_RES_PLUGINS));
-    for (int iCurrFile=0; iCurrFile < iTotalFiles; iCurrFile++) {
-        // read the next directory in the plugins diretocry
-        if ( !XPLMGetDirectoryContents(pluginsPath.c_str(),
-                                       iCurrFile,
-                                       aszFileNames, sizeof(aszFileNames),
-                                       NULL, 0,
-                                       &iTotalFiles, NULL))
-        { LOG_MSG(logERR,ERR_DIR_CONTENT,pluginsPath.c_str()); return false;}
-        
-        // nothing found, end?
-        if (!aszFileNames[0])
-            break;
-        
-        // check for a Resources directory there
-        std::string path (pluginsPath +
-                          dataRefs.GetDirSeparator() + aszFileNames +
-                          dataRefs.GetDirSeparator() + FILE_RESOURCES);
-        if ( LTNumFilesInPath(path.c_str()) > 0) {
-            // check for a CSL directory there
-            path += dataRefs.GetDirSeparator() +  FILE_CSL;
-            if ( LTNumFilesInPath( path.c_str()) > 0)
-            {
-                // found a Resources/CSL! Add it to the list of paths
-#if APL
-                // convert to Posix as expected by XPMP
-                LTHFS2Posix(path);
-#endif
-                lstCSLDirs.emplace_back(std::move(path));
-            }
-        }
-        
-    }
-    
-    // no path found??? Log error msg
-    if (lstCSLDirs.empty()) {
-        LOG_MSG(logFATAL,ERR_RES_CSL_NOT_FOUND,pluginsPath.c_str());
-        return false;
-    }
-    
-    // success
-    return true;
 }
 
 //
@@ -281,6 +247,45 @@ float MPFloatPrefsFunc (const char* section, const char* key, float fDefault)
     return fDefault;
 }
 
+// loops until the next enabled CSL path and verifies it is an existing path
+std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
+                              DataRefs::vecCSLPaths::const_iterator cEnd)
+{
+    std::string ret;
+    
+    // loop over vector of CSL paths
+    for ( ;cslIter != cEnd; ++cslIter) {
+        // disabled?
+        if (!cslIter->bEnabled) {
+            LOG_MSG(logMSG, ERR_CFG_CSL_DISABLED, cslIter->path.c_str());
+            continue;
+        }
+        
+        // enabled, path could be relative to X-Plane
+        ret = LTCalcFullPath(cslIter->path.c_str());
+        
+        // existis, has files?
+        if (LTNumFilesInPath(ret.c_str()) < 1) {
+            LOG_MSG(logMSG, ERR_CFG_CSL_EMPTY, cslIter->path.c_str());
+            ret.erase();
+            continue;
+        }
+        
+        // looks like a possible path, prepare for calling MP library
+#if APL
+        LTHFS2Posix(ret);
+#endif
+        
+        // prepare for next call, move to next item
+        ++cslIter;
+        
+        return ret;
+    }
+    
+    // didn't find anything
+    return std::string();
+}
+
 //
 //MARK: Init/Destroy
 //
@@ -291,13 +296,17 @@ bool LTMainInit ()
     // Init fetching flight data
     if (!LTFlightDataInit()) return false;
     
-    // find all CSL directories (returns XPMP style, i.e. Posix on Mac)
-    std::list<std::string> cslPaths;
-    if (!LTFindCSLDirectories(cslPaths)) {
-        LTFlightDataStop();                 // cleanup what we did so far
+    // These are the paths configured for CSL packages
+    const DataRefs::vecCSLPaths& vCSLPaths = dataRefs.GetCSLPaths();
+    DataRefs::vecCSLPaths::const_iterator cslIter = vCSLPaths.cbegin();
+    const DataRefs::vecCSLPaths::const_iterator cslEnd = vCSLPaths.cend();
+    std::string cslPath = NextValidCSLPath(cslIter, cslEnd);
+    // TODO: Survive for Settings dialog if no path
+    if (cslPath.empty() ) {
+        LOG_MSG(logFATAL,"No valid CSL Paths configured");
+        LTFlightDataStop();
         return false;
     }
-    LOG_ASSERT(cslPaths.size() >= 1);
     
     // init Multiplayer API
     // apparently the legacy init is still necessary.
@@ -308,10 +317,9 @@ bool LTMainInit ()
     const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT, true));
     const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG, true));
     const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT, true));
-    std::list<std::string>::const_iterator cslIter = cslPaths.cbegin();
     const char* cszResult = XPMPMultiplayerInitLegacyData
     (
-        cslIter->c_str(),            // we pass in the first found CSL dir
+        cslPath.c_str(),                // we pass in the first found CSL dir
         pathRelated.c_str(),
         pathLights.c_str(),
         pathDoc8643.c_str(),
@@ -337,10 +345,13 @@ bool LTMainInit ()
     }
     
     // now register all other CSLs directories that we found earlier
-    for (++cslIter; cslIter != cslPaths.cend(); ++cslIter) {
+    for (cslPath = NextValidCSLPath(cslIter, cslEnd);
+         !cslPath.empty();
+         cslPath = NextValidCSLPath(cslIter, cslEnd))
+    {
         cszResult = XPMPLoadCSLPackage
         (
-         cslIter->c_str(),            // we pass in the first found CSL dir
+         cslPath.c_str(),
          pathRelated.c_str(),
          pathDoc8643.c_str()
          );
