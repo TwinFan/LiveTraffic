@@ -76,6 +76,8 @@ std::string LTPathToStd ( std::string path )
 
 // construct path: if passed-in base is a full path just take it
 // otherwise it is relative to XP system path
+#pragma warning( push )
+#pragma warning( disable: 4100 )
 std::string LTCalcFullPath ( const char* path, bool bXPMPStyle )
 {
     std::string ret;
@@ -126,6 +128,7 @@ std::string LTCalcFullPluginPath ( const char* path, bool bXPMPStyle )
 
     return ret;
 }
+#pragma warning( pop )
 
 // if path starts with the XP system path it is removed
 std::string LTRemoveXPSystemPath (std::string path, bool bToStd)

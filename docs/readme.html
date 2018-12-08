@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -32,15 +32,18 @@
         foundation to do so with the next version.</P>
 
         <ul>
-            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/38">#38 (still open)</a>
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/38">#38 (still open)</a>
                 Reorganized Resources directory, <b>now also includes <code>FlightModels.prf</code></b>,
                 <code>Doc8643.txt</code> regenerated from scratch, current as of November 2018,
                 <code>related.txt</code> reworked in large parts (smaller planes yet to do).
                 All comes completely with the LT package.
-            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
                 Identify, log, accept a/c master data without ICAO type code,
                 but will still be rendered as A320.
-            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42 (still open)</a>
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42 (still open)</a>
                 Started to change how LT looks for CSL directories. Will
                 become a config option. Location will now default to
                 <code>LiveTraffic/Resources/CSL</code> <b>only</b>,
@@ -51,9 +54,11 @@
                 first path to the end of the file, edit file only when
                 X-Plane is off.)<br>
                 My file currently ends like this to also include XSquawkBox resources for testing purposes:<BR>
-                <code>[CSLPaths]<br>
+                <code>
+                    [CSLPaths]<br>
                     1|Resources/plugins/LiveTraffic/Resources/CSL<br>
-                    1|Resources/plugins/XSquawkBox/Resources/CSL<br></code>
+                    1|Resources/plugins/XSquawkBox/Resources/CSL<br>
+                </code>
                 Paths are relative to X-Plane dir. (Theoretically you could
                 specify full paths beginning with / or drive letter...but I
                 have not yet tested that.)<br>
@@ -61,6 +66,12 @@
                 Guess what 'disabled' means...<br>
                 New tab in the settings window yet to come so that later
                 nobody needs to fiddle with the preferences file.
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52 (still open)</a>
+                If not given by <code>xsb_aircraft.txt</code> then <code>VERT_OFFSET</code> now defaults to 3.
+                That should be OK for mid-range jets, might be a bit high for GA which might
+                appear hovering over ground. A better implementation to come which distinguishes
+                five defaults by a/c classification.
         </ul>
 
         <h3>v0.81.20181202</h3>

@@ -72,7 +72,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>win</TargetName>
     <TargetExt>.xpl</TargetExt>
-    <OutDir>D:\X-Plane 11\Resources\plugins\LiveTraffic\64\</OutDir>
+    <OutDir>build\LiveTraffic\64\</OutDir>
     <IntDir>build\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <LinkIncremental />
@@ -82,7 +82,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>win</TargetName>
     <TargetExt>.xpl</TargetExt>
-    <OutDir>D:\X-Plane 11\Resources\plugins\LiveTraffic\64\</OutDir>
+    <OutDir>build\LiveTraffic\64\</OutDir>
     <IntDir>build\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <CustomBuildAfterTargets>
