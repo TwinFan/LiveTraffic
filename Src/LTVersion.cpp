@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-const float VERSION_NR = 0.81f;
+const float VERSION_NR = 0.82f;
 const bool VERSION_BETA = true;
 
 //
