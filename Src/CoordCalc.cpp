@@ -202,7 +202,7 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "(%7.3f, %7.3f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f]",
+    snprintf(buf, sizeof(buf), "(%7.4f, %7.4f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f]",
              lat(), lon(),
              alt_ft(),
              GrndE2String(onGrnd),
@@ -214,7 +214,7 @@ std::string positionTy::dbgTxt () const
 positionTy::operator std::string () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "%7.3f %c / %7.3f %c",
+    snprintf(buf, sizeof(buf), "%7.4f %c / %7.4f %c",
              std::abs(lat()), lat() < 0 ? 'S' : 'N',
              std::abs(lon()), lon() < 0 ? 'W' : 'E');
     return std::string(buf);

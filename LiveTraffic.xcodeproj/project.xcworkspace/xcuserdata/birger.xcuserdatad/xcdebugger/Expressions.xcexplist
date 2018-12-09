@@ -3,15 +3,15 @@
    version = "1.0">
    <ContextStates>
       <ContextState
+         contextName = "::XPluginStart(char *, char *, char *):LiveTraffic.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::AddNewPos(positionTy const&amp;):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
                value = "p">
             </PersistentString>
          </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "::XPluginStart(char *, char *, char *):LiveTraffic.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
@@ -46,6 +46,9 @@
                value = "this-&gt;speed">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "MovingParam::moveTo(double):LTAircraft.cpp">
       </ContextState>
       <ContextState
          contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
@@ -368,7 +371,22 @@
          contextName = "LTFlightData::CalcNextPos(double):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
+               value = "debvec">
+            </PersistentString>
+            <PersistentString
                value = "pAc">
+            </PersistentString>
+            <PersistentString
+               value = "deb0">
+            </PersistentString>
+            <PersistentString
+               value = "to">
+            </PersistentString>
+            <PersistentString
+               value = "ppos">
+            </PersistentString>
+            <PersistentString
+               value = "deb1">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -384,6 +402,9 @@
             <PersistentString
                value = "surfaces.lights">
             </PersistentString>
+            <PersistentString
+               value = "pitch">
+            </PersistentString>
          </PersistentStrings>
       </ContextState>
       <ContextState
@@ -391,6 +412,17 @@
       </ContextState>
       <ContextState
          contextName = "LTMainInit():LTMain.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "pitch">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::UpdateStaticLabel():LTFlightData.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightDataSelectAc():LTChannel.cpp">

@@ -372,6 +372,7 @@ std::string LTFlightData::ComposeLabel() const
 bool LTFlightData::CalcNextPos ( double simTime )
 {
     bool bDoLandTODetect = true;
+    bool bChanged = false;          // change any positions?
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
@@ -395,11 +396,12 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** maintenance of buffered positions ***
         
         // Differs depending on: is there an a/c yet?
-        const size_t sizeBefore = posDeque.size();
         if ( pAc ) {
             // if there is an a/c then we just remove all positions before 'simTime'
-            while (!posDeque.empty() && posDeque[0].ts() <= simTime)
+            while (!posDeque.empty() && posDeque[0].ts() <= simTime) {
                 posDeque.pop_front();
+                bChanged = true;
+            }
             
             // no positions left?
             if (posDeque.empty()) {
@@ -416,8 +418,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
             
             // The first pos is in the past, good, make sure it's the only one
             // [0] <= simTime < [1]
-            while (posDeque.size() >= 2 && posDeque[1].ts() <= simTime)
+            while (posDeque.size() >= 2 && posDeque[1].ts() <= simTime) {
                 posDeque.pop_front();
+                bChanged = true;
+            }
             
             // Unlikely, but theoretically there could now be just one (past) pos left
             if (posDeque.size() < 2)
@@ -471,6 +475,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
                     }
+                    bChanged = true;
                 }
             } // (landing case)
             
@@ -514,9 +519,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // We want an accurate terrain altitude for this calc
                     const double toTerrAlt = YProbe_at_m(to);
                     const double height_m = to.alt_m() - toTerrAlt; // height to climb to reach 'to'?
-                    const double toClimb_s = height_m / climbVsi;   // how long to climb to reach 'to'?
+                    const double toClimb_s = height_m / climbVsi;   // how long to climb to r	each 'to'?
                     const double takeOffTS = to.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
-                    
+                    rotateTS = takeOffTS - mdl.ROTATE_TIME;         // timestamp when to rotate
+
                     // Continue only for useful timestamps
                     if (ppos.ts() < takeOffTS && takeOffTS < to.ts())
                     {
@@ -533,13 +539,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         takeOffPos.ts() = takeOffTS;                // ts was computed forward...we need it backward
                         // then, however, 'to' pos should be off ground, no longer just leaving
                         to.onGrnd = positionTy::GND_OFF;
-                        // and we store the timestamp when to rotate
-                        rotateTS = takeOffTS - mdl.ROTATE_TIME;
                         // output debug info on request
                         if (dataRefs.GetDebugAcPos(key())) {
                             LOG_MSG(logDEBUG,DBG_INVENTED_TO_POS,takeOffPos.dbgTxt().c_str());
                         }
-
+                        bChanged = true;
                     }
                 }
                 // * Don't yet take off *
@@ -552,7 +556,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         } // (has a/c and do landing / take-off detection)
         
         // if something changed output all positional information as debug info on request
-        if (sizeBefore != posDeque.size() && dataRefs.GetDebugAcPos(key())) {
+        if (bChanged && dataRefs.GetDebugAcPos(key())) {
             LOG_MSG(logDEBUG,DBG_POS_DATA,Positions2String().c_str());
         }
         
@@ -873,7 +877,7 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             // find the first position beyond current 'to' (is usually right away the first one!)
             dequePositionTy::const_iterator i =
             std::find_if(posDeque.cbegin(), posDeque.cend(),
-                         [&to](const positionTy& p){return to << p;});
+                         [&to](const positionTy& p){return to < p;});
             
             // nothing???
             if (i == posDeque.cend())
@@ -994,8 +998,9 @@ std::string LTFlightData::Positions2String () const
 
         char szBuf[50];
         snprintf(szBuf,sizeof(szBuf),
-                 "a/c %s SimTime: %.1f - ",
+                 "a/c %s %s SimTime: %.1f - ",
                  key().c_str(),
+                 statData.acId("-").c_str(),
                  dataRefs.GetSimTime());
         std::string ret(szBuf);
 

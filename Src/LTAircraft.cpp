@@ -891,8 +891,9 @@ LTAircraft::~LTAircraft()
 LTAircraft::operator std::string() const
 {
     char buf[500];
-    snprintf(buf,sizeof(buf),"a/c %s ppos: %s Y: %.0ff Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s %s ppos:\n%s Y: %.0ff Phase: %02d %s\nposList:\n",
              key().c_str(),
+             fd.GetUnsafeStat().acId("-").c_str(),
              ppos.dbgTxt().c_str(), terrainAlt,
              phase, FlightPhase2String(phase).c_str());
     return std::string(buf) + positionDeque2String(posList);
@@ -1096,7 +1097,8 @@ bool LTAircraft::CalcPPos()
         
         // set destination pitch and move there in a controlled way
         to.pitch() = toPitch;
-        pitch.moveQuickestToBy(NAN, toPitch, NAN, to.ts(), true);
+        if (phase != FPH_ROTATE)            // while rotating don't interfere
+            pitch.moveQuickestToBy(NAN, toPitch, NAN, to.ts(), true);
         
         // *** speed/acceleration/decelaration
         
@@ -1347,7 +1349,6 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // (set in LTFlightData::CalcNextPos)
     if ( phase < FPH_ROTATE && currCycle.simTime >= rotateTs ) {
         phase = FPH_ROTATE;
-        rotateTs = NAN;             // 'eat' the timestamp
     }
 
     // last frame: on ground, this frame: not on ground -> we just lifted off
@@ -1468,6 +1469,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // entered Initial Climb
     if (ENTERED(FPH_INITIAL_CLIMB)) {
         gear.up();
+        rotateTs = NAN;             // 'eat' the rotate timestamp, so we don't rotate any longer
     }
     
     // entered climb (from below)
@@ -1535,7 +1537,6 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // Need gear on the ground
     if ( bOnGrnd ) {
         gear.down();
-        pitch.moveTo(0);
     }
     else {
         // need flaps below flap speeds
