@@ -225,10 +225,11 @@ public:
         unsigned
         // static info
         bIcaoType : 1,              // default
+        bAnyAcId : 1,               // default
         bTranspCode : 1,
         bReg : 1,
         bIcaoOp : 1,
-        bCallSign : 1,              // default
+        bCallSign : 1,
         bFlightNo : 1,
         bRoute : 1,
         // dynamic info
@@ -282,7 +283,7 @@ protected:
     // generic config values
     int bAutoStart              = false;// shall display a/c right after startup?
     // which elements make up an a/c label?
-    LabelCfgUTy labelCfg = { {1,0,0,0,1,0,0,0,0,1,0,1,0} };
+    LabelCfgUTy labelCfg = { {1,1,0,0,0,0,0,0, 0,0,1,0,1,0} };
     int maxNumAc        = 50;           // how many aircrafts to create at most?
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 5;            // kilometer: Farther away a/c is drawn 'lights only'

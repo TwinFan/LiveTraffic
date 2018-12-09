@@ -135,6 +135,8 @@ public:
         FDStaticData& operator=(FDStaticData&&) = default;
         // 'merge' data, i.e. copy only filled fields from 'other'
         FDStaticData& operator |= (const FDStaticData& other);
+        // returns flight, call sign, registration, or provieded _default (e.g. transp hex code)
+        std::string acId (const std::string _default) const;
         // route (this is "originAp-destAp", but considers empty txt)
         std::string route() const;
         // flight + route (this is "flight: originAp-destAp", but considers empty txt)

@@ -99,6 +99,17 @@ std::string LTFlightData::FDStaticData::route () const
     return s;
 }
 
+// returns flight, call sign, registration, or trans hex code
+std::string LTFlightData::FDStaticData::acId (const std::string _default) const
+{
+    return
+    !flight.empty() ?   flight  :
+    !call.empty() ?     call    :
+    !reg.empty() ?      reg     :
+    _default;
+}
+
+// route (this is "originAp-destAp", but considers empty txt)
 std::string LTFlightData::FDStaticData::flightRoute() const
 {
     const std::string r(route());
@@ -289,6 +300,7 @@ void LTFlightData::UpdateStaticLabel()
         // add parts as per config
         labelStat.clear();
         ADD_LABEL(cfg.b.bIcaoType,    statData.acTypeIcao);
+        ADD_LABEL(cfg.b.bAnyAcId,     statData.acId(key()));
         ADD_LABEL(cfg.b.bTranspCode,  key());
         ADD_LABEL(cfg.b.bReg,         statData.reg);
         ADD_LABEL(cfg.b.bIcaoOp,      statData.opIcao);
