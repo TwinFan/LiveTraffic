@@ -65,12 +65,11 @@ protected:
 
     // Advanced tab
     TFButtonGroup logLevelGrp;          // radio buttons to select logging level
-    TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch;
-    TFACSearchEditWidget txtAdvcdFilter;
-    
     TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
     TFIntFieldDataRef intFdStdDistance, intFdRefreshIntvl;
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
+    TFACSearchEditWidget txtAdvcdFilter;
+    TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch, btnAdvcdLogRawFd;
 
 public:
     LTSettingsUI();
