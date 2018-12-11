@@ -154,7 +154,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_AC_NO_POS           "No positional data available when creating aircraft %s"
 #define ERR_AC_CALC_PPOS        "Could calculate position when creating aircraft %s"
 #define ERR_Y_PROBE             "Y Probe returned %d at %s"
-#define ERR_POS_UNNORMAL        "Ignoring invalid pos for a/c %s: %s"
+#define ERR_POS_UNNORMAL        "A/c %s reached invalid pos: %s"
 #define ERR_INV_TRANP_ICAO      "Ignoring data for invalid transponder code '%s'"
 #define ERR_TIME_NONLINEAR      "Time moved non-linear/jumped by %.1f seconds, will re-init aircrafts."
 #define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"

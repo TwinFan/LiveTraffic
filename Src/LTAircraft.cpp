@@ -1237,12 +1237,15 @@ bool LTAircraft::CalcPPos()
     
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
     // catch that case...likely the a/c is to be removed due to outdated data
-    // soon anyway
-    if (f > 1 && !ppos.isNormal()) {
-        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,key().c_str(),ppos.dbgTxt().c_str());
-        for (f -= 0.1; f > 1 && !ppos.isNormal(); f -= 0.1)
-            ppos.v = from.v * (1-f) + to.v * f;
-    }    
+    // soon anyway, we just speed up things a bit here
+    if (!ppos.isNormal()) {
+        // set the plane invalid and bail out with message
+        bValid = false;
+        LOG_MSG(logWARN, ERR_POS_UNNORMAL, key().c_str(),
+                dataRefs.GetDebugAcPos(key()) ?
+                std::string(*this).c_str() : ppos.dbgTxt().c_str());
+        return false;
+    }
     
     // *** Attitude ***/
 
