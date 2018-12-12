@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -26,7 +26,60 @@
 
         <p>The number-link refers to the issue in GitHub with (technical) details.</p>
 
-        <h3>v0.82.20181209</h3>
+        <h3>v0.83.20181212</h3>
+        
+        <ul>
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
+                Fixed a bug in Multiplayer Lib preventing to find a match based
+                on Doc8643 aircraft categorization (ie. find something of
+                roughly similar size) after no match was found
+                directly or via <code>related.txt</code>.<br>
+                Added feature to do this Doc8643 match also with matching
+                airline livery.<br>
+                This fix will mean that with a reasonable number of CSL packages
+                installed nearly no plane will need to be rendered with the
+                default plane (currently A320).
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52</a>
+                Multiplayer Lib: If <code>VERT_OFFSET</code> is not given in
+                <code>xsb_aircraft.txt</code>
+                files then it will default to a value between 1.2 and 5.5
+                depending on Doc8643 aircraft categorization to avoid planes
+                sliding on their belly.
+            <li>Settings / Labels: Added a new option <i>Any a/c id</i>, which display
+                the first non-empty field from <i>flight number, call sign,
+                registration, transponder hex code.</i> Good as the one option
+                to id an aircraft.<br>
+                Note: No config migration implemented, your label configuration
+                <i>will</i> shift due to this new entry, please revisit Settings / Labels.
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/54">#54</a>
+                Fixed flight phase "Rotate": Aircrafts taking off should now
+                in most cases rotate before take off and initially
+                climb with pitch up.<br>
+                Might also positively influence occurences of too steep take offs,
+                but that was not initially targeted with this fix.
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/55">#55</a>
+                Once an aircraft reaches an invalid position (like climbed too
+                high with no more live tracking data available) it is now removed
+                immediately. Reduces number of <code>CalcPPos: Ignoring invalid pos</code>
+                debug messages in the log dramatically.
+            <li>
+                Various ongoing enhancements to <code>related.txt</code>, especially in
+                the area of business jets and GA.
+            <li>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/49">#49</a>
+                Settings / Advanced: Cleanup, moved debug options to bottom,
+                added option for logging raw network data to <code>LTRawFD.log</code>.
+            <li>
+                Minor changes and enhancement to debug output and formatting
+                into <code>Log.txt</code>.
+        </ul>
+        
+        
+        <h3>v0.82.20181208</h3>
 
         <P>This version does not solve any issue completely but lays the
         foundation to do so with the next version.</P>
