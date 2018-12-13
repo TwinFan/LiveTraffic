@@ -28,7 +28,7 @@ CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level fligh
 ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
 PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
 PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-PITCH_MAX             18    # [°] maximum pitch angle (aoa)
+PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         4    # [°] to add if flaps extended
 PITCH_FLARE           10    # [°] pitch during flare
@@ -46,6 +46,7 @@ FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
 ROTATE_TIME            5    # [s] to rotate before lift off
 VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available
 AGL_FLARE             30    # [ft] height AGL to start flare
+PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 
 [HugeAirbus:HugeJets]
@@ -74,7 +75,7 @@ FLAPS_DOWN_SPEED     100    # [kt] above that: descend, below that: approach
 CRUISE_HEIGHT       2000    # [ft] above that height AGL we consider level flight 'cruise'
 PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
 PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-PITCH_MAX             12    # [°] maximum pitch angle (aoa)
+PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         2    # [°] to add if flaps extended
 PITCH_FLARE            5    # [°] pitch during flare
