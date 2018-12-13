@@ -94,6 +94,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO        "A320"
+#define CSL_CAR_ICAO            "ZZZC"      // fake code for a ground vehicle
 #define FM_MAP_SECTION          "Map"
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
@@ -210,6 +211,8 @@ constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 #define OPSKY_MD_OP             "owner"
 #define OPSKY_MD_REG            "registration"
 #define OPSKY_MD_AC_TYPE_ICAO   "typecode"
+#define OPSKY_MD_CAT_DESCR      "categoryDescription"
+#define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
 
 //MARK: ADS-B Exchange
 #define ADSBEX_NAME             "ADSB Exchange Live Online"
@@ -245,6 +248,8 @@ constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 #define ADSBEX_OP               "Op"
 #define ADSBEX_OP_ICAO          "OpIcao"
 #define ADSBEX_COS              "Cos"               // array of short trails
+#define ADSBEX_ENG_TYPE         "EngType"
+#define ADSBEX_ENG_MOUNT        "EngMount"
 
 #define ADSBEX_HIST_NAME        "ADSB Exchange Historic File"
 constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line

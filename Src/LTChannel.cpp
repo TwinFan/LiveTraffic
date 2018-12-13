@@ -579,9 +579,22 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.op =         jog_s(pJAc, ADSBEX_OP);
                 stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
+
+                // no type code?
+                if ( stat.acTypeIcao.empty() ) {
+                    // could be a surface vehicle
+                    // ADSBEx doesn't send a clear indicator, but data anyslsis
+                    // suggests that EngType/Mount == 0 is a good indicator
+                    if (jog_b(pJAc, ADSBEX_GND)         == true &&
+                        jog_n(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
+                        jog_n(pJAc, ADSBEX_ENG_MOUNT)    == 0)
+                        // assume surface vehicle
+                        stat.acTypeIcao = CSL_CAR_ICAO;
+                    else
+                        LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+                }
+                
                 // update the a/c's master data
-                if ( stat.acTypeIcao.empty() )
-                    LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
                 fd.UpdateData(std::move(stat), true);
             }
             
@@ -1291,9 +1304,17 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
         statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
         statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
         
+        // no type code?
+        if ( statDat.acTypeIcao.empty() ) {
+            // could be a ground vehicle?
+            std::string cat = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
+            if (cat.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos)
+                statDat.acTypeIcao = CSL_CAR_ICAO;
+            else
+                LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+        }
+
         // update the a/c's master data
-        if ( statDat.acTypeIcao.empty() )
-            LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
         UpdateStaticData(transpIcao, statDat);
     }
     
