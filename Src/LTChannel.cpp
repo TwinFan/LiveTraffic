@@ -54,6 +54,77 @@ volatile bool bFDMainStop = true;       // will be reset once the main thread st
 listPtrLTChannelTy    listFDC;
 
 //
+// MARK: Parson helpers
+//
+
+// tests for 'null', return ptr to value if wanted
+bool jog_is_null (const JSON_Object *object, const char *name, JSON_Value** ppValue)
+{
+    JSON_Value* pJSONVal = json_object_get_value(object, name);
+    if (ppValue)
+        *ppValue = pJSONVal;
+    return !pJSONVal || json_type(pJSONVal) == JSONNull;
+}
+
+bool jag_is_null (const JSON_Array *array,
+                  size_t idx,
+                  JSON_Value** ppValue)
+{
+    JSON_Value* pJSONVal = json_array_get_value (array, idx);
+    if (ppValue)
+        *ppValue = pJSONVal;
+    return !pJSONVal || json_type(pJSONVal) == JSONNull;
+}
+
+// access to JSON string fields, with NULL replaced by ""
+const char* jog_s (const JSON_Object *object, const char *name)
+{
+    const char* s = json_object_get_string ( object, name );
+    return s ? s : "";
+}
+
+// access to JSON number fields, encapsulated as string, with NULL replaced by 0
+double jog_sn (const JSON_Object *object, const char *name)
+{
+    const char* s = json_object_get_string ( object, name );
+    return s ? strtod(s,NULL) : 0.0;
+}
+
+// access to JSON number with 'null' returned as 'NAN'
+double jog_n_nan (const JSON_Object *object, const char *name)
+{
+    JSON_Value* pJSONVal = NULL;
+    if (!jog_is_null(object, name, &pJSONVal))
+        return json_value_get_number (pJSONVal);
+    else
+        return NAN;
+}
+
+// access to JSON array string fields, with NULL replaced by ""
+const char* jag_s (const JSON_Array *array, size_t idx)
+{
+    const char* s = json_array_get_string ( array, idx );
+    return s ? s : "";
+}
+
+// access to JSON array number fields, encapsulated as string, with NULL replaced by 0
+double jag_sn (const JSON_Array *array, size_t idx)
+{
+    const char* s = json_array_get_string ( array, idx );
+    return s ? strtod(s,NULL) : 0.0;
+}
+
+// access to JSON array number field with 'null' returned as 'NAN'
+double jag_n_nan (const JSON_Array *array, size_t idx)
+{
+    JSON_Value* pJSONVal = NULL;
+    if (!jag_is_null(array, idx, &pJSONVal))
+        return json_value_get_number (pJSONVal);
+    else
+        return NAN;
+}
+
+//
 //MARK: LTChannel
 //
 
@@ -88,6 +159,13 @@ void LTChannel::SetValid (bool _valid, bool bMsg)
         SetEnable (false);
         if (bMsg)
             SHOW_MSG(logFATAL,ERR_CH_INVALID,ChName());
+        
+        // there is no other place in the code to actually re-validate a channel
+        // so as surprising as it sounds: we do it right here:
+        // That way the user has a chance by actively reenabling the channel
+        // in the settings to try again.
+        errCnt = 0;
+        bValid = true;
     }
 }
 
@@ -458,21 +536,22 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // non-positional dynamic data
                 dyn.radar.code =  (long)jag_sn(pJAc, OPSKY_RADAR_CODE);
                 dyn.gnd =               jag_b(pJAc, OPSKY_GND);
-                dyn.heading =           jag_n(pJAc, OPSKY_HEADING);
+                dyn.heading =           jag_n_nan(pJAc, OPSKY_HEADING);
                 dyn.spd =               jag_n(pJAc, OPSKY_SPD);
                 dyn.vsi =               jag_n(pJAc, OPSKY_VSI);
                 dyn.ts =                posTime;
                 dyn.pChannel =          this;
                 
                 // position
-                positionTy pos (jag_n(pJAc, OPSKY_LAT),
-                                jag_n(pJAc, OPSKY_LON),
-                                jag_n(pJAc, OPSKY_ELEVATION),
+                positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
+                                jag_n_nan(pJAc, OPSKY_LON),
+                                jag_n_nan(pJAc, OPSKY_ELEVATION),
                                 posTime);
                 pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
                 
                 // position is rather important, we check for validity
-                if ( pos.isNormal() )
+                // (we do allow alt=NAN if on ground as this is what OpenSky returns)
+                if ( pos.isNormal(true) )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
                     LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
@@ -608,7 +687,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // non-positional dynamic data
                 dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
-                dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
+                dyn.heading =           jog_n_nan(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
                 dyn.brng =              jog_n(pJAc, ADSBEX_BRNG);
                 dyn.dst =               jog_n(pJAc, ADSBEX_DST);
@@ -618,15 +697,15 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 // position and its ground status
-                positionTy pos (jog_n(pJAc, ADSBEX_LAT),
-                                jog_n(pJAc, ADSBEX_LON),
+                positionTy pos (jog_n_nan(pJAc, ADSBEX_LAT),
+                                jog_n_nan(pJAc, ADSBEX_LON),
                                 // ADSB data is feet, positionTy expects meter
-                                jog_n(pJAc, ADSBEX_ELEVATION) * M_per_FT,
+                                jog_n_nan(pJAc, ADSBEX_ELEVATION) * M_per_FT,
                                 posTime);
                 pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
                 
                 // position is rather important, we check for validity
-                if ( pos.isNormal() )
+                if ( pos.isNormal(true) )
                     fd.AddDynData(dyn,
                                   (int)jog_n(pJAc, ADSBEX_RCVR),
                                   (int)jog_n(pJAc, ADSBEX_SIG),
@@ -1011,7 +1090,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // non-positional dynamic data
                 dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
-                dyn.heading =           jog_n(pJAc, ADSBEX_HEADING);
+                dyn.heading =           jog_n_nan(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
                 dyn.brng =              jog_n(pJAc, ADSBEX_BRNG);
                 dyn.dst =               jog_n(pJAc, ADSBEX_DST);
@@ -1025,10 +1104,10 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                               (int)jog_n(pJAc, ADSBEX_SIG));
                 
                 // position data, including short trails
-                positionTy mainPos (jog_n(pJAc, ADSBEX_LAT),
-                                    jog_n(pJAc, ADSBEX_LON),
+                positionTy mainPos (jog_n_nan(pJAc, ADSBEX_LAT),
+                                    jog_n_nan(pJAc, ADSBEX_LON),
                                     // ADSB data is feet, positionTy expects meter
-                                    jog_n(pJAc, ADSBEX_ELEVATION) * M_per_FT,
+                                    jog_n_nan(pJAc, ADSBEX_ELEVATION) * M_per_FT,
                                     posTime,
                                     dyn.heading);
                 

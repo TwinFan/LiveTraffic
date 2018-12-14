@@ -734,14 +734,16 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         else
             it->heading() = 0;
     }
+    
+    // just as a safeguard...they can't be many situations this triggers,
+    // but we don't want nan values any longer after this
+    if (isnan(it->heading()))
+        it->heading() = 0;
 }
 
 
 void LTFlightData::AddNewPos ( positionTy& pos )
 {
-    // should be an ok position
-    LOG_ASSERT_FD(*this,pos.isNormal());
-    
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
@@ -756,6 +758,7 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         }
         
         // *** ground status *** (plays a role in merge determination)
+        // will set ground altitude if on ground
         TryDeriveGrndStatus(pos);
         
         // *** insert/merge position ***
@@ -770,11 +773,11 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         std::find_if(posDeque.begin(), posDeque.end(),
                      [&pos](const positionTy& p){return p.canBeMergedWith(pos);});
         if (i != posDeque.end()) {      // found merge partner!
-            // make sure we don't overlap we predecessor/successor position
+            // make sure we don't overlap with predecessor/successor position
             if (((i == posDeque.begin()) || (*std::prev(i) < pos)) &&
                 ((std::next(i) == posDeque.end()) || (*std::next(i) > pos)))
             {
-                *i |= pos;                  // merge them
+                *i |= pos;                  // merge them (if pos.heading is nan then i.heading prevails)
                 bJustMerged = true;
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_MERGED_POS,pos.dbgTxt().c_str(),i->ts());
@@ -810,7 +813,7 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         if (i != posDeque.begin())              // is there anything before i?
             CalcHeading(std::prev(i));
         
-        CalcHeading(i);                         // i itself
+        CalcHeading(i);                         // i itself, latest here a nan heading is rectified
         
         if (std::next(i) != posDeque.end())     // is there anything after i?
             CalcHeading(std::next(i));

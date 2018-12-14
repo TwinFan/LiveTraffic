@@ -115,6 +115,9 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
     
     // works with local coordinates
     positionTy pos (posAt);
+    // next call requires a valid altitude, even if it is just the altitude we want to figure out...
+    if (isnan(pos.alt_m()))
+        pos.alt_m() = 0;
     pos.WorldToLocal();
     
     // let the probe drop...
@@ -155,10 +158,10 @@ vectorTy::operator std::string() const
 positionTy& positionTy::operator |= (const positionTy& pos)
 {
     // heading needs special treatment
+    // (also removes nan value if one of the headings is nan)
     const double h = AvgHeading(heading(), pos.heading(), mergeCount, pos.mergeCount);
     // take into account how many other objects made up the current pos! ("* count")
 
-	// TODO: Test new implementation
 	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
 	for (double &d : v) d *= mergeCount;						// (v * mergeCount           (VS doesn't compile v.apply with lambda function)
 	v += pos.v;													//                 + pos.v)
@@ -246,18 +249,20 @@ positionTy& positionTy::normalize()
 }
 
 // is a good valid position?
-bool positionTy::isNormal() const
+bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
 {
     LOG_ASSERT(unitAngle==UNIT_DEG && unitCoord==UNIT_WORLD);
     return
         // should be actual numbers
-        ( !isnan(lat()) && !isnan(lon()) && !isnan(alt_m()) && !isnan(ts())) &&
+        ( !isnan(lat()) && !isnan(lon()) && !isnan(ts())) &&
         // should normal latitudes/longitudes
         (  -90 <= lat() && lat() <=    90)  &&
         ( -180 <= lon() && lon() <=   180) &&
+        // altitude can be Null - but only if on ground and specifically allowed by parameter
+        ( (onGrnd == GND_ON && bAllowNanAltIfGnd) ||
         // altitude: a 'little' below MSL might be possible (dead sea),
         //           no more than 60.000ft...we are talking planes, not rockets ;)
-        ( MDL_ALT_MIN <= alt_ft() && alt_ft() <= MDL_ALT_MAX);
+          (!isnan(alt_m()) && MDL_ALT_MIN <= alt_ft() && alt_ft() <= MDL_ALT_MAX) );
 }
 
 // is fully valid? (isNormal + heading, pitch, roll)?
@@ -422,6 +427,10 @@ void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
 // f1/f2 are linear factors, defaulting to 1
 double AvgHeading (double head1, double head2, double f1, double f2)
 {
+    // if either value is nan return the other (returns nan if both are nan)
+    if (isnan(head1)) return head2;
+    if (isnan(head2)) return head1;
+    
     // if 0° North lies between head1 and head2 then simple
     // average doesn't work
     if ( abs(head2-head1) > 180 ) {

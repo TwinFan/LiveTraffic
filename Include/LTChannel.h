@@ -249,28 +249,31 @@ void LTFlightDataStop();
 void LTFlightDataAcMaintenance();
 
 //
-//MARK: Helper Functions
+//MARK: Parson Helper Functions
 //
 
+// tests for 'null', return ptr to value if wanted
+bool jog_is_null (const JSON_Object *object,
+                  const char *name,
+                  JSON_Value** ppValue = NULL);
+bool jag_is_null (const JSON_Array *array,
+                  size_t idx,
+                  JSON_Value** ppValue = NULL);
+
 // access to JSON string fields, with NULL replaced by ""
-inline const char* jog_s (const JSON_Object *object, const char *name)
-{
-    const char* s = json_object_get_string ( object, name );
-    return s ? s : "";
-}
+const char* jog_s (const JSON_Object *object, const char *name);
 
 // access to JSON number fields, encapsulated as string, with NULL replaced by 0
-inline double jog_sn (const JSON_Object *object, const char *name)
-{
-    const char* s = json_object_get_string ( object, name );
-    return s ? strtod(s,NULL) : 0.0;
-}
+double jog_sn (const JSON_Object *object, const char *name);
 
-// access to JSON number field (just a shorter name)
+// access to JSON number field (just a shorter name, returns 0 if not a number)
 inline double jog_n (const JSON_Object *object, const char *name)
 {
     return json_object_get_number (object, name);
 }
+
+// access to JSON number with 'null' returned as 'NAN'
+double jog_n_nan (const JSON_Object *object, const char *name);
 
 // access to JSON boolean field (replaces -1 with false)
 inline bool jog_b (const JSON_Object *object, const char *name)
@@ -281,24 +284,19 @@ inline bool jog_b (const JSON_Object *object, const char *name)
 }
 
 // access to JSON array string fields, with NULL replaced by ""
-inline const char* jag_s (const JSON_Array *array, size_t idx)
-{
-    const char* s = json_array_get_string ( array, idx );
-    return s ? s : "";
-}
+const char* jag_s (const JSON_Array *array, size_t idx);
 
 // access to JSON array number fields, encapsulated as string, with NULL replaced by 0
-inline double jag_sn (const JSON_Array *array, size_t idx)
-{
-    const char* s = json_array_get_string ( array, idx );
-    return s ? strtod(s,NULL) : 0.0;
-}
+double jag_sn (const JSON_Array *array, size_t idx);
 
-// access to JSON array number field (just a shorter name)
+// access to JSON array number field (just a shorter name, returns 0 if not number)
 inline double jag_n (const JSON_Array *array, size_t idx)
 {
     return json_array_get_number (array, idx);
 }
+
+// access to JSON array number field with 'null' returned as 'NAN'
+double jag_n_nan (const JSON_Array *array, size_t idx);
 
 // access to JSON array boolean field (replaces -1 with false)
 inline bool jag_b (const JSON_Array *array, size_t idx)

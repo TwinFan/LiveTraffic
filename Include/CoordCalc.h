@@ -133,7 +133,7 @@ public:
     // normalizes to -90/+90 lat, -180/+180 lon, 360° heading, return *this
     positionTy& normalize();
     // is a good valid position?
-    bool isNormal() const;
+    bool isNormal (bool bAllowNanAltIfGnd = false) const;
     // is fully valid? (isNormal + heading, pitch, roll)?
     bool isFullyValid() const;
     
