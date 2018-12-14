@@ -862,6 +862,10 @@ bValid(true)
         if (!CalcPPos())
             LOG_MSG(logERR,ERR_AC_CALC_PPOS,fd.key().c_str());
         
+        // if we start on the ground then have the gear out already
+        if (IsOnGrnd())
+            gear.SetVal(gear.defMax);
+        
         // tell the world we've added something
         dataRefs.IncNumAircrafts();
         LOG_MSG(logINFO,INFO_AC_ADDED,
@@ -891,10 +895,11 @@ LTAircraft::~LTAircraft()
 LTAircraft::operator std::string() const
 {
     char buf[500];
-    snprintf(buf,sizeof(buf),"a/c %s %s ppos:\n%s Y: %.0ff Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s %s ppos:\n%s Y: %.0ff %.0fkn Phase: %02d %s\nposList:\n",
              key().c_str(),
              fd.GetUnsafeStat().acId("-").c_str(),
              ppos.dbgTxt().c_str(), terrainAlt,
+             GetSpeed_kt(),
              phase, FlightPhase2String(phase).c_str());
     return std::string(buf) + positionDeque2String(posList);
 }
