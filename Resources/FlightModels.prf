@@ -43,11 +43,12 @@ LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultip
 
 [HugeJets:MediumJets]
 FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
-ROTATE_TIME            5    # [s] to rotate before lift off
+ROTATE_TIME            4    # [s] to rotate before lift off
 VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available
 AGL_FLARE             30    # [ft] height AGL to start flare
 PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_RATE             2.5  # [°/s] pitch rate of change
 
 [HugeAirbus:HugeJets]
 LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
