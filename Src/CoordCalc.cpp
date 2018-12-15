@@ -157,6 +157,7 @@ vectorTy::operator std::string() const
 // "merges" with the given position, i.e. creates kind of an "average" position
 positionTy& positionTy::operator |= (const positionTy& pos)
 {
+    LOG_ASSERT(unitCoord == pos.unitCoord && unitAngle == pos.unitAngle);
     // heading needs special treatment
     // (also removes nan value if one of the headings is nan)
     const double h = AvgHeading(heading(), pos.heading(), mergeCount, pos.mergeCount);
@@ -172,6 +173,12 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     heading() = h;
     
     mergeCount++;               // one more position object making up this position
+    
+    // any special flight phase? shall survive
+    // (if both pos have special flight phases then ours survives)
+    if (!flightPhase)
+        flightPhase = pos.flightPhase;
+    
     return normalize();
 }
 
@@ -205,12 +212,13 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "(%7.4f, %7.4f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f]",
+    snprintf(buf, sizeof(buf), "(%7.4f, %7.4f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f] %s",
              lat(), lon(),
              alt_ft(),
              GrndE2String(onGrnd),
              heading(), pitch(), roll(),
-             ts());
+             ts(),
+             flightPhase ? LTAircraft::FlightPhase2String(LTAircraft::FlightPhase(flightPhase)).c_str() : "");
     return std::string(buf);
 }
 

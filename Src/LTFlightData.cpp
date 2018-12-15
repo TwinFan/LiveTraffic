@@ -468,6 +468,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // insert touch-down point at beginning of posDeque
                     positionTy& touchDownPos = posDeque.emplace_front(ppos.destPos(vecTouch));
                     touchDownPos.onGrnd = positionTy::GND_ON;
+                    touchDownPos.flightPhase = LTAircraft::FPH_TOUCH_DOWN;
                     TryDeriveGrndStatus(touchDownPos);          // will set correct terrain altitude
                     // then, however, next pos should also be on the ground, no longer just approaching
                     to.onGrnd = positionTy::GND_ON;
@@ -534,6 +535,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         // at beginning of posDeque
                         positionTy& takeOffPos = posDeque.emplace_front(to.destPos(vecTO));
                         takeOffPos.onGrnd = positionTy::GND_ON;
+                        takeOffPos.flightPhase = LTAircraft::FPH_LIFT_OFF;
                         takeOffPos.alt_m() = toTerrAlt;
                         takeOffPos.heading() = vec.angle;           // from 'reverse' back to forward
                         takeOffPos.ts() = takeOffTS;                // ts was computed forward...we need it backward

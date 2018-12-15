@@ -95,14 +95,19 @@ struct positionTy {
     enum onGrndE    { GND_UNKNOWN=0, GND_LEAVING, GND_OFF, GND_APPROACHING, GND_ON } onGrnd;
     enum coordUnitE { UNIT_WORLD, UNIT_LOCAL } unitCoord;
     enum angleUnitE { UNIT_DEG, UNIT_RAD } unitAngle;
+    
+    // start of some special flight phase like rotate, take off, touch down?
+    // (can't use LTAircraft::FlightPhase due to cyclic header inclusion)
+    int flightPhase = 0;
 public:
     positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}, mergeCount(1),
                     onGrnd(GND_UNKNOWN), unitCoord(UNIT_WORLD), unitAngle(UNIT_DEG) {}
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
-                onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG) :
+                onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
+                int fPhase = 0) :
         v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll}, mergeCount(1),
-        onGrnd(grnd), unitCoord(uCoord), unitAngle(uAngle) {}
+        onGrnd(grnd), unitCoord(uCoord), unitAngle(uAngle), flightPhase(fPhase) {}
     positionTy(const XPMPPlanePosition_t& x) :
         positionTy (x.lat, x.lon, x.elevation * M_per_FT,
                     NAN, x.heading, x.pitch, x.roll) {}
