@@ -250,6 +250,8 @@ constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 #define ADSBEX_COS              "Cos"               // array of short trails
 #define ADSBEX_ENG_TYPE         "EngType"
 #define ADSBEX_ENG_MOUNT        "EngMount"
+#define ADSBEX_ORIGIN           "From"
+#define ADSBEX_DESTINATION      "To"
 
 #define ADSBEX_HIST_NAME        "ADSB Exchange Historic File"
 constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line

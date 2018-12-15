@@ -659,6 +659,18 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
 
+                // try getting origin/destination
+                // FROM
+                std::string s = jog_s(pJAc, ADSBEX_ORIGIN);
+                if (s.length() == 4 ||          // extract 4 letter airport code from beginning
+                    (s.length() > 4 && s[4] == ' '))
+                    stat.originAp = s.substr(0,4);
+                // TO
+                s = jog_s(pJAc, ADSBEX_DESTINATION);
+                if (s.length() == 4 ||          // extract 4 letter airport code from beginning
+                    (s.length() > 4 && s[4] == ' '))
+                    stat.destAp = s.substr(0,4);
+                
                 // no type code?
                 if ( stat.acTypeIcao.empty() ) {
                     // could be a surface vehicle
@@ -1075,6 +1087,19 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.op =         jog_s(pJAc, ADSBEX_OP);
                     stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                     stat.call =       jog_s(pJAc, ADSBEX_CALL);
+                    
+                    // try getting origin/destination
+                    // FROM
+                    std::string s = jog_s(pJAc, ADSBEX_ORIGIN);
+                    if (s.length() == 4 ||          // extract 4 letter airport code from beginning
+                        (s.length() > 4 && s[4] == ' '))
+                        stat.originAp = s.substr(0,4);
+                    // TO
+                    s = jog_s(pJAc, ADSBEX_DESTINATION);
+                    if (s.length() == 4 ||          // extract 4 letter airport code from beginning
+                        (s.length() > 4 && s[4] == ' '))
+                        stat.destAp = s.substr(0,4);
+
                     // update the a/c's master data
                     if ( stat.acTypeIcao.empty() )
                         LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
