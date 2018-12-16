@@ -440,7 +440,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
             const positionTy& ppos = pAc->GetPPos();
             const LTAircraft::FlightModel& mdl = pAc->mdl;
             positionTy& to   = posDeque[0];
-            vectorTy vec (ppos.between(to));
             
             // *** Landing ***
             // If current pos is in the air and next pos is approaching or touching ground
@@ -500,61 +499,104 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // take-off-point, achieved using vsi of (B)-(C).
             // Point of rotate is 3s earlier.
             
-            else if ((ppos.onGrnd == positionTy::GND_ON || ppos.onGrnd == positionTy::GND_LEAVING) &&
-                     (to.onGrnd == positionTy::GND_LEAVING || to.onGrnd == positionTy::GND_OFF))
+            // for the take off case we look further ahead to catch the case
+            // that a data point is right between start of rotating and actual lift off
+            else for (int i = 0;
+                      i <= 1 && posDeque.size() >= i+1;
+                      i++ )
             {
-                // VSI needs to be high enough for actual take off
-                if (vec.vsi_ft() > mdl.VSI_STABLE)
+                // i == 0 is as above with actual a/c present position
+                // in later runs we use future data from our queue
+                const positionTy& ppos  = i == 0 ? pAc->GetPPos() : posDeque[i-1];
+                positionTy& to          = posDeque[i];
+                const vectorTy vec (ppos.between(to));
+
+                if ((ppos.onGrnd == positionTy::GND_ON || ppos.onGrnd == positionTy::GND_LEAVING) &&
+                    (to.onGrnd == positionTy::GND_LEAVING || to.onGrnd == positionTy::GND_OFF))
                 {
-                    
-                    // Get the vsi and speed after 'to' (the (B)-(C) vector's)
-                    double climbVsi = mdl.VSI_INIT_CLIMB * Ms_per_FTm;
-                    double climbSpeed = mdl.SPEED_INIT_CLIMB / KT_per_M_per_S;
-                    if (posDeque.size() >= 2) {     // take the data from the vector _after_ to
-                        vectorTy climbVec (to.between(posDeque[1]));
-                        climbVsi = climbVec.vsi;
-                        climbSpeed = climbVec.speed;
-                    }
-
-                    // Determine how much before 'to' is that take-off point
-                    // We want an accurate terrain altitude for this calc
-                    const double toTerrAlt = YProbe_at_m(to);
-                    const double height_m = to.alt_m() - toTerrAlt; // height to climb to reach 'to'?
-                    const double toClimb_s = height_m / climbVsi;   // how long to climb to r	each 'to'?
-                    const double takeOffTS = to.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
-                    rotateTS = takeOffTS - mdl.ROTATE_TIME;         // timestamp when to rotate
-
-                    // Continue only for useful timestamps
-                    if (ppos.ts() < takeOffTS && takeOffTS < to.ts())
+                    // VSI needs to be high enough for actual take off
+                    if (vec.vsi_ft() > mdl.VSI_STABLE)
                     {
-                        vectorTy vecTO(fmod(vec.angle + 180, 360),  // angle (reverse!)
-                                       climbSpeed * toClimb_s,      // distance
-                                       -climbVsi,                   // vsi (reverse!)
-                                       climbSpeed);                 // speed
-                        // insert take-off point ('to' minus vector from take-off to 'to')
-                        // at beginning of posDeque
-                        positionTy& takeOffPos = posDeque.emplace_front(to.destPos(vecTO));
-                        takeOffPos.onGrnd = positionTy::GND_ON;
-                        takeOffPos.flightPhase = LTAircraft::FPH_LIFT_OFF;
-                        takeOffPos.alt_m() = toTerrAlt;
-                        takeOffPos.heading() = vec.angle;           // from 'reverse' back to forward
-                        takeOffPos.ts() = takeOffTS;                // ts was computed forward...we need it backward
-                        // then, however, 'to' pos should be off ground, no longer just leaving
-                        to.onGrnd = positionTy::GND_OFF;
-                        // output debug info on request
-                        if (dataRefs.GetDebugAcPos(key())) {
-                            LOG_MSG(logDEBUG,DBG_INVENTED_TO_POS,takeOffPos.dbgTxt().c_str());
+                        
+                        // Get the vsi and speed after 'to' (the (B)-(C) vector's)
+                        double climbVsi = mdl.VSI_INIT_CLIMB * Ms_per_FTm;
+                        double climbSpeed = mdl.SPEED_INIT_CLIMB / KT_per_M_per_S;
+                        if (posDeque.size() >= i+2) {     // take the data from the vector _after_ to
+                            vectorTy climbVec (to.between(posDeque[i+1]));
+                            climbVsi = climbVec.vsi;
+                            climbSpeed = climbVec.speed;
                         }
+                        
+                        // Determine how much before 'to' is that take-off point
+                        // We want an accurate terrain altitude for this calc
+                        const double toTerrAlt = YProbe_at_m(to);
+                        const double height_m = to.alt_m() - toTerrAlt; // height to climb to reach 'to'?
+                        const double toClimb_s = height_m / climbVsi;   // how long to climb to r	each 'to'?
+                        const double takeOffTS = to.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
+                        
+                        // Continue only for timestamps in the future
+                        if (ppos.ts() < takeOffTS)
+                        {
+                            rotateTS = takeOffTS - mdl.ROTATE_TIME;         // timestamp when to rotate
+
+                            // find the TO position by applying a reverse vector to the pointer _after_ take off
+                            vectorTy vecTO(fmod(vec.angle + 180, 360),  // angle (reverse!)
+                                           climbSpeed * toClimb_s,      // distance
+                                           -climbVsi,                   // vsi (reverse!)
+                                           climbSpeed);                 // speed
+                            // insert take-off point ('to' minus vector from take-off to 'to')
+                            // at beginning of posDeque
+                            positionTy takeOffPos = to.destPos(vecTO);
+                            takeOffPos.onGrnd = positionTy::GND_ON;
+                            takeOffPos.flightPhase = LTAircraft::FPH_LIFT_OFF;
+                            takeOffPos.alt_m() = toTerrAlt;
+                            takeOffPos.heading() = vec.angle;           // from 'reverse' back to forward
+                            takeOffPos.ts() = takeOffTS;                // ts was computed forward...we need it backward
+                            
+                            // find insert position
+                            dequePositionTy::iterator toIter = posDeque.end();
+                            for (dequePositionTy::iterator iter = posDeque.begin();
+                                 iter != posDeque.end();
+                                 ++iter)
+                            {
+                                // before take off we stay on the ground
+                                if (*iter < takeOffPos) {
+                                    if (iter->onGrnd != positionTy::GND_ON) {
+                                        iter->onGrnd = positionTy::GND_ON;
+                                        TryDeriveGrndStatus(*iter);
+                                        bChanged = true;
+                                    }
+                                } else {
+                                    // found insert position!
+                                    toIter = posDeque.insert(iter, takeOffPos);
+                                    break;
+                                }
+                            }
+                            
+                            // found no insert position??? need to add it to the end
+                            if (toIter == posDeque.end())
+                                posDeque.push_back(takeOffPos);
+                            
+                            // output debug info on request
+                            if (dataRefs.GetDebugAcPos(key())) {
+                                LOG_MSG(logDEBUG,DBG_INVENTED_TO_POS,takeOffPos.dbgTxt().c_str());
+                            }
+                            bChanged = true;
+                            
+                            // leave loop of szenarios
+                            break;
+                        }
+                    }
+                    // * Don't yet take off *
+                    // else VSI is not enough for actual take off -> stick to ground!
+                    else {
+                        to.onGrnd = positionTy::GND_ON;
+                        TryDeriveGrndStatus(to);        // set alt to terrain
                         bChanged = true;
                     }
-                }
-                // * Don't yet take off *
-                // else VSI is not enough for actual take off -> stick to ground!
-                else {
-                    to.onGrnd = positionTy::GND_ON;
-                    TryDeriveGrndStatus(to);        // set alt to terrain
-                }
-            } // (take off case)
+                    
+                } // (take off case)
+            } // loop over szenarios
         } // (has a/c and do landing / take-off detection)
         
         // if something changed output all positional information as debug info on request
