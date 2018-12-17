@@ -411,6 +411,9 @@ void ACIWnd::UpdateStatValues()
 
         // stop the timer for regular dyn data updates
         StartStopTimerMessages(false);
+
+        // clear 'selected' aircraft for debug output
+        dataRefs.LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)), 0);
     }
 }
 
