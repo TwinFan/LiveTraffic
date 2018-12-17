@@ -848,8 +848,14 @@ bValid(true)
         // standard label
         LabelUpdate();
 
-        // standard internal label (e.g. for logging) is transpIcao + ac type + company icao
-        labelInternal = key() + " (" + statCopy.acTypeIcao + " " + statCopy.opIcao + ")";
+        // standard internal label (e.g. for logging) is transpIcao + ac type + another id if available
+        std::string s (statCopy.acId(""));
+        labelInternal = key() + " (" + statCopy.acTypeIcao;
+        if (!s.empty()) {
+            labelInternal += ' ';
+            labelInternal += s;
+        }
+        labelInternal += ')';
         
         // init surfaces
         memset ( &surfaces, 0, sizeof(surfaces));
@@ -870,6 +876,7 @@ bValid(true)
         dataRefs.IncNumAircrafts();
         LOG_MSG(logINFO,INFO_AC_ADDED,
                 labelInternal.c_str(),
+                statCopy.opIcao.c_str(),
                 GetModelName().c_str(),
                 mdl.modelName.c_str(),
                 vecView.angle, vecView.dist/M_per_KM);
@@ -895,11 +902,11 @@ LTAircraft::~LTAircraft()
 LTAircraft::operator std::string() const
 {
     char buf[500];
-    snprintf(buf,sizeof(buf),"a/c %s %s ppos:\n%s Y: %.0ff %.0fkn Phase: %02d %s\nposList:\n",
-             key().c_str(),
-             fd.GetUnsafeStat().acId("-").c_str(),
+    snprintf(buf,sizeof(buf),"a/c %s ppos:\n%s Y: %.0ff %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+             labelInternal.c_str(),
              ppos.dbgTxt().c_str(), terrainAlt,
              GetSpeed_kt(),
+             GetVSI_ft(),
              phase, FlightPhase2String(phase).c_str());
     return std::string(buf) + positionDeque2String(posList);
 }

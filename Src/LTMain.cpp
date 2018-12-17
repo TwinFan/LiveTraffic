@@ -45,6 +45,14 @@ std::string& LTHFS2Posix ( std::string& path )
     HFS2PosixPath(path.c_str(), szResultBuf, sizeof(szResultBuf));
     return path = szResultBuf;
 }
+
+// Convert Posix to HFS
+std::string& LTPosix2HFS ( std::string& path )
+{
+    char szResultBuf[512];
+    Posix2HFSPath(path.c_str(), szResultBuf, sizeof(szResultBuf));
+    return path = szResultBuf;
+}
 #endif
 
 
@@ -91,6 +99,13 @@ std::string LTCalcFullPath ( const char* path, bool bXPMPStyle )
         (strlen(path) >= 2 && path[1] == ':' ) ) {
         // just take the given path
         ret = LTPathToLocal(path,false);
+#if APL
+    } else if (path[0] == PATH_POSIX_SEPARATOR[0]) {
+        // for Mac also allow Posix-style full paths
+        // but convert to HFS
+        ret = path;
+        LTPosix2HFS(ret);
+#endif
     } else {
         // otherwise it shall be a local path relative to XP main
         ret = dataRefs.GetXPSystemPath() + LTPathToLocal(path,false);
@@ -181,6 +196,27 @@ std::string ts2string (time_t t)
              "%F %T",
              &tm);
     return std::string(szBuf);
+}
+
+// separates string into tokens
+std::vector<std::string> str_tokenize (const std::string s,
+                                       const std::string tokens)
+{
+    std::vector<std::string> v;
+ 
+    // find all tokens before the last
+    size_t b = 0;                                   // begin
+    for (size_t e = s.find_first_of(tokens);        // end
+         e != std::string::npos;
+         b = e+1, e = s.find_first_of(tokens, b))
+    {
+        v.emplace_back(s.substr(b, e-b));
+    }
+    
+    // add the last one: the remainder of the string (could be empty!)
+    v.emplace_back(s.substr(b));
+    
+    return v;
 }
 
 //
@@ -326,7 +362,7 @@ bool LTMainInit ()
         pathRelated.c_str(),
         pathLights.c_str(),
         pathDoc8643.c_str(),
-        CSL_DEFAULT_ICAO,
+        dataRefs.GetDefaultAcIcaoType().c_str(),
         &MPIntPrefsFunc, &MPFloatPrefsFunc
     );
     // Init of multiplayer library failed. Cleanup as much as possible and bail out

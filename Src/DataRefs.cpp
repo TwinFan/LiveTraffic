@@ -440,6 +440,9 @@ bool DataRefs::Init ()
     // Register callback to inform DataRef Editor later on
     XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
     
+    // read Doc8643 file (which we could live without)
+    Doc8643::ReadDoc8643File();
+    
     // read configuration file if any
     if (!LoadConfigFile())
         return false;
@@ -1082,17 +1085,24 @@ bool DataRefs::LoadConfigFile()
         return false;
     }
     
+    // *** VERSION ***
     // first line is supposed to be the version - and we know of exactly one:
-    std::string sDataRef, sVal;
-    fIn >> sDataRef >> sVal;
-    if (!fIn ||
-        sDataRef != LIVE_TRAFFIC ||
-        sVal != LT_CFG_VERSION)
+    // read entire line
+    std::vector<std::string> ln;
+    char lnBuf[255];
+    lnBuf[0] = 0;
+    fIn.getline(lnBuf, sizeof(lnBuf));
+    ln = str_tokenize(lnBuf, " ");
+
+    if (!fIn || ln.size() != 2 ||
+        ln[0] != LIVE_TRAFFIC ||
+        ln[1] != LT_CFG_VERSION)
     {
         SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str());
         return false;
     }
     
+    // *** DataRefs ***
     // then follow the config entries
     // supposingly they are just 'dataRef <space> value',
     // but to prevent misuse we certainly validate that we support
@@ -1100,29 +1110,26 @@ bool DataRefs::LoadConfigFile()
     // The file could end with a [CSLPaths] section, too.
     int errCnt = 0;
     while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN) {
-        // read dataRef name and supposed value
-        sDataRef.clear();
-        sVal.clear();
-        fIn >> sDataRef >> sVal;
+        // read line and break into tokens, delimited by spaces
+        lnBuf[0] = 0;
+        fIn.getline(lnBuf, sizeof(lnBuf));
+        ln = str_tokenize(lnBuf, " ");
         
-        // also break out of loop if reading [CSLPaths]
-        if (sDataRef == CFG_CSL_SECTION)
+        // break out of loop if reading [CSLPaths]
+        if (ln.size() == 1 && ln[0] == CFG_CSL_SECTION)
             break;
-        
-        // next char should be a line's end, otherwise we are off somehow
-        if (fIn.peek() != '\n' && fIn.peek() != EOF) {
-            // too many words in that line
-            LOG_MSG(logWARN,ERR_CFG_FILE_WORDS,
-                    sFileName.c_str(), sDataRef.c_str(), sVal.c_str());
+
+        // otherwise should be 2 tokens
+        if (ln.size() != 2) {
+            // wrong number of words in that line
+            LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf);
             errCnt++;
-            // read onver those words until end of line
-            while (fIn.peek() != '\n' && fIn.peek() != EOF)
-                fIn >> sVal;
-            // skip all that, continue with next line
             continue;
         }
-
+        
         // did read a name and a value?
+        const std::string& sDataRef = ln[0];
+        const std::string& sVal     = ln[1];
         if (!sDataRef.empty() && !sVal.empty()) {
             // verify that we know that name
             dataRefDefinitionT* i = std::find_if(std::begin(DATA_REFS_LT),
@@ -1133,6 +1140,21 @@ bool DataRefs::LoadConfigFile()
                  i->isCfgFile()) {         // and it is a configurable one
                 // *** valid config entry, now process it ***
                 i->setData(sVal);
+            }
+            // *** Strings ***
+            else if (sDataRef == CFG_DEFAULT_AC_TYPE) {
+                if (dataRefs.SetDefaultAcIcaoType(sVal))
+                    LOG_MSG(logINFO,CFG_DEFAULT_AC_TYP_INFO,sVal.c_str())
+                else
+                    LOG_MSG(logWARN,ERR_CFG_AC_DEFAULT,sVal.c_str(),
+                            dataRefs.GetDefaultAcIcaoType().c_str());
+            }
+            else if (sDataRef == CFG_DEFAULT_CAR_TYPE) {
+                if (dataRefs.SetDefaultCarIcaoType(sVal))
+                    LOG_MSG(logINFO,CFG_DEFAULT_CAR_TYP_INFO,sVal.c_str())
+                else
+                    LOG_MSG(logWARN,ERR_CFG_CAR_DEFAULT,sVal.c_str(),
+                            dataRefs.GetDefaultCarIcaoType().c_str());
             }
             else
             {
@@ -1145,47 +1167,51 @@ bool DataRefs::LoadConfigFile()
         
     }
     
-    // problem was not just eof?
-    if (!fIn && !fIn.eof()) {
-		char sErr[SERR_LEN];
-		strerror_s(sErr, sizeof(sErr), errno);
-		SHOW_MSG(logERR, ERR_CFG_FILE_READ,
-                 sFileName.c_str(), sErr);
-        return false;
-    }
-    
+    // *** [CSLPaths] ***
     // maybe there's a [CSLPath] section?
-    if (sDataRef == CFG_CSL_SECTION && errCnt <= ERR_CFG_FILE_MAXWARN) {
-        // then the first path is already in sVal... ;)
+    if (fIn && errCnt <= ERR_CFG_FILE_MAXWARN &&
+        ln.size() == 1 && ln[0] == CFG_CSL_SECTION)
+    {
         
         // loop until EOF
-        do {
+        while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN)
+        {
+            // read line and break into tokens, delimited by spaces
+            lnBuf[0] = 0;
+            fIn.getline(lnBuf, sizeof(lnBuf));
+
             // skip empty lines without warning
-            if (sVal.empty())
+            if (lnBuf[0] == 0)
                 continue;
             
             // line has to start with 0 or 1 and | to separate "enabled?" from path
-            if ( sVal.size() < 4 ||
-                 (sVal[0] != '0' && sVal[0] != '1') ||
-                sVal[1] != '|') {
-                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), sVal.c_str());
+            ln = str_tokenize(lnBuf, "|");
+            if (ln.size() != 2 ||
+                ln[0].size() != 1 ||
+                (ln[0][0] != '0' && ln[0][0] != '1'))
+            {
+                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), lnBuf);
                 errCnt++;
                 continue;
             }
             
             // enabled?
-            bool bEnabled = sVal[0] == '1';
-            sVal.erase(0, 2);               // remove enabled flag and pipe, remains: path
+            bool bEnabled = ln[0][0] == '1';
             
             // add the path to the list (unvalidated!)
-            vCSLPaths.emplace_back(bEnabled, std::move(sVal));
-            
-            // read the next line
-            fIn >> sVal;
+            vCSLPaths.emplace_back(bEnabled, std::move(ln[1]));
         }
-        while (fIn&& errCnt <= ERR_CFG_FILE_MAXWARN);
     }
 
+    // problem was not just eof?
+    if (!fIn && !fIn.eof()) {
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
+        SHOW_MSG(logERR, ERR_CFG_FILE_READ,
+                 sFileName.c_str(), sErr);
+        return false;
+    }
+    
     // close file
     fIn.close();
 
@@ -1217,15 +1243,22 @@ bool DataRefs::SaveConfigFile()
         return false;
     }
     
+    // *** VERSION ***
     // save application and version first...maybe we need to know it in
     // future versions for conversion efforts - who knows?
     fOut << LIVE_TRAFFIC << ' ' << LT_CFG_VERSION << '\n';
     
+    // *** DataRefs ***
     // loop over our LiveTraffic values and store those meant to be stored
     for (const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT)
         if (def.isCfgFile())                   // only for values which are to be saved
             fOut << def.GetConfigString() << '\n';
     
+    // *** Strings ***
+    fOut << CFG_DEFAULT_AC_TYPE << ' ' << dataRefs.GetDefaultAcIcaoType() << '\n';
+    fOut << CFG_DEFAULT_CAR_TYPE << ' ' << dataRefs.GetDefaultCarIcaoType() << '\n';
+
+    // *** [CSLPatchs] ***
     // add section of CSL paths to the end
     if (!vCSLPaths.empty()) {
         fOut << CFG_CSL_SECTION << '\n';
@@ -1249,6 +1282,27 @@ bool DataRefs::SaveConfigFile()
     fOut.close();
         
     return true;
+}
+
+// sets the default a/c icao type after validation with Doc8643
+bool DataRefs::SetDefaultAcIcaoType(const std::string type)
+{
+    if (Doc8643::get(type) != DOC8643_EMPTY) {
+        sDefaultAcIcaoType = type;
+        return true;
+    }
+    return false;
+}
+
+// sets default car type. this is a fake value, so no validation agains Doc8643
+// but still needs to be 1 through 4 characters long
+bool DataRefs::SetDefaultCarIcaoType(const std::string type)
+{
+    if (1 <= type.length() && type.length() <= 4) {
+        sDefaultCarIcaoType = type;
+        return true;
+    }
+    return false;
 }
 
 //MARK: Processed values
