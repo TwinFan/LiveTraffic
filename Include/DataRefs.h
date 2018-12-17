@@ -294,6 +294,9 @@ protected:
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
+    std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
+    std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
     
@@ -383,6 +386,10 @@ public:
     int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
     
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
+    std::string GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
+    std::string GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
+    bool SetDefaultAcIcaoType(const std::string type);
+    bool SetDefaultCarIcaoType(const std::string type);
 
     // livetraffic/channel/...
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }

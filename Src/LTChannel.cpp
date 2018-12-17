@@ -680,9 +680,11 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         jog_n(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
                         jog_n(pJAc, ADSBEX_ENG_MOUNT)    == 0)
                         // assume surface vehicle
-                        stat.acTypeIcao = CSL_CAR_ICAO;
+                        stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
                     else
-                        LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+                        LOG_MSG(logWARN,ERR_CH_INV_DATA,
+                                ChName(),transpIcao.c_str(),
+                                dataRefs.GetDefaultAcIcaoType().c_str());
                 }
                 
                 // update the a/c's master data
@@ -1102,7 +1104,9 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 
                     // update the a/c's master data
                     if ( stat.acTypeIcao.empty() )
-                        LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+                        LOG_MSG(logWARN,ERR_CH_INV_DATA,
+                                ChName(),transpIcao.c_str(),
+                                dataRefs.GetDefaultAcIcaoType().c_str());
                     fd.UpdateData(std::move(stat), true);
                 }
                 
@@ -1413,9 +1417,11 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             // could be a ground vehicle?
             std::string cat = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
             if (cat.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos)
-                statDat.acTypeIcao = CSL_CAR_ICAO;
+                statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
             else
-                LOG_MSG(logWARN,ERR_CH_INV_DATA,ChName(),transpIcao.c_str());
+                LOG_MSG(logWARN,ERR_CH_INV_DATA,
+                        ChName(),transpIcao.c_str(),
+                        dataRefs.GetDefaultAcIcaoType().c_str());
         }
 
         // update the a/c's master data

@@ -149,9 +149,6 @@ PLUGIN_API int XPluginStart(
     // init DataRefs
     if (!dataRefs.Init()) return 0;
     
-    // read Doc8643 file (which we could live without)
-    Doc8643::ReadDoc8643File();
-    
     // read FlightModel.prf file (which we could live without)
     LTAircraft::FlightModel::ReadFlightModelFile();
     
