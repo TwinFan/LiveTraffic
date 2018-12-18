@@ -217,7 +217,11 @@ void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
                                   positionTy*& pBefore, positionTy*& pAfter);
 
 // return the average of two headings, shorter side, normalized to [0;360)
-double AvgHeading (double h1, double h2, double f1=1, double f2=1);
+double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
+
+// return the smaller difference between two headings
+// -180 <= HeadingDiff <= 180
+double HeadingDiff (double h1, double h2);
 
 // a bounding box has a north/west and a south/east corner
 // we use positionTy for convenience...alt is usually not used here

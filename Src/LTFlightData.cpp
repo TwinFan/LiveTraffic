@@ -751,7 +751,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         // with the linear factor in favor of the _shorter_ vector
         // (Idea: we have more time to turn on the longer side, so at the junction
         //        the heading should be closer to the shorter vector's heading)
-        it->heading() = AvgHeading(vecTo.angle,
+        it->heading() = HeadingAvg(vecTo.angle,
                                    vecFrom.angle,
                                    vecFrom.dist,
                                    vecTo.dist);
@@ -767,7 +767,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         dequeFDDynFindAdjacentTS(it->ts(), pBefore, pAfter);
         // get the best heading out of it
         if (pAfter && pBefore)
-            it->heading() = AvgHeading(pBefore->heading,
+            it->heading() = HeadingAvg(pBefore->heading,
                                        pAfter->heading,
                                        pAfter->ts - it->ts(),   // factor "before" higher if close (and after is further away!)
                                        it->ts() - pBefore->ts); // factor "after" higher if close (and before is further away!)
@@ -1086,6 +1086,41 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+        
+        // We don't mix channels. They aren't in synch, mixing them leads
+        // to planes jumping around and other weird behaviour.
+        // We allow a change of channel only if the current channel seems
+        // outdated and unresponsive.
+        // We allow a change of channel if this prevents the aircraft from
+        // disappearing, i.e. if this is the last update before a/c outdated period,
+        // or in other words: new ts + refresh period > old ts + outdated period
+        if (!dynDataDeque.empty()) {
+            const FDDynamicData& last = dynDataDeque.back();
+            if (last.pChannel != inDyn.pChannel) {
+                // We compare timestamps of the actual positions and as a safeguard
+                // accept positions only pointing roughly in the same direction
+                // as we don't want a/c to turn back and forth due to channel switch.
+                if (!pos) return;
+                if (!posDeque.empty()) {
+                    const positionTy& lastPos = posDeque.back();
+                    if (pos->ts() + dataRefs.GetFdRefreshIntvl() <=
+                        lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
+                        // not big enough a difference in timestamps yet
+                        return;
+                    // check for weird heading changes, don't allow more than 60°
+                    const vectorTy v (lastPos.between(*pos));
+                    const double diffH = HeadingDiff(lastPos.heading(), v.angle);
+                    if (diffH < -60 || diffH > 60)
+                        return;
+                }
+                
+                // accept channel switch!
+                LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
+                        key().c_str(), statData.acId("-").c_str(),
+                        last.pChannel ? last.pChannel->ChName() : "<null>",
+                        inDyn.pChannel ? inDyn.pChannel->ChName() : "<null>")
+            }
+        }
         
         // only need to bother adding data if it is newer than current data
         if (dynDataDeque.empty() || dynDataDeque[0] < inDyn)

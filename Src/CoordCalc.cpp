@@ -160,7 +160,7 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     LOG_ASSERT(unitCoord == pos.unitCoord && unitAngle == pos.unitAngle);
     // heading needs special treatment
     // (also removes nan value if one of the headings is nan)
-    const double h = AvgHeading(heading(), pos.heading(), mergeCount, pos.mergeCount);
+    const double h = HeadingAvg(heading(), pos.heading(), mergeCount, pos.mergeCount);
     // take into account how many other objects made up the current pos! ("* count")
 
 	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
@@ -433,7 +433,7 @@ void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
 
 // return the average of two headings, shorter side, normalized to [0;360)
 // f1/f2 are linear factors, defaulting to 1
-double AvgHeading (double head1, double head2, double f1, double f2)
+double HeadingAvg (double head1, double head2, double f1, double f2)
 {
     // if either value is nan return the other (returns nan if both are nan)
     if (isnan(head1)) return head2;
@@ -452,6 +452,26 @@ double AvgHeading (double head1, double head2, double f1, double f2)
     
     // return average of the two, normalized to 360°
     return fmod((f1*head1+f2*head2)/(f1+f2), 360);
+}
+
+// return the smaller difference between two headings
+double HeadingDiff (double head1, double head2)
+{
+    // if either value is nan return nan
+    if (isnan(head1) || isnan(head2)) return NAN;
+    
+    // if 0° North lies between head1 and head2 then simple
+    // diff doesn't work
+    if ( abs(head2-head1) > 180 ) {
+        // add 360° to the lesser value...then diff works
+        if ( head1 < head2 )
+            head1 += 360;
+        else
+            head2 += 360;
+        LOG_ASSERT ( abs(head2-head1) <= 180 );
+    }
+    
+    return head2 - head1;
 }
 
 

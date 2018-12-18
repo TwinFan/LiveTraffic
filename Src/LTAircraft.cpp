@@ -1073,7 +1073,7 @@ bool LTAircraft::CalcPPos()
         heading.moveQuickestToBy(NAN,
                                  vec.dist > SIMILAR_POS_DIST ?  // if vector long enough:
                                  vec.angle :                    // turn to vector heading
-                                 AvgHeading(from.heading(),to.heading()),   // otherwise only turn to avg between from- and target-heading
+                                 HeadingAvg(from.heading(),to.heading()),   // otherwise only turn to avg between from- and target-heading
                                  NAN, (from.ts()+to.ts())/2,    // by half the vector flight time
                                  true);                         // start immediately
         

@@ -31,6 +31,26 @@
          contextName = "DataRefs::LTSetSimDateTime(void*, int):DataRefs.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "posDeque">
+            </PersistentString>
+            <PersistentString
+               value = "dynDataDeque">
+            </PersistentString>
+            <PersistentString
+               value = "currCycle">
+            </PersistentString>
+            <PersistentString
+               value = "inDyn">
+            </PersistentString>
+            <PersistentString
+               value = "last">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "FlightradarConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
       </ContextState>
       <ContextState
@@ -130,14 +150,6 @@
          <PersistentStrings>
             <PersistentString
                value = "(char*)outValue">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "ADSBExchangeConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "netData">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -270,10 +282,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -319,10 +331,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -357,10 +369,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -423,14 +435,6 @@
       </ContextState>
       <ContextState
          contextName = "LTFlightData::UpdateStaticLabel():LTFlightData.cpp">
-      </ContextState>
-      <ContextState
-         contextName = "LTFlightDataSelectAc():LTChannel.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "p-&gt;errCnt">
-            </PersistentString>
-         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "CoordPlusVector(positionTy const&amp;, vectorTy const&amp;):CoordCalc.cpp">

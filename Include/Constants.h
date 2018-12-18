@@ -305,6 +305,7 @@ constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many error
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
+#define DBG_AC_CHANNEL_SWITCH   "DEBUG %s (%s): SWITCHED CHANNEL from '%s' to '%s'"
 #ifdef DEBUG
 #define DBG_DEBUG_BUILD         "DEBUG BUILD with additional run-time checks and no optimizations"
 #endif
