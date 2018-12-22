@@ -251,7 +251,7 @@ bool LTFlightData::validForAcCreate(double simTime) const
 
     // so we have two positions...one in the past, one in the future?
     return
-    posDeque[0].ts() <= simTime && simTime < posDeque[1].ts();
+    posDeque.front().ts() <= simTime && simTime < posDeque[1].ts();
 }
 
 // is the data outdated (considered too old to be useful)?
@@ -382,10 +382,16 @@ bool LTFlightData::CalcNextPos ( double simTime )
             return false;
         
         // *** maintenance of flight data deque ***
-        
-        // if no simTime given use current
+
+        const LTAircraft::FlightModel stdMdl;
+        const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl : stdMdl;
+
+        // if no simTime given use a/c's 'to' position, or current sim time
         if (isnan(simTime)) {
-            simTime = dataRefs.GetSimTime();
+            if (pAc)
+                simTime = pAc->GetToPos().ts();
+            else
+                simTime = dataRefs.GetSimTime();
             bDoLandTODetect = false;
         }
 
@@ -398,7 +404,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // Differs depending on: is there an a/c yet?
         if ( pAc ) {
             // if there is an a/c then we just remove all positions before 'simTime'
-            while (!posDeque.empty() && posDeque[0].ts() <= simTime) {
+            while (!posDeque.empty() && posDeque.front().ts() <= simTime - 0.01f) {
                 posDeque.pop_front();
                 bChanged = true;
             }
@@ -413,7 +419,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // If there is no a/c yet then we need one past and
             // one or more future positions
             // If already the first pos is in the future then we aren't valid yet
-            if (simTime < posDeque[0].ts())
+            if (simTime < posDeque.front().ts())
                 return false;
             
             // The first pos is in the past, good, make sure it's the only one
@@ -427,11 +433,142 @@ bool LTFlightData::CalcNextPos ( double simTime )
             if (posDeque.size() < 2)
                 return false;
         }
+        
+        // *** Data Cleansing ***
+        //
+        // Remove weird positions. A position is 'weird', if
+        // - VSI would be more than +/- 2 * mdl.VSI_INIT_CLIMB
+        // - heading change would be more than
+        if (( pAc && posDeque.size() >= 1) ||
+            (!pAc && posDeque.size() >= 3))
+        {
+            positionTy pos1;
+            vectorTy v2, v3;
+            double h1 = NAN;
+            dequePositionTy::const_iterator iter = posDeque.cbegin();
+            
+            // position _before_ the first position in the deque
+            if (pAc) {
+                pos1 = pAc->GetToPos();
+                h1 = pAc->GetTrack();       // and the heading towards pos1
+                // if (still) the to-Pos is current iter pos then increment
+                // (could be that plane's current 'to' is still the first
+                //  in out queue)
+                while (iter != posDeque.end() &&
+                       pos1.cmp(*iter) == 0)
+                    ++iter;
+            } else {
+                // in this case we have at least 3 positions
+                pos1 = *std::next(iter);
+                vectorTy v1 = iter->between(pos1);
+                h1 = v1.dist > SIMILAR_POS_DIST ?
+                     v1.angle : pos1.heading();
+                std::advance(iter, 2);
+            }
+            
+            // loop over (remaining) pos and verify their validity
+            while (iter != posDeque.cend())
+            {
+                // maximum turn allowed depends on 'on ground' or not
+                const double maxTurn = iter->onGrnd == positionTy::GND_ON ?
+                MDL_MAX_TURN_GND : MDL_MAX_TURN;
+
+                // vector from previous to current and angle between, i.e. turn angle at iter
+                v2 = pos1.between(*iter);
+                const double hDiff2 = v2.dist > SIMILAR_POS_DIST ?
+                                        HeadingDiff(h1, v2.angle) : 0;
+
+                // Too much of a turn? VSI/speed out of range?
+                if (-maxTurn > hDiff2 || hDiff2 > maxTurn   ||
+                    v2.vsi_ft() < -3 * mdl.VSI_INIT_CLIMB   ||
+                    v2.vsi_ft() > 3 * mdl.VSI_INIT_CLIMB    ||
+                    v2.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED)
+                {
+                    if constexpr (VERSION_BETA) {
+                        LOG_MSG(logDEBUG, "%s %s: Invalid v2: %s with hDiff2 = %.0f",
+                                key().c_str(), statData.acId("-").c_str(),
+                                std::string(v2).c_str(), hDiff2 );
+                    }
+
+                    // is there any valid pos to go to after iter?
+                    dequePositionTy::const_iterator next = std::next(iter);
+                    for (;
+                         next != posDeque.cend();
+                         ++next)
+                    {
+                        // vector from previous to next and angle between, i.e. turn angle at iter
+                        vectorTy v3 = pos1.between(*next);
+                        const double hDiff3 = v3.dist > SIMILAR_POS_DIST ?
+                                                HeadingDiff(h1, v3.angle) : 0;
+                        
+                        // OK position to go to?
+                        if (-maxTurn < hDiff3 && hDiff3 < maxTurn   &&
+                            v3.vsi_ft() >= -3 * mdl.VSI_INIT_CLIMB  &&
+                            v3.vsi_ft() <=  3 * mdl.VSI_INIT_CLIMB  &&
+                            v3.speed_kn() <= 4 * mdl.FLAPS_DOWN_SPEED)
+                        {
+                            if constexpr (VERSION_BETA) {
+                                LOG_MSG(logDEBUG, "%s %s:   Valid v3: %s with hDiff3 = %.0f",
+                                        key().c_str(), statData.acId("-").c_str(),
+                                        std::string(v3).c_str(), hDiff3 );
+                                LOG_MSG(logDEBUG, Positions2String().c_str() );
+                            }
+                            // that means we need to remove all positions from
+                            // 'iter' to _before_ next:
+                            while (iter != next) {
+                                dequePositionTy::const_iterator rmIter = iter;
+                                ++iter;
+                                LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
+                                        key().c_str(), statData.acId("-").c_str(),
+                                        rmIter->dbgTxt().c_str());
+                                posDeque.erase(rmIter);
+                                bChanged = true;
+                            }
+                            
+                            // break out of search loop
+                            // (will lead to while loop with iter == next)
+                            break;
+                        } // if found valid next pos
+                    } // for searching valid next pos
+                    
+                    // did we find nothing???
+                    if (next == posDeque.cend())
+                    {
+                        // Well...let's hope some better data is coming later
+                        // from the network -> stop cleansing here.
+
+                        // There is just one thing we want to avoid:
+                        // That the non-continguous data is the next to be picked
+                        // by the aircraft. That would make rocket/sliding
+                        // planes. So if there is no good data left -> remove
+                        // the aircraft to avoid rocketing / sliding.
+                        if (pAc && iter == posDeque.cbegin()) {
+                            pAc->SetInvalid();
+                            LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
+                                    key().c_str(), statData.acId("-").c_str());
+                        }
+                        
+                        // stop cleansing
+                        break;
+                    } // if not found any valid next position
+                    else if constexpr (VERSION_BETA) {
+                        LOG_MSG(logDEBUG, Positions2String().c_str() );
+                    }
+                } // if invalid pos
+                else
+                {
+                    // just move on to next position in deque
+                    h1 = v2.angle;
+                    pos1 = *iter;
+                    ++iter;
+                }
+            } // inner while loop over positions
+        } // outer if of data cleansing
 
 #ifdef DEBUG
-        std::string deb0   ( posDeque[0].dbgTxt() );
+        std::string deb0   ( posDeque.front().dbgTxt() );
         std::string deb1   ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
-        std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque[0].between(posDeque[1])) : "<none>" );
+        std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque.front().between(posDeque[1])) : "<none>" );
 #endif
         
         // *** Landing / Take-Off Detection ***
@@ -439,7 +576,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
         if ( pAc && bDoLandTODetect ) {
             const positionTy& ppos = pAc->GetPPos();
             const LTAircraft::FlightModel& mdl = pAc->mdl;
-            positionTy& to   = posDeque[0];
+            positionTy& to   = posDeque.front();
+            
+            // clear outdated rotate timestamp
+            if (!isnan(rotateTS) && (rotateTS + 2 * mdl.ROTATE_TIME < simTime) )
+                rotateTS = NAN;
             
             // *** Landing ***
             // If current pos is in the air and next pos is approaching or touching ground
@@ -502,7 +643,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // for the take off case we look further ahead to catch the case
             // that a data point is right between start of rotating and actual lift off
             else for (int i = 0;
-                      i <= 1 && posDeque.size() >= i+1;
+                      isnan(rotateTS) && i <= 1 && posDeque.size() >= i+1;
                       i++ )
             {
                 // i == 0 is as above with actual a/c present position
@@ -599,9 +740,18 @@ bool LTFlightData::CalcNextPos ( double simTime )
             } // loop over szenarios
         } // (has a/c and do landing / take-off detection)
         
-        // if something changed output all positional information as debug info on request
-        if (bChanged && dataRefs.GetDebugAcPos(key())) {
-            LOG_MSG(logDEBUG,DBG_POS_DATA,Positions2String().c_str());
+        // if something changed
+        if (bChanged) {
+            // recalc all headings
+            for (dequePositionTy::iterator iter = posDeque.begin();
+                 iter != posDeque.end();
+                 ++iter)
+                CalcHeading(iter);
+            
+            // output all positional information as debug info on request
+            if (dataRefs.GetDebugAcPos(key())) {
+                LOG_MSG(logDEBUG,DBG_POS_DATA,Positions2String().c_str());
+            }
         }
         
         // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
@@ -1107,11 +1257,21 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                         lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
                         // not big enough a difference in timestamps yet
                         return;
-                    // check for weird heading changes, don't allow more than 60°
-                    const vectorTy v (lastPos.between(*pos));
-                    const double diffH = HeadingDiff(lastPos.heading(), v.angle);
-                    if (diffH < -60 || diffH > 60)
-                        return;
+                    
+                    // check for weird heading changes, don't allow more than 90-120°
+                    // lastPos.heading points to the direction of flight
+                    // (because it's currently the last pos in the deque),
+                    // determine heading to new pos and compare:
+                    vectorTy vec (lastPos.between(*pos));
+                    double diff = abs(HeadingDiff(lastPos.heading(), vec.angle));
+                    if (lastPos.onGrnd  == positionTy::GND_ON &&
+                        pos->onGrnd     == positionTy::GND_ON) {
+                        if (diff > MDL_MAX_TURN_GND)
+                            return;
+                    } else {
+                        if (diff > MDL_MAX_TURN)
+                            return;
+                    }
                 }
                 
                 // accept channel switch!
@@ -1123,7 +1283,7 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
         }
         
         // only need to bother adding data if it is newer than current data
-        if (dynDataDeque.empty() || dynDataDeque[0] < inDyn)
+        if (dynDataDeque.empty() || dynDataDeque.front() < inDyn)
         {
             // must not yet have similar timestamp in our list
             if (std::find_if(dynDataDeque.cbegin(),dynDataDeque.cend(),
@@ -1156,7 +1316,7 @@ bool LTFlightData::TryGetSafeCopy ( FDDynamicData& outDyn ) const
         if ( lock )
         {
             // we got the lock, return a copy of the data
-            outDyn = dynDataDeque.empty() ? FDDynamicData() : dynDataDeque[0];
+            outDyn = dynDataDeque.empty() ? FDDynamicData() : dynDataDeque.front();
             // Success!
             return true;
         }
@@ -1187,7 +1347,7 @@ LTFlightData::FDDynamicData LTFlightData::WaitForSafeCopyDyn (bool bFirst) const
 
 LTFlightData::FDDynamicData LTFlightData::GetUnsafeDyn() const
 {
-    return dynDataDeque.empty() ? FDDynamicData() : dynDataDeque[0];
+    return dynDataDeque.empty() ? FDDynamicData() : dynDataDeque.front();
 }
 
 // find two positions around given timestamp ts
@@ -1305,6 +1465,11 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
         if ( !lock )                // we didn't get the lock, just return w/o deletion
             return false;
         
+        // if the a/c became invalid then remove the aircraft object,
+        // but retain the remaining flight data
+        if (pAc && !pAc->IsValid())
+            DestroyAircraft();
+        
         // if outdated just return 'delete me'
         if ( outdated(simTime) )
             return true;
@@ -1322,7 +1487,7 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
             else // not yet valid
                 // but the oldest position is at or before current simTime?
                 // then chances are good that we can calculate positions
-                if ( posDeque[0].ts() <= simTime)
+                if ( posDeque.front().ts() <= simTime)
                     // start thread for position calculation...next time we might be valid for creation
                     TriggerCalcNewPos(NAN);
         }

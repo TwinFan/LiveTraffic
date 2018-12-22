@@ -635,8 +635,8 @@ float DataRefs::LTGetAcInfoF(void* p)
     switch ( reinterpret_cast<long long>(p) ) {
         case DR_AC_LAT:         return (float)dataRefs.pAc->GetPPos().lat();
         case DR_AC_LON:         return (float)dataRefs.pAc->GetPPos().lon();
-        case DR_AC_ALT:         return (float)dataRefs.pAc->GetPPos().alt_ft();
-        case DR_AC_HEADING:     return (float)dataRefs.pAc->GetPPos().heading();
+        case DR_AC_ALT:         return (float)dataRefs.pAc->GetAlt_ft();
+        case DR_AC_HEADING:     return (float)dataRefs.pAc->GetHeading();
         case DR_AC_ROLL:        return (float)dataRefs.pAc->GetRoll();
         case DR_AC_PITCH:       return (float)dataRefs.pAc->GetPitch();
         case DR_AC_SPEED:       return (float)dataRefs.pAc->GetSpeed_kt();

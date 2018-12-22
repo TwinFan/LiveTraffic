@@ -27,6 +27,12 @@
 #ifndef Constants_h
 #define Constants_h
 
+//
+// MARK: Version Information (CHANGE VERSION HERE)
+//
+constexpr float VERSION_NR = 0.84f;
+constexpr bool VERSION_BETA = true;
+
 //MARK: Window Position
 #define WIN_WIDTH       400         // window width
 #define WIN_ROW_HEIGHT   20         // height of line of text
@@ -53,7 +59,7 @@ constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 constexpr double FLIGHT_LOOP_INTVL  = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 5;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-constexpr double SIMILAR_POS_DIST = 5;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to terrain alt but grndStatus OFF then double-check using YProbe
 constexpr double FD_GND_AGL =       10;         // [ft] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
@@ -63,6 +69,8 @@ constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
 constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
+constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
+constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
@@ -303,6 +311,8 @@ constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many error
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
+#define DBG_INV_POS_REMOVED     "DEBUG %s (%s): Removed an invalid position: %s"
+#define DBG_INV_POS_AC_REMOVED  "DEBUG %s (%s): Removed a/c due to invalid positions"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
 #define DBG_AC_CHANNEL_SWITCH   "DEBUG %s (%s): SWITCHED CHANNEL from '%s' to '%s'"

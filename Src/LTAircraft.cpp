@@ -991,11 +991,11 @@ bool LTAircraft::CalcPPos()
     LOG_ASSERT_FD(fd, posList.size() >= 2);
 
     // 1s before reaching last know position we trigger pos calculation (max every 1,0s)
-    const positionTy& lastPos = *std::prev(posList.cend());
+    const positionTy& lastPos = posList.back();
     if ((lastPos.ts() <= currCycle.simTime + 2*TIME_REQU_POS) &&
         (tsLastCalcRequested + 2*TIME_REQU_POS <= currCycle.simTime))
     {
-        fd.TriggerCalcNewPos(std::max(currCycle.simTime,posList[1].ts()));
+        fd.TriggerCalcNewPos(std::max(currCycle.simTime,lastPos.ts()));
         tsLastCalcRequested=currCycle.simTime;
     }
 
@@ -1252,7 +1252,7 @@ bool LTAircraft::CalcPPos()
     // soon anyway, we just speed up things a bit here
     if (!ppos.isNormal()) {
         // set the plane invalid and bail out with message
-        bValid = false;
+        SetInvalid();
         LOG_MSG(logWARN, ERR_POS_UNNORMAL, key().c_str(),
                 dataRefs.GetDebugAcPos(key()) ?
                 std::string(*this).c_str() : ppos.dbgTxt().c_str());
@@ -1362,7 +1362,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // Determine FPH_ROTATE by use of rotate timestamp
     // (set in LTFlightData::CalcNextPos)
-    if ( phase < FPH_ROTATE && currCycle.simTime >= rotateTs ) {
+    if ( phase < FPH_ROTATE &&
+         rotateTs <= currCycle.simTime && currCycle.simTime <= rotateTs + 2 * mdl.ROTATE_TIME ) {
         phase = FPH_ROTATE;
     }
 
@@ -1461,6 +1462,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.navLights  = 1;
         surfaces.lights.flashPattern = mdl.LIGHT_PATTERN;
         
+        pitch.SetVal(pitch.defMin);      // nose on the ground
         gear.down();
         flaps.up();
     }
@@ -1672,7 +1674,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
     } catch (...) {}
 
     // for any kind of exception: don't use this object any more!
-    bValid = false;
+    SetInvalid();
     return xpmpData_Unavailable;
 }
 
@@ -1700,7 +1702,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
     } catch (...) {}
 
     // for any kind of exception: don't use this object any more!
-    bValid = false;
+    SetInvalid();
     return xpmpData_Unavailable;
 }
 
@@ -1737,7 +1739,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
     } catch (...) {}
 
     // for any kind of exception: don't use this object any more!
-    bValid = false;
+    SetInvalid();
     return xpmpData_Unavailable;
 }
 

@@ -273,6 +273,8 @@ public:
     inline FlightPhase GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     inline bool IsOnGrnd() const { return bOnGrnd; }
+    inline double GetHeading() const { return ppos.heading(); }
+    inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
     inline double GetSpeed_kt() const { return speed.kt(); }                     // kt
@@ -281,14 +283,18 @@ public:
     inline double GetVSI_m_s() const { return vsi * Ms_per_FTm; }           // m/s
     inline double GetPitch() const { return ppos.pitch(); }
     inline double GetRoll() const { return ppos.roll(); }
+    inline double GetAlt_ft() const { return ppos.alt_ft(); }
+    inline double GetAlt_m() const { return ppos.alt_m(); }
     inline double GetTerrainAlt_ft() const { return terrainAlt; }           // ft
     inline double GetTerrainAlt_m() const { return terrainAlt * M_per_FT; } // m
     inline double GetPHeight_ft() const { return ppos.alt_ft() - terrainAlt; }
     inline double GetPHeight_m() const { return GetPHeight_ft() * M_per_FT; }
+    inline vectorTy GetVec() const { return vec; }
     inline vectorTy GetVecView() const { return vecView; }
     std::string GetLightsStr() const;
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
+    void SetInvalid() { bValid = false; }
 
 protected:
     // based on current sim time and posList calculate the present position

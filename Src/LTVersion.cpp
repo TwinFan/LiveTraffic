@@ -27,12 +27,6 @@
 #include "LiveTraffic.h"
 
 //
-// MARK: Version Information (CHANGE VERSION HERE)
-//
-const float VERSION_NR = 0.83f;
-const bool VERSION_BETA = true;
-
-//
 // MARK: global variables referred to via extern declarations in Constants.h
 //
 char LT_VERSION[10] = "";
