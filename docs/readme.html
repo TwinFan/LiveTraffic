@@ -25,6 +25,60 @@
     <h2>Release Notes</h2>
 
         <p>The number-link refers to the issue in GitHub with (technical) details.</p>
+        
+        <h3>v0.84.20181223</h3>
+        
+        <ul>
+            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/61">#61</a>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/43">#43</a>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
+                Better handling of mixed channels. Please run with all channels
+                enabled. A/c will at any point in time be fed by one channel
+                only, but switching to another is possible if (a) the original
+                channel stopped feeding and (b) the new position is in a
+                reasonable direction to prevent 180 degree turns.<br>
+                As channels aren't time-synched LT needs to make up for the
+                reported time difference with unusual slow/fast plane movements.<br>
+                A channel switch will be document with a DEBUG-level <code>Log.txt</code>
+                entry like <code>DEBUG AA73C3 (SWA1730): SWITCHED CHANNEL from
+                'ADSB Exchange Live Online' to 'OpenSky Live Online'</code>.
+            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/48">#48</a>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/57">#57</a>
+                <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
+                Flight data cleansing introduced, which tries to remove
+                ill-looking positions from the position queue.
+                This shall lead to a lot less 180 degree turns and other
+                weird movements. It will not remove all weird behaviour, though.<br>
+                A position removal will be document with a DEBUG-level <code>Log.txt</code>
+                entry like <code>DEBUG A25CDC (SKW4148): Removed an invalid position</code>.
+                Currently, positional debug information is outuput
+                around such an event to ease analysis.
+            <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/37">#37 (still open)</a>:
+                A/c info wnd displays origin/dest airport info as reported
+                by ADS-B-Exchange. No interpretation...if wrong refer to ADSBEx.
+            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/64">#64</a>:
+                Fixed using correct altitude value from OpenSky stream,
+                specifically: geo altitude instead of barometric altitude.
+                Should lead to OpenSky a/c better hit runway threshold.
+            <li>FIXED: Enhancements to take-off prediction. Should more often and
+                more smoothly see rotate phase right before take off.
+            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/56">#56</a>
+                reading <code>[CSLPaths]</code> in <code>LiveTraffic.prf</code>
+                containing spaces. Tested/fixed full path usage on Mac.
+            <li>ADDED Config file entries for <code>DEFAULT_AC_TYPE A320</code> and
+                <code>DEFAULT_CAR_TYPE ZZZC</code> to <code>LiveTraffic.prf</code>
+                to specify ICAO types to use when (a) no a/c type could be
+                determined and (b) for cars.<br>
+                (Start/stop LiveTraffic once for the entries to appear.
+                Edit config file only with X-Plane off.)
+            <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/51">#51</a>
+                identification of ground vehicles in flight data and display of them
+                using the type configured with <code>DEFAULT_CAR_TYPE</code> in
+                <code>LiveTraffic.prf</code>. Requires such a type as a
+                CSL model. Tested with <a href="http://csl.x-air.ru/info/item/150?lang_id=43">
+                this model</a>.
+        </ul>
+        
 
         <h3>v0.83.20181212</h3>
         
