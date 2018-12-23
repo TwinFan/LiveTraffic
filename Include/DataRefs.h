@@ -281,7 +281,7 @@ protected:
     time_t tStartThisYear = 0, tStartPrevYear = 0;
     
     // generic config values
-    int bAutoStart              = false;// shall display a/c right after startup?
+    int bAutoStart              = true; // shall display a/c right after startup?
     // which elements make up an a/c label?
     LabelCfgUTy labelCfg = { {1,1,0,0,0,0,0,0, 0,0,1,0,1,0} };
     int maxNumAc        = 50;           // how many aircrafts to create at most?

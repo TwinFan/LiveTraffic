@@ -357,12 +357,9 @@ iLogLevel (initLogLevel)
         iLogLevel = logDEBUG;
 #endif
     
-    // disabled all channels
+    // enable all channels
     for ( int& i: bChannel )
-        i = false;
-    // enable OpenSky as a default
-    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE,true);
-    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,true);
+        i = true;
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));
