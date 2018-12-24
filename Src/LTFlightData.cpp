@@ -443,7 +443,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             (!pAc && posDeque.size() >= 3))
         {
             positionTy pos1;
-            vectorTy v2, v3;
+            vectorTy v2;
             double h1 = NAN;
             dequePositionTy::const_iterator iter = posDeque.cbegin();
             
@@ -482,7 +482,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 if (-maxTurn > hDiff2 || hDiff2 > maxTurn   ||
                     v2.vsi_ft() < -3 * mdl.VSI_INIT_CLIMB   ||
                     v2.vsi_ft() > 3 * mdl.VSI_INIT_CLIMB    ||
-                    v2.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED)
+                    (!isnan(v2.speed_kn()) && v2.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED))
                 {
                     if constexpr (VERSION_BETA) {
                         LOG_MSG(logDEBUG, "%s %s: Invalid v2: %s with hDiff2 = %.0f",
@@ -491,6 +491,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     }
 
                     // is there any valid pos to go to after iter?
+                    bool bFoundValidNext = false;
                     dequePositionTy::const_iterator next = std::next(iter);
                     for (;
                          next != posDeque.cend();
@@ -505,8 +506,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         if (-maxTurn < hDiff3 && hDiff3 < maxTurn   &&
                             v3.vsi_ft() >= -3 * mdl.VSI_INIT_CLIMB  &&
                             v3.vsi_ft() <=  3 * mdl.VSI_INIT_CLIMB  &&
-                            v3.speed_kn() <= 4 * mdl.FLAPS_DOWN_SPEED)
+                            (!isnan(v3.speed_kn()) && v3.speed_kn() <= 4 * mdl.FLAPS_DOWN_SPEED))
                         {
+                            bFoundValidNext = true;
+
                             if constexpr (VERSION_BETA) {
                                 LOG_MSG(logDEBUG, "%s %s:   Valid v3: %s with hDiff3 = %.0f",
                                         key().c_str(), statData.acId("-").c_str(),
@@ -514,25 +517,38 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                 LOG_MSG(logDEBUG, Positions2String().c_str() );
                             }
                             // that means we need to remove all positions from
-                            // 'iter' to _before_ next:
-                            while (iter != next) {
-                                dequePositionTy::const_iterator rmIter = iter;
-                                ++iter;
-                                LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
+                            // 'iter' to _before_ next.
+                            // BUT because std::deque::erase can invalidate _all_ iterators
+                            // (including cend!) we cannot do it in one go...after the first erase all iterators are invalid.
+                            // Make use of the fact that the deque is sorted by timestamp.
+                            const double rmTsFrom = iter->ts();
+                            const double rmTsTo = next->ts();
+                            while (iter != posDeque.cend() && iter->ts() < rmTsTo)
+                            {
+                                // if current iter falls into the to-be-deleted range
+                                if (rmTsFrom <= iter->ts() && iter->ts() < rmTsTo) {
+                                    LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
                                         key().c_str(), statData.acId("-").c_str(),
-                                        rmIter->dbgTxt().c_str());
-                                posDeque.erase(rmIter);
-                                bChanged = true;
+                                        iter->dbgTxt().c_str());
+                                    posDeque.erase(iter);               // now all iterators are invalid!
+                                    bChanged = true;
+                                    iter = posDeque.cbegin();
+                                }
+                                else {
+                                    // otherwise just try next
+                                    ++iter;
+                                }
                             }
                             
                             // break out of search loop
-                            // (will lead to while loop with iter == next)
+                            // (iter now points to where 'next' was before, but with updated iterators9
+                            LOG_ASSERT_FD(*this, iter != posDeque.cend() && iter->ts() == rmTsTo);
                             break;
                         } // if found valid next pos
                     } // for searching valid next pos
                     
                     // did we find nothing???
-                    if (next == posDeque.cend())
+                    if (!bFoundValidNext)
                     {
                         // Well...let's hope some better data is coming later
                         // from the network -> stop cleansing here.
@@ -544,6 +560,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         // the aircraft to avoid rocketing / sliding.
                         if (pAc && iter == posDeque.cbegin()) {
                             pAc->SetInvalid();
+                            if constexpr (VERSION_BETA) {
+                                LOG_MSG(logDEBUG, Positions2String().c_str());
+                            }
                             LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
                                     key().c_str(), statData.acId("-").c_str());
                         }
@@ -574,9 +593,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** Landing / Take-Off Detection ***
         
         if ( pAc && bDoLandTODetect ) {
-            const positionTy& ppos = pAc->GetPPos();
-            const LTAircraft::FlightModel& mdl = pAc->mdl;
-            positionTy& to   = posDeque.front();
+            const positionTy& ppos_ac = pAc->GetPPos();
+            positionTy& to_ac   = posDeque.front();
             
             // clear outdated rotate timestamp
             if (!isnan(rotateTS) && (rotateTS + 2 * mdl.ROTATE_TIME < simTime) )
@@ -592,26 +610,26 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // and then insert an artifical touch down position, which just keeps going with
             // previous vsi and speed down to the ground.
 
-            if (ppos.onGrnd == positionTy::GND_OFF &&           // currently off ground
-                to.onGrnd   >= positionTy::GND_APPROACHING &&   // future: approaching / on ground
+            if (ppos_ac.onGrnd == positionTy::GND_OFF &&           // currently off ground
+                to_ac.onGrnd   >= positionTy::GND_APPROACHING &&   // future: approaching / on ground
                 pAc->GetVSI_ft() < -mdl.VSI_STABLE) {           // descending considerably
                 // Case determined: We are landing and have live positional
                 //                  data down the runway
                 const double timeToTouchDown = -(pAc->GetPHeight_m() / pAc->GetVSI_m_s());
                 // but only reasonably a _new_ position if a few seconds before [1]
                 if (timeToTouchDown > SIMILAR_TS_INTVL &&
-                    ppos.ts() + timeToTouchDown + SIMILAR_TS_INTVL < to.ts()) {
-                    vectorTy vecTouch(ppos.heading(),                            // angle
+                    ppos_ac.ts() + timeToTouchDown + SIMILAR_TS_INTVL < to_ac.ts()) {
+                    vectorTy vecTouch(ppos_ac.heading(),                            // angle
                                       timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
                                       pAc->GetVSI_m_s(),                         // vsi
                                       pAc->GetSpeed_m_s());                      // speed
                     // insert touch-down point at beginning of posDeque
-                    positionTy& touchDownPos = posDeque.emplace_front(ppos.destPos(vecTouch));
+                    positionTy& touchDownPos = posDeque.emplace_front(ppos_ac.destPos(vecTouch));
                     touchDownPos.onGrnd = positionTy::GND_ON;
                     touchDownPos.flightPhase = LTAircraft::FPH_TOUCH_DOWN;
                     TryDeriveGrndStatus(touchDownPos);          // will set correct terrain altitude
                     // then, however, next pos should also be on the ground, no longer just approaching
-                    to.onGrnd = positionTy::GND_ON;
+                    to_ac.onGrnd = positionTy::GND_ON;
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
@@ -648,12 +666,12 @@ bool LTFlightData::CalcNextPos ( double simTime )
             {
                 // i == 0 is as above with actual a/c present position
                 // in later runs we use future data from our queue
-                const positionTy& ppos  = i == 0 ? pAc->GetPPos() : posDeque[i-1];
-                positionTy& to          = posDeque[i];
-                const vectorTy vec (ppos.between(to));
+                const positionTy& ppos_i  = i == 0 ? pAc->GetPPos() : posDeque[i-1];
+                positionTy& to_i          = posDeque[i];
+                const vectorTy vec (ppos_i.between(to_i));
 
-                if ((ppos.onGrnd == positionTy::GND_ON || ppos.onGrnd == positionTy::GND_LEAVING) &&
-                    (to.onGrnd == positionTy::GND_LEAVING || to.onGrnd == positionTy::GND_OFF))
+                if ((ppos_i.onGrnd == positionTy::GND_ON || ppos_i.onGrnd == positionTy::GND_LEAVING) &&
+                    (to_i.onGrnd == positionTy::GND_LEAVING || to_i.onGrnd == positionTy::GND_OFF))
                 {
                     // VSI needs to be high enough for actual take off
                     if (vec.vsi_ft() > mdl.VSI_STABLE)
@@ -663,20 +681,20 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         double climbVsi = mdl.VSI_INIT_CLIMB * Ms_per_FTm;
                         double climbSpeed = mdl.SPEED_INIT_CLIMB / KT_per_M_per_S;
                         if (posDeque.size() >= i+2) {     // take the data from the vector _after_ to
-                            vectorTy climbVec (to.between(posDeque[i+1]));
+                            vectorTy climbVec (to_i.between(posDeque[i+1]));
                             climbVsi = climbVec.vsi;
                             climbSpeed = climbVec.speed;
                         }
                         
                         // Determine how much before 'to' is that take-off point
                         // We want an accurate terrain altitude for this calc
-                        const double toTerrAlt = YProbe_at_m(to);
-                        const double height_m = to.alt_m() - toTerrAlt; // height to climb to reach 'to'?
+                        const double toTerrAlt = YProbe_at_m(to_i);
+                        const double height_m = to_i.alt_m() - toTerrAlt; // height to climb to reach 'to'?
                         const double toClimb_s = height_m / climbVsi;   // how long to climb to r	each 'to'?
-                        const double takeOffTS = to.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
+                        const double takeOffTS = to_i.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
                         
                         // Continue only for timestamps in the future
-                        if (ppos.ts() < takeOffTS)
+                        if (ppos_i.ts() < takeOffTS)
                         {
                             rotateTS = takeOffTS - mdl.ROTATE_TIME;         // timestamp when to rotate
 
@@ -687,7 +705,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                            climbSpeed);                 // speed
                             // insert take-off point ('to' minus vector from take-off to 'to')
                             // at beginning of posDeque
-                            positionTy takeOffPos = to.destPos(vecTO);
+                            positionTy takeOffPos = to_i.destPos(vecTO);
                             takeOffPos.onGrnd = positionTy::GND_ON;
                             takeOffPos.flightPhase = LTAircraft::FPH_LIFT_OFF;
                             takeOffPos.alt_m() = toTerrAlt;
@@ -731,8 +749,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // * Don't yet take off *
                     // else VSI is not enough for actual take off -> stick to ground!
                     else {
-                        to.onGrnd = positionTy::GND_ON;
-                        TryDeriveGrndStatus(to);        // set alt to terrain
+                        to_i.onGrnd = positionTy::GND_ON;
+                        TryDeriveGrndStatus(to_i);        // set alt to terrain
                         bChanged = true;
                     }
                     
