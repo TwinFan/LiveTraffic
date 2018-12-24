@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -6,248 +6,271 @@
   </head>
   <body>
 
-<H1>LiveTraffic Readme</h1>
+      <H1>LiveTraffic Readme</H1>
 
-    <h2>Documentation</h2>
+      <h2>Documentation</h2>
 
-        <P>
-            For full documentation please visit
-            <a href="https://twinfan.gitbook.io/livetraffic">
-                LiveTraffic on GitBook
-            </a>. It also includes comprehensive information on
-            <a href="https://twinfan.gitbook.io/livetraffic/requirements">
-                requirements</a> and
-            <a href="https://twinfan.gitbook.io/livetraffic/installation">
-                <b>installation</b></a>.
-        </P>
+      <P>
+          For full documentation please visit
+          <a href="https://twinfan.gitbook.io/livetraffic">
+              LiveTraffic on GitBook
+          </a>. It also includes comprehensive information on
+          <a href="https://twinfan.gitbook.io/livetraffic/requirements">
+              requirements
+          </a> and
+          <a href="https://twinfan.gitbook.io/livetraffic/installation">
+              <b>installation</b>
+          </a>.
+      </P>
 
 
-    <h2>Release Notes</h2>
+      <h2>Release Notes</h2>
 
-        <p>The number-link refers to the issue in GitHub with (technical) details.</p>
-        
-        <h3>v0.84.20181223</h3>
-        
-        <ul>
-            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/61">#61</a>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/43">#43</a>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
-                Better handling of mixed channels. Please run with all channels
-                enabled. A/c will at any point in time be fed by one channel
-                only, but switching to another is possible if (a) the original
-                channel stopped feeding and (b) the new position is in a
-                reasonable direction to prevent 180 degree turns.<br>
-                As channels aren't time-synched LT needs to make up for the
-                reported time difference with unusual slow/fast plane movements.<br>
-                A channel switch will be document with a DEBUG-level <code>Log.txt</code>
-                entry like <code>DEBUG AA73C3 (SWA1730): SWITCHED CHANNEL from
-                'ADSB Exchange Live Online' to 'OpenSky Live Online'</code>.
-            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/48">#48</a>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/57">#57</a>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
-                Flight data cleansing introduced, which tries to remove
-                ill-looking positions from the position queue.
-                This shall lead to a lot less 180 degree turns and other
-                weird movements. It will not remove all weird behaviour, though.<br>
-                A position removal will be document with a DEBUG-level <code>Log.txt</code>
-                entry like <code>DEBUG A25CDC (SKW4148): Removed an invalid position</code>.
-                Currently, positional debug information is outuput
-                around such an event to ease analysis.
-            <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/37">#37 (still open)</a>:
-                A/c info wnd displays origin/dest airport info as reported
-                by ADS-B-Exchange. No interpretation...if wrong refer to ADSBEx.
-            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/64">#64</a>:
-                Fixed using correct altitude value from OpenSky stream,
-                specifically: geo altitude instead of barometric altitude.
-                Should lead to OpenSky a/c better hit runway threshold.
-            <li>FIXED: Enhancements to take-off prediction. Should more often and
-                more smoothly see rotate phase right before take off.
-            <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/56">#56</a>
-                reading <code>[CSLPaths]</code> in <code>LiveTraffic.prf</code>
-                containing spaces. Tested/fixed full path usage on Mac.
-            <li>ADDED Config file entries for <code>DEFAULT_AC_TYPE A320</code> and
-                <code>DEFAULT_CAR_TYPE ZZZC</code> to <code>LiveTraffic.prf</code>
-                to specify ICAO types to use when (a) no a/c type could be
-                determined and (b) for cars.<br>
-                (Start/stop LiveTraffic once for the entries to appear.
-                Edit config file only with X-Plane off.)
-            <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/51">#51</a>
-                identification of ground vehicles in flight data and display of them
-                using the type configured with <code>DEFAULT_CAR_TYPE</code> in
-                <code>LiveTraffic.prf</code>. Requires such a type as a
-                CSL model. Tested with <a href="http://csl.x-air.ru/info/item/150?lang_id=43">
-                this model</a>.
-        </ul>
-        
+      <p>The number-link refers to the issue in GitHub with (technical) details.</p>
 
-        <h3>v0.83.20181212</h3>
-        
-        <ul>
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
-                Fixed a bug in Multiplayer Lib preventing to find a match based
-                on Doc8643 aircraft categorization (ie. find something of
-                roughly similar size) after no match was found
-                directly or via <code>related.txt</code>.<br>
-                Added feature to do this Doc8643 match also with matching
-                airline livery.<br>
-                This fix will mean that with a reasonable number of CSL packages
-                installed nearly no plane will need to be rendered with the
-                default plane (currently A320).
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52</a>
-                Multiplayer Lib: If <code>VERT_OFFSET</code> is not given in
-                <code>xsb_aircraft.txt</code>
-                files then it will default to a value between 1.2 and 5.5
-                depending on Doc8643 aircraft categorization to avoid planes
-                sliding on their belly.
-            <li>Settings / Labels: Added a new option <i>Any a/c id</i>, which display
-                the first non-empty field from <i>flight number, call sign,
-                registration, transponder hex code.</i> Good as the one option
-                to id an aircraft.<br>
-                Note: No config migration implemented, your label configuration
-                <i>will</i> shift due to this new entry, please revisit Settings / Labels.
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/54">#54</a>
-                Fixed flight phase "Rotate": Aircrafts taking off should now
-                in most cases rotate before take off and initially
-                climb with pitch up.<br>
-                Might also positively influence occurences of too steep take offs,
-                but that was not initially targeted with this fix.
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/55">#55</a>
-                Once an aircraft reaches an invalid position (like climbed too
-                high with no more live tracking data available) it is now removed
-                immediately. Reduces number of <code>CalcPPos: Ignoring invalid pos</code>
-                debug messages in the log dramatically.
-            <li>
-                Various ongoing enhancements to <code>related.txt</code>, especially in
-                the area of business jets and GA.
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/49">#49</a>
-                Settings / Advanced: Cleanup, moved debug options to bottom,
-                added option for logging raw network data to <code>LTRawFD.log</code>.
-            <li>
-                Minor changes and enhancement to debug output and formatting
-                into <code>Log.txt</code>.
-        </ul>
-        
-        
-        <h3>v0.82.20181208</h3>
+      <h3>v0.84.20181224</h3>
 
-        <P>This version does not solve any issue completely but lays the
-        foundation to do so with the next version.</P>
+      <ul>
+          <li>
+              FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/61">#61</a>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/43">#43</a>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
+              Better handling of mixed channels. Please run with all channels
+              enabled. A/c will at any point in time be fed by one channel
+              only, but switching to another is possible if (a) the original
+              channel stopped feeding and (b) the new position is in a
+              reasonable direction to prevent 180 degree turns.<br>
+              As channels aren't time-synched LT needs to make up for the
+              reported time difference with unusual slow/fast plane movements.<br>
+              A channel switch will be document with a DEBUG-level <code>Log.txt</code>
+              entry like <code>
+                  DEBUG AA73C3 (SWA1730): SWITCHED CHANNEL from
+                  'ADSB Exchange Live Online' to 'OpenSky Live Online'
+              </code>.
+          <li>
+              FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/48">#48</a>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/57">#57</a>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
+              Flight data cleansing introduced, which tries to remove
+              ill-looking positions from the position queue.
+              This shall lead to a lot less 180 degree turns and other
+              weird movements. It will not remove all weird behaviour, though.<br>
+              A position removal will be document with a DEBUG-level <code>Log.txt</code>
+              entry like <code>DEBUG A25CDC (SKW4148): Removed an invalid position</code>.
+              Currently, positional debug information is outuput
+              around such an event to ease analysis.
+          <li>
+              CHANGED default configuration: Auto-Start enabled, all channels enabled.
+          <li>
+              ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/37">#37 (still open)</a>:
+              A/c info wnd displays origin/dest airport info as reported
+              by ADS-B-Exchange. No interpretation...if wrong refer to ADSBEx.
+          <li>
+              FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/64">#64</a>:
+              Fixed using correct altitude value from OpenSky stream,
+              specifically: geo altitude instead of barometric altitude.
+              Should lead to OpenSky a/c better hit runway threshold.
+          <li>
+              FIXED: Enhancements to take-off prediction. Should more often and
+              more smoothly see rotate phase right before take off.
+          <li>
+              FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/56">#56</a>
+              reading <code>[CSLPaths]</code> in <code>LiveTraffic.prf</code>
+              containing spaces. Tested/fixed full path usage on Mac.
+          <li>
+              ADDED Config file entries for <code>DEFAULT_AC_TYPE A320</code> and
+              <code>DEFAULT_CAR_TYPE ZZZC</code> to <code>LiveTraffic.prf</code>
+              to specify ICAO types to use when (a) no a/c type could be
+              determined and (b) for cars.<br>
+              (Start/stop LiveTraffic once for the entries to appear.
+              Edit config file only with X-Plane off.)
+          <li>
+              ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/51">#51</a>
+              identification of ground vehicles in flight data and display of them
+              using the type configured with <code>DEFAULT_CAR_TYPE</code> in
+              <code>LiveTraffic.prf</code>. Requires such a type as a
+              CSL model. Tested with <a href="http://csl.x-air.ru/info/item/150?lang_id=43">
+                  this model
+              </a>.
+      </ul>
 
-        <ul>
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/38">#38 (still open)</a>
-                Reorganized Resources directory, <b>now also includes <code>FlightModels.prf</code></b>,
-                <code>Doc8643.txt</code> regenerated from scratch, current as of November 2018,
-                <code>related.txt</code> reworked in large parts (smaller planes yet to do).
-                All comes completely with the LT package.
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
-                Identify, log, accept a/c master data without ICAO type code,
-                but will still be rendered as A320.
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42 (still open)</a>
-                Started to change how LT looks for CSL directories. Will
-                become a config option. Location will now default to
-                <code>LiveTraffic/Resources/CSL</code> <b>only</b>,
-                but additional places can be added.<br>
-                At the moment adding is
-                only possible by adding lines to <code>Output/preferences/LiveTraffic.prf</code>
-                (start/stop the new version once so that LT writes the
-                first path to the end of the file, edit file only when
-                X-Plane is off.)<br>
-                My file currently ends like this to also include XSquawkBox resources for testing purposes:<BR>
-                <code>
-                    [CSLPaths]<br>
-                    1|Resources/plugins/LiveTraffic/Resources/CSL<br>
-                    1|Resources/plugins/XSquawkBox/Resources/CSL<br>
-                </code>
-                Paths are relative to X-Plane dir. (Theoretically you could
-                specify full paths beginning with / or drive letter...but I
-                have not yet tested that.)<br>
-                The <code>1</code> in the beginning means 'enabled'.
-                Guess what 'disabled' means...<br>
-                New tab in the settings window yet to come so that later
-                nobody needs to fiddle with the preferences file.
-            <li>
-                <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52 (still open)</a>
-                If not given by <code>xsb_aircraft.txt</code> then <code>VERT_OFFSET</code> now defaults to 3.
-                That should be OK for mid-range jets, might be a bit high for GA which might
-                appear hovering over ground. A better implementation to come which distinguishes
-                five defaults by a/c classification.
-        </ul>
 
-        <h3>v0.81.20181202</h3>
-        <ul>
-            <li><a href="https://github.com/TwinFan/LiveTraffic/issues/39">#39</a>
-                Ease usage of LiveTraffic and XSquawkBox in parallel.
-                See considerably updated documentation on
-                <a href="https://twinfan.gitbook.io/livetraffic/installation#using-both-xsquawkbox-and-livetraffic">
-                    Installation
-                </a> and new topic on
-                <a href="https://twinfan.gitbook.io/livetraffic/xsquawkbox-and-livetraffic-in-parallel">
-                    Parallel usage
-                </a>.
-                <li><a href="https://github.com/TwinFan/LiveTraffic/issues/40">#40</a>
-                    Supporting MacOS versions before 10.14 Mojave.
-                    10.12 Sierra confirmed by tester.
-                    Should work down to 10.9 Mavericks.
-        </ul>
+      <h3>v0.83.20181212</h3>
 
-        <h3>v0.80.20181130</h3>
-        <ul>
-            <li>First version offered to selected beta testers
-        </ul>
+      <ul>
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
+              Fixed a bug in Multiplayer Lib preventing to find a match based
+              on Doc8643 aircraft categorization (ie. find something of
+              roughly similar size) after no match was found
+              directly or via <code>related.txt</code>.<br>
+              Added feature to do this Doc8643 match also with matching
+              airline livery.<br>
+              This fix will mean that with a reasonable number of CSL packages
+              installed nearly no plane will need to be rendered with the
+              default plane (currently A320).
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52</a>
+              Multiplayer Lib: If <code>VERT_OFFSET</code> is not given in
+              <code>xsb_aircraft.txt</code>
+              files then it will default to a value between 1.2 and 5.5
+              depending on Doc8643 aircraft categorization to avoid planes
+              sliding on their belly.
+          <li>
+              Settings / Labels: Added a new option <i>Any a/c id</i>, which display
+              the first non-empty field from <i>
+                  flight number, call sign,
+                  registration, transponder hex code.
+              </i> Good as the one option
+              to id an aircraft.<br>
+              Note: No config migration implemented, your label configuration
+              <i>will</i> shift due to this new entry, please revisit Settings / Labels.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/54">#54</a>
+              Fixed flight phase "Rotate": Aircrafts taking off should now
+              in most cases rotate before take off and initially
+              climb with pitch up.<br>
+              Might also positively influence occurences of too steep take offs,
+              but that was not initially targeted with this fix.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/55">#55</a>
+              Once an aircraft reaches an invalid position (like climbed too
+              high with no more live tracking data available) it is now removed
+              immediately. Reduces number of <code>CalcPPos: Ignoring invalid pos</code>
+              debug messages in the log dramatically.
+          <li>
+              Various ongoing enhancements to <code>related.txt</code>, especially in
+              the area of business jets and GA.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/49">#49</a>
+              Settings / Advanced: Cleanup, moved debug options to bottom,
+              added option for logging raw network data to <code>LTRawFD.log</code>.
+          <li>
+              Minor changes and enhancement to debug output and formatting
+              into <code>Log.txt</code>.
+      </ul>
 
-    <h2>Essential Installation</h2>
 
-        <h3>LiveTraffic plugin</h3>
+      <h3>v0.82.20181208</h3>
 
-            <P>
-                The <code>LiveTraffic</code> plugin folder is to be copied into X-Plane's
-                <code>Resources/plugins</code> folder, the same as with other plugins.
-            </P>
+      <P>
+          This version does not solve any issue completely but lays the
+          foundation to do so with the next version.
+      </P>
 
-        <h3>CSL Packages</h3>
+      <ul>
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/38">#38 (still open)</a>
+              Reorganized Resources directory, <b>now also includes <code>FlightModels.prf</code></b>,
+              <code>Doc8643.txt</code> regenerated from scratch, current as of November 2018,
+              <code>related.txt</code> reworked in large parts (smaller planes yet to do).
+              All comes completely with the LT package.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
+              Identify, log, accept a/c master data without ICAO type code,
+              but will still be rendered as A320.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42 (still open)</a>
+              Started to change how LT looks for CSL directories. Will
+              become a config option. Location will now default to
+              <code>LiveTraffic/Resources/CSL</code> <b>only</b>,
+              but additional places can be added.<br>
+              At the moment adding is
+              only possible by adding lines to <code>Output/preferences/LiveTraffic.prf</code>
+              (start/stop the new version once so that LT writes the
+              first path to the end of the file, edit file only when
+              X-Plane is off.)<br>
+              My file currently ends like this to also include XSquawkBox resources for testing purposes:<BR>
+              <code>
+                  [CSLPaths]<br>
+                  1|Resources/plugins/LiveTraffic/Resources/CSL<br>
+                  1|Resources/plugins/XSquawkBox/Resources/CSL<br>
+              </code>
+              Paths are relative to X-Plane dir. (Theoretically you could
+              specify full paths beginning with / or drive letter...but I
+              have not yet tested that.)<br>
+              The <code>1</code> in the beginning means 'enabled'.
+              Guess what 'disabled' means...<br>
+              New tab in the settings window yet to come so that later
+              nobody needs to fiddle with the preferences file.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52 (still open)</a>
+              If not given by <code>xsb_aircraft.txt</code> then <code>VERT_OFFSET</code> now defaults to 3.
+              That should be OK for mid-range jets, might be a bit high for GA which might
+              appear hovering over ground. A better implementation to come which distinguishes
+              five defaults by a/c classification.
+      </ul>
 
-            <P>
-                You must install CSL packages, otherwise there will be no
-                aircraft models to display and LiveTraffic will fail to
-                start up.
-            </P>
+      <h3>v0.81.20181202</h3>
+      <ul>
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/39">#39</a>
+              Ease usage of LiveTraffic and XSquawkBox in parallel.
+              See considerably updated documentation on
+              <a href="https://twinfan.gitbook.io/livetraffic/installation#using-both-xsquawkbox-and-livetraffic">
+                  Installation
+              </a> and new topic on
+              <a href="https://twinfan.gitbook.io/livetraffic/xsquawkbox-and-livetraffic-in-parallel">
+                  Parallel usage
+              </a>.
+          <li>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/40">#40</a>
+              Supporting MacOS versions before 10.14 Mojave.
+              10.12 Sierra confirmed by tester.
+              Should work down to 10.9 Mavericks.
+      </ul>
 
-            <P>
-                Recommended are the "Bluebell" OBJ8 CSL packages found
-                at the <a href="https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/">X-Plane.org forums</a>.
-                Follow their instructions. Also download and install the
-                <code>BB_IVAO_vert_offsets_*</code> files in the downloads as recommended
-                for the X-IvAp users. LiveTraffic can handle them, too.
-            </P>
+      <h3>v0.80.20181130</h3>
+      <ul>
+          <li>First version offered to selected beta testers
+      </ul>
 
-            <P>
-                Place the CSL packages into
-                <code>Resources/plugins/LiveTraffic/Resources/CSL</code>.
-            </P>
+      <h2>Essential Installation</h2>
 
-        <h3>Resulting Directory Structure</h3>
+      <h3>LiveTraffic plugin</h3>
 
-            <P>...under X-Plane's <code>Resources/plugins</code> folder:</P>
+      <P>
+          The <code>LiveTraffic</code> plugin folder is to be copied into X-Plane's
+          <code>Resources/plugins</code> folder, the same as with other plugins.
+      </P>
 
-            <P>
-                <code>LiveTraffic/</code><br>
-                <code>LiveTraffic/64/</code><br>
-                <code>LiveTraffic/64/mac.xpl</code><br>
-                <code>LiveTraffic/64/win.xpl</code><br>
-                <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
-                <code>LiveTraffic/Resources/Doc8643.txt</code><br>
-                <code>LiveTraffic/Resources/FlightModels.prf</code><br>
-                <code>LiveTraffic/Resources/lights.png</code><br>
-                <code>LiveTraffic/Resources/related.txt</code><br>
-            </P>
+      <h3>CSL Packages</h3>
+      <P>
+          You must install CSL packages, otherwise there will be no
+          aircraft models to display and LiveTraffic will fail to
+          start up.
+      </P>
+      <P>
+          Recommended are
+          <ul>
+              <li>
+                  the "Bluebell" OBJ8 CSL packages found at the
+                  <a href="https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/">X-Plane.org forums</a>.
+                  Follow their instructions. Also download and install the
+                  <code>BB_IVAO_vert_offsets_*</code> files in the downloads as recommended
+                  for the X-IvAp users. LiveTraffic can handle them, too.
+              </li>
+              <li>
+                  the <a href="http://csl.x-air.ru/info/item/150?lang_id=43">Follow me car from X-CSL Package</a> as a ground vehicle object.
+              </li>
+          </ul>
+      </P>
+
+      <h3>Resulting Directory Structure</h3>
+
+      <P>...under X-Plane's <code>Resources/plugins</code> folder:</P>
+
+      <P>
+          <code>LiveTraffic/</code><br>
+          <code>LiveTraffic/64/</code><br>
+          <code>LiveTraffic/64/mac.xpl</code><br>
+          <code>LiveTraffic/64/win.xpl</code><br>
+          <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
+          <code>LiveTraffic/Resources/Doc8643.txt</code><br>
+          <code>LiveTraffic/Resources/FlightModels.prf</code><br>
+          <code>LiveTraffic/Resources/lights.png</code><br>
+          <code>LiveTraffic/Resources/related.txt</code><br>
+      </P>
 
   </body>
 </html>
