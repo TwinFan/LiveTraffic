@@ -50,6 +50,7 @@ enum transpTy {
 //      Can be combined from multiple sources, key is transpIcao
 
 class LTAircraft;
+struct LTFlightDataList;
 
 class LTFlightData
 {
@@ -288,6 +289,10 @@ public:
     bool CreateAircraft ( double simTime );
     void DestroyAircraft ();
     const LTAircraft* GetAircraft () const { return pAc; }
+    
+    // treating mapFd as lists
+    static const LTFlightData* FindFocusAc (const double bearing);
+    friend LTFlightDataList;
 };
 
 // global map of flight data, keyed by transpIcao
@@ -301,5 +306,31 @@ extern mapLTFlightDataTy mapFd;
 //  to avoid deadlocks, mapFdMutex is considered a higher-level lock)
 extern std::mutex      mapFdMutex;
 
+//
+// MARK: Ordered lists of flight data
+//       Note that included objects aren't valid for long!
+//       Usage in a flight loop callback is fine as deletion
+//       happens in a flight loop callback thread, too.
+//       Usage in other threads without mapFdMutex is not fine.
+//
+
+typedef std::vector<LTFlightData*> vecLTFlightDataRefTy;
+
+struct LTFlightDataList
+{
+    enum OrderByTy {
+        ORDR_UNKNOWN = 0,
+        // static fields
+        ORDR_REG, ORDR_AC_TYPE_ICAO, ORDR_CALL,
+        ORDR_ORIGIN_DEST, ORDR_FLIGHT, ORDR_OP_ICAO,
+        // dynamic fields
+        ORDR_DST, ORDR_SPD, ORDR_VSI, ORDR_ALT, ORDR_PHASE
+    } orderedBy = ORDR_UNKNOWN;
+    
+    vecLTFlightDataRefTy lst;
+    
+    LTFlightDataList ( OrderByTy ordrBy = ORDR_DST );
+    void ReorderBy ( OrderByTy ordrBy );
+};
 
 #endif /* LTFlightData_h */

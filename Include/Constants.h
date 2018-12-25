@@ -99,6 +99,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fkm"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
+#define INFO_WND_AUTO_AC        "AUTO"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
@@ -114,6 +115,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 //MARK: Menu Items
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
 #define MENU_AC_INFO_WND        "Aircraft Info..."
+#define MENU_AC_INFO_WND_AUTO   "Aircraft Info (Auto-select)"
 #define MENU_SETTINGS_UI        "Settings..."
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 

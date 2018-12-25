@@ -45,6 +45,7 @@ public:
 
     // Find my aircraft
     const LTFlightData* SearchFlightData (const std::string key);
+    void SetTranspIcao (const std::string transpIcao);
 
     // Get the found aircraft
     bool HasTranspIcao () const { return !transpIcao.empty(); }
@@ -69,6 +70,7 @@ protected:
     
     // edit field for a/c key
     TFACSearchEditWidget txtAcKey;
+    bool    bAutoAc = false;        // do we pick the a/c to show automatically?
     
     // data output fields
     TFWidget valSquawk;
@@ -78,6 +80,7 @@ protected:
     
 public:
     ACIWnd(const char* szKey = nullptr);
+    ACIWnd(bool bAuto) : ACIWnd(bAuto ? INFO_WND_AUTO_AC : nullptr) {}
     ~ACIWnd();
     
     // constructor finished initialization?
@@ -92,6 +95,7 @@ protected:
     // triggered every seond to update values in the window
     virtual bool TfwMsgMain1sTime ();
     // Updated myself
+    bool UpdateFocusAc ();          // switch to another focus a/c?
     void UpdateStatValues ();       // static fields
     void UpdateDynValues ();        // dynamic fields
 };

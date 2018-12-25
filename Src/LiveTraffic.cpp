@@ -42,6 +42,7 @@ LTSettingsUI settingsUI;
 enum menuItems {
     MENU_ID_TOGGLE_AIRCRAFTS = 0,
     MENU_ID_AC_INFO_WND,
+    MENU_ID_AC_INFO_WND_AUTO,
     MENU_ID_SETTINGS_UI,
     MENU_ID_RELOAD_PLUGINS,
     CNT_MENU_ID                     // always last, number of elements
@@ -64,6 +65,9 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 break;
             case MENU_ID_AC_INFO_WND:
                 ACIWnd::OpenNewWnd();
+                break;
+            case MENU_ID_AC_INFO_WND_AUTO:
+                ACIWnd::OpenNewWnd(INFO_WND_AUTO_AC);
                 break;
             case MENU_ID_SETTINGS_UI:
                 settingsUI.Show();
@@ -107,7 +111,10 @@ int RegisterMenuItem ()
     aMenuItems[MENU_ID_AC_INFO_WND] =
     XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,1);
     if ( aMenuItems[MENU_ID_AC_INFO_WND]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
-    
+    aMenuItems[MENU_ID_AC_INFO_WND_AUTO] =
+    XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND_AUTO, (void *)MENU_ID_AC_INFO_WND_AUTO,1);
+    if ( aMenuItems[MENU_ID_AC_INFO_WND_AUTO]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);

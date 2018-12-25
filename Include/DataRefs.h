@@ -91,9 +91,6 @@ enum pluginStateTy {
 // XP standard Datarefs being accessed
 enum dataRefsXP {
     DR_TOTAL_RUNNING_TIME_SEC = 0,
-    DR_VIEW_X,
-    DR_VIEW_Y,
-    DR_VIEW_Z,
     DR_LOCAL_TIME_SEC,
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
@@ -319,9 +316,6 @@ protected:
 //MARK: DataRef access
 public:
     inline float GetTotalRunningTimeSec() const { return XPLMGetDataf(adrXP[DR_TOTAL_RUNNING_TIME_SEC]); }
-    inline float GetViewX() const               { return XPLMGetDataf(adrXP[DR_VIEW_X]); }
-    inline float GetViewY() const               { return XPLMGetDataf(adrXP[DR_VIEW_Y]); }
-    inline float GetViewZ() const               { return XPLMGetDataf(adrXP[DR_VIEW_Z]); }
     inline float GetLocalTimeSec() const        { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
     inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
@@ -439,8 +433,9 @@ public:
     
 //MARK: Processed values
 public:
-    positionTy GetViewPos() const;            // view position in World coordinates
-    inline boundingBoxTy GetBoundingBox(double dist) const // bounding box around current view pos
+    static positionTy GetViewPos();            // view position in World coordinates
+    static double GetViewHeading();
+    static inline boundingBoxTy GetBoundingBox(double dist) // bounding box around current view pos
     { return boundingBoxTy(GetViewPos(), dist); }
 };
 

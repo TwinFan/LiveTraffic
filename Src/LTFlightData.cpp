@@ -1576,3 +1576,107 @@ void LTFlightData::DestroyAircraft ()
         delete pAc;
     pAc = nullptr;
 }
+
+// finds the closest a/c roughly in the given direction ('focus a/c')
+const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
+{
+    constexpr double maxDiff = 20;
+    const LTFlightData* ret = nullptr;
+    double bestRating = MAXFLOAT;
+    
+    // walk the map of flight data
+    for ( std::pair<const std::string,LTFlightData>& fdPair: mapFd )
+    {
+        // no a/c? -> not relevant
+        if (!fdPair.second.pAc)
+            continue;
+        
+        // should be +/- 45° of bearing
+        const vectorTy vecView = fdPair.second.pAc->GetVecView();
+        double hDiff = abs(HeadingDiff(bearing, vecView.angle));
+        if (hDiff > maxDiff)
+            continue;
+        
+        // calculate a rating based on deviation from bearing plus distance
+        // Reasoning: An a/c directly in front of us shall be prefered if
+        //            it is less than twice as far away as an a/c 45° to the side.
+        double rating = (1 + hDiff / maxDiff) * vecView.dist;
+        
+        // best one so far?
+        if ( rating < bestRating ) {
+            bestRating = rating;
+            ret = &fdPair.second;
+        }
+    }
+    
+    // return what we thing is focus
+    return ret;
+}
+
+
+//
+// MARK: LTFlightDataList
+//
+
+LTFlightDataList::LTFlightDataList ( OrderByTy ordrBy )
+{
+    // copy the entire map into a simple list
+    lst.reserve(mapFd.size());
+    for ( std::pair<const std::string,LTFlightData>& fdPair: mapFd )
+        lst.emplace_back(&fdPair.second);
+    
+    // apply the initial ordering
+    ReorderBy(ordrBy);
+}
+
+
+void LTFlightDataList::ReorderBy(OrderByTy ordrBy)
+{
+    // quick exit if already sorted that way
+    if (orderedBy == ordrBy)
+        return;
+    
+    // range to sort
+    vecLTFlightDataRefTy::iterator from = lst.begin();
+    vecLTFlightDataRefTy::iterator to   = lst.end();
+    
+#define SORT_BY_STAT(OrdrBy,cmp)                                            \
+case OrdrBy:                                                                \
+    std::sort(from, to, [](LTFlightData*const& a, LTFlightData*const& b )   \
+              { return cmp; } );                                            \
+    break;
+    
+#define SORT_BY_PAC(OrdrBy,cmp)                                             \
+case OrdrBy:                                                                \
+    std::sort(from, to, [](LTFlightData*const& a, LTFlightData*const& b )   \
+              { return                                                      \
+                  !b->pAc && !a->pAc ? a->key() < b->key() :                \
+                  !b->pAc ? true :                                          \
+                  !a->pAc ? false :                                         \
+                  (cmp); });                                                \
+    break;
+
+    
+    // static fields can always be applied
+    switch (ordrBy) {
+        case ORDR_UNKNOWN: break;
+        SORT_BY_STAT(ORDR_REG,          a->statData.reg < b->statData.reg);
+        SORT_BY_STAT(ORDR_AC_TYPE_ICAO, a->statData.acTypeIcao < b->statData.acTypeIcao);
+        SORT_BY_STAT(ORDR_CALL,         a->statData.call < b->statData.call);
+        SORT_BY_STAT(ORDR_ORIGIN_DEST,  a->statData.route() < b->statData.route());
+        SORT_BY_STAT(ORDR_FLIGHT,       a->statData.flight < b->statData.flight);
+        SORT_BY_STAT(ORDR_OP_ICAO,      a->statData.opIcao == b->statData.opIcao ?
+                                        a->key() < b->key() :
+                                        a->statData.opIcao < b->statData.opIcao);
+        SORT_BY_PAC(ORDR_DST,           a->pAc->GetVecView().dist < b->pAc->GetVecView().dist);
+        SORT_BY_PAC(ORDR_SPD,           a->pAc->GetSpeed_m_s() < b->pAc->GetSpeed_m_s());
+        SORT_BY_PAC(ORDR_VSI,           a->pAc->GetVSI_ft() < b->pAc->GetVSI_ft());
+        SORT_BY_PAC(ORDR_ALT,           a->pAc->GetAlt_m() < b->pAc->GetAlt_m());
+        SORT_BY_PAC(ORDR_PHASE,         a->pAc->GetFlightPhase() == b->pAc->GetFlightPhase() ?
+                                        a->key() < b->key() :
+                                        a->pAc->GetFlightPhase() < b->pAc->GetFlightPhase());
+    }
+    
+    // no ordered the new way
+    orderedBy = ordrBy;
+}

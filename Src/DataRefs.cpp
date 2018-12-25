@@ -168,9 +168,6 @@ catch (...)
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
     "sim/time/total_running_time_sec",
-    "sim/graphics/view/view_x",
-    "sim/graphics/view/view_y",
-    "sim/graphics/view/view_z",
     "sim/time/local_time_sec",
     "sim/time/local_date_days",
     "sim/time/use_system_time",
@@ -1302,15 +1299,26 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
     return false;
 }
 
-//MARK: Processed values
+//MARK: Processed values (static functions)
 
 // return the camera's position in world coordinates
-positionTy DataRefs::GetViewPos() const
+positionTy DataRefs::GetViewPos()
 {
+    XPLMCameraPosition_t camPos = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     // get the dataref values for current view pos, which are in local coordinates
+    XPLMReadCameraPosition(&camPos);
     // convert to world coordinates and return them
     double lat, lon, alt;
-    XPLMLocalToWorld(GetViewX(), GetViewY(), GetViewZ(),
+    XPLMLocalToWorld(camPos.x, camPos.y, camPos.z,
                      &lat, &lon, &alt);
     return positionTy(lat,lon,alt);
+}
+
+// return the direction the camera is looking to
+double DataRefs::GetViewHeading()
+{
+    XPLMCameraPosition_t camPos = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    // get the dataref values for current view pos, which are in local coordinates
+    XPLMReadCameraPosition(&camPos);
+    return camPos.heading;
 }

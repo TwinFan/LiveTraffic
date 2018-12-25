@@ -208,10 +208,7 @@ const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ke
     
     // found?
     if (fdIter != mapFd.cend()) {
-        // remember transpIcao
-        oldDescriptor = transpIcao = fdIter->second.key();
-        // replace my own content with the transpIcao hex code
-        SetDescriptor(transpIcao);
+        SetTranspIcao(fdIter->second.key());
         // return the result
         return &fdIter->second;
     }
@@ -219,6 +216,14 @@ const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ke
     // not found
     transpIcao.clear();
     return nullptr;
+}
+
+void TFACSearchEditWidget::SetTranspIcao (const std::string _icao)
+{
+    // remember transpIcao
+    oldDescriptor = transpIcao = _icao;
+    // replace my own content with the transpIcao hex code
+    SetDescriptor(transpIcao);
 }
 
 // Get my defined aircraft
@@ -253,7 +258,10 @@ bool TFACSearchEditWidget::MsgTextFieldChanged (XPWidgetID textWidget,
         return TFTextFieldWidget::MsgTextFieldChanged(textWidget, text);
     
     // it was me...so start a search with what is in my edit field
-    SearchFlightData(text);
+    if (text == INFO_WND_AUTO_AC)
+        transpIcao.clear();         // AUTO -> handled by main window
+    else
+        SearchFlightData(text);     // otherwise search for the a/c
     
     // return 'false' on purpose: message also needs to be sent to main window
     return false;
@@ -288,10 +296,16 @@ widgetIds(nullptr)
     // text field for a/c key entry, upper case only
     txtAcKey.setId(widgetIds[ACI_TXT_AC_KEY]);
     if (szKey) {
-        txtAcKey.SearchFlightData(szKey);
-        
+        // running in auto a/c mode?
+        if (strncmp(szKey, INFO_WND_AUTO_AC, sizeof(INFO_WND_AUTO_AC)) == 0)
+        {
+            bAutoAc = true;
+            SetDescriptor(GetDescriptor() + " (" INFO_WND_AUTO_AC ")");
+            szKey = nullptr;
+        }
+        else
+            txtAcKey.SearchFlightData(szKey);
     }
-    txtAcKey.SetKeyboardFocus();
     
     // value fields
     valSquawk.setId(widgetIds[ACI_TXT_SQUAWK]);
@@ -312,6 +326,17 @@ widgetIds(nullptr)
     
     // center the UI
     Center();
+
+    // if we don't have an a/c yet give the use the focus and let him enter one
+    if (bAutoAc)
+        UpdateFocusAc();
+    else if (!txtAcKey.HasTranspIcao())
+        txtAcKey.SetKeyboardFocus();
+    else {
+        // otherwise start displaying the a/c's data
+        UpdateStatValues();
+        UpdateDynValues();
+    }
 }
 
 // destructor frees resources
@@ -345,8 +370,13 @@ bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
         return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
     
     // my key changed!
-    UpdateStatValues();
-    UpdateDynValues();
+    bAutoAc = text == INFO_WND_AUTO_AC;     // auto switch a/c?
+    if (bAutoAc) {
+        UpdateFocusAc();
+    } else {
+        UpdateStatValues();
+        UpdateDynValues();
+    }
     
     // stored a valid entry?
     if (txtAcKey.HasTranspIcao())
@@ -364,8 +394,32 @@ bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 bool ACIWnd::TfwMsgMain1sTime ()
 {
     TFMainWindowWidget::TfwMsgMain1sTime();
-    UpdateDynValues();                  // update our values
+    if (!UpdateFocusAc())               // changed focus a/c? If not:
+        UpdateDynValues();              // update our values
     return true;
+}
+
+// switch to another focus a/c?
+bool ACIWnd::UpdateFocusAc ()
+{
+    if (!bAutoAc) return false;
+    
+    // find the current focus a/c and if different from current one then switch
+    const LTFlightData* pFocusAc = LTFlightData::FindFocusAc(DataRefs::GetViewHeading());
+    if (pFocusAc && pFocusAc->key() != txtAcKey.GetTranspIcao()) {
+        txtAcKey.SetTranspIcao(pFocusAc->key());
+        UpdateStatValues();
+        UpdateDynValues();
+        return true;
+    }
+    
+    // nothing found?
+    if (!pFocusAc) {
+        // start at least the timer for regular focus a/c updates
+        txtAcKey.SetTranspIcao("");
+        StartStopTimerMessages(true);
+    }
+    return false;
 }
 
 // Update all values in the window.
@@ -419,6 +473,9 @@ void ACIWnd::UpdateStatValues()
 
 void ACIWnd::UpdateDynValues()
 {
+    // window title
+    std::string title(ACI_WND[ACI_MAIN_WND].descriptor);
+    
     // need a valid pointer
     const LTAircraft* pAc = txtAcKey.GetAircraft();
 
@@ -426,8 +483,9 @@ void ACIWnd::UpdateDynValues()
         // _last_ dyn data object
         const LTFlightData::FDDynamicData dyn (pAc->fd.WaitForSafeCopyDyn(false));
 
-        // set my own window title
-        SetDescriptor(pAc->fd.ComposeLabel());
+        // title is dynmic
+        title = strAtMost(pAc->fd.ComposeLabel(), 25);
+        
         // update all field values
         const positionTy& pos = pAc->GetPPos();
         double ts = dataRefs.GetSimTime();
@@ -463,8 +521,6 @@ void ACIWnd::UpdateDynValues()
         valVSI.SetDescriptor(pAc->GetVSI_ft());
     } else {
         // no current a/c
-        // set window title back to initial constant text
-        SetDescriptor(ACI_WND[ACI_MAIN_WND].descriptor);
         // clear all values
         for (int i: {
             ACI_TXT_SQUAWK, ACI_TXT_SIM_TIME, ACI_TXT_LAST_DATA, ACI_TXT_CHNL,
@@ -475,4 +531,8 @@ void ACIWnd::UpdateDynValues()
         })
             XPSetWidgetDescriptor(widgetIds[i], "");
     }
+    
+    if (bAutoAc)
+        title += " (" INFO_WND_AUTO_AC ")";
+    SetDescriptor(title);
 }
