@@ -1582,7 +1582,7 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
 {
     constexpr double maxDiff = 20;
     const LTFlightData* ret = nullptr;
-    double bestRating = MAXFLOAT;
+    double bestRating = DBL_MAX;
     
     // walk the map of flight data
     for ( std::pair<const std::string,LTFlightData>& fdPair: mapFd )
