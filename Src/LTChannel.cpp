@@ -1416,7 +1416,10 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
         if ( statDat.acTypeIcao.empty() ) {
             // could be a ground vehicle?
             std::string cat = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
-            if (cat.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos)
+            if (cat.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
+				// I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
+				(cat.find(OPSKY_MD_TEX_NO_CAT) != std::string::npos &&
+					statDat.man.empty() && statDat.mdl.empty() && statDat.opIcao.empty()))
                 statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
             else
                 LOG_MSG(logWARN,ERR_CH_INV_DATA,

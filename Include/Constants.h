@@ -229,6 +229,7 @@ constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 #define OPSKY_MD_AC_TYPE_ICAO   "typecode"
 #define OPSKY_MD_CAT_DESCR      "categoryDescription"
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
+#define OPSKY_MD_TEX_NO_CAT		"No ADS-B Emitter Category Information"
 
 //MARK: ADS-B Exchange
 #define ADSBEX_NAME             "ADSB Exchange Live Online"
