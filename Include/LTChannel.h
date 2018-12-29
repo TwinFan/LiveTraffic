@@ -62,6 +62,7 @@ public:
 public:
     static const char* ChId2String (dataRefsLT ch);
     inline const char* ChName() const { return ChId2String(channel); }
+    inline dataRefsLT GetChannel() const { return channel; }
     
     virtual bool IsLiveFeed () const = 0;
     virtual bool IsValid () const {return bValid;}      // good to provide data after init?

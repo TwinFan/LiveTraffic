@@ -217,6 +217,7 @@ public:
     void SetKey ( std::string key );
     inline const std::string& key() const   { return transpIcao; }
     inline unsigned int keyInt() const      { return transpIcaoInt; }
+    std::string keyDbg() const              { return key() + ' ' + statData.acId("-"); }
     
     // Search support: icao, registration, call sign, flight number matches?
     bool IsMatch (const std::string t) const;
@@ -240,6 +241,12 @@ public:
     void TriggerCalcNewPos ( double simTime );
 
     void AddNewPos ( positionTy& pos );         // new pos read from data stream to be stored
+    
+    // check if thisPos would be OK after lastPos,
+    // might change 'thisPos' to a ground position!
+    bool IsPosOK (const positionTy& lastPos, positionTy& thisPos,
+                  double* pHeading = nullptr,
+                  bool* pbChanged = nullptr);
     
     enum tryResult {
         TRY_TECH_ERROR=-1,                      // unexpected technical error

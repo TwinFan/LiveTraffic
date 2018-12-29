@@ -69,6 +69,7 @@ constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
 constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
+constexpr double MDL_CLOSE_TO_GND_SLOW = 25;    // feet height considered "on ground" if moving with less than max taxi speed
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
 
@@ -170,6 +171,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_AC_CALC_PPOS        "Could calculate position when creating aircraft %s"
 #define ERR_Y_PROBE             "Y Probe returned %d at %s"
 #define ERR_POS_UNNORMAL        "A/c %s reached invalid pos: %s"
+#define ERR_IGNORE_POS          "A/c %s: Ignoring data leading to sharp turn or invalid speed: %s"
 #define ERR_INV_TRANP_ICAO      "Ignoring data for invalid transponder code '%s'"
 #define ERR_TIME_NONLINEAR      "Time moved non-linear/jumped by %.1f seconds, will re-init aircrafts."
 #define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"
@@ -314,11 +316,11 @@ constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many error
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
-#define DBG_INV_POS_REMOVED     "DEBUG %s (%s): Removed an invalid position: %s"
-#define DBG_INV_POS_AC_REMOVED  "DEBUG %s (%s): Removed a/c due to invalid positions"
+#define DBG_INV_POS_REMOVED     "DEBUG %s: Removed an invalid position: %s"
+#define DBG_INV_POS_AC_REMOVED  "DEBUG %s: Removed a/c due to invalid positions"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
-#define DBG_AC_CHANNEL_SWITCH   "DEBUG %s (%s): SWITCHED CHANNEL from '%s' to '%s'"
+#define DBG_AC_CHANNEL_SWITCH   "DEBUG %s: SWITCHED CHANNEL from '%s' to '%s'"
 #ifdef DEBUG
 #define DBG_DEBUG_BUILD         "DEBUG BUILD with additional run-time checks and no optimizations"
 #endif
