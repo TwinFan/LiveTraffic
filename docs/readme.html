@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -28,6 +28,34 @@
 
       <p>The number-link refers to the issue in GitHub with (technical) details.</p>
 
+      <h3>v0.84.20181229 Intermediate Release</h3>
+      
+      <ul>
+          <li>
+              NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/62">#62</a>
+              feature 'auto-select' for A/c Info Window. Can be activated via new
+              menu command <code>Aircraft Info (Auto-select)</code> or by typing
+              'AUTO' into an open info window's edit field.<br>
+              Indicated by trailing text '(AUTO)' in title bar.<br>
+              Window will follow the closest a/c in view, slightly prefering
+              a/c straight ahead over a/c to the side.
+          <li>
+              CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/61">#61</a>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/43">#43</a>
+              <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
+              In a multi-channel configuration, OpenSky now has priority when
+              creating a/c, meaning: if both channels
+              'see' an aircraft before it is actually created then OpenSky
+              will be the channel LiveTraffic prefers. Reason is on average
+              worse quality of unconsolidated ADS-B Exchange data.
+         <li>
+             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/48">#48</a>
+             <a href="https://github.com/TwinFan/LiveTraffic/issues/57">#57</a>
+             <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
+             Further enhanced flight data cleansing. Mostly affects data from
+             ADS-B Exchange, which don't seem to be consolidated on the server.
+      </ul>
+      
       <h3>v0.84.20181224</h3>
 
       <ul>
