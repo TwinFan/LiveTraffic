@@ -1253,7 +1253,7 @@ bool LTAircraft::CalcPPos()
     if (!ppos.isNormal()) {
         // set the plane invalid and bail out with message
         SetInvalid();
-        LOG_MSG(logWARN, ERR_POS_UNNORMAL, key().c_str(),
+        LOG_MSG(logWARN, ERR_POS_UNNORMAL, labelInternal.c_str(),
                 dataRefs.GetDebugAcPos(key()) ?
                 std::string(*this).c_str() : ppos.dbgTxt().c_str());
         return false;
