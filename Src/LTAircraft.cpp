@@ -588,7 +588,6 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     if (!fIn) {
         // if there is no FlightModel file just return
         // that's no real problem, we can use defaults, but unexpected
-        // TODO: Test error message handling by having no FlightModel file
         char sErr[SERR_LEN];
         strerror_s(sErr, sizeof(sErr), errno);
         SHOW_MSG(logWARN, ERR_CFG_FILE_OPEN_IN,
@@ -648,6 +647,9 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
             // finish previous model section first
             // (as [Map] has to be last this will safely be executed for all FlightModel sections)
             if (fm && fmState == FM_MODEL_SECTION) {
+                // FIXME: Read color from file
+                // Here just for demonstration purposes: Airbus is red
+                if (fm.LIGHT_PATTERN == 1) fm.LABEL_COLOR[1] = 0;
                 // i.e. add the defined model to the list
                 push_back_unique(listFlightModels, fm);
             }
@@ -1662,6 +1664,8 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         {
             *outPosition = ppos;                // copy ppos (by type conversion), and add the label
             memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));
+            // color depends on model
+            memmove(outPosition->label_color, mdl.LABEL_COLOR, sizeof(outPosition->label_color));
             return xpmpData_NewData;
         }
 

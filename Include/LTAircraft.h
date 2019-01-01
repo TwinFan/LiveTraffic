@@ -164,6 +164,7 @@ public:
         double PITCH_RATE =       5;      // [°/s] pitch rate of change
         int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
+        float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
         
         // modelName is key, so base comparison on it
     public:
