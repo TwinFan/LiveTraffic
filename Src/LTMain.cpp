@@ -436,6 +436,10 @@ bool LTMainShowAircraft ()
     //   and is the possible point of conflict with other plugins
     //   using xplanemp, so we push it out to as late as possible.
     
+    // inform xplanemp about level of SSAA antialiasing
+    dataRefs.LoadXPlanePrf();
+    XPMPSetLabelSSAACorrection(dataRefs.GetRenOptHdrAntial());
+    
     // Refresh set of aircrafts loaded
     XPMPLoadPlanesIfNecessary();
     

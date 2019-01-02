@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 0.84f;
+constexpr float VERSION_NR = 0.85f;
 constexpr bool VERSION_BETA = true;
 
 //MARK: Window Position
@@ -112,6 +112,8 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define CFG_DEFAULT_CAR_TYPE    "DEFAULT_CAR_TYPE"
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
+#define XPPRF_RENOPT_HDR        "renopt_HDR"
+#define XPPRF_RENOPT_HDR_ANTIAL "renopt_HDR_antial"
 
 //MARK: Menu Items
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
@@ -131,6 +133,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
+#define PATH_XPLANE_PRF         "Output/preferences/X-Plane.prf"
 
 #define PATH_STD_SEPARATOR      "/"             // the one used here in the constants
 #define PATH_HFS_SEPARATOR      ":"

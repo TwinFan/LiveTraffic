@@ -176,7 +176,7 @@ PLUGIN_API int  XPluginEnable(void)
 
     // Create a message window and say hello
     SHOW_MSG(logMSG, MSG_WELCOME, LT_VERSION_FULL);
-    if (LT_BETA_VER_LIMIT)
+    if constexpr (VERSION_BETA)
         SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
 #ifdef DEBUG
     SHOW_MSG(logWARN, DBG_DEBUG_BUILD);

@@ -294,6 +294,8 @@ protected:
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
     
+    int renopt_HDR_antial = 0;          // value from X-Plane.prf describing configured HDR antialiasing
+    
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
     
@@ -367,23 +369,25 @@ public:
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
-    bool GetAutoStart() const { return bAutoStart != 0; }
-    LabelCfgUTy GetLabelCfg() const { return labelCfg; }
-    int GetMaxNumAc() const { return maxNumAc; }
-    int GetMaxFullNumAc() const { return maxFullNumAc; }
-    int GetFullDistance_km() const { return fullDistance; }
-    double GetFullDistance_nm() const { return fullDistance * double(M_per_KM) / double(M_per_NM); }
-    int GetFdStdDistance() const { return fdStdDistance; }
-    int GetFdStdDistance_m() const { return fdStdDistance * M_per_KM; }
-    int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
-    int GetFdBufPeriod() const { return fdBufPeriod; }
-    int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
+    inline bool GetAutoStart() const { return bAutoStart != 0; }
+    inline LabelCfgUTy GetLabelCfg() const { return labelCfg; }
+    inline int GetMaxNumAc() const { return maxNumAc; }
+    inline int GetMaxFullNumAc() const { return maxFullNumAc; }
+    inline int GetFullDistance_km() const { return fullDistance; }
+    inline double GetFullDistance_nm() const { return fullDistance * double(M_per_KM) / double(M_per_NM); }
+    inline int GetFdStdDistance() const { return fdStdDistance; }
+    inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_KM; }
+    inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
+    inline int GetFdBufPeriod() const { return fdBufPeriod; }
+    inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
     
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     std::string GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
     std::string GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
     bool SetDefaultAcIcaoType(const std::string type);
     bool SetDefaultCarIcaoType(const std::string type);
+    
+    inline int GetRenOptHdrAntial() const { return renopt_HDR_antial; }
 
     // livetraffic/channel/...
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
@@ -423,6 +427,8 @@ public:
     // this one returns the directory separator as used by the XPMP API
     std::string GetDirSeparatorMP();
     
+    // Read some values from X-Plane.prf
+    bool LoadXPlanePrf();
     // Load/save config file (basically a subset of LT dataRefs)
     bool LoadConfigFile();
     bool SaveConfigFile();

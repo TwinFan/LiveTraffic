@@ -1061,6 +1061,54 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
 
 //MARK: Config File
 
+bool DataRefs::LoadXPlanePrf()
+{
+    int hdr = renopt_HDR_antial > 0 ? 1: 0;
+    int hdr_antial = renopt_HDR_antial;
+    
+    // open a config file
+    std::string sFileName (LTCalcFullPath(PATH_XPLANE_PRF, true));
+    std::ifstream fIn (sFileName);
+    if (!fIn) {
+        // if there is no config file just return...that's no problem, we use defaults
+        if (errno == ENOENT)
+            return true;
+        
+        // something else happened
+        char sErr[SERR_LEN];
+        strerror_s(sErr, sizeof(sErr), errno);
+        SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
+                 sFileName.c_str(), sErr);
+        return false;
+    }
+
+    // read line-by-line
+    char lnBuf[255];
+    while (fIn) {
+        // read line and break into tokens, delimited by spaces
+        lnBuf[0] = 0;
+        fIn.getline(lnBuf, sizeof(lnBuf));
+        const std::vector<std::string> ln = str_tokenize(lnBuf, " ");
+        
+        // we expect 2 tokens
+        if (ln.size() != 2)
+            continue;
+        
+        // read values from tokens if found
+        if (ln[0] == XPPRF_RENOPT_HDR)
+            hdr = stoi(ln[1]);
+        else if (ln[0] == XPPRF_RENOPT_HDR_ANTIAL)
+            hdr_antial = stoi(ln[1]);
+    }
+    
+    // close file
+    fIn.close();
+    
+    // save value, only valid if HDR is enabled
+    renopt_HDR_antial = hdr ? hdr_antial : 0;
+    return true;
+}
+
 bool DataRefs::LoadConfigFile()
 {
     // open a config file
