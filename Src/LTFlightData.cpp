@@ -983,7 +983,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
 bool LTFlightData::IsPosOK (const positionTy& lastPos,
                             const positionTy& thisPos,
                             double* pHeading,
-                            bool* pbChanged)
+                            bool* /*pbChanged*/)
 {
     // aircraft model to use
     const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :

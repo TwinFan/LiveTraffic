@@ -67,6 +67,7 @@
 #include <deque>
 #include <thread>
 #include <algorithm>
+#include <atomic>
 
 // X-Plane SDK
 #include "XPLMDisplay.h"
