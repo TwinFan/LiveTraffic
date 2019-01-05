@@ -65,9 +65,18 @@ bool NextCycle (int newCycle)
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
     
     // time should move forward (positive difference) and not too much either
-    // (but no problem if no a/c yet displayed, i.e. this call being the first)
+    // in case of just a short gap the user probably set some setting...
+    // ...mabe (s)he touched SSAA antialiasing? Better re-read
+    if (currCycle.diffTime < 0 || currCycle.diffTime > 2) {
+        dataRefs.LoadXPlanePrf();
+        XPMPSetLabelSSAACorrection(dataRefs.GetRenOptHdrAntial());
+    }
+    
+    // If time moved to far between two calls then we better start over
+    // (but no problem if no a/c yet displayed anyway)
     if (dataRefs.GetNumAircrafts() > 0 &&
         (currCycle.diffTime < 0 || currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
+        // too much time passed...we start over and reinit all aircrafts
         dataRefs.SetReInitAll(true);
         SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
         return false;
@@ -1055,7 +1064,7 @@ bool LTAircraft::CalcPPos()
         // first time inits
         if (phase == FPH_UNKNOWN) {
             // check if starting on the ground
-            bOnGrnd = from.onGrnd == positionTy::GND_ON;
+            bOnGrnd = from.IsOnGnd();
             
             // avg of the current vector
             speed.SetSpeed(vec.speed);
@@ -1122,18 +1131,16 @@ bool LTAircraft::CalcPPos()
         // with significantly reduced speed due to breaking, that speed
         // is undesirable at touch-down; for short final we assume constant speed
         bNeedNextVec = false;
-        if (! (from.onGrnd < positionTy::GND_ON &&
-               to.onGrnd == positionTy::GND_ON) ) {
-            // will be calculated soon outside "if (bPosSwitch)"
-            // (need provision for case we don't get the data access lock right now)
-            bNeedNextVec = true;
-        }
-        else {
+        if (!from.IsOnGnd() && to.IsOnGnd()) {
             // short final, i.e. last vector before touch down
             
             // keep constant speed:
             // avg ground speed between the two points [kt]
             speed.SetSpeed(vec.speed);
+        } else {
+            // will be calculated soon outside "if (bPosSwitch)"
+            // (need provision for case we don't get the data access lock right now)
+            bNeedNextVec = true;
         }
         
         // output debug info on request
@@ -1320,8 +1327,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // First: Are we _supposed_ to be on the ground, because we are now and will stay so?
     //        (avoids intermidate lift offs just because the runway has holes)
-    if (ppos.onGrnd == positionTy::GND_ON &&
-        to.onGrnd == positionTy::GND_ON) {
+    if (ppos.IsOnGnd() && to.IsOnGnd()) {
         bOnGrnd = true;
     } else {
         // else: we could also be airborne,
