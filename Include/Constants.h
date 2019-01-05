@@ -56,9 +56,10 @@ constexpr double PI         = 3.141592653589793238462643383279502884197169399375
 constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 
 //MARK: Flight Data-related
-constexpr double FLIGHT_LOOP_INTVL  = 2.0;      // seconds (calling a/c maintenance periodically)
+constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
+constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
-constexpr double SIMILAR_TS_INTVL = 5;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
+constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to terrain alt but grndStatus OFF then double-check using YProbe
 constexpr double FD_GND_AGL =       10;         // [ft] consider pos 'ON GRND' if this close to YProbe

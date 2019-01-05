@@ -166,7 +166,7 @@ protected:
     // buffered positions / dynamic data as deque, sorted by timestamp
     // first element is oldest and current (the 'from' position/data)
     // second is pos a/c is currently headed for, and the others then further on into the future
-    dequePositionTy         posDeque;
+    dequePositionTy         posDeque, posToAdd;
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
@@ -236,15 +236,19 @@ public:
     std::string ComposeLabel() const;
     
     // based on buffered positions calculate the next position to fly to in a separate thread
+    void DataCleansing (bool& bChanged);
     bool CalcNextPos ( double simTime );
     static void CalcNextPosMain ();
     void TriggerCalcNewPos ( double simTime );
 
-    void AddNewPos ( positionTy& pos );         // new pos read from data stream to be stored
-    
-    // check if thisPos would be OK after lastPos,
-    // might change 'thisPos' to a ground position!
-    bool IsPosOK (const positionTy& lastPos, positionTy& thisPos,
+    // new pos read from data stream to be stored
+    void AddNewPos ( positionTy& pos ); // called from network thread, no terrain calc
+    static void AppendAllNewPos();      // called from main thread, can calc terrain
+    void AppendNewPos();                // called from AppendAllNewPos
+
+    // check if thisPos would be OK after lastPos
+    bool IsPosOK (const positionTy& lastPos,
+                  const positionTy& thisPos,
                   double* pHeading = nullptr,
                   bool* pbChanged = nullptr);
     

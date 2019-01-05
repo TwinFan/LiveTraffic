@@ -38,6 +38,11 @@ mapLTFlightDataTy mapFd;
 //  to avoid deadlocks, mapFdMutex is considered a higher-level lock)
 std::mutex      mapFdMutex;
 
+// flag to indicate that there is no new positional data
+// to analyse for terrain altitude and subsequently
+// add to posDeque, i.e. if true AppendAllNewPos returns immediately
+std::atomic_flag flagNoNewPosToAdd = ATOMIC_FLAG_INIT;
+
 //
 //MARK: Flight Data Subclasses
 //
@@ -185,13 +190,17 @@ LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
         transpIcaoInt       = fd.transpIcaoInt;
         rcvr                = fd.rcvr;
         sig                 = fd.sig;
+        labelStat           = fd.labelStat;
+        labelCfg            = fd.labelCfg;
         posDeque            = fd.posDeque;          // dynamic data
+        posToAdd            = fd.posToAdd;
         dynDataDeque        = fd.dynDataDeque;
         rotateTS            = fd.rotateTS;
         youngestTS          = fd.youngestTS;
         statData            = fd.statData;          // static data
         pAc                 = fd.pAc;
         probeRef            = fd.probeRef;
+        bValid              = fd.bValid;
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
     }
@@ -336,7 +345,9 @@ std::string LTFlightData::ComposeLabel() const
             if (cfg.bPhase) { label +=  pAc->GetFlightPhaseString(); label += ' '; }
             ADD_LABEL_NUM(cfg.bHeading,     pos.heading());
             ADD_LABEL_NUM(cfg.bAlt,         pos.alt_ft());
-            ADD_LABEL_NUM(cfg.bHeightAGL,   pAc->GetPHeight_ft());
+            if (cfg.bHeightAGL)
+                label += (pAc->IsOnGrnd() ? positionTy::GrndE2String(positionTy::GND_ON) :
+                           std::to_string(long(pAc->GetPHeight_ft()))) + ' ';
             ADD_LABEL_NUM(cfg.bSpeed,       pAc->GetSpeed_kt());
             ADD_LABEL_NUM(cfg.bVSI,         pAc->GetVSI_ft());
         }
@@ -358,7 +369,158 @@ std::string LTFlightData::ComposeLabel() const
 //MARK: Flight Data - Mutex-Controlled access Dynamic
 //
 
+// Data Cleansing of the buffered positions (called from CalcNextPos)
+void LTFlightData::DataCleansing (bool& bChanged)
+{
+    //
+    // Remove weird positions. A position is 'weird', if
+    // - VSI would be more than +/- 2 * mdl.VSI_INIT_CLIMB
+    // - heading change would be more than
+    if (( pAc && posDeque.size() >= 1) ||
+        (!pAc && posDeque.size() >= 3))
+    {
+        positionTy pos1;
+        vectorTy v2;
+        double h1 = NAN;
+        dequePositionTy::iterator iter = posDeque.begin();
+        
+        // position _before_ the first position in the deque
+        if (pAc) {
+            pos1 = pAc->GetToPos();
+            h1 = pAc->GetTrack();       // and the heading towards pos1
+            // if (still) the to-Pos is current iter pos then increment
+            // (could be that plane's current 'to' is still the first
+            //  in out queue)
+            while (iter != posDeque.end() &&
+                   pos1.cmp(*iter) == 0)
+                ++iter;
+        } else {
+            // in this case we have at least 3 positions
+            pos1 = *std::next(iter);
+            vectorTy v1 = iter->between(pos1);
+            h1 = v1.dist > SIMILAR_POS_DIST ?
+            v1.angle : pos1.heading();
+            std::advance(iter, 2);
+        }
+        
+        // loop over (remaining) pos and verify their validity
+        while (iter != posDeque.end())
+        {
+            // is pos not OK compared to previous one?
+            if (!IsPosOK(pos1, *iter, &h1, &bChanged))
+            {
+                // is there any valid pos to go to after iter?
+                bool bFoundValidNext = false;
+                for (dequePositionTy::iterator next = std::next(iter);
+                     next != posDeque.end();
+                     ++next)
+                {
+                    double h2 = h1;
+                    if (IsPosOK(pos1, *next, &h2, &bChanged))
+                    {
+                        bFoundValidNext = true;
+                        if constexpr (VERSION_BETA) {
+                            LOG_MSG(logDEBUG, "%s:   Valid next pos: %s",
+                                    keyDbg().c_str(),
+                                    next->dbgTxt().c_str() );
+                            LOG_MSG(logDEBUG, Positions2String().c_str() );
+                        }
+                        // that means we need to remove all positions from
+                        // 'iter' to _before_ next.
+                        // BUT because std::deque::erase can invalidate _all_ iterators
+                        // (including cend!) we cannot do it in one go...after the first erase all iterators are invalid.
+                        // Make use of the fact that the deque is sorted by timestamp.
+                        const double rmTsFrom = iter->ts();
+                        const double rmTsTo = next->ts();
+                        while (iter != posDeque.end() && iter->ts() < rmTsTo)
+                        {
+                            // if current iter falls into the to-be-deleted range
+                            if (rmTsFrom <= iter->ts() && iter->ts() < rmTsTo) {
+                                if constexpr (VERSION_BETA) {
+                                    LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
+                                            keyDbg().c_str(),
+                                            iter->dbgTxt().c_str());
+                                }
+                                posDeque.erase(iter);               // now all iterators are invalid!
+                                bChanged = true;
+                                iter = posDeque.begin();
+                            }
+                            else {
+                                // otherwise just try next
+                                ++iter;
+                            }
+                        }
+                        
+                        // break out of search loop
+                        // (iter now points to where 'next' was before, but with updated iterators9
+                        LOG_ASSERT_FD(*this, iter != posDeque.end() && iter->ts() == rmTsTo);
+                        break;
+                    } // if found valid next pos
+                } // for searching valid next pos
+                
+                // did we find nothing???
+                if (!bFoundValidNext)
+                {
+                    // Well...let's hope some better data is coming later
+                    // from the network -> stop cleansing here.
+                    
+                    // There is just one thing we want to avoid:
+                    // That the non-continguous data is the next to be picked
+                    // by the aircraft. That would make rocket/sliding
+                    // planes.
+                    if (pAc && iter == posDeque.begin()) {
+                        // The incontiguous data is right the next one
+                        // to be picked...from here we have 2 choices:
+                        // - remove the plane (if there are at least 2 pos
+                        //   in the deque as we assume that this starts a
+                        //   new stretch of continuous data)
+                        // - remove the data (if this is the only pos in the
+                        //   deque as a single pos wouldn't allow the plane
+                        //   to reappear)
+                        if (posDeque.size() <= 1) {
+                            // that's the only pos: remove it
+                            if constexpr (VERSION_BETA) {
+                                LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
+                                        keyDbg().c_str(),
+                                        iter->dbgTxt().c_str());
+                            }
+                            posDeque.clear();
+                            iter = posDeque.end();
+                            bChanged = true;
+                            if (dataRefs.GetDebugAcPos(key()))
+                                LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
+                        } else {
+                            // there are at least 2 pos in the deque
+                            // -> remove the aircraft, will be recreated at
+                            //    the new pos later automatically
+                            pAc->SetInvalid();
+                            if constexpr (VERSION_BETA) {
+                                LOG_MSG(logDEBUG, Positions2String().c_str());
+                            }
+                            LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
+                                    keyDbg().c_str());
+                        }
+                    }
+                    
+                    // stop cleansing
+                    break;
+                } // if not found any valid next position
+                else if constexpr (VERSION_BETA) {
+                    LOG_MSG(logDEBUG, Positions2String().c_str() );
+                }
+            } // if invalid pos
+            else
+            {
+                // just move on to next position in deque
+                h1 = v2.angle;
+                pos1 = *iter;
+                ++iter;
+            }
+        } // inner while loop over positions
+    } // outer if of data cleansing
+    
 
+}
 
 // based on buffered positions calculate the next position to fly to
 // (usually called in a separate thread via TriggerCalcNewPos,
@@ -367,11 +529,9 @@ std::string LTFlightData::ComposeLabel() const
 //  calling TryFetchNewPos)
 //
 // simTime should only be set when called from LTAircraft,
-// others should pass in NAN. Then no landing/take off detection takes place,
-// which relies on the actual aircraft being in take of roll / final.
+// others should pass in NAN.
 bool LTFlightData::CalcNextPos ( double simTime )
 {
-    bool bDoLandTODetect = true;
     bool bChanged = false;          // change any positions?
     try {
         // access guarded by a mutex
@@ -391,7 +551,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 simTime = pAc->GetToPos().ts();
             else
                 simTime = dataRefs.GetSimTime();
-            bDoLandTODetect = false;
         }
 
         // remove from front until [0] <= simTime < [1] (or just one element left)
@@ -434,152 +593,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         }
         
         // *** Data Cleansing ***
-        //
-        // Remove weird positions. A position is 'weird', if
-        // - VSI would be more than +/- 2 * mdl.VSI_INIT_CLIMB
-        // - heading change would be more than
-        if (( pAc && posDeque.size() >= 1) ||
-            (!pAc && posDeque.size() >= 3))
-        {
-            positionTy pos1;
-            vectorTy v2;
-            double h1 = NAN;
-            dequePositionTy::iterator iter = posDeque.begin();
-            
-            // position _before_ the first position in the deque
-            if (pAc) {
-                pos1 = pAc->GetToPos();
-                h1 = pAc->GetTrack();       // and the heading towards pos1
-                // if (still) the to-Pos is current iter pos then increment
-                // (could be that plane's current 'to' is still the first
-                //  in out queue)
-                while (iter != posDeque.end() &&
-                       pos1.cmp(*iter) == 0)
-                    ++iter;
-            } else {
-                // in this case we have at least 3 positions
-                pos1 = *std::next(iter);
-                vectorTy v1 = iter->between(pos1);
-                h1 = v1.dist > SIMILAR_POS_DIST ?
-                     v1.angle : pos1.heading();
-                std::advance(iter, 2);
-            }
-            
-            // loop over (remaining) pos and verify their validity
-            while (iter != posDeque.end())
-            {
-                // is pos not OK compared to previous one?
-                if (!IsPosOK(pos1, *iter, &h1, &bChanged))
-                {
-                    // is there any valid pos to go to after iter?
-                    bool bFoundValidNext = false;
-                    for (dequePositionTy::iterator next = std::next(iter);
-                         next != posDeque.end();
-                         ++next)
-                    {
-                        double h2 = h1;
-                        if (IsPosOK(pos1, *next, &h2, &bChanged))
-                        {
-                            bFoundValidNext = true;
-                            if constexpr (VERSION_BETA) {
-                                LOG_MSG(logDEBUG, "%s:   Valid next pos: %s",
-                                        keyDbg().c_str(),
-                                        next->dbgTxt().c_str() );
-                                LOG_MSG(logDEBUG, Positions2String().c_str() );
-                            }
-                            // that means we need to remove all positions from
-                            // 'iter' to _before_ next.
-                            // BUT because std::deque::erase can invalidate _all_ iterators
-                            // (including cend!) we cannot do it in one go...after the first erase all iterators are invalid.
-                            // Make use of the fact that the deque is sorted by timestamp.
-                            const double rmTsFrom = iter->ts();
-                            const double rmTsTo = next->ts();
-                            while (iter != posDeque.end() && iter->ts() < rmTsTo)
-                            {
-                                // if current iter falls into the to-be-deleted range
-                                if (rmTsFrom <= iter->ts() && iter->ts() < rmTsTo) {
-                                    if constexpr (VERSION_BETA) {
-                                        LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
-                                            keyDbg().c_str(),
-                                            iter->dbgTxt().c_str());
-                                    }
-                                    posDeque.erase(iter);               // now all iterators are invalid!
-                                    bChanged = true;
-                                    iter = posDeque.begin();
-                                }
-                                else {
-                                    // otherwise just try next
-                                    ++iter;
-                                }
-                            }
-                            
-                            // break out of search loop
-                            // (iter now points to where 'next' was before, but with updated iterators9
-                            LOG_ASSERT_FD(*this, iter != posDeque.end() && iter->ts() == rmTsTo);
-                            break;
-                        } // if found valid next pos
-                    } // for searching valid next pos
-                    
-                    // did we find nothing???
-                    if (!bFoundValidNext)
-                    {
-                        // Well...let's hope some better data is coming later
-                        // from the network -> stop cleansing here.
-
-                        // There is just one thing we want to avoid:
-                        // That the non-continguous data is the next to be picked
-                        // by the aircraft. That would make rocket/sliding
-                        // planes.
-                        if (pAc && iter == posDeque.begin()) {
-                            // The incontiguous data is right the next one
-                            // to be picked...from here we have 2 choices:
-                            // - remove the plane (if there are at least 2 pos
-                            //   in the deque as we assume that this starts a
-                            //   new stretch of continuous data)
-                            // - remove the data (if this is the only pos in the
-                            //   deque as a single pos wouldn't allow the plane
-                            //   to reappear)
-                            if (posDeque.size() <= 1) {
-                                // that's the only pos: remove it
-                                if constexpr (VERSION_BETA) {
-                                    LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
-                                            keyDbg().c_str(),
-                                            iter->dbgTxt().c_str());
-                                }
-                                posDeque.clear();
-                                iter = posDeque.end();
-                                bChanged = true;
-                                if (dataRefs.GetDebugAcPos(key()))
-                                    LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
-                            } else {
-                                // there are at least 2 pos in the deque
-                                // -> remove the aircraft, will be recreated at
-                                //    the new pos later automatically
-                                pAc->SetInvalid();
-                                if constexpr (VERSION_BETA) {
-                                    LOG_MSG(logDEBUG, Positions2String().c_str());
-                                }
-                                LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
-                                        keyDbg().c_str());
-                            }
-                        }
-                        
-                        // stop cleansing
-                        break;
-                    } // if not found any valid next position
-                    else if constexpr (VERSION_BETA) {
-                        LOG_MSG(logDEBUG, Positions2String().c_str() );
-                    }
-                } // if invalid pos
-                else
-                {
-                    // just move on to next position in deque
-                    h1 = v2.angle;
-                    pos1 = *iter;
-                    ++iter;
-                }
-            } // inner while loop over positions
-        } // outer if of data cleansing
+        DataCleansing(bChanged);
 
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );
@@ -589,10 +603,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         // *** Landing / Take-Off Detection ***
         
-        if ( pAc && bDoLandTODetect && !posDeque.empty() ) {
-            const positionTy& ppos_ac = pAc->GetToPos();
-            positionTy& to_ac   = posDeque.front();
-            
+        if ( pAc && !posDeque.empty() ) {
             // clear outdated rotate timestamp
             if (!isnan(rotateTS) && (rotateTS + 2 * mdl.ROTATE_TIME < simTime) )
                 rotateTS = NAN;
@@ -606,32 +617,41 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // then rolling out to (or through) next pos we determine this case
             // and then insert an artifical touch down position, which just keeps going with
             // previous vsi and speed down to the ground.
+            const positionTy& toPos_ac = pAc->GetToPos();   // a/c's current to-position
+            const positionTy& next = posDeque.front();      // next pos waiting in posDeque
 
-            if (ppos_ac.onGrnd == positionTy::GND_OFF &&           // currently off ground
-                to_ac.onGrnd   >= positionTy::GND_APPROACHING &&   // future: approaching / on ground
-                pAc->GetVSI_ft() < -mdl.VSI_STABLE) {           // descending considerably
+            if (!toPos_ac.IsOnGnd() &&                      // currently not heading for ground
+                next.IsOnGnd() &&                           // future: on ground
+                pAc->GetVSI_ft() < -mdl.VSI_STABLE) {       // right now descending considerably
                 // Case determined: We are landing and have live positional
                 //                  data down the runway
-                const double timeToTouchDown = -(pAc->GetPHeight_m() / pAc->GetVSI_m_s());
-                // but only reasonably a _new_ position if a few seconds before [1]
+                const double descendAlt      = toPos_ac.alt_m() - next.alt_m(); // height to sink
+                const double timeToTouchDown = descendAlt / -pAc->GetVSI_m_s(); // time to sink
+                const double tsOfTouchDown   = toPos_ac.ts() + timeToTouchDown; // when to touch down
+                // but only reasonably a _new_ position if between to pos and next
+                // with a few seconds distance
                 if (timeToTouchDown > SIMILAR_TS_INTVL &&
-                    ppos_ac.ts() + timeToTouchDown + SIMILAR_TS_INTVL < to_ac.ts()) {
-                    vectorTy vecTouch(ppos_ac.heading(),                            // angle
+                    tsOfTouchDown + SIMILAR_TS_INTVL < next.ts()) {
+                    vectorTy vecTouch(pAc->GetTrack(),                           // angle: current flight path
                                       timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
                                       pAc->GetVSI_m_s(),                         // vsi
                                       pAc->GetSpeed_m_s());                      // speed
+                    
                     // insert touch-down point at beginning of posDeque
-                    positionTy& touchDownPos = posDeque.emplace_front(ppos_ac.destPos(vecTouch));
+                    positionTy& touchDownPos = posDeque.emplace_front(toPos_ac.destPos(vecTouch));
                     touchDownPos.onGrnd = positionTy::GND_ON;
                     touchDownPos.flightPhase = LTAircraft::FPH_TOUCH_DOWN;
-                    TryDeriveGrndStatus(touchDownPos);          // will set correct terrain altitude
-                    // then, however, next pos should also be on the ground, no longer just approaching
-                    to_ac.onGrnd = positionTy::GND_ON;
+                    touchDownPos.alt_m() = NAN;          // will set correct terrain altitude during TryFetchNewPos
+                    
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
                     }
                     bChanged = true;
+                    
+                    // do Data Cleansing again, just to be sure the new
+                    // position does not screw up our flight path
+                    DataCleansing(bChanged);
                 }
             } // (landing case)
             
@@ -665,12 +685,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // in later runs we use future data from our queue
                 const positionTy& ppos_i  = i == 0 ? pAc->GetPPos() : posDeque[i-1];
                 positionTy& to_i          = posDeque[i];
-                const vectorTy vec (ppos_i.between(to_i));
 
-                if ((ppos_i.onGrnd == positionTy::GND_ON || ppos_i.onGrnd == positionTy::GND_LEAVING) &&
-                    (to_i.onGrnd == positionTy::GND_LEAVING || to_i.onGrnd == positionTy::GND_OFF))
+                if (ppos_i.IsOnGnd() && !to_i.IsOnGnd())
                 {
                     // VSI needs to be high enough for actual take off
+                    const vectorTy vec (ppos_i.between(to_i));
                     if (vec.vsi_ft() > mdl.VSI_STABLE)
                     {
                         
@@ -684,10 +703,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         }
                         
                         // Determine how much before 'to' is that take-off point
-                        // We want an accurate terrain altitude for this calc
-                        const double toTerrAlt = YProbe_at_m(to_i);
+                        // We assume ppos_i, which is ON_GND, has good terrain alt
+                        const double toTerrAlt = ppos_i.alt_m();
                         const double height_m = to_i.alt_m() - toTerrAlt; // height to climb to reach 'to'?
-                        const double toClimb_s = height_m / climbVsi;   // how long to climb to r	each 'to'?
+                        const double toClimb_s = height_m / climbVsi;   // how long to climb to reach 'to'?
                         const double takeOffTS = to_i.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
                         
                         // Continue only for timestamps in the future
@@ -705,7 +724,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             positionTy takeOffPos = to_i.destPos(vecTO);
                             takeOffPos.onGrnd = positionTy::GND_ON;
                             takeOffPos.flightPhase = LTAircraft::FPH_LIFT_OFF;
-                            takeOffPos.alt_m() = toTerrAlt;
+                            takeOffPos.alt_m() = NAN;                   // TryFetchNewPos will calc terrain altitude
                             takeOffPos.heading() = vec.angle;           // from 'reverse' back to forward
                             takeOffPos.ts() = takeOffTS;                // ts was computed forward...we need it backward
                             
@@ -717,10 +736,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             {
                                 // before take off we stay on the ground
                                 if (*iter < takeOffPos) {
-                                    if (iter->onGrnd != positionTy::GND_ON) {
+                                    if (!iter->IsOnGnd()) {
                                         iter->onGrnd = positionTy::GND_ON;
-                                        TryDeriveGrndStatus(*iter);
-                                        bChanged = true;
+                                        iter->alt_m() = NAN;            // TryFetchNewPos will calc terrain altitude
                                     }
                                 } else {
                                     // found insert position!
@@ -739,6 +757,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             }
                             bChanged = true;
                             
+                            // do Data Cleansing again, just to be sure the new
+                            // position does not screw up our flight path
+                            DataCleansing(bChanged);
+
                             // leave loop of szenarios
                             break;
                         }
@@ -747,7 +769,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // else VSI is not enough for actual take off -> stick to ground!
                     else {
                         to_i.onGrnd = positionTy::GND_ON;
-                        TryDeriveGrndStatus(to_i);        // set alt to terrain
+                        to_i.alt_m() = NAN;         // TryFetchNewPos will clc terrain altitude
                         bChanged = true;
                     }
                     
@@ -902,6 +924,11 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         vecTo = std::prev(it)->between(*it);
         if (vecTo.dist < SIMILAR_POS_DIST)      // clear the vector if too short
             vecTo = vectorTy();
+    } else if (pAc) {
+        // no predecessor in the queue...but there is an a/c, take that
+        vecTo = pAc->GetToPos().between(*it);
+        if (vecTo.dist < SIMILAR_POS_DIST)      // clear the vector if too short
+            vecTo = vectorTy();
     }
     
     // is there a successor to it?
@@ -951,9 +978,10 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
 }
 
 // check if thisPos would be OK after lastPos,
-// might change 'thisPos' to a ground position!
+// pHeading: if given overrides lastPos.Heading()
+//           if NAN, then no check for heading
 bool LTFlightData::IsPosOK (const positionTy& lastPos,
-                            positionTy& thisPos,
+                            const positionTy& thisPos,
                             double* pHeading,
                             bool* pbChanged)
 {
@@ -966,46 +994,21 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     const vectorTy v = lastPos.between(thisPos);
     if (pHeading) *pHeading = v.angle;      // return heading from lastPos to thisPos
     // maximum turn allowed depends on 'on ground' or not
-    const double maxTurn = (thisPos.onGrnd == positionTy::GND_ON ?
+    const double maxTurn = (thisPos.IsOnGnd() ?
                             MDL_MAX_TURN_GND : MDL_MAX_TURN);
 
-    // identify a/c hovering slightly above surface, i.e.:
-    // - slow speed (< mdl.MAX_TAXI_SPEED)
-    // - less than MDL_CLOSE_TO_GND_SLOW (25ft) AGL
-    if (v.dist > SIMILAR_POS_DIST &&
-        thisPos.onGrnd != positionTy::GND_ON &&
-        v.speed_kn() < mdl.MAX_TAXI_SPEED)
-    {
-        // we are slow but off ground - ground is where?
-        double terrainAlt = YProbe_at_m(thisPos);
-        if (!isnan(terrainAlt) &&
-            thisPos.alt_m() - terrainAlt < MDL_CLOSE_TO_GND_SLOW * M_per_FT )
-        {
-            // we are closer than MDL_CLOSE_TO_GND_SLOW to the ground
-            if constexpr (VERSION_BETA) {
-                LOG_MSG(logDEBUG, "%s: Moving this pos down to gnd: %s %s",
-                        keyDbg().c_str(),
-                        thisPos.dbgTxt().c_str(),
-                        std::string(v).c_str());
-            }
-            // -> make it 'on the ground'
-            thisPos.alt_m() = terrainAlt;
-            thisPos.onGrnd = positionTy::GND_ON;
-            if (pbChanged) *pbChanged = true;
-        }
-    }
-
     // angle between last and this, i.e. turn angle at thisPos
-    const double hDiff = (v.dist > SIMILAR_POS_DIST ?
-                          HeadingDiff(lastHead, v.angle) : 0);
+    const double hDiff = (isnan(lastHead) ? 0 :
+                          v.dist <= SIMILAR_POS_DIST ? 0 :
+                          HeadingDiff(lastHead, v.angle));
     
     // Too much of a turn? VSI/speed out of range?
     if (-maxTurn > hDiff || hDiff > maxTurn   ||
         v.vsi_ft() < -3 * mdl.VSI_INIT_CLIMB   ||
         v.vsi_ft() > 3 * mdl.VSI_INIT_CLIMB    ||
         (!isnan(v.speed_kn()) && v.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED) ||
-        // too slow speed up in the air? (if close to ground then we just grounded the pos, see above)
-        (lastPos.onGrnd != positionTy::GND_ON && thisPos.onGrnd != positionTy::GND_ON &&
+        // too slow speed up in the air?
+        ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
          !isnan(v.speed_kn()) && v.speed_kn() < mdl.MAX_TAXI_SPEED) )
     {
         if constexpr (VERSION_BETA) {
@@ -1020,7 +1023,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     return true;
 }
 
-
+// adds a new position to the queue of positions to analyse
 void LTFlightData::AddNewPos ( positionTy& pos )
 {
     try {
@@ -1035,111 +1038,193 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
             return;
         }
+
+        // add pos to the queue of data to be added
+        // (we shall not do Y probes but need accurate GND info...)
+        posToAdd.emplace_back(pos);
+        flagNoNewPosToAdd.clear();
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
+    }
+}
+
+// walks all flight data objects and works the posToAdd queue
+// called from flight loop callback, i.e. from the main thread
+void LTFlightData::AppendAllNewPos()
+{
+    // short-cut if nothing to do
+    if (flagNoNewPosToAdd.test_and_set())
+        return;
+
+    // somewhere there is something to do
+    // need access to flight data map
+    try {
+        std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
+        if (!lock) {
+            // couldn't get the lock right away
+            // -> return, we don't want to hinder rendering
+            flagNoNewPosToAdd.clear();      // but need to try again
+            return;
+        }
         
-        // *** ground status *** (plays a role in merge determination)
-        // will set ground altitude if on ground
-        TryDeriveGrndStatus(pos);
+        // look all flight data objects and check for new data to analyse
+        for (mapLTFlightDataTy::value_type& fdPair: mapFd)
+            fdPair.second.AppendNewPos();
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFdMutex", e.what());
+        flagNoNewPosToAdd.clear();
+    }
+}
+
+// analyse and add new positional data
+// called from AppendAllNewPos, i.e. from within flight loop callback
+void LTFlightData::AppendNewPos()
+{
+    // short-cut if nothing to do...we dare doing that without lock
+    if (posToAdd.empty())
+        return;
+    
+    try {
+        // access guarded by a mutex, but we don't wait (inside the flight loop)
+        std::unique_lock<std::recursive_mutex> lock (dataAccessMutex, std::try_to_lock);
+        if (!lock) {
+            flagNoNewPosToAdd.clear();          // need to try it again
+            return;
+        }
         
-        // *** insert/merge position ***
-        
-        // based on timestamp find possible "similar" position
-        // or insert position.
-        // and if so merge with that position to avoid too many position in
-        // a very short time frame, as that leads to zick-zack courses in a
-        // matter of meters only as can happen when merging different data streams
-        bool bJustMerged = false;
-        dequePositionTy::iterator i =   // first: find a merge partner
-        std::find_if(posDeque.begin(), posDeque.end(),
-                     [&pos](const positionTy& p){return p.canBeMergedWith(pos);});
-        if (i != posDeque.end()) {      // found merge partner!
-            // make sure we don't overlap with predecessor/successor position
-            if (((i == posDeque.begin()) || (*std::prev(i) < pos)) &&
-                ((std::next(i) == posDeque.end()) || (*std::next(i) > pos)))
-            {
-                *i |= pos;                  // merge them (if pos.heading is nan then i.heading prevails)
-                bJustMerged = true;
-                if (dataRefs.GetDebugAcPos(key()))
-                    LOG_MSG(logDEBUG,DBG_MERGED_POS,pos.dbgTxt().c_str(),i->ts());
+        // loop the positions to add
+        while (!posToAdd.empty())
+        {
+            // take next pos from queue
+            positionTy pos = posToAdd.front();
+            posToAdd.pop_front();
+            
+            // *** ground status *** (plays a role in merge determination)
+            // will set ground altitude if on ground
+            TryDeriveGrndStatus(pos);
+            
+            // *** insert/merge position ***
+            
+            // based on timestamp find possible "similar" position
+            // or insert position.
+            // and if so merge with that position to avoid too many position in
+            // a very short time frame, as that leads to zick-zack courses in a
+            // matter of meters only as can happen when merging different data streams
+            dequePositionTy::iterator i =   // first: find a merge partner
+            std::find_if(posDeque.begin(), posDeque.end(),
+                         [&pos](const positionTy& p){return p.canBeMergedWith(pos);});
+            if (i != posDeque.end()) {      // found merge partner!
+                // make sure we don't overlap with predecessor/successor position
+                if (((i == posDeque.begin()) || (*std::prev(i) < pos)) &&
+                    ((std::next(i) == posDeque.end()) || (*std::next(i) > pos)))
+                {
+                    *i |= pos;                  // merge them (if pos.heading is nan then i.heading prevails)
+                    if (dataRefs.GetDebugAcPos(key()))
+                        LOG_MSG(logDEBUG,DBG_MERGED_POS,pos.dbgTxt().c_str(),i->ts());
+                }
+                else
+                {
+                    // pos would overlap with surrounding positions
+                    if (dataRefs.GetDebugAcPos(key()))
+                        LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
+                    continue;                   // skip
+                }
             }
             else
             {
-                // pos would overlap with surrounding positions
-                if (dataRefs.GetDebugAcPos(key()))
-                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
-                return;
+                // second: find insert-before position
+                i = std::find_if(posDeque.begin(), posDeque.end(),
+                                 [&pos](const positionTy& p){return p > pos;});
+                
+                // *** Sanity Check if we have valid vectors already ***
+                if (pAc || !posDeque.empty())
+                {
+                    // We only insert if we don't cause invalid vector
+                    // for perfect heading calc we need the _vector_ before insert pos,
+                    // and for that we need 2 positions before insert
+                    const positionTy* pBefore = nullptr;
+                    double heading = NAN;
+                    size_t idx = std::distance(posDeque.begin(), i);
+                    if (idx >= 2) {
+                        pBefore = &(posDeque[idx-1]);
+                        heading = posDeque[idx-2].between(*pBefore).angle;
+                    } else if (idx == 1) {
+                        pBefore = &(posDeque[0]);
+                        if (pAc)
+                            heading = pAc->GetToPos().between(*pBefore).angle;
+                    } else if (pAc) {            // idx == 0 -> insert at beginning
+                        pBefore = &(pAc->GetToPos());
+                        heading = pAc->GetTrack();
+                    }
+ 
+                    // now check if OK
+                    if (pBefore && !IsPosOK(*pBefore, pos, &heading)) {
+                        if (dataRefs.GetDebugAcPos(key()))
+                            LOG_MSG(logDEBUG,ERR_IGNORE_POS,keyDbg().c_str(),pos.dbgTxt().c_str());
+                        continue;                   // skip
+                    }
+                }
+                
+                // pos is OK, add/insert it
+                if (i == posDeque.end()) {      // new pos is to be added at end
+                    posDeque.emplace_back(pos);
+                    i = std::prev(posDeque.end());
+                }
+                else {                          // found real insert position: before i
+                    i = posDeque.emplace(i, pos);
+                }
             }
-        }
-        else
-        {
-            // second: find insert-before position
-            i = std::find_if(posDeque.begin(), posDeque.end(),
-                             [&pos](const positionTy& p){return p > pos;});
             
-            // *** Sanity Check ***
-            // We only insert if we don't cause invalid vector
-            const positionTy* pBefore = (i != posDeque.begin() ? &(*std::prev(i)) :
-                                         pAc ? &(pAc->GetToPos()) : nullptr);
-            if (pBefore && !IsPosOK(*pBefore, pos)) {
-                if (dataRefs.GetDebugAcPos(key()))
-                    LOG_MSG(logDEBUG,ERR_IGNORE_POS,keyDbg().c_str(),pos.dbgTxt().c_str());
-                return;
-            }
+            // i now points to the inserted/merged element
+            positionTy& p = *i;
             
-            // pos is OK, add/insert it
-            if (i == posDeque.end()) {      // new pos is to be added at end
-                posDeque.emplace_back(pos);
-                i = std::prev(posDeque.end());
-            }
-            else {                          // found real insert position: before i
-                i = posDeque.emplace(i, pos);
-            }
+            // *** heading ***
+            
+            // Recalc heading of adjacent positions: before p, p itself, and after p
+            if (i != posDeque.begin())              // is there anything before i?
+                CalcHeading(std::prev(i));
+            
+            CalcHeading(i);                         // i itself, latest here a nan heading is rectified
+            
+            if (std::next(i) != posDeque.end())     // is there anything after i?
+                CalcHeading(std::next(i));
+            
+            // *** pitch ***
+            // just a rough value, LTAircraft::CalcPPos takes care of the details
+            if (p.onGrnd)
+                p.pitch() = 0;
+            else
+                p.pitch() = 2;
+            
+            // *** roll ***
+            // TODO: Calc roll
+            p.roll() = 0;
+            
+            // *** last checks ***
+            
+            // should be fully valid position now
+            LOG_ASSERT_FD(*this, p.isFullyValid());
         }
-        
-        // i now points to the inserted/merged element
-        positionTy& p = *i;
-        
-        // *** heading ***
-        
-        // Recalc heading of adjacent positions: before p, p itself, and after p
-        if (i != posDeque.begin())              // is there anything before i?
-            CalcHeading(std::prev(i));
-        
-        CalcHeading(i);                         // i itself, latest here a nan heading is rectified
-        
-        if (std::next(i) != posDeque.end())     // is there anything after i?
-            CalcHeading(std::next(i));
-        
-        // *** pitch ***
-        // just a rough value, LTAircraft::CalcPPos takes care of the details
-        if (p.onGrnd)
-            p.pitch() = 0;
-        else
-            p.pitch() = 2;
-        
-        // *** roll ***
-        // TODO: Calc roll
-        p.roll() = 0;
-        
-        // *** last checks ***
-        
-        // should be fully valid position now
-        LOG_ASSERT_FD(*this, p.isFullyValid());
         
         // posDeque should be sorted, i.e. no two adjacent positions a,b should be a > b
-        LOG_ASSERT_FD(*this,
-                      std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
-                                         [](const positionTy& a, const positionTy& b)
-                                         {return a > b;}
-                                         ) == posDeque.cend());
+        if constexpr (VERSION_BETA) {
+            LOG_ASSERT_FD(*this,
+                          std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
+                                             [](const positionTy& a, const positionTy& b)
+                                             {return a > b;}
+                                             ) == posDeque.cend());
+        }
         
         // now the youngest timestamp is this one of the last known position:
-        youngestTS = std::prev(posDeque.cend())->ts();
+        if (!posDeque.empty()) {
+            youngestTS = posDeque.back().ts();
         
-        // *** trigger recalc ***
-        TriggerCalcNewPos(NAN);
+            // *** trigger recalc ***
+            TriggerCalcNewPos(NAN);
+        }
         
-        // print all positional information as debug info on request if not just merged
-        if (!bJustMerged && dataRefs.GetDebugAcPos(key())) {
+        // print all positional information as debug info on request
+        if (dataRefs.GetDebugAcPos(key())) {
             LOG_MSG(logDEBUG,DBG_POS_DATA,Positions2String().c_str());
         }
     } catch(const std::system_error& e) {
@@ -1155,6 +1240,15 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
         std::unique_lock<std::recursive_mutex> lock (dataAccessMutex, std::try_to_lock );
         if ( !lock )                            // didn't get the lock -> return
             return TRY_NO_LOCK;
+        
+        // we are called from X-Plane's main thread,
+        // so we take our chance to determine proper terrain altitudes
+        for (positionTy& pos: posDeque) {
+            if ((pos.IsOnGnd() && isnan(pos.alt_m())) ||    // GND_ON but alt unknown
+                pos.onGrnd == positionTy::GND_UNKNOWN) {    // GND_UNKNOWN
+                TryDeriveGrndStatus(pos);
+            }
+        }
         
         // the very first call (i.e. FD doesn't even know the a/c's ptr yet)?
         if (!pAc) {
@@ -1217,14 +1311,13 @@ bool LTFlightData::TryDeriveGrndStatus (positionTy& pos)
             // Now 2 options:
             // If position already says itself: I'm on the ground, then keep it like that
             // Otherwise decide based on altitude _if_ it's on the ground
-            
-            if (pos.onGrnd != positionTy::GND_ON &&
+            if (!pos.IsOnGnd() &&
                 // say it's on the ground if below terrain+10ft
                 pos.alt_m() < terrainAlt + FD_GND_AGL)
                 pos.onGrnd = positionTy::GND_ON;
 
             // if it was or now is on the ground correct the altitue to exact terrain altitude
-            if (pos.onGrnd == positionTy::GND_ON)
+            if (pos.IsOnGnd())
                 pos.alt_m() = terrainAlt;
             else
                 // make sure it's either GND_ON or GND_OFF, nothing lese
@@ -1312,9 +1405,13 @@ std::string LTFlightData::Positions2String () const
             ret += "pAc == <null>\n";
         }
         
-        // 2. flight data buffer as read from original source
+        // 2. flight data buffer with cleansed data
         ret += "posDeque:\n";
         ret += positionDeque2String(posDeque);
+        
+        // 3. buffer of new data to add as read from original source
+        ret += "posToAdd:\n";
+        ret += positionDeque2String(posToAdd);
         
         return ret;
     } catch(const std::system_error& e) {
@@ -1348,9 +1445,12 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                 // Firstly, if no a/c yet created, then we prioritize with
                 // which channel an a/c is created. The higher the channel
                 // number the better.
-                if (!pAc &&
-                    inDyn.pChannel->GetChannel() > last.pChannel->GetChannel())
+                if (!pAc)
                 {
+                    if (inDyn.pChannel->GetChannel() <= last.pChannel->GetChannel())
+                        // lower prio -> ignore data
+                        return;
+                    
                     // so we throw away the lower prio channel's data
                     dynDataDeque.clear();
                     posDeque.clear();
@@ -1365,17 +1465,18 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                     // accept positions only pointing roughly in the same direction
                     // as we don't want a/c to turn back and forth due to channel switch.
                     if (!pos) return;
-                    if (!posDeque.empty()) {
-                        const positionTy& lastPos = posDeque.back();
-                        if (pos->ts() + dataRefs.GetFdRefreshIntvl() <=
-                            lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
-                            // not big enough a difference in timestamps yet
-                            return;
-                        
-                        // check for weird heading changes, wrong speed etc.);
-                        if (!IsPosOK(lastPos, *pos))
-                            return;
-                    }
+                    const positionTy& lastPos = (posDeque.empty() ?
+                                                 pAc->GetToPos() :
+                                                 posDeque.back());
+                    if (pos->ts() + dataRefs.GetFdRefreshIntvl() <=
+                        lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
+                        // not big enough a difference in timestamps yet
+                        return;
+                    
+                    // check for weird heading changes, wrong speed etc.);
+                    if (!IsPosOK(lastPos, *pos))
+                        return;
+
                     // accept channel switch!
                     LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
                             keyDbg().c_str(),

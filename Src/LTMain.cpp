@@ -225,10 +225,35 @@ std::vector<std::string> str_tokenize (const std::string s,
 
 // flight loop callback, will be called every second if enabled
 // creates/destroys aircrafts by looping the flight data map
-float LoopCBAircraftMaintenance (float, float, int, void*)
+float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*)
 {
+    static float elapsedSinceLastAcMaint = 0.0f;
     do {
+        // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
+        try {
+            // handle new network data (that func has a short-cut exit if nothing to do)
+            LTFlightData::AppendAllNewPos();
+            
+            // all the rest we do only every 2s
+            elapsedSinceLastAcMaint += inElapsedSinceLastCall;
+            if (elapsedSinceLastAcMaint < AC_MAINT_INTVL)
+                return FLIGHT_LOOP_INTVL;          // call me again
+            
+            // fall through to the expensive stuff
+            elapsedSinceLastAcMaint = 0.0f;         // reset timing for a/c maintenance
+            
+        } catch (const std::exception& e) {
+            // try re-init...
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            dataRefs.SetReInitAll(true);
+        } catch (...) {
+            // try re-init...
+            dataRefs.SetReInitAll(true);
+        }
+
+        // *** Try recovery from something bad by re-initializing ourselves as much as possible ***
+        // LiveTraffic Top Level Exception handling: catch all, die if something happens
         try {
             // asked for a generel re-initialization, e.g. due to time jumps?
             if (dataRefs.IsReInitAll()) {
@@ -452,7 +477,7 @@ bool LTMainShowAircraft ()
 
     // enable the flight loop callback to maintain aircrafts
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
-                                      FLIGHT_LOOP_INTVL,
+                                      FLIGHT_LOOP_INTVL,    // every 5th frame
                                       1,            // relative to now
                                       NULL);
     
