@@ -113,7 +113,8 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define CFG_DEFAULT_CAR_TYPE    "DEFAULT_CAR_TYPE"
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
-#define XPPRF_RENOPT_HDR        "renopt_HDR"
+#define XPPRF_RENOPT_HDR        "renopt_HDR"					// XP10
+#define XPPRF_EFFECTS_04		"renopt_effects_04"				// XP11, if >= 3 then includes HDR
 #define XPPRF_RENOPT_HDR_ANTIAL "renopt_HDR_antial"
 
 //MARK: Menu Items

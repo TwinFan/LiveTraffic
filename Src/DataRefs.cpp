@@ -1095,8 +1095,10 @@ bool DataRefs::LoadXPlanePrf()
             continue;
         
         // read values from tokens if found
-        if (ln[0] == XPPRF_RENOPT_HDR)
-            hdr = stoi(ln[1]);
+		if (ln[0] == XPPRF_RENOPT_HDR)                  // XP10
+			hdr = stoi(ln[1]);
+		else if (ln[0] == XPPRF_EFFECTS_04)             // XP11
+			hdr = stoi(ln[1]) >= 3 ? 1 : 0;
         else if (ln[0] == XPPRF_RENOPT_HDR_ANTIAL)
             hdr_antial = stoi(ln[1]);
     }
