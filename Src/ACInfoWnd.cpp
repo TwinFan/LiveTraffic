@@ -516,7 +516,10 @@ void ACIWnd::UpdateDynValues()
         valPitch.SetDescriptor(pAc->GetPitch());
         valRoll.SetDescriptor(pAc->GetRoll());
         valAlt.SetDescriptor(pos.alt_ft());
-        valAGL.SetDescriptor(pAc->GetPHeight_ft());
+        if (pos.IsOnGnd())
+            valAGL.SetDescriptor(positionTy::GrndE2String(positionTy::GND_ON));
+        else
+            valAGL.SetDescriptor(pAc->GetPHeight_ft());
         valSpeed.SetDescriptor(pAc->GetSpeed_kt());
         valVSI.SetDescriptor(pAc->GetVSI_ft());
     } else {
