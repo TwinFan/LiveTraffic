@@ -92,7 +92,7 @@ struct positionTy {
     
     int mergeCount;      // for posList use only: when merging positions this counts how many flight data objects made up this position
     
-    enum onGrndE    { GND_UNKNOWN=0, GND_LEAVING, GND_OFF, GND_APPROACHING, GND_ON } onGrnd;
+    enum onGrndE    { GND_UNKNOWN=0, GND_OFF, GND_ON } onGrnd;
     enum coordUnitE { UNIT_WORLD, UNIT_LOCAL } unitCoord;
     enum angleUnitE { UNIT_DEG, UNIT_RAD } unitAngle;
     
@@ -126,7 +126,7 @@ public:
     
     // timestamp-based comparison
     inline bool hasSimilarTS (const positionTy& p) const { return abs(ts()-p.ts()) <= SIMILAR_TS_INTVL; }
-    inline bool canBeMergedWith (const positionTy& p) const { return hasSimilarTS(p) && onGrnd == p.onGrnd; }
+    inline bool canBeMergedWith (const positionTy& p) const { return hasSimilarTS(p); }
     inline int cmp (const positionTy& p)        const { return ts() < p.ts() ? -1 : (ts() > p.ts() ? 1 : 0); }
     inline bool operator<< (const positionTy& p) const { return ts() < p.ts() - SIMILAR_TS_INTVL; }
     inline bool operator<  (const positionTy& p) const { return ts() < p.ts(); }
@@ -157,6 +157,8 @@ public:
     inline double heading() const { return v[HEADING]; }
     inline double pitch()   const { return v[PITCH]; }
     inline double roll()    const { return v[ROLL]; }
+
+    inline bool   IsOnGnd() const { return onGrnd == GND_ON; }
 
     inline double& lat()        { return v[LAT]; }
     inline double& lon()        { return v[LON]; }

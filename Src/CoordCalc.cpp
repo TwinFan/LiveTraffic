@@ -167,8 +167,6 @@ positionTy& positionTy::operator |= (const positionTy& pos)
 	for (double &d : v) d *= mergeCount;						// (v * mergeCount           (VS doesn't compile v.apply with lambda function)
 	v += pos.v;													//                 + pos.v)
 	for (double &d : v) d /= (mergeCount + 1);					//                          / (mergeCount+1)
-	// v = v.apply([=](double d)->double {return d * mergeCount; });		
-	//v = v.apply([=](double d)->double {return d * (mergeCount+1); });	
 
     heading() = h;
     
@@ -178,6 +176,11 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     // (if both pos have special flight phases then ours survives)
     if (!flightPhase)
         flightPhase = pos.flightPhase;
+    
+    // ground status: if different, then the new one is likely off ground,
+    //                but we have it determined soon
+    if (onGrnd != pos.onGrnd)
+        onGrnd = GND_UNKNOWN;       // IsOnGnd() will return false for this!
     
     return normalize();
 }
@@ -201,9 +204,7 @@ positionTy::operator XPMPPlanePosition_t() const
 const char* positionTy::GrndE2String (onGrndE grnd)
 {
     switch (grnd) {
-        case GND_LEAVING:       return "GND_LEAVING";
         case GND_OFF:           return "GND_OFF    ";
-        case GND_APPROACHING:   return "GND_APPRCH ";
         case GND_ON:            return "GND_ON     ";
         default:                return "GND_UNKNOWN";
     }
@@ -267,7 +268,7 @@ bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
         (  -90 <= lat() && lat() <=    90)  &&
         ( -180 <= lon() && lon() <=   180) &&
         // altitude can be Null - but only if on ground and specifically allowed by parameter
-        ( (onGrnd == GND_ON && bAllowNanAltIfGnd) ||
+        ( (IsOnGnd() && bAllowNanAltIfGnd) ||
         // altitude: a 'little' below MSL might be possible (dead sea),
         //           no more than 60.000ft...we are talking planes, not rockets ;)
           (!isnan(alt_m()) && MDL_ALT_MIN <= alt_ft() && alt_ft() <= MDL_ALT_MAX) );

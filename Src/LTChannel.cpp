@@ -1102,11 +1102,23 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         (s.length() > 4 && s[4] == ' '))
                         stat.destAp = s.substr(0,4);
 
+                    // no type code?
+                    if ( stat.acTypeIcao.empty() ) {
+                        // could be a surface vehicle
+                        // ADSBEx doesn't send a clear indicator, but data anyslsis
+                        // suggests that EngType/Mount == 0 is a good indicator
+                        if (jog_b(pJAc, ADSBEX_GND)         == true &&
+                            jog_n(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
+                            jog_n(pJAc, ADSBEX_ENG_MOUNT)    == 0)
+                            // assume surface vehicle
+                            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+                        else
+                            LOG_MSG(logWARN,ERR_CH_INV_DATA,
+                                    ChName(),transpIcao.c_str(),
+                                    dataRefs.GetDefaultAcIcaoType().c_str());
+                    }
+                    
                     // update the a/c's master data
-                    if ( stat.acTypeIcao.empty() )
-                        LOG_MSG(logWARN,ERR_CH_INV_DATA,
-                                ChName(),transpIcao.c_str(),
-                                dataRefs.GetDefaultAcIcaoType().c_str());
                     fd.UpdateData(std::move(stat), true);
                 }
                 
@@ -1146,6 +1158,11 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     // we need a good take on the ground status of mainPos
                     // for later landing detection
                     mainPos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
+                    
+                    // FIXME: Called from outside main thread,
+                    //        can produce wrong terrain alt (2 cases here)
+                    //        Probably: Just add positions and let updated
+                    //                  AppendNewPos / CalcNewPos do the job of landing detection
                     fd.TryDeriveGrndStatus(mainPos);
                     
                     // Short Trails ("Cos" array), if available
@@ -1222,13 +1239,13 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                             //        but 60 seconds later only we can touch down? That's a looooong flare...
                             // So: We try determining this case and then
                             //     replace altitude with VSI-based calculation.
-                            if (refPos.onGrnd == positionTy::GND_OFF &&
-                                mainPos.onGrnd == positionTy::GND_ON)
+                            if (!refPos.IsOnGnd() && mainPos.IsOnGnd())
                             {
-                                // TODO: Determine mdl based on a/c type
-                                //       So far it's just the default values
-                                LTAircraft::FlightModel mdl;
-                                
+                                // aircraft model to use
+                                const LTAircraft::FlightModel& mdl =
+                                fd.hasAc() ? fd.GetAircraft()->mdl :
+                                LTAircraft::FlightModel::FindFlightModel(fd.GetUnsafeStat().acTypeIcao);
+
                                 
                                 // this is the Landing case
                                 // we look for the VSI of the last two already
@@ -1346,9 +1363,6 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             }
         } else {
             // technical problem with fetching HTTP data
-            // FIXME: Remove temp LOG once found the originator
-            LOG_MSG(logWARN, "FetchAllData somehow failed for %s, httpResponse=%ld",
-                    transpIcao.c_str(), httpResponse);
             bChannelOK = false;
             break;
         }
@@ -1359,8 +1373,6 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     
     // if no technical valid answer received set invalid
     if ( !bChannelOK ) {
-        // FIXME: Remove temp LOG once found the originator
-        LOG_MSG(logWARN, "FetchAllData somehow failed");
         IncErrCnt();
         return false;
     }
@@ -1463,9 +1475,9 @@ bool LTFlightDataEnable()
         listFDC.emplace_back(new ADSBExchangeHistorical);
         // TODO: master data readers for historic data, like reading CSV file
     } else {
-        // load live feed readers
-        listFDC.emplace_back(new ADSBExchangeConnection);
+        // load live feed readers (in order of priority)
         listFDC.emplace_back(new OpenSkyConnection);
+        listFDC.emplace_back(new ADSBExchangeConnection);
         // load online master data connections
         listFDC.emplace_back(new OpenSkyAcMasterdata);
     }
@@ -1658,7 +1670,7 @@ void LTFlightDataAcMaintenance()
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(float(FLIGHT_LOOP_INTVL - .05), logMSG, MSG_BUF_FILL_COUNTDOWN,
+        CreateMsgWindow(float(AC_MAINT_INTVL - .05), logMSG, MSG_BUF_FILL_COUNTDOWN,
                         int(mapFd.size()),
                         numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));
