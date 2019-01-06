@@ -80,10 +80,6 @@ bool Doc8643::ReadDoc8643File ()
     
     // Put together path to Doc8643.txt
     std::string path (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-#ifdef APL
-    // Mac: convert to Posix
-    LTHFS2Posix(path);
-#endif
     
     // open the file for reading
     std::ifstream fIn (path);
@@ -444,7 +440,7 @@ bool DataRefs::Init ()
     // if there's no CSL path yet then add as a default the one to our own plugin dir
     if (vCSLPaths.empty()) {
         // ...but only store the part relative to XP's system dir
-        std::string path ( LTRemoveXPSystemPath(LTCalcFullPluginPath(PATH_RESOURCES_CSL), true));
+        std::string path ( LTRemoveXPSystemPath(LTCalcFullPluginPath(PATH_RESOURCES_CSL)));
         vCSLPaths.emplace_back(true, std::move(path));
     }
     
@@ -962,14 +958,6 @@ void DataRefs::LTSetDebugAcFilter( void* /*inRefcon*/, int i )
     }
 }
 
-// For Macs XPMP API expects Posix, but XPLM API delivers HFS
-std::string DataRefs::GetDirSeparatorMP()
-{
-    std::string sep = GetDirSeparator();
-    if ( sep == PATH_HFS_SEPARATOR ) sep = PATH_POSIX_SEPARATOR;
-    return sep;
-}
-
 //
 // MARK: DataRefs::dataRefDefinitionT
 //
@@ -1067,7 +1055,7 @@ bool DataRefs::LoadXPlanePrf()
     int hdr_antial = renopt_HDR_antial;
     
     // open a config file
-    std::string sFileName (LTCalcFullPath(PATH_XPLANE_PRF, true));
+    std::string sFileName (LTCalcFullPath(PATH_XPLANE_PRF));
     std::ifstream fIn (sFileName);
     if (!fIn) {
         // if there is no config file just return...that's no problem, we use defaults
@@ -1114,7 +1102,7 @@ bool DataRefs::LoadXPlanePrf()
 bool DataRefs::LoadConfigFile()
 {
     // open a config file
-    std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE, true));
+    std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
     std::ifstream fIn (sFileName);
     if (!fIn) {
         // if there is no config file just return...that's no problem, we use defaults
@@ -1274,10 +1262,6 @@ bool DataRefs::SaveConfigFile()
 {
     // open an output config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
-#ifdef APL
-    // Mac: convert to Posix
-    LTHFS2Posix(sFileName);
-#endif
     std::ofstream fOut (sFileName, std::ios_base::out | std::ios_base::trunc);
     if (!fOut) {
 		char sErr[SERR_LEN];
@@ -1308,7 +1292,7 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_CSL_SECTION << '\n';
         for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
             fOut << (cslPath.bEnabled ? "1|" : "0|") <<
-            LTRemoveXPSystemPath(cslPath.path, true) << '\n';
+            LTRemoveXPSystemPath(cslPath.path) << '\n';
     }
     
     // some error checking towards the end

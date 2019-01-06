@@ -152,6 +152,10 @@ PLUGIN_API int XPluginStart(
     
     // tell the world we are trying to start up
     LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
+    
+    // use native paths, i.e. Posix style (as opposed to HFS style)
+    // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
+    XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
 
     // init DataRefs
     if (!dataRefs.Init()) return 0;

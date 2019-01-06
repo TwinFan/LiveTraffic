@@ -108,26 +108,18 @@
 // Global DataRef object, which also includes 'global' variables
 extern DataRefs dataRefs;
 
-// MARK: Path Conversion
-// Convert HFS (as used by XPLM) to Posix (as used by XPMP)
-std::string& LTHFS2Posix ( std::string& path );
-
-// if necessary exchange the directory separator from / to a local one.
-// (works only well on partial paths as defined in Constants.h!)
-std::string LTPathToLocal ( const char* p, bool bXPMPStyle );
-// ...and back from system separator to /
-std::string LTPathToStd ( std::string path );
+// MARK: Path helpers
 
 // deal with paths: make a full one from a relative one or keep a full path
-std::string LTCalcFullPath ( const char* path, bool bXPMPStyle = false );
-std::string LTCalcFullPluginPath ( const char* path, bool bXPMPStyle = false );
+std::string LTCalcFullPath ( const std::string path );
+std::string LTCalcFullPluginPath ( const std::string path );
 
 // if path starts with the XP system path it is removed
-std::string LTRemoveXPSystemPath (std::string path, bool bToStd);
+std::string LTRemoveXPSystemPath (std::string path );
 
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
-int LTNumFilesInPath ( const char* path );
+int LTNumFilesInPath ( const std::string path );
 
 // MARK: Utility Functions
 // change a std::string to uppercase

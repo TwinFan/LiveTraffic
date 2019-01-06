@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 0.85f;
+constexpr float VERSION_NR = 0.86f;
 constexpr bool VERSION_BETA = true;
 
 //MARK: Window Position
@@ -136,10 +136,6 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
 #define PATH_XPLANE_PRF         "Output/preferences/X-Plane.prf"
-
-#define PATH_STD_SEPARATOR      "/"             // the one used here in the constants
-#define PATH_HFS_SEPARATOR      ":"
-#define PATH_POSIX_SEPARATOR    "/"
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;

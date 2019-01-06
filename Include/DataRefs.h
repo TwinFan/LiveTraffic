@@ -424,8 +424,6 @@ public:
     inline std::string GetXPSystemPath() const  { return XPSystemPath; }
     inline std::string GetLTPluginPath() const  { return LTPluginPath; }
     inline std::string GetDirSeparator() const  { return DirSeparator; }
-    // this one returns the directory separator as used by the XPMP API
-    std::string GetDirSeparatorMP();
     
     // Read some values from X-Plane.prf
     bool LoadXPlanePrf();

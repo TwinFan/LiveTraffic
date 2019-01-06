@@ -26,149 +26,66 @@
 
 #include "LiveTraffic.h"
 
-//MARK: Path conversion
-
-// Mac Only: taken from xplanemp/PlatformUtils.h, which can't be included due to an #error directive
-#if APL
-/*
- * Convert an HFS path to a POSIX Path.  Returns 0 for success, -1 for failure.
- * WARNING: this only works for EXISTING FILES!!!!!!!!!!!!!!!!!
- *
- */
-int HFS2PosixPath(const char *path, char *result, int resultLen);
-int Posix2HFSPath(const char *path, char *result, int resultLen);
-
-// Convert HFS (as used by XPLM) to Posix (as used by XPMP)
-std::string& LTHFS2Posix ( std::string& path )
-{
-    char szResultBuf[512];
-    HFS2PosixPath(path.c_str(), szResultBuf, sizeof(szResultBuf));
-    return path = szResultBuf;
-}
-
-// Convert Posix to HFS
-std::string& LTPosix2HFS ( std::string& path )
-{
-    char szResultBuf[512];
-    Posix2HFSPath(path.c_str(), szResultBuf, sizeof(szResultBuf));
-    return path = szResultBuf;
-}
-#endif
-
-
-// if necessary exchange the directory separator from / to a local one.
-// (works only well on partial paths as defined in Constants.h!)
-std::string LTPathToLocal ( const char* p, bool bXPMPStyle )
-{
-    std::string path(p);
-    std::string dirSep(bXPMPStyle ?
-                       dataRefs.GetDirSeparatorMP() :
-                       dataRefs.GetDirSeparator());
-    
-    // replace all "/" with DirSeparator
-    std::replace (path.begin(), path.end(),
-                  PATH_STD_SEPARATOR[0], dirSep[0]);
-
-    return path;
-}
-
-// ...and back from system separator to /
-std::string LTPathToStd ( std::string path )
-{
-    // replace all "/" with DirSeparator
-    std::replace (path.begin(), path.end(),
-                  dataRefs.GetDirSeparator()[0],
-                  PATH_STD_SEPARATOR[0]);
-    return path;
-}
+//MARK: Path helpers
 
 // construct path: if passed-in base is a full path just take it
 // otherwise it is relative to XP system path
 #pragma warning( push )
 #pragma warning( disable: 4100 )
-std::string LTCalcFullPath ( const char* path, bool bXPMPStyle )
+std::string LTCalcFullPath ( const std::string path )
 {
-    std::string ret;
-    
     // starts already with system path? -> nothing to so
     if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
         return path;
     
     // starts with DirSeparator or [windows] second char is a colon?
     if (dataRefs.GetDirSeparator()[0] == path[0] ||
-        (strlen(path) >= 2 && path[1] == ':' ) ) {
-        // just take the given path
-        ret = LTPathToLocal(path,false);
-#if APL
-    } else if (path[0] == PATH_POSIX_SEPARATOR[0]) {
-        // for Mac also allow Posix-style full paths
-        // but convert to HFS
-        ret = path;
-        LTPosix2HFS(ret);
-#endif
-    } else {
-        // otherwise it shall be a local path relative to XP main
-        ret = dataRefs.GetXPSystemPath() + LTPathToLocal(path,false);
-    }
-    
-#if APL
-    // convert to Posix as expected by XPMP
-    if (bXPMPStyle)
-        LTHFS2Posix(ret);
-#endif
-    
-    return ret;
+        (path.length() >= 2 && path[1] == ':' ) )
+        // just take the given path, it is a full path already
+        return path;
+
+    // otherwise it is supposingly a local path relative to XP main
+    // prepend with XP system path to make it a full path:
+    return dataRefs.GetXPSystemPath() + path;
 }
 
 // same as above, but relative to plugin directory
-std::string LTCalcFullPluginPath ( const char* path, bool bXPMPStyle )
+std::string LTCalcFullPluginPath ( const std::string path )
 {
     std::string ret;
     
     // starts with DirSeparator or [windows] second char is a colon?
     if (dataRefs.GetDirSeparator()[0] == path[0] ||
-        (strlen(path) >= 2 && path[1] == ':' ) ) {
-        // just take the given path
-        ret = LTPathToLocal(path,false);
-    } else {
-        // otherwise it shall be a local path relative to the plugin's dir
-        ret = dataRefs.GetLTPluginPath() + LTPathToLocal(path,false);
-    }
-    
-#if APL
-    // convert to Posix as expected by XPMP
-    if (bXPMPStyle)
-        LTHFS2Posix(ret);
-#endif
+        (path.length() >= 2 && path[1] == ':' ) )
+        // just take the given path, it is a full path already
+        return path;
 
-    return ret;
+    // otherwise it shall be a local path relative to the plugin's dir
+    // otherwise it is supposingly a local path relative to XP main
+    // prepend with XP system path to make it a full path:
+    return dataRefs.GetLTPluginPath() + path;
 }
 #pragma warning( pop )
 
 // if path starts with the XP system path it is removed
-std::string LTRemoveXPSystemPath (std::string path, bool bToStd)
+std::string LTRemoveXPSystemPath (std::string path)
 {
     if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
         path.erase(0, dataRefs.GetXPSystemPath().length());
-
-    // if requested return the to-standard version
-    if (bToStd)
-        return LTPathToStd(path);
-    else
-        return path;
+    return path;
 }
 
-// given a path (in XPLM notation) returns number of files in the path
+// given a path returns number of files in the path
 // or 0 in case of errors
-int LTNumFilesInPath ( const char* path )
+int LTNumFilesInPath ( const std::string path )
 {
     char aszFileNames[2048] = "";
     int iTotalFiles = 0;
-    if ( !XPLMGetDirectoryContents(path, 0,
+    if ( !XPLMGetDirectoryContents(path.c_str(), 0,
                                    aszFileNames, sizeof(aszFileNames),
                                    NULL, 0,
                                    &iTotalFiles, NULL) && !iTotalFiles)
-    { LOG_MSG(logERR,ERR_DIR_CONTENT,path); }
+    { LOG_MSG(logERR,ERR_DIR_CONTENT,path.c_str()); }
     
     return iTotalFiles;
 }
@@ -328,18 +245,14 @@ std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
         // enabled, path could be relative to X-Plane
         ret = LTCalcFullPath(cslIter->path.c_str());
         
-        // existis, has files?
-        if (LTNumFilesInPath(ret.c_str()) < 1) {
+        // exists, has files?
+        if (LTNumFilesInPath(ret) < 1) {
             LOG_MSG(logMSG, ERR_CFG_CSL_EMPTY, cslIter->path.c_str());
             ret.erase();
             continue;
         }
         
-        // looks like a possible path, prepare for calling MP library
-#if APL
-        LTHFS2Posix(ret);
-#endif
-        
+        // looks like a possible path, return it
         // prepare for next call, move to next item
         ++cslIter;
         
@@ -378,9 +291,9 @@ bool LTMainInit ()
     // planes' config would never change (states like flaps/gears are
     // communicated to the model via custom datarefs,
     // see XPMPMultiplayerObj8.cpp/obj_get_float)
-    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT, true));
-    const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG, true));
-    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT, true));
+    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
+    const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG));
+    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
     const char* cszResult = XPMPMultiplayerInitLegacyData
     (
         cslPath.c_str(),                // we pass in the first found CSL dir

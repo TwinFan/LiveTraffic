@@ -334,12 +334,8 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
     
     // logging enabled. Need to open the file first?
     if (!outRaw.is_open()) {
-        std::string sFileName (LTCalcFullPath(PATH_DEBUG_RAW_FD));
-#ifdef APL
-        // Mac: convert to Posix
-        LTHFS2Posix(sFileName);
-#endif
         // open the file, append to it
+        std::string sFileName (LTCalcFullPath(PATH_DEBUG_RAW_FD));
         outRaw.open (sFileName, std::ios_base::out | std::ios_base::app);
         if (!outRaw) {
             char sErr[SERR_LEN];
@@ -749,9 +745,9 @@ LTFileChannel(),
 LTFlightDataChannel()
 {
     // determine full path (might be local to XP System Path)
-    pathBase = LTCalcFullPath(base.c_str());
+    pathBase = LTCalcFullPath(base);
     // must contain _something_
-    if ( LTNumFilesInPath (pathBase.c_str()) < 1) {
+    if ( LTNumFilesInPath (pathBase) < 1) {
         // first path didn't work, try fallback
         if ( !fallback.empty() ) {
             SHOW_MSG(logWARN,ADSBEX_HIST_TRY_FALLBACK,pathBase.c_str());
@@ -817,7 +813,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
         
         // check path, if not the same as last iteration
         if ((pathDate != lastCheckedPath) &&
-            (LTNumFilesInPath(pathDate.c_str()) < 1)) {
+            (LTNumFilesInPath(pathDate) < 1)) {
             SetValid(false,false);
             SHOW_MSG(logERR,ADSBEX_HIST_PATH_EMPTY,pathDate.c_str());
             return false;
@@ -833,10 +829,6 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
                  tm_val.tm_mday,
                  tm_val.tm_hour, tm_val.tm_min);
         pathDate += sz;
-#ifdef APL
-        // Mac: convert to Posix
-        LTHFS2Posix(pathDate);
-#endif
         
         // open the file
         std::ifstream f(pathDate);
