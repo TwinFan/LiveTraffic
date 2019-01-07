@@ -115,6 +115,14 @@ std::string ts2string (time_t t)
     return std::string(szBuf);
 }
 
+// last word of a string
+std::string str_last_word (const std::string s)
+{
+    std::string::size_type p = s.find_last_of(' ');
+    return (p == std::string::npos ? s :    // space not found? -> entire string
+            s.substr(p+1));                 // otherwise all after string (can be empty!)
+}
+
 // separates string into tokens
 std::vector<std::string> str_tokenize (const std::string s,
                                        const std::string tokens)

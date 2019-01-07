@@ -131,6 +131,8 @@ inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
     s.substr(0, m-3) + "...";
 }
+// last word of a string
+std::string str_last_word (const std::string s);
 // separates string into tokens
 std::vector<std::string> str_tokenize (const std::string s,
                                        const std::string tokens);
