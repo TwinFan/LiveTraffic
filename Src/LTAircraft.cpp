@@ -1089,17 +1089,17 @@ bool LTAircraft::CalcPPos()
         // Fairly simplistic...in the range -2 to +18 depending linearly on vsi only
         double toPitch =
         bOnGrnd ? 0 :
-        GetVSI_ft() < mdl.PITCH_MIN_VSI ? mdl.PITCH_MIN :
-        GetVSI_ft() > mdl.PITCH_MAX_VSI ? mdl.PITCH_MAX :
+        vsi < mdl.PITCH_MIN_VSI ? mdl.PITCH_MIN :
+        vsi > mdl.PITCH_MAX_VSI ? mdl.PITCH_MAX :
         (mdl.PITCH_MIN +
-         (GetVSI_ft()-mdl.PITCH_MIN_VSI)/(mdl.PITCH_MAX_VSI-mdl.PITCH_MIN_VSI)*
+         (vsi-mdl.PITCH_MIN_VSI)/(mdl.PITCH_MAX_VSI-mdl.PITCH_MIN_VSI)*
          (mdl.PITCH_MAX-mdl.PITCH_MIN));
         
         // another approach for climbing phases:
         // a/c usually flies more or less with nose pointing upward toward climb,
         // nearly no drag, so try calculating the flight path angle and use
         // it also as pitch
-        if ( GetVSI_ft() > mdl.VSI_STABLE ) {
+        if ( vsi > mdl.VSI_STABLE ) {
             toPitch = vsi2deg(vec.speed, vec.vsi);
             if (toPitch < mdl.PITCH_MIN)
                 toPitch = mdl.PITCH_MIN;
