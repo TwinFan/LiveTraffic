@@ -50,7 +50,8 @@ class LTSettingsUI : public TFMainWindowWidget
 protected:
     XPWidgetID* widgetIds;              // all widget ids in the dialog
     TFButtonGroup tabGrp;               // button group to switch 'tabs'
-    TFWidget subBasicsLive, subBasicsHistoric, subAcLabel, subAdvcd;       // sub-windows ('tabs')
+    // sub-windows ('tabs')
+    TFWidget subBasicsLive, subBasicsHistoric, subAcLabel, subAdvcd, subCSL;
     
     // Basics tab
     TFButtonDataRef btnBasicsEnable,    // enable display of aircrafts
@@ -62,6 +63,9 @@ protected:
     
     // A/C Labels tab
     TFDataRefLink drCfgLabels;          // links to dataRef livetraffic/cfg/labels
+    TFButtonGroup btnGrpLabelColorDyn;
+    TFDataRefLink drLabelColDyn;
+    TFIntFieldDataRef intLabelColor;
 
     // Advanced tab
     TFButtonGroup logLevelGrp;          // radio buttons to select logging level
@@ -70,6 +74,9 @@ protected:
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
     TFACSearchEditWidget txtAdvcdFilter;
     TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch, btnAdvcdLogRawFd;
+    
+    // CSL tab
+    
 
 public:
     LTSettingsUI();
@@ -94,6 +101,7 @@ protected:
 
     // handles show/hide of 'tabs'
     virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);
+    virtual bool MsgPushButtonPressed (XPWidgetID buttonWidget);
     
     // Handle checkboxes for a/c labels
     void LabelBtnInit();

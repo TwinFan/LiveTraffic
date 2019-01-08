@@ -125,7 +125,8 @@ std::string str_last_word (const std::string s)
 
 // separates string into tokens
 std::vector<std::string> str_tokenize (const std::string s,
-                                       const std::string tokens)
+                                       const std::string tokens,
+                                       bool bSkipEmpty)
 {
     std::vector<std::string> v;
  
@@ -135,7 +136,8 @@ std::vector<std::string> str_tokenize (const std::string s,
          e != std::string::npos;
          b = e+1, e = s.find_first_of(tokens, b))
     {
-        v.emplace_back(s.substr(b, e-b));
+        if (!bSkipEmpty || e != b)
+            v.emplace_back(s.substr(b, e-b));
     }
     
     // add the last one: the remainder of the string (could be empty!)

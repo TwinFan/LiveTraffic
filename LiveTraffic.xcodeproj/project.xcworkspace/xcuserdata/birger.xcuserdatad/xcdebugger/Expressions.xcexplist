@@ -34,10 +34,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -192,6 +192,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "conv_color(int, float*):DataRefs.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFindCSLDirectories(std::__1::list&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, std::__1::allocator&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt; &gt;&amp;):LTMain.cpp">
          <PersistentStrings>
             <PersistentString
@@ -227,6 +230,9 @@
          <PersistentStrings>
             <PersistentString
                value = "widgetIds[1]">
+            </PersistentString>
+            <PersistentString
+               value = "intLabelColor">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -290,10 +296,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -339,10 +345,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -377,10 +383,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -437,6 +443,9 @@
       </ContextState>
       <ContextState
          contextName = "LTFlightData::UpdateStaticLabel():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "str_tokenize(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, bool):LTMain.cpp">
       </ContextState>
       <ContextState
          contextName = "CoordPlusVector(positionTy const&amp;, vectorTy const&amp;):CoordCalc.cpp">

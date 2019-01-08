@@ -311,11 +311,17 @@ public:
 // TFIntFieldDataRef
 // combines a text field (integer format) with a dataRef
 //
-class TFIntFieldDataRef : public TFTextFieldWidget, TFDataRefLink
+class TFIntFieldDataRef : public TFTextFieldWidget, public TFDataRefLink
 {
 public:
-    TFIntFieldDataRef (XPWidgetID _me = NULL, const char* dataRefName=NULL);
-    void setId (XPWidgetID _me, const char* dataRefName);
+    TFIntFieldDataRef (XPWidgetID _me = NULL,
+                       const char* dataRefName=NULL,
+                       TFTextFieldFormatTy format=TFF_DIGITS );
+    void setId (XPWidgetID _me,
+                const char* dataRefName,
+                TFTextFieldFormatTy format=TFF_DIGITS);
+    void Set (int val);
+    
 protected:
     void Synch ();          // field value with current data ref value
     virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);

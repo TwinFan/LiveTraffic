@@ -128,6 +128,8 @@ enum dataRefsLT {
     DR_CFG_AIRCRAFTS_DISPLAYED,
     DR_CFG_AUTO_START,
     DR_CFG_LABELS,
+    DR_CFG_LABEL_COL_DYN,
+    DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
@@ -281,6 +283,8 @@ protected:
     int bAutoStart              = true; // shall display a/c right after startup?
     // which elements make up an a/c label?
     LabelCfgUTy labelCfg = { {1,1,0,0,0,0,0,0, 0,0,1,0,1,0} };
+    bool bLabelColDynamic  = false;     // dynamic label color?
+    int labelColor      = COLOR_YELLOW; // label color, by default yellow
     int maxNumAc        = 50;           // how many aircrafts to create at most?
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 5;            // kilometer: Farther away a/c is drawn 'lights only'
@@ -371,6 +375,9 @@ public:
     bool SetCfgValue(void* p, int val);
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline LabelCfgUTy GetLabelCfg() const { return labelCfg; }
+    inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
+    inline int GetLabelColor() const { return labelColor; }
+    void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
     inline int GetMaxFullNumAc() const { return maxFullNumAc; }
     inline int GetFullDistance_km() const { return fullDistance; }

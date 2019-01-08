@@ -68,6 +68,7 @@ public:
     void moveTo ( double tval );
     inline void up ()       { moveTo(defMin); }
     inline void down ()     { moveTo(defMax); }
+    inline void half ()     { moveTo((defMin+defMax)/2); }
     inline void min ()      { moveTo(defMin); }
     inline void max ()      { moveTo(defMax); }
 

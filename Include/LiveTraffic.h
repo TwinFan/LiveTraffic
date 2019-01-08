@@ -135,7 +135,8 @@ inline std::string strAtMost(const std::string s, size_t m) {
 std::string str_last_word (const std::string s);
 // separates string into tokens
 std::vector<std::string> str_tokenize (const std::string s,
-                                       const std::string tokens);
+                                       const std::string tokens,
+                                       bool bSkipEmpty = true);
 
 // push a new item to the end only if it doesn't exist yet
 template< class ContainerT, class T>
@@ -144,6 +145,9 @@ void push_back_unique(ContainerT& list, const T& key)
     if ( std::find(list.cbegin(),list.cend(),key) == list.cend() )
         list.push_back(key);
 }
+
+// convert a color value from int to float[4]
+void conv_color ( int inCol, float outCol[4] );
 
 // verifies if one container begins with the same content as the other
 // https://stackoverflow.com/questions/931827/stdstring-comparison-check-whether-string-begins-with-another-string

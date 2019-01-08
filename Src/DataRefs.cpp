@@ -40,6 +40,17 @@ void MenuCheckAircraftsDisplayed ( int bChecked );
 // provided in LTFlightData.cpp
 extern mapLTFlightDataTy mapFd;
 
+// return color into a RGB array as XP likes it
+void conv_color (int inCol, float outColor[4])
+{
+    outColor[0] = float((inCol & 0xFF0000) >> 16) / 255.0f;    // red
+    outColor[1] = float((inCol & 0x00FF00) >>  8) / 255.0f;    // green
+    outColor[2] = float((inCol & 0x0000FF)      ) / 255.0f;    // blue
+    outColor[3] = 1.0f;
+}
+
+
+
 //
 // MARK: Doc8643
 //
@@ -206,6 +217,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, true },
     {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -237,6 +250,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_LABELS:                 return &labelCfg.i;
+        case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
+        case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
@@ -899,7 +914,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
     *reinterpret_cast<int*>(p) = val;
     
     // any configuration value invalid?
-    if (maxNumAc        < 5                 || maxNumAc         > 100   ||
+    if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
+        maxNumAc        < 5                 || maxNumAc         > 100   ||
         maxFullNumAc    < 5                 || maxFullNumAc     > 100   ||
         fullDistance    < 1                 || fullDistance     > 100   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
@@ -922,6 +938,11 @@ bool DataRefs::SetCfgValue (void* p, int val)
     return true;
 }
 
+// return color into a RGB array as XP likes it
+void DataRefs::GetLabelColor (float outColor[4]) const
+{
+    conv_color(labelColor, outColor);
+}
 
 //
 //MARK: Debug Options

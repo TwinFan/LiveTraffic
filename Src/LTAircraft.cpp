@@ -481,6 +481,20 @@ const LTAircraft::FlightModel MDL_DEFAULT;
 bool fm_processModelLine (const char* fileName, int ln,
                           std::string& text, LTAircraft::FlightModel& fm)
 {
+    // There is one special case: LABEL_COLOR
+    if (begins_with<std::string>(text, MDL_LABEL_COLOR))
+    {
+        // separate LABEL_COLOR from actual value
+        const std::vector<std::string> t = str_tokenize(text, " ");
+        if (t.size() != 2) {
+            LOG_MSG(logWARN, ERR_CFG_FORMAT, fileName, ln, text.c_str());
+            return false;
+        }
+        // convert the value first from hex to a number, then to a float array
+        conv_color(std::stoi(t[1], nullptr, 16), fm.LABEL_COLOR);
+        return true;
+    }
+    
     // split into name and value
     static std::regex re ("(\\w+)\\s+(-?\\d+(\\.\\d+)?)");
     std::smatch m;
@@ -652,9 +666,6 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
             // finish previous model section first
             // (as [Map] has to be last this will safely be executed for all FlightModel sections)
             if (fm && fmState == FM_MODEL_SECTION) {
-                // FIXME: Read color from file
-                // Here just for demonstration purposes: Airbus is red
-                if (fm.LIGHT_PATTERN == 1) fm.LABEL_COLOR[1] = 0;
                 // i.e. add the defined model to the list
                 push_back_unique(listFlightModels, fm);
             }
@@ -1476,7 +1487,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.strbLights = 1;
         surfaces.lights.landLights = 1;
         surfaces.thrust = 1.0;          // a bit late...but anyway ;)
-        flaps.down();
+        flaps.half();
     }
     
     // Lift Off
@@ -1512,13 +1523,14 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // approach
     if (ENTERED(FPH_APPROACH)) {
         surfaces.thrust = 0.2f;
-        flaps.down();
+        flaps.half();
     }
     
     // final
     if (ENTERED(FPH_FINAL)) {
         surfaces.lights.landLights = 1;
         surfaces.thrust = 0.3f;
+        flaps.down();
         gear.down();
     }
     
@@ -1666,8 +1678,11 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         {
             *outPosition = ppos;                // copy ppos (by type conversion), and add the label
             memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));
-            // color depends on model
-            memmove(outPosition->label_color, mdl.LABEL_COLOR, sizeof(outPosition->label_color));
+            // color depends on setting and maybe model
+            if (dataRefs.IsLabelColorDynamic())
+                memmove(outPosition->label_color, mdl.LABEL_COLOR, sizeof(outPosition->label_color));
+            else
+                dataRefs.GetLabelColor(outPosition->label_color);
             return xpmpData_NewData;
         }
 

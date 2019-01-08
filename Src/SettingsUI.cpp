@@ -137,6 +137,7 @@ enum UI_WIDGET_IDX_T {
     UI_BTN_BASICS,
     UI_BTN_AC_LABELS,
     UI_BTN_ADVANCED,
+    UI_BTN_CSL,
     // "Basics" tab
     UI_BASICS_LIVE_SUB_WND,
     UI_BASICS_BTN_ENABLE,
@@ -177,6 +178,15 @@ enum UI_WIDGET_IDX_T {
     UI_LABELS_BTN_HEIGHT,
     UI_LABELS_BTN_SPEED,
     UI_LABELS_BTN_VSI,
+    
+    UI_LABELS_CAP_COLOR,
+    UI_LABELS_BTN_DYNAMIC,
+    UI_LABELS_BTN_FIXED,
+    UI_LABELS_TXT_COLOR,
+    UI_LABELS_BTN_YELLOW,
+    UI_LABELS_BTN_RED,
+    UI_LABELS_BTN_GREEN,
+    UI_LABELS_BTN_BLUE,
 
     // "Advanced" tab
     UI_ADVCD_SUB_WND,
@@ -205,6 +215,10 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_BTN_LOG_ACPOS,
     UI_ADVCD_BTN_LOG_MODELMATCH,
     UI_ADVCD_BTN_LOG_RAW_FD,
+    
+    // "CSL" tab
+    UI_CSL_SUB_WND,
+    UI_CSL_CAP_PATHS,
 
     // always last: number of UI elements
     UI_NUMBER_OF_ELEMENTS
@@ -219,6 +233,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  30,  75,  10, 1, "Basics",               0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     {  85,  30,  75,  10, 1, "A/C Labels",           0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     { 160,  30,  75,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    { 235,  30,  75,  10, 1, "CSL",                  0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     // "Basics" tab
     {  10,  50, 190, -10, 0, "Basics Live",          0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
     {  10,  10,  10,  10, 1, "Show Live Aircrafts",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
@@ -247,7 +262,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  90,  10,  10, 1, "ICAO Operator Code",  0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 105,  10,  10, 1, "Call Sign",           0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 120,  10,  10, 1, "Flight Number (rare)",0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 135,  10,  10, 1, "Route         (rare)",0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 135,  10,  10, 1, "Route",               0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     { 200,  10, -10,  10, 1, "Dynamic data:",       0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 200,  30,  10,  10, 1, "Flight Phase",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     { 200,  45,  10,  10, 1, "Heading",             0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
@@ -255,6 +270,14 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 200,  75,  10,  10, 1, "Height AGL [ft]",     0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     { 200,  90,  10,  10, 1, "Speed [kn]",          0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     { 200, 105,  10,  10, 1, "VSI [ft/min]",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5, 155,  50,  10, 1, "Label Color:",        0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10, 170,  10,  10, 1, "Dynamic by Flight Model",0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    {  10, 185,  10,  10, 1, "Fixed:",              0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    {  60, 182,  60,  15, 1, "",                    0, UI_LABELS_SUB_WND, xpWidgetClass_TextField, {xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    { 120, 185,  50,  10, 1, "Yellow",              0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    { 170, 185,  50,  10, 1, "Red",                 0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    { 220, 185,  50,  10, 1, "Green",               0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    { 270, 185,  50,  10, 1, "Blue",                0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
     // "Advanced" tab
     {  10,  50, -10, -10, 0, "Advanced",            0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Logging Level:",      0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -282,6 +305,9 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10, 220,  10,  10, 1, "Debug: Log a/c positions",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 235,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 250,  10,  10, 1, "Debug: Log raw network flight data (LTRawFD.log)",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    // "CSL" tab
+    {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
+    {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 };
 
 const int NUM_WIDGETS = sizeof(SETTINGS_UI)/sizeof(SETTINGS_UI[0]);
@@ -312,12 +338,15 @@ void LTSettingsUI::Enable()
         subBasicsHistoric.setId(widgetIds[UI_BASICS_HISTORIC_SUB_WND]);
         subAcLabel.setId(widgetIds[UI_LABELS_SUB_WND]);
         subAdvcd.setId(widgetIds[UI_ADVCD_SUB_WND]);
-        
+        subCSL.setId(widgetIds[UI_CSL_SUB_WND]);
+
         // organise the tab button group
         tabGrp.Add({
             widgetIds[UI_BTN_BASICS],
             widgetIds[UI_BTN_AC_LABELS],
-            widgetIds[UI_BTN_ADVANCED]});
+            widgetIds[UI_BTN_ADVANCED],
+            widgetIds[UI_BTN_CSL]
+        });
         tabGrp.SetChecked(widgetIds[UI_BTN_BASICS]);
         HookButtonGroup(tabGrp);
         
@@ -361,6 +390,21 @@ void LTSettingsUI::Enable()
         // *** A/C Labels ***
         drCfgLabels.setDataRef(DATA_REFS_LT[DR_CFG_LABELS]);
         LabelBtnInit();
+        
+        // Color
+        btnGrpLabelColorDyn.Add({
+            widgetIds[UI_LABELS_BTN_DYNAMIC],
+            widgetIds[UI_LABELS_BTN_FIXED]
+        });
+        btnGrpLabelColorDyn.SetChecked(dataRefs.IsLabelColorDynamic() ?
+                                       widgetIds[UI_LABELS_BTN_DYNAMIC] :
+                                       widgetIds[UI_LABELS_BTN_FIXED]
+                                       );
+        HookButtonGroup(btnGrpLabelColorDyn);
+        drLabelColDyn.setDataRef(DATA_REFS_LT[DR_CFG_LABEL_COL_DYN]);
+        intLabelColor.setId(widgetIds[UI_LABELS_TXT_COLOR],
+                            DATA_REFS_LT[DR_CFG_LABEL_COLOR],
+                            TFTextFieldWidget::TFF_HEX);
         
         // *** Advanced ***
         logLevelGrp.Add({
@@ -463,6 +507,7 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
     // first pass up the class hierarchy to make sure the button groups are handled correctly
     bool bRet = TFMainWindowWidget::MsgButtonStateChanged(buttonWidget, bNowChecked);
     
+    // *** Tab Groups ***
     // if the button is one of our tab buttons show/hide the appropriate subwindow
     if (widgetIds[UI_BTN_BASICS] == buttonWidget) {
         subBasicsLive.Show(bNowChecked);
@@ -477,7 +522,12 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         subAdvcd.Show(bNowChecked);
         bRet = true;
     }
-    
+    else if (widgetIds[UI_BTN_CSL] == buttonWidget) {
+        subCSL.Show(bNowChecked);
+        bRet = true;
+    }
+
+    // *** A/C Labels ***
     // if any of the a/c label check boxes changes we set the config accordingly
     if (widgetIds[UI_LABELS_BTN_TYPE]       == buttonWidget ||
         widgetIds[UI_LABELS_BTN_AC_ID]      == buttonWidget ||
@@ -498,6 +548,15 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         bRet = true;
     }
     
+    // dynamic / fixed label colors?
+    if (widgetIds[UI_LABELS_BTN_DYNAMIC]    == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_FIXED]      == buttonWidget)
+    {
+        drLabelColDyn.Set(buttonWidget == widgetIds[UI_LABELS_BTN_DYNAMIC]);
+        bRet = true;
+    }
+    
+    // *** Advanced ***
     // if any of the log-level radio buttons changes we set log-level accordingly
     if (bNowChecked && logLevelGrp.isInGroup(buttonWidget))
     {
@@ -506,6 +565,20 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
     }
     
     return bRet;
+}
+
+// push buttons
+bool LTSettingsUI:: MsgPushButtonPressed (XPWidgetID buttonWidget)
+{
+    // *** A/C Labels ***
+    // color presets?
+    if (widgetIds[UI_LABELS_BTN_YELLOW] == buttonWidget) { intLabelColor.Set(COLOR_YELLOW); return true; }
+    if (widgetIds[UI_LABELS_BTN_RED]    == buttonWidget) { intLabelColor.Set(COLOR_RED);    return true; }
+    if (widgetIds[UI_LABELS_BTN_GREEN]  == buttonWidget) { intLabelColor.Set(COLOR_GREEN);  return true; }
+    if (widgetIds[UI_LABELS_BTN_BLUE]   == buttonWidget) { intLabelColor.Set(COLOR_BLUE);   return true; }
+    
+    // we don't know that button...
+    return TFMainWindowWidget::MsgPushButtonPressed(buttonWidget);
 }
 
 // Handle checkboxes for a/c labels

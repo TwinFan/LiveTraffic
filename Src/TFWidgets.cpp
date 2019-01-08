@@ -552,6 +552,9 @@ bool TFTextFieldWidget::MsgKeyPress (XPKeyState_t& key)
          key.key == XPLM_KEY_TAB))          //     or 'tab'
     {
         XPSendMessageToWidget(*this, xpMsg_TextFieldChanged, xpMode_UpChain, intptr_t(getId()), NULL);
+        // in case of [Return] loos focus
+        if (key.key == XPLM_KEY_RETURN)
+            LoseKeyboardFocus();
         // we don't eat the [Tab] key because the main window will
         // use it to set focus to the next editable widget
         return key.key == XPLM_KEY_TAB ? false : true;
@@ -622,26 +625,49 @@ bool TFTextFieldWidget::MsgKeyTakeFocus (bool bChildGaveUp)
 // MARK: TFIntFieldDataRef
 //
 TFIntFieldDataRef::TFIntFieldDataRef (XPWidgetID _me,
-                                      const char* dataRefName) :
+                                      const char* dataRefName,
+                                      TFTextFieldFormatTy format) :
 TFTextFieldWidget(_me), TFDataRefLink(dataRefName)
 {
-    tfFormat = TFF_DIGITS;                  // only integer values allowed
+    assert(format == TFF_DIGITS || format == TFF_HEX);      // only integer values allowed
+    tfFormat = format;
     Synch();
 }
 
 // (deferred) initialization
-void TFIntFieldDataRef::setId (XPWidgetID _me, const char* dataRefName)
+void TFIntFieldDataRef::setId (XPWidgetID _me,
+                               const char* dataRefName,
+                               TFTextFieldFormatTy format)
 {
+    assert(format == TFF_DIGITS || format == TFF_HEX);      // only integer values allowed
+    tfFormat = format;
     TFTextFieldWidget::setId(_me);          // hook into message loop
     TFDataRefLink::setDataRef(dataRefName); // link to dataRef
     Synch();                                // read current value
 }
 
+// set the current value by first setting the dataRef and then synching
+void TFIntFieldDataRef::Set (int val)
+{
+    TFDataRefLink::Set(val);
+    Synch();
+}
+
 // reads current data ref value and sets field value accordingly
 void TFIntFieldDataRef::Synch()
 {
-    if (getId() && isValid())
-        SetDescriptor(std::to_string(GetInt()));
+    if (getId() && isValid()) {
+        if (tfFormat == TFF_DIGITS)
+            // decimal
+            SetDescriptor(std::to_string(GetInt()));
+        else {
+            // hex representation, filled with 0 as to text fields size
+            char s[25];
+            int l = (int)XPGetWidgetProperty(*this, xpProperty_MaxCharacters, NULL);
+            snprintf (s, sizeof(s), "%0*X", l, GetInt());
+            SetDescriptor(s);
+        }
+    }
 }
 
 // changes data ref in response to field's change
@@ -653,7 +679,8 @@ bool TFIntFieldDataRef::MsgTextFieldChanged (XPWidgetID textWidget,
     
     // set dataRef accordingly, message is handled
     try {
-        Set(std::stoi(text));
+        Set(tfFormat == TFF_DIGITS ? std::stoi(text) :
+            std::stoi(text, nullptr, 16));
     }
     catch (const std::invalid_argument&) {
         // just ignore conversion exceptions, Synch() will handle it
@@ -925,6 +952,11 @@ bool TFMainWindowWidget::MsgKeyPress (XPKeyState_t& key)
             }
         }
         
+        // found no one to accept the focus, little hack here:
+        // we briefly take away the focus and set it again
+        // to trigger the field's take/lose focus functionality
+        LoseKeyboardFocus();
+        XPSetKeyboardFocus(oldFocus);
     }
     
     // message not handled

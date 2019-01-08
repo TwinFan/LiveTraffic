@@ -73,6 +73,12 @@ constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on gr
 constexpr double MDL_CLOSE_TO_GND_SLOW = 25;    // feet height considered "on ground" if moving with less than max taxi speed
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
+#define MDL_LABEL_COLOR         "LABEL_COLOR"
+
+constexpr int COLOR_YELLOW      = 0xFFFF00;
+constexpr int COLOR_RED         = 0xFF0000;
+constexpr int COLOR_GREEN       = 0x00FF00;
+constexpr int COLOR_BLUE        = 0x0000FF;
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
