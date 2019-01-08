@@ -78,7 +78,7 @@ constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
 constexpr int COLOR_YELLOW      = 0xFFFF00;
 constexpr int COLOR_RED         = 0xFF0000;
 constexpr int COLOR_GREEN       = 0x00FF00;
-constexpr int COLOR_BLUE        = 0x0000FF;
+constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"

@@ -61,7 +61,7 @@ FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
 [BizJet:MediumJets]
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
-LABEL_COLOR       0000FF    # blue labels for business jets
+LABEL_COLOR       00F0F0    # light blue labels for business jets
 
 [GA:MediumJets]
 ROTATE_TIME            2    # [s] to rotate before lift off
