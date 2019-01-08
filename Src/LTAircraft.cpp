@@ -1099,7 +1099,7 @@ bool LTAircraft::CalcPPos()
         
         // Fairly simplistic...in the range -2 to +18 depending linearly on vsi only
         double toPitch =
-        bOnGrnd ? 0 :
+        (from.IsOnGnd() && to.IsOnGnd()) ? 0 :
         vsi < mdl.PITCH_MIN_VSI ? mdl.PITCH_MIN :
         vsi > mdl.PITCH_MAX_VSI ? mdl.PITCH_MAX :
         (mdl.PITCH_MIN +
@@ -1477,7 +1477,6 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.navLights  = 1;
         surfaces.lights.flashPattern = mdl.LIGHT_PATTERN;
         
-        pitch.SetVal(pitch.defMin);      // nose on the ground
         gear.down();
         flaps.up();
     }
