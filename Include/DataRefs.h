@@ -246,11 +246,13 @@ public:
     };
 
     struct CSLPathCfgTy {           // represents a line in the [CSLPath] section of LiveTrafic.prg
-        bool        bEnabled = true;
+        bool        bEnabled = false;
         std::string path;
         
         CSLPathCfgTy () {}
         CSLPathCfgTy (bool b, std::string&& p) : bEnabled(b), path(std::move(p)) {}
+        inline bool empty() const   { return path.empty(); }
+        inline bool enabled() const { return bEnabled && !empty(); }
     };
     typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     
@@ -389,6 +391,9 @@ public:
     inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
     
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
+    vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }
+    void SaveCSLPath(int idx, const CSLPathCfgTy path);
+    bool LoadCSLPackage(int idx);
     std::string GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
     std::string GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
     bool SetDefaultAcIcaoType(const std::string type);

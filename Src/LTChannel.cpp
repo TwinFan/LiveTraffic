@@ -752,9 +752,9 @@ LTFlightDataChannel()
         if ( !fallback.empty() ) {
             SHOW_MSG(logWARN,ADSBEX_HIST_TRY_FALLBACK,pathBase.c_str());
             // determine full path (might be local to XP System Path)
-            pathBase = LTCalcFullPath(fallback.c_str());
+            pathBase = LTCalcFullPath(fallback);
             // must contain _something_
-            if ( LTNumFilesInPath (pathBase.c_str()) < 1) {
+            if ( LTNumFilesInPath (pathBase) < 1) {
                 SetValid(false,false);
                 SHOW_MSG(logERR,ADSBEX_HIST_FALLBACK_EMPTY,pathBase.c_str());
             } else {

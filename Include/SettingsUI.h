@@ -76,7 +76,9 @@ protected:
     TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch, btnAdvcdLogRawFd;
     
     // CSL tab
-    
+    enum { SETUI_CSL_PATHS=5, SETUI_CSL_ELEMS_PER_PATH=3 };
+    static constexpr int SETUI_CSL_PATHS_NUM_ELEMS = SETUI_CSL_PATHS * SETUI_CSL_ELEMS_PER_PATH;
+    TFTextFieldWidget txtCSLPaths[SETUI_CSL_PATHS];
 
 public:
     LTSettingsUI();
@@ -106,6 +108,9 @@ protected:
     // Handle checkboxes for a/c labels
     void LabelBtnInit();
     void LabelBtnSave();
+    
+    // Save CSL path / Load a CSL package
+    void SaveCSLPath(int idx);
 };
 
 #endif /* SettingsUI_h */

@@ -548,25 +548,20 @@ bool TFTextFieldWidget::MsgKeyPress (XPKeyState_t& key)
 {
     // handle and eat [Return]/[Tab]
     if ((key.flags & xplm_DownFlag) &&      // 'key down' flag
-        (key.key == XPLM_KEY_RETURN ||      // key is 'return'
-         key.key == XPLM_KEY_TAB))          //     or 'tab'
+        (key.key == XPLM_KEY_RETURN))       // key is 'return'
     {
-        XPSendMessageToWidget(*this, xpMsg_TextFieldChanged, xpMode_UpChain, intptr_t(getId()), NULL);
-        // in case of [Return] loos focus
-        if (key.key == XPLM_KEY_RETURN)
-            LoseKeyboardFocus();
-        // we don't eat the [Tab] key because the main window will
-        // use it to set focus to the next editable widget
-        return key.key == XPLM_KEY_TAB ? false : true;
+        // in case of [Return] lose focus, MsgKeyLoseFocus handles notification
+        LoseKeyboardFocus();
+        return true;
     }
-    
+         
     // handle and eat [Esc]: Revert entry to previous value
     if ((key.flags & xplm_DownFlag) &&      // 'key down' flag
         (key.key == XPLM_KEY_ESCAPE))       // key is 'Esc'
     {
-        // stop focus and revert descriptor to original value
-        LoseKeyboardFocus();
+        // revert descriptor to original value and lose focus
         SetDescriptor(oldDescriptor);
+        LoseKeyboardFocus();
         return true;
     }
 
@@ -609,6 +604,24 @@ bool TFTextFieldWidget::MsgKeyPress (XPKeyState_t& key)
     // we don't eat the message but leave it to others for processing
     return false;
 }
+
+// we lose focus: save what the user entered
+bool TFTextFieldWidget::MsgKeyLoseFocus (bool bTakenByOtherWidget)
+{
+    // give class hierarchy a chance
+    bool ret = TFWidget::MsgKeyLoseFocus(bTakenByOtherWidget);
+    
+    // did the text change?
+    if (oldDescriptor != GetDescriptor()) {
+        // inform window about change
+        XPSendMessageToWidget(*this, xpMsg_TextFieldChanged, xpMode_UpChain,
+                              intptr_t(getId()), NULL);
+        return true;
+    }
+    
+    return ret;
+}
+
 
 bool TFTextFieldWidget::MsgKeyTakeFocus (bool bChildGaveUp)
 {

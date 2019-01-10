@@ -219,6 +219,7 @@ public:
     
 protected:
     virtual bool MsgKeyPress (XPKeyState_t& key);
+    virtual bool MsgKeyLoseFocus (bool bTakenByOtherWidget);
     virtual bool MsgKeyTakeFocus (bool bChildGaveUp);
 };
 

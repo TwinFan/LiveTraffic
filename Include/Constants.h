@@ -109,6 +109,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
 #define INFO_WND_AUTO_AC        "AUTO"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
+#define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
 #define CSL_CAR_ICAO_TYPE       "ZZZC"      // fake code for a ground vehicle
@@ -165,7 +166,6 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_DATAREF_FIND        "Could not find DataRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
 #define ERR_DIR_CONTENT         "Could not retrieve directory content for %s"
-#define ERR_RES_CSL_NOT_FOUND   "Did not find any Resources/CSL directory in _any_ plugin directory under %s"
 #define ERR_JSON_PARSE          "Parsing flight data as JSON failed"
 #define ERR_JSON_MAIN_OBJECT    "JSON: Getting main object failed"
 #define ERR_JSON_ACLIST         "JSON: List of aircrafts (%s) not found"
@@ -198,6 +198,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_CSL_INVALID     "CSL Path config invalid in '%s': '%s'"
 #define ERR_CFG_CSL_DISABLED    "CSL Path '%s' disabled, skipping"
 #define ERR_CFG_CSL_EMPTY       "CSL Path '%s' does not exist or is empty, skipping"
+#define ERR_CFG_CSL_NONE        "No valid CSL Paths configured, verify Settings > CSL!"
 #define ERR_CFG_AC_DEFAULT      "A/c default ICAO type '%s' invalid, still using '%s' as default"
 #define ERR_CFG_CAR_DEFAULT     "Car default ICAO type '%s' invalid, still using '%s' as default"
 #define ERR_FM_NOT_AFTER_MAP    "Remainder after [Map] section ignored"

@@ -1312,8 +1312,9 @@ bool DataRefs::SaveConfigFile()
     if (!vCSLPaths.empty()) {
         fOut << CFG_CSL_SECTION << '\n';
         for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
-            fOut << (cslPath.bEnabled ? "1|" : "0|") <<
-            LTRemoveXPSystemPath(cslPath.path) << '\n';
+            if (!cslPath.empty())
+                fOut << (cslPath.enabled() ? "1|" : "0|") <<
+                LTRemoveXPSystemPath(cslPath.path) << '\n';
     }
     
     // some error checking towards the end
@@ -1332,6 +1333,53 @@ bool DataRefs::SaveConfigFile()
         
     return true;
 }
+
+// Save a new/changed CSL path
+void DataRefs::SaveCSLPath(int idx, const CSLPathCfgTy path)
+{
+    // make sure the array of paths is large enough
+    while (idx >= vCSLPaths.size())
+        vCSLPaths.push_back({});
+    
+    // then store the actual path
+    vCSLPaths[idx] = path;
+}
+
+// Load a CSL package interactively
+bool DataRefs::LoadCSLPackage(int idx)
+{
+    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
+    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
+    
+    if (idx < vCSLPaths.size()) {
+        // enabled, path could be relative to X-Plane
+        const std::string path = LTCalcFullPath(vCSLPaths[idx].path);
+        
+        // doesn't exist? has no files?
+        if (LTNumFilesInPath(path) < 1) {
+            SHOW_MSG(logERR, ERR_CFG_CSL_EMPTY, path.c_str());
+        }
+        else
+        {
+            // try loading the package
+            const char* cszResult = XPMPLoadCSLPackage(path.c_str(),
+                                                       pathRelated.c_str(),
+                                                       pathDoc8643.c_str());
+            
+            // Addition of CSL package failed?
+            if ( cszResult[0] ) {
+                SHOW_MSG(logERR,ERR_XPMP_ADD_CSL, cszResult);
+            } else {
+                SHOW_MSG(logMSG,MSG_CSL_PACKAGE_LOADED, vCSLPaths[idx].path.c_str());
+                return true;
+            }
+        }
+    }
+    
+    // didn't work for some reason
+    return false;
+}
+
 
 // sets the default a/c icao type after validation with Doc8643
 bool DataRefs::SetDefaultAcIcaoType(const std::string type)

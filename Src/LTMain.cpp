@@ -247,13 +247,13 @@ std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
     // loop over vector of CSL paths
     for ( ;cslIter != cEnd; ++cslIter) {
         // disabled?
-        if (!cslIter->bEnabled) {
+        if (!cslIter->enabled()) {
             LOG_MSG(logMSG, ERR_CFG_CSL_DISABLED, cslIter->path.c_str());
             continue;
         }
         
         // enabled, path could be relative to X-Plane
-        ret = LTCalcFullPath(cslIter->path.c_str());
+        ret = LTCalcFullPath(cslIter->path);
         
         // exists, has files?
         if (LTNumFilesInPath(ret) < 1) {
@@ -288,12 +288,9 @@ bool LTMainInit ()
     DataRefs::vecCSLPaths::const_iterator cslIter = vCSLPaths.cbegin();
     const DataRefs::vecCSLPaths::const_iterator cslEnd = vCSLPaths.cend();
     std::string cslPath = NextValidCSLPath(cslIter, cslEnd);
-    // TODO: Survive for Settings dialog if no path
-    if (cslPath.empty() ) {
-        LOG_MSG(logFATAL,"No valid CSL Paths configured");
-        LTFlightDataStop();
-        return false;
-    }
+    // Error if no valid path found...we continue anyway
+    if (cslPath.empty())
+        SHOW_MSG(logERR,ERR_CFG_CSL_NONE);
     
     // init Multiplayer API
     // apparently the legacy init is still necessary.

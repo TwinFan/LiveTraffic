@@ -219,6 +219,21 @@ enum UI_WIDGET_IDX_T {
     // "CSL" tab
     UI_CSL_SUB_WND,
     UI_CSL_CAP_PATHS,
+    UI_CSL_BTN_ENABLE_1,
+    UI_CSL_TXT_PATH_1,
+    UI_CSL_BTN_LOAD_1,
+    UI_CSL_BTN_ENABLE_2,
+    UI_CSL_TXT_PATH_2,
+    UI_CSL_BTN_LOAD_2,
+    UI_CSL_BTN_ENABLE_3,
+    UI_CSL_TXT_PATH_3,
+    UI_CSL_BTN_LOAD_3,
+    UI_CSL_BTN_ENABLE_4,
+    UI_CSL_TXT_PATH_4,
+    UI_CSL_BTN_LOAD_4,
+    UI_CSL_BTN_ENABLE_5,
+    UI_CSL_TXT_PATH_5,
+    UI_CSL_BTN_LOAD_5,
 
     // always last: number of UI elements
     UI_NUMBER_OF_ELEMENTS
@@ -308,9 +323,25 @@ TFWidgetCreate_t SETTINGS_UI[] =
     // "CSL" tab
     {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10,  30,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25,  27, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330,  30,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10,  50,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25,  47, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330,  50,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10,  70,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25,  67, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330,  70,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10,  90,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25,  87, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330,  90,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10, 110,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25, 107, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330, 110,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+
 };
 
-const int NUM_WIDGETS = sizeof(SETTINGS_UI)/sizeof(SETTINGS_UI[0]);
+constexpr int NUM_WIDGETS = sizeof(SETTINGS_UI)/sizeof(SETTINGS_UI[0]);
 
 static_assert(UI_NUMBER_OF_ELEMENTS == NUM_WIDGETS,
               "UI_WIDGET_IDX_T and SETTINGS_UI[] differ in number of elements!");
@@ -444,6 +475,20 @@ void LTSettingsUI::Enable()
                                     DATA_REFS_LT[DR_DBG_MODEL_MATCHING]);
         btnAdvcdLogRawFd.setId(widgetIds[UI_ADVCD_BTN_LOG_RAW_FD],
                                DATA_REFS_LT[DR_DBG_LOG_RAW_FD]);
+        
+        // *** CSL ***
+        // Initialize all paths (3 elements each: check box, text field, button)
+        const DataRefs::vecCSLPaths& paths = dataRefs.GetCSLPaths();
+        for (int i=0; i < SETUI_CSL_PATHS; i++) {
+            const int wIdx = UI_CSL_BTN_ENABLE_1 + i*SETUI_CSL_ELEMS_PER_PATH;
+            txtCSLPaths[i].setId(widgetIds[wIdx+1]);            // connect text object to widget
+            if (i < paths.size()) {                             // if there is a configured path for this line
+                XPSetWidgetProperty(widgetIds[wIdx  ],          // check box
+                                    xpProperty_ButtonState,
+                                    paths[i].enabled());
+                txtCSLPaths[i].SetDescriptor(paths[i].path);    // text field
+            }
+        }
 
         // center the UI
         Center();
@@ -469,26 +514,39 @@ void LTSettingsUI::Show (bool bShow)
 }
 
 // capture entry into 'filter for transponder hex code' field
+// and into CSL paths
 bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 {
-    // not my key field?
-    if (textWidget != txtAdvcdFilter.getId() )
-        return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
-
-    // set the filter a/c if defined
-    if (txtAdvcdFilter.HasTranspIcao())
-        DataRefs::LTSetDebugAcFilter(NULL,txtAdvcdFilter.GetTranspIcaoInt());
-    else
-        DataRefs::LTSetDebugAcFilter(NULL,0);
-    return true;
+    // *** Advanced ***
+    if (textWidget == txtAdvcdFilter.getId() ) {
+        // set the filter a/c if defined
+        if (txtAdvcdFilter.HasTranspIcao())
+            DataRefs::LTSetDebugAcFilter(NULL,txtAdvcdFilter.GetTranspIcaoInt());
+        else
+            DataRefs::LTSetDebugAcFilter(NULL,0);
+        return true;
+    }
+    
+    // *** CSL ***
+    // if any of the paths changed we store that path
+    for (int i = 0; i < SETUI_CSL_PATHS; i++)
+        if (widgetIds[UI_CSL_TXT_PATH_1 + i*SETUI_CSL_ELEMS_PER_PATH] == textWidget) {
+            SaveCSLPath(i);
+            return true;
+        }
+    
+    // not ours
+    return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
 }
 
 
 // writes current values out into config file
 bool LTSettingsUI::MsgHidden (XPWidgetID hiddenWidget)
 {
-    if (hiddenWidget == *this)          // only if it was me who got hidden
+    if (hiddenWidget == *this) {        // only if it was me who got hidden
+        // then only save the config file
         dataRefs.SaveConfigFile();
+    }
     // pass on in class hierarchy
     return TFMainWindowWidget::MsgHidden(hiddenWidget);
 }
@@ -512,19 +570,19 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
     if (widgetIds[UI_BTN_BASICS] == buttonWidget) {
         subBasicsLive.Show(bNowChecked);
         subBasicsHistoric.Show(bNowChecked);
-        bRet = true;
+        return true;
     }
     else if (widgetIds[UI_BTN_AC_LABELS] == buttonWidget) {
         subAcLabel.Show(bNowChecked);
-        bRet = true;
+        return true;
     }
     else if (widgetIds[UI_BTN_ADVANCED] == buttonWidget) {
         subAdvcd.Show(bNowChecked);
-        bRet = true;
+        return true;
     }
     else if (widgetIds[UI_BTN_CSL] == buttonWidget) {
         subCSL.Show(bNowChecked);
-        bRet = true;
+        return true;
     }
 
     // *** A/C Labels ***
@@ -545,7 +603,7 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         widgetIds[UI_LABELS_BTN_VSI]        == buttonWidget)
     {
         LabelBtnSave();
-        bRet = true;
+        return true;
     }
     
     // dynamic / fixed label colors?
@@ -553,7 +611,7 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         widgetIds[UI_LABELS_BTN_FIXED]      == buttonWidget)
     {
         drLabelColDyn.Set(buttonWidget == widgetIds[UI_LABELS_BTN_DYNAMIC]);
-        bRet = true;
+        return true;
     }
     
     // *** Advanced ***
@@ -561,14 +619,22 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
     if (bNowChecked && logLevelGrp.isInGroup(buttonWidget))
     {
         dataRefs.SetLogLevel(logLevelGrp.GetCheckedIndex());
-        bRet = true;
+        return true;
     }
+    
+    // *** CSL ***
+    // if any of the enable-check boxes changed we store that setting
+    for (int i = 0; i < SETUI_CSL_PATHS; i++)
+        if (widgetIds[UI_CSL_BTN_ENABLE_1 + i*SETUI_CSL_ELEMS_PER_PATH] == buttonWidget) {
+            SaveCSLPath(i);
+            return true;
+        }
     
     return bRet;
 }
 
 // push buttons
-bool LTSettingsUI:: MsgPushButtonPressed (XPWidgetID buttonWidget)
+bool LTSettingsUI::MsgPushButtonPressed (XPWidgetID buttonWidget)
 {
     // *** A/C Labels ***
     // color presets?
@@ -576,6 +642,16 @@ bool LTSettingsUI:: MsgPushButtonPressed (XPWidgetID buttonWidget)
     if (widgetIds[UI_LABELS_BTN_RED]    == buttonWidget) { intLabelColor.Set(COLOR_RED);    return true; }
     if (widgetIds[UI_LABELS_BTN_GREEN]  == buttonWidget) { intLabelColor.Set(COLOR_GREEN);  return true; }
     if (widgetIds[UI_LABELS_BTN_BLUE]   == buttonWidget) { intLabelColor.Set(COLOR_BLUE);   return true; }
+    
+    // *** CSL ***
+    // any of the "Load" buttons pushed?
+    for (int i=0; i < SETUI_CSL_PATHS; i++) {
+        if (widgetIds[UI_CSL_BTN_LOAD_1 + i*SETUI_CSL_ELEMS_PER_PATH] == buttonWidget) {
+            SaveCSLPath(i);
+            dataRefs.LoadCSLPackage(i);
+            return true;
+        }
+    }
     
     // we don't know that button...
     return TFMainWindowWidget::MsgPushButtonPressed(buttonWidget);
@@ -622,4 +698,17 @@ void LTSettingsUI::LabelBtnSave()
     cfg.b.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
     // save as current config
     drCfgLabels.Set(cfg.i);
+}
+
+void LTSettingsUI::SaveCSLPath(int idx)
+{
+    // what to save
+    DataRefs::CSLPathCfgTy newPath {
+        static_cast<bool>(XPGetWidgetProperty(widgetIds[UI_CSL_BTN_ENABLE_1 + idx*SETUI_CSL_ELEMS_PER_PATH],
+                                              xpProperty_ButtonState,NULL)),
+        txtCSLPaths[idx].GetDescriptor()
+    };
+    
+    // save
+    dataRefs.SaveCSLPath(idx, newPath);
 }
