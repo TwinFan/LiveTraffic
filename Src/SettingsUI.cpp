@@ -234,6 +234,17 @@ enum UI_WIDGET_IDX_T {
     UI_CSL_BTN_ENABLE_5,
     UI_CSL_TXT_PATH_5,
     UI_CSL_BTN_LOAD_5,
+    UI_CSL_BTN_ENABLE_6,
+    UI_CSL_TXT_PATH_6,
+    UI_CSL_BTN_LOAD_6,
+    UI_CSL_BTN_ENABLE_7,
+    UI_CSL_TXT_PATH_7,
+    UI_CSL_BTN_LOAD_7,
+
+    UI_CSL_CAP_DEFAULT_AC_TYPE,
+    UI_CSL_TXT_DEFAULT_AC_TYPE,
+    UI_CSL_CAP_GROUND_VEHICLE_TYPE,
+    UI_CSL_TXT_GROUND_VEHICLE_TYPE,
 
     // always last: number of UI elements
     UI_NUMBER_OF_ELEMENTS
@@ -338,6 +349,16 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10, 110,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  25, 107, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
     { 330, 110,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10, 130,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25, 127, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330, 130,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10, 150,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  25, 147, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    { 330, 150,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {   5, 230, 115,  10, 1, "Default a/c type",    0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 120, 227,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
+    {   5, 250, 115,  10, 1, "Ground vehicle type", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 120, 247,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
 
 };
 
@@ -489,6 +510,14 @@ void LTSettingsUI::Enable()
                 txtCSLPaths[i].SetDescriptor(paths[i].path);    // text field
             }
         }
+        
+        txtDefaultAcType.setId(widgetIds[UI_CSL_TXT_DEFAULT_AC_TYPE]);
+        txtDefaultAcType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
+        txtDefaultAcType.SetDescriptor(dataRefs.GetDefaultAcIcaoType());
+        
+        txtGroundVehicleType.setId(widgetIds[UI_CSL_TXT_GROUND_VEHICLE_TYPE]);
+        txtGroundVehicleType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
+        txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
 
         // center the UI
         Center();
@@ -534,6 +563,20 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
             SaveCSLPath(i);
             return true;
         }
+    
+    // if the types change we store them (and if setting fails after validation,
+    // then  we restore the current value)
+    if (txtDefaultAcType.getId() == textWidget) {
+        if (!dataRefs.SetDefaultAcIcaoType(text))
+            txtDefaultAcType.SetDescriptor(dataRefs.GetDefaultAcIcaoType());
+        return true;
+    }
+    if (txtGroundVehicleType.getId() == textWidget) {
+        if (!dataRefs.SetDefaultCarIcaoType(text))
+            txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
+        return true;
+    }
+
     
     // not ours
     return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);

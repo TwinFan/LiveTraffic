@@ -1195,20 +1195,10 @@ bool DataRefs::LoadConfigFile()
                 i->setData(sVal);
             }
             // *** Strings ***
-            else if (sDataRef == CFG_DEFAULT_AC_TYPE) {
-                if (dataRefs.SetDefaultAcIcaoType(sVal))
-                    LOG_MSG(logINFO,CFG_DEFAULT_AC_TYP_INFO,sVal.c_str())
-                else
-                    LOG_MSG(logWARN,ERR_CFG_AC_DEFAULT,sVal.c_str(),
-                            dataRefs.GetDefaultAcIcaoType().c_str());
-            }
-            else if (sDataRef == CFG_DEFAULT_CAR_TYPE) {
-                if (dataRefs.SetDefaultCarIcaoType(sVal))
-                    LOG_MSG(logINFO,CFG_DEFAULT_CAR_TYP_INFO,sVal.c_str())
-                else
-                    LOG_MSG(logWARN,ERR_CFG_CAR_DEFAULT,sVal.c_str(),
-                            dataRefs.GetDefaultCarIcaoType().c_str());
-            }
+            else if (sDataRef == CFG_DEFAULT_AC_TYPE)
+                dataRefs.SetDefaultAcIcaoType(sVal);
+            else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
+                dataRefs.SetDefaultCarIcaoType(sVal);
             else
             {
                 // unknown config entry, ignore
@@ -1386,8 +1376,13 @@ bool DataRefs::SetDefaultAcIcaoType(const std::string type)
 {
     if (Doc8643::get(type) != DOC8643_EMPTY) {
         sDefaultAcIcaoType = type;
+        LOG_MSG(logINFO,CFG_DEFAULT_AC_TYP_INFO,sDefaultAcIcaoType.c_str());
         return true;
     }
+
+    // invalid type
+    SHOW_MSG(logWARN,ERR_CFG_AC_DEFAULT,type.c_str(),
+             sDefaultAcIcaoType.c_str());
     return false;
 }
 
@@ -1397,8 +1392,13 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
 {
     if (1 <= type.length() && type.length() <= 4) {
         sDefaultCarIcaoType = type;
+        LOG_MSG(logINFO,CFG_DEFAULT_CAR_TYP_INFO,sDefaultCarIcaoType.c_str());
         return true;
     }
+    
+    // invalid
+    LOG_MSG(logWARN,ERR_CFG_CAR_DEFAULT,type.c_str(),
+            sDefaultCarIcaoType.c_str());
     return false;
 }
 
