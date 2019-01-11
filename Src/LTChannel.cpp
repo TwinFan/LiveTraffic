@@ -680,6 +680,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     else
                         LOG_MSG(logWARN,ERR_CH_INV_DATA,
                                 ChName(),transpIcao.c_str(),
+                                stat.man.c_str(), stat.mdl.c_str(),
                                 dataRefs.GetDefaultAcIcaoType().c_str());
                 }
                 
@@ -1107,6 +1108,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         else
                             LOG_MSG(logWARN,ERR_CH_INV_DATA,
                                     ChName(),transpIcao.c_str(),
+                                    stat.man.c_str(), stat.mdl.c_str(),
                                     dataRefs.GetDefaultAcIcaoType().c_str());
                     }
                     
@@ -1428,6 +1430,7 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             else
                 LOG_MSG(logWARN,ERR_CH_INV_DATA,
                         ChName(),transpIcao.c_str(),
+                        statDat.man.c_str(), statDat.mdl.c_str(),
                         dataRefs.GetDefaultAcIcaoType().c_str());
         }
 

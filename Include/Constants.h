@@ -162,7 +162,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
-#define ERR_CH_INV_DATA         "%s: Data for '%s' lacks ICAO a/c type code, will be rendered with standard a/c %s"
+#define ERR_CH_INV_DATA         "%s: Data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, will be rendered with standard a/c %s"
 #define ERR_DATAREF_FIND        "Could not find DataRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
 #define ERR_DIR_CONTENT         "Could not retrieve directory content for %s"
