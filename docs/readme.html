@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -28,6 +28,56 @@
 
     <p>The number-link refers to the issue in GitHub with (technical) details.</p>
 
+    <h3>v0.86.20190112 Public Beta candidate</h3>
+    
+    <ul>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/37">#37</a>
+            flight route number and routing information from OpenSky,
+            which takes priority over routing info from ADS-B Exchange.
+            This is the first time flight numbers of commercial flights
+            become available. Note that such info is manually maintained by
+            OpenSky supporters based on call signs. You can report wrong routes
+            in the flight detail window of their
+            <a href="https://opensky-network.org/network/explorer">OpenSky Explorer</a>
+            if you have an OpenSky login.
+        </li>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/53">#53</a>
+            configuration for label colors in "Settings > A/C Labels".
+            <i>Text</i> of
+            <a href="https://twinfan.gitbook.io/livetraffic/configuration#a-c-labels">documentation</a>
+            already updated, screenshots still to be done.
+        </li>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42</a>
+            tab "Settings > CSL" for configuration of up to 7
+            CSL paths, and standard codes for default aircraft and ground
+            vehicles.
+            Some <i>Text</i> of
+            <a href="https://twinfan.gitbook.io/livetraffic/configuration#csl">documentation</a>
+            already added; text on defaults and screenshots still to be done.
+        </li>
+        <li>
+            NEW "CSL model" info in A/C information window.
+        </li>
+        <li>
+            UPDATED <a href="https://github.com/TwinFan/LiveTraffic/issues/38">#38</a>,
+            <code>related.txt</code> with twin engine props, GA, and
+            helicopter codes.
+        </li>
+        <li>
+            UPDATED <code>Doc8643.txt</code> file to January 2019, better
+            replacement of unicode characters
+            (similar character instead of just ?).
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/66">#66</a>,
+            which removes deprecated code for Macs around file system access.
+            This is pure refactoring and shall not influence functionality.
+        </li>
+    </ul>
+    
     <h3>v0.85.20190106</h3>
 
     <ul>
@@ -38,15 +88,19 @@
             This is yet another significant change to the handling, analysis, cleansing, and
             landing/take off prediction code of flight tracking data.
             New isse will require new data for analysis.
+        </li>
         <li>
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/63">#63</a>
             Label text size with HDR and antialiasing settings SSAA and higher.
-			Involves a hack of reading X-Plane.prf file to find out about current settings.
-			Try playing with "Visual Effetcs" and "Antialiasing" sliders in XP11.
+			Involves a hack of reading <code>X-Plane.prf</code> file to find out
+            about current settings. Try playing with "Visual Effetcs" and
+            "Antialiasing" sliders in XP11.
+        </li>
         <li>
             CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/53">#53</a>
             color of labels for Airbus to red...which at the moment is just a proof-of-concept
             that LT can set individual colors. Will become configurable in future release.
+        </li>
         <li>
             CHANGED AGL text to "GND_ON" when on ground in A/C info wnd and labels.
         </li>
@@ -64,6 +118,7 @@
             Indicated by trailing text '(AUTO)' in title bar.<br>
             Window will follow the closest a/c in view, slightly prefering
             a/c straight ahead over a/c to the side.
+        </li>
         <li>
             CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/61">#61</a>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/43">#43</a>
@@ -73,12 +128,14 @@
             'see' an aircraft before it is actually created then OpenSky
             will be the channel LiveTraffic prefers. Reason is on average
             worse quality of unconsolidated ADS-B Exchange data.
+        </li>
         <li>
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/48">#48</a>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/57">#57</a>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/58">#58</a>:
             Further enhanced flight data cleansing. Mostly affects data from
             ADS-B Exchange, which don't seem to be consolidated on the server.
+        </li>
     </ul>
 
     <h3>v0.84.20181224</h3>
@@ -100,6 +157,7 @@
                 DEBUG AA73C3 (SWA1730): SWITCHED CHANNEL from
                 'ADSB Exchange Live Online' to 'OpenSky Live Online'
             </code>.
+        </li>
         <li>
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/48">#48</a>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/57">#57</a>
@@ -110,26 +168,32 @@
             weird movements. It will not remove all weird behaviour, though.<br>
             A position removal will be document with a DEBUG-level <code>Log.txt</code>
             entry like <code>DEBUG A25CDC (SKW4148): Removed an invalid position</code>.
-            Currently, positional debug information is outuput
+            Currently, positional debug information is output
             around such an event to ease analysis.
+        </li>
         <li>
             CHANGED default configuration: Auto-Start enabled, all channels enabled.
+        </li>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/37">#37 (still open)</a>:
             A/c info wnd displays origin/dest airport info as reported
             by ADS-B-Exchange. No interpretation...if wrong refer to ADSBEx.
+        </li>
         <li>
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/64">#64</a>:
             Fixed using correct altitude value from OpenSky stream,
             specifically: geo altitude instead of barometric altitude.
             Should lead to OpenSky a/c better hit runway threshold.
+        </li>
         <li>
             FIXED: Enhancements to take-off prediction. Should more often and
             more smoothly see rotate phase right before take off.
+        </li>
         <li>
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/56">#56</a>
             reading <code>[CSLPaths]</code> in <code>LiveTraffic.prf</code>
             containing spaces. Tested/fixed full path usage on Mac.
+        </li>
         <li>
             ADDED Config file entries for <code>DEFAULT_AC_TYPE A320</code> and
             <code>DEFAULT_CAR_TYPE ZZZC</code> to <code>LiveTraffic.prf</code>
@@ -137,6 +201,7 @@
             determined and (b) for cars.<br>
             (Start/stop LiveTraffic once for the entries to appear.
             Edit config file only with X-Plane off.)
+        </li>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/51">#51</a>
             identification of ground vehicles in flight data and display of them
@@ -145,6 +210,7 @@
             CSL model. Tested with <a href="http://csl.x-air.ru/info/item/150?lang_id=43">
                 this model
             </a>.
+        </li>
     </ul>
 
 
@@ -162,6 +228,7 @@
             This fix will mean that with a reasonable number of CSL packages
             installed nearly no plane will need to be rendered with the
             default plane (currently A320).
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52</a>
             Multiplayer Lib: If <code>VERT_OFFSET</code> is not given in
@@ -169,6 +236,7 @@
             files then it will default to a value between 1.2 and 5.5
             depending on Doc8643 aircraft categorization to avoid planes
             sliding on their belly.
+        </li>
         <li>
             Settings / Labels: Added a new option <i>Any a/c id</i>, which display
             the first non-empty field from <i>
@@ -178,6 +246,7 @@
             to id an aircraft.<br>
             Note: No config migration implemented, your label configuration
             <i>will</i> shift due to this new entry, please revisit Settings / Labels.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/54">#54</a>
             Fixed flight phase "Rotate": Aircrafts taking off should now
@@ -185,22 +254,27 @@
             climb with pitch up.<br>
             Might also positively influence occurences of too steep take offs,
             but that was not initially targeted with this fix.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/55">#55</a>
             Once an aircraft reaches an invalid position (like climbed too
             high with no more live tracking data available) it is now removed
             immediately. Reduces number of <code>CalcPPos: Ignoring invalid pos</code>
             debug messages in the log dramatically.
+        </li>
         <li>
             Various ongoing enhancements to <code>related.txt</code>, especially in
             the area of business jets and GA.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/49">#49</a>
             Settings / Advanced: Cleanup, moved debug options to bottom,
             added option for logging raw network data to <code>LTRawFD.log</code>.
+        </li>
         <li>
             Minor changes and enhancement to debug output and formatting
             into <code>Log.txt</code>.
+        </li>
     </ul>
 
 
@@ -218,10 +292,12 @@
             <code>Doc8643.txt</code> regenerated from scratch, current as of November 2018,
             <code>related.txt</code> reworked in large parts (smaller planes yet to do).
             All comes completely with the LT package.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44 (still open)</a>
             Identify, log, accept a/c master data without ICAO type code,
             but will still be rendered as A320.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/42">#42 (still open)</a>
             Started to change how LT looks for CSL directories. Will
@@ -246,12 +322,14 @@
             Guess what 'disabled' means...<br>
             New tab in the settings window yet to come so that later
             nobody needs to fiddle with the preferences file.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/52">#52 (still open)</a>
             If not given by <code>xsb_aircraft.txt</code> then <code>VERT_OFFSET</code> now defaults to 3.
             That should be OK for mid-range jets, might be a bit high for GA which might
             appear hovering over ground. A better implementation to come which distinguishes
             five defaults by a/c classification.
+        </li>
     </ul>
 
     <h3>v0.81.20181202</h3>
@@ -266,16 +344,18 @@
             <a href="https://twinfan.gitbook.io/livetraffic/xsquawkbox-and-livetraffic-in-parallel">
                 Parallel usage
             </a>.
+        </li>
         <li>
             <a href="https://github.com/TwinFan/LiveTraffic/issues/40">#40</a>
             Supporting MacOS versions before 10.14 Mojave.
             10.12 Sierra confirmed by tester.
             Should work down to 10.9 Mavericks.
+        </li>
     </ul>
 
     <h3>v0.80.20181130</h3>
     <ul>
-        <li>First version offered to selected beta testers
+        <li>First version offered to selected beta testers</li>
     </ul>
 
     <h2>Essential Installation</h2>
