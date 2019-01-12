@@ -35,6 +35,7 @@
 #include <string>
 #include <climits>
 #include <cmath>
+#include <cassert>
 #include <forward_list>
 
 #include "XPLMProcessing.h"
