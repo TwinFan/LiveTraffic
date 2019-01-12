@@ -66,7 +66,6 @@
 		251CE73121616AF600E9D910 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 10/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_zlib.txt; sourceTree = "<group>"; };
-		2540F51820D5AAF500DCCF45 /* OpenSky_ACProfile.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = OpenSky_ACProfile.html; path = Data/OpenSky/OpenSky_ACProfile.html; sourceTree = SOURCE_ROOT; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
 		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
 		2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = aircraftDatabase.csv; sourceTree = "<group>"; };
@@ -92,7 +91,6 @@
 		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
 		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
-		2579843920D3201200E331E4 /* OpenSky_504_GatewayTimeout.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = OpenSky_504_GatewayTimeout.html; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
 		257A109A2190E211007C1E04 /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
@@ -106,6 +104,8 @@
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
 		25AE00DA2138882E00908E65 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
+		25BBD2F921EA0F8300AEAA4B /* OpenSky_Routes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Routes.json; sourceTree = "<group>"; };
+		25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Metadata_Routes_combined.json; sourceTree = "<group>"; };
 		25BFBB9120DEE1EF00D52B6C /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
 		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
 		25C0C8CC21866D540049F226 /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = ../../Frameworks/xplanemp.framework; sourceTree = "<group>"; };
@@ -166,8 +166,8 @@
 				2540F51A20D5B10C00DCCF45 /* OpenSky API.js */,
 				2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */,
 				2558579E2095B86200816F65 /* OpenSky_20180420_1955_UTC.json */,
-				2579843920D3201200E331E4 /* OpenSky_504_GatewayTimeout.html */,
-				2540F51820D5AAF500DCCF45 /* OpenSky_ACProfile.html */,
+				25BBD2F921EA0F8300AEAA4B /* OpenSky_Routes.json */,
+				25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */,
 			);
 			path = OpenSky;
 			sourceTree = "<group>";

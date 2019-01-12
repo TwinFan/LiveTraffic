@@ -116,7 +116,6 @@ public:
         
         // more aircraft info
         const Doc8643*  pDoc8643 = NULL;
-        bool            bInit    = false;   // has been initialized at least once?
 
         // flight details
         std::string     call;           // Call sign          EWG8AY
@@ -127,6 +126,10 @@ public:
         // operator
         std::string     op;             // operator                                     Air Berlin
         std::string     opIcao;         // XPMP API: "Airline"                          BER
+
+    protected:
+        bool            bInit    = false;   // has been initialized?
+
     public:
         FDStaticData() {}
         // default move/copy constructor/operators
@@ -144,9 +147,6 @@ public:
         std::string flightRoute() const;
         // has been initialized at least once?
         bool isInit() const { return bInit; }
-        // manufacturer / model: primary source doc8643, but local data if doc8643 unavail
-        std::string getMan() const;
-        std::string getMdl() const;
     };
     
     // KEY (protected, can be set only once, no mutex-control)
@@ -284,7 +284,7 @@ public:
     inline int GetRcvr() const { return rcvr; }
     
     // access static data
-    void UpdateData ( const FDStaticData& inStat, bool bFullInit );
+    void UpdateData ( const FDStaticData& inStat );
     bool TryGetSafeCopy ( FDStaticData& outStat ) const;
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!

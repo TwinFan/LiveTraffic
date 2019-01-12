@@ -108,6 +108,10 @@ public:
 	LTACMasterdataChannel () {}
     virtual bool UpdateStaticData (std::string key,
                                    const LTFlightData::FDStaticData& dat);
+    
+    // request to fetch master data
+    static void RequestMasterData (const std::string transpIcao,
+                                   const std::string callSign);
 };
 
 //
@@ -142,7 +146,6 @@ public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos) = 0;
     virtual bool IsLiveFeed () const    { return true; }
-// TODO: remove after test    virtual bool IsValid () const       {return true;}
 };
 
 //
@@ -222,6 +225,7 @@ class OpenSkyAcMasterdata : public LTOnlineChannel, LTACMasterdataChannel
 {
 protected:
     listStringTy invIcaos;          // list of not-to-query-again icaos
+    listStringTy invCallSigns;      // list of not-to-query-again call signs
 public:
     OpenSkyAcMasterdata () :
     LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA),

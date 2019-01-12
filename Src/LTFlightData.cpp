@@ -74,19 +74,31 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
     if (other.trt) trt = other.trt;
     
-    // find DOC8643
-    pDoc8643 = &(Doc8643::get(acTypeIcao));
-    
     // flight
     if (!other.call.empty()) call = other.call;
-    if (!other.originAp.empty()) originAp = other.originAp;
-    if (!other.destAp.empty()) destAp = other.destAp;
-    if (!other.flight.empty()) flight = other.flight;
+    
+    // little trick for priority: we trust the info with the longer flight number
+    if (other.flight.length() > flight.length()) {
+        originAp = other.originAp;
+        destAp = other.destAp;
+        flight = other.flight;
+    }
     
     // operator / Airline
     if (!other.op.empty()) op = other.op;
     if (!other.opIcao.empty()) opIcao = other.opIcao;
+    
+    // now initialized
+    bInit = true;
 
+    // find DOC8643 and fill man/mdl from there if needed
+    pDoc8643 = &(Doc8643::get(acTypeIcao));
+    LOG_ASSERT(pDoc8643 != NULL);
+    if (man.empty())
+        man = pDoc8643->manufacturer;
+    if (mdl.empty())
+        mdl = pDoc8643->model;
+    
     return *this;
 }
 
@@ -130,16 +142,6 @@ std::string LTFlightData::FDStaticData::flightRoute() const
     
     // we have both...put it together
     return (flight + ": ") + r;
-}
-
-std::string LTFlightData::FDStaticData::getMan() const
-{
-    return pDoc8643 && !pDoc8643->manufacturer.empty() ? pDoc8643->manufacturer : man;
-}
-
-std::string LTFlightData::FDStaticData::getMdl() const
-{
-    return pDoc8643 && !pDoc8643->model.empty() ? pDoc8643->model : mdl;
 }
 
 //
@@ -1316,9 +1318,10 @@ bool LTFlightData::TryDeriveGrndStatus (positionTy& pos)
                 pos.alt_m() < terrainAlt + FD_GND_AGL)
                 pos.onGrnd = positionTy::GND_ON;
 
-            // if it was or now is on the ground correct the altitue to exact terrain altitude
+            // if it was or now is on the ground correct the altitue to terrain altitude
+            // (very slightly below to be sure to actually touch down even after rounding effects)
             if (pos.IsOnGnd())
-                pos.alt_m() = terrainAlt;
+                pos.alt_m() = terrainAlt - MDL_CLOSE_TO_GND;
             else
                 // make sure it's either GND_ON or GND_OFF, nothing lese
                 pos.onGrnd = positionTy::GND_OFF;
@@ -1598,17 +1601,25 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
 //
 
 // update static data
-void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
-                               bool bFullInit)
+void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
 {
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
+        // decide if we need more master data to be fetched by
+        // master data channels. If statData is not initialized at all
+        // (first call is always by dynamic data fetch), or
+        // if the callSign changes (which includes if it changes from empty to something)
+        // as the callSign is the source for route information
+        if (!statData.isInit() ||
+            (!inStat.call.empty() && inStat.call != statData.call))
+        {
+            LTACMasterdataChannel::RequestMasterData (key(), inStat.call);
+        }
+        
         // merge inStat into our statData (copy only filled fields):
         statData |= inStat;
-        if (bFullInit)
-            statData.bInit = true;
         
         // update the static parts of the label
         UpdateStaticLabel();

@@ -229,6 +229,7 @@ constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 //MARK: OpenSky Master Data
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
+#define OPSKY_MD_GROUP          "MASTER"        // made-up group of master data fields
 #define OPSKY_MD_TRANSP_ICAO    "icao24"
 #define OPSKY_MD_COUNTRY        "country"
 #define OPSKY_MD_MAN            "manufacturerName"
@@ -240,6 +241,14 @@ constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 #define OPSKY_MD_CAT_DESCR      "categoryDescription"
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
 #define OPSKY_MD_TEX_NO_CAT		"No ADS-B Emitter Category Information"
+
+#define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
+#define OPSKY_ROUTE_GROUP       "ROUTE"         // made-up group of route information fields
+#define OPSKY_ROUTE_CALLSIGN    "callsign"
+#define OPSKY_ROUTE_ROUTE       "route"
+#define OPSKY_ROUTE_OP_IATA     "operatorIata"
+#define OPSKY_ROUTE_FLIGHT_NR   "flightNumber"
+
 
 //MARK: ADS-B Exchange
 #define ADSBEX_NAME             "ADSB Exchange Live Online"

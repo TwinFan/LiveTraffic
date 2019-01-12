@@ -446,8 +446,8 @@ void ACIWnd::UpdateStatValues()
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_CLASS],
                               stat.pDoc8643 ?
                               stat.pDoc8643->classification.c_str() : "-");
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], strAtMost(stat.getMan(),25).c_str());
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.getMdl(),25).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], strAtMost(stat.man,  25).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.mdl, 25).c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], strAtMost(stat.opIcao + " " + stat.op,25).c_str());
 
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], stat.call.c_str());
