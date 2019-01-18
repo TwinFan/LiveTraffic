@@ -1387,7 +1387,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     // In order not to overload OpenSky with master data requests
     // we pause for 0.5s between two requests.
     // So we shall not do more than dataRefs.GetFdRefreshIntvl / 0.5 requests
-    int maxNumRequ = dataRefs.GetFdRefreshIntvl() / OPSKY_WAIT_BETWEEN - 2;
+    int maxNumRequ = int(dataRefs.GetFdRefreshIntvl() / OPSKY_WAIT_BETWEEN) - 2;
     
     for (int i = 0;
          i < maxNumRequ && bChannelOK && !listAc.empty();
