@@ -11,22 +11,44 @@
     <h2>Documentation</h2>
 
     <P>
-        For full documentation please visit
-        <a href="https://twinfan.gitbook.io/livetraffic">
-            LiveTraffic on GitBook
-        </a>. It also includes comprehensive information on
-        <a href="https://twinfan.gitbook.io/livetraffic/introduction/requirements">
-            requirements
-        </a> and
-        <a href="https://twinfan.gitbook.io/livetraffic/setup">
-            <b>setup</b>
-        </a>.
+    For full documentation please visit
+    <a href="https://twinfan.gitbook.io/livetraffic">LiveTraffic on GitBook</a>:
+    <ul>
+        <li>Please take a moment to understand the
+            <a href="https://twinfan.gitbook.io/livetraffic/introduction/limitations"><b>limitations</b></a>
+            that come with the approach LiveTraffic takes.
+        </li>
+        <li>Then continue to
+            <a href="https://twinfan.gitbook.io/livetraffic/introduction/requirements">requirements</a>
+        </li>
+        <li>
+            and, certainly,
+            <a href="https://twinfan.gitbook.io/livetraffic/setup"><b>setup</b></a>.
+        </li>
+    </ul>
     </P>
 
 
     <h2>Release Notes</h2>
 
     <p>The number-link refers to the issue in GitHub with (technical) details.</p>
+    
+    <h3>v0.90.20190118 Public Beta</h3>
+    
+    <ul>
+        <li>
+            ADDED a delay between requests to OpenSky Master data channel to
+            avoid HTTP 503 Service Unavailable responses.
+        </li>
+        <li>FIXED error handling of OpenSky Master data channel, so that too
+            many errors now do lead to channel deactivation as per design.
+        </li>
+        <li>FIXED requesting routes from OpenSky: Don't query call signs with spaces
+            as they lead to HTTP 400 Bad Request. (Could probably be replaced
+            with &percnt;20, but for these call signs there aren't any routes any
+            way so just safe that network traffic.)
+        </li>
+    </ul>
     
     <h3>v0.90.20190117 Public Beta</h3>
     

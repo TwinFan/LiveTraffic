@@ -101,6 +101,11 @@ std::string& str_toupper(std::string& s) {
     return s;
 }
 
+bool str_isalnum(const std::string& s)
+{
+    return std::all_of(s.cbegin(), s.cend(), [](unsigned char c){return isalnum(c);});
+}
+
 // format timestamp
 std::string ts2string (time_t t)
 {

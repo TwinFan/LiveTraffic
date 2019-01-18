@@ -124,6 +124,8 @@ int LTNumFilesInPath ( const std::string path );
 // MARK: Utility Functions
 // change a std::string to uppercase
 std::string& str_toupper(std::string& s);
+// are all chars alphanumeric?
+bool str_isalnum(const std::string& s);
 // format timestamp
 std::string ts2string (time_t t);
 // limits text to m characters, replacing the last ones with ... if too long
@@ -139,8 +141,8 @@ std::vector<std::string> str_tokenize (const std::string s,
                                        bool bSkipEmpty = true);
 
 // push a new item to the end only if it doesn't exist yet
-template< class ContainerT, class T>
-void push_back_unique(ContainerT& list, const T& key)
+template< class ContainerT>
+void push_back_unique(ContainerT& list, typename ContainerT::const_reference key)
 {
     if ( std::find(list.cbegin(),list.cend(),key) == list.cend() )
         list.push_back(key);

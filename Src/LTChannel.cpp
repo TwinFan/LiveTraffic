@@ -40,17 +40,9 @@ using namespace std::chrono_literals;
 // used to calculate countdown while position buffer fills up
 double initTimeBufFilled = 0;       // in 'simTime'
 
-// list of a/c for which static data is yet missing
-struct acStatUpdateTy {
-    std::string transpIcao;         // to find master data
-    std::string callSign;           // to query route information
-    acStatUpdateTy(std::string t, std::string c) :
-    transpIcao(t), callSign(c) {}
-    inline bool operator == (const acStatUpdateTy& o) const
-    { return transpIcao == o.transpIcao && callSign == o.callSign; }
-};
-typedef std::list<acStatUpdateTy> listAcStatUpdateTy;
-listAcStatUpdateTy listAcStatUpdate;
+// global list of a/c for which static data is yet missing
+// (reset with every network request cycle)
+listAcStatUpdateTy LTACMasterdataChannel::listAcStatUpdate;
 
 // Thread synch support (specifically for stopping them)
 std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
@@ -248,9 +240,23 @@ void LTACMasterdataChannel::RequestMasterData (const std::string transpIcao,
                                                const std::string callSign)
 {
     // just add the request to the request list, uniquely
-    push_back_unique<listAcStatUpdateTy, acStatUpdateTy>
+    push_back_unique<listAcStatUpdateTy>
     (listAcStatUpdate,
      acStatUpdateTy(transpIcao,callSign));
+}
+
+void LTACMasterdataChannel::ClearMasterDataRequests ()
+{
+    listAcStatUpdate.clear();
+}
+
+
+// copy all requested a/c to our private list,
+// the global one is refreshed before the next call.
+void LTACMasterdataChannel::CopyGlobalRequestList ()
+{
+    for (const acStatUpdateTy& info: listAcStatUpdate)
+        push_back_unique<listAcStatUpdateTy>(listAc, info);
 }
 
 //
@@ -419,11 +425,24 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // check HTTP response code
     httpResponse = 0;
     curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-    if (httpResponse != HTTP_OK)
-        LOG_MSG(logWARN,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
     
-    // log number of bytes received
-    LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+    switch (httpResponse) {
+        case HTTP_OK:
+            // log number of bytes received
+            LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+            break;
+            
+        case HTTP_NOT_FOUND:
+            // not found is typically handled separately, so only debug-level
+            LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
+            break;
+            
+        default:
+            // all other responses are warnings
+            LOG_MSG(logWARN,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
+    }
+    
+    // if requested log raw data received
     DebugLogRaw(netData);
     
     // success
@@ -1355,13 +1374,39 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
 {
     if ( !IsEnabled() )
         return false;
+
+    // first of all copy all requested a/c to our private list,
+    // the global one is refreshed before the next call.
+    CopyGlobalRequestList();
     
     // cycle all a/c's that need master data
     bool bChannelOK = true;
     positionTy pos;                                 // no position needed, but we use the GND flag to tell the URL callback if we need master or route request
-    for (const acStatUpdateTy& info: listAcStatUpdate)
+    acStatUpdateTy info;
+    
+    // In order not to overload OpenSky with master data requests
+    // we pause for 0.5s between two requests.
+    // So we shall not do more than dataRefs.GetFdRefreshIntvl / 0.5 requests
+    int maxNumRequ = dataRefs.GetFdRefreshIntvl() / OPSKY_WAIT_BETWEEN - 2;
+    
+    for (int i = 0;
+         i < maxNumRequ && bChannelOK && !listAc.empty();
+         i++)
     {
-        std::string data("{");                      // begin of a JSON object
+        // fetch request from front of list and remove
+        info = listAc.front();
+        listAc.pop_front();
+        if (info.empty())           // empty???
+            continue;
+        
+        // delay subsequent requests
+        if (i > 0) {
+            // delay between 2 requests to not overload OpenSky
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
+        }
+        
+        // beginning of a JSON object
+        std::string data("{");
         
         // *** Fetch Masterdata ***
         pos.onGrnd = positionTy::GND_ON;            // flag for: master data
@@ -1384,19 +1429,37 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         invIcaos.emplace_back(info.transpIcao);
                         bChannelOK = true;              // but technically a valid response
                         break;
+                    case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
+                        invCallSigns.emplace_back(info.callSign);
+                        bChannelOK = true;              // but technically a valid response
+                        break;
+                    // in all other cases (including 503 HTTP_NOT_AVAIL)
+                    // we say it is a problem and we try probably again later
+                    default:
+                        bChannelOK = false;
                 }
             } else {
                 // technical problem with fetching HTTP data
                 bChannelOK = false;
-                break;
             }
         }
+        
+        // break out on problems
+        if (!bChannelOK)
+            break;
         
         // *** Fetch Flight Info ***
         pos.onGrnd = positionTy::GND_OFF;           // flag for: route info
         
+        // call sign shall be alphanumeric but nothing else
+        str_toupper(info.callSign);
+        
         // requires call sign and shall not be known bad
-        if (!info.callSign.empty() &&
+        if (bChannelOK &&
+            !info.callSign.empty() &&
+            // shall be alphanumeric
+            str_isalnum(info.callSign) &&
+            // shall not be a known bad call sign
             std::find(invCallSigns.cbegin(),invCallSigns.cend(),info.callSign) == invCallSigns.cend())
         {
             // set key (call sign) so that other functions (GetURL) can access it
@@ -1416,13 +1479,24 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         invCallSigns.emplace_back(info.callSign);
                         bChannelOK = true;              // but technically a valid response
                         break;
+                    case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
+                        invCallSigns.emplace_back(info.callSign);
+                        bChannelOK = true;              // but technically a valid response
+                        break;
+                    // in all other cases (including 503 HTTP_NOT_AVAIL)
+                    // we say it is a problem and we try probably again later
+                    default:
+                        bChannelOK = false;
                 }
             } else {
                 // technical problem with fetching HTTP data
                 bChannelOK = false;
-                break;
             }
         }
+        
+        // break out on problems
+        if (!bChannelOK)
+            break;
         
         // close the outer JSON group
         data += '}';
@@ -1435,8 +1509,12 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     // done
     currKey.clear();
     
-    // if no technical valid answer received set invalid
+    // if no technical valid answer received handle error
     if ( !bChannelOK ) {
+        // we need to do that last request again
+        if (!info.empty())
+            listAc.push_back(std::move(info));
+        
         IncErrCnt();
         return false;
     }
@@ -1616,13 +1694,19 @@ void LTFlightDataSelectAc ()
 {
     while ( !bFDMainStop )
     {
+        // determine when to be called next
+        // (calls to network requests might take a long time,
+        //  see wait in OpenSkyAcMasterdata::FetchAllData)
+        auto nextWakeup = std::chrono::system_clock::now();
+        nextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+        
         // LiveTraffic Top Level Exception Handling
         try {
             // where are we right now?
             positionTy pos (dataRefs.GetViewPos());
             
             // reset list of a/c needing master data updates
-            listAcStatUpdate.clear();
+            LTACMasterdataChannel::ClearMasterDataRequests();
             
             // cycle all flight data connections
             for ( ptrLTChannelTy& p: listFDC )
@@ -1665,9 +1749,8 @@ void LTFlightDataSelectAc ()
         // by condition variable trigger
         {
             std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
-            FDThreadSynchCV.wait_for(lk,
-                                     std::chrono::seconds(dataRefs.GetFdRefreshIntvl()),
-                                     []{return bFDMainStop;});
+            FDThreadSynchCV.wait_until(lk, nextWakeup,
+                                       []{return bFDMainStop;});
             lk.unlock();
         }
     }

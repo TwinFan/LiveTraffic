@@ -99,9 +99,29 @@ public:
 //
 //MARK: LTACMasterdata
 //
+
+// list of a/c for which static data is yet missing
+struct acStatUpdateTy {
+    std::string transpIcao;         // to find master data
+    std::string callSign;           // to query route information
+    acStatUpdateTy() {}
+    acStatUpdateTy(std::string t, std::string c) :
+    transpIcao(t), callSign(c) {}
+    inline bool operator == (const acStatUpdateTy& o) const
+    { return transpIcao == o.transpIcao && callSign == o.callSign; }
+    inline bool empty () const { return transpIcao.empty() && callSign.empty(); }
+};
+typedef std::list<acStatUpdateTy> listAcStatUpdateTy;
+
 class LTACMasterdataChannel : virtual public LTChannel
 {
+private:
+    // global list of a/c for which static data is yet missing
+    // (reset with every network request cycle)
+    static listAcStatUpdateTy listAcStatUpdate;
+
 protected:
+    listAcStatUpdateTy listAc;      // object-private list of a/c to query
     std::string currKey;
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
@@ -112,6 +132,11 @@ public:
     // request to fetch master data
     static void RequestMasterData (const std::string transpIcao,
                                    const std::string callSign);
+    static void ClearMasterDataRequests ();
+    
+protected:
+    // uniquely copies entries from listAcStatUpdate to listAc
+    void CopyGlobalRequestList ();
 };
 
 //

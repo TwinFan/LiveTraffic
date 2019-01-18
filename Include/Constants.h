@@ -146,7 +146,9 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
+constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_NOT_FOUND =     404;
+constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s) 
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
@@ -227,6 +229,7 @@ constexpr int OPSKY_ELEVATION     = 13;              // geo_altitude
 constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 
 //MARK: OpenSky Master Data
+constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 2 requests
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
 #define OPSKY_MD_GROUP          "MASTER"        // made-up group of master data fields
