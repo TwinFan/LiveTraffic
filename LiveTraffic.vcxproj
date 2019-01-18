@@ -149,7 +149,8 @@
       </ShowProgress>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
-      <Version>0.8</Version>
+      <Version>
+      </Version>
       <Profile>true</Profile>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
@@ -194,7 +195,8 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
       </ShowProgress>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
-      <Version>0.8</Version>
+      <Version>
+      </Version>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
