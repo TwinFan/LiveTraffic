@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -32,6 +32,53 @@
     <h2>Release Notes</h2>
 
     <p>The number-link refers to the issue in GitHub with (technical) details.</p>
+    
+    <h3>v0.91.190120 Pubic Beta</h3>
+    
+    <b>To update coming from 0.90</b> or ealier:
+
+    <ul>
+        <li>
+            The v0.91 package now ships with a directory <code>LiveTraffic/Resources/ShippedCSL</code>,
+            which contains the X-CSL FollowMe Car courtesy of X-CSL.
+            Move <code>ShippedCSL</code>
+            under the existing <code>LiveTraffic/Resources</code> directory,
+            in parallel to the existing <code>CSL</code> directory with the
+            Bluebell installation.
+        <li>
+            If you had installed the X-CSL FollowMe car manually, then remove
+            it now by deleting the <code>CARS</code> directory from
+            your <code>LiveTraffic/Resources/CSL</code> directory.
+        </li>
+        <li>
+            If you ever had trouble with "ghost planes" (seeing yellow labels
+            without aircrafts) then likely your Bluebell CSL installation has been
+            damaged, possibly by the X-CSL installation. Recommendation is
+            to start over: Clear the <code>LiveTraffic/Resources/CSL</code>
+            directory and download the Bluebell package once again,
+            following the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation#bluebell-obj8-csl-packages">installation documentation</a>.
+        </li>
+    </ul>
+    
+    <P>Resulting folder structure shall be:
+<pre><code>
+    LiveTraffic
+    - 64              (.xpl binaries)
+    - Resources
+      - CSL           (for Bluebell installation)
+      - ShippedCSL
+        - XCSL_CARS   (contains the FollowMe car as included in the package now)
+</code></pre>
+            
+    <P>Release content:</P>
+    
+    <ul>
+        <li>
+            ADDED FollowMe Car into the LiveTraffic package, courtesy of X-CSL.
+            No need to install this model any longer from X-CSL.
+        </li>
+    </ul>
     
     <h3>v0.90.190118 Pubic Beta - Hot Fix</h3>
     
