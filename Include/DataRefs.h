@@ -253,6 +253,7 @@ public:
         CSLPathCfgTy (bool b, std::string&& p) : bEnabled(b), path(std::move(p)) {}
         inline bool empty() const   { return path.empty(); }
         inline bool enabled() const { return bEnabled && !empty(); }
+        inline bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
     };
     typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     

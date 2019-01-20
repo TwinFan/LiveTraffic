@@ -452,11 +452,27 @@ bool DataRefs::Init ()
     if (!LoadConfigFile())
         return false;
     
-    // if there's no CSL path yet then add as a default the one to our own plugin dir
-    if (vCSLPaths.empty()) {
-        // ...but only store the part relative to XP's system dir
-        std::string path ( LTRemoveXPSystemPath(LTCalcFullPluginPath(PATH_RESOURCES_CSL)));
-        vCSLPaths.emplace_back(true, std::move(path));
+    // *** CSL path defaults ***
+    // We'll try making this fool-proof but expert-changeable:
+    // There are two paths under LiveTraffic that in all normal
+    // installations should be supported, especially on initial setup.
+    // Experts, however, may want to remove them and keep their CSLs elsewhere
+    // or just deactivate the standard directories.
+    // So the logic is:
+    // 1. Underlying directory _does_ exist and is not empty
+    // 2. Entry in vCSLPath does _not_ yet exist
+    // then: add an activated entry
+    for (std::string stdCSL: { PATH_RESOURCES_CSL, PATH_RESOURCES_SCSL }) {
+        // 1. Underlying directory _does_ exist and is not empty
+        std::string path (LTCalcFullPluginPath(stdCSL));
+        if (LTNumFilesInPath(path) > 0) {
+            // 2. Entry in vCSLPath does _not_ yet exist
+            CSLPathCfgTy cfg (true, LTRemoveXPSystemPath(path));
+            if (std::find(vCSLPaths.cbegin(), vCSLPaths.cend(), cfg) == vCSLPaths.cend()) {
+                // insert at beginning
+                vCSLPaths.emplace(vCSLPaths.cbegin(), std::move(cfg));
+            }
+        }
     }
     
     return true;
