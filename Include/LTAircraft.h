@@ -119,7 +119,7 @@ public:
                            double deltaDist,
                            double startTime, double targetTime);
     
-    inline bool isChanging() const { return !isnan(acceleration); }
+    inline bool isChanging() const { return !std::isnan(acceleration); }
     
     // calculations (ts = timestamp, defaults to current sim time)
     double updateSpeed ( double ts = NAN );

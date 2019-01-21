@@ -257,7 +257,7 @@ bool LTFlightData::validForAcCreate(double simTime) const
         return false;
 
     // simTime defaults to 'now'
-    if (isnan(simTime))
+    if (std::isnan(simTime))
         simTime = dataRefs.GetSimTime();
 
     // so we have two positions...one in the past, one in the future?
@@ -294,7 +294,7 @@ bool LTFlightData::outdated (double simTime) const
     // invalid and
     // youngestTS longer ago than allowed?
     return posDeque.empty() &&
-    youngestTS + dataRefs.GetAcOutdatedIntvl() < (isnan(simTime) ? dataRefs.GetSimTime() : simTime);
+    youngestTS + dataRefs.GetAcOutdatedIntvl() < (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime);
 }
 
 #define ADD_LABEL(b,txt) if (b && !txt.empty()) { labelStat += txt; labelStat += ' '; }
@@ -548,7 +548,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
 
         // if no simTime given use a/c's 'to' position, or current sim time
-        if (isnan(simTime)) {
+        if (std::isnan(simTime)) {
             if (pAc)
                 simTime = pAc->GetToPos().ts();
             else
@@ -607,7 +607,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         if ( pAc && !posDeque.empty() ) {
             // clear outdated rotate timestamp
-            if (!isnan(rotateTS) && (rotateTS + 2 * mdl.ROTATE_TIME < simTime) )
+            if (!std::isnan(rotateTS) && (rotateTS + 2 * mdl.ROTATE_TIME < simTime) )
                 rotateTS = NAN;
             
             // *** Landing ***
@@ -680,7 +680,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // for the take off case we look further ahead to catch the case
             // that a data point is right between start of rotating and actual lift off
             else for (int i = 0;
-                      isnan(rotateTS) && i <= 1 && posDeque.size() >= i+1;
+                      std::isnan(rotateTS) && i <= 1 && posDeque.size() >= i+1;
                       i++ )
             {
                 // i == 0 is as above with actual a/c present position
@@ -941,7 +941,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     }
     
     // if both vectors are available return the average between both angles
-    if (!isnan(vecTo.angle) && !isnan(vecFrom.angle))
+    if (!std::isnan(vecTo.angle) && !std::isnan(vecFrom.angle))
         // with the linear factor in favor of the _shorter_ vector
         // (Idea: we have more time to turn on the longer side, so at the junction
         //        the heading should be closer to the shorter vector's heading)
@@ -950,9 +950,9 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                                    vecFrom.dist,
                                    vecTo.dist);
     // if just one vector is available take that one
-    else if (!isnan(vecFrom.angle))
+    else if (!std::isnan(vecFrom.angle))
         it->heading() = vecFrom.angle;
-    else if (!isnan(vecTo.angle))
+    else if (!std::isnan(vecTo.angle))
         it->heading() = vecTo.angle;
     // if no vector is available
     else {
@@ -975,7 +975,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     
     // just as a safeguard...they can't be many situations this triggers,
     // but we don't want nan values any longer after this
-    if (isnan(it->heading()))
+    if (std::isnan(it->heading()))
         it->heading() = 0;
 }
 
@@ -1000,7 +1000,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                             MDL_MAX_TURN_GND : MDL_MAX_TURN);
 
     // angle between last and this, i.e. turn angle at thisPos
-    const double hDiff = (isnan(lastHead) ? 0 :
+    const double hDiff = (std::isnan(lastHead) ? 0 :
                           v.dist <= SIMILAR_POS_DIST ? 0 :
                           HeadingDiff(lastHead, v.angle));
     
@@ -1008,10 +1008,10 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     if (-maxTurn > hDiff || hDiff > maxTurn   ||
         v.vsi_ft() < -3 * mdl.VSI_INIT_CLIMB   ||
         v.vsi_ft() > 3 * mdl.VSI_INIT_CLIMB    ||
-        (!isnan(v.speed_kn()) && v.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED) ||
+        (!std::isnan(v.speed_kn()) && v.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED) ||
         // too slow speed up in the air?
         ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
-         !isnan(v.speed_kn()) && v.speed_kn() < mdl.MAX_TAXI_SPEED) )
+         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MAX_TAXI_SPEED) )
     {
         if constexpr (VERSION_BETA) {
             LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f",
@@ -1246,7 +1246,7 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
         // we are called from X-Plane's main thread,
         // so we take our chance to determine proper terrain altitudes
         for (positionTy& pos: posDeque) {
-            if ((pos.IsOnGnd() && isnan(pos.alt_m())) ||    // GND_ON but alt unknown
+            if ((pos.IsOnGnd() && std::isnan(pos.alt_m())) ||    // GND_ON but alt unknown
                 pos.onGrnd == positionTy::GND_UNKNOWN) {    // GND_UNKNOWN
                 TryDeriveGrndStatus(pos);
             }
@@ -1262,7 +1262,7 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
         } else {
             // there is an a/c...only copy stuff past current 'to'-pos
             const positionTy& to = pAc->GetToPos();
-            LOG_ASSERT_FD(*this, !isnan(to.ts()));
+            LOG_ASSERT_FD(*this, !std::isnan(to.ts()));
             
             // find the first position beyond current 'to' (is usually right away the first one!)
             dequePositionTy::const_iterator i =
@@ -1278,7 +1278,7 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
         }
         
         // store rotate timestamp if there is one (never overwrite with NAN!)
-        if (!isnan(rotateTS))
+        if (!std::isnan(rotateTS))
             _rotateTS = rotateTS;
         
         // output all positional information as debug info on request
@@ -1307,7 +1307,7 @@ bool LTFlightData::TryDeriveGrndStatus (positionTy& pos)
         {
             // what's the terrain altitude at that pos?
             double terrainAlt = YProbe_at_m(pos);
-            if (isnan(terrainAlt))
+            if (std::isnan(terrainAlt))
                 return false;
             
             // Now 2 options:

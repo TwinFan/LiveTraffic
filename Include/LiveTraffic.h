@@ -164,13 +164,13 @@ bool begins_with(const TContainer& input, const TContainer& match)
 
 #ifdef APL
 // XCode doesn't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
-inline errno_t strerror_s( char *buf, rsize_t bufsz, errno_t errnum )
+inline error_t strerror_s( char *buf, size_t bufsz, error_t errnum )
 { return strerror_r(errnum, buf, bufsz); }
 
 // not quite the same but close enough for our purposes
-inline void strcpy_s(char * dest, rsize_t destsz, const char * src)
+inline void strcpy_s(char * dest, size_t destsz, const char * src)
 { strncpy(dest, src, destsz); dest[destsz-1]=0; }
-inline void strcat_s(char * dest, rsize_t destsz, const char * src)
+inline void strcat_s(char * dest, size_t destsz, const char * src)
 { strncat(dest, src, destsz - strlen(dest) - 1); }
 
 // these simulate the VC++ version, not the C standard versions!

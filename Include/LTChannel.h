@@ -26,6 +26,7 @@
 #ifndef LTChannel_h
 #define LTChannel_h
 
+#include <condition_variable>
 #include <fstream>
 #include <list>
 #include "curl/curl.h"              // for CURL*

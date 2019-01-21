@@ -252,10 +252,10 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     
 #if defined(XPLM300)
     // Position the window as a "free" floating window, which the user can drag around
-    XPLMSetWindowPositioningMode(window, xplm_WindowPositionFree, -1);
+    XPLMSetWindowPositioningMode(g_window, xplm_WindowPositionFree, -1);
     // Limit resizing our window: maintain a minimum width/height of 100 boxels and a max width/height of 300 boxels
-    XPLMSetWindowResizingLimits(window, 200, 200, 300, 300);
-    XPLMSetWindowTitle(window, LIVE_TRAFFIC);
+    XPLMSetWindowResizingLimits(g_window, 200, 200, 300, 300);
+    XPLMSetWindowTitle(g_window, LIVE_TRAFFIC);
 #endif
     
 //    LOG_MSG(logDEBUG, DBG_WND_CREATED_UNTIL, dispTxt.fTimeDisp, aszMsgTxt);

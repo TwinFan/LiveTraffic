@@ -89,8 +89,8 @@ positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
     // altitude changes by: vsi * flight-time
     // timestamp changes by:      flight-time
     //                            flight-time is: dist / speed
-    if ( !isnan(vec.speed) && vec.speed != 0 ) {
-        if ( !isnan(vec.vsi) )
+    if ( !std::isnan(vec.speed) && vec.speed != 0 ) {
+        if ( !std::isnan(vec.vsi) )
             ret.alt_m() += vec.vsi * (vec.dist / vec.speed);
         ret.ts()    +=            vec.dist / vec.speed;
     }
@@ -116,7 +116,7 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
     // works with local coordinates
     positionTy pos (posAt);
     // next call requires a valid altitude, even if it is just the altitude we want to figure out...
-    if (isnan(pos.alt_m()))
+    if (std::isnan(pos.alt_m()))
         pos.alt_m() = 0;
     pos.WorldToLocal();
     
@@ -187,7 +187,7 @@ positionTy& positionTy::operator |= (const positionTy& pos)
 
 // conversion to XPMP's type is quite straight-forward
 inline double nanToZero (double d)
-{ return isnan(d) ? 0.0 : d; }
+{ return std::isnan(d) ? 0.0 : d; }
 
 positionTy::operator XPMPPlanePosition_t() const
 {
@@ -263,7 +263,7 @@ bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
     LOG_ASSERT(unitAngle==UNIT_DEG && unitCoord==UNIT_WORLD);
     return
         // should be actual numbers
-        ( !isnan(lat()) && !isnan(lon()) && !isnan(ts())) &&
+        ( !std::isnan(lat()) && !std::isnan(lon()) && !std::isnan(ts())) &&
         // should normal latitudes/longitudes
         (  -90 <= lat() && lat() <=    90)  &&
         ( -180 <= lon() && lon() <=   180) &&
@@ -271,14 +271,14 @@ bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
         ( (IsOnGnd() && bAllowNanAltIfGnd) ||
         // altitude: a 'little' below MSL might be possible (dead sea),
         //           no more than 60.000ft...we are talking planes, not rockets ;)
-          (!isnan(alt_m()) && MDL_ALT_MIN <= alt_ft() && alt_ft() <= MDL_ALT_MAX) );
+          (!std::isnan(alt_m()) && MDL_ALT_MIN <= alt_ft() && alt_ft() <= MDL_ALT_MAX) );
 }
 
 // is fully valid? (isNormal + heading, pitch, roll)?
 bool positionTy::isFullyValid() const
 {
     return
-    !isnan(heading()) && !isnan(pitch()) && !isnan(roll()) &&
+    !std::isnan(heading()) && !std::isnan(pitch()) && !std::isnan(roll()) &&
     isNormal();
 }
 
@@ -437,8 +437,8 @@ void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
 double HeadingAvg (double head1, double head2, double f1, double f2)
 {
     // if either value is nan return the other (returns nan if both are nan)
-    if (isnan(head1)) return head2;
-    if (isnan(head2)) return head1;
+    if (std::isnan(head1)) return head2;
+    if (std::isnan(head2)) return head1;
     
     // if 0° North lies between head1 and head2 then simple
     // average doesn't work
@@ -459,7 +459,7 @@ double HeadingAvg (double head1, double head2, double f1, double f2)
 double HeadingDiff (double head1, double head2)
 {
     // if either value is nan return nan
-    if (isnan(head1) || isnan(head2)) return NAN;
+    if (std::isnan(head1) || std::isnan(head2)) return NAN;
     
     // if 0° North lies between head1 and head2 then simple
     // diff doesn't work
