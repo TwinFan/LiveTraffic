@@ -14,10 +14,10 @@ set(CMAKE_CXX_STANDARD 17)
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/xplanemp")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../XPSDK301/CHeaders/Widgets")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../XPSDK301/CHeaders/Wrappers")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../XPSDK301/CHeaders/XPLM")
-
 
 # Specify library search locations.
 if (WIN32)
@@ -69,6 +69,9 @@ set(Header_Files
     Include/SettingsUI.h
     Include/TextIO.h
     Include/TFWidgets.h
+    xplanemp/XPCAircraft.h
+    xplanemp/XPMPMultiplayer.h
+    xplanemp/XPMPPlaneRenderer.h
     resource.h
 )
 source_group("Header Files" FILES ${Header_Files})
@@ -105,11 +108,40 @@ endif ()
 
 # Link OpenGL and OpenAL related libraries.
 find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
-find_library(OPENAL_LIBRARY NAMES openal OpenAL OpenAL32)  # apt install libopenal-dev
-find_library(GLUT_LIBRARY NAMES glut GLUT glut64)  # apt install freeglut3-dev
-find_library(ZLIB_LIBRARY NAMES zlib1g)  # sudo apt-get install zlib1g-dev
-# sudo apt-get install libpng-dev
-# target_link_libraries(LiveTraffic ${OPENGL_LIBRARIES} ${OPENAL_LIBRARY} ${GLUT_LIBRARY})
+if ( OpenGL_FOUND )
+    include_directories( ${OpenGL_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${OpenGL_LIBRARIES} )
+endif( OpenGL_FOUND )
+
+find_package(OpenAL REQUIRED)  # apt install libopenal-dev
+if ( OpenAL_FOUND )
+    include_directories( ${OpenAL_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${OpenAL_LIBRARIES} )
+endif( OpenAL_FOUND )
+
+find_package(GLUT REQUIRED)  # apt install freeglut3-dev
+if ( GLUT_FOUND )
+    include_directories( ${GLUT_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${GLUT_LIBRARIES} )
+endif( GLUT_FOUND )
+
+find_package(ZLIB REQUIRED)  # sudo apt-get install zlib1g-dev
+if ( ZLIB_FOUND )
+    include_directories( ${ZLIB_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${ZLIB_LIBRARIES} )
+endif( ZLIB_FOUND )
+
+find_package(PNG REQUIRED)  # sudo apt-get install libpng-dev
+if ( PNG_FOUND )
+    include_directories( ${PNG_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${PNG_LIBRARIES} )
+endif( PNG_FOUND )
+
+find_package(CURL REQUIRED)  # sudo apt-get install curl
+if ( CURL_FOUND )
+    include_directories( ${CURL_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
+endif( CURL_FOUND )
 
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
@@ -156,9 +188,14 @@ elseif (UNIX)
     # Restrict set of symbols exported from the plugin. This reduces changes of
     # conflict with other plugins, in particular ones with Lua interpreter
     # embedded.
+    message(${CMAKE_CURRENT_SOURCE_DIR})
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/xplanemp")
+
+    find_library(XPLANEMP_LIBRARY NAMES libxplanemp.a)
+    target_link_libraries(LiveTraffic ${XPLANEMP_LIBRARY})
+
     target_link_libraries(LiveTraffic -Wl,--version-script -Wl,${CMAKE_SOURCE_DIR}/LiveTraffic.sym)
 endif ()
-
 
 set_target_properties(LiveTraffic PROPERTIES PREFIX "")
 if (WIN32)
@@ -170,11 +207,6 @@ elseif (UNIX)
 endif ()
 set_target_properties(LiveTraffic PROPERTIES SUFFIX ".xpl")
 
-
 # set_target_properties(LiveTraffic PROPERTIES PREFIX "")
 # set_target_properties(LiveTraffic PROPERTIES OUTPUT_NAME "LiveTraffic")
 # set_target_properties(LiveTraffic PROPERTIES SUFFIX ".xpl")
-
-
-
-
