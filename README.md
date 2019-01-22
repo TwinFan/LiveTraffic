@@ -30,5 +30,5 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - In TextIO.cpp changed from window to g_window
 - In TFWigets.cpp added #include \<algorithm\> #include \<cstring\> #include \<iostream\>
 - In LiveTraffic.h changed errno_t to error_t and changed rsize_t to size_t
-- In LTChannel.h added #include <condition variable>  
+- In LTChannel.h added #include \<condition variable\>  
   
