@@ -23,3 +23,5 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libxplanemp](https://github.com/kuroneko/libxplanemp), which is also the basis for XSquawkBox, extended to process the VERT_OFFSET flag (will do Pull Request soon) 
 - [libpng](http://www.libpng.org/pub/png/libpng.html)
 - [libz/zlib](https://zlib.net)
+
+## Changes to build for Linux
