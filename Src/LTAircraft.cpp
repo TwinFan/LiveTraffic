@@ -827,8 +827,8 @@ std::string LTAircraft::FlightPhase2String (FlightPhase phase)
 LTAircraft::LTAircraft(LTFlightData& inFd) :
 // Base class -> this registers with XPMP API for actual display in XP!
 XPCAircraft(inFd.WaitForSafeCopyStat().acTypeIcao.c_str(),  // repeated calls to WaitForSafeCopyStat look inefficient
-            inFd.WaitForSafeCopyStat().opIcao.c_str(),      // ...but if the lock is held by the calling function already
-            inFd.WaitForSafeCopyStat().op.c_str()),         // ...then these are quick recursive calls
+            inFd.WaitForSafeCopyStat().opIcao.c_str(),      // ...but if the lock is held by the calling function already then these are quick recursive calls
+            inFd.WaitForSafeCopyStat().reg.c_str()),        // Using registration as livery indicator, allows for different liveries per actual airframe
 // class members
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
