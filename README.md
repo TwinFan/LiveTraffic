@@ -28,7 +28,7 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libxplanemp](https://github.com/kuroneko/libxplanemp), built libxplanemp.a with -fPIC
 - Replaced all occurences isnan with std::isnan
 - In TextIO.cpp changed from window to g_window
-- In TFWigets.cpp added #include <algorithm> #include <cstring> #include <iostream>
+- In TFWigets.cpp added #include \<algorithm\>
 - In LiveTraffic.h changed errno_t to error_t and changed rsize_t to size_t
 - In LTChannel.h added #include <condition variable>  
   
