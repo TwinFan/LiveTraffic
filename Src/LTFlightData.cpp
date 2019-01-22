@@ -1455,11 +1455,12 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                         return;
                     
                     // so we throw away the lower prio channel's data
+                    const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
                     dynDataDeque.clear();
                     posDeque.clear();
                     LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
                             keyDbg().c_str(),
-                            last.pChannel ? last.pChannel->ChName() : "<null>",
+                            pLstChn ? pLstChn->ChName() : "<null>",
                             inDyn.pChannel ? inDyn.pChannel->ChName() : "<null>")
                 }
                 else
