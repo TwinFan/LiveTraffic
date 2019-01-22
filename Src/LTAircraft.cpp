@@ -163,8 +163,8 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
     // calc required duration by using defining parameters
     else if ( valTo != _to ) {
         // default values
-        if (isnan(_from))       _from = val;
-        if (isnan(_startTS))    _startTS = currCycle.simTime;
+        if (std::isnan(_from))       _from = val;
+        if (std::isnan(_startTS))    _startTS = currCycle.simTime;
         
         // cleanup funny ts configurations
         if (_by_ts <= currCycle.simTime) {      // supposed to be done already?
@@ -220,7 +220,7 @@ void MovingParam::moveQuickestToBy (double _from, double _to,
                                     bool _startEarly)
 {
     // default values
-    if (isnan(_from))
+    if (std::isnan(_from))
         _from = val;
     
     // is the shorter way if we increase or decrease?
@@ -288,7 +288,7 @@ void AccelParam::StartAccel(double _startSpeed, double _targetSpeed,
     startSpeed = _startSpeed;
     targetSpeed = _targetSpeed;
     acceleration = _accel;
-    startTime = accelStartTime = isnan(_startTime) ? currCycle.simTime : _startTime;
+    startTime = accelStartTime = std::isnan(_startTime) ? currCycle.simTime : _startTime;
 
     // pre-calculate the target delta distance, needed for ratio-calculation
     targetTime = startTime + (targetSpeed - startSpeed)/acceleration;
@@ -399,7 +399,7 @@ double AccelParam::updateSpeed ( double ts )
         return currSpeed_m_s;
     
     // by default use current sim time
-    if (isnan(ts))
+    if (std::isnan(ts))
         ts = currCycle.simTime;
     
     // before acceleration time it's always start speed
@@ -425,12 +425,12 @@ double AccelParam::updateSpeed ( double ts )
 double AccelParam::getDeltaDist(double ts) const
 {
     // by default use current sim time
-    if (isnan(ts))
+    if (std::isnan(ts))
         ts = currCycle.simTime;
     LOG_ASSERT(ts >= startTime);
     
     // shortcut for constant speed: 𝑑(∆t) = startSpeed × ∆t
-    if (isnan(accelStartTime))
+    if (std::isnan(accelStartTime))
         return startSpeed * (ts - startTime);
     
     // before acceleration time there's a constant speed phase (at max until accelStartTime)
@@ -1063,7 +1063,7 @@ bool LTAircraft::CalcPPos()
     if ( bPosSwitch ) {
         // *** vector we will be flying now from 'from' to 'to':
         vec = from.between(to);
-        LOG_ASSERT_FD(fd,!isnan(vec.speed) && !isnan(vec.vsi));
+        LOG_ASSERT_FD(fd,!std::isnan(vec.speed) && !std::isnan(vec.vsi));
         
         // vertical speed between the two points [ft/m] is constant:
         vsi = vec.vsi_ft();
@@ -1197,7 +1197,7 @@ bool LTAircraft::CalcPPos()
         }
         
         // if we did come up with a target speed then start speed control
-        if (!isnan(toSpeed)) {
+        if (!std::isnan(toSpeed)) {
             // initiate speed control
             speed.StartSpeedControl(speed.m_s(),
                                     toSpeed,

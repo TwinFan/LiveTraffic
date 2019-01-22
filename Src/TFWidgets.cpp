@@ -37,6 +37,9 @@
 #include <cmath>
 #include <cassert>
 #include <forward_list>
+#include <algorithm>
+#include <cstring>
+#include <iostream>
 
 #include "XPLMProcessing.h"
 

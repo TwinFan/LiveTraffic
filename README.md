@@ -23,3 +23,12 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libxplanemp](https://github.com/kuroneko/libxplanemp), which is also the basis for XSquawkBox, extended to process the VERT_OFFSET flag (will do Pull Request soon) 
 - [libpng](http://www.libpng.org/pub/png/libpng.html)
 - [libz/zlib](https://zlib.net)
+
+## Changes to build for Linux
+- [libxplanemp](https://github.com/kuroneko/libxplanemp), built libxplanemp.a with -fPIC
+- Replaced all occurences isnan with std::isnan
+- In TextIO.cpp changed from window to g_window
+- In TFWigets.cpp added #include \<algorithm\> #include \<cstring\> #include \<iostream\>
+- In LiveTraffic.h changed errno_t to error_t and changed rsize_t to size_t
+- In LTChannel.h added #include \<condition variable\>  
+  

@@ -1629,7 +1629,7 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             // flight number: made up of IATA and actual number
             statDat.flight  = jog_s(pJRoute,OPSKY_ROUTE_OP_IATA);
             double flightNr = jog_n_nan(pJRoute,OPSKY_ROUTE_FLIGHT_NR);
-            if (!isnan(flightNr))
+            if (!std::isnan(flightNr))
                 statDat.flight += std::to_string(lround(flightNr));
         }
 
