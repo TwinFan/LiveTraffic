@@ -393,6 +393,8 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
 // fetch flight data from internet (takes time!)
 bool LTOnlineChannel::FetchAllData (const positionTy& pos)
 {
+    CURLcode cc = CURLE_OK;
+
     // make sure CURL is initialized
     if ( !InitCurl() ) return false;
     
@@ -415,11 +417,23 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     netData[0] = 0;
     LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
     DebugLogRaw(url.c_str());
-    if ( curl_easy_perform(pCurl) != CURLE_OK )
+    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
-        SHOW_MSG(logERR,ERR_CURL_PERFORM,ChName(),curl_errtxt);
-        IncErrCnt();
-        return false;
+        // problem with querying revocation list?
+        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+            // try not to query revoke list
+            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
+            // and just give it another try
+            cc = curl_easy_perform(pCurl);
+        }
+
+        // if (still) error, then log error and bail out
+        if (cc != CURLE_OK) {
+            SHOW_MSG(logERR, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
+            IncErrCnt();
+            return false;
+        }
     }
     
     // check HTTP response code

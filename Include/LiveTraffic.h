@@ -164,7 +164,7 @@ bool begins_with(const TContainer& input, const TContainer& match)
 
 #ifdef APL
 // XCode doesn't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
-inline error_t strerror_s( char *buf, size_t bufsz, error_t errnum )
+inline int strerror_s( char *buf, size_t bufsz, int errnum )
 { return strerror_r(errnum, buf, bufsz); }
 
 // not quite the same but close enough for our purposes
