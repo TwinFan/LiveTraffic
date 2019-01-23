@@ -32,3 +32,6 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - In LiveTraffic.h changed errno_t to error_t and changed rsize_t to size_t
 - In LTChannel.h added #include \<condition variable\>  
   
+## To use docker
+- CD to repo folder where you see .git
+- (cd docker; make)
