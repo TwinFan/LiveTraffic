@@ -43,12 +43,12 @@ RUN apt-get install -y --no-install-recommends build-essential ninja-build sudo 
 # Install dependency libraries under Linux.
 RUN apt-get install -y --no-install-recommends freeglut3-dev libudev-dev libopenal-dev && apt-get clean
 
-RUN echo "" | adduser --uid 1000 --disabled-password  --gecos "" aleks && adduser aleks sudo
+RUN echo "" | adduser --uid 1000 --disabled-password  --gecos "" twinfan && adduser twinfan sudo
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 VOLUME /src
-USER aleks
-ADD build.sh /usr/bin/build.sh
+USER twinfan
+ADD docker/build.sh /usr/bin/build.sh
 
 WORKDIR /Src
 ENTRYPOINT ["build.sh"]
