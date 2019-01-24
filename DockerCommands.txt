@@ -1,0 +1,4 @@
+sed -i -e 's/http:\/\/archive.ubuntu.com\/ubuntu\//mirror:\/\/mirrors.ubuntu.com\/mirrors.txt/' /etc/apt/sources.list && apt-get update
+
+
+apt-get install -y --no-install-recommends build-essential ninja-build sudo bash coreutils ca-certificates curl zlib1g-dev libpng-dev && apt-get clean && curl -sSL https://cmake.org/files/v3.12/cmake-3.12.3-Linux-x86_64.tar.gz | tar -xz -C /usr/local/ --strip-components=1

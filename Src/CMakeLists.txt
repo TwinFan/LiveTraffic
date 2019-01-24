@@ -139,11 +139,26 @@ if ( PNG_FOUND )
     target_link_libraries( LiveTraffic ${PNG_LIBRARIES} )
 endif( PNG_FOUND )
 
+
+# ****************************************************
+# This workd correctly with cmake but not with docker
 find_package(CURL REQUIRED)  # sudo apt-get install curl
 if ( CURL_FOUND )
-    include_directories( ${CURL_INCLUDE_DIRS} )
-    target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
+   include_directories( ${CURL_INCLUDE_DIRS} )
+   target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 endif( CURL_FOUND )
+
+
+# ***********************************************
+# This will allows docker to build but get "undefined symbol: curl_easy_perform"
+# When I try to run X-Plane
+# FIND_PACKAGE(CURL)
+# IF(CURL_FOUND)
+#   INCLUDE_DIRECTORIES(${CURL_INCLUDE_DIR})
+#   SET(requiredlibs ${requiredlibs} ${CURL_LIBRARIES} )
+# ELSE(CURL_FOUND)
+#   MESSAGE(FATAL_ERROR "Could not find the CURL library and development files.")
+# ENDIF(CURL_FOUND)
 
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
