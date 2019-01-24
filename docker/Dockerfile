@@ -48,7 +48,7 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 VOLUME /src
 USER twinfan
-ADD docker/build.sh /usr/bin/build.sh
+ADD build.sh /usr/bin/build.sh
 
 WORKDIR /Src
 ENTRYPOINT ["build.sh"]
