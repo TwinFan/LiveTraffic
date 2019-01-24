@@ -30,7 +30,7 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - mkdir build
 - CD build
 - cmake ..
-- make VERBOSE=1  
+- make VERBOSE=1
   
 ## To use docker
 - CD to repo folder where you see .git
