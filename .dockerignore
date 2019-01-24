@@ -1,0 +1,7 @@
+# Ignore most directories for Dockerfile, we actually only need Src
+.*
+Data/*
+docs/*
+LiveTraffic.xcodeproj/*
+NoGit/*
+Resources/*
