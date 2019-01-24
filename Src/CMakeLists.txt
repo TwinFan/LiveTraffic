@@ -15,9 +15,11 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/xplanemp")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../XPSDK301/CHeaders/Widgets")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../XPSDK301/CHeaders/Wrappers")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../XPSDK301/CHeaders/XPLM")
+include_directories("${CMAKE_SOURCE_DIR}/XPSDK301/CHeaders/Widgets")
+include_directories("${CMAKE_SOURCE_DIR}/XPSDK301/CHeaders/Wrappers")
+include_directories("${CMAKE_SOURCE_DIR}/XPSDK301/CHeaders/XPLM")
+message("CMAKE_CURRENT_SOURCE_DIR = "(${CMAKE_CURRENT_SOURCE_DIR}))
+message("CMAKE_SOURCE_DIR = "(${CMAKE_SOURCE_DIR}))
 
 # Specify library search locations.
 if (WIN32)
@@ -77,19 +79,19 @@ set(Header_Files
 source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
-    Src/ACInfoWnd.cpp
-    Src/CoordCalc.cpp
-    Src/DataRefs.cpp
-    Src/LiveTraffic.cpp
-    Src/LTAircraft.cpp
-    Src/LTChannel.cpp
-    Src/LTFlightData.cpp
-    Src/LTMain.cpp
-    Src/LTVersion.cpp
-    Src/parson.c
-    Src/SettingsUI.cpp
-    Src/TextIO.cpp
-    Src/TFWidgets.cpp
+    ACInfoWnd.cpp
+    CoordCalc.cpp
+    DataRefs.cpp
+    LiveTraffic.cpp
+    LTAircraft.cpp
+    LTChannel.cpp
+    LTFlightData.cpp
+    LTMain.cpp
+    LTVersion.cpp
+    parson.c
+    SettingsUI.cpp
+    TextIO.cpp
+    TFWidgets.cpp
 )
 source_group("Source Files" FILES ${Source_Files})
 
@@ -137,11 +139,26 @@ if ( PNG_FOUND )
     target_link_libraries( LiveTraffic ${PNG_LIBRARIES} )
 endif( PNG_FOUND )
 
+
+# ****************************************************
+# This workd correctly with cmake but not with docker
 find_package(CURL REQUIRED)  # sudo apt-get install curl
 if ( CURL_FOUND )
-    include_directories( ${CURL_INCLUDE_DIRS} )
-    target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
+   include_directories( ${CURL_INCLUDE_DIRS} )
+   target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 endif( CURL_FOUND )
+
+
+# ***********************************************
+# This will allows docker to build but get "undefined symbol: curl_easy_perform"
+# When I try to run X-Plane
+# FIND_PACKAGE(CURL)
+# IF(CURL_FOUND)
+#   INCLUDE_DIRECTORIES(${CURL_INCLUDE_DIR})
+#   SET(requiredlibs ${requiredlibs} ${CURL_LIBRARIES} )
+# ELSE(CURL_FOUND)
+#   MESSAGE(FATAL_ERROR "Could not find the CURL library and development files.")
+# ENDIF(CURL_FOUND)
 
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.

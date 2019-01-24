@@ -24,11 +24,14 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libpng](http://www.libpng.org/pub/png/libpng.html)
 - [libz/zlib](https://zlib.net)
 
-## Changes to build for Linux
-- [libxplanemp](https://github.com/kuroneko/libxplanemp), built libxplanemp.a with -fPIC
-- Replaced all occurences isnan with std::isnan
-- In TextIO.cpp changed from window to g_window
-- In TFWigets.cpp added #include \<algorithm\> #include \<cstring\> #include \<iostream\>
-- In LiveTraffic.h changed errno_t to error_t and changed rsize_t to size_t
-- In LTChannel.h added #include \<condition variable\>  
+## To use cmake
+- CD to repo folder where you see .git
+- CD to Src
+- mkdir build
+- CD build
+- cmake ..
+- make VERBOSE=1
   
+## To use docker
+- CD to repo folder where you see .git
+- (cd docker; make)
