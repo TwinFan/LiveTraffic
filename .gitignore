@@ -1,10 +1,14 @@
 .DS_Store
 .localized
+.image
 .vs/
 
-# Build directory
+# Build directories
 build/
- 
+Src/build-lin/
+Src/build-win/
+Src/build-mac/
+
 # XCode user specific files
 xcuserdata/
 *.xcworkspace/
