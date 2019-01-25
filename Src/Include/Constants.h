@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 0.91f;
+constexpr float VERSION_NR = 0.92f;
 constexpr bool VERSION_BETA = true;
 
 //MARK: Window Position

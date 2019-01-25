@@ -151,6 +151,16 @@ std::vector<std::string> str_tokenize (const std::string s,
     return v;
 }
 
+// returns first non-empty string, and "" in case all are empty
+std::string str_first_non_empty ( std::initializer_list<const std::string> l)
+{
+    for (const std::string& s: l)
+        if (!s.empty())
+            return s;
+    return "";
+}
+
+
 //
 //MARK: Callbacks
 //

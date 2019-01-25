@@ -91,7 +91,7 @@
 		255857A32095BBB500816F65 /* 2018-04-27-1021Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1021Z.json"; sourceTree = "<group>"; };
 		255857A42095BBB500816F65 /* 2018-04-27-1020Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1020Z.json"; sourceTree = "<group>"; };
 		255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1022Z.json"; sourceTree = "<group>"; };
-		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "/Users/birger/Applications/X-Plane 10/Resources/plugins/DataRefs.txt"; sourceTree = "<absolute>"; };
+		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "/Users/birger/Programming/XPlane/LiveTraffic/../../../Applications/X-Plane 11/Resources/plugins/DataRefs.txt"; sourceTree = "<absolute>"; };
 		255F35AF2097C0B50080B78E /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "/Users/birger/Applications/X-Plane 10/Log.txt"; sourceTree = "<absolute>"; };
 		25606F8D21B362790017D1EE /* readme.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = readme.html; sourceTree = "<group>"; };
 		2564042521AAC914001E2F2A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };

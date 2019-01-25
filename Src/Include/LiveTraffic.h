@@ -139,6 +139,8 @@ std::string str_last_word (const std::string s);
 std::vector<std::string> str_tokenize (const std::string s,
                                        const std::string tokens,
                                        bool bSkipEmpty = true);
+// returns first non-empty string, and "" in case all are empty
+std::string str_first_non_empty ( std::initializer_list<const std::string> l);
 
 // push a new item to the end only if it doesn't exist yet
 template< class ContainerT>
