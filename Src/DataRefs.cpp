@@ -179,6 +179,8 @@ const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
     "sim/time/local_date_days",
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
+    "sim/graphics/view/view_is_external",
+    "sim/graphics/VR/enabled",
 };
 
 //
@@ -216,7 +218,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/ai_for_tcas",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
@@ -228,6 +232,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -249,7 +254,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     switch (dr) {
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_AUTO_START:             return &bAutoStart;
-        case DR_CFG_LABELS:                 return &labelCfg.i;
+        case DR_CFG_AI_FOR_TCAS:            return &bAIforTCAS;
+        case DR_CFG_LABELS:                 return &labelCfg;
+        case DR_CFG_LABEL_SHOWN:            return &labelShown;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
         case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
@@ -261,6 +268,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
+        case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
 
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
@@ -435,7 +443,14 @@ bool DataRefs::Init ()
     for ( int i=0; i < CNT_DATAREFS_XP; i++ )
     {
         if ( (adrXP[i] = XPLMFindDataRef (DATA_REFS_XP[i])) == NULL )
-        { LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]); return false; }
+        {
+            // for XP10 compatibility we accept if we don't find "VR/enabled",
+            // all else stays an error
+            if (i != DR_VR_ENABLED) {
+                LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
+                return false;
+            }
+        }
     }
 
     // register all LiveTraffic-provided dataRefs
@@ -945,7 +960,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
     }
     
     // Tell XPMP if we need labels
-    if (labelCfg.i > 0)
+    if (ShallDrawLabels())
         XPMPEnableAircraftLabels();
     else
         XPMPDisableAircraftLabels();
@@ -1440,4 +1455,14 @@ double DataRefs::GetViewHeading()
     // get the dataref values for current view pos, which are in local coordinates
     XPLMReadCameraPosition(&camPos);
     return camPos.heading;
+}
+
+bool DataRefs::ShallDrawLabels() const
+{
+    // user doesn't want labels in VR but is in VR mode? -> no labels
+    if (!labelShown.bVR && IsVREnabled())
+        return false;
+    
+    // now depends on internal or external view
+    return IsViewExternal() ? labelShown.bExternal : labelShown.bInternal;
 }

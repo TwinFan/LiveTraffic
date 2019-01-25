@@ -306,18 +306,18 @@ void LTFlightData::UpdateStaticLabel()
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
         // the configuration: which parts to include in the label?
-        const DataRefs::LabelCfgUTy cfg = dataRefs.GetLabelCfg();
+        const DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg();
         
         // add parts as per config
         labelStat.clear();
-        ADD_LABEL(cfg.b.bIcaoType,    statData.acTypeIcao);
-        ADD_LABEL(cfg.b.bAnyAcId,     statData.acId(key()));
-        ADD_LABEL(cfg.b.bTranspCode,  key());
-        ADD_LABEL(cfg.b.bReg,         statData.reg);
-        ADD_LABEL(cfg.b.bIcaoOp,      statData.opIcao);
-        ADD_LABEL(cfg.b.bCallSign,    statData.call);
-        ADD_LABEL(cfg.b.bFlightNo,    statData.flight);
-        ADD_LABEL(cfg.b.bRoute,       statData.route());
+        ADD_LABEL(cfg.bIcaoType,    statData.acTypeIcao);
+        ADD_LABEL(cfg.bAnyAcId,     statData.acId(key()));
+        ADD_LABEL(cfg.bTranspCode,  key());
+        ADD_LABEL(cfg.bReg,         statData.reg);
+        ADD_LABEL(cfg.bIcaoOp,      statData.opIcao);
+        ADD_LABEL(cfg.bCallSign,    statData.call);
+        ADD_LABEL(cfg.bFlightNo,    statData.flight);
+        ADD_LABEL(cfg.bRoute,       statData.route());
         
         // this is the config we did the label for
         labelCfg = cfg;
@@ -336,7 +336,7 @@ std::string LTFlightData::ComposeLabel() const
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
         // the configuration: which parts to include in the label?
-        const DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg().b;
+        const DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg();
         std::string label(labelStat);       // copy static parts
         
         // only possible if we have an aircraft
@@ -1691,7 +1691,7 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
             return true;
         
         // do we need to recalc the static part of the a/c label due to config change?
-        if (dataRefs.GetLabelCfg().i != labelCfg.i)
+        if (dataRefs.GetLabelCfg() != labelCfg)
             UpdateStaticLabel();
         
         // doesn't yet have an associated aircraft but two positions?

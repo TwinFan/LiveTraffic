@@ -826,9 +826,12 @@ std::string LTAircraft::FlightPhase2String (FlightPhase phase)
 // Constructor: create an aircraft from Flight Data
 LTAircraft::LTAircraft(LTFlightData& inFd) :
 // Base class -> this registers with XPMP API for actual display in XP!
-XPCAircraft(inFd.WaitForSafeCopyStat().acTypeIcao.c_str(),  // repeated calls to WaitForSafeCopyStat look inefficient
-            inFd.WaitForSafeCopyStat().opIcao.c_str(),      // ...but if the lock is held by the calling function already then these are quick recursive calls
-            inFd.WaitForSafeCopyStat().reg.c_str()),        // Using registration as livery indicator, allows for different liveries per actual airframe
+// repeated calls to WaitForSafeCopyStat look inefficient, but if the lock is held by the calling function already then these are quick recursive calls
+// Using registration as livery indicator, allows for different liveries per actual airframe
+// Debug options to set fixed type/op/livery take precedence
+XPCAircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafeCopyStat().acTypeIcao}).c_str(),
+            str_first_non_empty({dataRefs.cslFixOpIcao,     inFd.WaitForSafeCopyStat().opIcao}).c_str(),
+            str_first_non_empty({dataRefs.cslFixLivery,     inFd.WaitForSafeCopyStat().reg}).c_str()),
 // class members
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
@@ -1471,7 +1474,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // some assumption to begin with...
         surfaces.thrust            = 0.1f;
         surfaces.lights.timeOffset = (unsigned int)rand();
-        surfaces.lights.landLights = 0;
+        surfaces.lights.landLights = dataRefs.GetLndLightsTaxi() ? 1 : 0;
         surfaces.lights.bcnLights  = 1;
         surfaces.lights.strbLights = 0;
         surfaces.lights.navLights  = 1;
@@ -1587,7 +1590,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         flaps.up();
         surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
         surfaces.thrust = 0.1f;
-        surfaces.lights.landLights = 0;
+        surfaces.lights.landLights = dataRefs.GetLndLightsTaxi() ? 1 : 0;
         surfaces.lights.strbLights = 0;
     }
     

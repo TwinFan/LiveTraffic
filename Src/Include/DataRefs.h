@@ -95,6 +95,8 @@ enum dataRefsXP {
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
+    DR_VIEW_EXTERNAL,
+    DR_VR_ENABLED,
     CNT_DATAREFS_XP                     // always last, number of elements
 };
 
@@ -127,7 +129,9 @@ enum dataRefsLT {
     DR_SIM_TIME,
     DR_CFG_AIRCRAFTS_DISPLAYED,
     DR_CFG_AUTO_START,
+    DR_CFG_AI_FOR_TCAS,
     DR_CFG_LABELS,
+    DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_COL_DYN,
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
@@ -139,6 +143,7 @@ enum dataRefsLT {
     DR_CFG_FD_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_AC_OUTDATED_INTVL,
+    DR_CFG_LND_LIGHTS_TAXI,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
     DR_CHANNEL_OPEN_SKY_ONLINE,
@@ -238,13 +243,28 @@ public:
         bHeightAGL : 1,
         bSpeed : 1,                 // default
         bVSI : 1;
+        
+        // this is a bit ugly but avoids a wrapper union with an int
+        inline int GetInt() const { return *reinterpret_cast<const int*>(this); }
+        inline void SetInt(int i) { *reinterpret_cast<int*>(this) = i; }
+        inline bool operator != (const LabelCfgTy& o) const
+        { return GetInt() != o.GetInt(); }
     };
     
-    union LabelCfgUTy {
-        LabelCfgTy b;
-        int i;
-    };
+    // when to show a/c labels?
+    struct LabelShowCfgTy {
+        unsigned
+        bExternal : 1,              // external/outside views
+        bInternal : 1,              // internal/cockpit views
+        bVR : 1;                    // VR views
 
+        // this is a bit ugly but avoids a wrapper union with an int
+        inline int GetInt() const { return *reinterpret_cast<const int*>(this); }
+        inline void SetInt(int i) { *reinterpret_cast<int*>(this) = i; }
+        inline bool operator != (const LabelCfgTy& o) const
+        { return GetInt() != o.GetInt(); }
+    };
+    
     struct CSLPathCfgTy {           // represents a line in the [CSLPath] section of LiveTrafic.prg
         bool        bEnabled = false;
         std::string path;
@@ -284,8 +304,10 @@ protected:
     
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
+    int bAIforTCAS              = true; // acquire multiplayer control for TCAS? (false might enhance interperability with other multiplayer clients)
     // which elements make up an a/c label?
-    LabelCfgUTy labelCfg = { {1,1,0,0,0,0,0,0, 0,0,1,0,1,0} };
+    LabelCfgTy labelCfg = { 1,1,0,0,0,0,0,0, 0,0,1,0,1,0 };
+    LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW; // label color, by default yellow
     int maxNumAc        = 50;           // how many aircrafts to create at most?
@@ -295,6 +317,7 @@ protected:
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
+    int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
@@ -309,6 +332,12 @@ protected:
     int cntAc           = 0;            // number of a/c being displayed
     std::string keyAc;                  // key (transpIcao) for a/c whose data is returned
     const LTAircraft* pAc = nullptr;    // ptr to that a/c
+    
+//MARK: Debug helpers (public)
+public:
+    std::string cslFixAcIcaoType;       // set of fixed values to use for...
+    std::string cslFixOpIcao;           // ...newly created aircrafts for...
+    std::string cslFixLivery;           // ...CSL model package testing
 
 //MARK: Constructor
 public:
@@ -329,7 +358,9 @@ public:
     inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
     inline float GetZuluTimeSec() const         { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
-    
+    inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
+    inline bool  IsVREnabled() const            { return adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
+
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
@@ -377,7 +408,9 @@ public:
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
     inline bool GetAutoStart() const { return bAutoStart != 0; }
-    inline LabelCfgUTy GetLabelCfg() const { return labelCfg; }
+    inline bool GetAIforTCAS() const { return bAIforTCAS != 0; }
+    inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
+    inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
     inline int GetLabelColor() const { return labelColor; }
     void GetLabelColor (float outColor[4]) const;
@@ -390,7 +423,8 @@ public:
     inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
-    
+    inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
+
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }
     void SaveCSLPath(int idx, const CSLPathCfgTy path);
@@ -454,6 +488,7 @@ public:
     static double GetViewHeading();
     static inline boundingBoxTy GetBoundingBox(double dist) // bounding box around current view pos
     { return boundingBoxTy(GetViewPos(), dist); }
+    bool ShallDrawLabels() const;
 };
 
 extern DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT];

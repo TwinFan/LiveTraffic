@@ -159,7 +159,7 @@ protected:
     int             sig;            // signal level
     
     std::string     labelStat;      // static part of the a/c label
-    DataRefs::LabelCfgUTy labelCfg = { {0,0,0,0,0,0,0,0,0,0,0,0,0} };  // the configuration the label was saved for
+    DataRefs::LabelCfgTy labelCfg = { 0,0,0,0,0,0,0,0,0,0,0,0,0 };  // the configuration the label was saved for
     
 protected:
     // DYNAMIC DATA (protected, access will be mutex-controlled for thread-safety)

@@ -138,6 +138,7 @@ enum UI_WIDGET_IDX_T {
     UI_BTN_AC_LABELS,
     UI_BTN_ADVANCED,
     UI_BTN_CSL,
+    UI_BTN_DEBUG,
     // "Basics" tab
     UI_BASICS_LIVE_SUB_WND,
     UI_BASICS_BTN_ENABLE,
@@ -245,6 +246,9 @@ enum UI_WIDGET_IDX_T {
     UI_CSL_TXT_DEFAULT_AC_TYPE,
     UI_CSL_CAP_GROUND_VEHICLE_TYPE,
     UI_CSL_TXT_GROUND_VEHICLE_TYPE,
+    
+    // "Debug" tab
+    UI_DEBUG_SUB_WND,
 
     // always last: number of UI elements
     UI_NUMBER_OF_ELEMENTS
@@ -260,6 +264,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  85,  30,  75,  10, 1, "A/C Labels",           0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     { 160,  30,  75,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     { 235,  30,  75,  10, 1, "CSL",                  0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    { 310,  30,  75,  10, 1, "Debug",                0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
     // "Basics" tab
     {  10,  50, 190, -10, 0, "Basics Live",          0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
     {  10,  10,  10,  10, 1, "Show Live Aircrafts",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
@@ -359,6 +364,8 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 120, 227,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
     {   5, 250, 115,  10, 1, "Ground vehicle type", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 120, 247,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
+    // "Debug" tab
+    {  10,  50, -10, -10, 0, "Debug",               0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
 
 };
 
@@ -704,7 +711,7 @@ bool LTSettingsUI::MsgPushButtonPressed (XPWidgetID buttonWidget)
 void LTSettingsUI::LabelBtnInit()
 {
     // read current label configuration and init the checkboxes accordingly
-    DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg().b;
+    DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg();
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,cfg.bIcaoType);
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_AC_ID],xpProperty_ButtonState,cfg.bAnyAcId);
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,cfg.bTranspCode);
@@ -724,23 +731,23 @@ void LTSettingsUI::LabelBtnInit()
 void LTSettingsUI::LabelBtnSave()
 {
     // store the checkboxes states in a zero-inited configuration
-    DataRefs::LabelCfgUTy cfg = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    cfg.b.bIcaoType     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,NULL);
-    cfg.b.bAnyAcId      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_AC_ID],xpProperty_ButtonState,NULL);
-    cfg.b.bTranspCode   = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,NULL);
-    cfg.b.bReg          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,NULL);
-    cfg.b.bIcaoOp       = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,NULL);
-    cfg.b.bCallSign     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,NULL);
-    cfg.b.bFlightNo     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,NULL);
-    cfg.b.bRoute        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,NULL);
-    cfg.b.bPhase        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,NULL);
-    cfg.b.bHeading      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,NULL);
-    cfg.b.bAlt          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,NULL);
-    cfg.b.bHeightAGL    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,NULL);
-    cfg.b.bSpeed        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,NULL);
-    cfg.b.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
+    DataRefs::LabelCfgTy cfg = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    cfg.bIcaoType     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,NULL);
+    cfg.bAnyAcId      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_AC_ID],xpProperty_ButtonState,NULL);
+    cfg.bTranspCode   = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,NULL);
+    cfg.bReg          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,NULL);
+    cfg.bIcaoOp       = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,NULL);
+    cfg.bCallSign     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,NULL);
+    cfg.bFlightNo     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,NULL);
+    cfg.bRoute        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,NULL);
+    cfg.bPhase        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,NULL);
+    cfg.bHeading      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,NULL);
+    cfg.bAlt          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,NULL);
+    cfg.bHeightAGL    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,NULL);
+    cfg.bSpeed        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,NULL);
+    cfg.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
     // save as current config
-    drCfgLabels.Set(cfg.i);
+    drCfgLabels.Set(cfg.GetInt());
 }
 
 void LTSettingsUI::SaveCSLPath(int idx)
