@@ -51,7 +51,7 @@ protected:
     XPWidgetID* widgetIds;              // all widget ids in the dialog
     TFButtonGroup tabGrp;               // button group to switch 'tabs'
     // sub-windows ('tabs')
-    TFWidget subBasicsLive, subBasicsHistoric, subAcLabel, subAdvcd, subCSL;
+    TFWidget subBasicsLive, subBasicsHistoric, subAcLabel, subAdvcd, subCSL, subDebug;
     
     // Basics tab
     TFButtonDataRef btnBasicsEnable,    // enable display of aircrafts
@@ -63,6 +63,7 @@ protected:
     
     // A/C Labels tab
     TFDataRefLink drCfgLabels;          // links to dataRef livetraffic/cfg/labels
+    TFDataRefLink drCfgLabelShow;       // links to dataRef livetraffic/cfg/label_show
     TFButtonGroup btnGrpLabelColorDyn;
     TFDataRefLink drLabelColDyn;
     TFIntFieldDataRef intLabelColor;
@@ -72,14 +73,18 @@ protected:
     TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
     TFIntFieldDataRef intFdStdDistance, intFdRefreshIntvl;
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
-    TFACSearchEditWidget txtAdvcdFilter;
-    TFButtonDataRef btnAdvcdLogACPos, btnAdvcdLogModelMatch, btnAdvcdLogRawFd;
+    TFButtonDataRef btnAdvcdLndLightsTaxi;
     
     // CSL tab
     enum { SETUI_CSL_PATHS=7, SETUI_CSL_ELEMS_PER_PATH=3 };
     static constexpr int SETUI_CSL_PATHS_NUM_ELEMS = SETUI_CSL_PATHS * SETUI_CSL_ELEMS_PER_PATH;
     TFTextFieldWidget txtCSLPaths[SETUI_CSL_PATHS];
     TFTextFieldWidget txtDefaultAcType, txtGroundVehicleType;
+    
+    // Debug tab
+    TFACSearchEditWidget txtDebugFilter;
+    TFButtonDataRef btnDebugLogACPos, btnDebugLogModelMatch, btnDebugLogRawFd;
+    TFTextFieldWidget txtFixAcType, txtFixOp, txtFixLivery;
 
 public:
     LTSettingsUI();

@@ -64,6 +64,15 @@ bool NextCycle (int newCycle)
     // the time that has passed since the last cycle
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
     
+    // tell multiplayer lib if we want to see labels
+    // (these are very quick calls only setting a variable)
+    // as the user can change between views any frame
+    // Tell XPMP if we need labels
+    if (dataRefs.ShallDrawLabels())
+        XPMPEnableAircraftLabels();
+    else
+        XPMPDisableAircraftLabels();
+    
     // time should move forward (positive difference) and not too much either
     // in case of just a short gap the user probably set some setting...
     // ...mabe (s)he touched SSAA antialiasing? Better re-read

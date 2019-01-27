@@ -959,12 +959,6 @@ bool DataRefs::SetCfgValue (void* p, int val)
         return false;
     }
     
-    // Tell XPMP if we need labels
-    if (ShallDrawLabels())
-        XPMPEnableAircraftLabels();
-    else
-        XPMPDisableAircraftLabels();
-    
     // success
     return true;
 }

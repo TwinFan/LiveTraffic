@@ -188,6 +188,11 @@ enum UI_WIDGET_IDX_T {
     UI_LABELS_BTN_RED,
     UI_LABELS_BTN_GREEN,
     UI_LABELS_BTN_BLUE,
+    
+    UI_LABELS_CAP_WHEN,
+    UI_LABELS_BTN_EXTERNAL,
+    UI_LABELS_BTN_INTERNAL,
+    UI_LABELS_BTN_VR,
 
     // "Advanced" tab
     UI_ADVCD_SUB_WND,
@@ -211,11 +216,7 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_INT_FD_BUF_PERIOD,
     UI_ADVCD_CAP_AC_OUTDATED_INTVL,
     UI_ADVCD_INT_AC_OUTDATED_INTVL,
-    UI_ADVCD_CAP_FILTER,
-    UI_ADVCD_TXT_FILTER,
-    UI_ADVCD_BTN_LOG_ACPOS,
-    UI_ADVCD_BTN_LOG_MODELMATCH,
-    UI_ADVCD_BTN_LOG_RAW_FD,
+    UI_ADVCD_BTN_LND_LIGHTS_TAXI,
     
     // "CSL" tab
     UI_CSL_SUB_WND,
@@ -249,6 +250,18 @@ enum UI_WIDGET_IDX_T {
     
     // "Debug" tab
     UI_DEBUG_SUB_WND,
+    UI_DEBUG_CAP_FILTER,
+    UI_DEBUG_TXT_FILTER,
+    UI_DEBUG_BTN_LOG_ACPOS,
+    UI_DEBUG_BTN_LOG_MODELMATCH,
+    UI_DEBUG_BTN_LOG_RAW_FD,
+    UI_DEBUG_CAP_CSL_MODEL_MATCHING,
+    UI_DEBUG_CAP_FIX_AC_ICAO_TYPE,
+    UI_DEBUG_TXT_FIX_AC_ICAO_TYPE,
+    UI_DEBUG_CAP_FIX_OP_ICAO,
+    UI_DEBUG_TXT_FIX_OP_ICAO,
+    UI_DEBUG_CAP_FIX_LIVERY,
+    UI_DEBUG_TXT_FIX_LIVERY,
 
     // always last: number of UI elements
     UI_NUMBER_OF_ELEMENTS
@@ -309,6 +322,10 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 170, 185,  50,  10, 1, "Red",                 0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
     { 220, 185,  50,  10, 1, "Green",               0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
     { 270, 185,  50,  10, 1, "Blue",                0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {   5, 205,  50,  10, 1, "In which views to show A/C labels:", 0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10, 225,  10,  10, 1, "External",            0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  80, 225,  10,  10, 1, "Internal",            0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 150, 225,  10,  10, 1, "VR",                  0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     // "Advanced" tab
     {  10,  50, -10, -10, 0, "Advanced",            0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Logging Level:",      0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -317,25 +334,21 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 150,  30,  10,  10, 1, "Warning",             0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
     { 220,  30,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
     { 290,  30,  10,  10, 1, "Debug",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
-    {   5,  50, 215,  10, 1, "Max number of aircrafts",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220,  50,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5,  70, 215,  10, 1, "Max number of full a/c to draw",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220,  70,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5,  90, 215,  10, 1, "Max distance for drawing full a/c [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220,  90,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,2, 0,0, 0,0} },
-    {   5, 110, 215,  10, 1, "Search distance [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 130, 215,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 150, 215,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 170, 215,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 200, 215,  10, 1, "Filter for transponder hex code",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 200,  70,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
-    {  10, 220,  10,  10, 1, "Debug: Log a/c positions",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 235,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 250,  10,  10, 1, "Debug: Log raw network flight data (LTRawFD.log)",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5,  50, 225,  10, 1, "Max number of aircrafts",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230,  50,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5,  70, 225,  10, 1, "Max number of full a/c to draw",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230,  70,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5,  90, 225,  10, 1, "Max distance for drawing full a/c [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230,  90,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,2, 0,0, 0,0} },
+    {   5, 110, 225,  10, 1, "Search distance [km]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 130, 225,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 150, 225,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 170, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {  10, 190,  10,  10, 1, "Keep landing lights on during taxi", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     // "CSL" tab
     {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -360,13 +373,24 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10, 150,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  25, 147, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
     { 330, 150,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
-    {   5, 230, 115,  10, 1, "Default a/c type",    0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 120, 227,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
-    {   5, 250, 115,  10, 1, "Ground vehicle type", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 120, 247,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
+    {   5, 230, 130,  10, 1, "Default a/c type",    0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 135, 227,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
+    {   5, 250, 130,  10, 1, "Ground vehicle type", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 135, 247,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
     // "Debug" tab
     {  10,  50, -10, -10, 0, "Debug",               0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
-
+    {   5,  10, 215,  10, 1, "Filter for transponder hex code:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220,  10,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
+    {  10,  30,  10,  10, 1, "Debug: Log a/c positions",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  45,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  60,  10,  10, 1, "Debug: Log raw network flight data (LTRawFD.log)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5,  80,  -5,  10, 1, "Fixated model matching parameters for next aircrafts to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5,  95, 215,  10, 1, "ICAO a/c type:",       0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220,  95,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
+    {   5, 115, 215,  10, 1, "ICAO operator/airline:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 115,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 135, 215,  10, 1, "livery/registration:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 135,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
 };
 
 constexpr int NUM_WIDGETS = sizeof(SETTINGS_UI)/sizeof(SETTINGS_UI[0]);
@@ -398,13 +422,15 @@ void LTSettingsUI::Enable()
         subAcLabel.setId(widgetIds[UI_LABELS_SUB_WND]);
         subAdvcd.setId(widgetIds[UI_ADVCD_SUB_WND]);
         subCSL.setId(widgetIds[UI_CSL_SUB_WND]);
+        subDebug.setId(widgetIds[UI_DEBUG_SUB_WND]);
 
         // organise the tab button group
         tabGrp.Add({
             widgetIds[UI_BTN_BASICS],
             widgetIds[UI_BTN_AC_LABELS],
             widgetIds[UI_BTN_ADVANCED],
-            widgetIds[UI_BTN_CSL]
+            widgetIds[UI_BTN_CSL],
+            widgetIds[UI_BTN_DEBUG]
         });
         tabGrp.SetChecked(widgetIds[UI_BTN_BASICS]);
         HookButtonGroup(tabGrp);
@@ -448,6 +474,7 @@ void LTSettingsUI::Enable()
         
         // *** A/C Labels ***
         drCfgLabels.setDataRef(DATA_REFS_LT[DR_CFG_LABELS]);
+        drCfgLabelShow.setDataRef(DATA_REFS_LT[DR_CFG_LABEL_SHOWN]);
         LabelBtnInit();
         
         // Color
@@ -464,7 +491,7 @@ void LTSettingsUI::Enable()
         intLabelColor.setId(widgetIds[UI_LABELS_TXT_COLOR],
                             DATA_REFS_LT[DR_CFG_LABEL_COLOR],
                             TFTextFieldWidget::TFF_HEX);
-        
+
         // *** Advanced ***
         logLevelGrp.Add({
             widgetIds[UI_ADVCD_BTN_LOG_DEBUG],      // index 0 equals logDEBUG, which is also 0
@@ -476,9 +503,9 @@ void LTSettingsUI::Enable()
         logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
         HookButtonGroup(logLevelGrp);
         
-        // filter for transponder hex code
-        txtAdvcdFilter.setId(widgetIds[UI_ADVCD_TXT_FILTER]);
-        txtAdvcdFilter.SearchFlightData(dataRefs.GetDebugAcFilter());
+        // landing lights during taxi?
+        btnAdvcdLndLightsTaxi.setId(widgetIds[UI_ADVCD_BTN_LND_LIGHTS_TAXI],
+                                    DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
         
         // link some buttons directly to dataRefs:
         intMaxNumAc.setId(widgetIds[UI_ADVCD_INT_MAX_NUM_AC],
@@ -495,14 +522,6 @@ void LTSettingsUI::Enable()
                           DATA_REFS_LT[DR_CFG_FD_BUF_PERIOD]);
         intAcOutdatedIntvl.setId(widgetIds[UI_ADVCD_INT_AC_OUTDATED_INTVL],
                           DATA_REFS_LT[DR_CFG_AC_OUTDATED_INTVL]);
-
-        // debug options
-        btnAdvcdLogACPos.setId(widgetIds[UI_ADVCD_BTN_LOG_ACPOS],
-                               DATA_REFS_LT[DR_DBG_AC_POS]);
-        btnAdvcdLogModelMatch.setId(widgetIds[UI_ADVCD_BTN_LOG_MODELMATCH],
-                                    DATA_REFS_LT[DR_DBG_MODEL_MATCHING]);
-        btnAdvcdLogRawFd.setId(widgetIds[UI_ADVCD_BTN_LOG_RAW_FD],
-                               DATA_REFS_LT[DR_DBG_LOG_RAW_FD]);
         
         // *** CSL ***
         // Initialize all paths (3 elements each: check box, text field, button)
@@ -525,6 +544,33 @@ void LTSettingsUI::Enable()
         txtGroundVehicleType.setId(widgetIds[UI_CSL_TXT_GROUND_VEHICLE_TYPE]);
         txtGroundVehicleType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
         txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
+        
+        // *** Debug ***
+
+        // filter for transponder hex code
+        txtDebugFilter.setId(widgetIds[UI_DEBUG_TXT_FILTER]);
+        txtDebugFilter.SearchFlightData(dataRefs.GetDebugAcFilter());
+        
+        // debug options
+        btnDebugLogACPos.setId(widgetIds[UI_DEBUG_BTN_LOG_ACPOS],
+                               DATA_REFS_LT[DR_DBG_AC_POS]);
+        btnDebugLogModelMatch.setId(widgetIds[UI_DEBUG_BTN_LOG_MODELMATCH],
+                                    DATA_REFS_LT[DR_DBG_MODEL_MATCHING]);
+        btnDebugLogRawFd.setId(widgetIds[UI_DEBUG_BTN_LOG_RAW_FD],
+                               DATA_REFS_LT[DR_DBG_LOG_RAW_FD]);
+        
+        // fixated values for CSL model matching tests
+        txtFixAcType.setId(widgetIds[UI_DEBUG_TXT_FIX_AC_ICAO_TYPE]);
+        txtFixAcType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
+        txtFixAcType.SetDescriptor(dataRefs.cslFixAcIcaoType);
+        
+        txtFixOp.setId(widgetIds[UI_DEBUG_TXT_FIX_OP_ICAO]);
+        txtFixOp.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
+        txtFixOp.SetDescriptor(dataRefs.cslFixOpIcao);
+        
+        txtFixLivery.setId(widgetIds[UI_DEBUG_TXT_FIX_LIVERY]);
+        txtFixLivery.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
+        txtFixOp.SetDescriptor(dataRefs.cslFixLivery);
 
         // center the UI
         Center();
@@ -554,10 +600,10 @@ void LTSettingsUI::Show (bool bShow)
 bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 {
     // *** Advanced ***
-    if (textWidget == txtAdvcdFilter.getId() ) {
+    if (textWidget == txtDebugFilter.getId() ) {
         // set the filter a/c if defined
-        if (txtAdvcdFilter.HasTranspIcao())
-            DataRefs::LTSetDebugAcFilter(NULL,txtAdvcdFilter.GetTranspIcaoInt());
+        if (txtDebugFilter.HasTranspIcao())
+            DataRefs::LTSetDebugAcFilter(NULL,txtDebugFilter.GetTranspIcaoInt());
         else
             DataRefs::LTSetDebugAcFilter(NULL,0);
         return true;
@@ -581,6 +627,28 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
     if (txtGroundVehicleType.getId() == textWidget) {
         if (!dataRefs.SetDefaultCarIcaoType(text))
             txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
+        return true;
+    }
+
+    // *** Debug ***
+    // save fixated model matching parameters
+    if (txtFixAcType.getId() == textWidget  ||
+        txtFixOp.getId() == textWidget      ||
+        txtFixLivery.getId() == textWidget)
+    {
+        dataRefs.cslFixAcIcaoType   = txtFixAcType.GetDescriptor();
+        dataRefs.cslFixOpIcao       = txtFixOp.GetDescriptor();
+        dataRefs.cslFixLivery       = txtFixLivery.GetDescriptor();
+        
+        if (dataRefs.cslFixAcIcaoType.empty()   &&
+            dataRefs.cslFixOpIcao.empty()       &&
+            dataRefs.cslFixLivery.empty())
+            SHOW_MSG(logWARN, MSG_MDL_NOT_FIXATED)
+        else
+            SHOW_MSG(logWARN, MSG_MDL_FIXATED,
+                     dataRefs.cslFixAcIcaoType.c_str(),
+                     dataRefs.cslFixOpIcao.c_str(),
+                     dataRefs.cslFixLivery.c_str());
         return true;
     }
 
@@ -634,6 +702,10 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         subCSL.Show(bNowChecked);
         return true;
     }
+    else if (widgetIds[UI_BTN_DEBUG] == buttonWidget) {
+        subDebug.Show(bNowChecked);
+        return true;
+    }
 
     // *** A/C Labels ***
     // if any of the a/c label check boxes changes we set the config accordingly
@@ -650,7 +722,11 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         widgetIds[UI_LABELS_BTN_ALT]        == buttonWidget ||
         widgetIds[UI_LABELS_BTN_HEIGHT]     == buttonWidget ||
         widgetIds[UI_LABELS_BTN_SPEED]      == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_VSI]        == buttonWidget)
+        widgetIds[UI_LABELS_BTN_VSI]        == buttonWidget ||
+        // when-to-show selection
+        widgetIds[UI_LABELS_BTN_EXTERNAL]   == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_INTERNAL]   == buttonWidget ||
+        widgetIds[UI_LABELS_BTN_VR]         == buttonWidget)
     {
         LabelBtnSave();
         return true;
@@ -726,6 +802,12 @@ void LTSettingsUI::LabelBtnInit()
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,cfg.bHeightAGL);
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,cfg.bSpeed);
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,cfg.bVSI);
+    
+    // read current 'when-to-show' config and init accordingly
+    DataRefs::LabelShowCfgTy show = dataRefs.GetLabelShowCfg();
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,show.bExternal);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,show.bInternal);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,show.bVR);
 }
 
 void LTSettingsUI::LabelBtnSave()
@@ -748,6 +830,13 @@ void LTSettingsUI::LabelBtnSave()
     cfg.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
     // save as current config
     drCfgLabels.Set(cfg.GetInt());
+    
+    // store the when-to-show information in a similar way
+    DataRefs::LabelShowCfgTy show = { 0, 0, 0 };
+    show.bExternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,NULL);
+    show.bInternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,NULL);
+    show.bVR          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,NULL);
+    drCfgLabelShow.Set(show.GetInt());
 }
 
 void LTSettingsUI::SaveCSLPath(int idx)
