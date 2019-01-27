@@ -217,9 +217,8 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     params.layer = xplm_WindowLayerFloatingWindows;
 #endif
 #if defined(XPLM301)
-    // Opt-in to styling our window like an X-Plane 11 native window
-    // If you're on XPLM300, not XPLM301, swap this enum for the literal value 1.
-    params.decorateAsFloatingWindow = xplm_WindowDecorationRoundRectangle;
+    // No decoration...this is just message output and shall stay where it is
+    params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
 #endif
     
     // Set the window's initial bounds
@@ -247,18 +246,6 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     else
         // otherwise create a new one
         g_window = XPLMCreateWindowEx(&params);
-    
-    if ( !g_window ) return NULL;
-    
-#if defined(XPLM300)
-    // Position the window as a "free" floating window, which the user can drag around
-    XPLMSetWindowPositioningMode(g_window, xplm_WindowPositionFree, -1);
-    // Limit resizing our window: maintain a minimum width/height of 100 boxels and a max width/height of 300 boxels
-    XPLMSetWindowResizingLimits(g_window, 200, 200, 300, 300);
-    XPLMSetWindowTitle(g_window, LIVE_TRAFFIC);
-#endif
-    
-//    LOG_MSG(logDEBUG, DBG_WND_CREATED_UNTIL, dispTxt.fTimeDisp, aszMsgTxt);
     
     return g_window;
 }
