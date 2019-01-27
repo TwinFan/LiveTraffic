@@ -616,7 +616,10 @@ bool TFTextFieldWidget::MsgKeyLoseFocus (bool bTakenByOtherWidget)
     bool ret = TFWidget::MsgKeyLoseFocus(bTakenByOtherWidget);
     
     // did the text change?
-    if (oldDescriptor != GetDescriptor()) {
+    const std::string newDescr = GetDescriptor();
+    if (oldDescriptor != newDescr) {
+        // prevent endless loops (could happen if now a message is triggered which shifts focus again, cause this "loose focus" has not yet ended, so focus has not finished shifting)
+        oldDescriptor = newDescr;
         // inform window about change
         XPSendMessageToWidget(*this, xpMsg_TextFieldChanged, xpMode_UpChain,
                               intptr_t(getId()), NULL);
