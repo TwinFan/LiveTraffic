@@ -479,6 +479,8 @@
 					"LIN=0",
 					"XPLM200=1",
 					"XPLM210=1",
+					"XPLM300=1",
+					"XPLM301=1",
 					"__MACH__=1",
 					"XUTILS_EXCLUDE_MAC_CRAP=1",
 					CURL_STATICLIB,
@@ -548,6 +550,8 @@
 					"LIN=0",
 					"XPLM200=1",
 					"XPLM210=1",
+					"XPLM300=1",
+					"XPLM301=1",
 					"__MACH__=1",
 					"XUTILS_EXCLUDE_MAC_CRAP=1",
 					CURL_STATICLIB,
@@ -579,17 +583,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"APL=1",
-					"IBM=0",
-					"LIN=0",
-					"XPLM200=1",
-					"XPLM210=1",
-					"__MACH__=1",
-					"XUTILS_EXCLUDE_MAC_CRAP=1",
-					CURL_STATICLIB,
-					"DEBUG=1",
-				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
@@ -616,16 +609,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				DEVELOPMENT_TEAM = W5UR4ZV2BP;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"APL=1",
-					"IBM=0",
-					"LIN=0",
-					"XPLM200=1",
-					"XPLM210=1",
-					"__MACH__=1",
-					"XUTILS_EXCLUDE_MAC_CRAP=1",
-					CURL_STATICLIB,
-				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
