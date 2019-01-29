@@ -85,6 +85,8 @@ LTError(_szFile,_ln,_szFunc,_lvl)
 
 // An opaque handle to the window we will create
 XPLMWindowID    g_window = 0;
+// when to remove the window
+float           fTimeRemove = NAN;
 
 // time until window is to be shown, will be destroyed after that
 struct dispTextTy {
@@ -127,19 +129,21 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     b = WIN_WIDTH;                          // word wrap width = window width
     
     // for each line of text to be displayed
+    float currTime = dataRefs.GetTotalRunningTimeSec();
     t -= WIN_ROW_HEIGHT;                    // move down to text's baseline
     for (auto iter = listTexts.cbegin();
          iter != listTexts.cend();
          t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
     {
         // still a valid entry?
-        if (iter->fTimeDisp > 0 &&
-            dataRefs.GetTotalRunningTimeSec() <= iter->fTimeDisp)
+        if (iter->fTimeDisp > 0 && currTime <= iter->fTimeDisp)
         {
             // draw text, take color based on msg level
             XPLMDrawString(COL_LVL[iter->lvlDisp], l, t,
                            const_cast<char*>(iter->text.c_str()),
                            &b, xplmFont_Proportional);
+            // cancel any idea of removing the msg window
+            fTimeRemove = NAN;
             // next element
             iter++;
         }
@@ -150,11 +154,18 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
         }
     }
     
-    // No texts left? Remove window
+    // No texts left? Remove window in 1s
     if ((g_window == in_window_id) &&
         listTexts.empty())
     {
-        DestroyWindow();
+        if (isnan(fTimeRemove))
+            // set time when to remove
+            fTimeRemove = currTime + WIN_TIME_REMAIN;
+        else if (currTime >= fTimeRemove) {
+            // time's up: remove
+            DestroyWindow();
+            fTimeRemove = NAN;
+        }
     }
 }
 
