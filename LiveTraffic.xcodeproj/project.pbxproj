@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
-		251531BB21B863B200B5968A /* mac.xpl in CopyFiles */ = {isa = PBXBuildFile; fileRef = D607B19909A556E400699BC3 /* mac.xpl */; };
 		251531BD21B863F700B5968A /* mac.xpl in CopyFiles */ = {isa = PBXBuildFile; fileRef = D607B19909A556E400699BC3 /* mac.xpl */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
@@ -37,16 +36,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		251531BA21B8625A00B5968A /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "/Users/birger/Applications/X-Plane 10/Resources/plugins/LiveTraffic/64";
-			dstSubfolderSpec = 0;
-			files = (
-				251531BB21B863B200B5968A /* mac.xpl in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		251531BC21B863D000B5968A /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -74,7 +63,6 @@
 		2504DAA721FA6ED6000DF9DA /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
 		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
-		251CE73121616AF600E9D910 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 10/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_zlib.txt; sourceTree = "<group>"; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
@@ -92,7 +80,6 @@
 		255857A42095BBB500816F65 /* 2018-04-27-1020Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1020Z.json"; sourceTree = "<group>"; };
 		255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1022Z.json"; sourceTree = "<group>"; };
 		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "/Users/birger/Programming/XPlane/LiveTraffic/../../../Applications/X-Plane 11/Resources/plugins/DataRefs.txt"; sourceTree = "<absolute>"; };
-		255F35AF2097C0B50080B78E /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "/Users/birger/Applications/X-Plane 10/Log.txt"; sourceTree = "<absolute>"; };
 		25606F8D21B362790017D1EE /* readme.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = readme.html; sourceTree = "<group>"; };
 		2564042521AAC914001E2F2A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
@@ -300,9 +287,7 @@
 		25A3889B209884B50015266E /* Links */ = {
 			isa = PBXGroup;
 			children = (
-				251CE73121616AF600E9D910 /* LiveTraffic.prf */,
 				255F35AE2097C0730080B78E /* DataRefs.txt */,
-				255F35AF2097C0B50080B78E /* Log.txt */,
 				251531BE21B867F900B5968A /* Log.txt */,
 			);
 			name = Links;
@@ -369,7 +354,6 @@
 			buildPhases = (
 				D607B19609A556E400699BC3 /* Sources */,
 				D607B19709A556E400699BC3 /* Frameworks */,
-				251531BA21B8625A00B5968A /* CopyFiles */,
 				251531BC21B863D000B5968A /* CopyFiles */,
 			);
 			buildRules = (
