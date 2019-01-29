@@ -384,7 +384,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  30,  10,  10, 1, "Debug: Log a/c positions",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  45,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  60,  10,  10, 1, "Debug: Log raw network flight data (LTRawFD.log)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5,  80,  -5,  10, 1, "Fixated model matching parameters for next aircrafts to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5,  80,  -5,  10, 1, "Forced model matching parameters for next aircrafts to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {   5,  95, 215,  10, 1, "ICAO a/c type:",       0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 220,  95,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
     {   5, 115, 215,  10, 1, "ICAO operator/airline:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -559,7 +559,7 @@ void LTSettingsUI::Enable()
         btnDebugLogRawFd.setId(widgetIds[UI_DEBUG_BTN_LOG_RAW_FD],
                                DATA_REFS_LT[DR_DBG_LOG_RAW_FD]);
         
-        // fixated values for CSL model matching tests
+        // forced values for CSL model matching tests
         txtFixAcType.setId(widgetIds[UI_DEBUG_TXT_FIX_AC_ICAO_TYPE]);
         txtFixAcType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
         txtFixAcType.SetDescriptor(dataRefs.cslFixAcIcaoType);
@@ -631,7 +631,7 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
     }
 
     // *** Debug ***
-    // save fixated model matching parameters
+    // save forced model matching parameters
     if (txtFixAcType.getId() == textWidget  ||
         txtFixOp.getId() == textWidget      ||
         txtFixLivery.getId() == textWidget)
@@ -643,9 +643,9 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
         if (dataRefs.cslFixAcIcaoType.empty()   &&
             dataRefs.cslFixOpIcao.empty()       &&
             dataRefs.cslFixLivery.empty())
-            SHOW_MSG(logWARN, MSG_MDL_NOT_FIXATED)
+            SHOW_MSG(logWARN, MSG_MDL_NOT_FORCED)
         else
-            SHOW_MSG(logWARN, MSG_MDL_FIXATED,
+            SHOW_MSG(logWARN, MSG_MDL_FORCED,
                      dataRefs.cslFixAcIcaoType.c_str(),
                      dataRefs.cslFixOpIcao.c_str(),
                      dataRefs.cslFixLivery.c_str());

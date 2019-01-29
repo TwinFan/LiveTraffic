@@ -40,6 +40,7 @@ constexpr bool VERSION_BETA = true;
 #define WIN_FROM_RIGHT    0
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
+constexpr float WIN_TIME_REMAIN=0.5f;   // seconds to keep the msg window after last message
 
 //MARK: Unit conversions
 constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a lat degree
@@ -110,8 +111,8 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define INFO_WND_AUTO_AC        "AUTO"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
-#define MSG_MDL_FIXATED         "Settings > Debug: Model matching fixated to '%s'/'%s'/'%s'"
-#define MSG_MDL_NOT_FIXATED     "Settings > Debug: Model matching no longer fixated"
+#define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"
+#define MSG_MDL_NOT_FORCED      "Settings > Debug: Model matching no longer forced"
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
 #define CSL_CAR_ICAO_TYPE       "ZZZC"      // fake code for a ground vehicle
