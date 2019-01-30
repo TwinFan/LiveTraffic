@@ -156,8 +156,8 @@ enum dataRefsLT {
     CNT_DATAREFS_LT                     // always last, number of elements
 };
 
-const int CNT_DR_CHANNELS = 5;          // number of flight data channels
-const int DR_CHANNEL_FIRST = DR_CHANNEL_ADSB_EXCHANGE_ONLINE;
+constexpr int CNT_DR_CHANNELS = 5;          // number of flight data channels
+constexpr int DR_CHANNEL_FIRST = DR_CHANNEL_ADSB_EXCHANGE_ONLINE;
 
 class DataRefs
 {
@@ -298,7 +298,9 @@ protected:
     std::string LTPluginPath;           // path to plugin directory
     std::string DirSeparator;
     int bUseHistoricData        = false;
-    int bChannel[CNT_DR_CHANNELS];     // is channel enabled?
+    int bChannel[CNT_DR_CHANNELS];      // is channel enabled?
+    double chTsOffset           = 0.0f; // offset of network time compared to system clock
+    int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
     int iTodaysDayOfYear        = 0;
     time_t tStartThisYear = 0, tStartPrevYear = 0;
     
@@ -439,6 +441,12 @@ public:
     // livetraffic/channel/...
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
+    int CntChannelEnabled () const;
+    
+    // timestamp offset network vs. system clock
+    inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }
+    inline double GetChTsOffset () const { return chTsOffset; }
+    void ChTsOffsetAdd (double aNetTS);
 
     // livetraffic/dbg/ac_filter: Debug a/c filter (the integer is converted to hex as an transpIcao key)
     std::string GetDebugAcFilter() const;

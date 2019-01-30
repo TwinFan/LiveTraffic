@@ -408,6 +408,7 @@ bool LTMainShowAircraft ()
     if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
     
     // select aircrafts for display
+    dataRefs.ChTsOffsetReset();             // reset network time offset
     if ( !LTFlightDataShowAircraft() ) return false;
 
     // enable the flight loop callback to maintain aircrafts

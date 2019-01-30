@@ -504,9 +504,17 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
     // let's cycle the aircrafts
-    // first get the structre's main object, then its aircraft array
+    // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+    
+    // for determining an offset as compared to network time we need to know network time
+    double opSkyTime = jog_n(pObj, OPSKY_TIME);
+    if (opSkyTime > JAN_FIRST_2019)
+        // if reasonable add this to our time offset calculation
+        dataRefs.ChTsOffsetAdd(opSkyTime);
+    
+    // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
     if (!pJAcList) {
         // a/c array not found: can just mean it is 'null' as in
@@ -640,9 +648,17 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
     // let's cycle the aircrafts
-    // first get the structre's main object, then its aircraft array
+    // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+    
+    // for determining an offset as compared to network time we need to know network time
+    double adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
+    if (adsbxTime > JAN_FIRST_2019)
+        // if reasonable add this to our time offset calculation
+        dataRefs.ChTsOffsetAdd(adsbxTime);
+    
+    // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, ADSBEX_AIRCRAFT_ARR);
     if (!pJAcList) { LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR); IncErrCnt(); return false; }
     

@@ -55,6 +55,7 @@ constexpr int SEC_per_D     = SEC_per_H * H_per_D;        // seconds per day
 constexpr double Ms_per_FTm = M_per_FT / SEC_per_M;     //1 m/s = 196.85... ft/min
 constexpr double PI         = 3.1415926535897932384626433832795028841971693993751;
 constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
+constexpr double JAN_FIRST_2019 = 1546344000;   // 01.01.2019
 
 //MARK: Flight Data-related
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
@@ -220,6 +221,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 //MARK: OpenSky
 #define OPSKY_NAME              "OpenSky Live Online"
 #define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
+#define OPSKY_TIME              "time"
 #define OPSKY_AIRCRAFT_ARR      "states"
 constexpr int OPSKY_TRANSP_ICAO   = 0;               // icao24
 constexpr int OPSKY_CALL          = 1;               // callsign
@@ -263,6 +265,7 @@ constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 
 #define ADSBEX_NAME             "ADSB Exchange Live Online"
 #define ADSBEX_URL_ALL          "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat=%f&lng=%f&fDstU=%d"
 #define ADSBEX_URL_AC           "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?fIcoQ=%s"
+#define ADSBEX_TIME             "stm"
 #define ADSBEX_AIRCRAFT_ARR     "acList"
 #define ADSBEX_TRANSP_ICAO      "Icao"          // Key data
 #define ADSBEX_TRT              "Trt"

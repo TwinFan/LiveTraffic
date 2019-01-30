@@ -763,8 +763,12 @@ double DataRefs::GetSimTime() const
         return
             // system time in microseconds
             double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
-            // divided by 1000000 to create seconds with fractionals, minus the buffering time
-            / 1000000.0 - GetFdBufPeriod();
+            // divided by 1000000 to create seconds with fractionals
+            / 1000000.0
+            // minus the buffering time
+            - GetFdBufPeriod()
+            // plus the offset compared to network (this corrects for wrong system clock time as compared to reality)
+            + GetChTsOffset();
     }
     
 }
@@ -1425,6 +1429,39 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
     LOG_MSG(logWARN,ERR_CFG_CAR_DEFAULT,type.c_str(),
             sDefaultCarIcaoType.c_str());
     return false;
+}
+
+// how many channels are enabled?
+int DataRefs::CntChannelEnabled () const
+{
+    return (int)std::count(std::begin(bChannel),
+                           std::end(bChannel),
+                           1);
+}
+
+// add another offset to the offset calculation (network time vs. system clock)
+// This is just a simple average calculation, not caring too much about rounding issues
+void DataRefs::ChTsOffsetAdd (double aNetTS)
+{
+    // after some calls we keep our offset stable (each chn has the chance twice)
+    if (cntAc > 0 ||                // and no change any longer if displaying a/c!
+        chTsOffsetCnt >= CntChannelEnabled() * 2)
+        return;
+    
+    // for TS to become an offset we need to remove current system time;
+    // yes...since we received that timestamp time has passed...but this is all
+    // not about milliseconds...if it is plus/minus 5s we are good enough!
+    using namespace std::chrono;
+    aNetTS -=
+        // system time in microseconds
+        double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
+        // divided by 1000000 to create seconds with fractionals
+        / 1000000.0;
+    
+    // now for the average
+    chTsOffset *= chTsOffsetCnt;
+    chTsOffset += aNetTS;
+    chTsOffset /= ++chTsOffsetCnt;
 }
 
 //MARK: Processed values (static functions)
