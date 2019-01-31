@@ -49,18 +49,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2504DA9C21FA6ED6000DF9DA /* TextIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TextIO.h; sourceTree = "<group>"; };
-		2504DA9D21FA6ED6000DF9DA /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; };
-		2504DA9E21FA6ED6000DF9DA /* CoordCalc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordCalc.h; sourceTree = "<group>"; };
-		2504DA9F21FA6ED6000DF9DA /* parson.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
-		2504DAA021FA6ED6000DF9DA /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
-		2504DAA121FA6ED6000DF9DA /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
-		2504DAA221FA6ED6000DF9DA /* TFWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TFWidgets.h; sourceTree = "<group>"; };
-		2504DAA321FA6ED6000DF9DA /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
-		2504DAA421FA6ED6000DF9DA /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
-		2504DAA521FA6ED6000DF9DA /* DataRefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DataRefs.h; sourceTree = "<group>"; };
-		2504DAA621FA6ED6000DF9DA /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
-		2504DAA721FA6ED6000DF9DA /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
 		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
@@ -92,6 +80,78 @@
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
 		2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Log_HoursOfExecution_For_Analysis.txt; sourceTree = "<group>"; wrapsLines = 0; };
+		25A095BE2203B01300658AA8 /* TextIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TextIO.h; sourceTree = "<group>"; };
+		25A095BF2203B01300658AA8 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; };
+		25A095C02203B01300658AA8 /* CoordCalc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordCalc.h; sourceTree = "<group>"; };
+		25A095C12203B01300658AA8 /* parson.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
+		25A095C22203B01300658AA8 /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
+		25A095C32203B01300658AA8 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
+		25A095C42203B01300658AA8 /* TFWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TFWidgets.h; sourceTree = "<group>"; };
+		25A095C52203B01300658AA8 /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
+		25A095C62203B01300658AA8 /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
+		25A095C72203B01300658AA8 /* DataRefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DataRefs.h; sourceTree = "<group>"; };
+		25A095C82203B01300658AA8 /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
+		25A095C92203B01300658AA8 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
+		25A095CE2203B0C500658AA8 /* XPLMPlanes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMPlanes.h; sourceTree = "<group>"; };
+		25A095CF2203B0C500658AA8 /* XPLMDataAccess.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMDataAccess.h; sourceTree = "<group>"; };
+		25A095D02203B0C500658AA8 /* XPLMNavigation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMNavigation.h; sourceTree = "<group>"; };
+		25A095D12203B0C500658AA8 /* XPLMGraphics.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMGraphics.h; sourceTree = "<group>"; };
+		25A095D22203B0C500658AA8 /* XPLMInstance.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMInstance.h; sourceTree = "<group>"; };
+		25A095D32203B0C500658AA8 /* XPLMPlugin.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMPlugin.h; sourceTree = "<group>"; };
+		25A095D42203B0C500658AA8 /* XPLMDisplay.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMDisplay.h; sourceTree = "<group>"; };
+		25A095D52203B0C500658AA8 /* XPLMProcessing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMProcessing.h; sourceTree = "<group>"; };
+		25A095D62203B0C500658AA8 /* XPLMUtilities.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMUtilities.h; sourceTree = "<group>"; };
+		25A095D72203B0C500658AA8 /* XPLMMenus.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMMenus.h; sourceTree = "<group>"; };
+		25A095D82203B0C500658AA8 /* XPLMCamera.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMCamera.h; sourceTree = "<group>"; };
+		25A095D92203B0C500658AA8 /* XPLMMap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMMap.h; sourceTree = "<group>"; };
+		25A095DA2203B0C500658AA8 /* XPLMDefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMDefs.h; sourceTree = "<group>"; };
+		25A095DB2203B0C500658AA8 /* XPLMScenery.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPLMScenery.h; sourceTree = "<group>"; };
+		25A095DD2203B0C500658AA8 /* XPCWidgetAttachments.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCWidgetAttachments.h; sourceTree = "<group>"; };
+		25A095DE2203B0C500658AA8 /* XPCDisplay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCDisplay.cpp; sourceTree = "<group>"; };
+		25A095DF2203B0C500658AA8 /* XPCWidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCWidget.cpp; sourceTree = "<group>"; };
+		25A095E02203B0C500658AA8 /* XPCListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCListener.h; sourceTree = "<group>"; };
+		25A095E12203B0C500658AA8 /* XPCWidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCWidget.h; sourceTree = "<group>"; };
+		25A095E22203B0C500658AA8 /* XPCListener.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCListener.cpp; sourceTree = "<group>"; };
+		25A095E32203B0C500658AA8 /* XPCProcessing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCProcessing.h; sourceTree = "<group>"; };
+		25A095E42203B0C500658AA8 /* XPCWidgetAttachments.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCWidgetAttachments.cpp; sourceTree = "<group>"; };
+		25A095E52203B0C500658AA8 /* XPCProcessing.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCProcessing.cpp; sourceTree = "<group>"; };
+		25A095E62203B0C500658AA8 /* XPCBroadcaster.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCBroadcaster.cpp; sourceTree = "<group>"; };
+		25A095E72203B0C500658AA8 /* XPCBroadcaster.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCBroadcaster.h; sourceTree = "<group>"; };
+		25A095E82203B0C500658AA8 /* XPCDisplay.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCDisplay.h; sourceTree = "<group>"; };
+		25A095EA2203B0C500658AA8 /* XPStandardWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPStandardWidgets.h; sourceTree = "<group>"; };
+		25A095EB2203B0C500658AA8 /* XPWidgetUtils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPWidgetUtils.h; sourceTree = "<group>"; };
+		25A095EC2203B0C500658AA8 /* XPWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPWidgets.h; sourceTree = "<group>"; };
+		25A095ED2203B0C500658AA8 /* XPUIGraphics.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPUIGraphics.h; sourceTree = "<group>"; };
+		25A095EE2203B0C500658AA8 /* XPWidgetDefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPWidgetDefs.h; sourceTree = "<group>"; };
+		25A095F12203B0C500658AA8 /* XPLM_64.lib */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = XPLM_64.lib; sourceTree = "<group>"; };
+		25A095F22203B0C500658AA8 /* XPWidgets_64.lib */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = XPWidgets_64.lib; sourceTree = "<group>"; };
+		25A095F42203B0C500658AA8 /* XPWidgets.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = XPWidgets.framework; sourceTree = "<group>"; };
+		25A095F52203B0C500658AA8 /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = XPLM.framework; sourceTree = "<group>"; };
+		25A095F82203B0C500658AA8 /* XPLMProcessing.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMProcessing.pas; sourceTree = "<group>"; };
+		25A095F92203B0C500658AA8 /* XPLMPlanes.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMPlanes.pas; sourceTree = "<group>"; };
+		25A095FA2203B0C500658AA8 /* XPLMNavigation.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMNavigation.pas; sourceTree = "<group>"; };
+		25A095FB2203B0C500658AA8 /* XPLMMenus.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMMenus.pas; sourceTree = "<group>"; };
+		25A095FC2203B0C500658AA8 /* XPLMPlugin.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMPlugin.pas; sourceTree = "<group>"; };
+		25A095FD2203B0C500658AA8 /* XPLMGraphics.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMGraphics.pas; sourceTree = "<group>"; };
+		25A095FE2203B0C500658AA8 /* XPLMDisplay.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMDisplay.pas; sourceTree = "<group>"; };
+		25A095FF2203B0C500658AA8 /* XPLMCamera.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMCamera.pas; sourceTree = "<group>"; };
+		25A096002203B0C500658AA8 /* XPLMDataAccess.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMDataAccess.pas; sourceTree = "<group>"; };
+		25A096012203B0C500658AA8 /* XPLMDefs.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMDefs.pas; sourceTree = "<group>"; };
+		25A096022203B0C500658AA8 /* XPLMScenery.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMScenery.pas; sourceTree = "<group>"; };
+		25A096032203B0C500658AA8 /* XPLMInstance.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMInstance.pas; sourceTree = "<group>"; };
+		25A096042203B0C500658AA8 /* XPLMUtilities.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMUtilities.pas; sourceTree = "<group>"; };
+		25A096052203B0C500658AA8 /* XPLMMap.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPLMMap.pas; sourceTree = "<group>"; };
+		25A096072203B0C500658AA8 /* XPWidgetUtils.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPWidgetUtils.pas; sourceTree = "<group>"; };
+		25A096082203B0C500658AA8 /* XPUIGraphics.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPUIGraphics.pas; sourceTree = "<group>"; };
+		25A096092203B0C500658AA8 /* XPWidgetDefs.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPWidgetDefs.pas; sourceTree = "<group>"; };
+		25A0960A2203B0C500658AA8 /* XPWidgets.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPWidgets.pas; sourceTree = "<group>"; };
+		25A0960B2203B0C500658AA8 /* XPStandardWidgets.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPStandardWidgets.pas; sourceTree = "<group>"; };
+		25A0960C2203B0C500658AA8 /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
+		25A0960D2203B0C500658AA8 /* license.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = license.txt; sourceTree = "<group>"; };
+		25A0960F2203B0C500658AA8 /* XPCAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCAircraft.h; sourceTree = "<group>"; };
+		25A096102203B0C500658AA8 /* XPMPMultiplayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPMultiplayer.h; sourceTree = "<group>"; };
+		25A096112203B0C500658AA8 /* XPMPPlaneRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPPlaneRenderer.h; sourceTree = "<group>"; };
+		25A096122203B0C500658AA8 /* libxplanemp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libxplanemp.a; sourceTree = "<group>"; };
 		25A9FEF92164E199002BF424 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = ../../Frameworks/libcurl.framework; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
@@ -146,25 +206,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		2504DA9B21FA6ED6000DF9DA /* Include */ = {
-			isa = PBXGroup;
-			children = (
-				2504DAA321FA6ED6000DF9DA /* Constants.h */,
-				2504DAA621FA6ED6000DF9DA /* LiveTraffic.h */,
-				2504DAA721FA6ED6000DF9DA /* LTAircraft.h */,
-				2504DA9D21FA6ED6000DF9DA /* LTFlightData.h */,
-				2504DAA021FA6ED6000DF9DA /* LTChannel.h */,
-				2504DA9E21FA6ED6000DF9DA /* CoordCalc.h */,
-				2504DAA521FA6ED6000DF9DA /* DataRefs.h */,
-				2504DA9C21FA6ED6000DF9DA /* TextIO.h */,
-				2504DA9F21FA6ED6000DF9DA /* parson.h */,
-				2504DAA121FA6ED6000DF9DA /* SettingsUI.h */,
-				2504DAA221FA6ED6000DF9DA /* TFWidgets.h */,
-				2504DAA421FA6ED6000DF9DA /* ACInfoWnd.h */,
-			);
-			path = Include;
-			sourceTree = "<group>";
-		};
 		2540F51720D5AAD900DCCF45 /* OpenSky */ = {
 			isa = PBXGroup;
 			children = (
@@ -207,7 +248,6 @@
 		255857992095B78300816F65 /* Src */ = {
 			isa = PBXGroup;
 			children = (
-				2504DA9B21FA6ED6000DF9DA /* Include */,
 				D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
@@ -284,6 +324,188 @@
 			path = Src;
 			sourceTree = "<group>";
 		};
+		25A095BD2203B01300658AA8 /* Include */ = {
+			isa = PBXGroup;
+			children = (
+				25A095C52203B01300658AA8 /* Constants.h */,
+				25A095C02203B01300658AA8 /* CoordCalc.h */,
+				25A095C72203B01300658AA8 /* DataRefs.h */,
+				25A095C82203B01300658AA8 /* LiveTraffic.h */,
+				25A095C92203B01300658AA8 /* LTAircraft.h */,
+				25A095C22203B01300658AA8 /* LTChannel.h */,
+				25A095BF2203B01300658AA8 /* LTFlightData.h */,
+				25A095BE2203B01300658AA8 /* TextIO.h */,
+				25A095C62203B01300658AA8 /* ACInfoWnd.h */,
+				25A095C32203B01300658AA8 /* SettingsUI.h */,
+				25A095C42203B01300658AA8 /* TFWidgets.h */,
+				25A095C12203B01300658AA8 /* parson.h */,
+			);
+			path = Include;
+			sourceTree = "<group>";
+		};
+		25A095CA2203B0C500658AA8 /* Lib */ = {
+			isa = PBXGroup;
+			children = (
+				25A095CB2203B0C500658AA8 /* XPSDK301 */,
+				25A0960E2203B0C500658AA8 /* xplanemp */,
+			);
+			path = Lib;
+			sourceTree = "<group>";
+		};
+		25A095CB2203B0C500658AA8 /* XPSDK301 */ = {
+			isa = PBXGroup;
+			children = (
+				25A095CC2203B0C500658AA8 /* CHeaders */,
+				25A095EF2203B0C500658AA8 /* Libraries */,
+				25A095F62203B0C500658AA8 /* Delphi */,
+				25A0960C2203B0C500658AA8 /* README.txt */,
+				25A0960D2203B0C500658AA8 /* license.txt */,
+			);
+			path = XPSDK301;
+			sourceTree = "<group>";
+		};
+		25A095CC2203B0C500658AA8 /* CHeaders */ = {
+			isa = PBXGroup;
+			children = (
+				25A095CD2203B0C500658AA8 /* XPLM */,
+				25A095DC2203B0C500658AA8 /* Wrappers */,
+				25A095E92203B0C500658AA8 /* Widgets */,
+			);
+			path = CHeaders;
+			sourceTree = "<group>";
+		};
+		25A095CD2203B0C500658AA8 /* XPLM */ = {
+			isa = PBXGroup;
+			children = (
+				25A095CE2203B0C500658AA8 /* XPLMPlanes.h */,
+				25A095CF2203B0C500658AA8 /* XPLMDataAccess.h */,
+				25A095D02203B0C500658AA8 /* XPLMNavigation.h */,
+				25A095D12203B0C500658AA8 /* XPLMGraphics.h */,
+				25A095D22203B0C500658AA8 /* XPLMInstance.h */,
+				25A095D32203B0C500658AA8 /* XPLMPlugin.h */,
+				25A095D42203B0C500658AA8 /* XPLMDisplay.h */,
+				25A095D52203B0C500658AA8 /* XPLMProcessing.h */,
+				25A095D62203B0C500658AA8 /* XPLMUtilities.h */,
+				25A095D72203B0C500658AA8 /* XPLMMenus.h */,
+				25A095D82203B0C500658AA8 /* XPLMCamera.h */,
+				25A095D92203B0C500658AA8 /* XPLMMap.h */,
+				25A095DA2203B0C500658AA8 /* XPLMDefs.h */,
+				25A095DB2203B0C500658AA8 /* XPLMScenery.h */,
+			);
+			path = XPLM;
+			sourceTree = "<group>";
+		};
+		25A095DC2203B0C500658AA8 /* Wrappers */ = {
+			isa = PBXGroup;
+			children = (
+				25A095DD2203B0C500658AA8 /* XPCWidgetAttachments.h */,
+				25A095DE2203B0C500658AA8 /* XPCDisplay.cpp */,
+				25A095DF2203B0C500658AA8 /* XPCWidget.cpp */,
+				25A095E02203B0C500658AA8 /* XPCListener.h */,
+				25A095E12203B0C500658AA8 /* XPCWidget.h */,
+				25A095E22203B0C500658AA8 /* XPCListener.cpp */,
+				25A095E32203B0C500658AA8 /* XPCProcessing.h */,
+				25A095E42203B0C500658AA8 /* XPCWidgetAttachments.cpp */,
+				25A095E52203B0C500658AA8 /* XPCProcessing.cpp */,
+				25A095E62203B0C500658AA8 /* XPCBroadcaster.cpp */,
+				25A095E72203B0C500658AA8 /* XPCBroadcaster.h */,
+				25A095E82203B0C500658AA8 /* XPCDisplay.h */,
+			);
+			path = Wrappers;
+			sourceTree = "<group>";
+		};
+		25A095E92203B0C500658AA8 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				25A095EA2203B0C500658AA8 /* XPStandardWidgets.h */,
+				25A095EB2203B0C500658AA8 /* XPWidgetUtils.h */,
+				25A095EC2203B0C500658AA8 /* XPWidgets.h */,
+				25A095ED2203B0C500658AA8 /* XPUIGraphics.h */,
+				25A095EE2203B0C500658AA8 /* XPWidgetDefs.h */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		25A095EF2203B0C500658AA8 /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+				25A095F02203B0C500658AA8 /* Win */,
+				25A095F32203B0C500658AA8 /* Mac */,
+			);
+			path = Libraries;
+			sourceTree = "<group>";
+		};
+		25A095F02203B0C500658AA8 /* Win */ = {
+			isa = PBXGroup;
+			children = (
+				25A095F12203B0C500658AA8 /* XPLM_64.lib */,
+				25A095F22203B0C500658AA8 /* XPWidgets_64.lib */,
+			);
+			path = Win;
+			sourceTree = "<group>";
+		};
+		25A095F32203B0C500658AA8 /* Mac */ = {
+			isa = PBXGroup;
+			children = (
+				25A095F42203B0C500658AA8 /* XPWidgets.framework */,
+				25A095F52203B0C500658AA8 /* XPLM.framework */,
+			);
+			path = Mac;
+			sourceTree = "<group>";
+		};
+		25A095F62203B0C500658AA8 /* Delphi */ = {
+			isa = PBXGroup;
+			children = (
+				25A095F72203B0C500658AA8 /* XPLM */,
+				25A096062203B0C500658AA8 /* Widgets */,
+			);
+			path = Delphi;
+			sourceTree = "<group>";
+		};
+		25A095F72203B0C500658AA8 /* XPLM */ = {
+			isa = PBXGroup;
+			children = (
+				25A095F82203B0C500658AA8 /* XPLMProcessing.pas */,
+				25A095F92203B0C500658AA8 /* XPLMPlanes.pas */,
+				25A095FA2203B0C500658AA8 /* XPLMNavigation.pas */,
+				25A095FB2203B0C500658AA8 /* XPLMMenus.pas */,
+				25A095FC2203B0C500658AA8 /* XPLMPlugin.pas */,
+				25A095FD2203B0C500658AA8 /* XPLMGraphics.pas */,
+				25A095FE2203B0C500658AA8 /* XPLMDisplay.pas */,
+				25A095FF2203B0C500658AA8 /* XPLMCamera.pas */,
+				25A096002203B0C500658AA8 /* XPLMDataAccess.pas */,
+				25A096012203B0C500658AA8 /* XPLMDefs.pas */,
+				25A096022203B0C500658AA8 /* XPLMScenery.pas */,
+				25A096032203B0C500658AA8 /* XPLMInstance.pas */,
+				25A096042203B0C500658AA8 /* XPLMUtilities.pas */,
+				25A096052203B0C500658AA8 /* XPLMMap.pas */,
+			);
+			path = XPLM;
+			sourceTree = "<group>";
+		};
+		25A096062203B0C500658AA8 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				25A096072203B0C500658AA8 /* XPWidgetUtils.pas */,
+				25A096082203B0C500658AA8 /* XPUIGraphics.pas */,
+				25A096092203B0C500658AA8 /* XPWidgetDefs.pas */,
+				25A0960A2203B0C500658AA8 /* XPWidgets.pas */,
+				25A0960B2203B0C500658AA8 /* XPStandardWidgets.pas */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		25A0960E2203B0C500658AA8 /* xplanemp */ = {
+			isa = PBXGroup;
+			children = (
+				25A0960F2203B0C500658AA8 /* XPCAircraft.h */,
+				25A096102203B0C500658AA8 /* XPMPMultiplayer.h */,
+				25A096112203B0C500658AA8 /* XPMPPlaneRenderer.h */,
+				25A096122203B0C500658AA8 /* libxplanemp.a */,
+			);
+			path = xplanemp;
+			sourceTree = "<group>";
+		};
 		25A3889B209884B50015266E /* Links */ = {
 			isa = PBXGroup;
 			children = (
@@ -305,14 +527,16 @@
 		D607B15F09A5563000699BC3 = {
 			isa = PBXGroup;
 			children = (
-				25A4CB8F2196FF4A00F6A9E2 /* NoGit */,
-				25AACA30217B2FCA0035DC20 /* LICENSE */,
-				25AACA2F217A99ED0035DC20 /* README.md */,
-				2577B6A0216A9397004B432D /* Resources */,
-				25A3889B209884B50015266E /* Links */,
+				25A095BD2203B01300658AA8 /* Include */,
 				255857992095B78300816F65 /* Src */,
+				25A095CA2203B0C500658AA8 /* Lib */,
+				2577B6A0216A9397004B432D /* Resources */,
 				254EA46D20834D5E008A312F /* docs */,
 				255857972095B74300816F65 /* Data */,
+				25AACA30217B2FCA0035DC20 /* LICENSE */,
+				25AACA2F217A99ED0035DC20 /* README.md */,
+				25A4CB8F2196FF4A00F6A9E2 /* NoGit */,
+				25A3889B209884B50015266E /* Links */,
 				D6A7BDAD16A1DEA700D1426A /* Frameworks */,
 				D607B19A09A556E400699BC3 /* Products */,
 			);
@@ -490,7 +714,7 @@
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
-				XPSDK_ROOT = Src/XPSDK301;
+				XPSDK_ROOT = Lib/XPSDK301;
 			};
 			name = Debug;
 		};
@@ -559,7 +783,7 @@
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
-				XPSDK_ROOT = Src/XPSDK301;
+				XPSDK_ROOT = Lib/XPSDK301;
 			};
 			name = Release;
 		};
