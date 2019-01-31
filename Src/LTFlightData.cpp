@@ -454,8 +454,8 @@ void LTFlightData::DataCleansing (bool& bChanged)
                         }
                         
                         // break out of search loop
-                        // (iter now points to where 'next' was before, but with updated iterators9
-                        LOG_ASSERT_FD(*this, iter != posDeque.end() && iter->ts() == rmTsTo);
+                        // (iter now points to where 'next' was before, but with updated iterators)
+                        LOG_ASSERT_FD(*this, iter != posDeque.end() && dequal(iter->ts(),rmTsTo));
                         break;
                     } // if found valid next pos
                 } // for searching valid next pos
@@ -679,7 +679,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             
             // for the take off case we look further ahead to catch the case
             // that a data point is right between start of rotating and actual lift off
-            else for (int i = 0;
+            else for (size_t i = 0;
                       std::isnan(rotateTS) && i <= 1 && posDeque.size() >= i+1;
                       i++ )
             {

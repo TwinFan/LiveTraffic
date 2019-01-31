@@ -297,10 +297,20 @@ const char* jog_s (const JSON_Object *object, const char *name);
 // access to JSON number fields, encapsulated as string, with NULL replaced by 0
 double jog_sn (const JSON_Object *object, const char *name);
 
+inline long jog_sl (const JSON_Object *object, const char *name)
+{
+    return std::lround(jog_sn (object, name));
+}
+
 // access to JSON number field (just a shorter name, returns 0 if not a number)
 inline double jog_n (const JSON_Object *object, const char *name)
 {
     return json_object_get_number (object, name);
+}
+
+inline long jog_l (const JSON_Object *object, const char *name)
+{
+    return std::lround(json_object_get_number (object, name));
 }
 
 // access to JSON number with 'null' returned as 'NAN'

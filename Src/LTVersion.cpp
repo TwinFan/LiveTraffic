@@ -45,7 +45,8 @@ bool CalcBetaVerTimeLimit()
     buildDate[3]=0;                                     // separate elements
     buildDate[6]=0;
     
-    struct tm tm = {0, 0, 0, 0, 0, 0, 0, 0};
+    struct tm tm;
+    memset(&tm, 0, sizeof(tm));
     tm.tm_mday = atoi(buildDate+4);
     tm.tm_year = atoi(buildDate+7) - 1900;
     tm.tm_mon = strcmp(buildDate,"Jan") == 0 ?  0 :

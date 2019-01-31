@@ -235,7 +235,7 @@ void TFWidget::setId(XPWidgetID _me)
     
     // if we were attached to some other widget remove us there
     if (me)
-        SetProperty(xpProperty_Object, NULL);
+        SetProperty(xpProperty_Object, 0);
     
     // set own value
     me = _me;
@@ -622,7 +622,7 @@ bool TFTextFieldWidget::MsgKeyLoseFocus (bool bTakenByOtherWidget)
         oldDescriptor = newDescr;
         // inform window about change
         XPSendMessageToWidget(*this, xpMsg_TextFieldChanged, xpMode_UpChain,
-                              intptr_t(getId()), NULL);
+                              intptr_t(getId()), 0);
         return true;
     }
     
@@ -805,7 +805,7 @@ void TFButtonGroup::SetChecked (XPWidgetID idChecked)
             if (bIsNowChecked) {
                 // is checked but shall no longer be: set it unchecked and inform widgets about state change
                 XPSetWidgetProperty(id, xpProperty_ButtonState, 0);
-                XPSendMessageToWidget(id, xpMsg_ButtonStateChanged, xpMode_UpChain, intptr_t(id), NULL);
+                XPSendMessageToWidget(id, xpMsg_ButtonStateChanged, xpMode_UpChain, intptr_t(id), 0);
             }
         }
     } // for each widget
@@ -815,7 +815,7 @@ void TFButtonGroup::SetChecked (XPWidgetID idChecked)
 void TFButtonGroup::SetCheckedIndex (int i)
 {
     // sanity checks
-    if (0 <= i && i < group.size())
+    if (0 <= i && i < (int)group.size())
         SetChecked(group[i]);
 }
 
@@ -1039,7 +1039,7 @@ float TFMainWindowWidget::CB1sTimer (float, float, int, void* refcon)
         XPSendMessageToWidget(*pMainWnd,
                               TFW_MSG_MAIN_1S_TIMER,
                               xpMode_Recursive,
-                              NULL, NULL);
+                              0, 0);
     return TFW_TIMER_INTVL;
 }
 

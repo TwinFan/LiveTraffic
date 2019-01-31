@@ -162,13 +162,12 @@ bool begins_with(const TContainer& input, const TContainer& match)
     && std::equal(match.cbegin(), match.cend(), input.cbegin());
 }
 
+// comparing 2 doubles for near-equality
+bool dequal ( const double d1, const double d2 );
+
 // MARK: Compiler differences
 
-#ifdef APL
-// XCode doesn't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
-inline int strerror_s( char *buf, size_t bufsz, int errnum )
-{ return strerror_r(errnum, buf, bufsz); }
-
+#if APL == 1 || LIN == 1
 // not quite the same but close enough for our purposes
 inline void strcpy_s(char * dest, size_t destsz, const char * src)
 { strncpy(dest, src, destsz); dest[destsz-1]=0; }
@@ -181,6 +180,16 @@ inline struct tm *gmtime_s(struct tm * result, const time_t * time)
 inline struct tm *localtime_s(struct tm * result, const time_t * time)
 { return localtime_r(time, result); }
 
+#endif
+
+#if APL == 1
+// XCode/Linux don't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
+inline int strerror_s( char *buf, size_t bufsz, int errnum )
+{ return strerror_r(errnum, buf, bufsz); }
+#endif
+#if LIN == 1
+inline int strerror_s( char *buf, size_t bufsz, int errnum )
+{ strcpy_s(buf,bufsz,strerror(errnum)); return 0; }
 #endif
 
 #endif /* LiveTraffic_h */

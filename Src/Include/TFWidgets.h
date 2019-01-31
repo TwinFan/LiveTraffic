@@ -89,7 +89,7 @@ private:
     
 public:
     TFWidget (XPWidgetID _me = NULL);
-    ~TFWidget();
+    virtual ~TFWidget();
     void setId (XPWidgetID _me);
 
 public:
@@ -339,7 +339,7 @@ protected:
     bool bTimerRunning;
 public:
     TFMainWindowWidget (XPWidgetID _me = NULL);
-    ~TFMainWindowWidget();
+    virtual ~TFMainWindowWidget();
 
 protected:
     // handle specific MainWindow messages

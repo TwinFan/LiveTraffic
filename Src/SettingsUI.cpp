@@ -526,8 +526,8 @@ void LTSettingsUI::Enable()
         // *** CSL ***
         // Initialize all paths (3 elements each: check box, text field, button)
         const DataRefs::vecCSLPaths& paths = dataRefs.GetCSLPaths();
-        for (int i=0; i < SETUI_CSL_PATHS; i++) {
-            const int wIdx = UI_CSL_BTN_ENABLE_1 + i*SETUI_CSL_ELEMS_PER_PATH;
+        for (size_t i=0; i < SETUI_CSL_PATHS; i++) {
+            const size_t wIdx = UI_CSL_BTN_ENABLE_1 + i*SETUI_CSL_ELEMS_PER_PATH;
             txtCSLPaths[i].setId(widgetIds[wIdx+1]);            // connect text object to widget
             if (i < paths.size()) {                             // if there is a configured path for this line
                 XPSetWidgetProperty(widgetIds[wIdx  ],          // check box

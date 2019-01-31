@@ -46,7 +46,7 @@ add_compile_options(-fexceptions -fpermissive)
 add_compile_options(-fvisibility=hidden)
 
 # Enable stricter warnings and then disable some we are not interested in.
-add_compile_options(-Wall -Wpedantic -Wshadow -Wfloat-equal -Wextra)
+add_compile_options(-Wall -Wshadow -Wfloat-equal -Wextra)
 add_compile_options(-Wno-unused)
 
 # Always use position-independent code and highest optimization level (FPS!).
@@ -74,7 +74,6 @@ set(Header_Files
     xplanemp/XPCAircraft.h
     xplanemp/XPMPMultiplayer.h
     xplanemp/XPMPPlaneRenderer.h
-    resource.h
 )
 source_group("Header Files" FILES ${Header_Files})
 

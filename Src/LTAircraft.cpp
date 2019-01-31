@@ -94,14 +94,6 @@ bool NextCycle (int newCycle)
     return true;
 }
 
-// comparing 2 doubles for near-equality
-bool dequal ( const double d1, const double d2 )
-{
-    const double epsilon = 0.00001;
-    return ((d1 - epsilon) < d2) &&
-           ((d1 + epsilon) > d2);
-}
-
 //
 // MARK: MovingParam
 //
@@ -143,7 +135,7 @@ void MovingParam::moveTo ( double tval )
         SetVal(tval);                     // just set the target value bit-euqal, no moving
     // we shall move to a (new) given target:
     // calc required duration by using defining parameters
-    else if ( valTo != tval ) {
+    else if ( !dequal(valTo, tval) ) {
         // set origin and desired target value
         valFrom = val;
         valTo = tval;
@@ -170,7 +162,7 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
     }
     // we shall move to a (new) given target:
     // calc required duration by using defining parameters
-    else if ( valTo != _to ) {
+    else if ( !dequal(valTo, _to) ) {
         // default values
         if (std::isnan(_from))       _from = val;
         if (std::isnan(_startTS))    _startTS = currCycle.simTime;
@@ -846,9 +838,9 @@ fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
 doc8643(Doc8643::get(inFd.WaitForSafeCopyStat().acTypeIcao)),
 szLabelAc{ 0 },
+tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
-tsLastCalcRequested(0),
 vsi(0.0),
 bOnGrnd(false), bArtificalPos(false), bNeedNextVec(false),
 gear(mdl.GEAR_DURATION),
@@ -1290,7 +1282,7 @@ bool LTAircraft::CalcPPos()
     // *** Attitude ***/
 
     // half-way through prepare turning to end heading
-    if ( f > 0.5 && heading.toVal() != to.heading() )
+    if ( f > 0.5 && !dequal(heading.toVal(), to.heading()) )
         heading.moveQuickestToBy(NAN, to.heading(), // target heading
                                  NAN, to.ts(),      // by target timestamp
                                  false);            // start as late as possible
@@ -1320,7 +1312,7 @@ bool LTAircraft::CalcPPos()
     } else {
         // not on the ground
         // just lifted off? then recalc vsi
-        if (phase == FPH_LIFT_OFF && vsi == 0) {
+        if (phase == FPH_LIFT_OFF && dequal(vsi, 0)) {
             vsi = ppos.between(to).vsi_ft();
         }
     }
@@ -1628,7 +1620,7 @@ bool LTAircraft::YProbe ()
     
     // lastly determine when to do a probe next, more often if closer to the ground
     static_assert(sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
-    for ( int i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
+    for ( size_t i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
     {
         if ( ppos.alt_ft() - terrainAlt >= PROBE_HEIGHT_LIM[i] ) {
             probeNextTs = currCycle.simTime + PROBE_DELAY[i];

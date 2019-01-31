@@ -81,7 +81,7 @@ protected:
 public:
     ACIWnd(const char* szKey = nullptr);
     ACIWnd(bool bAuto) : ACIWnd(bAuto ? INFO_WND_AUTO_AC : nullptr) {}
-    ~ACIWnd();
+    virtual ~ACIWnd();
     
     // constructor finished initialization?
     bool isEnabled () const { return widgetIds && *widgetIds; }

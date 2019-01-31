@@ -703,12 +703,12 @@ double DataRefs::GetSimTime() const
         // change at the full hour
         static double cacheStartOfZuluDay = -1;
         static int lastCalcZHour = -1;
-        static double lastLocalDateDays = -1;
+        static int lastLocalDateDays = -1;
         
         // current zulu time of day
         double z  = GetZuluTimeSec();
         // X-Plane's local date, expressed in days since January 1st
-        double localDateDays = GetLocalDateDays();
+        int localDateDays = GetLocalDateDays();
 
         // if the zulu hour or the date changed since last full calc then the full calc
         // might change, so redo it once and cache the result
@@ -1357,7 +1357,7 @@ bool DataRefs::SaveConfigFile()
 void DataRefs::SaveCSLPath(int idx, const CSLPathCfgTy path)
 {
     // make sure the array of paths is large enough
-    while (idx >= vCSLPaths.size())
+    while (size_t(idx) >= vCSLPaths.size())
         vCSLPaths.push_back({});
     
     // then store the actual path
@@ -1370,7 +1370,7 @@ bool DataRefs::LoadCSLPackage(int idx)
     const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
     const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
     
-    if (idx < vCSLPaths.size()) {
+    if (size_t(idx) < vCSLPaths.size()) {
         // enabled, path could be relative to X-Plane
         const std::string path = LTCalcFullPath(vCSLPaths[idx].path);
         

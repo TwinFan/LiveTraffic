@@ -32,9 +32,9 @@
 LTError::LTError (const char* _szFile, int _ln, const char* _szFunc,
                   logLevelTy _lvl,
                   const char* _szMsg, ...) :
+std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, _szMsg, NULL)),
 fileName(_szFile), ln(_ln), funcName(_szFunc),
-lvl(_lvl),
-std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, _szMsg, NULL))
+lvl(_lvl)
 {
     va_list args;
     va_start (args, _szMsg);
@@ -49,9 +49,9 @@ std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, _szMsg, NULL))
 // protected constructor, only called by LTErrorFD
 LTError::LTError (const char* _szFile, int _ln, const char* _szFunc,
                   logLevelTy _lvl) :
+std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, "", NULL)),
 fileName(_szFile), ln(_ln), funcName(_szFunc),
-lvl(_lvl),
-std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, "", NULL))
+lvl(_lvl)
 {}
 
 const char* LTError::what() const noexcept
@@ -64,9 +64,9 @@ LTErrorFD::LTErrorFD (LTFlightData& _fd,
                       const char* _szFile, int _ln, const char* _szFunc,
                       logLevelTy _lvl,
                       const char* _szMsg, ...) :
+LTError(_szFile,_ln,_szFunc,_lvl),
 fd(_fd),
-posStr(_fd.Positions2String()),
-LTError(_szFile,_ln,_szFunc,_lvl)
+posStr(_fd.Positions2String())
 {
     va_list args;
     va_start (args, _szMsg);
@@ -158,7 +158,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     if ((g_window == in_window_id) &&
         listTexts.empty())
     {
-        if (isnan(fTimeRemove))
+        if (std::isnan(fTimeRemove))
             // set time when to remove
             fTimeRemove = currTime + WIN_TIME_REMAIN;
         else if (currTime >= fTimeRemove) {
@@ -199,7 +199,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     // define the text to display:
     dispTextTy dispTxt = {
         // set the timer if a limit is given
-        fTimeToDisplay ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
+        fTimeToDisplay >= 0.0f ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
         // log level to define the color
         lvl,
         // finally the text

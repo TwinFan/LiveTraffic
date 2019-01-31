@@ -528,7 +528,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
     }
     // iterate all aircrafts in the received flight data (can be 0)
-    else for ( int i=0; i < json_array_get_count(pJAcList); i++ )
+    else for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft (which is just an array of values)
         JSON_Array* pJAc = json_array_get_array(pJAcList,i);
@@ -606,7 +606,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( pos.isNormal(true) )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -663,7 +663,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if (!pJAcList) { LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR); IncErrCnt(); return false; }
     
     // iterate all aircrafts in the received flight data (can be 0)
-    for ( int i=0; i < json_array_get_count(pJAcList); i++ )
+    for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft
         JSON_Object* pJAc = json_array_get_object(pJAcList,i);
@@ -712,9 +712,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                 stat.man =        jog_s(pJAc, ADSBEX_MAN);
                 stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                stat.year =  (int)jog_sn(pJAc, ADSBEX_YEAR);
+                stat.year =  (int)jog_sl(pJAc, ADSBEX_YEAR);
                 stat.mil =        jog_b(pJAc, ADSBEX_MIL);
-                stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
+                stat.trt          = transpTy(jog_l(pJAc,ADSBEX_TRT));
                 stat.op =         jog_s(pJAc, ADSBEX_OP);
                 stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
@@ -737,8 +737,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     // ADSBEx doesn't send a clear indicator, but data anyslsis
                     // suggests that EngType/Mount == 0 is a good indicator
                     if (jog_b(pJAc, ADSBEX_GND)         == true &&
-                        jog_n(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
-                        jog_n(pJAc, ADSBEX_ENG_MOUNT)    == 0)
+                        jog_l(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
+                        jog_l(pJAc, ADSBEX_ENG_MOUNT)   == 0)
                         // assume surface vehicle
                         stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
                     else
@@ -760,7 +760,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
-                dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
+                dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n_nan(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -782,11 +782,11 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // position is rather important, we check for validity
                 if ( pos.isNormal(true) )
                     fd.AddDynData(dyn,
-                                  (int)jog_n(pJAc, ADSBEX_RCVR),
-                                  (int)jog_n(pJAc, ADSBEX_SIG),
+                                  (int)jog_l(pJAc, ADSBEX_RCVR),
+                                  (int)jog_l(pJAc, ADSBEX_SIG),
                                   &pos);
                 else
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -1062,10 +1062,10 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
             
             // the receiver we are dealing with right now
-            int rcvr = (int)jog_n(pJAc, ADSBEX_RCVR);
+            int rcvr = (int)jog_l(pJAc, ADSBEX_RCVR);
             
             // variables we need for quality indicator calculation
-            int sig =               (int)jog_n(pJAc, ADSBEX_SIG);
+            int sig =               (int)jog_l(pJAc, ADSBEX_SIG);
             JSON_Array* pCosList =  json_object_get_array(pJAc, ADSBEX_COS);
             int cosCount =          int(json_array_get_count(pCosList)/4);
             
@@ -1140,9 +1140,9 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                     stat.man =        jog_s(pJAc, ADSBEX_MAN);
                     stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                    stat.year =  (int)jog_sn(pJAc, ADSBEX_YEAR);
+                    stat.year =  (int)jog_sl(pJAc, ADSBEX_YEAR);
                     stat.mil =        jog_b(pJAc, ADSBEX_MIL);
-                    stat.trt          = transpTy(int(jog_n(pJAc,ADSBEX_TRT)));
+                    stat.trt          = transpTy(jog_l(pJAc,ADSBEX_TRT));
                     stat.op =         jog_s(pJAc, ADSBEX_OP);
                     stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                     stat.call =       jog_s(pJAc, ADSBEX_CALL);
@@ -1165,8 +1165,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         // ADSBEx doesn't send a clear indicator, but data anyslsis
                         // suggests that EngType/Mount == 0 is a good indicator
                         if (jog_b(pJAc, ADSBEX_GND)         == true &&
-                            jog_n(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
-                            jog_n(pJAc, ADSBEX_ENG_MOUNT)    == 0)
+                            jog_l(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
+                            jog_l(pJAc, ADSBEX_ENG_MOUNT)   == 0)
                             // assume surface vehicle
                             stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
                         else
@@ -1187,7 +1187,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
-                dyn.radar.code =  (long)jog_sn(pJAc, ADSBEX_RADAR_CODE);
+                dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
                 dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
                 dyn.heading =           jog_n_nan(pJAc, ADSBEX_HEADING);
                 dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
@@ -1199,8 +1199,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 fd.AddDynData(dyn,
-                              (int)jog_n(pJAc, ADSBEX_RCVR),
-                              (int)jog_n(pJAc, ADSBEX_SIG));
+                              (int)jog_l(pJAc, ADSBEX_RCVR),
+                              (int)jog_l(pJAc, ADSBEX_SIG));
                 
                 // position data, including short trails
                 positionTy mainPos (jog_n_nan(pJAc, ADSBEX_LAT),
@@ -1238,7 +1238,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     if (json_array_get_count(pCosList) >= 8) {
                         if (json_array_get_count(pCosList) % 4 == 0)    // trails should be made of quadrupels
                             // iterate trail data in form of quadrupels (lat,lon,timestamp,alt):
-                            for (int i=0; i< json_array_get_count(pCosList); i += 4) {
+                            for (size_t i=0; i< json_array_get_count(pCosList); i += 4) {
                                 const positionTy& addedTrail =
                                 trails.emplace_back(json_array_get_number(pCosList, i),         // latitude
                                                     json_array_get_number(pCosList, i+1),       // longitude
@@ -1246,7 +1246,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                                     json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
                                 // only keep new trail if it is a valid position
                                 if ( !addedTrail.isNormal() ) {
-                                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),addedTrail.dbgTxt().c_str());
+                                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),addedTrail.dbgTxt().c_str());
                                     trails.pop_back();  // otherwise remove right away
                                 }
                             }
@@ -1371,7 +1371,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     }
                 }
                 else {
-                    LOG_MSG(logWARN,ERR_POS_UNNORMAL,transpIcao.c_str(),mainPos.dbgTxt().c_str());
+                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),mainPos.dbgTxt().c_str());
                 }
             } catch(const std::system_error& e) {
                 LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

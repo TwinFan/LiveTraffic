@@ -30,8 +30,6 @@
 
 // construct path: if passed-in base is a full path just take it
 // otherwise it is relative to XP system path
-#pragma warning( push )
-#pragma warning( disable: 4100 )
 std::string LTCalcFullPath ( const std::string path )
 {
     // starts already with system path? -> nothing to so
@@ -65,7 +63,6 @@ std::string LTCalcFullPluginPath ( const std::string path )
     // prepend with XP system path to make it a full path:
     return dataRefs.GetLTPluginPath() + path;
 }
-#pragma warning( pop )
 
 // if path starts with the XP system path it is removed
 std::string LTRemoveXPSystemPath (std::string path)
@@ -158,6 +155,14 @@ std::string str_first_non_empty ( std::initializer_list<const std::string> l)
         if (!s.empty())
             return s;
     return "";
+}
+
+// comparing 2 doubles for near-equality
+bool dequal ( const double d1, const double d2 )
+{
+    const double epsilon = 0.00001;
+    return ((d1 - epsilon) < d2) &&
+    ((d1 + epsilon) > d2);
 }
 
 

@@ -68,9 +68,9 @@ vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to )
     double dist = CoordDistance (from, to);
     return vectorTy (CoordAngle (from, to),         // angle
                      dist,                          // dist
-                     d_ts == 0 ? INFINITY :         // vsi
+                     dequal(d_ts,0) ? INFINITY :    // vsi
                         (to.alt_m()-from.alt_m())/d_ts,
-                     d_ts == 0 ? INFINITY :         // spped
+                     dequal(d_ts,0) ? INFINITY :    // spped
                         dist/d_ts);
 }
 
@@ -89,7 +89,7 @@ positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
     // altitude changes by: vsi * flight-time
     // timestamp changes by:      flight-time
     //                            flight-time is: dist / speed
-    if ( !std::isnan(vec.speed) && vec.speed != 0 ) {
+    if ( !std::isnan(vec.speed) && vec.speed >= 0 ) {
         if ( !std::isnan(vec.vsi) )
             ret.alt_m() += vec.vsi * (vec.dist / vec.speed);
         ret.ts()    +=            vec.dist / vec.speed;
@@ -121,7 +121,7 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
     pos.WorldToLocal();
     
     // let the probe drop...
-    XPLMProbeInfo_t probeInfo { sizeof(probeInfo), 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    XPLMProbeInfo_t probeInfo { sizeof(probeInfo), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     XPLMProbeResult res = XPLMProbeTerrainXYZ(probeRef,
                                               (float)pos.X(),
                                               (float)pos.Y(),

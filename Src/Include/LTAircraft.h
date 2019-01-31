@@ -88,8 +88,8 @@ public:
     
     // non-moving status checks
     double is () const      { return val; }
-    bool isUp () const      { return val == defMin; }
-    bool isDown () const    { return val == defMax; }
+    bool isUp () const      { return val <= defMin; }
+    bool isDown () const    { return val >= defMax; }
     double toVal () const   { return valTo; }
 };
 
@@ -109,7 +109,7 @@ public:
     // get current value
     double m_s() const { return currSpeed_m_s; }
     double kt() const { return currSpeed_kt; }
-    bool isZero() const { return currSpeed_m_s == 0; }
+    bool isZero() const { return currSpeed_m_s <= 0; }
     
     // start an acceleration now
     void StartAccel(double startSpeed, double targetSpeed, double accel,
