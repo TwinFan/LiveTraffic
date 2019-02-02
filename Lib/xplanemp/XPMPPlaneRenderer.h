@@ -30,6 +30,6 @@
 
 void 			XPMPInitDefaultPlaneRenderer(void);
 void			XPMPDefaultPlaneRenderer(int is_blend);
-void            XPMPDefaultLabelWriter();
+void			XPMPDeinitDefaultPlaneRenderer(void);
 
 #endif

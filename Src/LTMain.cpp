@@ -321,6 +321,7 @@ bool LTMainInit ()
     const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
     const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG));
     const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
+    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES));
     const char* cszResult = XPMPMultiplayerInitLegacyData
     (
         cslPath.c_str(),                // we pass in the first found CSL dir
@@ -339,7 +340,9 @@ bool LTMainInit ()
     }
     
     // yet another init function...also necessary
-    cszResult = XPMPMultiplayerInit ( &MPIntPrefsFunc, &MPFloatPrefsFunc );
+    cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
+                                     &MPFloatPrefsFunc,
+                                     pathRes.c_str());
     if ( cszResult[0] ) {
         LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
         XPMPMultiplayerCleanup();
@@ -400,10 +403,6 @@ bool LTMainShowAircraft ()
     // Now only enable multiplay lib - this acquires multiplayer planes
     //   and is the possible point of conflict with other plugins
     //   using xplanemp, so we push it out to as late as possible.
-    
-    // inform xplanemp about level of SSAA antialiasing
-    dataRefs.LoadXPlanePrf();
-    XPMPSetLabelSSAACorrection(dataRefs.GetRenOptHdrAntial());
     
     // Refresh set of aircrafts loaded
     XPMPLoadPlanesIfNecessary();

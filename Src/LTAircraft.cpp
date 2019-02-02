@@ -74,13 +74,6 @@ bool NextCycle (int newCycle)
         XPMPDisableAircraftLabels();
     
     // time should move forward (positive difference) and not too much either
-    // in case of just a short gap the user probably set some setting...
-    // ...mabe (s)he touched SSAA antialiasing? Better re-read
-    if (currCycle.diffTime < 0 || currCycle.diffTime > 2) {
-        dataRefs.LoadXPlanePrf();
-        XPMPSetLabelSSAACorrection(dataRefs.GetRenOptHdrAntial());
-    }
-    
     // If time moved to far between two calls then we better start over
     // (but no problem if no a/c yet displayed anyway)
     if (dataRefs.GetNumAircrafts() > 0 &&

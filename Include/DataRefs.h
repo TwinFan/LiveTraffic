@@ -326,8 +326,6 @@ protected:
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
     
-    int renopt_HDR_antial = 0;          // value from X-Plane.prf describing configured HDR antialiasing
-    
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
     
@@ -436,8 +434,6 @@ public:
     bool SetDefaultAcIcaoType(const std::string type);
     bool SetDefaultCarIcaoType(const std::string type);
     
-    inline int GetRenOptHdrAntial() const { return renopt_HDR_antial; }
-
     // livetraffic/channel/...
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
@@ -480,8 +476,6 @@ public:
     inline std::string GetLTPluginPath() const  { return LTPluginPath; }
     inline std::string GetDirSeparator() const  { return DirSeparator; }
     
-    // Read some values from X-Plane.prf
-    bool LoadXPlanePrf();
     // Load/save config file (basically a subset of LT dataRefs)
     bool LoadConfigFile();
     bool SaveConfigFile();

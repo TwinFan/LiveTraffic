@@ -27,11 +27,11 @@
 #include "XPLMDefs.h"
 
 #ifndef XPMP_CLIENT_NAME
-#define XPMP_CLIENT_NAME "LT"
+#define XPMP_CLIENT_NAME "A_PLUGIN"
 #endif
 
 #ifndef XPMP_CLIENT_LONGNAME
-#define XPMP_CLIENT_LONGNAME "LiveTraffic"
+#define XPMP_CLIENT_LONGNAME "A Plugin"
 #endif
 
 #ifdef __cplusplus
@@ -78,9 +78,16 @@ extern "C" {
  * is clockwise from north.  Pitch is the number of degrees, positive is nose up, and roll
  * is positive equals roll right.
  *
+ * Offset scale should be between 0 & 1 and indicates how much of the surface
+ * contact correction offset should be applied.  1 is fully corrected, 0 is no
+ * correction.  This is so XSB can blend the correction out as the aircraft
+ * leaves circling altitude.
+ *
+ * clampToGround enables the ground-clamping inside of libxplanemp.  If false,
+ * libxplanemp will not clamp this particular aircraft.
+ *
  * Note that there is no notion of aircraft velocity or acceleration; you will be queried for
  * your position every rendering frame.  Higher level APIs can use velocity and acceleration.
- *
  */
 typedef	struct {
 	long	size;
@@ -90,7 +97,9 @@ typedef	struct {
 	float	pitch;
 	float	roll;
 	float	heading;
-	char label[32];
+	char 	label[32];
+	float 	offsetScale;
+	bool 	clampToGround;
     float   label_color[4] = {1, 1, 0, 1};  // label base color
 } XPMPPlanePosition_t;
 
@@ -109,6 +118,7 @@ union xpmp_LightStatus {
 	struct {
 		unsigned int timeOffset	: 16;
 
+		unsigned int taxiLights : 1;
 		unsigned int landLights	: 1;
 		unsigned int bcnLights	: 1;
 		unsigned int strbLights	: 1;
@@ -217,6 +227,15 @@ typedef	int			XPMPPlaneCallbackResult;
 typedef	void *		XPMPPlaneID;
 
 /************************************************************************************
+* Some additional functional by den_rain
+************************************************************************************/
+
+void actualVertOffsetInfo(const char *inMtl, char *outType, double *outOffset);
+void setUserVertOffset(const char *inMtlCode, double inOffset);
+void removeUserVertOffset(const char *inMtlCode);
+
+
+/************************************************************************************
  * PLANE CREATION API
  ************************************************************************************/
 
@@ -286,6 +305,9 @@ const char *	XPMPMultiplayerInitLegacyData(
  * section	key					type	default	description
  * planes	full_distance		float	3.0
  * planes	max_full_count		int		50
+ * 
+ * Additionally takes a string path to the resource directory of the calling plugin for storing the
+ * user vertical offset config file.
  *
  * The return value is a string indicating any problem that may have gone wrong in a human-readable
  * form, or an empty string if initalizatoin was okay.
@@ -295,7 +317,8 @@ const char *	XPMPMultiplayerInitLegacyData(
  */
 const char *    XPMPMultiplayerInit(
 		int (* inIntPrefsFunc)(const char *, const char *, int),
-		float (* inFloatPrefsFunc)(const char *, const char *, float));
+		float (* inFloatPrefsFunc)(const char *, const char *, float),
+		const char * resourceDir);
 
 /*
  * XPMPMultiplayerEnable
@@ -306,6 +329,15 @@ const char *    XPMPMultiplayerInit(
  *
  */
 const char *	XPMPMultiplayerEnable(void);
+
+/*
+ * XPMPMultiplayerOBJ7SupportEnable
+ *
+ * Sets the light texture to use for old OBJ7 models and initializes the required OpenGL hooks 
+ * for OBJ7 rendering. An empty string is returned on success, or a human-readable error message
+ * otherwise. Calling this function is required if you are going to use OBJ7 CSLs.
+ */
+const char * XPMPMultiplayerOBJ7SupportEnable(const char * inTexturePath);
 
 /*
  * XPMPMultiplayerDisable
@@ -620,10 +652,6 @@ void				  XPMPEnableAircraftLabels(void);
 void				  XPMPDisableAircraftLabels(void);
 
 bool				  XPMPDrawingAircraftLabels(void);
-    
-// to correct coordinates when SSAA is active.
-// The value 'renopt_HDR_antial' is found in X-Plane.prf
-void                  XPMPSetLabelSSAACorrection(int renopt_HDR_antial);
 
 #ifdef __cplusplus
 }

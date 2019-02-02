@@ -197,7 +197,9 @@ positionTy::operator XPMPPlanePosition_t() const
         float(nanToZero(pitch())),
         float(nanToZero(roll())),
         float(nanToZero(heading())),
-        ""              // can't compute label here!
+        "",              // can't compute label here!
+        // make sure vertical offset is applied, and standard color yellow
+        1.0f, true, {1, 1, 0, 1}
     };
 }
 

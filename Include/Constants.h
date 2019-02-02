@@ -141,13 +141,13 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define PATH_RELATED_TXT        "Resources/related.txt"
 #define PATH_LIGHTS_PNG         "Resources/lights.png"
 #define PATH_DOC8643_TXT        "Resources/Doc8643.txt"
+#define PATH_RESOURCES          "Resources"
 #define PATH_RESOURCES_CSL      "Resources/CSL"
 #define PATH_RESOURCES_SCSL     "Resources/ShippedCSL"
 // these are under X-Plane's root dir
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
-#define PATH_XPLANE_PRF         "Output/preferences/X-Plane.prf"
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
