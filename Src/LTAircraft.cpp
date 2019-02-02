@@ -609,12 +609,12 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     }
     
     // first line is supposed to be the version - and we know of exactly one:
-    std::vector<std::string> ln;
+    std::vector<std::string> lnVer;
     std::string text;
-    if (!safeGetline(fIn, text) ||                      // read a line
-        (ln = str_tokenize(text, " ")).size() != 2 ||   // split into two words
-        ln[0] != LIVE_TRAFFIC ||                        // 1. is LiveTraffic
-        ln[1] != LT_FM_VERSION)                         // 2. is the version
+    if (!safeGetline(fIn, text) ||                          // read a line
+        (lnVer = str_tokenize(text, " ")).size() != 2 ||    // split into two words
+        lnVer[0] != LIVE_TRAFFIC ||                         // 1. is LiveTraffic
+        lnVer[1] != LT_FM_VERSION)                          // 2. is the version
     {
         SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), text.c_str());
         return false;
