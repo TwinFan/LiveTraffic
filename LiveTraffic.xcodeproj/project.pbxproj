@@ -76,6 +76,8 @@
 		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
+		25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "RealTraffic dev1.0.pdf"; sourceTree = "<group>"; };
+		25865B0022065B8D009D5D9C /* udp_listen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_listen.py; sourceTree = "<group>"; };
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 		255857972095B74300816F65 /* Data */ = {
 			isa = PBXGroup;
 			children = (
+				25865AFE22065B8D009D5D9C /* RealTraffic */,
 				2540F51720D5AAD900DCCF45 /* OpenSky */,
 				2558579F2095BB6B00816F65 /* ADSB */,
 			);
@@ -313,6 +316,15 @@
 				2577B6A1216A93D1004B432D /* FlightModels.prf */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
+			isa = PBXGroup;
+			children = (
+				25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */,
+				25865B0022065B8D009D5D9C /* udp_listen.py */,
+			);
+			path = RealTraffic;
 			sourceTree = "<group>";
 		};
 		2591F9692197008C00F0D436 /* Src */ = {
