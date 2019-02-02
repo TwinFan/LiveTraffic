@@ -629,7 +629,7 @@ std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {
     char url[128] = "";
     snprintf(url, sizeof(url), ADSBEX_URL_ALL, pos.lat(), pos.lon(),
-             dataRefs.GetFdStdDistance());
+             dataRefs.GetFdStdDistance_km());
     return std::string(url);
 }
 

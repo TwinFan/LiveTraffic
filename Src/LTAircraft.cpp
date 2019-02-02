@@ -609,13 +609,14 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     }
     
     // first line is supposed to be the version - and we know of exactly one:
-    std::string sDataRef, sVal;
-    fIn >> sDataRef >> sVal;
-    if (!fIn ||
-        sDataRef != LIVE_TRAFFIC ||
-        sVal != LT_FM_VERSION)
+    std::vector<std::string> ln;
+    std::string text;
+    if (!safeGetline(fIn, text) ||                      // read a line
+        (ln = str_tokenize(text, " ")).size() != 2 ||   // split into two words
+        ln[0] != LIVE_TRAFFIC ||                        // 1. is LiveTraffic
+        ln[1] != LT_FM_VERSION)                         // 2. is the version
     {
-        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str());
+        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), text.c_str());
         return false;
     }
     
@@ -626,10 +627,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     int errCnt = 0;
     for (int ln=1; fIn && errCnt <= ERR_CFG_FILE_MAXWARN; ln++) {
         // read entire line
-        char lnBuf[255];
-        lnBuf[0] = 0;
-        fIn.getline(lnBuf, sizeof(lnBuf));
-        std::string text(lnBuf);
+        safeGetline(fIn, text);
         
         // remove trailing comments starting with '#'
         size_t pos = text.find('#');

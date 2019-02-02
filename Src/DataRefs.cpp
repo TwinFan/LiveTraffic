@@ -112,13 +112,13 @@ bool Doc8643::ReadDoc8643File ()
                         "(-|[HLM]|L/M)");                 // wtc
 
     // loop over lines of the file
+    std::string text;
     int errCnt = 0;
     for (int ln=1; fIn && errCnt <= ERR_CFG_FILE_MAXWARN; ln++) {
         // read entire line
-        char lnBuf[255];
-        lnBuf[0] = 0;
-        fIn.getline(lnBuf, sizeof(lnBuf));
-        std::string text(lnBuf);
+        safeGetline(fIn, text);
+        if (text.empty())           // skip empty lines silently
+            continue;
         
         // apply the regex to extract values
         std::smatch m;
@@ -135,7 +135,7 @@ bool Doc8643::ReadDoc8643File ()
         } else if (fIn) {
             // I/O was good, but line didn't match
             SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
-                     path.c_str(), ln, lnBuf);
+                     path.c_str(), ln, text.c_str());
             errCnt++;
         } else if (!fIn && !fIn.eof()) {
             // I/O error
@@ -1101,6 +1101,9 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
 
 bool DataRefs::LoadConfigFile()
 {
+    // which conversion to do with the (older) version of the config file?
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM } conv = CFG_NO_CONV;
+    
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
     std::ifstream fIn (sFileName);
@@ -1112,8 +1115,8 @@ bool DataRefs::LoadConfigFile()
         // something else happened
 		char sErr[SERR_LEN];
 		strerror_s(sErr, sizeof(sErr), errno);
-		SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
-                 sFileName.c_str(), sErr);
+		LOG_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
+                sFileName.c_str(), sErr);
         return false;
     }
     
@@ -1121,16 +1124,20 @@ bool DataRefs::LoadConfigFile()
     // first line is supposed to be the version - and we know of exactly one:
     // read entire line
     std::vector<std::string> ln;
-    char lnBuf[255];
-    lnBuf[0] = 0;
-    fIn.getline(lnBuf, sizeof(lnBuf));
-    ln = str_tokenize(lnBuf, " ");
-
-    if (!fIn || ln.size() != 2 ||
-        ln[0] != LIVE_TRAFFIC ||
-        ln[1] != LT_CFG_VERSION)
+    std::string lnBuf;
+    if (!safeGetline(fIn, lnBuf) ||                     // read a line
+        (ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
+        ln[0] != LIVE_TRAFFIC)                          // 1. is LiveTraffic
     {
-        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str());
+        LOG_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
+        return false;
+    }
+    
+    // 2. is version / test for older version for which a conversion is to be done?
+    if (ln[1] == LT_CFG_VERSION)            conv = CFG_NO_CONV;
+    else if (ln[1] == LT_CFG_VER_NM_CONV)   conv = CFG_KM_2_NM;
+    else {
+        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
         return false;
     }
     
@@ -1143,8 +1150,7 @@ bool DataRefs::LoadConfigFile()
     int errCnt = 0;
     while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN) {
         // read line and break into tokens, delimited by spaces
-        lnBuf[0] = 0;
-        fIn.getline(lnBuf, sizeof(lnBuf));
+        safeGetline(fIn, lnBuf);
         ln = str_tokenize(lnBuf, " ");
         
         // break out of loop if reading [CSLPaths]
@@ -1154,14 +1160,14 @@ bool DataRefs::LoadConfigFile()
         // otherwise should be 2 tokens
         if (ln.size() != 2) {
             // wrong number of words in that line
-            LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf);
+            LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf.c_str());
             errCnt++;
             continue;
         }
         
         // did read a name and a value?
         const std::string& sDataRef = ln[0];
-        const std::string& sVal     = ln[1];
+        std::string& sVal     = ln[1];
         if (!sDataRef.empty() && !sVal.empty()) {
             // verify that we know that name
             dataRefDefinitionT* i = std::find_if(std::begin(DATA_REFS_LT),
@@ -1169,7 +1175,22 @@ bool DataRefs::LoadConfigFile()
                                                  [&](const DataRefs::dataRefDefinitionT& def)
                                                  { return def.getDataNameStr() == sDataRef; } );
             if ( i != nullptr && i != std::cend(DATA_REFS_LT) &&
-                 i->isCfgFile()) {         // and it is a configurable one
+                 i->isCfgFile())        // and it is a configurable one
+            {
+                // conversion of older config file formats
+                switch (conv) {
+                    case CFG_NO_CONV: break;
+                    case CFG_KM_2_NM:           // distance values converted from km to nm
+                        if (*i == DATA_REFS_LT[DR_CFG_FULL_DISTANCE] ||
+                            *i == DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE])
+                        {
+                            // distances are int values, so we have to convert, then round to int:
+                            sVal = std::to_string(std::lround(std::stoi(sVal) *
+                                                  double(M_per_KM) / double(M_per_NM)));
+                        }
+                        break;
+                }
+                
                 // *** valid config entry, now process it ***
                 i->setData(sVal);
             }
@@ -1199,11 +1220,10 @@ bool DataRefs::LoadConfigFile()
         while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN)
         {
             // read line and break into tokens, delimited by spaces
-            lnBuf[0] = 0;
-            fIn.getline(lnBuf, sizeof(lnBuf));
+            safeGetline(fIn, lnBuf);
 
             // skip empty lines without warning
-            if (lnBuf[0] == 0)
+            if (lnBuf.empty())
                 continue;
             
             // line has to start with 0 or 1 and | to separate "enabled?" from path
@@ -1212,7 +1232,7 @@ bool DataRefs::LoadConfigFile()
                 ln[0].size() != 1 ||
                 (ln[0][0] != '0' && ln[0][0] != '1'))
             {
-                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), lnBuf);
+                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), lnBuf.c_str());
                 errCnt++;
                 continue;
             }
@@ -1229,8 +1249,8 @@ bool DataRefs::LoadConfigFile()
     if (!fIn && !fIn.eof()) {
         char sErr[SERR_LEN];
         strerror_s(sErr, sizeof(sErr), errno);
-        SHOW_MSG(logERR, ERR_CFG_FILE_READ,
-                 sFileName.c_str(), sErr);
+        LOG_MSG(logERR, ERR_CFG_FILE_READ,
+                sFileName.c_str(), sErr);
         return false;
     }
     
@@ -1239,8 +1259,8 @@ bool DataRefs::LoadConfigFile()
 
     // too many warnings?
     if (errCnt > ERR_CFG_FILE_MAXWARN) {
-        SHOW_MSG(logERR, ERR_CFG_FILE_READ,
-                 sFileName.c_str(), ERR_CFG_FILE_TOOMANY);
+        LOG_MSG(logERR, ERR_CFG_FILE_READ,
+                sFileName.c_str(), ERR_CFG_FILE_TOOMANY);
         return false;
     }
     

@@ -1,3 +1,10 @@
+TODO
+===
+
+TaxiLights
+
+Taxiing: Really stop (state 'Stopped') when running out of data
+
 TEST DATA
 ===
 
@@ -22,13 +29,6 @@ KLGA 0427/150600, a/c   AB2362=11.215.714 takes off
 much ground traffic     A4D65C=10.802.780 after landing
                         A32FA7=10.694.567
                         AA2BA5=11.152.293
-
-MUST
-===
-Packaging: Verify that included frameworks are
-- built with full optimizations
-- stripped debug symbols
-- are included as release versions
 
 DOCUMENTATION
 ===========

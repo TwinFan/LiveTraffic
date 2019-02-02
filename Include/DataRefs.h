@@ -196,7 +196,8 @@ public:
         // allows using the object in string context -> dataName
         inline const std::string getDataNameStr() const { return dataName; }
         inline const char* getDataName() const { return dataName.c_str(); }
-        operator const char* () const { return getDataName(); }
+        inline operator const char* () const { return getDataName(); }
+        inline bool operator == (const dataRefDefinitionT& o) { return dataName == o.dataName; }
         
         inline bool isWriteable () const { return (dataType == xplmType_Int)   ? (ifWrite != NULL) :
                                                   (dataType == xplmType_Float) ? (ffWrite != NULL) : false; }
@@ -314,8 +315,8 @@ protected:
     int labelColor      = COLOR_YELLOW; // label color, by default yellow
     int maxNumAc        = 50;           // how many aircrafts to create at most?
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
-    int fullDistance    = 5;            // kilometer: Farther away a/c is drawn 'lights only'
-    int fdStdDistance   = 25;           // kilometer to look for a/c around myself
+    int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
+    int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
@@ -416,10 +417,10 @@ public:
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
     inline int GetMaxFullNumAc() const { return maxFullNumAc; }
-    inline int GetFullDistance_km() const { return fullDistance; }
-    inline double GetFullDistance_nm() const { return fullDistance * double(M_per_KM) / double(M_per_NM); }
-    inline int GetFdStdDistance() const { return fdStdDistance; }
-    inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_KM; }
+    inline int GetFullDistance_nm() const { return fullDistance; }
+    inline int GetFdStdDistance_nm() const { return fdStdDistance; }
+    inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
+    inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }
     inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }

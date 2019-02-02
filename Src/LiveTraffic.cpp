@@ -158,16 +158,16 @@ PLUGIN_API int XPluginStart(
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
 
     // init DataRefs
-    if (!dataRefs.Init()) return 0;
+    if (!dataRefs.Init()) { DestroyWindow(); return 0; }
     
     // read FlightModel.prf file (which we could live without)
     LTAircraft::FlightModel::ReadFlightModelFile();
     
     // init Aircraft handling (including XPMP)
-    if (!LTMainInit()) return 0;
+    if (!LTMainInit()) { DestroyWindow(); return 0; }
     
     // create menu
-    if (!RegisterMenuItem()) return 0;
+    if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
     
     // Success
     return 1;
@@ -217,5 +217,8 @@ PLUGIN_API void    XPluginStop(void)
     
     // Cleanup dataRef registration
     dataRefs.Stop();
+    
+    // last chance to remove the message area window
+    DestroyWindow();
 }
 

@@ -121,6 +121,9 @@ std::string LTRemoveXPSystemPath (std::string path );
 // or 0 in case of errors
 int LTNumFilesInPath ( const std::string path );
 
+// read a text line no matter what line ending
+std::istream& safeGetline(std::istream& is, std::string& t);
+
 // MARK: Utility Functions
 // change a std::string to uppercase
 std::string& str_toupper(std::string& s);
