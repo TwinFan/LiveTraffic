@@ -134,7 +134,9 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_AC_INFO_WND_AUTO   "Aircraft Info (Auto-select)"
 #define MENU_SETTINGS_UI        "Settings..."
+#ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
+#endif
 
 //MARK: File Paths
 // these are under the plugins directory

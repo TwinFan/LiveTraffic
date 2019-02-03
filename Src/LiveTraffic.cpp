@@ -44,7 +44,9 @@ enum menuItems {
     MENU_ID_AC_INFO_WND,
     MENU_ID_AC_INFO_WND_AUTO,
     MENU_ID_SETTINGS_UI,
+#ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
+#endif
     CNT_MENU_ID                     // always last, number of elements
 };
 
@@ -72,9 +74,11 @@ void MenuHandler(void * /*mRef*/, void * iRef)
             case MENU_ID_SETTINGS_UI:
                 settingsUI.Show();
                 break;
+#ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
                 XPLMReloadPlugins();
                 break;
+#endif
         }
     } catch (const std::exception& e) {
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
@@ -120,6 +124,7 @@ int RegisterMenuItem ()
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
     if ( aMenuItems[MENU_ID_SETTINGS_UI]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     
+#ifdef DEBUG
     // Separator
     XPLMAppendMenuSeparator(menuID);
     
@@ -127,6 +132,7 @@ int RegisterMenuItem ()
     aMenuItems[MENU_ID_RELOAD_PLUGINS] =
         XPLMAppendMenuItem(menuID, MENU_RELOAD_PLUGINS, (void *)MENU_ID_RELOAD_PLUGINS,1);
     if ( aMenuItems[MENU_ID_RELOAD_PLUGINS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+#endif
 
     // Success
     LOG_MSG(logDEBUG,DBG_MENU_CREATED)
