@@ -1375,6 +1375,7 @@ bool DataRefs::SetDefaultAcIcaoType(const std::string type)
 {
     if (Doc8643::get(type) != DOC8643_EMPTY) {
         sDefaultAcIcaoType = type;
+        XPMPSetDefaultPlaneICAO(type.c_str());  // inform libxplanemp
         LOG_MSG(logINFO,CFG_DEFAULT_AC_TYP_INFO,sDefaultAcIcaoType.c_str());
         return true;
     }
