@@ -356,7 +356,7 @@ bool LTMainInit ()
     const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
     const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG));
     const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES));
+    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
     const char* cszResult = XPMPMultiplayerInitLegacyData
     (
         cslPath.c_str(),                // we pass in the first found CSL dir
