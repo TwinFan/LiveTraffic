@@ -121,13 +121,13 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Src\Include\;..\..\XPSDK\CHeaders\XPLM\;..\..\XPSDK\CHeaders\Widgets\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;CURL_STATICLIB;XPLM210;XPLM200;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>LiveTraffic.h</PrecompiledHeaderFile>
@@ -166,13 +166,13 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Src\Include\;..\..\XPSDK\CHeaders\XPLM\;..\..\XPSDK\CHeaders\Widgets\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;CURL_STATICLIB;XPLM210;XPLM200;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>LiveTraffic.h</PrecompiledHeaderFile>

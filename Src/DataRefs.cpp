@@ -701,7 +701,7 @@ double DataRefs::GetSimTime() const
     {
         // cache parts of the calculation as the difficult part can only
         // change at the full hour
-        static double cacheStartOfZuluDay = -1;
+        static time_t cacheStartOfZuluDay = -1;
         static int lastCalcZHour = -1;
         static int lastLocalDateDays = -1;
         
