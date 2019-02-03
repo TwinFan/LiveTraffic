@@ -1467,6 +1467,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.thrust            = 0.1f;
         surfaces.lights.timeOffset = (unsigned int)rand();
         surfaces.lights.landLights = dataRefs.GetLndLightsTaxi() ? 1 : 0;
+        surfaces.lights.taxiLights = 1;
         surfaces.lights.bcnLights  = 1;
         surfaces.lights.strbLights = 0;
         surfaces.lights.navLights  = 1;
@@ -1500,6 +1501,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // entered climb (from below)
     if (ENTERED(FPH_CLIMB)) {
+        surfaces.lights.taxiLights = 0;
         surfaces.thrust = 0.8f;
         flaps.up();
     }
@@ -1522,6 +1524,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // final
     if (ENTERED(FPH_FINAL)) {
+        surfaces.lights.taxiLights = 1;
         surfaces.lights.landLights = 1;
         surfaces.thrust = 0.3f;
         flaps.down();
@@ -1582,6 +1585,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         flaps.up();
         surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
         surfaces.thrust = 0.1f;
+        surfaces.lights.taxiLights = 1;
         surfaces.lights.landLights = dataRefs.GetLndLightsTaxi() ? 1 : 0;
         surfaces.lights.strbLights = 0;
     }
@@ -1634,11 +1638,12 @@ bool LTAircraft::YProbe ()
 // return a string indicating the use of nav/beacon/strobe/landing lights
 std::string LTAircraft::GetLightsStr() const
 {
-    char buf[20];
-    snprintf(buf, sizeof(buf), "%s/%s/%s/%s",
+    char buf[30];
+    snprintf(buf, sizeof(buf), "%s/%s/%s/%s/%s",
             surfaces.lights.navLights ? "nav" : "---",
             surfaces.lights.bcnLights ? "bcn" : "---",
             surfaces.lights.strbLights ? "strb" : "----",
+            surfaces.lights.taxiLights ? "taxi" : "----",
             surfaces.lights.landLights ? "land" : "----"
             );
     return std::string(buf);
