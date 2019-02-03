@@ -34,9 +34,6 @@
 //MARK: external references
 //
 
-// provided in LiveTraffic.cpp
-void MenuCheckAircraftsDisplayed ( int bChecked );
-
 // provided in LTFlightData.cpp
 extern mapLTFlightDataTy mapFd;
 
@@ -866,6 +863,7 @@ void DataRefs::SetAircraftsDisplayed ( int bEnable )
     
     // update menu item's checkmark
     MenuCheckAircraftsDisplayed ( bShowingAircrafts );
+    MenuCheckTCASControl(XPMPHasControlOfAIAircraft());
 }
 
 int DataRefs::ToggleAircraftsDisplayed ()

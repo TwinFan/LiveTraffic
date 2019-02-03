@@ -311,14 +311,4 @@ protected:
     virtual XPMPPlaneCallbackResult GetPlaneRadar(XPMPPlaneRadar_t* outRadar);
 };
 
-//MARK: Control functions
-// ( probably to be moved to a separate header )
-
-bool LTMainInit ();
-bool LTMainEnable ();
-bool LTMainShowAircraft ();
-void LTMainHideAircraft ();
-void LTMainDisable ();
-void LTMainStop ();
-
 #endif /* LTAircraft_h */

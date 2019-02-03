@@ -443,8 +443,7 @@ bool LTMainShowAircraft ()
     XPMPLoadPlanesIfNecessary();
     
     // Enable Multiplayer plane drawing, acquire multiuser planes
-    const char* cszResult = XPMPMultiplayerEnable();
-    if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
+    LTMainTryGetAIAircraft();
     
     // select aircrafts for display
     dataRefs.ChTsOffsetReset();             // reset network time offset
@@ -458,6 +457,27 @@ bool LTMainShowAircraft ()
     
     // success
     dataRefs.pluginState = STATE_SHOW_AC;
+    return true;
+}
+
+// Enable Multiplayer plane drawing, acquire multiuser planes
+bool LTMainTryGetAIAircraft ()
+{
+    // short-cut if we have control already
+    if (XPMPHasControlOfAIAircraft())
+        return true;
+    
+    const char* cszResult = XPMPMultiplayerEnable();
+    if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
+    
+    // If we don't control AI aircrafts we can't create TCAS blibs.
+    if (!XPMPHasControlOfAIAircraft()) {
+        // inform the use about this fact, but otherwise continue
+        MenuCheckTCASControl(false);
+        SHOW_MSG(logWARN,ERR_NO_TCAS);
+    } else {
+        MenuCheckTCASControl(true);
+    }
     return true;
 }
 

@@ -130,9 +130,10 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define XPPRF_RENOPT_HDR_ANTIAL "renopt_HDR_antial"
 
 //MARK: Menu Items
-#define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
-#define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_AC_INFO_WND_AUTO   "Aircraft Info (Auto-select)"
+#define MENU_AC_INFO_WND        "Aircraft Info..."
+#define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
+#define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_SETTINGS_UI        "Settings..."
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
@@ -162,6 +163,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
 #define ERR_XPMP_ENABLE         "Could not enable XPMPMultiplayer: %s"
+#define ERR_NO_TCAS             "LiveTraffic does not control AI planes and can therefore not create TCAS blibs!"
 #define ERR_XPMP_ADD_CSL        "Could not add additional CSL package: %s"
 #define ERR_APPEND_MENU_ITEM    "Could not append menu item"
 #define ERR_CREATE_MENU         "Could not create menu"

@@ -354,6 +354,14 @@ void XPMPMultiplayerDisable(void);
  * XPMPMultiplayerInit as much as possible.
  */
 void XPMPMultiplayerCleanup(void);
+    
+/*
+ * XPMPHasControlOfAIAircraft
+ *
+ * Does XPMP control AI aircrafts (after a call to XPMPMultiplayerEnable)
+ * and, hence, can fake TCAS display?
+ */
+bool XPMPHasControlOfAIAircraft(void);
 
 /*
  * XPMPLoadCSLPackage

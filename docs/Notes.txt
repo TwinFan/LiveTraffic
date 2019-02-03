@@ -1,10 +1,6 @@
 TODO
 ===
 
-TaxiLights
-
-Taxiing: Really stop (state 'Stopped') when running out of data
-
 TEST DATA
 ===
 

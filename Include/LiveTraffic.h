@@ -108,6 +108,18 @@
 // Global DataRef object, which also includes 'global' variables
 extern DataRefs dataRefs;
 
+//MARK: Global Control functions
+bool LTMainInit ();
+bool LTMainEnable ();
+bool LTMainShowAircraft ();
+bool LTMainTryGetAIAircraft ();
+void LTMainHideAircraft ();
+void LTMainDisable ();
+void LTMainStop ();
+
+void MenuCheckAircraftsDisplayed ( bool bChecked );
+void MenuCheckTCASControl ( bool bChecked );
+
 // MARK: Path helpers
 
 // deal with paths: make a full one from a relative one or keep a full path

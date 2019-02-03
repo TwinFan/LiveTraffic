@@ -40,9 +40,10 @@ LTSettingsUI settingsUI;
 
 //MARK: Reload Plugins menu item
 enum menuItems {
-    MENU_ID_TOGGLE_AIRCRAFTS = 0,
+    MENU_ID_AC_INFO_WND_AUTO = 0,
     MENU_ID_AC_INFO_WND,
-    MENU_ID_AC_INFO_WND_AUTO,
+    MENU_ID_TOGGLE_AIRCRAFTS,
+    MENU_ID_HAVE_TCAS,
     MENU_ID_SETTINGS_UI,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -61,15 +62,17 @@ void MenuHandler(void * /*mRef*/, void * iRef)
     try {
         // act based on menu id
         switch (reinterpret_cast<unsigned long long>(iRef)) {
-                
-            case MENU_ID_TOGGLE_AIRCRAFTS:
-                dataRefs.ToggleAircraftsDisplayed();
+            case MENU_ID_AC_INFO_WND_AUTO:
+                ACIWnd::OpenNewWnd(INFO_WND_AUTO_AC);
                 break;
             case MENU_ID_AC_INFO_WND:
                 ACIWnd::OpenNewWnd();
                 break;
-            case MENU_ID_AC_INFO_WND_AUTO:
-                ACIWnd::OpenNewWnd(INFO_WND_AUTO_AC);
+            case MENU_ID_TOGGLE_AIRCRAFTS:
+                dataRefs.ToggleAircraftsDisplayed();
+                break;
+            case MENU_ID_HAVE_TCAS:
+                LTMainTryGetAIAircraft();
                 break;
             case MENU_ID_SETTINGS_UI:
                 settingsUI.Show();
@@ -88,10 +91,17 @@ void MenuHandler(void * /*mRef*/, void * iRef)
     }
 }
 
-void MenuCheckAircraftsDisplayed ( int bChecked )
+void MenuCheckAircraftsDisplayed ( bool bChecked )
 {
     XPLMCheckMenuItem(// checkmark the menu item if aircrafts shown
                       menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
+                      bChecked ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+}
+
+void MenuCheckTCASControl ( bool bChecked )
+{
+    XPLMCheckMenuItem(// checkmark the menu item if TCAS under control
+                      menuID,aMenuItems[MENU_ID_HAVE_TCAS],
                       bChecked ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 }
 
@@ -104,21 +114,34 @@ int RegisterMenuItem ()
     menuID = XPLMCreateMenu(LIVE_TRAFFIC, XPLMFindPluginsMenu(), item, MenuHandler, NULL);
     if ( !menuID ) { LOG_MSG(logERR,ERR_CREATE_MENU); return 0; }
     
-    // Show Aircrafts
-    aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS] =
-        XPLMAppendMenuItem(menuID, MENU_TOGGLE_AIRCRAFTS, (void *)MENU_ID_TOGGLE_AIRCRAFTS,1);
-    if ( aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
-    // no checkmark symbol (but room for one later)
-    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
-
     // Open an aircraft info window
-    aMenuItems[MENU_ID_AC_INFO_WND] =
-    XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,1);
-    if ( aMenuItems[MENU_ID_AC_INFO_WND]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     aMenuItems[MENU_ID_AC_INFO_WND_AUTO] =
     XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND_AUTO, (void *)MENU_ID_AC_INFO_WND_AUTO,1);
     if ( aMenuItems[MENU_ID_AC_INFO_WND_AUTO]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    aMenuItems[MENU_ID_AC_INFO_WND] =
+    XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,1);
+    if ( aMenuItems[MENU_ID_AC_INFO_WND]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
 
+    // Separator
+    XPLMAppendMenuSeparator(menuID);
+    
+    // Show Aircrafts
+    aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS] =
+    XPLMAppendMenuItem(menuID, MENU_TOGGLE_AIRCRAFTS, (void *)MENU_ID_TOGGLE_AIRCRAFTS,1);
+    if ( aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    // no checkmark symbol (but room for one later)
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
+    
+    // Have/Get TCAS
+    aMenuItems[MENU_ID_HAVE_TCAS] =
+    XPLMAppendMenuItem(menuID, MENU_HAVE_TCAS, (void *)MENU_ID_HAVE_TCAS,1);
+    if ( aMenuItems[MENU_ID_HAVE_TCAS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    // no checkmark symbol (but room for one later)
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_HAVE_TCAS],xplm_Menu_Unchecked);
+    
+    // Separator
+    XPLMAppendMenuSeparator(menuID);
+    
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
