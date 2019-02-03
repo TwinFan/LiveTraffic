@@ -1420,7 +1420,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     int maxNumRequ = int(dataRefs.GetFdRefreshIntvl() / OPSKY_WAIT_BETWEEN) - 2;
     
     for (int i = 0;
-         i < maxNumRequ && bChannelOK && !listAc.empty();
+         i < maxNumRequ && bChannelOK && !listAc.empty() && !bFDMainStop;
          i++)
     {
         // fetch request from front of list and remove
