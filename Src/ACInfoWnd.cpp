@@ -87,6 +87,12 @@ enum ACI_WIDGET_IDX_T {
     ACI_CAP_SPEED_VSI,
     ACI_TXT_SPEED,
     ACI_TXT_VSI,
+    
+    ACI_BTN_CAMERA_VIEW,
+    ACI_BTN_VISIBLE,
+    ACI_CAP_VISIBLE,
+    ACI_BTN_AUTO_VISIBLE,
+    ACI_CAP_AUTO_VISIBLE,
 
     // always last: number of UI elements
     ACI_NUMBER_OF_ELEMENTS
@@ -96,7 +102,7 @@ enum ACI_WIDGET_IDX_T {
 // window will be centered shortly before presenting it
 TFWidgetCreate_t ACI_WND[] =
 {
-    {   0,   0, 270, 330, 1, "LiveTraffic A/C Info", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
+    {   0,   0, 270, 350, 1, "LiveTraffic A/C Info", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
     {   5,  20,  95,  10, 1, "A/C key | Registr.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  20,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_TextField,{xpProperty_TextFieldType,xpTextTranslucent, xpProperty_MaxCharacters,8, 0,0} },
     { 195,  20,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
@@ -149,6 +155,12 @@ TFWidgetCreate_t ACI_WND[] =
     {   5, 315,  95,  10, 1, "Speed [kn] | VSI [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 315,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 195, 315,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    
+    {  33, 335,  50,  10, 1, "Camera",              0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    { 110, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    { 120, 332,  55,  10, 1, "Visible",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 185, 335,  10,  10, 0, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    { 195, 332,  55,  10, 0, "Auto Visible",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
 };
 
@@ -237,19 +249,19 @@ void TFACSearchEditWidget::SetTranspIcao (const std::string _icao)
 //       which is the same thread as this here is running in.
 //       So we can safely assume the returned pointer is valid until
 //       we return. But not any longer.
-const LTFlightData* TFACSearchEditWidget::GetFlightData () const
+LTFlightData* TFACSearchEditWidget::GetFlightData () const
 {
     // find the flight data by key
-    mapLTFlightDataTy::const_iterator fdIter = mapFd.find(transpIcao);
+    mapLTFlightDataTy::iterator fdIter = mapFd.find(transpIcao);
     // return flight data if found
     return fdIter != mapFd.end() ? &fdIter->second : nullptr;
 
 }
 
 // even if FlightData existis, a/c might still be NULL if not yet created!
-const LTAircraft* TFACSearchEditWidget::GetAircraft () const
+LTAircraft* TFACSearchEditWidget::GetAircraft () const
 {
-    const LTFlightData* pFD = GetFlightData();
+    LTFlightData* pFD = GetFlightData();
     return pFD ? pFD->GetAircraft() : nullptr;
 }
 
@@ -328,6 +340,13 @@ widgetIds(nullptr)
     valSpeed.setId(widgetIds[ACI_TXT_SPEED]);
     valVSI.setId(widgetIds[ACI_TXT_VSI]);
     
+    // buttons for camera view and visibility
+    btnVisible.setId(widgetIds[ACI_BTN_VISIBLE]);
+    btnAutoVisible.setId(widgetIds[ACI_BTN_AUTO_VISIBLE]);
+    capAutoVisible.setId(widgetIds[ACI_CAP_AUTO_VISIBLE]);
+    btnAutoVisible.Show(dataRefs.IsAutoHidingActive());    // show button only if visibility is restricted
+    capAutoVisible.Show(dataRefs.IsAutoHidingActive());
+
     // center the UI
     Center();
 
@@ -370,7 +389,7 @@ ACIWnd* ACIWnd::OpenNewWnd (const char* szIcao)
 bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 {
     // not my key field?
-    if (textWidget != txtAcKey.getId() )
+    if (txtAcKey != textWidget)
         return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
     
     // my key changed!
@@ -394,7 +413,45 @@ bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
     return true;
 }
 
-// triggered every seond to update values in the window
+// handles visibility buttons
+bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
+{
+    LTAircraft* pAc = txtAcKey.GetAircraft();
+    if (pAc)
+    {
+        if (btnVisible == buttonWidget) {
+            // visibility set directly, auto-visibility will be off then
+            pAc->SetVisible(bNowChecked);
+            btnAutoVisible.SetChecked(pAc->IsAutoVisible());
+            return true;
+        }
+        else if (btnAutoVisible == buttonWidget) {
+            // auto-visibility changed...returns current a/c visibiliy
+            btnVisible.SetChecked(pAc->SetAutoVisible(bNowChecked));
+            return true;
+        }
+    }
+
+    // pass on in class hierarchy
+    return TFMainWindowWidget::MsgButtonStateChanged(buttonWidget, bNowChecked);
+}
+
+bool ACIWnd::MsgPushButtonPressed (XPWidgetID buttonWidget)
+{
+    if (buttonWidget == widgetIds[ACI_BTN_CAMERA_VIEW]) {
+        // Call a/c camera view
+        // need a valid pointer
+        const LTAircraft* pAc = txtAcKey.GetAircraft();
+        if (pAc)
+            pAc->StartCameraView();
+        return true;
+    }
+    
+    // pass on in class hierarchy
+    return TFMainWindowWidget::MsgPushButtonPressed(buttonWidget);
+}
+
+// triggered every second to update values in the window
 bool ACIWnd::TfwMsgMain1sTime ()
 {
     TFMainWindowWidget::TfwMsgMain1sTime();
@@ -452,7 +509,7 @@ void ACIWnd::UpdateStatValues()
 
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], stat.call.c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_FLIGHT_ROUTE], stat.flightRoute().c_str());
-
+        
         // start the timer for regular dyn data updates
         StartStopTimerMessages(true);
         
@@ -528,6 +585,13 @@ void ACIWnd::UpdateDynValues()
             valAGL.SetDescriptor(pAc->GetPHeight_ft());
         valSpeed.SetDescriptor(pAc->GetSpeed_kt());
         valVSI.SetDescriptor(pAc->GetVSI_ft());
+        
+        // visibility buttons
+        btnVisible.SetChecked(pAc->IsVisible());
+        btnAutoVisible.SetChecked(pAc->IsAutoVisible());
+        btnAutoVisible.Show(dataRefs.IsAutoHidingActive());    // show button only if visibility is restricted
+        capAutoVisible.Show(dataRefs.IsAutoHidingActive());
+
     } else {
         // no current a/c
         // clear all values
@@ -539,6 +603,9 @@ void ACIWnd::UpdateDynValues()
             ACI_TXT_ALT, ACI_TXT_AGL, ACI_TXT_SPEED, ACI_TXT_VSI
         })
             XPSetWidgetDescriptor(widgetIds[i], "");
+
+        btnVisible.SetChecked(false);
+        btnAutoVisible.SetChecked(false);
     }
     
     if (bAutoAc)

@@ -67,6 +67,9 @@ constexpr double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to 
 constexpr double FD_GND_AGL =       10;         // [ft] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
+constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
+constexpr double AC_HIDE_LON        =  -8.264134;
+constexpr double AC_HIDE_ALT        = 50;
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -111,6 +114,10 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
 #define INFO_WND_AUTO_AC        "AUTO"
+#define INFO_AC_HIDDEN          "A/c %s hidden"
+#define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
+#define INFO_AC_SHOWN           "A/c %s visible"
+#define INFO_AC_SHOWN_AUTO      "A/c %s automatically visible"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
 #define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"

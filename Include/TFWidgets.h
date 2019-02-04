@@ -127,7 +127,8 @@ public:
     // this allows using '*this' as widget id
     operator XPWidgetID() const { return me; }
     XPWidgetID getId() const { return me; }
-    bool operator == (const TFWidget& w) const { return me == w.me; }
+    inline bool operator == (const TFWidget& w) const { return me == w.me; }
+    inline bool operator == (XPWidgetID wid) const    { return me == wid; }
     
 public:
     // static message dispatching

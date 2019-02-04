@@ -51,8 +51,8 @@ public:
     bool HasTranspIcao () const { return !transpIcao.empty(); }
     const std::string GetTranspIcao () const { return transpIcao; }
     unsigned int GetTranspIcaoInt () const { return (unsigned)strtoul (transpIcao.c_str(), NULL, 16); }
-    const LTFlightData* GetFlightData () const;
-    const LTAircraft* GetAircraft () const;
+    LTFlightData* GetFlightData () const;
+    LTAircraft* GetAircraft () const;
     
 protected:
     // capture entry into the key field
@@ -78,6 +78,10 @@ protected:
     TFWidget valGear, valFlaps, valLights;
     TFWidget valHeading, valPitch, valRoll, valAlt, valAGL, valSpeed, valVSI;
     
+    // check boxes for visibility
+    TFButtonWidget btnVisible, btnAutoVisible;
+    TFWidget capAutoVisible;
+    
 public:
     ACIWnd(const char* szKey = nullptr);
     ACIWnd(bool bAuto) : ACIWnd(bAuto ? INFO_WND_AUTO_AC : nullptr) {}
@@ -92,6 +96,9 @@ public:
 protected:
     // capture entry into the key field
     virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
+    // handles visibility buttons
+    virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);
+    virtual bool MsgPushButtonPressed (XPWidgetID buttonWidget);
     // triggered every seond to update values in the window
     virtual bool TfwMsgMain1sTime ();
     // Updated myself

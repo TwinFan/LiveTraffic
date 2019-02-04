@@ -251,6 +251,11 @@ protected:
     
     // object valid? (set to false after exceptions)
     bool                bValid;
+    
+    // visibility
+    bool                bVisible = true;        // is a/c visible?
+    bool                bSetVisible = true;     // manually set visible?
+    bool                bAutoVisible = true;    // visibility handled automatically?
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -297,6 +302,12 @@ public:
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
     void SetInvalid() { bValid = false; }
+    // Visibility
+    inline bool IsVisible() const { return bVisible; }
+    inline bool IsAutoVisible() const { return bAutoVisible; }
+    void SetVisible (bool b);           // define visibility, overrides auto
+    bool SetAutoVisible (bool b);       // returns bVisible after auto setting
+    void StartCameraView() const;       // start an external view on this a/c
 
 protected:
     // based on current sim time and posList calculate the present position
@@ -304,6 +315,8 @@ protected:
     // determine other parameters like gear, flap, roll etc. based on flight model assumptions
     void CalcFlightModel (const positionTy& from, const positionTy& to);
     bool YProbe ();
+    // determines if now visible
+    bool CalcVisible ();
 
     // XPMP Aircraft Updates (callbacks)
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);

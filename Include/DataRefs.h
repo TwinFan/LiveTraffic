@@ -144,6 +144,8 @@ enum dataRefsLT {
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_AC_OUTDATED_INTVL,
     DR_CFG_LND_LIGHTS_TAXI,
+    DR_CFG_HIDE_BELOW_AGL,
+    DR_CFG_HIDE_TAXIING,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
     DR_CHANNEL_OPEN_SKY_ONLINE,
@@ -321,6 +323,8 @@ protected:
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
+    int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
+    int hideTaxiing     = 0;            // hide a/c while taxiing?
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
@@ -425,6 +429,9 @@ public:
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
+    inline int GetHideBelowAGL() const { return hideBelowAGL; }
+    inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
+    inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
 
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }

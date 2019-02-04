@@ -299,7 +299,7 @@ public:
     bool AircraftMaintenance ( double simTime );    // returns: delete me?
     bool CreateAircraft ( double simTime );
     void DestroyAircraft ();
-    const LTAircraft* GetAircraft () const { return pAc; }
+    LTAircraft* GetAircraft () const { return pAc; }
     
     // treating mapFd as lists
     static const LTFlightData* FindFocusAc (const double bearing);

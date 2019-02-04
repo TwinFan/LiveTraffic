@@ -216,8 +216,11 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_INT_FD_BUF_PERIOD,
     UI_ADVCD_CAP_AC_OUTDATED_INTVL,
     UI_ADVCD_INT_AC_OUTDATED_INTVL,
+    UI_ADVCD_CAP_HIDE_BELOW_AGL,
+    UI_ADVCD_INT_HIDE_BELOW_AGL,
+    UI_ADVCD_BTN_HIDE_TAXIING,
     UI_ADVCD_BTN_LND_LIGHTS_TAXI,
-    
+
     // "CSL" tab
     UI_CSL_SUB_WND,
     UI_CSL_CAP_PATHS,
@@ -348,7 +351,10 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 230, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
     {   5, 170, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {  10, 190,  10,  10, 1, "Keep landing lights on during taxi", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5, 190, 225,  10, 1, "No a/c below [ft AGL]",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 190,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    {  10, 210,  10,  10, 1, "Hide a/c while taxiing", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 230,  10,  10, 1, "Keep landing lights on during taxi", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     // "CSL" tab
     {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -503,10 +509,6 @@ void LTSettingsUI::Enable()
         logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
         HookButtonGroup(logLevelGrp);
         
-        // landing lights during taxi?
-        btnAdvcdLndLightsTaxi.setId(widgetIds[UI_ADVCD_BTN_LND_LIGHTS_TAXI],
-                                    DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
-        
         // link some buttons directly to dataRefs:
         intMaxNumAc.setId(widgetIds[UI_ADVCD_INT_MAX_NUM_AC],
                           DATA_REFS_LT[DR_CFG_MAX_NUM_AC]);
@@ -522,7 +524,18 @@ void LTSettingsUI::Enable()
                           DATA_REFS_LT[DR_CFG_FD_BUF_PERIOD]);
         intAcOutdatedIntvl.setId(widgetIds[UI_ADVCD_INT_AC_OUTDATED_INTVL],
                           DATA_REFS_LT[DR_CFG_AC_OUTDATED_INTVL]);
+        intHideBelowAGL.setId(widgetIds[UI_ADVCD_INT_HIDE_BELOW_AGL],
+                          DATA_REFS_LT[DR_CFG_HIDE_BELOW_AGL]);
+
+        // hide a/c while taxiing?
+        btnHideTaxiing.setId(widgetIds[UI_ADVCD_BTN_HIDE_TAXIING],
+                             DATA_REFS_LT[DR_CFG_HIDE_TAXIING]);
         
+        // landing lights during taxi?
+        btnAdvcdLndLightsTaxi.setId(widgetIds[UI_ADVCD_BTN_LND_LIGHTS_TAXI],
+                                    DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
+        
+
         // *** CSL ***
         // Initialize all paths (3 elements each: check box, text field, button)
         const DataRefs::vecCSLPaths& paths = dataRefs.GetCSLPaths();
@@ -600,7 +613,7 @@ void LTSettingsUI::Show (bool bShow)
 bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 {
     // *** Advanced ***
-    if (textWidget == txtDebugFilter.getId() ) {
+    if (txtDebugFilter == textWidget) {
         // set the filter a/c if defined
         if (txtDebugFilter.HasTranspIcao())
             DataRefs::LTSetDebugAcFilter(NULL,txtDebugFilter.GetTranspIcaoInt());
@@ -619,12 +632,12 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
     
     // if the types change we store them (and if setting fails after validation,
     // then  we restore the current value)
-    if (txtDefaultAcType.getId() == textWidget) {
+    if (txtDefaultAcType == textWidget) {
         if (!dataRefs.SetDefaultAcIcaoType(text))
             txtDefaultAcType.SetDescriptor(dataRefs.GetDefaultAcIcaoType());
         return true;
     }
-    if (txtGroundVehicleType.getId() == textWidget) {
+    if (txtGroundVehicleType == textWidget) {
         if (!dataRefs.SetDefaultCarIcaoType(text))
             txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
         return true;
@@ -632,9 +645,9 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 
     // *** Debug ***
     // save forced model matching parameters
-    if (txtFixAcType.getId() == textWidget  ||
-        txtFixOp.getId() == textWidget      ||
-        txtFixLivery.getId() == textWidget)
+    if (txtFixAcType == textWidget  ||
+        txtFixOp     == textWidget  ||
+        txtFixLivery == textWidget)
     {
         dataRefs.cslFixAcIcaoType   = txtFixAcType.GetDescriptor();
         dataRefs.cslFixOpIcao       = txtFixOp.GetDescriptor();

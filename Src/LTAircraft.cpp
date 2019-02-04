@@ -1308,6 +1308,9 @@ bool LTAircraft::CalcPPos()
         }
     }
     
+    // are we visible?
+    CalcVisible();
+    
     // success
     return true;
 }
@@ -1650,6 +1653,66 @@ std::string LTAircraft::GetLightsStr() const
 }
 
 //
+// MARK: Visibility
+//
+
+// defines visibility, overrides auto visibility
+void LTAircraft::SetVisible (bool b)
+{
+    bAutoVisible = false;
+    bSetVisible = b;
+    if (b != bVisible)                  // is new visibility a change?
+    {
+        bVisible = b;
+        LOG_MSG(logINFO, bVisible ? INFO_AC_SHOWN : INFO_AC_HIDDEN,
+                labelInternal.c_str());
+    }
+}
+
+// defines auto visibility, returns if (now) visible
+bool LTAircraft::SetAutoVisible (bool b)
+{
+    bAutoVisible = b;
+    return CalcVisible();
+}
+
+// calculates if the a/c is visible
+bool LTAircraft::CalcVisible ()
+{
+    // possible change...save old value for comparison
+    bool bPrevVisible = bVisible;
+    
+    // automatic is off -> take over manually given state
+    if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
+        bVisible = bSetVisible;
+    // hide while taxiing...and we are taxiing?
+    else if (dataRefs.GetHideTaxiing() &&
+        (phase == FPH_TAXI || phase == FPH_STOPPED_ON_RWY))
+        bVisible = false;
+    // hide below certain height...and we are below that?
+    else if (dataRefs.GetHideBelowAGL() > 0 &&
+             GetPHeight_ft() < dataRefs.GetHideBelowAGL())
+        bVisible = false;
+    else
+        // otherwise we are visible
+        bVisible = true;
+    
+    // inform about a change
+    if (bPrevVisible != bVisible)
+        LOG_MSG(logINFO, bVisible ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
+                labelInternal.c_str());
+
+    // return new visibility
+    return bVisible;
+}
+
+// start an outside camery view
+void LTAircraft::StartCameraView() const
+{
+    // TODO: implement
+}
+
+//
 //MARK: XPMP Aircraft Updates (callbacks)
 //
 //NOTE: These callbacks are entry points into LiveTraffic code.
@@ -1675,7 +1738,17 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized
             CalcPPos())
         {
-            *outPosition = ppos;                // copy ppos (by type conversion), and add the label
+            // copy ppos (by type conversion)
+            *outPosition = ppos;
+            
+            // if invisible move a/c to unreachable position
+            if (!IsVisible()) {
+                outPosition->lat = AC_HIDE_LAT;
+                outPosition->lon = AC_HIDE_LON;
+                outPosition->elevation = AC_HIDE_ALT;
+            }
+            
+            // add the label
             memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));
             // color depends on setting and maybe model
             if (dataRefs.IsLabelColorDynamic())
