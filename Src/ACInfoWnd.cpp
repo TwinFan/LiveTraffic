@@ -441,7 +441,7 @@ bool ACIWnd::MsgPushButtonPressed (XPWidgetID buttonWidget)
     if (buttonWidget == widgetIds[ACI_BTN_CAMERA_VIEW]) {
         // Call a/c camera view
         // need a valid pointer
-        const LTAircraft* pAc = txtAcKey.GetAircraft();
+        LTAircraft* pAc = txtAcKey.GetAircraft();
         if (pAc)
             pAc->StartCameraView();
         return true;

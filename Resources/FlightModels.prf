@@ -35,6 +35,9 @@ PITCH_FLARE           10    # [°] pitch during flare
 PITCH_RATE             5    # [°/s] pitch rate of change
 LIGHT_PATTERN          0    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 LIGHT_LL_ALT       10000    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
+EXT_CAMERA_LON_OFS   -45    # longitudinal external camera offset
+EXT_CAMERA_LAT_OFS     0    # lateral...
+EXT_CAMERA_VERT_OFS   20    # vertical...
 
 # The following sections uses [MediumJets] as parent: It only overrides
 # some values of the [MediumJets] section
@@ -50,6 +53,9 @@ PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_RATE             2.5  # [°/s] pitch rate of change
 LABEL_COLOR       FF0000    # red label for huge jets
+EXT_CAMERA_LON_OFS   -70    # longitudinal external camera offset
+EXT_CAMERA_LAT_OFS     0    # lateral...
+EXT_CAMERA_VERT_OFS   30    # vertical...
 
 [HugeAirbus:HugeJets]
 LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
@@ -57,11 +63,17 @@ LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultip
 [MediumProps:MediumJets]
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
+EXT_CAMERA_LON_OFS   -20    # longitudinal external camera offset
+EXT_CAMERA_LAT_OFS     0    # lateral...
+EXT_CAMERA_VERT_OFS   10    # vertical...
 
 [BizJet:MediumJets]
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
 LABEL_COLOR       00F0F0    # light blue labels for business jets
+EXT_CAMERA_LON_OFS   -20    # longitudinal external camera offset
+EXT_CAMERA_LAT_OFS     0    # lateral...
+EXT_CAMERA_VERT_OFS   10    # vertical...
 
 [GA:MediumJets]
 ROTATE_TIME            2    # [s] to rotate before lift off
@@ -86,6 +98,9 @@ PITCH_RATE             5    # [°/s] pitch rate of change
 LIGHT_PATTERN          2    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
 LABEL_COLOR       00FF00    # green labels for GA and smaller
+EXT_CAMERA_LON_OFS   -10    # longitudinal external camera offset
+EXT_CAMERA_LAT_OFS     0    # lateral...
+EXT_CAMERA_VERT_OFS    5    # vertical...
 
 [LightAC:GA]
 VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable

@@ -166,6 +166,9 @@ public:
         int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
+        double EXT_CAMERA_LON_OFS =-45;   // longitudinal external camera offset
+        double EXT_CAMERA_LAT_OFS =  0;   // lateral...
+        double EXT_CAMERA_VERT_OFS= 20;   // vertical...
         
         // modelName is key, so base comparison on it
     public:
@@ -256,6 +259,8 @@ protected:
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
+    bool                bExternalView = false;  // is this the plane in external view?
+    static bool         bStopExternalView;      // signal to external view to stop (due to a/c deleted)
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -307,7 +312,7 @@ public:
     inline bool IsAutoVisible() const { return bAutoVisible; }
     void SetVisible (bool b);           // define visibility, overrides auto
     bool SetAutoVisible (bool b);       // returns bVisible after auto setting
-    void StartCameraView() const;       // start an external view on this a/c
+    void StartCameraView();             // start an external view on this a/c
 
 protected:
     // based on current sim time and posList calculate the present position
@@ -317,6 +322,11 @@ protected:
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();
+    
+    // callback for external camera view
+    static int CameraCB (XPLMCameraPosition_t* outCameraPosition,    /* Can be NULL */
+                         int                   inIsLosingControl,
+                         void *                inRefcon);
 
     // XPMP Aircraft Updates (callbacks)
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);

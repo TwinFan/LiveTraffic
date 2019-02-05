@@ -543,6 +543,9 @@ bool fm_processModelLine (const char* fileName, int ln,
         fm.LIGHT_PATTERN = (int)val;
     }
     else FM_ASSIGN(LIGHT_LL_ALT);
+    else FM_ASSIGN(EXT_CAMERA_LON_OFS);
+    else FM_ASSIGN(EXT_CAMERA_LAT_OFS);
+    else FM_ASSIGN(EXT_CAMERA_VERT_OFS);
     else {
         LOG_MSG(logWARN, ERR_FM_UNKNOWN_NAME, fileName, ln, text.c_str());
         return false;
@@ -902,6 +905,10 @@ bValid(true)
 // Destructor
 LTAircraft::~LTAircraft()
 {
+    // make sure external view doesn't use this aircraft any longer
+    if (bExternalView)
+        bStopExternalView = true;
+    
     // Release probe handle
     if (probeRef)
         XPLMDestroyProbe(probeRef);
@@ -1706,11 +1713,63 @@ bool LTAircraft::CalcVisible ()
     return bVisible;
 }
 
+//
+// MARK: External View
+//
+
+bool LTAircraft::bStopExternalView = false;
+
 // start an outside camery view
-void LTAircraft::StartCameraView() const
+void LTAircraft::StartCameraView()
 {
-    // TODO: implement
+    // set flags for external view
+    bStopExternalView = false;
+    bExternalView = true;
+    XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, this);
 }
+
+// callback for external camera view
+int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
+                          int                   inIsLosingControl,
+                          void *                inRefcon)
+{
+    // shall not touch this a/c any longer?
+    if (bStopExternalView || !inRefcon)
+        return 0;
+    
+    // What's the aircraft?
+    LTAircraft* pAc = reinterpret_cast<LTAircraft*>(inRefcon);
+
+    // Loosing control? So be it...
+    if (inIsLosingControl || !outCameraPosition)
+    {
+        pAc->bExternalView = false;
+        return 0;
+    }
+    
+    // we have camera contro, what's our position?
+    positionTy pos = pAc->GetPPos();
+    // move position back along the longitudinal axes
+    pos += vectorTy (pAc->GetTrack(), pAc->mdl.EXT_CAMERA_LON_OFS);
+    // move position a bit to the side
+    pos += vectorTy (pAc->GetTrack()+90, pAc->mdl.EXT_CAMERA_LAT_OFS);
+    // and move a bit up
+    pos.alt_m() += pAc->mdl.EXT_CAMERA_VERT_OFS;
+    // convert to
+    pos.WorldToLocal();
+    
+    // fill output structure
+    outCameraPosition->x = pos.X();
+    outCameraPosition->y = pos.Y();
+    outCameraPosition->z = pos.Z();
+    outCameraPosition->heading = pAc->GetHeading();
+    outCameraPosition->pitch = MDL_EXT_CAMERA_PITCH;
+    outCameraPosition->roll = 0;
+    outCameraPosition->zoom = 1;
+    
+    return 1;
+}
+
 
 //
 //MARK: XPMP Aircraft Updates (callbacks)
