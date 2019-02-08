@@ -544,7 +544,7 @@ void ACIWnd::UpdateDynValues()
         // update all field values
         const positionTy& pos = pAc->GetPPos();
         double ts = dataRefs.GetSimTime();
-        valSquawk.SetDescriptor(dyn.radar.code);
+        valSquawk.SetDescriptor(dyn.GetSquawk());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_DISPLAYED_USING],
                               strAtMost(pAc->GetModelName(),25).c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_SIM_TIME], ts2string(time_t(ts)).c_str());
@@ -572,7 +572,7 @@ void ACIWnd::UpdateDynValues()
         valHeading.SetDescriptor(pos.heading());
         valPitch.SetDescriptor(pAc->GetPitch());
         valRoll.SetDescriptor(pAc->GetRoll());
-        valAlt.SetDescriptor(pos.alt_ft());
+        valAlt.SetDescriptor(round(pos.alt_ft()));
         if (pos.IsOnGnd())
             valAGL.SetDescriptor(positionTy::GrndE2String(positionTy::GND_ON));
         else

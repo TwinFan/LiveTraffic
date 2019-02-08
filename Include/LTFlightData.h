@@ -95,7 +95,8 @@ public:
         inline bool operator< (const FDDynamicData& d) const { return ts < d.ts; }
         // purely timestamp-based comparion with positionTy
         inline int cmp (const positionTy& p)            const { return ts < p.ts() ? -1 : (ts > p.ts() ? 1 : 0); }
-
+        // formatted Squawk Code
+        std::string GetSquawk() const;
     };
     
     typedef std::deque<FDDynamicData> dequeFDDynDataTy;

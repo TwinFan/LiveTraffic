@@ -59,6 +59,19 @@ pChannel(nullptr)
     radar.mode = xpmpTransponderMode_ModeC;
 }
 
+// formatted Squawk Code
+std::string LTFlightData::FDDynamicData::GetSquawk() const
+{
+    if (radar.code <= 0 || radar.code > 9999)
+        return "-";
+    else
+    {
+        char s[10];
+        snprintf(s, sizeof(s), "%04ld", radar.code);
+        return std::string(s);
+    }
+}
+
 LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDStaticData& other)
 {
     // copy filled, and only filled data over current data
@@ -232,12 +245,11 @@ bool LTFlightData::IsMatch (const std::string t) const
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
-        // compare with registration, flight number
-        if (statData.flight == t || statData.reg == t)
-            return true;
-        
-        // finally compare with call sign
-        if (statData.call == t)
+        // compare with registration, flight number, call sign, squawk code
+        if (statData.flight == t    ||
+            statData.reg == t       ||
+            statData.call == t      ||
+            GetUnsafeDyn().GetSquawk() == t)
             return true;
         
         // no match
@@ -328,7 +340,7 @@ void LTFlightData::UpdateStaticLabel()
 }
 
 // produce a/c label
-#define ADD_LABEL_NUM(b,num) if (b) { label += std::to_string(long(num)); label += ' '; }
+#define ADD_LABEL_NUM(b,num) if (b) { label += std::to_string(lround(num)); label += ' '; }
 std::string LTFlightData::ComposeLabel() const
 {
     try {
