@@ -720,6 +720,7 @@
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
+				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
@@ -790,6 +791,7 @@
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LIBRARY_SEARCH_PATHS = /Users/birger/Programming/Frameworks;
+				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
