@@ -1622,30 +1622,34 @@ bool LTAircraft::YProbe ()
 {
     // short-cut if not yet due
     // (we do probes only every so often, more often close to the ground,
-    //  but less often high up in the air)
-    if ( currCycle.simTime < probeNextTs )
+    //  but less often high up in the air,
+    //  and every frame if were in camera view on the ground)
+    if ( !(IsInCameraView() && IsOnGrnd()) && currCycle.simTime < probeNextTs )
         return true;
     
     // This is terrain altitude right beneath us in [ft]
     terrainAlt = YProbe_at_m(ppos, probeRef) / M_per_FT;
     
-    // lastly determine when to do a probe next, more often if closer to the ground
-    static_assert(sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
-    for ( size_t i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
+    if (currCycle.simTime >= probeNextTs)
     {
-        if ( ppos.alt_ft() - terrainAlt >= PROBE_HEIGHT_LIM[i] ) {
-            probeNextTs = currCycle.simTime + PROBE_DELAY[i];
-            break;
+        // lastly determine when to do a probe next, more often if closer to the ground
+        static_assert(sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
+        for ( size_t i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
+        {
+            if ( ppos.alt_ft() - terrainAlt >= PROBE_HEIGHT_LIM[i] ) {
+                probeNextTs = currCycle.simTime + PROBE_DELAY[i];
+                break;
+            }
         }
+        LOG_ASSERT_FD(fd,probeNextTs > currCycle.simTime);
+        
+        // *** unrelated to YProbe...just makes use of the "calc every so often" mechanism
+        
+        // calc current bearing and distance for pure informational purpose ***
+        vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
+        // update the a/c label with fresh values
+        LabelUpdate();
     }
-    LOG_ASSERT_FD(fd,probeNextTs > currCycle.simTime);
-    
-    // *** unrelated to YProbe...just makes use of the "calc every so often" mechanism
-    
-    // calc current bearing and distance for pure informational purpose ***
-    vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
-    // update the a/c label with fresh values
-    LabelUpdate();
     
     // Success
     return true;
@@ -1752,11 +1756,6 @@ void LTAircraft::CalcCameraViewPos()
     if (IsInCameraView()) {
         posExt = ppos;
         
-        // to stay exactly aligned with the aircraft we need to
-        // redo the altitude calculation the way it will happen in the
-        // multiplayer lib later. This is due to us rounding in the alt_ft function.
-        posExt.alt_m() = posExt.alt_ft() * M_per_FT;
-        
         // move position back along the longitudinal axes
         posExt += vectorTy (GetHeading(), mdl.EXT_CAMERA_LON_OFS);
         // move position a bit to the side
@@ -1786,20 +1785,8 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
         return 0;
     }
     
-    // we have camera contro, what's our position?
-/*
-    positionTy pos = pExtViewAc->GetPPos();
-    // move position back along the longitudinal axes
-    pos += vectorTy (pExtViewAc->GetHeading(), pExtViewAc->mdl.EXT_CAMERA_LON_OFS);
-    // move position a bit to the side
-    pos += vectorTy (pExtViewAc->GetHeading()+90, pExtViewAc->mdl.EXT_CAMERA_LAT_OFS);
-    // and move a bit up
-    pos.alt_m() += pExtViewAc->mdl.EXT_CAMERA_VERT_OFS;
-    // convert to
-    pos.WorldToLocal();
- */
-
-    // fill output structure
+    // we have camera control, position has been calculated already in CalcPPos,
+    // take it from posExt, fill output structure
     outCameraPosition->x = posExt.X();
     outCameraPosition->y = posExt.Y();
     outCameraPosition->z = posExt.Z();

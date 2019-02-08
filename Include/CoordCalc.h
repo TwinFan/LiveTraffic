@@ -152,7 +152,7 @@ public:
     inline double lat()     const { return v[LAT]; }
     inline double lon()     const { return v[LON]; }
     inline double alt_m()   const { return v[ALT]; }                    // in meter
-    inline double alt_ft()  const { return round(alt_m()/M_per_FT); }   // in feet
+    inline double alt_ft()  const { return alt_m()/M_per_FT; }   // in feet
     inline double ts()      const { return v[TS]; }
     inline double heading() const { return v[HEADING]; }
     inline double pitch()   const { return v[PITCH]; }

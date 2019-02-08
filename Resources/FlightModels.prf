@@ -20,7 +20,7 @@ SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not av
 AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             25    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        50    # [kt] below that: taxi, above that: take-off/roll-out
+MAX_TAXI_SPEED        30    # [kt] below that: taxi, above that: take-off/roll-out
 TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
 FLAPS_UP_SPEED       180    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     200    # [kt] above that: descend, below that: approach
