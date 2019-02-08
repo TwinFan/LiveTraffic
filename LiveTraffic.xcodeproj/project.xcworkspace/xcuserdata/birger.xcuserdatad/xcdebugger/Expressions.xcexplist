@@ -31,6 +31,17 @@
          contextName = "TFWidget::Show(bool):TFWidgets.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTAircraft::GetPlanePosition(XPMPPlanePosition_t*):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "prevPos">
+            </PersistentString>
+            <PersistentString
+               value = "ppos">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "positionListFindBefore(std::__1::list&lt;positionTy, std::__1::allocator&lt;positionTy&gt; &gt; const&amp;, double):CoordCalc.cpp">
       </ContextState>
       <ContextState
@@ -103,6 +114,9 @@
       </ContextState>
       <ContextState
          contextName = "ADSBExchangeConnection::FetchAllAircrafts(positionTy const&amp;, LTFlightDataMap&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::Init():DataRefs.cpp">
       </ContextState>
       <ContextState
          contextName = "MovingParam::moveTo(double):LTAircraft.cpp">
@@ -303,10 +317,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -396,6 +410,14 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "XPMPRenderMultiplayerPlanes(int, int, void*):XPMPMultiplayer.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "is_blend">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::UpdateStaticLabel():LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -442,10 +464,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -490,10 +512,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -501,10 +523,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">

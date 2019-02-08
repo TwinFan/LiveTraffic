@@ -79,7 +79,7 @@ protected:
     TFWidget valHeading, valPitch, valRoll, valAlt, valAGL, valSpeed, valVSI;
     
     // check boxes for visibility
-    TFButtonWidget btnVisible, btnAutoVisible;
+    TFButtonWidget btnCamera, btnVisible, btnAutoVisible;
     TFWidget capAutoVisible;
     
 public:
@@ -98,7 +98,6 @@ protected:
     virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
     // handles visibility buttons
     virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);
-    virtual bool MsgPushButtonPressed (XPWidgetID buttonWidget);
     // triggered every seond to update values in the window
     virtual bool TfwMsgMain1sTime ();
     // Updated myself

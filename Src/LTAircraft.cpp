@@ -883,6 +883,7 @@ bValid(true)
         // calculate our first position, must also succeed
         if (!CalcPPos())
             LOG_MSG(logERR,ERR_AC_CALC_PPOS,fd.key().c_str());
+        prevPos = ppos;
         
         // if we start on the ground then have the gear out already
         if (IsOnGrnd())
@@ -906,8 +907,10 @@ bValid(true)
 LTAircraft::~LTAircraft()
 {
     // make sure external view doesn't use this aircraft any longer
-    if (bExternalView)
-        bStopExternalView = true;
+    if (IsInCameraView()) {
+        pExtViewAc = nullptr;
+        XPLMDontControlCamera();
+    }
     
     // Release probe handle
     if (probeRef)
@@ -1318,6 +1321,9 @@ bool LTAircraft::CalcPPos()
     // are we visible?
     CalcVisible();
     
+    // save this position for (next) camera view position
+    CalcCameraViewPos();
+    
     // success
     return true;
 }
@@ -1717,52 +1723,87 @@ bool LTAircraft::CalcVisible ()
 // MARK: External View
 //
 
-bool LTAircraft::bStopExternalView = false;
+LTAircraft* LTAircraft::pExtViewAc = nullptr;
+positionTy  LTAircraft::posExt;
 
 // start an outside camery view
-void LTAircraft::StartCameraView()
+void LTAircraft::ToggleCameraView()
 {
-    // set flags for external view
-    bStopExternalView = false;
-    bExternalView = true;
-    XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, this);
+    // starting a new external view?
+    if (!pExtViewAc) {
+        pExtViewAc = this;
+        CalcCameraViewPos();
+        XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, nullptr);
+    }
+    else if (pExtViewAc == this) {      // me again? -> switch off
+        pExtViewAc = nullptr;
+        XPLMDontControlCamera();
+    }
+    else {                              // view another plane
+        pExtViewAc = this;
+        CalcCameraViewPos();
+    }
+    
 }
+
+// calculate the correct external camera position
+void LTAircraft::CalcCameraViewPos()
+{
+    if (IsInCameraView()) {
+        posExt = ppos;
+        
+        // to stay exactly aligned with the aircraft we need to
+        // redo the altitude calculation the way it will happen in the
+        // multiplayer lib later. This is due to us rounding in the alt_ft function.
+        posExt.alt_m() = posExt.alt_ft() * M_per_FT;
+        
+        // move position back along the longitudinal axes
+        posExt += vectorTy (GetHeading(), mdl.EXT_CAMERA_LON_OFS);
+        // move position a bit to the side
+        posExt += vectorTy (GetHeading()+90, mdl.EXT_CAMERA_LAT_OFS);
+        // and move a bit up
+        posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS;
+
+        // convert to local
+        posExt.WorldToLocal();
+    }
+}
+
 
 // callback for external camera view
 int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
                           int                   inIsLosingControl,
                           void *                inRefcon)
 {
-    // shall not touch this a/c any longer?
-    if (bStopExternalView || !inRefcon)
+    // shall no longer do external viewing?
+    if (!pExtViewAc)
         return 0;
     
-    // What's the aircraft?
-    LTAircraft* pAc = reinterpret_cast<LTAircraft*>(inRefcon);
-
     // Loosing control? So be it...
     if (inIsLosingControl || !outCameraPosition)
     {
-        pAc->bExternalView = false;
+        pExtViewAc = nullptr;
         return 0;
     }
     
     // we have camera contro, what's our position?
-    positionTy pos = pAc->GetPPos();
+/*
+    positionTy pos = pExtViewAc->GetPPos();
     // move position back along the longitudinal axes
-    pos += vectorTy (pAc->GetTrack(), pAc->mdl.EXT_CAMERA_LON_OFS);
+    pos += vectorTy (pExtViewAc->GetHeading(), pExtViewAc->mdl.EXT_CAMERA_LON_OFS);
     // move position a bit to the side
-    pos += vectorTy (pAc->GetTrack()+90, pAc->mdl.EXT_CAMERA_LAT_OFS);
+    pos += vectorTy (pExtViewAc->GetHeading()+90, pExtViewAc->mdl.EXT_CAMERA_LAT_OFS);
     // and move a bit up
-    pos.alt_m() += pAc->mdl.EXT_CAMERA_VERT_OFS;
+    pos.alt_m() += pExtViewAc->mdl.EXT_CAMERA_VERT_OFS;
     // convert to
     pos.WorldToLocal();
-    
+ */
+
     // fill output structure
-    outCameraPosition->x = pos.X();
-    outCameraPosition->y = pos.Y();
-    outCameraPosition->z = pos.Z();
-    outCameraPosition->heading = pAc->GetHeading();
+    outCameraPosition->x = posExt.X();
+    outCameraPosition->y = posExt.Y();
+    outCameraPosition->z = posExt.Z();
+    outCameraPosition->heading = pExtViewAc->GetHeading();
     outCameraPosition->pitch = MDL_EXT_CAMERA_PITCH;
     outCameraPosition->roll = 0;
     outCameraPosition->zoom = 1;
@@ -1798,7 +1839,11 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             CalcPPos())
         {
             // copy ppos (by type conversion)
-            *outPosition = ppos;
+            if (IsInCameraView())
+                *outPosition = prevPos;         // camera position is set before pos is recalculated...let position trail one frame behind
+            else
+                *outPosition = ppos;
+            prevPos = ppos;
             
             // if invisible move a/c to unreachable position
             if (!IsVisible()) {

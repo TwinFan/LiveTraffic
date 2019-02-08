@@ -89,6 +89,7 @@ enum ACI_WIDGET_IDX_T {
     ACI_TXT_VSI,
     
     ACI_BTN_CAMERA_VIEW,
+    ACI_CAP_CAMERA_VIEW,
     ACI_BTN_VISIBLE,
     ACI_CAP_VISIBLE,
     ACI_BTN_AUTO_VISIBLE,
@@ -156,7 +157,8 @@ TFWidgetCreate_t ACI_WND[] =
     { 120, 315,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 195, 315,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     
-    {  33, 335,  50,  10, 1, "Camera",              0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    {  20, 332,  55,  10, 1, "Camera",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 110, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
     { 120, 332,  55,  10, 1, "Visible",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 185, 335,  10,  10, 0, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
@@ -341,6 +343,7 @@ widgetIds(nullptr)
     valVSI.setId(widgetIds[ACI_TXT_VSI]);
     
     // buttons for camera view and visibility
+    btnCamera.setId(widgetIds[ACI_BTN_CAMERA_VIEW]);
     btnVisible.setId(widgetIds[ACI_BTN_VISIBLE]);
     btnAutoVisible.setId(widgetIds[ACI_BTN_AUTO_VISIBLE]);
     capAutoVisible.setId(widgetIds[ACI_CAP_AUTO_VISIBLE]);
@@ -419,7 +422,13 @@ bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
     LTAircraft* pAc = txtAcKey.GetAircraft();
     if (pAc)
     {
-        if (btnVisible == buttonWidget) {
+        if (btnCamera == buttonWidget) {
+            // Call a/c camera view
+            pAc->ToggleCameraView();
+            btnCamera.SetChecked(pAc->IsInCameraView());
+            return true;
+        }
+        else if (btnVisible == buttonWidget) {
             // visibility set directly, auto-visibility will be off then
             pAc->SetVisible(bNowChecked);
             btnAutoVisible.SetChecked(pAc->IsAutoVisible());
@@ -434,21 +443,6 @@ bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
 
     // pass on in class hierarchy
     return TFMainWindowWidget::MsgButtonStateChanged(buttonWidget, bNowChecked);
-}
-
-bool ACIWnd::MsgPushButtonPressed (XPWidgetID buttonWidget)
-{
-    if (buttonWidget == widgetIds[ACI_BTN_CAMERA_VIEW]) {
-        // Call a/c camera view
-        // need a valid pointer
-        LTAircraft* pAc = txtAcKey.GetAircraft();
-        if (pAc)
-            pAc->StartCameraView();
-        return true;
-    }
-    
-    // pass on in class hierarchy
-    return TFMainWindowWidget::MsgPushButtonPressed(buttonWidget);
 }
 
 // triggered every second to update values in the window
@@ -587,6 +581,7 @@ void ACIWnd::UpdateDynValues()
         valVSI.SetDescriptor(pAc->GetVSI_ft());
         
         // visibility buttons
+        btnCamera.SetChecked(pAc->IsInCameraView());
         btnVisible.SetChecked(pAc->IsVisible());
         btnAutoVisible.SetChecked(pAc->IsAutoVisible());
         btnAutoVisible.Show(dataRefs.IsAutoHidingActive());    // show button only if visibility is restricted
@@ -604,6 +599,7 @@ void ACIWnd::UpdateDynValues()
         })
             XPSetWidgetDescriptor(widgetIds[i], "");
 
+        btnCamera.SetChecked(false);
         btnVisible.SetChecked(false);
         btnAutoVisible.SetChecked(false);
     }

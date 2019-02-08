@@ -224,7 +224,7 @@ public:
 protected:
     // this is "ppos", the present simulated position,
     // where the aircraft is to be drawn
-    positionTy          ppos;
+    positionTy          ppos, prevPos;
     // and this the current vector from 'from' to 'to'
     vectorTy            vec;
     
@@ -259,8 +259,8 @@ protected:
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
-    bool                bExternalView = false;  // is this the plane in external view?
-    static bool         bStopExternalView;      // signal to external view to stop (due to a/c deleted)
+    static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view
+    static positionTy   posExt;                 // external camera position
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -312,7 +312,10 @@ public:
     inline bool IsAutoVisible() const { return bAutoVisible; }
     void SetVisible (bool b);           // define visibility, overrides auto
     bool SetAutoVisible (bool b);       // returns bVisible after auto setting
-    void StartCameraView();             // start an external view on this a/c
+    // external camera view
+    void ToggleCameraView();             // start an external view on this a/c
+    void CalcCameraViewPos();
+    inline bool IsInCameraView() const { return pExtViewAc == this; }
 
 protected:
     // based on current sim time and posList calculate the present position
