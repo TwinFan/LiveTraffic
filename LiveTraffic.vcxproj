@@ -185,6 +185,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <UseFullPaths>false</UseFullPaths>
       <WholeProgramOptimization>true</WholeProgramOptimization>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>..\..\Libs\$(Configuration);..\..\XPSDK\Libraries\Win;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

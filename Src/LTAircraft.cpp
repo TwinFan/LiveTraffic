@@ -1772,7 +1772,7 @@ void LTAircraft::CalcCameraViewPos()
 // callback for external camera view
 int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
                           int                   inIsLosingControl,
-                          void *                inRefcon)
+                          void *                /*inRefcon*/)
 {
     // shall no longer do external viewing?
     if (!pExtViewAc)
@@ -1787,10 +1787,10 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     
     // we have camera control, position has been calculated already in CalcPPos,
     // take it from posExt, fill output structure
-    outCameraPosition->x = posExt.X();
-    outCameraPosition->y = posExt.Y();
-    outCameraPosition->z = posExt.Z();
-    outCameraPosition->heading = pExtViewAc->GetHeading();
+    outCameraPosition->x = (float)posExt.X();
+    outCameraPosition->y = (float)posExt.Y();
+    outCameraPosition->z = (float)posExt.Z();
+    outCameraPosition->heading = (float)pExtViewAc->GetHeading();
     outCameraPosition->pitch = MDL_EXT_CAMERA_PITCH;
     outCameraPosition->roll = 0;
     outCameraPosition->zoom = 1;
