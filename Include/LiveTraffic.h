@@ -29,8 +29,8 @@
 #define LiveTraffic_h
 
 // LiveTraffic is coded against SDK 3.01 (X-Plane 11.20 and above), so XPLM200, XPLM210, XPLM300, and XPLM301 must be defined
-#if !defined(XPLM200) || !defined(XPLM210) || !defined(XPLM300) || !defined(XPLM301)
-#error This is made to be compiled against the XPLM301 SDK (X-plane 11.20 and above)
+#if !defined(XPLM200) || !defined(XPLM210)
+#error This is made to be compiled at least against the XPLM210 SDK (X-plane 10.20 and above)
 #endif
 
 // MARK: Includes
