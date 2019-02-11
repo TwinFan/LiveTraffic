@@ -102,7 +102,6 @@ typedef std::list<ptrLTChannelTy> listPtrLTChannelTy;
 class LTFlightDataChannel : virtual public LTChannel {
 public:
     LTFlightDataChannel () {}
-    virtual LTChannelType GetChType () const { return CHT_TRACKING_DATA; }
 };
 
 //
@@ -135,7 +134,6 @@ protected:
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
 	LTACMasterdataChannel () {}
-    virtual LTChannelType GetChType () const { return CHT_MASTER_DATA; }
     virtual bool UpdateStaticData (std::string key,
                                    const LTFlightData::FDStaticData& dat);
     
@@ -211,6 +209,7 @@ public:
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
     virtual bool IsLiveFeed() const { return true; }
+    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
 };
 
@@ -227,6 +226,7 @@ public:
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
     virtual bool IsLiveFeed() const { return true; }
+    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
 };
 
@@ -249,6 +249,7 @@ public:
                             std::string fallback = ADSBEX_HIST_PATH_2);
     virtual bool FetchAllData (const positionTy& pos);
     virtual bool IsLiveFeed() const { return false; }
+    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 
@@ -270,6 +271,7 @@ public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos);
     virtual bool IsLiveFeed() const { return true; }
+    virtual LTChannelType GetChType() const { return CHT_MASTER_DATA; }
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 
