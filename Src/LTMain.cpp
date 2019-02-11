@@ -435,6 +435,10 @@ bool LTMainShowAircraft ()
     // short cut if already showing
     if ( dataRefs.GetAircraftsDisplayed() ) return true;
     
+    // select aircrafts for display
+    dataRefs.ChTsOffsetReset();             // reset network time offset
+    if ( !LTFlightDataShowAircraft() ) return false;
+
     // Now only enable multiplay lib - this acquires multiplayer planes
     //   and is the possible point of conflict with other plugins
     //   using xplanemp, so we push it out to as late as possible.
@@ -445,10 +449,6 @@ bool LTMainShowAircraft ()
     // Enable Multiplayer plane drawing, acquire multiuser planes
     LTMainTryGetAIAircraft();
     
-    // select aircrafts for display
-    dataRefs.ChTsOffsetReset();             // reset network time offset
-    if ( !LTFlightDataShowAircraft() ) return false;
-
     // enable the flight loop callback to maintain aircrafts
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
                                       FLIGHT_LOOP_INTVL,    // every 5th frame

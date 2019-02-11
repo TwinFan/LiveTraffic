@@ -49,6 +49,12 @@ extern volatile bool bFDMainStop;
 //
 class LTChannel
 {
+public:
+    enum LTChannelType {
+        CHT_UNKNOWN = 0,
+        CHT_TRACKING_DATA,
+        CHT_MASTER_DATA
+    };
 protected:
     dataRefsLT channel;             // id of channel (see dataRef)
 
@@ -66,6 +72,7 @@ public:
     inline dataRefsLT GetChannel() const { return channel; }
     
     virtual bool IsLiveFeed () const = 0;
+    virtual LTChannelType GetChType () const = 0;
     virtual bool IsValid () const {return bValid;}      // good to provide data after init?
     virtual void SetValid (bool _valid, bool bMsg = true);
     virtual bool IncErrCnt();               // increases error counter, returns if (still) valid
@@ -95,6 +102,7 @@ typedef std::list<ptrLTChannelTy> listPtrLTChannelTy;
 class LTFlightDataChannel : virtual public LTChannel {
 public:
     LTFlightDataChannel () {}
+    virtual LTChannelType GetChType () const { return CHT_TRACKING_DATA; }
 };
 
 //
@@ -127,6 +135,7 @@ protected:
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
 	LTACMasterdataChannel () {}
+    virtual LTChannelType GetChType () const { return CHT_MASTER_DATA; }
     virtual bool UpdateStaticData (std::string key,
                                    const LTFlightData::FDStaticData& dat);
     

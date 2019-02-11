@@ -1792,6 +1792,19 @@ bool LTFlightDataShowAircraft()
     // is there a main thread running already? -> just return
     if ( FDMainThread.joinable() ) return true;
     
+    // Verify if there are any enabled, active tracking data channels.
+    // If not bail out and inform the user.
+    if (listFDC.empty() ||
+        std::find_if(listFDC.cbegin(), listFDC.cend(),
+                     [](const ptrLTChannelTy& pCh)
+                     { return
+                         pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
+                         pCh->IsEnabled(); }) == listFDC.cend())
+    {
+        SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
+        return false;
+    }
+    
     // create a new thread that receives flight data / creates aircrafts
     bFDMainStop = false;
     FDMainThread = std::thread ( LTFlightDataSelectAc );
