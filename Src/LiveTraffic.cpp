@@ -169,92 +169,119 @@ PLUGIN_API int XPluginStart(
 							char *		outSig,
 							char *		outDesc)
 {
-    // init our version number
-    if (!InitFullVersion ()) return 0;
+    try {
+        // init our version number
+        if (!InitFullVersion ()) return 0;
 
-    // init random numbers
-     srand((unsigned int)time(NULL));
-    
-    // tell X-Plane who we are
-     strcpy_s(outName, 255, LIVE_TRAFFIC);
-     strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
-     strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
-    
+        // init random numbers
+         srand((unsigned int)time(NULL));
+        
+        // tell X-Plane who we are
+         strcpy_s(outName, 255, LIVE_TRAFFIC);
+         strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
+         strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
+        
 #ifdef DEBUG
-    // install error handler
-    XPLMSetErrorCallback(LTErrorCB);
+        // install error handler
+        XPLMSetErrorCallback(LTErrorCB);
 #endif
-    
-    // tell the world we are trying to start up
-    LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
-    
-    // use native paths, i.e. Posix style (as opposed to HFS style)
-    // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
-    XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
+        
+        // tell the world we are trying to start up
+        LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
+        
+        // use native paths, i.e. Posix style (as opposed to HFS style)
+        // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
+        XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
 
-    // init DataRefs
-    if (!dataRefs.Init()) { DestroyWindow(); return 0; }
-    
-    // read FlightModel.prf file (which we could live without)
-    LTAircraft::FlightModel::ReadFlightModelFile();
-    
-    // init Aircraft handling (including XPMP)
-    if (!LTMainInit()) { DestroyWindow(); return 0; }
-    
-    // create menu
-    if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
-    
-    // Success
-    return 1;
+        // init DataRefs
+        if (!dataRefs.Init()) { DestroyWindow(); return 0; }
+        
+        // read FlightModel.prf file (which we could live without)
+        LTAircraft::FlightModel::ReadFlightModelFile();
+        
+        // init Aircraft handling (including XPMP)
+        if (!LTMainInit()) { DestroyWindow(); return 0; }
+        
+        // create menu
+        if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
+        
+        // Success
+        return 1;
+        
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        return 0;
+    } catch (...) {
+        return 0;
+    }
 }
 
 PLUGIN_API int  XPluginEnable(void)
 {
-    // Enable showing aircrafts
-    if (!LTMainEnable()) return 0;
+    try {
+        // Enable showing aircrafts
+        if (!LTMainEnable()) return 0;
 
-    // Create a message window and say hello
-    SHOW_MSG(logMSG, MSG_WELCOME, LT_VERSION_FULL);
-    if constexpr (VERSION_BETA)
-        SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
+        // Create a message window and say hello
+        SHOW_MSG(logMSG, MSG_WELCOME, LT_VERSION_FULL);
+        if constexpr (VERSION_BETA)
+            SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
 #ifdef DEBUG
-    SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
+        SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
 #endif
+        
+        // Success
+        return 1;
 
-    
-    // Success
-    return 1;
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        return 0;
+    } catch (...) {
+        return 0;
+    }
 }
 
 PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*inFrom*/, int /*inMsg*/, void * /*inParam*/)
 { }
 
 PLUGIN_API void XPluginDisable(void) {
-    // if there still is a message window remove it
-    DestroyWindow();
-    
-    // deregister Settings UI
-    settingsUI.Disable();
-    
-    // stop showing aircrafts
-    LTMainDisable ();
+    try {
+        // if there still is a message window remove it
+        DestroyWindow();
+        
+        // deregister Settings UI
+        settingsUI.Disable();
+        
+        // stop showing aircrafts
+        LTMainDisable ();
 
-    // Meu item "Aircrafts displayed" no checkmark symbol (but room one later)
-    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
+        // Meu item "Aircrafts displayed" no checkmark symbol (but room one later)
+        XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
 
-    LOG_MSG(logMSG, MSG_DISABLED);
+        LOG_MSG(logMSG, MSG_DISABLED);
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {
+    }
 }
 
 PLUGIN_API void    XPluginStop(void)
 {
-    // Cleanup aircraft handling (including XPMP library)
-    LTMainStop();
-    
-    // Cleanup dataRef registration
-    dataRefs.Stop();
-    
-    // last chance to remove the message area window
-    DestroyWindow();
+    try {
+        // Cleanup aircraft handling (including XPMP library)
+        LTMainStop();
+        
+        // Cleanup dataRef registration
+        dataRefs.Stop();
+        
+        // last chance to remove the message area window
+        DestroyWindow();
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {
+    }
 }
 
 #ifdef DEBUG

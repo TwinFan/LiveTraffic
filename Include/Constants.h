@@ -105,6 +105,8 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
+#define MSG_REINIT              "LiveTraffic is re-initializing itself"
+#define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircrafts"

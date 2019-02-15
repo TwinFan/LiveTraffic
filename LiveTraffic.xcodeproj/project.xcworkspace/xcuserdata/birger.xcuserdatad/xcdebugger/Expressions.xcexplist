@@ -14,7 +14,21 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "LTAircraft::GetPlanePosition(XPMPPlanePosition_t*):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "prevPos">
+            </PersistentString>
+            <PersistentString
+               value = "ppos">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "obj_schedule_one_aircraft(CSLPlane_t*, double, double, double, double, double, double, int, xpmp_LightStatus, XPLMPlaneDrawState_t*):XPMPMultiplayerObj8.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "TFWidget::Show(bool):TFWidgets.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAircraft::CalcFlightModel(positionTy const&amp;, positionTy const&amp;):LTAircraft.cpp">
@@ -24,20 +38,6 @@
             </PersistentString>
             <PersistentString
                value = "pitch">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "TFWidget::Show(bool):TFWidgets.cpp">
-      </ContextState>
-      <ContextState
-         contextName = "LTAircraft::GetPlanePosition(XPMPPlanePosition_t*):LTAircraft.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "prevPos">
-            </PersistentString>
-            <PersistentString
-               value = "ppos">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -317,10 +317,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -464,10 +464,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -476,6 +476,9 @@
                value = "RenderMap">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "TFMainWindowWidget::MessageCloseButtonPushed():TFWidgets.cpp">
       </ContextState>
       <ContextState
          contextName = "positionTy::deg2rad() const:CoordCalc.cpp">
@@ -512,21 +515,24 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
-            </PersistentString>
-            <PersistentString
                value = "_deltaDist">
             </PersistentString>
+            <PersistentString
+               value = "_targetTime">
+            </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "CreateMsgWindow(float, logLevelTy, char const*, ...):TextIO.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">

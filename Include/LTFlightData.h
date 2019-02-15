@@ -213,6 +213,7 @@ public:
     LTFlightData& operator=(LTFlightData&&) = default;
     
     bool IsValid() const { return bValid; }
+    void SetInvalid();
     
     // KEY into the map
     void SetKey ( std::string key );

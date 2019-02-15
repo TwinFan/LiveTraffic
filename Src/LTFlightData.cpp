@@ -222,6 +222,15 @@ LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
     return *this;
 }
 
+// set this FD invalid (which will cause it's removal)
+void LTFlightData::SetInvalid()
+{
+    bValid = false;
+    // also need to make aircraft invalid so it won't be drawn again
+    if (pAc)
+        pAc->SetInvalid();
+}
+
 // setting the key is possible only once
 void LTFlightData::SetKey( std::string key )
 {
@@ -860,9 +869,9 @@ void LTFlightData::CalcNextPosMain ()
                         fd.CalcNextPos(pair.second);
                 } catch (const std::exception& e) {
                     LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-                    fd.bValid = false;
+                    fd.SetInvalid();
                 } catch (...) {
-                    fd.bValid = false;
+                    fd.SetInvalid();
                 }
                 
             } catch(const std::out_of_range&) {
@@ -1082,8 +1091,18 @@ void LTFlightData::AppendAllNewPos()
         }
         
         // look all flight data objects and check for new data to analyse
-        for (mapLTFlightDataTy::value_type& fdPair: mapFd)
-            fdPair.second.AppendNewPos();
+        for (mapLTFlightDataTy::value_type& fdPair: mapFd) {
+            LTFlightData& fd = fdPair.second;
+            try {
+                if (fd.IsValid())
+                    fd.AppendNewPos();
+            } catch (const std::exception& e) {
+                LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+                fd.SetInvalid();
+            } catch (...) {
+                fd.SetInvalid();
+            }
+        }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFdMutex", e.what());
         flagNoNewPosToAdd.clear();
@@ -1726,10 +1745,10 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
         // if an exception occurs this object is declared invalid and removed
-        bValid = false;
+        SetInvalid();
     } catch(...) {
         // if an exception occurs this object is declared invalid and removed
-        bValid = false;
+        SetInvalid();
     }
     
     // in case of error return 'delete me'

@@ -399,6 +399,8 @@ public:
     void SetAircraftsDisplayed ( int bEnable );
     int ToggleAircraftsDisplayed ();        // returns new status (displayed?)
     
+    inline XPLMPluginID GetMyPluginId() const { return pluginID; }
+    
     // livetraffic/cfg/log_level: Log Level
     static void LTSetLogLevel(void* p, int i);
     void SetLogLevel ( int i );

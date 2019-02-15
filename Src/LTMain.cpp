@@ -240,15 +240,18 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             // asked for a generel re-initialization, e.g. due to time jumps?
             if (dataRefs.IsReInitAll()) {
                 // force an initialization
+                SHOW_MSG(logWARN, MSG_REINIT)
                 dataRefs.SetUseHistData(dataRefs.GetUseHistData(), true);
                 // and reset the re-init flag
                 dataRefs.SetReInitAll(false);
             }
         } catch (const std::exception& e) {
-            // FIXME: Correct would be to disable the plugin...can I do that?
+            // Exception during re-init...we give up and disable ourselves
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-            // No ideas to recover from here...die
-            throw;
+            LOG_MSG(logFATAL, MSG_DISABLE_MYSELF);
+            dataRefs.SetReInitAll(false);
+            XPLMDisablePlugin(dataRefs.GetMyPluginId());
+            return 0;           // don't call me again
         }
         
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
