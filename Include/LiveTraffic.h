@@ -103,6 +103,7 @@
 #include "TFWidgets.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
+#include "XPCompatibility.h"
 
 // MARK: Global variables
 // Global DataRef object, which also includes 'global' variables
@@ -119,6 +120,10 @@ void LTMainStop ();
 
 void MenuCheckAircraftsDisplayed ( bool bChecked );
 void MenuCheckTCASControl ( bool bChecked );
+
+#ifdef DEBUG
+void LTErrorCB (const char* msg);
+#endif
 
 // MARK: Path helpers
 

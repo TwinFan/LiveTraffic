@@ -167,7 +167,8 @@ constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
-constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s) 
+constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
+#define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
 #define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
 #define ERR_XPMP_ENABLE         "Could not enable XPMPMultiplayer: %s"

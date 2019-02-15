@@ -33,7 +33,7 @@ endif ()
 # message (STATUS "CMAKE_LIBRARY_PATH" = ${CMAKE_LIBRARY_PATH})
 
 # Enable all X-Plane SDK APIs up to the newest version.
-add_definitions(-DXPLM200=1 -DXPLM210=1)
+add_definitions(-DXPLM200=1 -DXPLM210=1 -DXPLM300=1 -DXPLM301=1)
 # Define platform macros.
 add_definitions(-DAPL=$<BOOL:${APPLE}> -DIBM=$<BOOL:${WIN32}> -DLIN=$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>)
 
@@ -71,6 +71,7 @@ set(Header_Files
     Include/SettingsUI.h
     Include/TextIO.h
     Include/TFWidgets.h
+    Include/XPCompatibility.h
     Lib/xplanemp/XPCAircraft.h
     Lib/xplanemp/XPMPMultiplayer.h
     Lib/xplanemp/XPMPPlaneRenderer.h
@@ -91,6 +92,7 @@ set(Source_Files
     Src/SettingsUI.cpp
     Src/TextIO.cpp
     Src/TFWidgets.cpp
+    Src/XPCompatibility.cpp
 )
 source_group("Source Files" FILES ${Source_Files})
 

@@ -244,6 +244,7 @@ void TFWidget::setId(XPWidgetID _me)
     if (me) {
         SetProperty(xpProperty_Object, (intptr_t)this);
         XPAddWidgetCallback(me, DispatchMessages);
+        wndId = XPC_GetWidgetUnderlyingWindow(me);
     }
 }
 
@@ -278,14 +279,10 @@ void TFWidget::MoveBy(int x, int y)
 void TFWidget::Center()
 {
     // Get the screen size
-    int left=0, top=0, right=0, bottom=0;
-#if defined(XPLM300)
     // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
     // We'll need to query for the global desktop bounds!
-    XPLMGetScreenBoundsGlobal(&left, &top, &right, &bottom);
-#else
-    XPLMGetScreenSize(&right,&top);
-#endif
+    int left=0, top=0, right=0, bottom=0;
+    LT_GetScreenSize (&left, &top, &right, &bottom);
     
     // calc center coordinates
     left = (left+right)/2;
@@ -471,6 +468,7 @@ bool TFWidget::MsgDestroy (bool /*bRecursive*/)
 {
     // widget is destroyed, invalidate our knowledge of it
     me = 0;
+    wndId = 0;
     return true;
 }
 

@@ -211,7 +211,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     
     // Otherwise: Create the message window
     XPLMCreateWindow_t params;
-    params.structSize = sizeof(params);
+    params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
     params.visible = 1;
     params.drawWindowFunc = draw_msg;
     // Note on "dummy" handlers:
@@ -235,13 +235,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     // Set the window's initial bounds
     // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
     // We'll need to query for the global desktop bounds!
-#if defined(XPLM300)
-    XPLMGetScreenBoundsGlobal(&params.left, &params.top, &params.right, &params.bottom);
-#else
-    params.left = 0;
-    XPLMGetScreenSize(&params.right,&params.top);
-    params.bottom = 0;
-#endif
+    LT_GetScreenSize(&params.left, &params.top, &params.right, &params.bottom);
     
     // define a window in the top right corner,
     // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
@@ -254,9 +248,11 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     // if the window still exists just resize it
     if (g_window)
         XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
-    else
+    else {
         // otherwise create a new one
         g_window = XPLMCreateWindowEx(&params);
+        LOG_ASSERT(g_window);
+    }
     
     return g_window;
 }

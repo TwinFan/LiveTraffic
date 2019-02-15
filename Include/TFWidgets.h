@@ -42,6 +42,7 @@
 #include "XPWidgetUtils.h"
 #include "XPStandardWidgets.h"
 #include "XPLMDisplay.h"
+#include "XPCompatibility.h"
 
 //
 //MARK: replacement/enhancement for XPUCreateWidgets
@@ -85,7 +86,8 @@ int TFGetWidgetChildIndex (XPWidgetID me);
 class TFWidget
 {
 private:
-    XPWidgetID  me;
+    XPWidgetID  me          = 0;
+    XPLMWindowID wndId      = 0;
     
 public:
     TFWidget (XPWidgetID _me = NULL);
@@ -105,8 +107,11 @@ public:
         { XPGetWidgetGeometry(me, left, top, right, bottom); }
     int GetWidth () const;
     int GetHeight () const;
-    void SetGeometry (int left, int top, int right, int bottom)
+    inline void SetGeometry (int left, int top, int right, int bottom)
         { XPSetWidgetGeometry(me, left, top, right, bottom); }
+    inline void SetWindowPositioningMode(XPLMWindowPositioningMode inPositioningMode,
+                                      int                  inMonitorIndex)
+        { XPC_SetWindowPositioningMode(wndId, inPositioningMode, inMonitorIndex); }
 
     std::string GetDescriptor () const;
     void SetDescriptor (std::string text) { XPSetWidgetDescriptor(me, text.c_str()); }

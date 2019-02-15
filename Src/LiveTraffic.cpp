@@ -76,6 +76,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 break;
             case MENU_ID_SETTINGS_UI:
                 settingsUI.Show();
+                settingsUI.Center();
                 break;
 #ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
@@ -179,6 +180,11 @@ PLUGIN_API int XPluginStart(
      strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
      strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
     
+#ifdef DEBUG
+    // install error handler
+    XPLMSetErrorCallback(LTErrorCB);
+#endif
+    
     // tell the world we are trying to start up
     LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
     
@@ -251,3 +257,13 @@ PLUGIN_API void    XPluginStop(void)
     DestroyWindow();
 }
 
+#ifdef DEBUG
+// Error callback, called by X-Plane if we you bogus data in our API calls
+void LTErrorCB (const char* msg)
+{
+    char s[512];
+    snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s", LIVE_TRAFFIC, msg);
+    XPLMDebugString(s);
+    assert(msg!=NULL);          // we bail out and hope the debugger is attached, so we can debug where we come from
+}
+#endif
