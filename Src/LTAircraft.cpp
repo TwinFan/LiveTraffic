@@ -118,8 +118,15 @@ bool MovingParam::inMotion () const
     return timeFrom <= currCycle.simTime && currCycle.simTime <= timeTo;
 }
 
+// is a move programmed or already in motion?
+bool MovingParam::isProgrammed () const
+{
+    return !std::isnan(timeFrom) && !std::isnan(timeTo) &&
+           currCycle.simTime <= timeTo;
+}
+
 // start a move to the given target in the specified time frame
-void MovingParam::moveTo ( double tval )
+void MovingParam::moveTo ( double tval, double _startTS )
 {
     LOG_ASSERT((defMin <= tval) && (tval <= defMax));
     
@@ -139,7 +146,7 @@ void MovingParam::moveTo ( double tval )
         // So: How much time shall we use? = Which share of the full duration do we need?
         // And: When will we be done?
         // timeTo = fabs(valDist/defDist) * defDuration + timeFrom;
-        timeFrom = currCycle.simTime;
+        timeFrom = std::isnan(_startTS) ? currCycle.simTime : _startTS;
         timeTo = fma(fabs(valDist/defDist), defDuration, timeFrom);
     }
 }
@@ -512,6 +519,8 @@ bool fm_processModelLine (const char* fileName, int ln,
                            
     // now find correct member variable and assign value
 #define FM_ASSIGN(nameOfVal) if (name == #nameOfVal) fm.nameOfVal = val
+#define FM_ASSIGN_MIN(nameOfVal,minVal) if (name == #nameOfVal) fm.nameOfVal = std::max(val,minVal)
+
     FM_ASSIGN(GEAR_DURATION);
     else FM_ASSIGN(FLAPS_DURATION);
     else FM_ASSIGN(VSI_STABLE);
@@ -524,6 +533,9 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(AGL_FLARE);
     else FM_ASSIGN(MAX_TAXI_SPEED);
     else FM_ASSIGN(TAXI_TURN_TIME);
+    else FM_ASSIGN(FLIGHT_TURN_TIME);
+    else FM_ASSIGN(ROLL_MAX_BANK);
+    else FM_ASSIGN_MIN(ROLL_RATE, 1.0);     // avoid zero - this becomes a divisor
     else FM_ASSIGN(FLAPS_UP_SPEED);
     else FM_ASSIGN(FLAPS_DOWN_SPEED);
     else FM_ASSIGN(CRUISE_HEIGHT);
@@ -534,7 +546,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_MAX_VSI);
     else FM_ASSIGN(PITCH_FLAP_ADD);
     else FM_ASSIGN(PITCH_FLARE);
-    else FM_ASSIGN(PITCH_RATE);
+    else FM_ASSIGN_MIN(PITCH_RATE, 1.0);    // avoid zero - this becomes a divisor
     else if (name == "LIGHT_PATTERN") {
         if ((int)val < 0 || (int)val > 2) {
             LOG_MSG(logWARN, ERR_CFG_VAL_INVALID, fileName, ln, text.c_str());
@@ -840,6 +852,7 @@ bOnGrnd(false), bArtificalPos(false), bNeedNextVec(false),
 gear(mdl.GEAR_DURATION),
 flaps(mdl.FLAPS_DURATION),
 heading(mdl.TAXI_TURN_TIME, 360, 0, true),
+roll(2*mdl.ROLL_MAX_BANK / mdl.ROLL_RATE, mdl.ROLL_MAX_BANK, -mdl.ROLL_MAX_BANK, false),
 pitch((mdl.PITCH_MAX-mdl.PITCH_MIN)/mdl.PITCH_RATE, mdl.PITCH_MAX, mdl.PITCH_MIN),
 probeRef(NULL), probeNextTs(0), terrainAlt(0),
 bValid(true)
@@ -873,6 +886,7 @@ bValid(true)
         
         // init moving params where necessary
         pitch.SetVal(0);
+        roll.SetVal(0);
         
         // calculate our first position, must also succeed
         if (!CalcPPos())
@@ -1099,12 +1113,23 @@ bool LTAircraft::CalcPPos()
         to.normalize();
         
         // start the turn from the initial heading to the vector heading
+        heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
         heading.moveQuickestToBy(NAN,
                                  vec.dist > SIMILAR_POS_DIST ?  // if vector long enough:
                                  vec.angle :                    // turn to vector heading
                                  HeadingAvg(from.heading(),to.heading()),   // otherwise only turn to avg between from- and target-heading
                                  NAN, (from.ts()+to.ts())/2,    // by half the vector flight time
                                  true);                         // start immediately
+        
+        // *** roll ***
+        // roll: we should currently have a bank angle, which should be
+        //       returned back to level flight by the time the turn ends
+        if (!IsOnGrnd() && heading.isProgrammed())
+            roll.moveToBy(NAN, !heading.isIncrease(), 0.0,
+                          NAN, heading.toTS(), false);
+        else
+            // on the ground or no heading change: keep wings level
+            roll.SetVal(0.0);
         
         // *** Pitch ***
         
@@ -1289,14 +1314,23 @@ bool LTAircraft::CalcPPos()
     // *** Attitude ***/
 
     // half-way through prepare turning to end heading
-    if ( f > 0.5 && !dequal(heading.toVal(), to.heading()) )
+    if ( f > 0.5 && !dequal(heading.toVal(), to.heading()) ) {
+        heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
         heading.moveQuickestToBy(NAN, to.heading(), // target heading
                                  NAN, to.ts(),      // by target timestamp
                                  false);            // start as late as possible
+        // roll: start to roll when turn starts
+        if (!IsOnGrnd() && heading.isProgrammed())
+            roll.moveTo(heading.isIncrease() ? roll.defMax : roll.defMin,
+                        heading.fromTS());
+    }
+
     // current heading
     ppos.heading() = heading.get();
     // current pitch
     ppos.pitch() = pitch.get();
+    // current roll (bank angle)
+    ppos.roll() = roll.get();
     
 #ifdef DEBUG
     std::string debPpos ( ppos.dbgTxt() );
@@ -1593,7 +1627,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     else {
         // need flaps below flap speeds
         if ( speed.kt() < std::min(mdl.FLAPS_UP_SPEED,mdl.FLAPS_DOWN_SPEED) ) {
-            flaps.down();
+            flaps.half();
         }
         
         // no flaps above flap speeds

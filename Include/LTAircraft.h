@@ -63,16 +63,18 @@ public:
     
     // are we in motion? (i.e. moving from val to target?)
     bool inMotion () const;
+    // is a move programmed or already in motion?
+    bool isProgrammed () const;
 
     // start a move to the given target value
-    void moveTo ( double tval );
-    inline void up ()       { moveTo(defMin); }
-    inline void down ()     { moveTo(defMax); }
-    inline void half ()     { moveTo((defMin+defMax)/2); }
-    inline void min ()      { moveTo(defMin); }
-    inline void max ()      { moveTo(defMax); }
+    void moveTo ( double tval, double _startTS=NAN );
+    inline void up   (double _startTS=NAN) { moveTo(defMin, _startTS); }
+    inline void down (double _startTS=NAN) { moveTo(defMax, _startTS); }
+    inline void half (double _startTS=NAN) { moveTo((defMin+defMax)/2, _startTS); }
+    inline void min  (double _startTS=NAN) { moveTo(defMin, _startTS); }
+    inline void max  (double _startTS=NAN) { moveTo(defMax, _startTS); }
 
-    // pre-program a move, which is to finish by the given time
+    // pre-program a move, which is to start or finish by the given time
     void moveToBy (double _from, bool _increase, double _to,
                    double _startTS, double _by_ts,
                    bool _startEarly);
@@ -87,10 +89,15 @@ public:
     double get ();
     
     // non-moving status checks
-    double is () const      { return val; }
-    bool isUp () const      { return val <= defMin; }
-    bool isDown () const    { return val >= defMax; }
-    double toVal () const   { return valTo; }
+    inline double is () const       { return val; }
+    inline bool isUp () const       { return val <= defMin; }
+    inline bool isDown () const     { return val >= defMax; }
+    inline bool isIncrease () const { return bIncrease; }
+    inline double fromVal () const  { return valFrom; }
+    inline double toVal () const    { return valTo; }
+    inline double dist () const     { return valDist; }
+    inline double fromTS () const   { return timeFrom; }
+    inline double toTS () const     { return timeTo; }
 };
 
 // mimics acceleration / deceleration
@@ -152,6 +159,9 @@ public:
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
         double MAX_TAXI_SPEED =   50;     // below that: taxi, above that: take-off/roll-out
         double TAXI_TURN_TIME =   45;     // seconds for a 360° turn on the ground
+        double FLIGHT_TURN_TIME = 120;    // seconds for a 360° turn in flight
+        double ROLL_MAX_BANK =    30;     // [°] max bank angle
+        double ROLL_RATE =        10;     // [°/s] roll rate in normal turns
         double FLAPS_UP_SPEED =  180;     // below that: initial climb, above that: climb
         double FLAPS_DOWN_SPEED =  200;   // above that: descend, below that: approach
         double CRUISE_HEIGHT =    15000;  // above that height AGL we consider level flight 'cruise'
@@ -242,6 +252,7 @@ protected:
     MovingParam         gear;
     MovingParam         flaps;
     MovingParam         heading;        // used when turning
+    MovingParam         roll;
     MovingParam         pitch;
     
     // Y-Probe
