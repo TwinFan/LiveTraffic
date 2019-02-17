@@ -257,6 +257,10 @@ public:
                   double* pHeading = nullptr,
                   bool* pbChanged = nullptr);
     
+    // youngest ts, i.e. timestamp of youngest used good position
+    inline double GetYoungestTS() const { return youngestTS; }
+    
+    // possible return codes of 'trying' functions:
     enum tryResult {
         TRY_TECH_ERROR=-1,                      // unexpected technical error
         TRY_NO_LOCK=0,                          // didn't get the lock

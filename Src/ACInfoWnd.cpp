@@ -536,10 +536,11 @@ void ACIWnd::UpdateDynValues()
 
     if (pAc) {
         // _last_ dyn data object
-        const LTFlightData::FDDynamicData dyn (pAc->fd.WaitForSafeCopyDyn(false));
+        const LTFlightData& fd = pAc->fd;
+        const LTFlightData::FDDynamicData dyn (fd.WaitForSafeCopyDyn(false));
 
         // title is dynmic
-        title = strAtMost(pAc->fd.ComposeLabel(), 25);
+        title = strAtMost(fd.ComposeLabel(), 25);
         
         // update all field values
         const positionTy& pos = pAc->GetPPos();
@@ -548,8 +549,8 @@ void ACIWnd::UpdateDynValues()
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_DISPLAYED_USING],
                               strAtMost(pAc->GetModelName(),25).c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_SIM_TIME], ts2string(time_t(ts)).c_str());
-        // last update
-        ts -= dyn.ts;                   // difference 'dyn.ts - simTime'
+        // last update, relative to youngest timestamp for this plane
+        ts -= fd.GetYoungestTS();
         ts *= -1;
         if (-10000 <= ts && ts <= 10000)
         {
