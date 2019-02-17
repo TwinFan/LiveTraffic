@@ -78,11 +78,10 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     // do it field-by-field only for fields which are actually filled
     
     // a/c details
-    if (!other.reg.empty()) reg = other.reg;
     if (!other.country.empty()) country = other.country;
-    if (!other.acTypeIcao.empty()) acTypeIcao = other.acTypeIcao;
     if (!other.man.empty()) man = other.man;
     if (!other.mdl.empty()) mdl = other.mdl;
+    if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
     if (other.trt) trt = other.trt;
@@ -1650,8 +1649,43 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
             LTACMasterdataChannel::RequestMasterData (key(), inStat.call);
         }
         
-        // merge inStat into our statData (copy only filled fields):
+        // merge inStat into our statData (copy only filled fields,
+        // which are not model-defining):
         statData |= inStat;
+        
+        // *** take care of changes in model-defining fields ***
+        // (a/c type, operator, registration)
+        bool bMdlInfoChange = false;
+        
+        // a/c type: is empty and new data has a type?
+        //       or: is currently just default and new one is something non-default?
+        if (!inStat.acTypeIcao.empty() &&
+            (statData.acTypeIcao.empty()  ||
+             (statData.acTypeIcao == dataRefs.GetDefaultAcIcaoType() &&
+              inStat.acTypeIcao   != dataRefs.GetDefaultAcIcaoType())))
+        {
+            statData.acTypeIcao = inStat.acTypeIcao;
+            bMdlInfoChange = true;
+        }
+        
+        // operator ICAO: we only accept a change from nothing to something
+        if (statData.opIcao.empty() && !inStat.opIcao.empty())
+        {
+            statData.opIcao = inStat.opIcao;
+            bMdlInfoChange = true;
+        }
+        
+        // registration: we only accept a change from nothing to something
+        if (statData.reg.empty() && !inStat.reg.empty())
+        {
+            statData.reg = inStat.reg;
+            bMdlInfoChange = true;
+        }
+        
+        // if model-defining fields changed then (potentially) change the CSL model
+        if (bMdlInfoChange && pAc) {
+            pAc->ChangeModel (statData);
+        }
         
         // update the static parts of the label
         UpdateStaticLabel();
@@ -1783,7 +1817,41 @@ bool LTFlightData::CreateAircraft ( double simTime )
         // (also does a last validation...and now with lock, so that state is secured)
         if ( !CalcNextPos(simTime) )
             return false;
+        
+        // a few last checks and decisions, e.g. now we definitely do need a plane type
+        if ( statData.acTypeIcao.empty() )
+        {
+            // this is gonna be the first 'from' position
+            LOG_ASSERT_FD(*this, !posDeque.empty())
+            const positionTy& firstPos = posDeque.front();
 
+            // Ground vehicle maybe? Shall be on the ground then
+            if (firstPos.IsOnGnd() &&
+                // OpenSky only delivers "category description" and has a
+                // pretty clear indicator for a ground vehicle
+                (statData.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
+                 // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
+                 (statData.catDescr.find(OPSKY_MD_TEX_NO_CAT) != std::string::npos &&
+                  statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
+                // ADSBEx doesn't send as clear an indicator, but data analysis
+                // suggests that EngType/Mount == 0 is a good indicator
+                 statData.engType == statData.engMount == 0))
+            {
+                // assume surface vehicle
+                statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+            }
+            else
+            {
+                // we have no better idea than standard
+                // TODO: Make use of man/mdl, see issue #44
+                statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
+                LOG_MSG(logWARN,ERR_NO_AC_TYPE,
+                        transpIcao.c_str(),
+                        statData.man.c_str(), statData.mdl.c_str(),
+                        statData.acTypeIcao.c_str());
+            }
+        }
+        
         // create the object (constructor will recursively re-access the lock)
         pAc = new LTAircraft(*this);
         if (!pAc)
@@ -1804,6 +1872,27 @@ void LTFlightData::DestroyAircraft ()
     if ( pAc )
         delete pAc;
     pAc = nullptr;
+}
+
+// static function to
+// update the CSL model of all aircrafts (e.g. after loading new CSL models)
+void LTFlightData::UpdateAllModels ()
+{
+    try {
+        // access guarded by the fd mutex
+        std::lock_guard<std::mutex> lock (mapFdMutex);
+        
+        // iterate all flight data
+        for ( mapLTFlightDataTy::value_type& fdPair: mapFd )
+        {
+            // if there is an aircraft update it's flight model
+            LTAircraft* pAc = fdPair.second.GetAircraft();
+            if (pAc)
+                pAc->ChangeModel(fdPair.second.GetUnsafeStat());
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+    }
 }
 
 // finds the closest a/c roughly in the given direction ('focus a/c')

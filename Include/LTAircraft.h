@@ -274,6 +274,8 @@ public:
     operator std::string() const;
     // the XPMP model used for displaying this aircraft
     std::string GetModelName() const;
+    // change the model (e.g. when model-defining static data changed)
+    void ChangeModel (const LTFlightData::FDStaticData& statData);
     // current position
     inline const positionTy& GetPPos() const { return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
@@ -318,6 +320,7 @@ public:
     inline bool IsInCameraView() const { return pExtViewAc == this; }
 
 protected:
+    void CalcLabelInternal (const LTFlightData::FDStaticData& statDat);
     // based on current sim time and posList calculate the present position
     bool CalcPPos ();
     // determine other parameters like gear, flap, roll etc. based on flight model assumptions

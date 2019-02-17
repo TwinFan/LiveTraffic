@@ -865,13 +865,7 @@ bValid(true)
         LabelUpdate();
 
         // standard internal label (e.g. for logging) is transpIcao + ac type + another id if available
-        std::string s (statCopy.acId(""));
-        labelInternal = key() + " (" + statCopy.acTypeIcao;
-        if (!s.empty()) {
-            labelInternal += ' ';
-            labelInternal += s;
-        }
-        labelInternal += ')';
+        CalcLabelInternal(statCopy);
         
         // init surfaces
         memset ( &surfaces, 0, sizeof(surfaces));
@@ -920,6 +914,18 @@ LTAircraft::~LTAircraft()
     dataRefs.DecNumAircrafts();
     LOG_MSG(logINFO,INFO_AC_REMOVED,labelInternal.c_str());
 }
+
+void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
+{
+    std::string s (statDat.acId(""));
+    labelInternal = key() + " (" + statDat.acTypeIcao;
+    if (!s.empty()) {
+        labelInternal += ' ';
+        labelInternal += s;
+    }
+    labelInternal += ')';
+}
+
 
 // MARK: LTAircraft stringify for debugging output purposes
 LTAircraft::operator std::string() const
@@ -1933,4 +1939,23 @@ std::string LTAircraft::GetModelName() const
     char buf[256];
     XPMPGetPlaneModelName(mPlane, buf, sizeof(buf));
     return std::string(buf);
+}
+
+// change the model (e.g. when model-defining static data changed)
+void LTAircraft::ChangeModel (const LTFlightData::FDStaticData& statData)
+{
+    const std::string oldModelName(GetModelName());
+    CalcLabelInternal(statData);
+    XPMPChangePlaneModel(mPlane,
+                         statData.acTypeIcao.c_str(),
+                         statData.opIcao.c_str(),
+                         statData.reg.c_str());
+    
+    // if there was an actual change inform the log
+    if (oldModelName != GetModelName()) {
+        LOG_MSG(logINFO,INFO_AC_MDL_CHANGED,
+                labelInternal.c_str(),
+                statData.opIcao.c_str(),
+                GetModelName().c_str());
+    }
 }

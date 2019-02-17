@@ -169,6 +169,14 @@
          contextName = "positionTy::rad2deg():CoordCalc.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTAircraft::ChangeModel(LTFlightData::FDStaticData const&amp;):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "labelInternal">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;):LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -317,15 +325,23 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::UpdateData(LTFlightData::FDStaticData const&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "statData">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "OpenSkyAcMasterdata::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">
@@ -410,6 +426,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "LTFlightData::CreateAircraft(double):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
          contextName = "XPMPRenderMultiplayerPlanes(int, int, void*):XPMPMultiplayer.cpp">
          <PersistentStrings>
             <PersistentString
@@ -464,10 +483,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -515,10 +534,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -529,10 +548,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">

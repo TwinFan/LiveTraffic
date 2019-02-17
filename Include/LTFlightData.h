@@ -80,7 +80,7 @@ public:
         double          ts;             // last update of dyn data?           1523789873,329 [Epoch s]
         
         // Channel which provided the data
-        const LTChannel* pChannel;
+        const LTChannel* pChannel = nullptr;
         
     public:
         FDDynamicData();
@@ -111,6 +111,9 @@ public:
         std::string     acTypeIcao;     // XPMP API: "ICAOCode" as the aircraft type    DH8D
         std::string     man;            // aircraft manufacturer                        Bombardier
         std::string     mdl;            // aircraft model (long text)                   Bombardier DHC-8 402
+        std::string     catDescr;       // category description
+        int             engType = -1;   // type of engine
+        int             engMount = -1;  // type of engine mount
         int             year = 0;       // year built                                   2008
         bool            mil  = false;   // military?                                    false
         transpTy        trt  = trt_Unknown; // transponder type                             ADS_B_unknown=2
@@ -303,7 +306,8 @@ public:
     void DestroyAircraft ();
     LTAircraft* GetAircraft () const { return pAc; }
     
-    // treating mapFd as lists
+    // actions on all flight data / treating mapFd as lists
+    static void UpdateAllModels ();
     static const LTFlightData* FindFocusAc (const double bearing);
     friend LTFlightDataList;
 };

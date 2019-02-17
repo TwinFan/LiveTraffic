@@ -787,7 +787,9 @@ bool LTSettingsUI::MsgPushButtonPressed (XPWidgetID buttonWidget)
     for (int i=0; i < SETUI_CSL_PATHS; i++) {
         if (widgetIds[UI_CSL_BTN_LOAD_1 + i*SETUI_CSL_ELEMS_PER_PATH] == buttonWidget) {
             SaveCSLPath(i);
-            dataRefs.LoadCSLPackage(i);
+            if (dataRefs.LoadCSLPackage(i))
+                // successfully loaded...not update all CSL models in use
+                LTFlightData::UpdateAllModels();
             return true;
         }
     }

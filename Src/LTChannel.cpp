@@ -712,6 +712,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                 stat.man =        jog_s(pJAc, ADSBEX_MAN);
                 stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
+                stat.engType =    (int)jog_l(pJAc, ADSBEX_ENG_TYPE);
+                stat.engMount =   (int)jog_l(pJAc, ADSBEX_ENG_MOUNT);
                 stat.year =  (int)jog_sl(pJAc, ADSBEX_YEAR);
                 stat.mil =        jog_b(pJAc, ADSBEX_MIL);
                 stat.trt          = transpTy(jog_l(pJAc,ADSBEX_TRT));
@@ -730,23 +732,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if (s.length() == 4 ||          // extract 4 letter airport code from beginning
                     (s.length() > 4 && s[4] == ' '))
                     stat.destAp = s.substr(0,4);
-                
-                // no type code?
-                if ( stat.acTypeIcao.empty() ) {
-                    // could be a surface vehicle
-                    // ADSBEx doesn't send a clear indicator, but data anyslsis
-                    // suggests that EngType/Mount == 0 is a good indicator
-                    if (jog_b(pJAc, ADSBEX_GND)         == true &&
-                        jog_l(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
-                        jog_l(pJAc, ADSBEX_ENG_MOUNT)   == 0)
-                        // assume surface vehicle
-                        stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-                    else
-                        LOG_MSG(logWARN,ERR_CH_INV_DATA,
-                                ChName(),transpIcao.c_str(),
-                                stat.man.c_str(), stat.mdl.c_str(),
-                                dataRefs.GetDefaultAcIcaoType().c_str());
-                }
                 
                 // update the a/c's master data
                 fd.UpdateData(std::move(stat));
@@ -1140,6 +1125,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                     stat.man =        jog_s(pJAc, ADSBEX_MAN);
                     stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
+                    stat.engType =    (int)jog_l(pJAc, ADSBEX_ENG_TYPE);
+                    stat.engMount =   (int)jog_l(pJAc, ADSBEX_ENG_MOUNT);
                     stat.year =  (int)jog_sl(pJAc, ADSBEX_YEAR);
                     stat.mil =        jog_b(pJAc, ADSBEX_MIL);
                     stat.trt          = transpTy(jog_l(pJAc,ADSBEX_TRT));
@@ -1159,23 +1146,6 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         (s.length() > 4 && s[4] == ' '))
                         stat.destAp = s.substr(0,4);
 
-                    // no type code?
-                    if ( stat.acTypeIcao.empty() ) {
-                        // could be a surface vehicle
-                        // ADSBEx doesn't send a clear indicator, but data anyslsis
-                        // suggests that EngType/Mount == 0 is a good indicator
-                        if (jog_b(pJAc, ADSBEX_GND)         == true &&
-                            jog_l(pJAc, ADSBEX_ENG_TYPE)    == 0    &&
-                            jog_l(pJAc, ADSBEX_ENG_MOUNT)   == 0)
-                            // assume surface vehicle
-                            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-                        else
-                            LOG_MSG(logWARN,ERR_CH_INV_DATA,
-                                    ChName(),transpIcao.c_str(),
-                                    stat.man.c_str(), stat.mdl.c_str(),
-                                    dataRefs.GetDefaultAcIcaoType().c_str());
-                    }
-                    
                     // update the a/c's master data
                     fd.UpdateData(std::move(stat));
                 }
@@ -1602,24 +1572,9 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             statDat.acTypeIcao  = jog_s(pJAc, OPSKY_MD_AC_TYPE_ICAO);
             statDat.man         = jog_s(pJAc, OPSKY_MD_MAN);
             statDat.mdl         = jog_s(pJAc, OPSKY_MD_MDL);
+            statDat.catDescr    = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
             statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
             statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
-            
-            // no type code?
-            if ( statDat.acTypeIcao.empty() ) {
-                // could be a ground vehicle?
-                std::string cat = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
-                if (cat.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
-                    // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-                    (cat.find(OPSKY_MD_TEX_NO_CAT) != std::string::npos &&
-                        statDat.man.empty() && statDat.mdl.empty() && statDat.opIcao.empty()))
-                    statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-                else
-                    LOG_MSG(logWARN,ERR_CH_INV_DATA,
-                            ChName(),transpIcao.c_str(),
-                            statDat.man.c_str(), statDat.mdl.c_str(),
-                            dataRefs.GetDefaultAcIcaoType().c_str());
-            }
         }
         
         // *** Route Information ***
