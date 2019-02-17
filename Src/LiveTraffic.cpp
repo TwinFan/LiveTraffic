@@ -92,11 +92,28 @@ void MenuHandler(void * /*mRef*/, void * iRef)
     }
 }
 
-void MenuCheckAircraftsDisplayed ( bool bChecked )
+// the "Aircrafts displayed" menu item includes the number of displayed a/c
+// (if the item is checked, i.e. active)
+void MenuCheckAircraftsDisplayed ( bool bChecked, int numAc )
 {
     XPLMCheckMenuItem(// checkmark the menu item if aircrafts shown
                       menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
                       bChecked ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+    
+    // update menu item's name with number of a/c
+    // (if there are a/c, or is item enabled)
+    if (bChecked || numAc > 0)
+    {
+        char szItemName[50];
+        snprintf(szItemName, sizeof(szItemName), MENU_TOGGLE_AC_NUM, numAc);
+        XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
+                            szItemName, 0);
+    }
+        else
+    {
+        XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
+                            MENU_TOGGLE_AIRCRAFTS, 0);
+    }
 }
 
 void MenuCheckTCASControl ( bool bChecked )

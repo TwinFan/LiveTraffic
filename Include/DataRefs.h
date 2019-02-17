@@ -474,12 +474,8 @@ public:
     
     // Number of aircrafts
     inline int GetNumAircrafts() const          { return cntAc; }
-    inline int IncNumAircrafts()                { return ++cntAc; }
-    // decreses number of aircrafts
-    // which by itself is simplistic, but as the just removed a/c
-    // _could_ be the one we are monitoring in our dataRefs (we don't know)
-    // we better invalidate the pAc ptr and force the dataRef to find the a/c again
-    inline int DecNumAircrafts()                { pAc=nullptr; return --cntAc; }
+    int IncNumAircrafts();
+    int DecNumAircrafts();
 
     // Get XP System Path
     inline std::string GetXPSystemPath() const  { return XPSystemPath; }

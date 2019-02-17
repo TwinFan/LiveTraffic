@@ -144,6 +144,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_AC_INFO_WND_AUTO   "Aircraft Info (Auto-select)"
 #define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
+#define MENU_TOGGLE_AC_NUM      "Aircrafts displayed (%d shown)"
 #define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_SETTINGS_UI        "Settings..."
 #ifdef DEBUG

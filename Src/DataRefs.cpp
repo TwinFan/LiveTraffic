@@ -870,7 +870,7 @@ void DataRefs::SetAircraftsDisplayed ( int bEnable )
     }
     
     // update menu item's checkmark
-    MenuCheckAircraftsDisplayed ( bShowingAircrafts );
+    MenuCheckAircraftsDisplayed ( bShowingAircrafts, GetNumAircrafts() );
     MenuCheckTCASControl(XPMPHasControlOfAIAircraft());
 }
 
@@ -1100,6 +1100,26 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
     catch (const std::out_of_range& e) {
         LOG_MSG(logWARN,ERR_CFG_FILE_VALUE,dataName.c_str(),s.c_str(),e.what());
     }
+}
+
+//MARK: Increse/decrease number of a/c
+
+// increase number of a/c, update menu item with that number
+int DataRefs::IncNumAircrafts()
+{
+    MenuCheckAircraftsDisplayed(bShowingAircrafts, ++cntAc);
+    return cntAc;
+}
+
+// decreses number of aircrafts
+// which by itself is simplistic, but as the just removed a/c
+// _could_ be the one we are monitoring in our dataRefs (we don't know)
+// we better invalidate the pAc ptr and force the dataRef to find the a/c again
+int DataRefs::DecNumAircrafts()
+{
+    pAc=nullptr;
+    MenuCheckAircraftsDisplayed(bShowingAircrafts, --cntAc);
+    return cntAc;
 }
 
 
