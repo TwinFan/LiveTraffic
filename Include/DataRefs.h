@@ -135,6 +135,7 @@ enum dataRefsLT {
     DR_CFG_LABEL_COL_DYN,
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
+    DR_CFG_MSG_AREA_LEVEL,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
     DR_CFG_MAX_FULL_NUM_AC,
@@ -292,6 +293,7 @@ protected:
 protected:
     XPLMPluginID pluginID       = 0;
     logLevelTy iLogLevel        = logWARN;
+    logLevelTy iMsgAreaLevel    = logINFO;
     int bShowingAircrafts       = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
@@ -404,7 +406,9 @@ public:
     // livetraffic/cfg/log_level: Log Level
     static void LTSetLogLevel(void* p, int i);
     void SetLogLevel ( int i );
+    void SetMsgAreaLevel ( int i );
     inline logLevelTy GetLogLevel()             { return iLogLevel; }
+    inline logLevelTy GetMsgAreaLevel()         { return iMsgAreaLevel; }
     
     // livetraffic/cfg/use_historic_data: Simulate history
     static void LTSetUseHistData(void*, int i);

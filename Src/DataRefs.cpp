@@ -221,6 +221,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
+    {"livetraffic/cfg/msg_area_level",              DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, true },
     {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/max_full_num_ac",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -259,6 +260,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
         case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
+        case DR_CFG_MSG_AREA_LEVEL:         return &iMsgAreaLevel;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
         case DR_CFG_MAX_FULL_NUM_AC:        return &maxFullNumAc;
@@ -883,14 +885,27 @@ int DataRefs::ToggleAircraftsDisplayed ()
 }
 
 // Log Level
-void DataRefs::LTSetLogLevel(void*, int i)
-{ dataRefs.SetLogLevel(i); }
+void DataRefs::LTSetLogLevel(void* p, int i)
+{
+    LOG_ASSERT (p == &dataRefs.iLogLevel || p == &dataRefs.iMsgAreaLevel);
+    if ( p == &dataRefs.iMsgAreaLevel )
+        dataRefs.SetMsgAreaLevel(i);
+    else
+        dataRefs.SetLogLevel(i);
+}
 
 void DataRefs::SetLogLevel ( int i )
 {
     if ( i <= logDEBUG )       iLogLevel = logDEBUG;
     else if ( i >= logFATAL )  iLogLevel = logFATAL ;
     else                       iLogLevel = logLevelTy(i);
+}
+
+void DataRefs::SetMsgAreaLevel ( int i )
+{
+    if ( i <= logDEBUG )       iMsgAreaLevel = logDEBUG;
+    else if ( i >= logFATAL )  iMsgAreaLevel = logFATAL ;
+    else                       iMsgAreaLevel = logLevelTy(i);
 }
 
 // switch usage of historic data

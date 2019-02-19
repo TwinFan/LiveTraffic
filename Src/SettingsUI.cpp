@@ -202,6 +202,11 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_BTN_LOG_WARNING,
     UI_ADVCD_BTN_LOG_INFO,
     UI_ADVCD_BTN_LOG_DEBUG,
+    UI_ADVCD_CAP_MSGAREA_LEVEL,
+    UI_ADVCD_BTN_MSGAREA_FATAL,
+    UI_ADVCD_BTN_MSGAREA_ERROR,
+    UI_ADVCD_BTN_MSGAREA_WARNING,
+    UI_ADVCD_BTN_MSGAREA_INFO,
     UI_ADVCD_CAP_MAX_NUM_AC,
     UI_ADVCD_INT_MAX_NUM_AC,
     UI_ADVCD_CAP_MAX_FULL_NUM_AC,
@@ -331,12 +336,17 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 150, 225,  10,  10, 1, "VR",                  0, UI_LABELS_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     // "Advanced" tab
     {  10,  50, -10, -10, 0, "Advanced",            0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
-    {   5,  10,  -5,  10, 1, "Logging Level:",      0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    {  10,  30,  10,  10, 1, "Fatal",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
-    {  80,  30,  10,  10, 1, "Error",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
-    { 150,  30,  10,  10, 1, "Warning",             0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
-    { 220,  30,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
-    { 290,  30,  10,  10, 1, "Debug",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    {   5,  10,  -5,  10, 1, "Log Level:",          0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  80,  10,  10,  10, 1, "Fatal",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 140,  10,  10,  10, 1, "Error",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 200,  10,  10,  10, 1, "Warning",             0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 270,  10,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 320,  10,  10,  10, 1, "Debug",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    {   5,  30,  -5,  10, 1, "Msg Area:",           0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  80,  30,  10,  10, 1, "Fatal",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 140,  30,  10,  10, 1, "Error",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 200,  30,  10,  10, 1, "Warning",             0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
+    { 270,  30,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0} },
     {   5,  50, 225,  10, 1, "Max number of aircrafts",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230,  50,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
     {   5,  70, 225,  10, 1, "Max number of full a/c to draw",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -509,6 +519,15 @@ void LTSettingsUI::Enable()
         logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
         HookButtonGroup(logLevelGrp);
         
+        msgAreaLevelGrp.Add({
+            widgetIds[UI_ADVCD_BTN_MSGAREA_INFO],       // index 0 is logINFO, which is 1
+            widgetIds[UI_ADVCD_BTN_MSGAREA_WARNING],
+            widgetIds[UI_ADVCD_BTN_MSGAREA_ERROR],
+            widgetIds[UI_ADVCD_BTN_MSGAREA_FATAL],      // index 4 equals logFATAL, which is also 4
+        });
+        msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
+        HookButtonGroup(msgAreaLevelGrp);
+
         // link some buttons directly to dataRefs:
         intMaxNumAc.setId(widgetIds[UI_ADVCD_INT_MAX_NUM_AC],
                           DATA_REFS_LT[DR_CFG_MAX_NUM_AC]);
@@ -687,6 +706,7 @@ bool LTSettingsUI::TfwMsgMain1sTime ()
 {
     TFMainWindowWidget::TfwMsgMain1sTime();
     logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
+    msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
     return true;
 }
 
@@ -760,7 +780,12 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         dataRefs.SetLogLevel(logLevelGrp.GetCheckedIndex());
         return true;
     }
-    
+    if (bNowChecked && msgAreaLevelGrp.isInGroup(buttonWidget))
+    {
+        dataRefs.SetMsgAreaLevel(msgAreaLevelGrp.GetCheckedIndex() + 1);
+        return true;
+    }
+
     // *** CSL ***
     // if any of the enable-check boxes changed we store that setting
     for (int i = 0; i < SETUI_CSL_PATHS; i++)

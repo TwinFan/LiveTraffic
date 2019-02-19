@@ -185,6 +185,12 @@ void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags
 //MARK: custom X-Plane message Window - Create / Destroy
 XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
 {
+    // consider configured level for msg area
+    // for this consideration we treat logMSG the same way as logINFO,
+    // i.e. logMSG is more likely to be suppressed
+    if ( (lvl == logMSG ? logINFO : lvl) < dataRefs.GetMsgAreaLevel())
+        return g_window;
+    
     va_list args;
 
     // save the text in a static buffer queried by the drawing callback
