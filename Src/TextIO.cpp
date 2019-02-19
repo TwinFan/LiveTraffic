@@ -223,25 +223,19 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     // Note on "dummy" handlers:
     // Even if we don't want to handle these events, we have to register a "do-nothing" callback for them
     params.handleMouseClickFunc = dummy_mouse_handler;
-#if defined(XPLM300)
     params.handleRightClickFunc = dummy_mouse_handler;
-#endif
     params.handleMouseWheelFunc = dummy_wheel_handler;
     params.handleKeyFunc = dummy_key_handler;
     params.handleCursorFunc = dummy_cursor_status_handler;
     params.refcon = NULL;
-#if defined(XPLM300)
     params.layer = xplm_WindowLayerFloatingWindows;
-#endif
-#if defined(XPLM301)
     // No decoration...this is just message output and shall stay where it is
     params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
-#endif
     
     // Set the window's initial bounds
     // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
     // We'll need to query for the global desktop bounds!
-    LT_GetScreenSize(&params.left, &params.top, &params.right, &params.bottom);
+    LT_GetScreenSize(params.left, params.top, params.right, params.bottom);
     
     // define a window in the top right corner,
     // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
@@ -271,7 +265,6 @@ void DestroyWindow()
         XPLMDestroyWindow(g_window);
         g_window = NULL;
         listTexts.clear();
-//        LOG_MSG(logDEBUG,DBG_WND_DESTROYED);
    }
 }
 

@@ -41,6 +41,8 @@ void XPC_SetWindowPositioningMode(XPLMWindowID              inWindowID,
                                   XPLMWindowPositioningMode inPositioningMode,
                                   int                       inMonitorIndex);
 XPLMWindowID XPC_GetWidgetUnderlyingWindow(XPWidgetID       inWidget);
+void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBoundsCallback,
+                                   void *               inRefcon);
 
 // find and initialize all function pointers
 bool XPC_Init();
@@ -60,9 +62,11 @@ inline bool XPC_IsXPLM301()     { return XPC_XPLMVersion >= 301; }
 //            working XP-version independent
 
 // determines screen size
-void LT_GetScreenSize (int * outLeft,     /* Can be NULL */
-                       int * outTop,      /* Can be NULL */
-                       int * outRight,    /* Can be NULL */
-                       int * outBottom);  /* Can be NULL */
+// XP10: main screen
+// XP11: right-most screen
+void LT_GetScreenSize (int& outLeft,
+                       int& outTop,
+                       int& outRight,
+                       int& outBottom); 
 
 #endif /* XPCompatibility_h */

@@ -470,11 +470,37 @@ bool ACIWnd::UpdateFocusAc ()
     
     // nothing found?
     if (!pFocusAc) {
+        // Clear static values - did we actually clear anything?
+        if (ClearStaticValues()) {
+            // only then (i.e. the first time we really remove text)
+            // also remove the key (otherwise the user might have starte entering a new key already,
+            // which we don't want to clear every second)
+            txtAcKey.SetTranspIcao("");
+        }
+        
         // start at least the timer for regular focus a/c updates
-        txtAcKey.SetTranspIcao("");
         StartStopTimerMessages(true);
     }
     return false;
+}
+
+// clear static fields
+bool ACIWnd::ClearStaticValues() {
+    bool bRet = false;
+    
+    // loop all static fields
+    for (int i: {
+        ACI_TXT_REG, ACI_TXT_ICAO, ACI_TXT_CLASS, ACI_TXT_MANU, ACI_TXT_MODEL,
+        ACI_TXT_OP, ACI_TXT_CALLSIGN, ACI_TXT_FLIGHT_ROUTE
+    })
+    {
+        // is there anything to clear away?
+        if (XPGetWidgetDescriptor(widgetIds[i], NULL, 0) > 0) {
+            bRet = true;
+            XPSetWidgetDescriptor(widgetIds[i], "");
+        }
+    }
+    return bRet;
 }
 
 // Update all values in the window.
@@ -512,11 +538,7 @@ void ACIWnd::UpdateStatValues()
                             txtAcKey.GetTranspIcaoInt());
     } else {
         // clear static values
-        for (int i: {
-            ACI_TXT_REG, ACI_TXT_ICAO, ACI_TXT_CLASS, ACI_TXT_MANU, ACI_TXT_MODEL,
-            ACI_TXT_OP, ACI_TXT_CALLSIGN, ACI_TXT_FLIGHT_ROUTE
-        })
-            XPSetWidgetDescriptor(widgetIds[i], "");
+        ClearStaticValues();
 
         // stop the timer for regular dyn data updates
         StartStopTimerMessages(false);

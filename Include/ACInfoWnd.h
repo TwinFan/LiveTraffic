@@ -102,6 +102,7 @@ protected:
     virtual bool TfwMsgMain1sTime ();
     // Updated myself
     bool UpdateFocusAc ();          // switch to another focus a/c?
+    bool ClearStaticValues ();      // clear static fields, returns if there was text that was cleared away
     void UpdateStatValues ();       // static fields
     void UpdateDynValues ();        // dynamic fields
 };

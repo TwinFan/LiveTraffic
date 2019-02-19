@@ -40,6 +40,9 @@ f_XPLMSetWindowPositioningMode* pXPLMSetWindowPositioningMode = nullptr;
 typedef XPLMWindowID (f_XPGetWidgetUnderlyingWindow)(XPWidgetID);
 f_XPGetWidgetUnderlyingWindow* pXPGetWidgetUnderlyingWindow = nullptr;
 
+typedef void (f_XPLMGetAllMonitorBoundsGlobal)(XPLMReceiveMonitorBoundsGlobal_f,void*);
+f_XPLMGetAllMonitorBoundsGlobal* pXPLMGetAllMonitorBoundsGlobal = nullptr;
+
 //
 // MARK: XPC functions
 //
@@ -55,6 +58,13 @@ void XPC_SetWindowPositioningMode(XPLMWindowID              inWindowID,
 XPLMWindowID XPC_GetWidgetUnderlyingWindow(XPWidgetID       inWidget)
 {
     return pXPGetWidgetUnderlyingWindow ? pXPGetWidgetUnderlyingWindow(inWidget) : 0;
+}
+
+void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBoundsCallback,
+                                   void *               inRefcon)
+{
+    LOG_ASSERT(pXPLMGetAllMonitorBoundsGlobal);
+    pXPLMGetAllMonitorBoundsGlobal(inMonitorBoundsCallback, inRefcon);
 }
 
 // find and initialize all function pointers
@@ -75,6 +85,7 @@ bool XPC_Init()
         FIND_SYM(XPLMGetScreenBoundsGlobal);
         FIND_SYM(XPLMSetWindowPositioningMode);
         FIND_SYM(XPGetWidgetUnderlyingWindow);
+        FIND_SYM(XPLMGetAllMonitorBoundsGlobal);
     }
     return true;
 }
@@ -83,17 +94,52 @@ bool XPC_Init()
 // MARK: LT functions
 //
 
-// determines screen size
-void LT_GetScreenSize (int * outLeft,     /* Can be NULL */
-                       int * outTop,      /* Can be NULL */
-                       int * outRight,    /* Can be NULL */
-                       int * outBottom)   /* Can be NULL */
+// callback function that receives monitor coordinates
+int rm_l, rm_t, rm_r, rm_b;     // right-most window's coordinates
+void CBReceiveMonitorBoundsGlobal(int,              // inMonitorIndex
+                                  int    inLeftBx,
+                                  int    inTopBx,
+                                  int    inRightBx,
+                                  int    inBottomBx,
+                                  void * )          // inRefcon
 {
-    if (pXPLMGetScreenBoundsGlobal) {
-        pXPLMGetScreenBoundsGlobal(outLeft, outTop, outRight, outBottom);
-    } else {
-        if (outLeft) *outLeft = 0;
-        XPLMGetScreenSize(outRight,outTop);
-        if (outBottom) *outBottom = 0;
+    // right-most?
+    if (inRightBx > rm_r) {
+        rm_l = inLeftBx;
+        rm_t = inTopBx;
+        rm_r = inRightBx;
+        rm_b = inBottomBx;
     }
+}
+
+
+// determines screen size
+void LT_GetScreenSize (int& outLeft,
+                       int& outTop,
+                       int& outRight,
+                       int& outBottom)
+{
+    // XP11 using global coordinates
+    if (pXPLMGetAllMonitorBoundsGlobal) {
+        // find righ-most window coordinates
+        // this will only find full screen monitors!
+        rm_l = rm_t = rm_r = rm_b = 0;
+        pXPLMGetAllMonitorBoundsGlobal(CBReceiveMonitorBoundsGlobal, NULL);
+        
+        // did we find something? then return it
+        if ( rm_l || rm_t || rm_r || rm_b ) {
+            outLeft     = rm_l;
+            outTop      = rm_t;
+            outRight    = rm_r;
+            outBottom   = rm_b;
+            return;
+        }
+        // if we didn't find anything we are running in windowed mode
+        // fall through to classic XP10 way of figuring out screen size
+    }
+    
+    // XP10 or windowed mode
+    outLeft = 0;
+    XPLMGetScreenSize(&outRight,&outTop);
+    outBottom = 0;
 }

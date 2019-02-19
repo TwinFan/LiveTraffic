@@ -264,25 +264,38 @@ bool TFWidget::isVisible() const
 void TFWidget::MoveTo(int toLeft, int toTop)
 {
     // get current geometry
-    int left = 0, top = 0;
-    GetGeometry(&left, &top, NULL, NULL);
+    int left = 0, top = 0, right = 0, bottom = 0;
+    GetGeometry(&left, &top, &right, &bottom);
     
     // move to target
-    MoveBy ( toLeft - left, toTop - top );
+    right   = toLeft + (right - left);
+    bottom  = toTop  - (top - bottom);
+    left    = toLeft;
+    top     = toTop;
+    SetGeometry(left, top, right, bottom);
 }
 
 void TFWidget::MoveBy(int x, int y)
 {
-    XPUMoveWidgetBy(me, x, y);
+    // get current geometry
+    int left = 0, top = 0, right = 0, bottom = 0;
+    GetGeometry(&left, &top, &right, &bottom);
+    
+    // move to target
+    left    += x;
+    right   += x;
+    top     += y;
+    bottom  += y;
+    SetGeometry(left, top, right, bottom);
 }
 
 void TFWidget::Center()
 {
     // Get the screen size
-    // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
-    // We'll need to query for the global desktop bounds!
+    // Note: As long as we don't enable "modern native windows" for widgets
+    //       they are using classic coordinates
     int left=0, top=0, right=0, bottom=0;
-    LT_GetScreenSize (&left, &top, &right, &bottom);
+    XPLMGetScreenSize(&right,&top);
     
     // calc center coordinates
     left = (left+right)/2;
