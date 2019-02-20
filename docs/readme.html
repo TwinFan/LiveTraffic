@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -20,12 +20,12 @@
                 that come with the approach LiveTraffic takes.
             </li>
             <li>
-                Then continue to
+                Then continue to confirm
                 <a href="https://twinfan.gitbook.io/livetraffic/introduction/requirements">requirements</a>
             </li>
             <li>
                 and, certainly,
-                <a href="https://twinfan.gitbook.io/livetraffic/setup"><b>setup</b></a>.
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation"><b>do the setup</b></a>.
             </li>
         </ul>
     </P>
@@ -33,15 +33,57 @@
 
     <h2>Release Notes</h2>
 
-    <p>The number-link refers to the issue in GitHub with (technical) details.</p>
+    <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
 
-    <h3>v0.92.190211 Pubic Beta</h3>
-
+    <h3>v0.93.1902__ Pubic Beta - Release Candidate 1</h3>
+    
     <p>
-        <b>To update coming from 0.91 or 0.92</b> just copy the contents of the installation package over your existing
-        installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
-        existing one. There are no new files.
+    <b>To update coming from 0.92</b> just copy the contents of the installation package over your existing
+    installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
+    existing one. There are no new files.
     </p>
+    
+    <ul>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/98">#98</a>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">
+            step-by-step instruction for Bluebell CSL package installation</a>
+            to documentation especially targeting new users.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/16">#16</a>
+            roll to aircraft movement when flying curves. Still looks a bit shaky,
+            will only get better after implementing Bezier curves
+            (<a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>) after v1.0.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/99">#99</a>
+            <I>Last Data</I> info in A/C information window, especially obvious
+            in ADSBEx streams, in which the last timestamp never became negative.
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/97">#97</a>
+            aircraft's ICAO type selection: Decision is pushed out to a moment before
+            actual plane creation when infos from various channels are
+            collected and combined. Reduces warnings about missing ICAO type
+            in <code>Log.txt</code> significantly. Better identifies
+            ground vehicles especially in ADS-B streams.
+        </li>
+        <li>
+            Also, the CSL model for a plane can now change in-flight if
+            new info arrives that affects model-matching, e.g. a proper
+            ICAO type for a plane previously shown with defaults.<br>
+            After manually loading CSL models in Settings > CSL all planes
+            are re-matched, immediately making use of newly loaded models.
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/101">#101</a>
+            and enhanced technical exception handling. LT disables itself in case it can't
+            recover from exception (instead of re-throwing the exception, which causes CTD).
+        </li>
+    </ul>
+    
+    <h3>v0.92.190211 Pubic Beta</h3>
 
     <ul>
         <li>
@@ -56,12 +98,6 @@
     </ul>
 
     <h3>v0.92.190209 Pubic Beta</h3>
-
-    <p>
-        <b>To update coming from 0.91</b> just copy the contents of the installation package over your existing
-        installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
-        existing one. There are no new files.
-    </p>
 
     <ul>
         <li>
@@ -163,14 +199,14 @@
             <ul>
                 <li>
                     FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/73">#73</a>
-                    model-selected based on <code>related.txt</code> for some Diamond models, which appeared as gliders.
+                    model-selection based on <code>related.txt</code> for some Diamond models, which appeared as gliders.
                 </li>
                 <li>
                     FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/84">#84</a>
                     Message area moving too high on Linux
                 </li>
                 <li>
-                    FIXED rounding if alitudes to full feet in internal calculations, which removes step climbs/descends by 1ft,
+                    FIXED rounding of altitudes to full feet in internal calculations, which removes step climbs/descends by 1ft,
                     especially visible on the ground.
                 </li>
                 <li>
@@ -568,19 +604,15 @@
         start up.
     </P>
     <P>
-        Recommended are
-        <ul>
-            <li>
-                the "Bluebell" OBJ8 CSL packages found at the
-                <a href="https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/">X-Plane.org forums</a>.
-                Follow their instructions. Also download and install the
-                <code>BB_IVAO_vert_offsets_*</code> files in the downloads as recommended
-                for the X-IvAp users. LiveTraffic can handle them, too.
-            </li>
-            <li>
-                the <a href="http://csl.x-air.ru/info/item/150?lang_id=43">Follow me car from X-CSL Package</a> as a ground vehicle object.
-            </li>
-        </ul>
+        Recommendation is the "Bluebell" OBJ8 CSL packages by Oktalist found at the
+        <a href="https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/">X-Plane.org forums</a>.
+        Follow their instructions. Also download and install the
+        <code>BB_IVAO_vert_offsets_*</code> files in the downloads as recommended
+        for the X-IvAp users. LiveTraffic can handle them, too.
+    </P>
+    <P>
+        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">
+        Step-by-step instructions</a> are available.
     </P>
 
     <h3>Resulting Directory Structure</h3>
@@ -594,6 +626,7 @@
         <code>LiveTraffic/64/mac.xpl</code><br>
         <code>LiveTraffic/64/win.xpl</code><br>
         <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
+        <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
         <code>LiveTraffic/Resources/Doc8643.txt</code><br>
         <code>LiveTraffic/Resources/FlightModels.prf</code><br>
         <code>LiveTraffic/Resources/lights.png</code><br>
