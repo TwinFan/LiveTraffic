@@ -103,8 +103,9 @@ void CBReceiveMonitorBoundsGlobal(int,              // inMonitorIndex
                                   int    inBottomBx,
                                   void * )          // inRefcon
 {
-    // right-most?
-    if (inRightBx > rm_r) {
+    // right-top-most?
+    if ((inRightBx > rm_r) ||
+        (inRightBx == rm_r && inTopBx > rm_r)){
         rm_l = inLeftBx;
         rm_t = inTopBx;
         rm_r = inRightBx;
