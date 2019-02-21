@@ -57,7 +57,7 @@ public:
 protected:
     // capture entry into the key field
     virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
-    
+    virtual bool MsgKeyPress (XPKeyState_t& key);
 };
 
 //

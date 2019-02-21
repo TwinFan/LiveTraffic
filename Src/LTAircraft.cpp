@@ -650,10 +650,8 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
             text.erase(pos);
     
         // remove leading and trailing white space
-        if ((pos = text.find_first_not_of(ws)) != std::string::npos)
-            text.erase(0, pos);
-        if ((pos = text.find_last_not_of(ws)) != std::string::npos)
-            text.erase(pos + 1);
+        trim(text);
+
         // the above assume that there is at least one non-WHITESPACE character
         // now handle the case that the entire string is all WHITESPACES:
         // As long as the last char is one of the whitespaces keep removing it

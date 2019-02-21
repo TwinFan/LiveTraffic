@@ -153,6 +153,27 @@ inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
     s.substr(0, m-3) + "...";
 }
+
+// trimming of string
+// https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
+// trim from end of string (right)
+inline std::string& rtrim(std::string& s, const char* t = WHITESPACE)
+{
+    s.erase(s.find_last_not_of(t) + 1);
+    return s;
+}
+// trim from beginning of string (left)
+inline std::string& ltrim(std::string& s, const char* t = WHITESPACE)
+{
+    s.erase(0, s.find_first_not_of(t));
+    return s;
+}
+// trim from both ends of string (right then left)
+inline std::string& trim(std::string& s, const char* t = WHITESPACE)
+{
+    return ltrim(rtrim(s, t), t);
+}
+
 // last word of a string
 std::string str_last_word (const std::string s);
 // separates string into tokens

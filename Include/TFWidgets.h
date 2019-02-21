@@ -222,6 +222,7 @@ public:
     TFTextFieldWidget (XPWidgetID _me = NULL) : TFWidget(_me) {}
     
     void SetSelection (int startPos, int endPos);
+    void SelectAll ();
     
 protected:
     virtual bool MsgKeyPress (XPKeyState_t& key);

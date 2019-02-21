@@ -557,6 +557,13 @@ void TFTextFieldWidget::SetSelection (int startPos, int endPos)
     SetProperty(xpProperty_EditFieldSelEnd, endPos);
 }
 
+void TFTextFieldWidget::SelectAll()
+{
+    // select the entire text to ease entering a new one
+    // (XPGetWidgetDescriptor returns length)
+    SetSelection(0,XPGetWidgetDescriptor(*this, NULL, 0));
+}
+
 // handle <Return>/<tab> specifically: end of entry, send "text changed", loose keyboard focus
 // also handle <Esc> by reverting to the original descriptor
 bool TFTextFieldWidget::MsgKeyPress (XPKeyState_t& key)
@@ -648,7 +655,7 @@ bool TFTextFieldWidget::MsgKeyTakeFocus (bool bChildGaveUp)
     // give class hierarchie a chance
     TFWidget::MsgKeyTakeFocus(bChildGaveUp);
     // we are receiving focus -> select the entire text to ease entering a new one
-    SetSelection(0,int(oldDescriptor.size()));
+    SelectAll();
     return true;
 }
 

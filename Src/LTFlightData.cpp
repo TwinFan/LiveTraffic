@@ -364,12 +364,15 @@ std::string LTFlightData::ComposeLabel() const
             // current position of a/c
             const positionTy& pos = pAc->GetPPos();
             // add more items as per configuration
-            if (cfg.bPhase) { label +=  pAc->GetFlightPhaseString(); label += ' '; }
+            if (cfg.bPhase) { label +=  pAc->GetFlightPhaseString(); trim(label); label += ' '; }
             ADD_LABEL_NUM(cfg.bHeading,     pos.heading());
             ADD_LABEL_NUM(cfg.bAlt,         pos.alt_ft());
-            if (cfg.bHeightAGL)
-                label += (pAc->IsOnGrnd() ? positionTy::GrndE2String(positionTy::GND_ON) :
-                           std::to_string(long(pAc->GetPHeight_ft()))) + ' ';
+            if (cfg.bHeightAGL) {
+                label += pAc->IsOnGrnd() ? positionTy::GrndE2String(positionTy::GND_ON) :
+                           std::to_string(long(pAc->GetPHeight_ft()));
+                trim(label);
+                label += ' ';
+            }
             ADD_LABEL_NUM(cfg.bSpeed,       pAc->GetSpeed_kt());
             ADD_LABEL_NUM(cfg.bVSI,         pAc->GetVSI_ft());
         }

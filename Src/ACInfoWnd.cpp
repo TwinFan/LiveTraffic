@@ -285,6 +285,27 @@ bool TFACSearchEditWidget::MsgTextFieldChanged (XPWidgetID textWidget,
     return false;
 }
 
+// if we lost focus due to the key:
+// regain focus if we don't have a valid a/c,
+// so that user can try again
+bool TFACSearchEditWidget::MsgKeyPress (XPKeyState_t& key)
+{
+    // what's currently entered?
+    const std::string descr(GetDescriptor());
+    // normal handling
+    bool b = TFTextFieldWidget::MsgKeyPress(key);
+    // hit Enter, no focus any longer, but also no a/c and no AUTO mode?
+    if ((key.flags & xplm_DownFlag) &&      // 'key down' flag
+        (key.key == XPLM_KEY_RETURN) &&     // key is 'return'
+        !HaveKeyboardFocus() && !GetFlightData() &&
+        descr != INFO_WND_AUTO_AC) {
+        // regain focus and give user another chance
+        SetKeyboardFocus();
+        SelectAll();
+        return true;
+    }
+    return b;
+}
 
 //
 // MARK: ACIWnd
@@ -353,11 +374,15 @@ widgetIds(nullptr)
     // center the UI
     Center();
 
-    // if we don't have an a/c yet give the use the focus and let him enter one
+    // find the focus a/c if in AUTO mode
     if (bAutoAc)
         UpdateFocusAc();
-    else if (!txtAcKey.HasTranspIcao())
+    
+    // Have no actual aircraft? Give user chance to enter something
+    if (!txtAcKey.GetFlightData()) {
         txtAcKey.SetKeyboardFocus();
+        txtAcKey.SelectAll();
+    }
     else {
         // otherwise start displaying the a/c's data
         UpdateStatValues();
@@ -398,19 +423,13 @@ bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
     // my key changed!
     bAutoAc = text == INFO_WND_AUTO_AC;     // auto switch a/c?
     if (bAutoAc) {
-        UpdateFocusAc();
+        txtAcKey.SetDescriptor("");         // remove text AUTO
+        if (!UpdateFocusAc())               // try finding an aircraft
+            UpdateDynValues();              // not found...but at least update window title
     } else {
         UpdateStatValues();
         UpdateDynValues();
     }
-    
-    // stored a valid entry?
-    if (txtAcKey.HasTranspIcao())
-        // give up keyboard focus, return to X-Plane
-        txtAcKey.LoseKeyboardFocus();
-    else
-        // have user try again:
-        txtAcKey.SetKeyboardFocus();
     
     // msg handled
     return true;
