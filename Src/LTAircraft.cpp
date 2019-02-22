@@ -1622,17 +1622,6 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     if ( bOnGrnd ) {
         gear.down();
     }
-    else {
-        // need flaps below flap speeds
-        if ( speed.kt() < std::min(mdl.FLAPS_UP_SPEED,mdl.FLAPS_DOWN_SPEED) ) {
-            flaps.half();
-        }
-        
-        // no flaps above flap speeds
-        if ( speed.kt() > std::max(mdl.FLAPS_UP_SPEED,mdl.FLAPS_DOWN_SPEED) ) {
-            flaps.up();
-        }
-    }
     
     // taxiing (includings rolling off the runway after landing (cycle phase back to beginning))
     if ( phase == FPH_TAXI ) {
