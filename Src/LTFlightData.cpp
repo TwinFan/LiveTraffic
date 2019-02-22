@@ -1838,7 +1838,7 @@ bool LTFlightData::CreateAircraft ( double simTime )
                   statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
                 // ADSBEx doesn't send as clear an indicator, but data analysis
                 // suggests that EngType/Mount == 0 is a good indicator
-                 statData.engType == statData.engMount == 0))
+                 (statData.engType == 0 && statData.engMount == 0)))
             {
                 // assume surface vehicle
                 statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
