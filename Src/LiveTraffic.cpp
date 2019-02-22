@@ -40,8 +40,8 @@ LTSettingsUI settingsUI;
 
 //MARK: Reload Plugins menu item
 enum menuItems {
-    MENU_ID_AC_INFO_WND_AUTO = 0,
-    MENU_ID_AC_INFO_WND,
+    MENU_ID_AC_INFO_WND = 0,
+    MENU_ID_AC_INFO_WND_POPOUT,
     MENU_ID_TOGGLE_AIRCRAFTS,
     MENU_ID_HAVE_TCAS,
     MENU_ID_SETTINGS_UI,
@@ -62,11 +62,14 @@ void MenuHandler(void * /*mRef*/, void * iRef)
     try {
         // act based on menu id
         switch (reinterpret_cast<unsigned long long>(iRef)) {
-            case MENU_ID_AC_INFO_WND_AUTO:
-                ACIWnd::OpenNewWnd(INFO_WND_AUTO_AC);
-                break;
             case MENU_ID_AC_INFO_WND:
-                ACIWnd::OpenNewWnd();
+                ACIWnd::OpenNewWnd(!XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS") ?
+                                   TF_MODE_CLASSIC :
+                                   dataRefs.IsVREnabled() ?
+                                   TF_MODE_VR : TF_MODE_FLOAT);
+                break;
+            case MENU_ID_AC_INFO_WND_POPOUT:
+                ACIWnd::OpenNewWnd(TF_MODE_POPOUT);
                 break;
             case MENU_ID_TOGGLE_AIRCRAFTS:
                 dataRefs.ToggleAircraftsDisplayed();
@@ -132,13 +135,20 @@ int RegisterMenuItem ()
     menuID = XPLMCreateMenu(LIVE_TRAFFIC, XPLMFindPluginsMenu(), item, MenuHandler, NULL);
     if ( !menuID ) { LOG_MSG(logERR,ERR_CREATE_MENU); return 0; }
     
+    // clear menu array
+    memset(aMenuItems, 0, sizeof(aMenuItems));
+    
     // Open an aircraft info window
-    aMenuItems[MENU_ID_AC_INFO_WND_AUTO] =
-    XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND_AUTO, (void *)MENU_ID_AC_INFO_WND_AUTO,1);
-    if ( aMenuItems[MENU_ID_AC_INFO_WND_AUTO]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     aMenuItems[MENU_ID_AC_INFO_WND] =
     XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,1);
     if ( aMenuItems[MENU_ID_AC_INFO_WND]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    
+    // modern windows only if available
+    if (XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS")) {
+        aMenuItems[MENU_ID_AC_INFO_WND_POPOUT] =
+        XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND_POPOUT, (void *)MENU_ID_AC_INFO_WND_POPOUT,1);
+        if ( aMenuItems[MENU_ID_AC_INFO_WND_POPOUT]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    }
 
     // Separator
     XPLMAppendMenuSeparator(menuID);
@@ -258,8 +268,33 @@ PLUGIN_API int  XPluginEnable(void)
     }
 }
 
-PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*inFrom*/, int /*inMsg*/, void * /*inParam*/)
-{ }
+PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * /*inParam*/)
+{
+    // we only process msgs from X-Plane
+    if (inFrom != XPLM_PLUGIN_XPLANE)
+        return;
+    
+#ifdef DEBUG
+    // for me not having a VR rig I do some basic testing with sending XPLM_MSG_AIRPLANE_COUNT_CHANGED
+    static bool bDebugPretendVR = false;
+    if (inMsg == XPLM_MSG_AIRPLANE_COUNT_CHANGED) {
+        bDebugPretendVR = !bDebugPretendVR;
+        inMsg = bDebugPretendVR ? XPLM_MSG_ENTERED_VR : XPLM_MSG_EXITING_VR;
+    }
+#endif
+    
+    switch (inMsg) {
+        // *** entering VR mode ***
+        case XPLM_MSG_ENTERED_VR:
+            ACIWnd::MoveAllVR(true);
+            break;
+            
+        // *** existing from VR mode ***
+        case XPLM_MSG_EXITING_VR:
+            ACIWnd::MoveAllVR(false);
+            break;
+    }
+}
 
 PLUGIN_API void XPluginDisable(void) {
     try {

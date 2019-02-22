@@ -43,6 +43,28 @@ void XPC_SetWindowPositioningMode(XPLMWindowID              inWindowID,
 XPLMWindowID XPC_GetWidgetUnderlyingWindow(XPWidgetID       inWidget);
 void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBoundsCallback,
                                    void *               inRefcon);
+void XPC_GetAllMonitorBoundsOS(XPLMReceiveMonitorBoundsOS_f inMonitorBoundsCallback,
+                               void *               inRefcon);
+void XPC_SetWindowTitle(XPLMWindowID         inWindowID,
+                        const char *         inWindowTitle);
+bool XPC_WindowIsPoppedOut(XPLMWindowID      inWindowID);
+bool XPC_WindowIsInVR(XPLMWindowID           inWindowID);
+void XPC_GetWindowGeometryOS(XPLMWindowID         inWindowID,
+                             int *                outLeft,
+                             int *                outTop,
+                             int *                outRight,
+                             int *                outBottom);
+void XPC_SetWindowGeometryOS(XPLMWindowID         inWindowID,
+                             int                  inLeft,
+                             int                  inTop,
+                             int                  inRight,
+                             int                  inBottom);
+void XPC_GetWindowGeometryVR(XPLMWindowID         inWindowID,
+                             int *                outWidthBoxels,
+                             int *                outHeightBoxels);
+void XPC_SetWindowGeometryVR(XPLMWindowID         inWindowID,
+                             int                  widthBoxels,
+                             int                  heightBoxels);
 
 // find and initialize all function pointers
 bool XPC_Init();
@@ -61,12 +83,16 @@ inline bool XPC_IsXPLM301()     { return XPC_XPLMVersion >= 301; }
 // MARK: LT - LiveTraffic global functions
 //            working XP-version independent
 
-// determines screen size
-// XP10: main screen
-// XP11: right-most screen
+// determines screen sizes
+// XP10: always main screen
+// XP11: two choices:
+enum LTWhichScreenTy { LT_SCR_LOWEST_IDX, LT_SCR_RIGHT_TOP_MOST };
+
 void LT_GetScreenSize (int& outLeft,
                        int& outTop,
                        int& outRight,
-                       int& outBottom); 
+                       int& outBottom,
+                       LTWhichScreenTy whichScreen,
+                       bool bOSScreen = false);
 
 #endif /* XPCompatibility_h */

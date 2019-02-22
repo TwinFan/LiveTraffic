@@ -42,6 +42,7 @@
 #include <iostream>
 
 #include "XPLMProcessing.h"
+#include "XPLMPlugin.h"
 
 //
 //MARK: replacement/enhancement for XPUCreateWidgets
@@ -130,13 +131,24 @@ bool TFURelative2GlobalWidgetDefs (TFWidgetCreate_t inWidgetDefs[],
 bool TFUCreateWidgetsEx(const TFWidgetCreate_t  inWidgetDefs[],
                         int                  inCount,
                         XPWidgetID           inParamParent,
-                        XPWidgetID *         ioWidgets)
+                        XPWidgetID *         ioWidgets,
+                        TFWndMode            wndMode)
 {
     // copy widget definitions and turn relative coordinates into global ones
     TFWidgetCreate_t *def = new TFWidgetCreate_t[inCount];
     memmove (def, inWidgetDefs, inCount * sizeof(TFWidgetCreate_t));
     if (!TFURelative2GlobalWidgetDefs(def,inCount))
         return false;
+    
+    // request XP11 windows?
+    const char* XPLM_USE_NATIVE_WND = "XPLM_USE_NATIVE_WIDGET_WINDOWS";
+    bool bHasNativeWnd = XPLMHasFeature(XPLM_USE_NATIVE_WND);
+    bool bUsedNative = (bHasNativeWnd &&
+                        XPLMIsFeatureEnabled(XPLM_USE_NATIVE_WND));
+    bool bDoUserNativeWnd = (wndMode != TF_MODE_CLASSIC) && bHasNativeWnd &&
+                            !inParamParent && IS_XPLM301;
+    if (bDoUserNativeWnd)
+        XPLMEnableFeature(XPLM_USE_NATIVE_WND, 1);
     
     // now create the actual widgets (similar to XPU/TFUCreateWidgets)
     // we know already that containerIndexes are OK, otherwise TFURelative2GlobalWidgetDefs would have failed
@@ -158,7 +170,9 @@ bool TFUCreateWidgetsEx(const TFWidgetCreate_t  inWidgetDefs[],
         if (ioWidgets[i]) {
             // if available also add properties
             for (TFWidgetCreate_t::TFProp_t prop: def[i].props) {
-                if (prop.propId)
+                // with native windows don't add close buttons, they are in the decoration anyway
+                if (prop.propId && (!bDoUserNativeWnd || wndMode == TF_MODE_FLOAT ||
+                                    prop.propId != xpProperty_MainWindowHasCloseBoxes))
                     XPSetWidgetProperty(ioWidgets[i], prop.propId, prop.propVal);
             }
         }
@@ -166,9 +180,42 @@ bool TFUCreateWidgetsEx(const TFWidgetCreate_t  inWidgetDefs[],
             bResult = false;        // failure, return such (but try creating the remaining widgets)
     }
 
+    // requested a modern XP11 window?
+    if (bDoUserNativeWnd) {
+        // reset feature to previous value
+        XPLMEnableFeature(XPLM_USE_NATIVE_WND, bUsedNative);
+        
+        // window handle of main widget wnd
+        XPLMWindowID wndId = XPC_GetWidgetUnderlyingWindow(ioWidgets[0]);
+        
+        // move window to where the user requested
+        switch(wndMode) {
+            case TF_MODE_FLOAT:
+                XPC_SetWindowPositioningMode(wndId, xplm_WindowPositionFree, -1);
+                break;
+            case TF_MODE_POPOUT:
+                XPC_SetWindowPositioningMode(wndId, xplm_WindowPopOut, -1);
+                XPC_SetWindowGeometryOS(wndId,
+                                        def[0].left, def[0].top,
+                                        def[0].right, def[0].bottom);
+                break;
+            case TF_MODE_VR:
+                XPC_SetWindowPositioningMode(wndId, xplm_WindowVR, -1);
+                XPC_SetWindowGeometryVR(wndId,
+                                        def[0].right-def[0].left,
+                                        def[0].top-def[0].bottom);
+                break;
+            case TF_MODE_CLASSIC:
+                break;
+        }
+        
+        // set window title
+        XPC_SetWindowTitle(wndId, def[0].descriptor);
+    }
+
     // remove our own copy
     delete[] def;
-
+    
     return bResult;
 }
 
@@ -250,15 +297,27 @@ void TFWidget::setId(XPWidgetID _me)
 
 void TFWidget::Show (bool bShow)
 {
-    if (bShow)
+    if (bShow) {
+        if (wndId)
+            XPLMSetWindowIsVisible(wndId, 1);
         XPShowWidget(me);
-    else
+    }
+    else {
         XPHideWidget(me);
+        if (wndId)
+            XPLMSetWindowIsVisible(wndId, 0);
+    }
 }
 
 bool TFWidget::isVisible() const
 {
-    return XPIsWidgetVisible(me) != 0;
+    // if widget itself says 'invisible' we believe that
+    if (XPIsWidgetVisible(me) == 0)
+        return false;
+    // also verify the underlying actual window if it exists
+    if (wndId)
+        return XPLMGetWindowIsVisible(wndId);
+    return true;
 }
 
 void TFWidget::MoveTo(int toLeft, int toTop)
@@ -295,7 +354,8 @@ void TFWidget::Center()
     // Note: As long as we don't enable "modern native windows" for widgets
     //       they are using classic coordinates
     int left=0, top=0, right=0, bottom=0;
-    XPLMGetScreenSize(&right,&top);
+    LT_GetScreenSize(left, top, right, bottom, LT_SCR_LOWEST_IDX,
+                     GetWndMode() == TF_MODE_POPOUT);
     
     // calc center coordinates
     left = (left+right)/2;
@@ -308,6 +368,27 @@ void TFWidget::Center()
     // move the widget there
     MoveTo(left, top);
 }
+
+void TFWidget::GetGeometry (int* left, int* top, int* right, int* bottom) const
+{
+    switch (GetWndMode()) {
+        case TF_MODE_CLASSIC:
+        case TF_MODE_FLOAT:
+            XPGetWidgetGeometry(me, left, top, right, bottom);
+            break;
+        case TF_MODE_POPOUT:
+            XPC_GetWindowGeometryOS(wndId, left, top, right, bottom);
+            break;
+        case TF_MODE_VR:
+            if (left) *left = 0;
+            if (bottom) *bottom = 0;
+            XPC_GetWindowGeometryVR(wndId, right, top);
+            break;
+        default:
+            break;
+    }
+}
+
 
 int TFWidget::GetWidth () const
 {
@@ -323,6 +404,36 @@ int TFWidget::GetHeight () const
     return top - bottom;
 }
 
+void TFWidget::SetGeometry (int left, int top, int right, int bottom)
+{
+    switch (GetWndMode()) {
+        case TF_MODE_CLASSIC:
+        case TF_MODE_FLOAT:
+            XPSetWidgetGeometry(me, left, top, right, bottom);
+            break;
+        case TF_MODE_POPOUT:
+            XPC_SetWindowGeometryOS(me, left, top, right, bottom);
+            break;
+        case TF_MODE_VR:
+            XPC_SetWindowGeometryVR(me, right-left, top-bottom);
+            break;
+    }
+}
+
+// what kind of window are we?
+TFWndMode TFWidget::GetWndMode () const
+{
+    if (!getWndId())
+        return TF_MODE_CLASSIC;
+    if (XPC_WindowIsPoppedOut(getWndId()))
+        return TF_MODE_POPOUT;
+    else if (XPC_WindowIsInVR(getWndId()))
+        return TF_MODE_VR;
+    else
+        return TF_MODE_FLOAT;
+}
+
+
 std::string TFWidget::GetDescriptor () const
 {
     return TFGetWidgetDescriptor(me);
@@ -334,6 +445,26 @@ void TFWidget::SetDescriptor (double d, int decimals)
     char buf[50];
     snprintf(buf,sizeof(buf), "%.*f", decimals, d);
     XPSetWidgetDescriptor(me, buf);
+}
+
+void TFWidget::BringToFront ()
+{
+    if (wndId)
+        XPLMBringWindowToFront(wndId);
+    XPBringRootWidgetToFront(me);
+}
+
+XPWidgetID TFWidget::SetKeyboardFocus()
+{
+    if (wndId)
+        XPLMTakeKeyboardFocus(wndId);
+    return XPSetKeyboardFocus(me);
+}
+
+void TFWidget::LoseKeyboardFocus ()
+{
+    XPLoseKeyboardFocus(me);
+    XPLMTakeKeyboardFocus(0);
 }
 
 // static function: finds the correct widget object in the map and

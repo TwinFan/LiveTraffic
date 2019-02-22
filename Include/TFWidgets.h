@@ -44,6 +44,13 @@
 #include "XPLMDisplay.h"
 #include "XPCompatibility.h"
 
+enum TFWndMode {
+    TF_MODE_CLASSIC     = 0,        // XP10 style in main window
+    TF_MODE_FLOAT,                  // XP11 modern floating window
+    TF_MODE_POPOUT,                 // XP11 popped out window in "first class OS window"
+    TF_MODE_VR                      // XP11 moved to VR window
+};
+
 //
 //MARK: replacement/enhancement for XPUCreateWidgets
 //
@@ -71,7 +78,8 @@ struct TFWidgetCreate_t : public XPWidgetCreate_t {
 bool TFUCreateWidgetsEx(const TFWidgetCreate_t  inWidgetDefs[],
                         int                     inCount,
                         XPWidgetID              inParamParent,
-                        XPWidgetID *            ioWidgets);
+                        XPWidgetID *            ioWidgets,
+                        TFWndMode               wndMode = TF_MODE_CLASSIC);
 
 // get widget descriptor in a safe way and return as a std::string
 std::string TFGetWidgetDescriptor (XPWidgetID me);
@@ -86,8 +94,8 @@ int TFGetWidgetChildIndex (XPWidgetID me);
 class TFWidget
 {
 private:
-    XPWidgetID  me          = 0;
-    XPLMWindowID wndId      = 0;
+    XPWidgetID  me          = NULL;
+    XPLMWindowID wndId      = NULL;
     
 public:
     TFWidget (XPWidgetID _me = NULL);
@@ -103,12 +111,12 @@ public:
     void MoveBy (int x, int y);
     void Center ();
     
-    void GetGeometry (int* left, int* top, int* right, int* bottom) const
-        { XPGetWidgetGeometry(me, left, top, right, bottom); }
+    void GetGeometry (int* left, int* top, int* right, int* bottom) const;
     int GetWidth () const;
     int GetHeight () const;
-    inline void SetGeometry (int left, int top, int right, int bottom)
-        { XPSetWidgetGeometry(me, left, top, right, bottom); }
+    void SetGeometry (int left, int top, int right, int bottom);
+    
+    TFWndMode GetWndMode () const;
     inline void SetWindowPositioningMode(XPLMWindowPositioningMode inPositioningMode,
                                       int                  inMonitorIndex)
         { XPC_SetWindowPositioningMode(wndId, inPositioningMode, inMonitorIndex); }
@@ -118,10 +126,10 @@ public:
     void SetDescriptor (double d, int decimals = 0);
     
     bool IsInFront () const         { return XPIsWidgetInFront(me) != 0; }
-    void BringToFront ()            { XPBringRootWidgetToFront(me); }
+    void BringToFront ();
     
-    XPWidgetID SetKeyboardFocus()   { return XPSetKeyboardFocus(me); }
-    void LoseKeyboardFocus()        { XPLoseKeyboardFocus(me); }
+    XPWidgetID SetKeyboardFocus();
+    void LoseKeyboardFocus();
     bool HaveKeyboardFocus() const  { return XPGetWidgetWithFocus() == me; }
     
     intptr_t GetProperty (XPWidgetPropertyID prop) const;
@@ -135,6 +143,8 @@ public:
     inline bool operator == (const TFWidget& w) const { return me == w.me; }
     inline bool operator == (XPWidgetID wid) const    { return me == wid; }
     
+    XPLMWindowID getWndId() const { return wndId; }
+    
 public:
     // static message dispatching
     static int DispatchMessages (XPWidgetMessage    inMessage,
@@ -143,6 +153,8 @@ public:
                                  intptr_t           inParam2);
 
 protected:
+    void DetermineWindowMode ();
+    
     // private messages
     enum {
         TFW_MSG_MAIN_SHOWHIDE = xpMsg_UserStart,    // main window shown/hidden

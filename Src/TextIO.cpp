@@ -235,7 +235,8 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     // Set the window's initial bounds
     // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
     // We'll need to query for the global desktop bounds!
-    LT_GetScreenSize(params.left, params.top, params.right, params.bottom);
+    LT_GetScreenSize(params.left, params.top, params.right, params.bottom,
+                     LT_SCR_RIGHT_TOP_MOST);
     
     // define a window in the top right corner,
     // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,

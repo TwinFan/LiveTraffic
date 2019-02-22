@@ -83,15 +83,16 @@ protected:
     TFWidget capAutoVisible;
     
 public:
-    ACIWnd(const char* szKey = nullptr);
-    ACIWnd(bool bAuto) : ACIWnd(bAuto ? INFO_WND_AUTO_AC : nullptr) {}
+    ACIWnd(TFWndMode wndMode, const char* szKey = INFO_WND_AUTO_AC);
     virtual ~ACIWnd();
     
     // constructor finished initialization?
     bool isEnabled () const { return widgetIds && *widgetIds; }
     
     // create a new window
-    static ACIWnd* OpenNewWnd (const char* szIcao = nullptr);
+    static ACIWnd* OpenNewWnd (TFWndMode wndMode, const char* szIcao = INFO_WND_AUTO_AC);
+    // move all windows into/out of VR
+    static void MoveAllVR (bool bIntoVR);
     
 protected:
     // capture entry into the key field
@@ -100,6 +101,8 @@ protected:
     virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);
     // triggered every seond to update values in the window
     virtual bool TfwMsgMain1sTime ();
+    // close and delete(!) myself
+    virtual bool MessageCloseButtonPushed();
     // Updated myself
     bool UpdateFocusAc ();          // switch to another focus a/c?
     bool ClearStaticValues ();      // clear static fields, returns if there was text that was cleared away

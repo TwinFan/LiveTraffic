@@ -43,6 +43,30 @@ f_XPGetWidgetUnderlyingWindow* pXPGetWidgetUnderlyingWindow = nullptr;
 typedef void (f_XPLMGetAllMonitorBoundsGlobal)(XPLMReceiveMonitorBoundsGlobal_f,void*);
 f_XPLMGetAllMonitorBoundsGlobal* pXPLMGetAllMonitorBoundsGlobal = nullptr;
 
+typedef void (f_XPLMGetAllMonitorBoundsOS)(XPLMReceiveMonitorBoundsOS_f,void*);
+f_XPLMGetAllMonitorBoundsOS* pXPLMGetAllMonitorBoundsOS = nullptr;
+
+typedef void (f_XPLMSetWindowTitle) (XPLMWindowID,const char *);
+f_XPLMSetWindowTitle* pXPLMSetWindowTitle = nullptr;
+
+typedef int (f_XPLMWindowIsPoppedOut) (XPLMWindowID);
+f_XPLMWindowIsPoppedOut* pXPLMWindowIsPoppedOut = nullptr;
+
+typedef int (f_XPLMWindowIsInVR) (XPLMWindowID);
+f_XPLMWindowIsInVR* pXPLMWindowIsInVR = nullptr;
+
+typedef void (f_XPLMGetWindowGeometryOS) (XPLMWindowID,int*,int*,int*,int*);
+f_XPLMGetWindowGeometryOS* pXPLMGetWindowGeometryOS = nullptr;
+
+typedef void (f_XPLMSetWindowGeometryOS) (XPLMWindowID,int,int,int,int);
+f_XPLMSetWindowGeometryOS* pXPLMSetWindowGeometryOS = nullptr;
+
+typedef void (f_XPLMGetWindowGeometryVR) (XPLMWindowID,int*,int*);
+f_XPLMGetWindowGeometryVR* pXPLMGetWindowGeometryVR = nullptr;
+
+typedef void (f_XPLMSetWindowGeometryVR)(XPLMWindowID,int,int);
+f_XPLMSetWindowGeometryVR* pXPLMSetWindowGeometryVR = nullptr;
+
 //
 // MARK: XPC functions
 //
@@ -67,6 +91,66 @@ void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBou
     pXPLMGetAllMonitorBoundsGlobal(inMonitorBoundsCallback, inRefcon);
 }
 
+void XPC_GetAllMonitorBoundsOS(XPLMReceiveMonitorBoundsOS_f inMonitorBoundsCallback,
+                               void *               inRefcon)
+{
+    LOG_ASSERT(pXPLMGetAllMonitorBoundsOS);
+    pXPLMGetAllMonitorBoundsOS(inMonitorBoundsCallback, inRefcon);
+}
+
+void XPC_SetWindowTitle(XPLMWindowID         inWindowID,
+                        const char *         inWindowTitle)
+{
+    if (pXPLMSetWindowTitle)
+        pXPLMSetWindowTitle(inWindowID, inWindowTitle);
+}
+
+bool XPC_WindowIsPoppedOut(XPLMWindowID      inWindowID)
+{
+    return pXPLMWindowIsPoppedOut ? pXPLMWindowIsPoppedOut(inWindowID) != 0 : false;
+}
+
+bool XPC_WindowIsInVR(XPLMWindowID           inWindowID)
+{
+    return pXPLMWindowIsInVR ? pXPLMWindowIsInVR(inWindowID) != 0 : false;
+}
+
+void XPC_GetWindowGeometryOS(XPLMWindowID         inWindowID,
+                             int *                outLeft,
+                             int *                outTop,
+                             int *                outRight,
+                             int *                outBottom)
+{
+    LOG_ASSERT(pXPLMGetWindowGeometryOS);
+    pXPLMGetWindowGeometryOS(inWindowID,outLeft,outTop,outRight,outBottom);
+}
+
+void XPC_SetWindowGeometryOS(XPLMWindowID         inWindowID,
+                             int                  inLeft,
+                             int                  inTop,
+                             int                  inRight,
+                             int                  inBottom)
+{
+    if (pXPLMSetWindowGeometryOS)
+        pXPLMSetWindowGeometryOS(inWindowID,inLeft,inTop,inRight,inBottom);
+}
+
+void XPC_GetWindowGeometryVR(XPLMWindowID         inWindowID,
+                             int *                outWidthBoxels,
+                             int *                outHeightBoxels)
+{
+    LOG_ASSERT(pXPLMGetWindowGeometryVR);
+    pXPLMGetWindowGeometryVR(inWindowID,outWidthBoxels,outHeightBoxels);
+}
+
+void XPC_SetWindowGeometryVR(XPLMWindowID         inWindowID,
+                             int                  widthBoxels,
+                             int                  heightBoxels)
+{
+    if (pXPLMSetWindowGeometryVR)
+        pXPLMSetWindowGeometryVR(inWindowID,widthBoxels,heightBoxels);
+}
+
 // find and initialize all function pointers
 #define FIND_SYM(func) { p##func = (f_##func*)XPLMFindSymbol(#func); LOG_ASSERT(p##func); }
 bool XPC_Init()
@@ -86,6 +170,13 @@ bool XPC_Init()
         FIND_SYM(XPLMSetWindowPositioningMode);
         FIND_SYM(XPGetWidgetUnderlyingWindow);
         FIND_SYM(XPLMGetAllMonitorBoundsGlobal);
+        FIND_SYM(XPLMGetAllMonitorBoundsOS);
+        FIND_SYM(XPLMWindowIsPoppedOut);
+        FIND_SYM(XPLMWindowIsInVR);
+        FIND_SYM(XPLMGetWindowGeometryOS);
+        FIND_SYM(XPLMSetWindowGeometryOS);
+        FIND_SYM(XPLMGetWindowGeometryVR);
+        FIND_SYM(XPLMSetWindowGeometryVR);
     }
     return true;
 }
@@ -95,21 +186,41 @@ bool XPC_Init()
 //
 
 // callback function that receives monitor coordinates
-int rm_l, rm_t, rm_r, rm_b;     // right-most window's coordinates
-void CBReceiveMonitorBoundsGlobal(int,              // inMonitorIndex
-                                  int    inLeftBx,
-                                  int    inTopBx,
-                                  int    inRightBx,
-                                  int    inBottomBx,
-                                  void * )          // inRefcon
+int rm_idx, rm_l, rm_t, rm_r, rm_b;     // window's idx & coordinates
+
+void CBRightTopMostMonitorGlobal(int    inMonitorIndex,
+                                 int    inLeftBx,
+                                 int    inTopBx,
+                                 int    inRightBx,
+                                 int    inBottomBx,
+                                 void * )          // inRefcon
 {
     // right-top-most?
     if ((inRightBx > rm_r) ||
-        (inRightBx == rm_r && inTopBx > rm_r)){
-        rm_l = inLeftBx;
-        rm_t = inTopBx;
-        rm_r = inRightBx;
-        rm_b = inBottomBx;
+        (inRightBx == rm_r && inTopBx > rm_r))
+    {
+        rm_idx = inMonitorIndex;
+        rm_l   = inLeftBx;
+        rm_t   = inTopBx;
+        rm_r   = inRightBx;
+        rm_b   = inBottomBx;
+    }
+}
+
+void CBLowestIdxMonitorGlobal(int    inMonitorIndex,
+                              int    inLeftBx,
+                              int    inTopBx,
+                              int    inRightBx,
+                              int    inBottomBx,
+                              void * )          // inRefcon
+{
+    // right-top-most?
+    if (inMonitorIndex < rm_idx) {
+        rm_idx = inMonitorIndex;
+        rm_l   = inLeftBx;
+        rm_t   = inTopBx;
+        rm_r   = inRightBx;
+        rm_b   = inBottomBx;
     }
 }
 
@@ -118,14 +229,30 @@ void CBReceiveMonitorBoundsGlobal(int,              // inMonitorIndex
 void LT_GetScreenSize (int& outLeft,
                        int& outTop,
                        int& outRight,
-                       int& outBottom)
+                       int& outBottom,
+                       LTWhichScreenTy whichScreen,
+                       bool bOSScreen)
 {
     // XP11 using global coordinates
-    if (pXPLMGetAllMonitorBoundsGlobal) {
-        // find righ-most window coordinates
+    if (pXPLMGetAllMonitorBoundsGlobal && pXPLMGetAllMonitorBoundsOS) {
+        // find window coordinates
         // this will only find full screen monitors!
         rm_l = rm_t = rm_r = rm_b = 0;
-        pXPLMGetAllMonitorBoundsGlobal(CBReceiveMonitorBoundsGlobal, NULL);
+        rm_idx = INT_MAX;
+        
+        if (bOSScreen) {
+            // fetch OS window bounds
+            pXPLMGetAllMonitorBoundsOS
+            (whichScreen == LT_SCR_RIGHT_TOP_MOST ?
+             CBRightTopMostMonitorGlobal : CBLowestIdxMonitorGlobal,
+             NULL);
+        } else {
+            // fetch global bounds of X-Plane-used windows
+            pXPLMGetAllMonitorBoundsGlobal
+            (whichScreen == LT_SCR_RIGHT_TOP_MOST ?
+             CBRightTopMostMonitorGlobal : CBLowestIdxMonitorGlobal,
+             NULL);
+        }
         
         // did we find something? then return it
         if ( rm_l || rm_t || rm_r || rm_b ) {
@@ -140,7 +267,6 @@ void LT_GetScreenSize (int& outLeft,
     }
     
     // XP10 or windowed mode
-    outLeft = 0;
+    outLeft = outBottom = 0;
     XPLMGetScreenSize(&outRight,&outTop);
-    outBottom = 0;
 }

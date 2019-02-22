@@ -311,8 +311,11 @@ bool TFACSearchEditWidget::MsgKeyPress (XPKeyState_t& key)
 // MARK: ACIWnd
 //
 
+// we keep a map of all created windows
+std::map<XPLMWindowID,ACIWnd*> mapACIWnd;
+
 // Constructor fully initializes and display the window
-ACIWnd::ACIWnd(const char* szKey) :
+ACIWnd::ACIWnd(TFWndMode wndMode, const char* szKey) :
 widgetIds(nullptr)
 {
     // array, which receives ids of all created widgets
@@ -321,7 +324,7 @@ widgetIds(nullptr)
     memset(widgetIds, 0, sizeof(XPWidgetID)*NUM_WIDGETS );
     
     // create all widgets, i.e. the entire window structure
-    if (!TFUCreateWidgetsEx(ACI_WND, NUM_WIDGETS, NULL, widgetIds))
+    if (!TFUCreateWidgetsEx(ACI_WND, NUM_WIDGETS, NULL, widgetIds, wndMode))
     {
         SHOW_MSG(logERR,ERR_WIDGET_CREATE);
         delete widgetIds;       // indicates: not initialized
@@ -331,6 +334,9 @@ widgetIds(nullptr)
     
     // register myself in base class for message handling
     setId(widgetIds[0]);
+    
+    // add myself to the map of windows
+    mapACIWnd.emplace(getWndId(),this);
     
     // text field for a/c key entry, upper case only
     txtAcKey.setId(widgetIds[ACI_TXT_AC_KEY]);
@@ -400,17 +406,48 @@ ACIWnd::~ACIWnd()
         delete widgetIds;
         widgetIds = nullptr;
     }
+    
+    // remove myself from the list of windows
+    try {
+        mapACIWnd.erase(getWndId());
+    }
+    catch (...) {}
 }
 
 // static function: creates a new window
-ACIWnd* ACIWnd::OpenNewWnd (const char* szIcao)
+ACIWnd* ACIWnd::OpenNewWnd (TFWndMode wndMode, const char* szIcao)
 {
-    ACIWnd* pWnd = new ACIWnd(szIcao);
+    ACIWnd* pWnd = new ACIWnd(wndMode, szIcao);
     if (pWnd && !pWnd->isEnabled()) {       // did not init successfully
         delete pWnd;
         pWnd = nullptr;
     }
     return pWnd;
+}
+
+// move all windows into/out of VR
+void ACIWnd::MoveAllVR (bool bIntoVR)
+{
+    // move into VR
+    if (bIntoVR) {
+        for (auto pair: mapACIWnd) {
+            if (pair.second->GetWndMode() == TF_MODE_FLOAT)
+                pair.second->SetWindowPositioningMode(xplm_WindowVR, -1);
+        }
+    }
+    // move out of VR
+    else {
+        int moveOfs = 0;
+        for (auto pair: mapACIWnd) {
+            if (pair.second->GetWndMode() == TF_MODE_VR) {
+                pair.second->SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+                pair.second->Center();
+                // to avoid all windows being stacked we move them by a few pixels
+                pair.second->MoveBy(moveOfs, -moveOfs);
+                moveOfs += 20;
+            }
+        }
+    }
 }
 
 // capture entry into the a/c key field
@@ -467,9 +504,27 @@ bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
 // triggered every second to update values in the window
 bool ACIWnd::TfwMsgMain1sTime ()
 {
+    // are we visible at all?
+    if (!isVisible()) {
+        // this happens to popped out windows...when the outer OS window is
+        // closed then the widget doesn't receive a message,
+        // so we notice the closing only now -> remove ourselves
+        MessageCloseButtonPushed();
+        return true;
+    }
+    
+    // normal processing
     TFMainWindowWidget::TfwMsgMain1sTime();
+    
     if (!UpdateFocusAc())               // changed focus a/c? If not:
         UpdateDynValues();              // update our values
+    return true;
+}
+
+// remove myself completely
+bool ACIWnd::MessageCloseButtonPushed ()
+{
+    delete this;
     return true;
 }
 
@@ -484,6 +539,8 @@ bool ACIWnd::UpdateFocusAc ()
         txtAcKey.SetTranspIcao(pFocusAc->key());
         UpdateStatValues();
         UpdateDynValues();
+        if (txtAcKey.HaveKeyboardFocus())
+            txtAcKey.LoseKeyboardFocus();
         return true;
     }
     
