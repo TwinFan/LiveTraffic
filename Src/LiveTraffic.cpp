@@ -40,11 +40,18 @@ LTSettingsUI settingsUI;
 
 //MARK: Reload Plugins menu item
 enum menuItems {
-    MENU_ID_AC_INFO_WND = 0,
+    MENU_ID_LIVETRAFFIC = 0,
+    MENU_ID_AC_INFO_WND,
     MENU_ID_AC_INFO_WND_POPOUT,
     MENU_ID_TOGGLE_AIRCRAFTS,
     MENU_ID_HAVE_TCAS,
     MENU_ID_SETTINGS_UI,
+    MENU_ID_HELP,
+    MENU_ID_HELP_DOCUMENTATION,
+    MENU_ID_HELP_FAQ,
+    MENU_ID_HELP_MENU_ITEMS,
+    MENU_ID_HELP_AC_INFO_WND,
+    MENU_ID_HELP_SETTINGS,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
 #endif
@@ -52,7 +59,7 @@ enum menuItems {
 };
 
 // ID of the "LiveTraffic" menu within the plugin menu; items numbers of its menu items
-XPLMMenuID menuID = 0;
+XPLMMenuID menuID = 0, menuHelpID = 0;
 int aMenuItems[CNT_MENU_ID];
 
 // Callback called by XP, so this is an entry point into the plugin
@@ -95,6 +102,13 @@ void MenuHandler(void * /*mRef*/, void * iRef)
     }
 }
 
+// Callback for the help submenu, just opens the given help path
+void MenuHandlerHelp (void * /*mRef*/, void * iRef)
+{
+    const char* helpPath = static_cast<const char*>(iRef);
+    LTOpenHelp(helpPath);
+}
+
 // the "Aircrafts displayed" menu item includes the number of displayed a/c
 // (if the item is checked, i.e. active)
 void MenuCheckAircraftsDisplayed ( bool bChecked, int numAc )
@@ -126,28 +140,24 @@ void MenuCheckTCASControl ( bool bChecked )
                       bChecked ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 }
 
-int RegisterMenuItem ()
+bool RegisterMenuItem ()
 {
-    // Create menu and menu item
-    int item = XPLMAppendMenuItem(XPLMFindPluginsMenu(), LIVE_TRAFFIC, NULL, 1);
-    if ( item<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
-    
-    menuID = XPLMCreateMenu(LIVE_TRAFFIC, XPLMFindPluginsMenu(), item, MenuHandler, NULL);
-    if ( !menuID ) { LOG_MSG(logERR,ERR_CREATE_MENU); return 0; }
-    
     // clear menu array
     memset(aMenuItems, 0, sizeof(aMenuItems));
+    
+    // Create menu item and menu
+    aMenuItems[MENU_ID_LIVETRAFFIC] = XPLMAppendMenuItem(XPLMFindPluginsMenu(), LIVE_TRAFFIC, NULL, 1);
+    menuID = XPLMCreateMenu(LIVE_TRAFFIC, XPLMFindPluginsMenu(), aMenuItems[MENU_ID_LIVETRAFFIC], MenuHandler, NULL);
+    if ( !menuID ) { LOG_MSG(logERR,ERR_CREATE_MENU,LIVE_TRAFFIC); return 0; }
     
     // Open an aircraft info window
     aMenuItems[MENU_ID_AC_INFO_WND] =
     XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,1);
-    if ( aMenuItems[MENU_ID_AC_INFO_WND]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     
     // modern windows only if available
     if (XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS")) {
         aMenuItems[MENU_ID_AC_INFO_WND_POPOUT] =
         XPLMAppendMenuItem(menuID, MENU_AC_INFO_WND_POPOUT, (void *)MENU_ID_AC_INFO_WND_POPOUT,1);
-        if ( aMenuItems[MENU_ID_AC_INFO_WND_POPOUT]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     }
 
     // Separator
@@ -156,14 +166,12 @@ int RegisterMenuItem ()
     // Show Aircrafts
     aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS] =
     XPLMAppendMenuItem(menuID, MENU_TOGGLE_AIRCRAFTS, (void *)MENU_ID_TOGGLE_AIRCRAFTS,1);
-    if ( aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     // no checkmark symbol (but room for one later)
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
     
     // Have/Get TCAS
     aMenuItems[MENU_ID_HAVE_TCAS] =
     XPLMAppendMenuItem(menuID, MENU_HAVE_TCAS, (void *)MENU_ID_HAVE_TCAS,1);
-    if ( aMenuItems[MENU_ID_HAVE_TCAS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
     // no checkmark symbol (but room for one later)
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_HAVE_TCAS],xplm_Menu_Unchecked);
     
@@ -173,7 +181,18 @@ int RegisterMenuItem ()
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
-    if ( aMenuItems[MENU_ID_SETTINGS_UI]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
+    
+    // --- Help submenu ---
+    aMenuItems[MENU_ID_HELP] =
+    XPLMAppendMenuItem(menuID, MENU_HELP, NULL, 1);
+    menuHelpID = XPLMCreateMenu(MENU_HELP, menuID, aMenuItems[MENU_ID_HELP], MenuHandlerHelp, NULL);
+    if ( !menuHelpID ) { LOG_MSG(logERR,ERR_CREATE_MENU,MENU_HELP); return 0; }
+
+    aMenuItems[MENU_ID_HELP_DOCUMENTATION]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_DOCUMENTATION, (void*)"",1);
+    aMenuItems[MENU_ID_HELP_FAQ] =          XPLMAppendMenuItem(menuHelpID, MENU_HELP_FAQ,           (void*)HELP_FAQ,1);
+    aMenuItems[MENU_ID_HELP_MENU_ITEMS] =   XPLMAppendMenuItem(menuHelpID, MENU_HELP_MENU_ITEMS,    (void*)HELP_MENU_ITEMS,1);
+    aMenuItems[MENU_ID_HELP_AC_INFO_WND] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_AC_INFO_WND,   (void*)HELP_AC_INFO_WND,1);
+    aMenuItems[MENU_ID_HELP_SETTINGS] =     XPLMAppendMenuItem(menuHelpID, MENU_HELP_SETTINGS,      (void*)HELP_SETTINGS,1);
     
 #ifdef DEBUG
     // Separator
@@ -182,12 +201,19 @@ int RegisterMenuItem ()
     // Reload Plugins
     aMenuItems[MENU_ID_RELOAD_PLUGINS] =
         XPLMAppendMenuItem(menuID, MENU_RELOAD_PLUGINS, (void *)MENU_ID_RELOAD_PLUGINS,1);
-    if ( aMenuItems[MENU_ID_RELOAD_PLUGINS]<0 ) { LOG_MSG(logERR,ERR_APPEND_MENU_ITEM); return 0; }
 #endif
+    
+    // check for errors
+    for (int item: aMenuItems) {
+        if ( item<0 ) {
+            LOG_MSG(logERR,ERR_APPEND_MENU_ITEM);
+            return false;
+        }
+    }
 
     // Success
     LOG_MSG(logDEBUG,DBG_MENU_CREATED)
-    return 1;
+    return true;
 }
 
 //MARK: XPlugin Callbacks
@@ -232,6 +258,12 @@ PLUGIN_API int XPluginStart(
         // create menu
         if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
         
+#if IBM
+        // Windows: Recommended before calling ShellExecuteA
+        // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
+        CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+#endif
+
         // Success
         return 1;
         
@@ -330,6 +362,10 @@ PLUGIN_API void    XPluginStop(void)
         // last chance to remove the message area window
         DestroyWindow();
 
+#if IBM
+        // Windows: Balance CoInitializeEx
+        CoUninitialize();
+#endif
     } catch (const std::exception& e) {
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
     } catch (...) {

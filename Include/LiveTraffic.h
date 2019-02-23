@@ -142,7 +142,13 @@ int LTNumFilesInPath ( const std::string path );
 // read a text line no matter what line ending
 std::istream& safeGetline(std::istream& is, std::string& t);
 
-// MARK: Utility Functions
+// MARK: URL/Help support
+
+void LTOpenURL  (const std::string url);
+void LTOpenHelp (const std::string path);
+
+// MARK: String/Text Functions
+
 // change a std::string to uppercase
 std::string& str_toupper(std::string& s);
 // are all chars alphanumeric?
@@ -191,6 +197,8 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
     if ( std::find(list.cbegin(),list.cend(),key) == list.cend() )
         list.push_back(key);
 }
+
+// MARK: Other Utility Functions
 
 // convert a color value from int to float[4]
 void conv_color ( int inCol, float outCol[4] );

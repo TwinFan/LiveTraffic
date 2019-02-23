@@ -94,6 +94,7 @@ enum ACI_WIDGET_IDX_T {
     ACI_CAP_VISIBLE,
     ACI_BTN_AUTO_VISIBLE,
     ACI_CAP_AUTO_VISIBLE,
+    ACI_BTN_HELP,
 
     // always last: number of UI elements
     ACI_NUMBER_OF_ELEMENTS
@@ -159,11 +160,11 @@ TFWidgetCreate_t ACI_WND[] =
     
     {  10, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
     {  20, 332,  55,  10, 1, "Camera",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 110, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
-    { 120, 332,  55,  10, 1, "Visible",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 185, 335,  10,  10, 0, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
-    { 195, 332,  55,  10, 0, "Auto Visible",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-
+    {  80, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    {  90, 332,  55,  10, 1, "Visible",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 145, 335,  10,  10, 0, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    { 155, 332,  55,  10, 0, "Auto Visible",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 240, 335,  30,  10, 1, "?",                   0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonBehavior, xpButtonBehaviorPushButton,  0,0, 0,0} },
 };
 
 const int NUM_WIDGETS = sizeof(ACI_WND)/sizeof(ACI_WND[0]);
@@ -499,6 +500,21 @@ bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
 
     // pass on in class hierarchy
     return TFMainWindowWidget::MsgButtonStateChanged(buttonWidget, bNowChecked);
+}
+
+// push button pressed (or press button pushed?)
+bool ACIWnd::MsgPushButtonPressed (XPWidgetID buttonWidget)
+{
+    // *** Help ***
+    if (widgetIds[ACI_BTN_HELP] == buttonWidget)
+    {
+        // open help for a/c info wnd
+        LTOpenHelp(HELP_AC_INFO_WND);
+        return true;
+    }
+
+    // we don't know that button...
+    return TFMainWindowWidget::MsgPushButtonPressed(buttonWidget);
 }
 
 // triggered every second to update values in the window

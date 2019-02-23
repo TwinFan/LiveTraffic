@@ -29,88 +29,6 @@
 #include <regex>
 
 //
-// MARK: LTCapDateTime
-//
-
-// it's all about setting the caption to current sim time
-LTCapDateTime::LTCapDateTime (XPWidgetID _me) :
-TFTextFieldWidget(_me)
-{}
-
-void LTCapDateTime::SetCaption ()
-{
-    // set text of widget
-    SetDescriptor(dataRefs.GetSimTimeString().c_str());
-}
-
-bool LTCapDateTime::TfwMsgMain1sTime ()
-{
-    TFTextFieldWidget::TfwMsgMain1sTime();
-    if (!HaveKeyboardFocus())       // don't overwrite while use is editing
-        SetCaption();
-    return true;
-}
-
-// take care of my own text field having changed
-bool LTCapDateTime::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
-{
-    bool bOK = false;
-
-    if (textWidget != *this)
-        return false;
-    
-    // interpret user input with this regex:
-    // [YYYY-][M]M-[D]D [H]H:[M]M[:[S]S]
-    enum { D_YMIN=1, D_Y, D_M, D_D, T_H, T_M, T_SCOL, T_S, DT_EXPECTED };
-    std::regex re("^((\\d{4})-)?(\\d{1,2})-(\\d{1,2}) (\\d{1,2}):(\\d{1,2})(:(\\d{1,2}))?");
-    std::smatch m;
-    std::regex_search(text, m, re);
-    size_t n = m.size();                // how many matches? expected: 9
-    
-    // matched
-    if (n == DT_EXPECTED) {
-        time_t t = time(NULL);
-        struct tm tm;                   // now contains _current_ time, only use: current year
-        gmtime_s(&tm, &t);
-
-        int yyyy = tm.tm_year + 1900;
-        if (m[D_Y].matched)
-            yyyy = std::stoi(m[D_Y]);
-        int mm = std::stoi(m[D_M]);
-        int dd = std::stoi(m[D_D]);
-        int HH = std::stoi(m[T_H]);
-        int MM = std::stoi(m[T_M]);
-        int SS = 0;
-        if (m[T_S].matched)
-            SS = std::stoi(m[T_S]);
-        
-        // verify valid values
-        if (2000 <= yyyy && yyyy < 2999 &&
-            1 <= mm && mm <= 12 &&
-            1 <= dd && dd <= 31 &&
-            0 <= HH && HH <= 23 &&
-            0 <= MM && MM <= 59 &&
-            0 <= SS && SS <= 59)
-        {
-            bOK = true;
-            
-            // send the date to ourselves via a dataRef
-            if (simDate.isValid() || simDate.setDataRef(DATA_REFS_LT[DR_SIM_DATE]))
-                simDate.Set(yyyy*10000 + mm*100 + dd);
-            // send the time to ourselves via a dataRef
-            if (simTime.isValid() || simTime.setDataRef(DATA_REFS_LT[DR_SIM_TIME]))
-                simTime.Set(  HH*10000 + MM*100 + SS);
-        }
-    }
-
-    // can't interpret input: keep keyboard focus in the field for the user to fix it
-    if (!bOK)
-        SetKeyboardFocus();
-
-    return true;
-}
-
-//
 //MARK: LTSettingsUI
 //
 
@@ -139,6 +57,7 @@ enum UI_WIDGET_IDX_T {
     UI_BTN_ADVANCED,
     UI_BTN_CSL,
     UI_BTN_DEBUG,
+    UI_BTN_HELP,
     // "Basics" tab
     UI_BASICS_LIVE_SUB_WND,
     UI_BASICS_BTN_ENABLE,
@@ -151,13 +70,14 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_CAP_VERSION_TXT,
     UI_BASICS_CAP_VERSION,
 
-    UI_BASICS_HISTORIC_SUB_WND,
-    UI_BASICS_BTN_HISTORIC,
-    UI_BASICS_CAP_DATETIME,
-    UI_BASICS_TXT_DATETIME,
-    UI_BASICS_CAP_HISTORICCHANNELS,
-    UI_BASICS_BTN_ADSB_HISTORIC,
-    
+    UI_BASICS_RIGHT_SUB_WND,
+    UI_BASICS_CAP_MISC,
+    UI_BASICS_BTN_LND_LIGHTS_TAXI,
+    UI_BASICS_CAP_PARALLEL,
+    UI_BASICS_CAP_HIDE_BELOW_AGL,
+    UI_BASICS_INT_HIDE_BELOW_AGL,
+    UI_BASICS_BTN_HIDE_TAXIING,
+
     UI_BASICS_CAP_DBG_LIMIT,
     
     // "A/C Labels" tab
@@ -221,10 +141,6 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_INT_FD_BUF_PERIOD,
     UI_ADVCD_CAP_AC_OUTDATED_INTVL,
     UI_ADVCD_INT_AC_OUTDATED_INTVL,
-    UI_ADVCD_CAP_HIDE_BELOW_AGL,
-    UI_ADVCD_INT_HIDE_BELOW_AGL,
-    UI_ADVCD_BTN_HIDE_TAXIING,
-    UI_ADVCD_BTN_LND_LIGHTS_TAXI,
 
     // "CSL" tab
     UI_CSL_SUB_WND,
@@ -281,11 +197,13 @@ TFWidgetCreate_t SETTINGS_UI[] =
 {
     {   0,   0, 400, 330, 0, "LiveTraffic Settings", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
     // Buttons to select 'tabs'
-    {  10,  30,  75,  10, 1, "Basics",               0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
-    {  85,  30,  75,  10, 1, "A/C Labels",           0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
-    { 160,  30,  75,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
-    { 235,  30,  75,  10, 1, "CSL",                  0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
-    { 310,  30,  75,  10, 1, "Debug",                0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    {  10,  30,  65,  10, 1, "Basics",               0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    {  75,  30,  65,  10, 1, "A/C Labels",           0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    { 140,  30,  65,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    { 205,  30,  65,  10, 1, "CSL",                  0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    { 270,  30,  65,  10, 1, "Debug",                0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton, 0,0, 0,0} },
+    // Push button for help
+    { 360,  30,  30,  10, 1, "?",                    0, UI_MAIN_WND, xpWidgetClass_Button, {xpProperty_ButtonBehavior, xpButtonBehaviorPushButton,  0,0, 0,0} },
     // "Basics" tab
     {  10,  50, 190, -10, 0, "Basics Live",          0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
     {  10,  10,  10,  10, 1, "Show Live Aircrafts",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
@@ -294,16 +212,19 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  70,  10,  10, 1, "OpenSky Network Live", 0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange Live",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    
     {   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
-    { 200,  50, -10, -10, 0, "Basics Historic",      0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
-    {  10,  10,  10,  10, 1, "Use Historic Data",    0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5,  30,  50,  10, 1, "Time:",                0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    {-140,  30, 130,  15, 1, "",                     0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_TextField, {xpProperty_MaxCharacters,19, 0,0, 0,0} },
-    {   5,  50, -10,  10, 1, "Historic Channels:",   0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    {  10, 105,  10,  10, 1, "ADS-B Exchange Historic",  0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5, -15,  -5,  10, 1, "",                    0, UI_BASICS_HISTORIC_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 200,  50, -10, -10, 0, "Basics Right",         0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
+    {   5,   8,  -5,  10, 1, "Misc options:",        0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10,  25,  10,  10, 1, "Landing lights during taxi", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5,  50,  -5,  10, 1, "Parallel with other traffic plugins:",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5,  68, 140,  10, 1, "No a/c below [ft AGL]",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { -50,  68, -10,  15, 1, "",                     0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    {  10,  85,  10,  10, 1, "Hide a/c while taxiing", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+
+    {   5, -15,  -5,  10, 1, "",                    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     // "A/C Label" tab
     {  10,  50, -10, -10, 0, "A/C Label",           0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10, 190,  10, 1, "Static info:",        0, UI_LABELS_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -361,10 +282,6 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 230, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
     {   5, 170, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 190, 225,  10, 1, "No a/c below [ft AGL]",  0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 230, 190,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
-    {  10, 210,  10,  10, 1, "Hide a/c while taxiing", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 230,  10,  10, 1, "Keep landing lights on during taxi", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     // "CSL" tab
     {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -434,7 +351,7 @@ void LTSettingsUI::Enable()
         
         // some widgets with objects
         subBasicsLive.setId(widgetIds[UI_BASICS_LIVE_SUB_WND]);
-        subBasicsHistoric.setId(widgetIds[UI_BASICS_HISTORIC_SUB_WND]);
+        subBasicsRight.setId(widgetIds[UI_BASICS_RIGHT_SUB_WND]);
         subAcLabel.setId(widgetIds[UI_LABELS_SUB_WND]);
         subAdvcd.setId(widgetIds[UI_ADVCD_SUB_WND]);
         subCSL.setId(widgetIds[UI_CSL_SUB_WND]);
@@ -462,17 +379,23 @@ void LTSettingsUI::Enable()
                               DATA_REFS_LT[DR_CFG_AIRCRAFTS_DISPLAYED]);
         btnBasicsAutoStart.setId(widgetIds[UI_BASICS_BTN_AUTO_START],
                               DATA_REFS_LT[DR_CFG_AUTO_START]);
-        btnBasicsHistoric.setId(widgetIds[UI_BASICS_BTN_HISTORIC],
-                              DATA_REFS_LT[DR_CFG_USE_HISTORIC_DATA]);
         btnOpenSkyLive.setId(widgetIds[UI_BASICS_BTN_OPENSKY_LIVE],
                               DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_ONLINE]);
         btnOpenSkyMasterdata.setId(widgetIds[UI_BASICS_BTN_OPENSKY_MASTERDATA],
                               DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA]);
         btnADSBLive.setId(widgetIds[UI_BASICS_BTN_ADSB_LIVE],
                               DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE]);
-        btnADSBHistoric.setId(widgetIds[UI_BASICS_BTN_ADSB_HISTORIC],
-                              DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_HISTORIC]);
 
+        // right-hand sie
+        intHideBelowAGL.setId(widgetIds[UI_BASICS_INT_HIDE_BELOW_AGL],
+                              DATA_REFS_LT[DR_CFG_HIDE_BELOW_AGL]);
+        // hide a/c while taxiing?
+        btnHideTaxiing.setId(widgetIds[UI_BASICS_BTN_HIDE_TAXIING],
+                             DATA_REFS_LT[DR_CFG_HIDE_TAXIING]);
+        // landing lights during taxi?
+        btnAdvcdLndLightsTaxi.setId(widgetIds[UI_BASICS_BTN_LND_LIGHTS_TAXI],
+                                    DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
+        
         // version number
         XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],
                               LT_VERSION_FULL);
@@ -483,10 +406,6 @@ void LTSettingsUI::Enable()
             XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_DBG_LIMIT],
                                   dbgLimit);
         }
-        
-        // Historic data timestamp
-        txtDateTime.setId(widgetIds[UI_BASICS_TXT_DATETIME]);
-        txtDateTime.SetCaption();
         
         // *** A/C Labels ***
         drCfgLabels.setDataRef(DATA_REFS_LT[DR_CFG_LABELS]);
@@ -543,17 +462,6 @@ void LTSettingsUI::Enable()
                           DATA_REFS_LT[DR_CFG_FD_BUF_PERIOD]);
         intAcOutdatedIntvl.setId(widgetIds[UI_ADVCD_INT_AC_OUTDATED_INTVL],
                           DATA_REFS_LT[DR_CFG_AC_OUTDATED_INTVL]);
-        intHideBelowAGL.setId(widgetIds[UI_ADVCD_INT_HIDE_BELOW_AGL],
-                          DATA_REFS_LT[DR_CFG_HIDE_BELOW_AGL]);
-
-        // hide a/c while taxiing?
-        btnHideTaxiing.setId(widgetIds[UI_ADVCD_BTN_HIDE_TAXIING],
-                             DATA_REFS_LT[DR_CFG_HIDE_TAXIING]);
-        
-        // landing lights during taxi?
-        btnAdvcdLndLightsTaxi.setId(widgetIds[UI_ADVCD_BTN_LND_LIGHTS_TAXI],
-                                    DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
-        
 
         // *** CSL ***
         // Initialize all paths (3 elements each: check box, text field, button)
@@ -720,7 +628,7 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
     // if the button is one of our tab buttons show/hide the appropriate subwindow
     if (widgetIds[UI_BTN_BASICS] == buttonWidget) {
         subBasicsLive.Show(bNowChecked);
-        subBasicsHistoric.Show(bNowChecked);
+        subBasicsRight.Show(bNowChecked);
         return true;
     }
     else if (widgetIds[UI_BTN_AC_LABELS] == buttonWidget) {
@@ -800,6 +708,14 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
 // push buttons
 bool LTSettingsUI::MsgPushButtonPressed (XPWidgetID buttonWidget)
 {
+    // *** Help ***
+    if (widgetIds[UI_BTN_HELP] == buttonWidget)
+    {
+        // open help for the currently selected tab of the settings dialog
+        LTOpenHelp(HELP_SETTINGS_PATHS[tabGrp.GetCheckedIndex()]);
+        return true;
+    }
+    
     // *** A/C Labels ***
     // color presets?
     if (widgetIds[UI_LABELS_BTN_YELLOW] == buttonWidget) { intLabelColor.Set(COLOR_YELLOW); return true; }

@@ -29,19 +29,6 @@
 
 #include "ACInfoWnd.h"
 
-// Shows simDate/time, updated every second
-class LTCapDateTime : public TFTextFieldWidget
-{
-protected:
-    TFDataRefLink simDate, simTime;
-public:
-    LTCapDateTime (XPWidgetID _me = NULL);
-    void SetCaption ();
-protected:
-    virtual bool TfwMsgMain1sTime ();
-    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
-};
-
 //
 // Settings UI Main window
 //
@@ -51,16 +38,18 @@ protected:
     XPWidgetID* widgetIds;              // all widget ids in the dialog
     TFButtonGroup tabGrp;               // button group to switch 'tabs'
     // sub-windows ('tabs')
-    TFWidget subBasicsLive, subBasicsHistoric, subAcLabel, subAdvcd, subCSL, subDebug;
+    TFWidget subBasicsLive, subBasicsRight, subAcLabel, subAdvcd, subCSL, subDebug;
     
     // Basics tab
     TFButtonDataRef btnBasicsEnable,    // enable display of aircrafts
-                    btnBasicsAutoStart,
-                    btnBasicsHistoric;
+                    btnBasicsAutoStart;
     // enable/disable flight data channels
-    TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive, btnADSBHistoric;
-    LTCapDateTime txtDateTime;          // display/edit current simtime
-    
+    TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
+    // right hand side
+    TFIntFieldDataRef intHideBelowAGL;
+    TFButtonDataRef btnHideTaxiing;
+    TFButtonDataRef btnAdvcdLndLightsTaxi;
+
     // A/C Labels tab
     TFDataRefLink drCfgLabels;          // links to dataRef livetraffic/cfg/labels
     TFDataRefLink drCfgLabelShow;       // links to dataRef livetraffic/cfg/label_show
@@ -74,9 +63,6 @@ protected:
     TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
     TFIntFieldDataRef intFdStdDistance, intFdRefreshIntvl;
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
-    TFIntFieldDataRef intHideBelowAGL;
-    TFButtonDataRef btnHideTaxiing;
-    TFButtonDataRef btnAdvcdLndLightsTaxi;
 
     // CSL tab
     enum { SETUI_CSL_PATHS=7, SETUI_CSL_ELEMS_PER_PATH=3 };

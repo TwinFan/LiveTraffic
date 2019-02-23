@@ -147,9 +147,29 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_TOGGLE_AC_NUM      "Aircrafts displayed (%d shown)"
 #define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_SETTINGS_UI        "Settings..."
+#define MENU_HELP               "Help"
+#define MENU_HELP_DOCUMENTATION "Documentation"
+#define MENU_HELP_FAQ           "FAQ"
+#define MENU_HELP_MENU_ITEMS    "Menu Items"
+#define MENU_HELP_AC_INFO_WND   "A/C Info Window"
+#define MENU_HELP_SETTINGS      "Settings"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 #endif
+
+//MARK: Help URLs
+#define HELP_URL                "https://twinfan.gitbook.io/livetraffic/"
+#define HELP_FAQ                "reference/faq"
+#define HELP_MENU_ITEMS         "using-lt/menu-items"
+#define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
+#define HELP_SETTINGS           "setup/configuration#settings-ui"
+#define HELP_SETTINGS_PATHS ((const char* [5]) {    \
+    "setup/configuration/settings-basics",          \
+    "setup/configuration/settings-a-c-labels",      \
+    "setup/configuration/settings-advanced",        \
+    "setup/configuration/settings-csl",             \
+    "setup/configuration/settings-debug",           \
+})
 
 //MARK: File Paths
 // these are under the plugins directory
@@ -178,8 +198,8 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_XPMP_ENABLE         "Could not enable XPMPMultiplayer: %s"
 #define ERR_NO_TCAS             "LiveTraffic does not control AI planes and can therefore not create TCAS blibs!"
 #define ERR_XPMP_ADD_CSL        "Could not add additional CSL package: %s"
-#define ERR_APPEND_MENU_ITEM    "Could not append menu item"
-#define ERR_CREATE_MENU         "Could not create menu"
+#define ERR_APPEND_MENU_ITEM    "Could not append a menu item"
+#define ERR_CREATE_MENU         "Could not create menu %s"
 #define ERR_CURL_INIT           "Could not initialize CURL: %s"
 #define ERR_CURL_EASY_INIT      "Could not initialize easy CURL"
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"

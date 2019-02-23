@@ -123,7 +123,38 @@ std::istream& safeGetline(std::istream& is, std::string& t)
 }
 
 //
-//MARK: Utility
+// MARK: URL/Help support
+//
+
+void LTOpenURL  (const std::string url)
+{
+#if IBM
+    // Windows implementation: ShellExecuteA
+    // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
+    ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#else
+    // Max/Unix use standard system/open
+#ifdef LIN
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+#endif
+    system((std::string("open ") + url).c_str());
+    // Code that causes warning goes here
+#ifdef LIN
+#pragma GCC diagnostic pop
+#endif
+#endif
+}
+
+// just prepend the given path with the base URL an open it
+void LTOpenHelp (const std::string path)
+{
+    LTOpenURL(std::string(HELP_URL)+path);
+}
+
+
+//
+//MARK: String/Text Functions
 //
 
 // change a string to uppercase
@@ -191,6 +222,8 @@ std::string str_first_non_empty ( std::initializer_list<const std::string> l)
             return s;
     return "";
 }
+
+// MARK: Other Utility Functions
 
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 )
