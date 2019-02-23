@@ -54,6 +54,9 @@
     <ClCompile Include="Src\parson.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\XPCompatibility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ACInfoWnd.h">
@@ -93,6 +96,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\XPCompatibility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

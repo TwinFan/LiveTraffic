@@ -40,6 +40,7 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <cassert>
 
 // Windows
 #if IBM
