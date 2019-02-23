@@ -712,7 +712,8 @@ bool LTSettingsUI::MsgPushButtonPressed (XPWidgetID buttonWidget)
     if (widgetIds[UI_BTN_HELP] == buttonWidget)
     {
         // open help for the currently selected tab of the settings dialog
-        LTOpenHelp(HELP_SETTINGS_PATHS[tabGrp.GetCheckedIndex()]);
+        const char* helpSettingsPaths[5] = HELP_SETTINGS_PATHS;
+        LTOpenHelp(helpSettingsPaths[tabGrp.GetCheckedIndex()]);
         return true;
     }
     

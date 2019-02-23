@@ -163,13 +163,13 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define HELP_MENU_ITEMS         "using-lt/menu-items"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
-#define HELP_SETTINGS_PATHS ((const char* [5]) {    \
+#define HELP_SETTINGS_PATHS {                       \
     "setup/configuration/settings-basics",          \
     "setup/configuration/settings-a-c-labels",      \
     "setup/configuration/settings-advanced",        \
     "setup/configuration/settings-csl",             \
     "setup/configuration/settings-debug",           \
-})
+}
 
 //MARK: File Paths
 // these are under the plugins directory
