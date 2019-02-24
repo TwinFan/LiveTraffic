@@ -67,8 +67,7 @@ public:
     virtual ~LTChannel ();
     
 public:
-    static const char* ChId2String (dataRefsLT ch);
-    inline const char* ChName() const { return ChId2String(channel); }
+    virtual const char* ChName() const = 0;
     inline dataRefsLT GetChannel() const { return channel; }
     
     virtual bool IsLiveFeed () const = 0;
@@ -194,85 +193,6 @@ protected:
 public:
     LTFileChannel ();
     virtual bool IsLiveFeed () const    {return false;}
-};
-
-//
-//MARK: OpenSky
-//
-class OpenSkyConnection : public LTOnlineChannel, LTFlightDataChannel
-{
-public:
-    OpenSkyConnection () :
-    LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE),
-    LTOnlineChannel(),
-    LTFlightDataChannel()  {}
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-};
-
-//
-//MARK: ADS-B Exchange
-//
-class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
-{
-public:
-    ADSBExchangeConnection () :
-    LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
-    LTOnlineChannel(),
-    LTFlightDataChannel()  {}
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-};
-
-//
-//MARK: ADS-B Exchange Historical Data
-//
-class ADSBExchangeHistorical : public LTFileChannel, LTFlightDataChannel
-{
-    // helper type to select best receiver per a/c from multiple in one file
-    struct FDSelection
-    {
-        int quality;                // quality value
-        std::string ln;             // line of flight data from file
-    };
-    
-    typedef std::map<std::string, FDSelection> mapFDSelectionTy;
-    
-public:
-    ADSBExchangeHistorical (std::string base = ADSBEX_HIST_PATH,
-                            std::string fallback = ADSBEX_HIST_PATH_2);
-    virtual bool FetchAllData (const positionTy& pos);
-    virtual bool IsLiveFeed() const { return false; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-};
-
-
-//
-//MARK: OpenSkyAcMasterdata
-//
-class OpenSkyAcMasterdata : public LTOnlineChannel, LTACMasterdataChannel
-{
-protected:
-    listStringTy invIcaos;          // list of not-to-query-again icaos
-    listStringTy invCallSigns;      // list of not-to-query-again call signs
-public:
-    OpenSkyAcMasterdata () :
-    LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA),
-    LTOnlineChannel(),
-    LTACMasterdataChannel()  {}
-public:
-    virtual bool FetchAllData (const positionTy& pos);
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_MASTER_DATA; }
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 
 //

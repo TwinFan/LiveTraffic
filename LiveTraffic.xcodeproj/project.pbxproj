@@ -17,6 +17,10 @@
 		2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042921AAC9B5001E2F2A /* GSS.framework */; };
 		2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */; };
 		2564042E21AACB3D001E2F2A /* libpng.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042D21AACB3D001E2F2A /* libpng.framework */; };
+		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
+		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
+		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
+		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		2591F96C219700C200F0D436 /* LTFlightradar24.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2591F96B219700C200F0D436 /* LTFlightradar24.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
@@ -79,6 +83,14 @@
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
 		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
 		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
+		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
+		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
+		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
+		2573631B22233041005210C5 /* LTRealTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTRealTraffic.h; sourceTree = "<group>"; };
+		2573631C22233CCA005210C5 /* LTOpenSky.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTOpenSky.h; sourceTree = "<group>"; };
+		2573631D22233CCA005210C5 /* LTADSBEx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTADSBEx.h; sourceTree = "<group>"; };
+		2573631E22233CDA005210C5 /* LTADSBEx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTADSBEx.cpp; sourceTree = "<group>"; };
+		2573631F22233CDA005210C5 /* LTOpenSky.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTOpenSky.cpp; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
 		25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "RealTraffic dev1.0.pdf"; sourceTree = "<group>"; };
@@ -260,11 +272,15 @@
 				2558579320950C6700816F65 /* CoordCalc.cpp */,
 				25C59459207A2B7500E52073 /* DataRefs.cpp */,
 				D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */,
+				2573631E22233CDA005210C5 /* LTADSBEx.cpp */,
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
+				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
+				2573631922233008005210C5 /* LTRealTraffic.cpp */,
 				25ABEEFD219A1C2100F61413 /* LTVersion.cpp */,
+				257363162222C879005210C5 /* Network.cpp */,
 				254EA46F2083E403008A312F /* parson.c */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
@@ -350,9 +366,13 @@
 				25A095C02203B01300658AA8 /* CoordCalc.h */,
 				25A095C72203B01300658AA8 /* DataRefs.h */,
 				25A095C82203B01300658AA8 /* LiveTraffic.h */,
+				2573631D22233CCA005210C5 /* LTADSBEx.h */,
 				25A095C92203B01300658AA8 /* LTAircraft.h */,
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
+				2573631C22233CCA005210C5 /* LTOpenSky.h */,
+				2573631B22233041005210C5 /* LTRealTraffic.h */,
+				257363182222C8E2005210C5 /* Network.h */,
 				25A095C12203B01300658AA8 /* parson.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
 				25A095BE2203B01300658AA8 /* TextIO.h */,
@@ -652,8 +672,12 @@
 				25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */,
 				2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */,
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
+				2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */,
+				2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */,
+				257363172222C879005210C5 /* Network.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
+				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				2591F96C219700C200F0D436 /* LTFlightradar24.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,

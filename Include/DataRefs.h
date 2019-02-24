@@ -151,6 +151,7 @@ enum dataRefsLT {
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
     DR_CHANNEL_OPEN_SKY_ONLINE,
     DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
+    DR_CHANNEL_REAL_TRAFFIC_ONLINE,
     DR_CHANNEL_FUTUREDATACHN_ONLINE,
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
@@ -159,7 +160,7 @@ enum dataRefsLT {
     CNT_DATAREFS_LT                     // always last, number of elements
 };
 
-constexpr int CNT_DR_CHANNELS = 5;          // number of flight data channels
+constexpr int CNT_DR_CHANNELS = 6;          // number of flight data channels
 constexpr int DR_CHANNEL_FIRST = DR_CHANNEL_ADSB_EXCHANGE_ONLINE;
 
 class DataRefs

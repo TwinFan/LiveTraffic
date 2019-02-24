@@ -188,7 +188,7 @@ const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
 void* GET_VAR = reinterpret_cast<void*>(INT_MIN);
 
 // list of all datRef definitions offered by LiveTraffic:
-DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
+DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/ac/key",                          DataRefs::LTGetAcInfoI, DataRefs::LTSetAcKey,   (void*)DR_AC_KEY, false },
     {"livetraffic/ac/num",                          DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_NUM, false },
     {"livetraffic/ac/on_gnd",                       DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_ON_GND, false },
@@ -237,15 +237,13 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
 };
-
-static_assert(sizeof(DATA_REFS_LT)/sizeof(DATA_REFS_LT[0]) == CNT_DATAREFS_LT,
-              "dataRefsLT and DATA_REFS_LT[] differ in number of elements");
 
 // returns the actual address of the variable within DataRefs, which stores the value of interest as per dataRef definition
 // (called in case dataRefDefinitionT::refCon == GET_VAR)

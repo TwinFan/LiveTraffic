@@ -100,11 +100,17 @@
 #include "TextIO.h"
 #include "LTAircraft.h"
 #include "LTFlightData.h"
-#include "LTChannel.h"
 #include "TFWidgets.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
 #include "XPCompatibility.h"
+
+// LiveTraffic channels
+#include "Network.h"
+#include "LTChannel.h"
+#include "LTRealTraffic.h"
+#include "LTOpenSky.h"
+#include "LTADSBEx.h"
 
 // MARK: Global variables
 // Global DataRef object, which also includes 'global' variables
