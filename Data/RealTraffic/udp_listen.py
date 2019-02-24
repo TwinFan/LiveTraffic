@@ -2,6 +2,8 @@
 
 import sys
 import socket
+import time
+
 #---socket creation
 connexion = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -13,7 +15,8 @@ except socket.error:
     connexion.close()
     sys.exit()
 
-#---testing
+#---wait for and print data
 while 1:
     data, addr = connexion.recvfrom(1024)
-    print "messages : ",addr , data
+#    print "messages : ",addr , data
+    print time.time(), ":", data
