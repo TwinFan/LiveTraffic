@@ -501,8 +501,8 @@ bool fm_processModelLine (const char* fileName, int ln,
     std::smatch m;
     std::regex_search(text, m, re);
     
-    // at least two matches expected
-    if (m.length() < 2) {
+    // three matches expected
+    if (m.size() != 4) {
         LOG_MSG(logWARN, ERR_CFG_FORMAT, fileName, ln, text.c_str());
         return false;
     }
@@ -576,8 +576,8 @@ bool fm_processMapLine (const char* fileName, int ln,
     std::smatch m;
     std::regex_search(text, m, re);
     
-    // at least two matches expected
-    if (m.length() < 2) {
+    // two matches expected
+    if (m.size() != 3) {
         LOG_MSG(logWARN, ERR_CFG_FORMAT, fileName, ln, text.c_str());
         return false;
     }
