@@ -52,6 +52,7 @@ enum menuItems {
     MENU_ID_HELP_MENU_ITEMS,
     MENU_ID_HELP_AC_INFO_WND,
     MENU_ID_HELP_SETTINGS,
+    MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
 #endif
@@ -87,6 +88,9 @@ void MenuHandler(void * /*mRef*/, void * iRef)
             case MENU_ID_SETTINGS_UI:
                 settingsUI.Show();
                 settingsUI.Center();
+                break;
+            case MENU_ID_NEWVER:
+                LTOpenURL(LT_DOWNLOAD_URL);
                 break;
 #ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
@@ -138,6 +142,30 @@ void MenuCheckTCASControl ( bool bChecked )
     XPLMCheckMenuItem(// checkmark the menu item if TCAS under control
                       menuID,aMenuItems[MENU_ID_HAVE_TCAS],
                       bChecked ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+}
+
+void HandleNewVersionAvail ()
+{
+    // not reasonable for no new version or if already added
+    if (std::isnan(verXPlaneOrg) || aMenuItems[MENU_ID_NEWVER] != 0)
+        return;
+    
+    // if the X-Plane.org version is not newer don't worry either
+    if (verXPlaneOrg <= VERSION_NR)
+        return;
+    
+    // *** New version available! ***
+    // add another menu item directing to the new version
+    char buf[50];
+    snprintf(buf, sizeof(buf), MENU_NEWVER, verXPlaneOrg);
+    aMenuItems[MENU_ID_NEWVER] =
+    XPLMAppendMenuItem(menuID, buf, (void *)MENU_ID_NEWVER,1);
+
+    // make the user aware
+    SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,verXPlaneOrg);
+    
+    // save the current timestamp so we don't check too often
+    dataRefs.SetLastCheckedNewVerNow();
 }
 
 bool RegisterMenuItem ()

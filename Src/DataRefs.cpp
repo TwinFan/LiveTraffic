@@ -29,6 +29,7 @@
 #include <fstream>
 #include <errno.h>
 #include <regex>
+#include <future>
 
 //
 //MARK: external references
@@ -233,6 +234,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -272,6 +274,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
@@ -304,8 +307,10 @@ const char* DATA_REF_EDITORS[] = {
 float LoopCBOneTimeSetup (float, float, int, void*)
 {
     static enum ONCE_CB_STATE
-    { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_CB_DONE }
+    { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_WAIT_FOR_VER, ONCE_CB_DONE }
     eState = ONCE_CB_ADD_DREFS;
+    
+    static std::future<bool> futVerCheck;
     
     switch (eState) {
         case ONCE_CB_ADD_DREFS:
@@ -329,6 +334,26 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             // Auto Start display of aircrafts
             if (dataRefs.GetAutoStart())
                 dataRefs.SetAircraftsDisplayed(true);
+            
+            // check at X-Plane.org for version updates
+            if (dataRefs.NeedNewVerCheck()) {
+                futVerCheck = std::async(std::launch::async, FetchXPlaneOrgVersion);
+                eState = ONCE_WAIT_FOR_VER;
+                return 2;
+            }
+            
+            // done, don't call me again
+            eState = ONCE_CB_DONE;
+            return 0;
+            
+        case ONCE_WAIT_FOR_VER:
+            // did the version check not yet come back?
+            if (std::future_status::ready != futVerCheck.wait_for(std::chrono::microseconds(0)))
+                return 2;
+                
+            // version check successful?
+            if (futVerCheck.get())
+                HandleNewVersionAvail();      // handle the outcome
             
             // done
             eState = ONCE_CB_DONE;
@@ -986,6 +1011,27 @@ bool DataRefs::SetCfgValue (void* p, int val)
     
     // success
     return true;
+}
+
+// more than 24h passed since last version check?
+bool DataRefs::NeedNewVerCheck () const
+{
+    if (!lastCheckNewVer)
+        return true;
+    
+    // 'now' in hours since the epoch
+    int nowH = (int)std::chrono::duration_cast<std::chrono::hours>
+    (std::chrono::system_clock::now().time_since_epoch()).count();
+    
+    return nowH - lastCheckNewVer > 24;
+}
+
+// saves the fact that we just checked for a new version
+void DataRefs::SetLastCheckedNewVerNow ()
+{
+    lastCheckNewVer = (int)
+    std::chrono::duration_cast<std::chrono::hours>
+    (std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 // return color into a RGB array as XP likes it

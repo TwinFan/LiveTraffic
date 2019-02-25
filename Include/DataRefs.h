@@ -147,6 +147,7 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
+    DR_CFG_LAST_CHECK_NEW_VER,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
     DR_CHANNEL_OPEN_SKY_ONLINE,
@@ -308,6 +309,7 @@ protected:
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
     int iTodaysDayOfYear        = 0;
     time_t tStartThisYear = 0, tStartPrevYear = 0;
+    int lastCheckNewVer         = 0;    // when did we last check for updates? (hours since the epoch)
     
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
@@ -438,6 +440,9 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
+    
+    bool NeedNewVerCheck () const;
+    void SetLastCheckedNewVerNow ();
 
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }

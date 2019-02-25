@@ -30,8 +30,10 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 0.93f;
+constexpr float VERSION_NR = 0.94f;
 constexpr bool VERSION_BETA = true;
+extern float verXPlaneOrg;          // version on X-Plane.org
+extern int verDateXPlaneOrg;        // and its date
 
 //MARK: Window Position
 #define WIN_WIDTH       400         // window width
@@ -102,11 +104,14 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define LT_FM_VERSION           "1.0"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircrafts based on live traffic."
+#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
+#define LT_DOWNLOAD_CH          "X-Plane.org"
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
+#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircrafts"
@@ -153,6 +158,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_HELP_MENU_ITEMS    "Menu Items"
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
+#define MENU_NEWVER             "New Version %01.2f available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 #endif
@@ -203,6 +209,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_INIT           "Could not initialize CURL: %s"
 #define ERR_CURL_EASY_INIT      "Could not initialize easy CURL"
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"
+#define ERR_CURL_NOVERCHECK     "Could not browse X-Plane.org for version info: %d - %s"
 #define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
 #define ERR_CURL_REVOKE_MSG     "0x80092012"                // appears in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
