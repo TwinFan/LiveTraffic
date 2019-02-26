@@ -197,7 +197,7 @@ void CBRightTopMostMonitorGlobal(int    inMonitorIndex,
 {
     // right-top-most?
     if ((inRightBx > rm_r) ||
-        (inRightBx == rm_r && inTopBx > rm_r))
+        (inRightBx == rm_r && inTopBx > rm_t))
     {
         rm_idx = inMonitorIndex;
         rm_l   = inLeftBx;
