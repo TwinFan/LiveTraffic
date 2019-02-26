@@ -38,7 +38,7 @@ DataRefs dataRefs(logWARN);
 // Settings Dialog
 LTSettingsUI settingsUI;
 
-//MARK: Reload Plugins menu item
+//MARK: Plugin Menu
 enum menuItems {
     MENU_ID_LIVETRAFFIC = 0,
     MENU_ID_AC_INFO_WND,
@@ -71,10 +71,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
         // act based on menu id
         switch (reinterpret_cast<unsigned long long>(iRef)) {
             case MENU_ID_AC_INFO_WND:
-                ACIWnd::OpenNewWnd(!XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS") ?
-                                   TF_MODE_CLASSIC :
-                                   dataRefs.IsVREnabled() ?
-                                   TF_MODE_VR : TF_MODE_FLOAT);
+                ACIWnd::OpenNewWnd(GetDefaultWndOpenMode());
                 break;
             case MENU_ID_AC_INFO_WND_POPOUT:
                 ACIWnd::OpenNewWnd(TF_MODE_POPOUT);

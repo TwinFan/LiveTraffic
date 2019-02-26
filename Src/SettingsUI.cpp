@@ -342,7 +342,8 @@ void LTSettingsUI::Enable()
         memset(widgetIds, 0, sizeof(XPWidgetID)*NUM_WIDGETS );
 
         // create all widgets, i.e. the entire window structure, but keep invisible
-        if (!TFUCreateWidgetsEx(SETTINGS_UI, NUM_WIDGETS, NULL, widgetIds))
+        if (!TFUCreateWidgetsEx(SETTINGS_UI, NUM_WIDGETS, NULL, widgetIds,
+                                GetDefaultWndOpenMode()))
         {
             SHOW_MSG(logERR,ERR_WIDGET_CREATE);
             return;
@@ -533,6 +534,14 @@ void LTSettingsUI::Show (bool bShow)
     if (bShow)              // create before use
         Enable();
     TFWidget::Show(bShow);  // show/hide
+    
+    // make sure we are in the right window mode
+    if (GetWndMode() != GetDefaultWndOpenMode()) {      // only possible in XP11
+        if (GetDefaultWndOpenMode() == TF_MODE_VR)
+            SetWindowPositioningMode(xplm_WindowVR, -1);
+        else
+            SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+    }
 }
 
 // capture entry into 'filter for transponder hex code' field

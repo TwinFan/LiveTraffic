@@ -219,6 +219,9 @@ bool dequal ( const double d1, const double d2 );
 // gets latest version info from X-Plane.org
 bool FetchXPlaneOrgVersion ();
 
+// default window open mode depends on XP10/11 and VR
+TFWndMode GetDefaultWndOpenMode ();
+
 // MARK: Compiler differences
 
 #if APL == 1 || LIN == 1
