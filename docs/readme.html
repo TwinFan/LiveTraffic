@@ -35,19 +35,37 @@
 
     <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
 
-    <h3>v0.93.190224 Pubic Beta - Release Candidate 1</h3>
-    
+    <h3>v0.94.1902__ Pubic Beta - Release Candidate 2</h3>
+
     <p>
-    <b>To update coming from 0.92</b> just copy the contents of the installation package over your existing
-    installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
-    existing one. There are no new files.
+        <b>To update coming from 0.93</b> just copy the <code>*.xpl</code> binaries from the <code>64</code> folder over your existing
+        installation in <code>Resources/plugins/LiveTraffic/64</code>. Each file replaces an
+        existing one. There are no new files.
     </p>
-    
+
+    <ul>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/107">#107</a>
+            checking for new version on X-Plane.org; if so message shows up and
+            additional menu item <code>LiveTraffic/New Version...</code> becomes available.
+        </li>
+        <li>
+            VR only: A/C Info Window is supposed to follow into external camera view,
+            so that "Camera" checkbox stays available for getting out of that view.
+        </li>
+        <li>
+            Further CHANGED handling of window position, especially for Settings UI.
+        </li>
+    </ul>
+
+    <h3>v0.93.190224 Pubic Beta - Release Candidate 1</h3>
+
     <ul>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/98">#98</a>
             <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">
-            step-by-step instruction for Bluebell CSL package installation</a>
+                step-by-step instruction for Bluebell CSL package installation
+            </a>
             to documentation especially targeting new users.
         </li>
         <li>
@@ -62,12 +80,16 @@
             <ul>
                 <li>Created as floating windows, ie. can be moved across monitors.</li>
                 <li>Created as VR windows when in VR mode.</li>
-                <li>Floating windows move into VR and vice versa when entering/leaving VR.<br>
-                    VR functionality untested as I don't have a VR rig. Qualified feedback welcome!</li>
-                <li>New menu entry <code>Plugins > LiveTraffic > Aircraft Info... (Popped out)</code>
+                <li>
+                    Floating windows move into VR and vice versa when entering/leaving VR.<br>
+                    VR functionality untested as I don't have a VR rig. Qualified feedback welcome!
+                </li>
+                <li>
+                    New menu entry <code>Plugins > LiveTraffic > Aircraft Info... (Popped out)</code>
                     creates a popped out window (native OS window).<br>
                     Initial position might not be optimal yet, but can then be
-                    moved anywhere on your desktop.</li>
+                    moved anywhere on your desktop.
+                </li>
             </ul>
         </li>
         <li>
@@ -123,7 +145,7 @@
             recover from exception (instead of re-throwing the exception, which causes CTD).
         </li>
     </ul>
-    
+
     <h3>v0.92.190211 Pubic Beta</h3>
 
     <ul>
@@ -653,7 +675,8 @@
     </P>
     <P>
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">
-        Step-by-step instructions</a> are available.
+            Step-by-step instructions
+        </a> are available.
     </P>
 
     <h3>Resulting Directory Structure</h3>
