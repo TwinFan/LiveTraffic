@@ -57,6 +57,7 @@
 		2536421C2215FE81000DC56F /* XPCompatibility.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCompatibility.cpp; sourceTree = "<group>"; };
 		2536421E2215FEBB000DC56F /* XPCompatibility.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCompatibility.h; sourceTree = "<group>"; };
 		25364221221755B1000DC56F /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
+		253B6F2E2225EC14001F8B42 /* Commands.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Commands.txt; path = "../../../Applications/X-Plane 11/Resources/plugins/Commands.txt"; sourceTree = "<group>"; };
 		2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_zlib.txt; sourceTree = "<group>"; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
 		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
@@ -528,6 +529,7 @@
 		25A3889B209884B50015266E /* Links */ = {
 			isa = PBXGroup;
 			children = (
+				253B6F2E2225EC14001F8B42 /* Commands.txt */,
 				25271352220F36340039D2A4 /* LiveTraffic.prf */,
 				255F35AE2097C0730080B78E /* DataRefs.txt */,
 				251531BE21B867F900B5968A /* Log.txt */,

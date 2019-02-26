@@ -96,8 +96,25 @@ enum dataRefsXP {
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
     DR_VIEW_EXTERNAL,
+    DR_VIEW_TYPE,
     DR_VR_ENABLED,
     CNT_DATAREFS_XP                     // always last, number of elements
+};
+
+enum XPViewTypes {
+    VIEW_UNKNOWN    = 0,
+    VIEW_FWD_2D     = 1000,
+    VIEW_EXT_TOWER  = 1014,
+    VIEW_EXT_RNWY   = 1015,
+    VIEW_EXT_CHASE  = 1017,
+    VIEW_EXT_CIRCLE = 1018,
+    VIEW_EXT_STILL  = 1020,
+    VIEW_EXT_LINEAR = 1021,
+    VIEW_FWD_HUD    = 1023,
+    VIEW_FWD_NODISP = 1024,
+    VIEW_FWD_3D     = 1026,
+    VIEW_FREE_CAM   = 1028,
+    VIEW_EXT_RIDE   = 1031,
 };
 
 // Datarefs offered by LiveTraffic
@@ -284,6 +301,9 @@ public:
     
 public:
     pluginStateTy pluginState = STATE_STOPPED;
+#ifdef DEBUG
+    bool bSimVREntered = false;                 // for me to simulate some aspects of VR
+#endif
     
 //MARK: DataRefs
 protected:
@@ -368,11 +388,17 @@ public:
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
     inline float GetZuluTimeSec() const         { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
-    inline bool  IsVREnabled() const            { return adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
+    inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
+    inline bool  IsVREnabled() const            { return
+#ifdef DEBUG
+        bSimVREntered ? true :                  // simulate some aspects of VR
+#endif
+        adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
 
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
+    inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks

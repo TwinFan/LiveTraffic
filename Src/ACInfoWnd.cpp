@@ -483,6 +483,18 @@ bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
             // Call a/c camera view
             pAc->ToggleCameraView();
             btnCamera.SetChecked(pAc->IsInCameraView());
+            
+            // in VR view we need to move at least the current window again into VR
+            // With switching to camera view the current position changed completely,
+            // while the a/c info windows remain in cockpit.
+            // Idea is: We move the window briefly back to normal view,
+            //          just to move it right away into VR again, where it is
+            //          supposed to show up.
+            if (dataRefs.IsVREnabled()) {
+                SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+                SetWindowPositioningMode(xplm_WindowVR, -1);
+            }
+            
             return true;
         }
         else if (btnVisible == buttonWidget) {

@@ -1756,6 +1756,7 @@ bool LTAircraft::CalcVisible ()
 
 LTAircraft* LTAircraft::pExtViewAc = nullptr;
 positionTy  LTAircraft::posExt;
+XPViewTypes LTAircraft::prevView = VIEW_UNKNOWN;
 
 // start an outside camery view
 void LTAircraft::ToggleCameraView()
@@ -1764,11 +1765,27 @@ void LTAircraft::ToggleCameraView()
     if (!pExtViewAc) {
         pExtViewAc = this;
         CalcCameraViewPos();
+        
+        // we shall ensure to set an external view first,
+        // so that sound and 2D stuff is handled correctly
+        if (!dataRefs.IsViewExternal()) {
+            prevView = dataRefs.GetViewType();
+            dataRefs.SetViewType(VIEW_FREE_CAM);
+        }
+        else
+            prevView = VIEW_UNKNOWN;
+        
         XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, nullptr);
     }
     else if (pExtViewAc == this) {      // me again? -> switch off
         pExtViewAc = nullptr;
         XPLMDontControlCamera();
+        
+        // if a previous view is known we make sure we go back there
+        if (prevView) {
+            dataRefs.SetViewType(prevView);
+            prevView = VIEW_UNKNOWN;
+        }
     }
     else {                              // view another plane
         pExtViewAc = this;

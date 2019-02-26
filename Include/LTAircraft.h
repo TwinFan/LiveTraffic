@@ -272,6 +272,7 @@ protected:
     bool                bAutoVisible = true;    // visibility handled automatically?
     static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view
     static positionTy   posExt;                 // external camera position
+    static XPViewTypes  prevView;               // View before activating camera
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();

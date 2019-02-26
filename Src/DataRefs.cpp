@@ -178,6 +178,7 @@ const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
     "sim/graphics/view/view_is_external",
+    "sim/graphics/view/view_type",
     "sim/graphics/VR/enabled",
 };
 

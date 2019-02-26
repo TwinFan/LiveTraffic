@@ -336,10 +336,9 @@ PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * /*i
     
 #ifdef DEBUG
     // for me not having a VR rig I do some basic testing with sending XPLM_MSG_AIRPLANE_COUNT_CHANGED
-    static bool bDebugPretendVR = false;
     if (inMsg == XPLM_MSG_AIRPLANE_COUNT_CHANGED) {
-        bDebugPretendVR = !bDebugPretendVR;
-        inMsg = bDebugPretendVR ? XPLM_MSG_ENTERED_VR : XPLM_MSG_EXITING_VR;
+        dataRefs.bSimVREntered = !dataRefs.bSimVREntered;
+        inMsg = dataRefs.bSimVREntered ? XPLM_MSG_ENTERED_VR : XPLM_MSG_EXITING_VR;
     }
 #endif
     
