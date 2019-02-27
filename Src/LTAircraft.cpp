@@ -631,8 +631,8 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
         lnVer[0] != LIVE_TRAFFIC ||                         // 1. is LiveTraffic
         lnVer[1] != LT_FM_VERSION)                          // 2. is the version
     {
-        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), text.c_str());
-        return false;
+        // tell user, but then continue
+        SHOW_MSG(logERR, ERR_CFG_FILE_VER_UNEXP, sFileName.c_str(), text.c_str(), LT_FM_VERSION);
     }
     
     // then follow sections and their entries

@@ -101,7 +101,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
 #define LT_CFG_VERSION          "1.1"        // current version of config file format
-#define LT_FM_VERSION           "1.0"        // version of flight model file format
+#define LT_FM_VERSION           "1.1"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircrafts based on live traffic."
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
@@ -242,6 +242,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
 #define ERR_CFG_FILE_OPEN_IN    "Could not open '%s': %s"
 #define ERR_CFG_FILE_VER        "Config file '%s' first line: Unsupported format or version: %s"
+#define ERR_CFG_FILE_VER_UNEXP  "Config file '%s' first line: Unexpected version %s, expected %s...trying to continue"
 #define ERR_CFG_FILE_IGNORE     "Ignoring unkown entry '%s' from config file '%s'"
 #define ERR_CFG_FILE_WORDS      "Expected two words (key, value) in config file '%s', line '%s': ignored"
 #define ERR_CFG_FILE_READ       "Could not read from '%s': %s"

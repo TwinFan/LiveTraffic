@@ -271,6 +271,17 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
   <ItemGroup>
     <ResourceCompile Include="LiveTraffic.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Resources\Doc8643.txt" />
+    <Text Include="Resources\related.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs\readme.html" />
+    <None Include="Resources\FlightModels.prf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\lights.png" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
