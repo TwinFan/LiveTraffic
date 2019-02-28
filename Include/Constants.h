@@ -80,7 +80,13 @@ constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on gr
 constexpr double MDL_CLOSE_TO_GND_SLOW = 25;    // feet height considered "on ground" if moving with less than max taxi speed
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
-constexpr double MDL_EXT_CAMERA_PITCH  = -5;
+constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
+constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
+constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
+constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
+constexpr float  MDL_EXT_FAST_DEG =       5.0f;
+constexpr float  MDL_EXT_STEP_FACTOR =    1.1f; // step factor with one zoom command
+constexpr float  MDL_EXT_FAST_FACTOR =    1.25f;
 #define MDL_LABEL_COLOR         "LABEL_COLOR"
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
@@ -218,7 +224,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
 #define ERR_NO_AC_TYPE          "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, will be rendered with standard a/c %s"
-#define ERR_DATAREF_FIND        "Could not find DataRef: %s"
+#define ERR_DATAREF_FIND        "Could not find DataRef/CmdRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
 #define ERR_DIR_CONTENT         "Could not retrieve directory content for %s"
 #define ERR_JSON_PARSE          "Parsing flight data as JSON failed"

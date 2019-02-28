@@ -552,6 +552,11 @@ bool ACIWnd::TfwMsgMain1sTime ()
 // remove myself completely
 bool ACIWnd::MessageCloseButtonPushed ()
 {
+    // ignore the closing command if in VR _and_ running the external camera
+    if (dataRefs.IsVREnabled() && btnCamera.IsChecked())
+        return true;
+
+    // else: remove myself
     delete this;
     return true;
 }

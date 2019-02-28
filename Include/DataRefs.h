@@ -98,7 +98,50 @@ enum dataRefsXP {
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
     DR_VR_ENABLED,
+    DR_PILOTS_HEAD_X,
+    DR_PILOTS_HEAD_Y,
+    DR_PILOTS_HEAD_Z,
+    DR_PILOTS_HEAD_HEADING,
+    DR_PILOTS_HEAD_PITCH,
+    DR_PILOTS_HEAD_ROLL,
     CNT_DATAREFS_XP                     // always last, number of elements
+};
+
+enum cmdRefsXP {
+    CR_NO_COMMAND = -1,                 // initialization placeholder
+    CR_GENERAL_LEFT = 0,                // first 16 commands grouped together
+    CR_GENERAL_RIGHT,                   // they move the spot on latitude (Z) and lonigtude (X)
+    CR_GENERAL_LEFT_FAST,               // there actual movement twords Z and X depends on current heading
+    CR_GENERAL_RIGHT_FAST,
+    CR_GENERAL_FORWARD,
+    CR_GENERAL_BACKWARD,
+    CR_GENERAL_FORWARD_FAST,
+    CR_GENERAL_BACKWARD_FAST,
+    CR_GENERAL_HAT_SWITCH_LEFT,         // hat switch
+    CR_GENERAL_HAT_SWITCH_RIGHT,
+    CR_GENERAL_HAT_SWITCH_UP,
+    CR_GENERAL_HAT_SWITCH_DOWN,
+    CR_GENERAL_HAT_SWITCH_UP_LEFT,
+    CR_GENERAL_HAT_SWITCH_UP_RIGHT,
+    CR_GENERAL_HAT_SWITCH_DOWN_LEFT,
+    CR_GENERAL_HAT_SWITCH_DOWN_RIGHT,
+    CR_GENERAL_UP,                      // up/down -> change altitude
+    CR_GENERAL_DOWN,
+    CR_GENERAL_UP_FAST,
+    CR_GENERAL_DOWN_FAST,
+    CR_GENERAL_ROT_LEFT,                // rotate/turn -> change heading
+    CR_GENERAL_ROT_RIGHT,
+    CR_GENERAL_ROT_LEFT_FAST,
+    CR_GENERAL_ROT_RIGHT_FAST,
+    CR_GENERAL_ROT_UP,                  // rotate/tilt -> change pitch
+    CR_GENERAL_ROT_DOWN,
+    CR_GENERAL_ROT_UP_FAST,
+    CR_GENERAL_ROT_DOWN_FAST,
+    CR_GENERAL_ZOOM_IN,                 // zoom
+    CR_GENERAL_ZOOM_OUT,
+    CR_GENERAL_ZOOM_IN_FAST,
+    CR_GENERAL_ZOOM_OUT_FAST,           // last command registered for camera movement
+    CNT_CMDREFS_XP                      // always last, number of elements
 };
 
 enum XPViewTypes {
@@ -309,7 +352,9 @@ public:
 protected:
     XPLMDataRef adrXP[CNT_DATAREFS_XP];                 // array of XP data refs to read from
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
-    
+public:
+    XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
+
 //MARK: Provided Data, i.e. global variables
 protected:
     XPLMPluginID pluginID       = 0;
@@ -399,6 +444,7 @@ public:
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
     inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
+    void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks

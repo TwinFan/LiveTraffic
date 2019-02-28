@@ -270,9 +270,6 @@ protected:
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
-    static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view
-    static positionTy   posExt;                 // external camera position
-    static XPViewTypes  prevView;               // View before activating camera
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -341,11 +338,27 @@ protected:
     // determines if now visible
     bool CalcVisible ();
     
+protected:
+    // *** Camera view ***
+    static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view
+    static positionTy   posExt;                 // external camera position
+    static XPViewTypes  prevView;               // View before activating camera
+    static XPLMCameraPosition_t extOffs;        // Camera offset from initial tail position
+    static XPLMCameraPosition_t initPilotPos;   // Pilot's head position at the start of camera view
+
     // callback for external camera view
     static int CameraCB (XPLMCameraPosition_t* outCameraPosition,    /* Can be NULL */
                          int                   inIsLosingControl,
                          void *                inRefcon);
 
+    // command handling during camera view for camera movement
+    static void CameraRegisterCommands(bool bRegister);
+    static int CameraCommandsCB(
+        XPLMCommandRef      inCommand,
+        XPLMCommandPhase    inPhase,
+        void *              inRefcon);
+
+protected:
     // XPMP Aircraft Updates (callbacks)
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);
     virtual XPMPPlaneCallbackResult GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSurfaces);

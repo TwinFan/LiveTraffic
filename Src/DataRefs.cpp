@@ -171,7 +171,7 @@ catch (...)
 }
 
 //MARK: X-Plane Datarefs
-const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
+const char* DATA_REFS_XP[] = {
     "sim/time/total_running_time_sec",
     "sim/time/local_time_sec",
     "sim/time/local_date_days",
@@ -180,7 +180,55 @@ const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
     "sim/graphics/VR/enabled",
+    "sim/graphics/view/pilots_head_x",
+    "sim/graphics/view/pilots_head_y",
+    "sim/graphics/view/pilots_head_z",
+    "sim/graphics/view/pilots_head_psi",
+    "sim/graphics/view/pilots_head_the",
+    "sim/graphics/view/pilots_head_phi",
 };
+
+static_assert(sizeof(DATA_REFS_XP) / sizeof(DATA_REFS_XP[0]) == CNT_DATAREFS_XP,
+    "dataRefsXP and DATA_REFS_XP[] differ in number of elements");
+
+//MARK: X-Plane Command Refs
+const char* CMD_REFS_XP[] = {
+    "sim/general/left",
+    "sim/general/right",
+    "sim/general/left_fast",
+    "sim/general/right_fast",
+    "sim/general/forward",
+    "sim/general/backward",
+    "sim/general/forward_fast",
+    "sim/general/backward_fast",
+    "sim/general/hat_switch_left",
+    "sim/general/hat_switch_right",
+    "sim/general/hat_switch_up",
+    "sim/general/hat_switch_down",
+    "sim/general/hat_switch_up_left",
+    "sim/general/hat_switch_up_right",
+    "sim/general/hat_switch_down_left",
+    "sim/general/hat_switch_down_right",
+    "sim/general/up",
+    "sim/general/down",
+    "sim/general/up_fast",
+    "sim/general/down_fast",
+    "sim/general/rot_left",
+    "sim/general/rot_right",
+    "sim/general/rot_left_fast",
+    "sim/general/rot_right_fast",
+    "sim/general/rot_up",
+    "sim/general/rot_down",
+    "sim/general/rot_up_fast",
+    "sim/general/rot_down_fast",
+    "sim/general/zoom_in",
+    "sim/general/zoom_out",
+    "sim/general/zoom_in_fast",
+    "sim/general/zoom_out_fast",
+};
+
+static_assert(sizeof(CMD_REFS_XP) / sizeof(CMD_REFS_XP[0]) == CNT_CMDREFS_XP,
+    "cmdRefsXP and CMD_REFS_XP[] differ in number of elements");
 
 //
 //MARK: DataRefs::dataRefDefinitionT
@@ -477,12 +525,23 @@ bool DataRefs::Init ()
     {
         if ( (adrXP[i] = XPLMFindDataRef (DATA_REFS_XP[i])) == NULL )
         {
-            // for XP10 compatibility we accept if we don't find "VR/enabled",
+            // for XP10 compatibility we accept if we don't find a few,
             // all else stays an error
-            if (i != DR_VR_ENABLED) {
+            if (i != DR_VR_ENABLED &&
+                i != DR_PILOTS_HEAD_ROLL) {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
             }
+        }
+    }
+
+    // Fetch all XP-provided cmd refs and verify if OK
+    for (int i = 0; i < CNT_CMDREFS_XP; i++)
+    {
+        if ((cmdXP[i] = XPLMFindCommand(CMD_REFS_XP[i])) == NULL)
+        {
+            LOG_MSG(logFATAL, ERR_DATAREF_FIND, CMD_REFS_XP[i]);
+            return false;
         }
     }
 
@@ -576,6 +635,17 @@ bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
     return bRet;
 }
 
+// return pilot's head position from 6 dataRefs combined
+void DataRefs::GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const
+{
+    headPos.x = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_X]);
+    headPos.y = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_Y]);
+    headPos.z = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_Z]);
+    headPos.heading = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_HEADING]);
+    headPos.pitch   = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_PITCH]);
+    headPos.roll    = adrXP[DR_PILOTS_HEAD_ROLL] ? XPLMGetDataf(adrXP[DR_PILOTS_HEAD_ROLL]) : 0.0f;
+    headPos.zoom    = 1.0f;
+}
 
 //
 //MARK: Generic Callbacks
