@@ -1767,8 +1767,6 @@ LTAircraft* LTAircraft::pExtViewAc = nullptr;
 positionTy  LTAircraft::posExt;
 XPViewTypes LTAircraft::prevView = VIEW_UNKNOWN;
 XPLMCameraPosition_t  LTAircraft::extOffs;
-XPLMCameraPosition_t  LTAircraft::initPilotPos;
-
 
 // start an outside camery view
 void LTAircraft::ToggleCameraView()
@@ -1777,9 +1775,6 @@ void LTAircraft::ToggleCameraView()
     extOffs.x = extOffs.y = extOffs.z = extOffs.heading = extOffs.roll = 0.0f;
     extOffs.zoom = 1.0f;
     extOffs.pitch = MDL_EXT_CAMERA_PITCH;
-
-    // flag for: needs reinit during first position callback
-    initPilotPos.zoom = 0.0f;
 
     // starting a new external view?
     if (!pExtViewAc) {
@@ -1848,28 +1843,15 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
         return 0;
     }
 
-    // in VR we also use input from pilot's head position
-    // the dataRefs are correctly filled (with many zeros) also in classic view, so just use it
-    if (dequal(initPilotPos.zoom, 0.0)) {           // flag for "needs re-init"
-        dataRefs.GetPilotsHeadPos(initPilotPos);
-    }
-    XPLMCameraPosition_t  pilotsHead;
-    dataRefs.GetPilotsHeadPos(pilotsHead);
-
-    // we apply only the difference to the initial pilots location
-    pilotsHead.x -= initPilotPos.x;
-    pilotsHead.y -= initPilotPos.y;
-    pilotsHead.z -= initPilotPos.z;
-    
     // we have camera control, position has been calculated already in CalcPPos,
     // take it from posExt, fill output structure, apply movement by commands and pilot's head
     // factor of 10 means: If head moves 1m then view moves 10m...just imagine how big a wide body airliner is...
-    outCameraPosition->x =        (float)posExt.X()                                 + pilotsHead.x * 10.0f;     
-    outCameraPosition->y =        (float)posExt.Y()                                 + pilotsHead.y * 10.0f;
-    outCameraPosition->z =        (float)posExt.Z()                                 + pilotsHead.z * 10.0f;
-    outCameraPosition->heading  = (float)pExtViewAc->GetHeading() + extOffs.heading + pilotsHead.heading;
-    outCameraPosition->pitch =                                      extOffs.pitch   + pilotsHead.pitch;
-    outCameraPosition->roll =                                       extOffs.roll    + pilotsHead.roll;
+    outCameraPosition->x =        (float)posExt.X();
+    outCameraPosition->y =        (float)posExt.Y();
+    outCameraPosition->z =        (float)posExt.Z();
+    outCameraPosition->heading  = (float)pExtViewAc->GetHeading() + extOffs.heading;
+    outCameraPosition->pitch =                                      extOffs.pitch;
+    outCameraPosition->roll =                                       extOffs.roll;
     outCameraPosition->zoom =                                       extOffs.zoom;
     
     return 1;

@@ -344,7 +344,6 @@ protected:
     static positionTy   posExt;                 // external camera position
     static XPViewTypes  prevView;               // View before activating camera
     static XPLMCameraPosition_t extOffs;        // Camera offset from initial tail position
-    static XPLMCameraPosition_t initPilotPos;   // Pilot's head position at the start of camera view
 
     // callback for external camera view
     static int CameraCB (XPLMCameraPosition_t* outCameraPosition,    /* Can be NULL */
