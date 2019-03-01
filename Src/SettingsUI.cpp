@@ -540,7 +540,7 @@ void LTSettingsUI::Show (bool bShow)
         if (GetDefaultWndOpenMode() == TF_MODE_VR)
             SetWindowPositioningMode(xplm_WindowVR, -1);
         else
-            SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+            SetWindowPositioningMode(xplm_WindowPositionFree, -1);	
     }
 }
 

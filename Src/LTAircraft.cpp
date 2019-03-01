@@ -1925,8 +1925,8 @@ int LTAircraft::CameraCommandsCB(
     float cosOfs = 1.0f;
     if (CR_GENERAL_LEFT <= cmd && cmd <= CR_GENERAL_HAT_SWITCH_DOWN_RIGHT) {
         float extOffsHeadRad = (float)deg2rad(extOffs.heading);
-        sinOfs = std::sinf(extOffsHeadRad);
-        cosOfs = std::cosf(extOffsHeadRad);
+        sinOfs = std::sin(extOffsHeadRad);
+        cosOfs = std::cos(extOffsHeadRad);
     }
 
     while (cmd != CR_NO_COMMAND) {
