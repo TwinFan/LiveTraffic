@@ -248,9 +248,6 @@ PLUGIN_API int XPluginStart(
 							char *		outDesc)
 {
     try {
-        // init our version number
-        if (!InitFullVersion ()) return 0;
-
         // init random numbers
          srand((unsigned int)time(NULL));
         
@@ -264,8 +261,9 @@ PLUGIN_API int XPluginStart(
         XPLMSetErrorCallback(LTErrorCB);
 #endif
         
-        // tell the world we are trying to start up
-        LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
+        // init our version number
+        // (also outputs the "LiveTraffic ... starting up" log message)
+        if (!InitFullVersion ()) { DestroyWindow(); return 0; }
         
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
@@ -401,7 +399,7 @@ PLUGIN_API void    XPluginStop(void)
 void LTErrorCB (const char* msg)
 {
     char s[512];
-    snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s", LIVE_TRAFFIC, msg);
+    snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s\n", LIVE_TRAFFIC, msg);
     XPLMDebugString(s);
     assert(msg!=NULL);          // we bail out and hope the debugger is attached, so we can debug where we come from
 }

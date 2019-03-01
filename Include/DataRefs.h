@@ -97,7 +97,14 @@ enum dataRefsXP {
     DR_ZULU_TIME_SEC,
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
-    DR_VR_ENABLED,
+    DR_PLANE_LAT,                       // user's plane
+    DR_PLANE_LON,
+    DR_PLANE_ELEV,
+    DR_PLANE_PITCH,
+    DR_PLANE_ROLL,
+    DR_PLANE_HEADING,
+    DR_PLANE_ONGRND,
+    DR_VR_ENABLED,                      // VR stuff
     DR_PILOTS_HEAD_X,
     DR_PILOTS_HEAD_Y,
     DR_PILOTS_HEAD_Z,
@@ -444,6 +451,7 @@ public:
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
     inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
+    positionTy GetUsersPlanePos() const;
     void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic

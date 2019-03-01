@@ -122,8 +122,14 @@ bool InitFullVersion ()
              buildDate + 4
            );
     
-    if (VERSION_BETA && !CalcBetaVerTimeLimit())
-        return false;
+    // tell the world we are trying to start up
+    LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
+
+    // in case of a BETA version this is the place to check for its time limit
+    if constexpr (VERSION_BETA) {
+        if (!CalcBetaVerTimeLimit())
+            return false;
+    }
 
     return true;
 }

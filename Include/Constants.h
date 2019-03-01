@@ -102,6 +102,7 @@ extern time_t LT_BETA_VER_LIMIT;        // BETA versions are limited
 extern char LT_BETA_VER_LIMIT_TXT[];
 #define BETA_LIMITED_VERSION    "BETA limited to %s"
 #define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN!"
+constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"

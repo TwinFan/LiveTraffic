@@ -179,6 +179,13 @@ const char* DATA_REFS_XP[] = {
     "sim/time/zulu_time_sec",
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
+    "sim/flightmodel/position/latitude",
+    "sim/flightmodel/position/longitude",
+    "sim/flightmodel/position/elevation",
+    "sim/flightmodel/position/true_theta",
+    "sim/flightmodel/position/true_phi",
+    "sim/flightmodel/position/true_psi",
+    "sim/flightmodel/failures/onground_any",
     "sim/graphics/VR/enabled",
     "sim/graphics/view/pilots_head_x",
     "sim/graphics/view/pilots_head_y",
@@ -633,6 +640,28 @@ bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
         { LOG_MSG(logERR,ERR_DATAREF_ACCESSOR,def.getDataName()); bRet = false; }
     }
     return bRet;
+}
+
+// return user's plane pos
+positionTy DataRefs::GetUsersPlanePos() const
+{
+    positionTy pos
+    (
+     XPLMGetDatad(adrXP[DR_PLANE_LAT]),
+     XPLMGetDatad(adrXP[DR_PLANE_LON]),
+     XPLMGetDatad(adrXP[DR_PLANE_ELEV]),
+     GetSimTime(),
+     XPLMGetDataf(adrXP[DR_PLANE_HEADING]),
+     XPLMGetDataf(adrXP[DR_PLANE_PITCH]),
+     XPLMGetDataf(adrXP[DR_PLANE_ROLL]),
+     XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? positionTy::GND_ON : positionTy::GND_OFF
+    );
+    
+    // make invalid pos invalid
+    if (pos.lat() < -75 || pos.lat() > 75)
+        pos.lat() = NAN;
+    
+    return pos;
 }
 
 // return pilot's head position from 6 dataRefs combined
@@ -1094,7 +1123,7 @@ bool DataRefs::NeedNewVerCheck () const
     int nowH = (int)std::chrono::duration_cast<std::chrono::hours>
     (std::chrono::system_clock::now().time_since_epoch()).count();
     
-    return nowH - lastCheckNewVer > 24;
+    return nowH - lastCheckNewVer > LT_NEW_VER_CHECK_TIME;
 }
 
 // saves the fact that we just checked for a new version
@@ -1605,7 +1634,12 @@ positionTy DataRefs::GetViewPos()
     double lat, lon, alt;
     XPLMLocalToWorld(camPos.x, camPos.y, camPos.z,
                      &lat, &lon, &alt);
-    return positionTy(lat,lon,alt);
+    
+    return positionTy(lat, lon, alt,
+                      dataRefs.GetSimTime(),
+                      camPos.heading,
+                      camPos.pitch,
+                      camPos.roll);
 }
 
 // return the direction the camera is looking to
