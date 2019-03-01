@@ -85,8 +85,8 @@ constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
 constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
 constexpr float  MDL_EXT_FAST_DEG =       5.0f;
-constexpr float  MDL_EXT_STEP_FACTOR =    1.1f; // step factor with one zoom command
-constexpr float  MDL_EXT_FAST_FACTOR =    1.25f;
+constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
+constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
 #define MDL_LABEL_COLOR         "LABEL_COLOR"
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;

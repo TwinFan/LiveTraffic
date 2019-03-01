@@ -70,7 +70,8 @@ protected:
     
     // edit field for a/c key
     TFACSearchEditWidget txtAcKey;
-    bool    bAutoAc = false;        // do we pick the a/c to show automatically?
+    TFButtonWidget btnAuto;
+ //   bool    bAutoAc = false;        // do we pick the a/c to show automatically?
     
     // data output fields
     TFWidget valSquawk;
