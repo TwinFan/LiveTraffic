@@ -318,8 +318,8 @@ bool TFACSearchEditWidget::MsgKeyPress (XPKeyState_t& key)
 // MARK: ACIWnd
 //
 
-// we keep a map of all created windows
-std::map<XPLMWindowID,ACIWnd*> mapACIWnd;
+// we keep a list of all created windows
+std::forward_list<ACIWnd*> listACIWnd;
 
 // Constructor fully initializes and display the window
 ACIWnd::ACIWnd(TFWndMode wndMode, const char* szKey) :
@@ -342,8 +342,8 @@ widgetIds(nullptr)
     // register myself in base class for message handling
     setId(widgetIds[0]);
     
-    // add myself to the map of windows
-    mapACIWnd.emplace(getWndId(),this);
+    // add myself to the list of windows
+    listACIWnd.push_front(this);
     
     // text field for a/c key entry, upper case only
     txtAcKey.setId(widgetIds[ACI_TXT_AC_KEY]);
@@ -421,15 +421,17 @@ ACIWnd::~ACIWnd()
     }
     
     // remove myself from the list of windows
-    try {
-        mapACIWnd.erase(getWndId());
-    }
-    catch (...) {}
+    listACIWnd.remove(this);
 }
 
 // static function: creates a new window
 ACIWnd* ACIWnd::OpenNewWnd (TFWndMode wndMode, const char* szIcao)
 {
+    // creation of windows only makes sense if windows are shown
+    if (!AreShown())
+        ToggleHideShowAll();
+    
+    // now create the new window
     ACIWnd* pWnd = new ACIWnd(wndMode, szIcao);
     if (pWnd && !pWnd->isEnabled()) {       // did not init successfully
         delete pWnd;
@@ -438,30 +440,68 @@ ACIWnd* ACIWnd::OpenNewWnd (TFWndMode wndMode, const char* szIcao)
     return pWnd;
 }
 
+//
+// MARK: Static functions on all windows
+//
+
+bool ACIWnd::bAreShown = true;
+
 // move all windows into/out of VR
 void ACIWnd::MoveAllVR (bool bIntoVR)
 {
     // move into VR
     if (bIntoVR) {
-        for (auto pair: mapACIWnd) {
-            if (pair.second->GetWndMode() == TF_MODE_FLOAT)
-                pair.second->SetWindowPositioningMode(xplm_WindowVR, -1);
+        for (ACIWnd* pWnd: listACIWnd) {
+            if (pWnd->GetWndMode() == TF_MODE_FLOAT)
+                pWnd->SetWindowPositioningMode(xplm_WindowVR, -1);
         }
     }
     // move out of VR
     else {
         int moveOfs = 0;
-        for (auto pair: mapACIWnd) {
-            if (pair.second->GetWndMode() == TF_MODE_VR) {
-                pair.second->SetWindowPositioningMode(xplm_WindowPositionFree, -1);
-                pair.second->Center();
+        for (ACIWnd* pWnd: listACIWnd) {
+            if (pWnd->GetWndMode() == TF_MODE_VR) {
+                pWnd->SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+                pWnd->Center();
                 // to avoid all windows being stacked we move them by a few pixels
-                pair.second->MoveBy(moveOfs, -moveOfs);
+                pWnd->MoveBy(moveOfs, -moveOfs);
                 moveOfs += 20;
             }
         }
     }
 }
+
+// show/hide all windows
+bool ACIWnd::ToggleHideShowAll()
+{
+    // Toggle
+    bAreShown = !bAreShown;
+    
+    // now apply that new state to all windows
+    for (ACIWnd* pWnd: listACIWnd)
+        pWnd->Show(bAreShown);
+    
+    // return new state
+    return bAreShown;
+}
+
+// close all windows
+void ACIWnd::CloseAll()
+{
+    // we don't close us when in VR camera view
+    if (dataRefs.IsVREnabled() && LTAircraft::IsCameraViewOn())
+        return;
+    
+    // keep closing the first window until map empty
+    while (!listACIWnd.empty()) {
+        ACIWnd* pWnd = *listACIWnd.begin();
+        delete pWnd;                        // destructor removes from list
+    }
+}
+
+//
+// MARK: Message handlers
+//
 
 // capture entry into the a/c key field
 bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
@@ -578,6 +618,10 @@ bool ACIWnd::MessageCloseButtonPushed ()
     delete this;
     return true;
 }
+
+//
+// MARK: Update myself
+//
 
 // switch to another focus a/c?
 bool ACIWnd::UpdateFocusAc ()

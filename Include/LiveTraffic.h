@@ -119,8 +119,7 @@ void LTMainHideAircraft ();
 void LTMainDisable ();
 void LTMainStop ();
 
-void MenuCheckAircraftsDisplayed ( bool bChecked, int numAc );
-void MenuCheckTCASControl ( bool bChecked );
+void MenuUpdateAllItemStatus();
 void HandleNewVersionAvail ();
 
 #ifdef DEBUG

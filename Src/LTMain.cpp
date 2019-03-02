@@ -300,6 +300,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         try {
             // maintenance (add/remove)
             LTFlightDataAcMaintenance();
+            // updates to menu item status
+            MenuUpdateAllItemStatus();
         } catch (const std::exception& e) {
             // try re-init...
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
@@ -518,10 +520,7 @@ bool LTMainTryGetAIAircraft ()
     // If we don't control AI aircrafts we can't create TCAS blibs.
     if (!XPMPHasControlOfAIAircraft()) {
         // inform the use about this fact, but otherwise continue
-        MenuCheckTCASControl(false);
         SHOW_MSG(logWARN,ERR_NO_TCAS);
-    } else {
-        MenuCheckTCASControl(true);
     }
     return true;
 }

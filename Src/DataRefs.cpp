@@ -348,6 +348,23 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     }
 }
 
+//MARK: LiveTraffic Command Refs
+struct cmdRefDescrTy {
+    const char* cmdName;
+    const char* cmdDescr;
+} CMD_REFS_LT[] = {
+    {"LiveTraffic/Aircraft_Info_Wnd/Open",              "Opens an aircraft information window"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out aircraft information window (separate OS-level window)"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all aircraft information windows, but does not close"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all aircraft information windows"},
+    {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircrafts"},
+    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircrafts"},
+    {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
+};
+
+static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,
+              "cmdRefsLT and CMD_REFS_LT[] differ in number of elements");
+
 //MARK: Inform DataRefEditor about our datarefs
 // (see http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
 //      https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp )
@@ -552,8 +569,8 @@ bool DataRefs::Init ()
         }
     }
 
-    // register all LiveTraffic-provided dataRefs
-    if (!RegisterDataAccessors(DATA_REFS_LT, CNT_DATAREFS_LT))
+    // register all LiveTraffic-provided dataRefs and commands
+    if (!RegisterDataAccessors() || !RegisterCommands())
         return false;
 
     // Register callback to inform DataRef Editor later on
@@ -606,15 +623,14 @@ void DataRefs::Stop ()
 }
 
 // call XPLMRegisterDataAccessor
-bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
-                                      int cnt)
+bool DataRefs::RegisterDataAccessors ()
 {
     bool bRet = true;
     // loop over all data ref definitions
-    for (int i=0; i < cnt; i++)
+    for (int i=0; i < CNT_DATAREFS_LT; i++)
     {
         dataRefsLT eDataRef = dataRefsLT(i);
-        dataRefDefinitionT& def = aDefs[i];
+        dataRefDefinitionT& def = DATA_REFS_LT[i];
         
         // look up _and update_ refCon first if required
         // (can look up variable addresses only when object is known but not at compile time in definition of DATA_REFS_LT)
@@ -638,6 +654,22 @@ bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
                                        def.getRefCon()          // write refCon
                                        )) == NULL )
         { LOG_MSG(logERR,ERR_DATAREF_ACCESSOR,def.getDataName()); bRet = false; }
+    }
+    return bRet;
+}
+
+// call XPLMRegisterDataAccessor
+bool DataRefs::RegisterCommands()
+{
+    bool bRet = true;
+    // loop over all data ref definitions
+    for (int i=0; i < CNT_CMDREFS_LT; i++)
+    {
+        // register command
+        if ( (cmdLT[i] =
+              XPLMCreateCommand(CMD_REFS_LT[i].cmdName,
+                                CMD_REFS_LT[i].cmdDescr)) == NULL )
+        { LOG_MSG(logERR,ERR_CREATE_COMMAND,CMD_REFS_LT[i].cmdName); bRet = false; }
     }
     return bRet;
 }
@@ -997,8 +1029,7 @@ void DataRefs::SetAircraftsDisplayed ( int bEnable )
     }
     
     // update menu item's checkmark
-    MenuCheckAircraftsDisplayed ( bShowingAircrafts, GetNumAircrafts() );
-    MenuCheckTCASControl(XPMPHasControlOfAIAircraft());
+    MenuUpdateAllItemStatus();
 }
 
 int DataRefs::ToggleAircraftsDisplayed ()
@@ -1268,8 +1299,7 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
 // increase number of a/c, update menu item with that number
 int DataRefs::IncNumAircrafts()
 {
-    MenuCheckAircraftsDisplayed(bShowingAircrafts, ++cntAc);
-    return cntAc;
+    return ++cntAc;
 }
 
 // decreses number of aircrafts
@@ -1279,8 +1309,7 @@ int DataRefs::IncNumAircrafts()
 int DataRefs::DecNumAircrafts()
 {
     pAc=nullptr;
-    MenuCheckAircraftsDisplayed(bShowingAircrafts, --cntAc);
-    return cntAc;
+    return --cntAc;
 }
 
 
@@ -1651,6 +1680,7 @@ double DataRefs::GetViewHeading()
     return camPos.heading;
 }
 
+// in current situation, shall we draw labels?
 bool DataRefs::ShallDrawLabels() const
 {
     // user doesn't want labels in VR but is in VR mode? -> no labels
@@ -1659,4 +1689,18 @@ bool DataRefs::ShallDrawLabels() const
     
     // now depends on internal or external view
     return IsViewExternal() ? labelShown.bExternal : labelShown.bInternal;
+}
+
+// in current situation, toggle label drawing
+bool DataRefs::ToggleLabelDraw()
+{
+    // Situation = VR?
+    if (IsVREnabled())
+        return (labelShown.bVR = !labelShown.bVR);
+    // Situation = External View?
+    if (IsViewExternal())
+        return (labelShown.bExternal = !labelShown.bExternal);
+    // Situation = Internal View
+    else
+        return (labelShown.bInternal = !labelShown.bInternal);
 }

@@ -227,6 +227,17 @@ enum dataRefsLT {
     CNT_DATAREFS_LT                     // always last, number of elements
 };
 
+enum cmdRefsLT {
+    CR_ACINFOWND_OPEN = 0,
+    CR_ACINFOWND_OPEN_POPPED_OUT,
+    CR_ACINFOWND_HIDE_SHOW,
+    CR_ACINFOWND_CLOSE_ALL,
+    CR_AC_DISPLAYED,
+    CR_AC_TCAS_CONTROLLED,
+    CR_LABELS_TOGGLE,
+    CNT_CMDREFS_LT                      // always last, number of elements
+};
+
 constexpr int CNT_DR_CHANNELS = 5;          // number of flight data channels
 constexpr int DR_CHANNEL_FIRST = DR_CHANNEL_ADSB_EXCHANGE_ONLINE;
 
@@ -361,6 +372,7 @@ protected:
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
 public:
     XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
+    XPLMCommandRef cmdLT[CNT_CMDREFS_LT];
 
 //MARK: Provided Data, i.e. global variables
 protected:
@@ -428,8 +440,8 @@ public:
     
 protected:
     // call XPLMRegisterDataAccessor
-    bool RegisterDataAccessors (dataRefDefinitionT aDefs[],
-                                int cnt);
+    bool RegisterDataAccessors();
+    bool RegisterCommands();
     void* getVarAddr (dataRefsLT dr);
 
 //MARK: DataRef access
@@ -586,6 +598,7 @@ public:
     static inline boundingBoxTy GetBoundingBox(double dist) // bounding box around current view pos
     { return boundingBoxTy(GetViewPos(), dist); }
     bool ShallDrawLabels() const;
+    bool ToggleLabelDraw();                 // returns new value
 };
 
 extern DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT];

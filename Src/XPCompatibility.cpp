@@ -67,6 +67,9 @@ f_XPLMGetWindowGeometryVR* pXPLMGetWindowGeometryVR = nullptr;
 typedef void (f_XPLMSetWindowGeometryVR)(XPLMWindowID,int,int);
 f_XPLMSetWindowGeometryVR* pXPLMSetWindowGeometryVR = nullptr;
 
+typedef int (f_XPLMAppendMenuItemWithCommand)(XPLMMenuID,const char*,XPLMCommandRef);
+f_XPLMAppendMenuItemWithCommand* pXPLMAppendMenuItemWithCommand = nullptr;
+
 //
 // MARK: XPC functions
 //
@@ -151,6 +154,14 @@ void XPC_SetWindowGeometryVR(XPLMWindowID         inWindowID,
         pXPLMSetWindowGeometryVR(inWindowID,widthBoxels,heightBoxels);
 }
 
+int  XPC_AppendMenuItemWithCommand(XPLMMenuID           inMenu,
+                                   const char *         inItemName,
+                                   XPLMCommandRef       inCommandToExecute)
+{
+    LOG_ASSERT(pXPLMAppendMenuItemWithCommand);
+    return pXPLMAppendMenuItemWithCommand(inMenu, inItemName, inCommandToExecute);
+}
+
 // find and initialize all function pointers
 #define FIND_SYM(func) { p##func = (f_##func*)XPLMFindSymbol(#func); LOG_ASSERT(p##func); }
 bool XPC_Init()
@@ -177,6 +188,7 @@ bool XPC_Init()
         FIND_SYM(XPLMSetWindowGeometryOS);
         FIND_SYM(XPLMGetWindowGeometryVR);
         FIND_SYM(XPLMSetWindowGeometryVR);
+        FIND_SYM(XPLMAppendMenuItemWithCommand);
     }
     return true;
 }
@@ -234,7 +246,7 @@ void LT_GetScreenSize (int& outLeft,
                        bool bOSScreen)
 {
     // XP11 using global coordinates
-    if (pXPLMGetAllMonitorBoundsGlobal && pXPLMGetAllMonitorBoundsOS) {
+    if ( IS_XPLM301 ) {
         // find window coordinates
         // this will only find full screen monitors!
         rm_l = rm_t = rm_r = rm_b = 0;
@@ -242,13 +254,13 @@ void LT_GetScreenSize (int& outLeft,
         
         if (bOSScreen) {
             // fetch OS window bounds
-            pXPLMGetAllMonitorBoundsOS
+            XPC_GetAllMonitorBoundsOS
             (whichScreen == LT_SCR_RIGHT_TOP_MOST ?
              CBRightTopMostMonitorGlobal : CBLowestIdxMonitorGlobal,
              NULL);
         } else {
             // fetch global bounds of X-Plane-used windows
-            pXPLMGetAllMonitorBoundsGlobal
+            XPC_GetAllMonitorBoundsGlobal
             (whichScreen == LT_SCR_RIGHT_TOP_MOST ?
              CBRightTopMostMonitorGlobal : CBLowestIdxMonitorGlobal,
              NULL);
@@ -269,4 +281,18 @@ void LT_GetScreenSize (int& outLeft,
     // XP10 or windowed mode
     outLeft = outBottom = 0;
     XPLMGetScreenSize(&outRight,&outTop);
+}
+
+// append a menu item,
+// XP11: if given with command
+int LT_AppendMenuItem (XPLMMenuID   inMenu,
+                       const char*  inItemName,
+                       void*        inItemRef,
+                       XPLMCommandRef inCommandToExecute)
+{
+    // use XP11 version to also set a command?
+    if (inCommandToExecute && pXPLMAppendMenuItemWithCommand)
+        return XPC_AppendMenuItemWithCommand(inMenu, inItemName, inCommandToExecute);
+    else
+        return XPLMAppendMenuItem(inMenu, inItemName, inItemRef, 0);
 }

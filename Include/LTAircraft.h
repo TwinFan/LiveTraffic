@@ -327,6 +327,7 @@ public:
     void ToggleCameraView();             // start an external view on this a/c
     void CalcCameraViewPos();
     inline bool IsInCameraView() const { return pExtViewAc == this; }
+    static bool IsCameraViewOn() { return pExtViewAc != NULL; }
 
 protected:
     void CalcLabelInternal (const LTFlightData::FDStaticData& statDat);

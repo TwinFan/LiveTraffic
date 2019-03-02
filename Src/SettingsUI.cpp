@@ -618,12 +618,18 @@ bool LTSettingsUI::MsgHidden (XPWidgetID hiddenWidget)
     return TFMainWindowWidget::MsgHidden(hiddenWidget);
 }
 
-// update state of log-level buttons from dataRef every second
+// update state of some buttons from dataRef every second
 bool LTSettingsUI::TfwMsgMain1sTime ()
 {
     TFMainWindowWidget::TfwMsgMain1sTime();
     logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
     msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
+    // read current 'when-to-show' config and set accordingly
+    DataRefs::LabelShowCfgTy show = dataRefs.GetLabelShowCfg();
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,show.bExternal);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,show.bInternal);
+    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,show.bVR);
+
     return true;
 }
 

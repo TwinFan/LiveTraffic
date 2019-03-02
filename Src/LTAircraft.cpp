@@ -913,10 +913,8 @@ bValid(true)
 LTAircraft::~LTAircraft()
 {
     // make sure external view doesn't use this aircraft any longer
-    if (IsInCameraView()) {
-        pExtViewAc = nullptr;
-        XPLMDontControlCamera();
-    }
+    if (IsInCameraView())
+        ToggleCameraView();
     
     // Release probe handle
     if (probeRef)

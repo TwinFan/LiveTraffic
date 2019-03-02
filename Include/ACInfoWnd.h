@@ -83,6 +83,8 @@ protected:
     TFButtonWidget btnCamera, btnVisible, btnAutoVisible;
     TFWidget capAutoVisible;
     
+    static bool bAreShown;
+    
 public:
     ACIWnd(TFWndMode wndMode, const char* szKey = INFO_WND_AUTO_AC);
     virtual ~ACIWnd();
@@ -94,6 +96,10 @@ public:
     static ACIWnd* OpenNewWnd (TFWndMode wndMode, const char* szIcao = INFO_WND_AUTO_AC);
     // move all windows into/out of VR
     static void MoveAllVR (bool bIntoVR);
+    // hide/show all windows, returns new state
+    static bool ToggleHideShowAll();
+    static bool AreShown() { return bAreShown; }
+    static void CloseAll();
     
 protected:
     // capture entry into the key field
