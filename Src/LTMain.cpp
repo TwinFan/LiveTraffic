@@ -132,17 +132,16 @@ void LTOpenURL  (const std::string url)
     // Windows implementation: ShellExecuteA
     // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
     ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#else
-    // Max/Unix use standard system/open
-#ifdef LIN
+#elif LIN
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
-#endif
+    // Unix uses xdg-open, package xdg-utils, pre-installed at least on Ubuntu
+    (void)system((std::string("xdg-open ") + url).c_str());
+#pragma GCC diagnostic pop
+#else
+    // Max use standard system/open
     system((std::string("open ") + url).c_str());
     // Code that causes warning goes here
-#ifdef LIN
-#pragma GCC diagnostic pop
-#endif
 #endif
 }
 
