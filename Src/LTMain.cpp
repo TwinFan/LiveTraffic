@@ -494,7 +494,8 @@ bool LTMainShowAircraft ()
     XPMPLoadPlanesIfNecessary();
     
     // Enable Multiplayer plane drawing, acquire multiuser planes
-    LTMainTryGetAIAircraft();
+    if (!dataRefs.IsAIonRequest())      // but only if not only on request
+        LTMainTryGetAIAircraft();
     
     // enable the flight loop callback to maintain aircrafts
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
@@ -511,14 +512,14 @@ bool LTMainShowAircraft ()
 bool LTMainTryGetAIAircraft ()
 {
     // short-cut if we have control already
-    if (XPMPHasControlOfAIAircraft())
+    if (dataRefs.HaveAIUnderControl())
         return true;
     
     const char* cszResult = XPMPMultiplayerEnable();
     if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
     
     // If we don't control AI aircrafts we can't create TCAS blibs.
-    if (!XPMPHasControlOfAIAircraft()) {
+    if (!dataRefs.HaveAIUnderControl()) {
         // inform the use about this fact, but otherwise continue
         SHOW_MSG(logWARN,ERR_NO_TCAS);
     }

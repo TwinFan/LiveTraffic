@@ -196,7 +196,8 @@ enum dataRefsLT {
     DR_SIM_TIME,
     DR_CFG_AIRCRAFTS_DISPLAYED,
     DR_CFG_AUTO_START,
-    DR_CFG_AI_FOR_TCAS,
+    DR_CFG_AI_ON_REQUEST,
+    DR_CFG_AI_UNDER_CONTROL,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_COL_DYN,
@@ -397,7 +398,7 @@ protected:
     
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
-    int bAIforTCAS              = true; // acquire multiplayer control for TCAS? (false might enhance interperability with other multiplayer clients)
+    int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 1,1,0,0,0,0,0,0, 0,0,1,0,1,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
@@ -513,7 +514,8 @@ public:
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
     inline bool GetAutoStart() const { return bAutoStart != 0; }
-    inline bool GetAIforTCAS() const { return bAIforTCAS != 0; }
+    inline bool IsAIonRequest() const { return bAIonRequest != 0; }
+    static int HaveAIUnderControl(void* p=NULL) { return XPMPHasControlOfAIAircraft(); }
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }

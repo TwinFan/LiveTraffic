@@ -77,6 +77,7 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_CAP_HIDE_BELOW_AGL,
     UI_BASICS_INT_HIDE_BELOW_AGL,
     UI_BASICS_BTN_HIDE_TAXIING,
+    UI_BASICS_BTN_AI_ON_REQUEST,
 
     UI_BASICS_CAP_DBG_LIMIT,
     
@@ -223,6 +224,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {   5,  68, 140,  10, 1, "No a/c below [ft AGL]",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { -50,  68, -10,  15, 1, "",                     0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
     {  10,  85,  10,  10, 1, "Hide a/c while taxiing", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 105,  10,  10, 1, "AI/TCAS on request only", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
 
     {   5, -15,  -5,  10, 1, "",                    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     // "A/C Label" tab
@@ -387,15 +389,20 @@ void LTSettingsUI::Enable()
         btnADSBLive.setId(widgetIds[UI_BASICS_BTN_ADSB_LIVE],
                               DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE]);
 
-        // right-hand sie
+        // * right-hand side *
+        // landing lights during taxi?
+        btnLndLightsTaxi.setId(widgetIds[UI_BASICS_BTN_LND_LIGHTS_TAXI],
+                               DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
+
+        // enhance parallel operation with other multiplayer clients
         intHideBelowAGL.setId(widgetIds[UI_BASICS_INT_HIDE_BELOW_AGL],
                               DATA_REFS_LT[DR_CFG_HIDE_BELOW_AGL]);
         // hide a/c while taxiing?
         btnHideTaxiing.setId(widgetIds[UI_BASICS_BTN_HIDE_TAXIING],
                              DATA_REFS_LT[DR_CFG_HIDE_TAXIING]);
-        // landing lights during taxi?
-        btnAdvcdLndLightsTaxi.setId(widgetIds[UI_BASICS_BTN_LND_LIGHTS_TAXI],
-                                    DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
+        // AI/TCAS on request only?
+        btnAIonRequest.setId(widgetIds[UI_BASICS_BTN_AI_ON_REQUEST],
+                             DATA_REFS_LT[DR_CFG_AI_ON_REQUEST]);
         
         // version number
         XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],

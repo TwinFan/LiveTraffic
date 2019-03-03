@@ -46,9 +46,10 @@ protected:
     // enable/disable flight data channels
     TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
     // right hand side
+    TFButtonDataRef btnLndLightsTaxi;
     TFIntFieldDataRef intHideBelowAGL;
     TFButtonDataRef btnHideTaxiing;
-    TFButtonDataRef btnAdvcdLndLightsTaxi;
+    TFButtonDataRef btnAIonRequest;
 
     // A/C Labels tab
     TFDataRefLink drCfgLabels;          // links to dataRef livetraffic/cfg/labels

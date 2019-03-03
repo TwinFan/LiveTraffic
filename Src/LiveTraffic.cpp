@@ -165,7 +165,7 @@ void MenuUpdateAllItemStatus()
                                  dataRefs.GetNumAircrafts() );
     // checkmark the menu item if TCAS under control
     XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
-                      XPMPHasControlOfAIAircraft() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+                      dataRefs.HaveAIUnderControl() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     
 }
 

@@ -272,7 +272,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/ai_for_tcas",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -312,7 +313,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     switch (dr) {
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_AUTO_START:             return &bAutoStart;
-        case DR_CFG_AI_FOR_TCAS:            return &bAIforTCAS;
+        case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_LABELS:                 return &labelCfg;
         case DR_CFG_LABEL_SHOWN:            return &labelShown;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
