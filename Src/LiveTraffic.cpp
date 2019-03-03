@@ -311,7 +311,7 @@ struct cmdMenuMap {
     { CR_LABELS_TOGGLE,             MENU_ID_TOGGLE_LABELS },
 };
 
-int CommandHandlerMenuItems (XPLMCommandRef       inCommand,
+int CommandHandlerMenuItems (XPLMCommandRef       /*inCommand*/,
                              XPLMCommandPhase     inPhase,
                              void *               inRefcon) // contains menuItems
 {
