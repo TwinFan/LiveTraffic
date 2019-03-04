@@ -1121,8 +1121,8 @@ bool LTAircraft::CalcPPos()
         // roll: we should currently have a bank angle, which should be
         //       returned back to level flight by the time the turn ends
         if (!IsOnGrnd() && phase != FPH_FLARE && heading.isProgrammed())
-            roll.moveToBy(NAN, !heading.isIncrease(), 0.0,
-                          NAN, heading.toTS(), false);
+            roll.moveQuickestToBy(NAN, 0.0,
+                                  NAN, heading.toTS(), false);
         else
             // on the ground or no heading change: keep wings level
             roll.moveTo(0.0);
