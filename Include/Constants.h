@@ -221,7 +221,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"
 #define ERR_CURL_NOVERCHECK     "Could not browse X-Plane.org for version info: %d - %s"
 #define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
-#define ERR_CURL_REVOKE_MSG     "0x80092012"                // appears in error text if querying revocation list fails
+#define ERR_CURL_REVOKE_MSG     "revocation"                // appears in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
 #define ERR_CH_NONE_ACTIVE      "No enabled active channel for tracking data! Check Basic Settings and enable channels."
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
