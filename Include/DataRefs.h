@@ -516,7 +516,7 @@ public:
     bool SetCfgValue(void* p, int val);
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
-    static int HaveAIUnderControl(void* p=NULL) { return XPMPHasControlOfAIAircraft(); }
+    static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
