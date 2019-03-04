@@ -132,17 +132,16 @@ void LTOpenURL  (const std::string url)
     // Windows implementation: ShellExecuteA
     // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
     ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#else
-    // Max/Unix use standard system/open
-#ifdef LIN
+#elif LIN
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
-#endif
+    // Unix uses xdg-open, package xdg-utils, pre-installed at least on Ubuntu
+    (void)system((std::string("xdg-open ") + url).c_str());
+#pragma GCC diagnostic pop
+#else
+    // Max use standard system/open
     system((std::string("open ") + url).c_str());
     // Code that causes warning goes here
-#ifdef LIN
-#pragma GCC diagnostic pop
-#endif
 #endif
 }
 
@@ -233,6 +232,15 @@ bool dequal ( const double d1, const double d2 )
     ((d1 + epsilon) > d2);
 }
 
+// default window open mode depends on XP10/11 and VR
+TFWndMode GetDefaultWndOpenMode ()
+{
+    return
+    !XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS") ?
+        TF_MODE_CLASSIC :               // XP10
+    dataRefs.IsVREnabled() ?
+        TF_MODE_VR : TF_MODE_FLOAT;     // XP11, VR vs. non-VR
+}
 
 //
 //MARK: Callbacks
@@ -291,6 +299,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         try {
             // maintenance (add/remove)
             LTFlightDataAcMaintenance();
+            // updates to menu item status
+            MenuUpdateAllItemStatus();
         } catch (const std::exception& e) {
             // try re-init...
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
@@ -483,7 +493,8 @@ bool LTMainShowAircraft ()
     XPMPLoadPlanesIfNecessary();
     
     // Enable Multiplayer plane drawing, acquire multiuser planes
-    LTMainTryGetAIAircraft();
+    if (!dataRefs.IsAIonRequest())      // but only if not only on request
+        LTMainTryGetAIAircraft();
     
     // enable the flight loop callback to maintain aircrafts
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
@@ -500,19 +511,16 @@ bool LTMainShowAircraft ()
 bool LTMainTryGetAIAircraft ()
 {
     // short-cut if we have control already
-    if (XPMPHasControlOfAIAircraft())
+    if (dataRefs.HaveAIUnderControl())
         return true;
     
     const char* cszResult = XPMPMultiplayerEnable();
     if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
     
     // If we don't control AI aircrafts we can't create TCAS blibs.
-    if (!XPMPHasControlOfAIAircraft()) {
+    if (!dataRefs.HaveAIUnderControl()) {
         // inform the use about this fact, but otherwise continue
-        MenuCheckTCASControl(false);
         SHOW_MSG(logWARN,ERR_NO_TCAS);
-    } else {
-        MenuCheckTCASControl(true);
     }
     return true;
 }

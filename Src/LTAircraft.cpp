@@ -501,8 +501,8 @@ bool fm_processModelLine (const char* fileName, int ln,
     std::smatch m;
     std::regex_search(text, m, re);
     
-    // at least two matches expected
-    if (m.length() < 2) {
+    // three matches expected
+    if (m.size() != 4) {
         LOG_MSG(logWARN, ERR_CFG_FORMAT, fileName, ln, text.c_str());
         return false;
     }
@@ -576,8 +576,8 @@ bool fm_processMapLine (const char* fileName, int ln,
     std::smatch m;
     std::regex_search(text, m, re);
     
-    // at least two matches expected
-    if (m.length() < 2) {
+    // two matches expected
+    if (m.size() != 3) {
         LOG_MSG(logWARN, ERR_CFG_FORMAT, fileName, ln, text.c_str());
         return false;
     }
@@ -631,8 +631,8 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
         lnVer[0] != LIVE_TRAFFIC ||                         // 1. is LiveTraffic
         lnVer[1] != LT_FM_VERSION)                          // 2. is the version
     {
-        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), text.c_str());
-        return false;
+        // tell user, but then continue
+        SHOW_MSG(logERR, ERR_CFG_FILE_VER_UNEXP, sFileName.c_str(), text.c_str(), LT_FM_VERSION);
     }
     
     // then follow sections and their entries
@@ -913,10 +913,8 @@ bValid(true)
 LTAircraft::~LTAircraft()
 {
     // make sure external view doesn't use this aircraft any longer
-    if (IsInCameraView()) {
-        pExtViewAc = nullptr;
-        XPLMDontControlCamera();
-    }
+    if (IsInCameraView())
+        ToggleCameraView();
     
     // Release probe handle
     if (probeRef)
@@ -1122,12 +1120,12 @@ bool LTAircraft::CalcPPos()
         // *** roll ***
         // roll: we should currently have a bank angle, which should be
         //       returned back to level flight by the time the turn ends
-        if (!IsOnGrnd() && heading.isProgrammed())
+        if (!IsOnGrnd() && phase != FPH_FLARE && heading.isProgrammed())
             roll.moveToBy(NAN, !heading.isIncrease(), 0.0,
                           NAN, heading.toTS(), false);
         else
             // on the ground or no heading change: keep wings level
-            roll.SetVal(0.0);
+            roll.moveTo(0.0);
         
         // *** Pitch ***
         
@@ -1312,16 +1310,21 @@ bool LTAircraft::CalcPPos()
     // *** Attitude ***/
 
     // half-way through prepare turning to end heading
-    if ( f > 0.5 && !dequal(heading.toVal(), to.heading()) ) {
+    if ( f > 0.5 && f < 1.0 && !dequal(heading.toVal(), to.heading()) ) {
         heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
         heading.moveQuickestToBy(NAN, to.heading(), // target heading
                                  NAN, to.ts(),      // by target timestamp
                                  false);            // start as late as possible
         // roll: start to roll when turn starts
-        if (!IsOnGrnd() && heading.isProgrammed())
+        if (!IsOnGrnd() && phase != FPH_FLARE && heading.isProgrammed())
             roll.moveTo(heading.isIncrease() ? roll.defMax : roll.defMin,
                         heading.fromTS());
     }
+
+    // if we ran out of positions we might have passed the final to-pos with a bank angle
+    // return that bank angle to 0
+    if (f > 1.0)
+        roll.moveTo(0.0);
 
     // current heading
     ppos.heading() = heading.get();
@@ -1557,17 +1560,20 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     if (ENTERED(FPH_CLIMB)) {
         surfaces.lights.taxiLights = 0;
         surfaces.thrust = 0.8f;
+        gear.up();
         flaps.up();
     }
     
     // cruise
     if (ENTERED(FPH_CRUISE)) {
         surfaces.thrust = 0.6f;
+        flaps.up();
     }
 
     // descend
     if (ENTERED(FPH_DESCEND)) {
         surfaces.thrust = 0.1f;
+        flaps.up();
     }
     
     // approach
@@ -1588,6 +1594,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // flare
     if (ENTERED(FPH_FLARE)) {
         pitch.moveTo(mdl.PITCH_FLARE);      // flare!
+        roll.moveTo(0);
     }
     
     // touch-down
@@ -1751,24 +1758,49 @@ bool LTAircraft::CalcVisible ()
 }
 
 //
-// MARK: External View
+// MARK: External Camera View
 //
 
 LTAircraft* LTAircraft::pExtViewAc = nullptr;
 positionTy  LTAircraft::posExt;
+XPViewTypes LTAircraft::prevView = VIEW_UNKNOWN;
+XPLMCameraPosition_t  LTAircraft::extOffs;
 
 // start an outside camery view
 void LTAircraft::ToggleCameraView()
 {
+    // reset camera offset
+    extOffs.x = extOffs.y = extOffs.z = extOffs.heading = extOffs.roll = 0.0f;
+    extOffs.zoom = 1.0f;
+    extOffs.pitch = MDL_EXT_CAMERA_PITCH;
+
     // starting a new external view?
     if (!pExtViewAc) {
-        pExtViewAc = this;
-        CalcCameraViewPos();
+        pExtViewAc = this;                          // remember ourself as the aircraft to show        
+        CalcCameraViewPos();                        // calc first position
+        
+        // we shall ensure to set an external view first,
+        // so that sound and 2D stuff is handled correctly
+        if (!dataRefs.IsViewExternal()) {
+            prevView = dataRefs.GetViewType();
+            dataRefs.SetViewType(VIEW_FREE_CAM);
+        }
+        else
+            prevView = VIEW_UNKNOWN;
+        
         XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, nullptr);
+        CameraRegisterCommands(true);
     }
     else if (pExtViewAc == this) {      // me again? -> switch off
         pExtViewAc = nullptr;
+        CameraRegisterCommands(false);
         XPLMDontControlCamera();
+        
+        // if a previous view is known we make sure we go back there
+        if (prevView) {
+            dataRefs.SetViewType(prevView);
+            prevView = VIEW_UNKNOWN;
+        }
     }
     else {                              // view another plane
         pExtViewAc = this;
@@ -1784,11 +1816,11 @@ void LTAircraft::CalcCameraViewPos()
         posExt = ppos;
         
         // move position back along the longitudinal axes
-        posExt += vectorTy (GetHeading(), mdl.EXT_CAMERA_LON_OFS);
+        posExt += vectorTy (GetHeading(), mdl.EXT_CAMERA_LON_OFS + extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy (GetHeading()+90, mdl.EXT_CAMERA_LAT_OFS);
+        posExt += vectorTy (GetHeading()+90, mdl.EXT_CAMERA_LAT_OFS + extOffs.z);
         // and move a bit up
-        posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS;
+        posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS + extOffs.y;
 
         // convert to local
         posExt.WorldToLocal();
@@ -1801,28 +1833,147 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
                           int                   inIsLosingControl,
                           void *                /*inRefcon*/)
 {
-    // shall no longer do external viewing?
-    if (!pExtViewAc)
-        return 0;
-    
     // Loosing control? So be it...
-    if (inIsLosingControl || !outCameraPosition)
+    if (!pExtViewAc || inIsLosingControl || !outCameraPosition)
     {
+        CameraRegisterCommands(false);
         pExtViewAc = nullptr;
         return 0;
     }
-    
+
     // we have camera control, position has been calculated already in CalcPPos,
-    // take it from posExt, fill output structure
-    outCameraPosition->x = (float)posExt.X();
-    outCameraPosition->y = (float)posExt.Y();
-    outCameraPosition->z = (float)posExt.Z();
-    outCameraPosition->heading = (float)pExtViewAc->GetHeading();
-    outCameraPosition->pitch = MDL_EXT_CAMERA_PITCH;
-    outCameraPosition->roll = 0;
-    outCameraPosition->zoom = 1;
+    // take it from posExt, fill output structure, apply movement by commands and pilot's head
+    // factor of 10 means: If head moves 1m then view moves 10m...just imagine how big a wide body airliner is...
+    outCameraPosition->x =        (float)posExt.X();
+    outCameraPosition->y =        (float)posExt.Y();
+    outCameraPosition->z =        (float)posExt.Z();
+    outCameraPosition->heading  = (float)pExtViewAc->GetHeading() + extOffs.heading;
+    outCameraPosition->pitch =                                      extOffs.pitch;
+    outCameraPosition->roll =                                       extOffs.roll;
+    outCameraPosition->zoom =                                       extOffs.zoom;
     
     return 1;
+}
+
+
+// command handling during camera view for camera movement
+void LTAircraft::CameraRegisterCommands(bool bRegister)
+{
+    // first time init?
+    for (int i = CR_GENERAL_LEFT; i <= CR_GENERAL_ZOOM_OUT_FAST; i++) {
+        if (bRegister)
+            XPLMRegisterCommandHandler(dataRefs.cmdXP[i], CameraCommandsCB, 0, (void*)(long long)i);
+        else
+            XPLMUnregisterCommandHandler(dataRefs.cmdXP[i], CameraCommandsCB, 0, (void*)(long long)i);
+    }
+}
+
+int LTAircraft::CameraCommandsCB(
+    XPLMCommandRef      ,
+    XPLMCommandPhase    inPhase,
+    void *              inRefcon)
+{
+    // safety check: release commands if we aren't in camera view
+    if (!pExtViewAc) {
+        CameraRegisterCommands(false);
+        return 1;
+    }
+
+    // we only process Begin and Continue, but not End
+    if (inPhase == xplm_CommandEnd)
+        return 0;
+
+    // process the command by adjusting the offset of the camera:
+    cmdRefsXP cmd = (cmdRefsXP)reinterpret_cast<long long>(inRefcon);
+
+    // for the "corner" hat switch commands we simply process 2 of them
+    cmdRefsXP cmd2 = CR_NO_COMMAND;
+    switch (cmd) {
+    case CR_GENERAL_HAT_SWITCH_UP_LEFT:
+    case CR_GENERAL_HAT_SWITCH_DOWN_LEFT:   cmd2 = CR_GENERAL_LEFT; break;
+    case CR_GENERAL_HAT_SWITCH_UP_RIGHT:
+    case CR_GENERAL_HAT_SWITCH_DOWN_RIGHT:  cmd2 = CR_GENERAL_RIGHT; break;
+    default: break;
+    }
+
+    // for the move commands (on the plane, i.e. left/right, forward/backward)
+    // the orientation of the camera with respect to the aircraft is important:
+    // - standard view from back looking forward means: left key is left motion, and forward key is forward motion
+    // - looking from the side on plane's starboard means: right key is forward movement and forward key is left movement
+    // with all calcs remember: extOffs.x/z are relative to plane's axis (and _not_ to X-Plane's coordinate system)
+    float sinOfs = 0.0f;            // sinus of heading difference (which is precicely what extOffs.heading is)
+    float cosOfs = 1.0f;
+    if (CR_GENERAL_LEFT <= cmd && cmd <= CR_GENERAL_HAT_SWITCH_DOWN_RIGHT) {
+        float extOffsHeadRad = (float)deg2rad(extOffs.heading);
+        sinOfs = std::sin(extOffsHeadRad);
+        cosOfs = std::cos(extOffsHeadRad);
+    }
+
+    while (cmd != CR_NO_COMMAND) {
+        switch (cmd) {
+            // movement on the plane
+            // x = longitudinal axis, z = lateral axis
+        case CR_GENERAL_HAT_SWITCH_LEFT:
+        case CR_GENERAL_LEFT:           extOffs.z -= MDL_EXT_STEP_MOVE * cosOfs; extOffs.x += MDL_EXT_STEP_MOVE * sinOfs; break;
+        case CR_GENERAL_HAT_SWITCH_RIGHT:
+        case CR_GENERAL_RIGHT:          extOffs.z += MDL_EXT_STEP_MOVE * cosOfs; extOffs.x -= MDL_EXT_STEP_MOVE * sinOfs; break;
+        case CR_GENERAL_HAT_SWITCH_UP_LEFT:
+        case CR_GENERAL_HAT_SWITCH_UP_RIGHT:
+        case CR_GENERAL_HAT_SWITCH_UP:
+        case CR_GENERAL_FORWARD:        extOffs.z += MDL_EXT_STEP_MOVE * sinOfs; extOffs.x += MDL_EXT_STEP_MOVE * cosOfs; break;
+        case CR_GENERAL_HAT_SWITCH_DOWN_LEFT:
+        case CR_GENERAL_HAT_SWITCH_DOWN_RIGHT:
+        case CR_GENERAL_HAT_SWITCH_DOWN:
+        case CR_GENERAL_BACKWARD:       extOffs.z -= MDL_EXT_STEP_MOVE * sinOfs; extOffs.x -= MDL_EXT_STEP_MOVE * cosOfs; break;
+
+        case CR_GENERAL_LEFT_FAST:      extOffs.z -= MDL_EXT_FAST_MOVE * cosOfs; extOffs.x += MDL_EXT_FAST_MOVE * sinOfs; break;
+        case CR_GENERAL_RIGHT_FAST:     extOffs.z += MDL_EXT_FAST_MOVE * cosOfs; extOffs.x -= MDL_EXT_FAST_MOVE * sinOfs; break;
+        case CR_GENERAL_FORWARD_FAST:   extOffs.z += MDL_EXT_FAST_MOVE * sinOfs; extOffs.x += MDL_EXT_FAST_MOVE * cosOfs; break;
+        case CR_GENERAL_BACKWARD_FAST:  extOffs.z -= MDL_EXT_FAST_MOVE * sinOfs; extOffs.x -= MDL_EXT_FAST_MOVE * cosOfs; break;
+            // up/down
+        case CR_GENERAL_UP:             extOffs.y += MDL_EXT_STEP_MOVE; break;
+        case CR_GENERAL_DOWN:           extOffs.y -= MDL_EXT_STEP_MOVE; break;
+        case CR_GENERAL_UP_FAST:        extOffs.y += MDL_EXT_FAST_MOVE; break;
+        case CR_GENERAL_DOWN_FAST:      extOffs.y -= MDL_EXT_FAST_MOVE; break;
+            // heading change
+        case CR_GENERAL_ROT_LEFT:       extOffs.heading -= MDL_EXT_STEP_DEG; break;
+        case CR_GENERAL_ROT_RIGHT:      extOffs.heading += MDL_EXT_STEP_DEG; break;
+        case CR_GENERAL_ROT_LEFT_FAST:  extOffs.heading -= MDL_EXT_FAST_DEG; break;
+        case CR_GENERAL_ROT_RIGHT_FAST: extOffs.heading += MDL_EXT_FAST_DEG; break;
+            // tilt/pitch
+        case CR_GENERAL_ROT_UP:         extOffs.pitch += MDL_EXT_STEP_DEG; break;
+        case CR_GENERAL_ROT_DOWN:       extOffs.pitch -= MDL_EXT_STEP_DEG; break;
+        case CR_GENERAL_ROT_UP_FAST:    extOffs.pitch += MDL_EXT_FAST_DEG; break;
+        case CR_GENERAL_ROT_DOWN_FAST:  extOffs.pitch -= MDL_EXT_FAST_DEG; break;
+            // zoom
+        case CR_GENERAL_ZOOM_IN:        extOffs.zoom *= MDL_EXT_STEP_FACTOR; break;
+        case CR_GENERAL_ZOOM_OUT:       extOffs.zoom /= MDL_EXT_STEP_FACTOR; break;
+        case CR_GENERAL_ZOOM_IN_FAST:   extOffs.zoom *= MDL_EXT_FAST_FACTOR; break;
+        case CR_GENERAL_ZOOM_OUT_FAST:  extOffs.zoom /= MDL_EXT_FAST_FACTOR; break;
+
+            // should not happen, but if so pass on to X-Plane
+        default: return 1;
+        }
+
+        // if necessary process the 2nd command
+        cmd = cmd2;
+        cmd2 = CR_NO_COMMAND;
+    }
+
+    // normalize heading to +/- 180
+    while (extOffs.heading < -180)
+        extOffs.heading += 360;
+    while (extOffs.heading > 180)
+        extOffs.heading -= 360;
+
+    // normaize pitch to +/- 180
+    while (extOffs.pitch < -180)
+        extOffs.pitch += 360;
+    while (extOffs.pitch > 180)
+        extOffs.pitch -= 360;
+
+    // we handled it fine
+    return 0;
 }
 
 

@@ -125,8 +125,8 @@ void LTMainHideAircraft ();
 void LTMainDisable ();
 void LTMainStop ();
 
-void MenuCheckAircraftsDisplayed ( bool bChecked, int numAc );
-void MenuCheckTCASControl ( bool bChecked );
+void MenuUpdateAllItemStatus();
+void HandleNewVersionAvail ();
 
 #ifdef DEBUG
 void LTErrorCB (const char* msg);
@@ -220,6 +220,12 @@ bool begins_with(const TContainer& input, const TContainer& match)
 
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 );
+
+// gets latest version info from X-Plane.org
+bool FetchXPlaneOrgVersion ();
+
+// default window open mode depends on XP10/11 and VR
+TFWndMode GetDefaultWndOpenMode ();
 
 // MARK: Compiler differences
 

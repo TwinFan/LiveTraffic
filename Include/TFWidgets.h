@@ -215,6 +215,12 @@ public:
     // checked or not?
     virtual bool SetChecked (bool bCheck = true);
     virtual bool IsChecked () const;
+
+    // use the object like a bool variable
+    inline operator bool() const { return IsChecked(); }
+    inline bool operator !() const { return !IsChecked(); }
+    inline TFButtonWidget& operator = (bool bChecked)
+    { SetChecked(bChecked); return *this; }
 };
 
 //

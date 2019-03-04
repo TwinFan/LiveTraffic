@@ -96,8 +96,75 @@ enum dataRefsXP {
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
     DR_VIEW_EXTERNAL,
-    DR_VR_ENABLED,
+    DR_VIEW_TYPE,
+    DR_PLANE_LAT,                       // user's plane
+    DR_PLANE_LON,
+    DR_PLANE_ELEV,
+    DR_PLANE_PITCH,
+    DR_PLANE_ROLL,
+    DR_PLANE_HEADING,
+    DR_PLANE_ONGRND,
+    DR_VR_ENABLED,                      // VR stuff
+    DR_PILOTS_HEAD_X,
+    DR_PILOTS_HEAD_Y,
+    DR_PILOTS_HEAD_Z,
+    DR_PILOTS_HEAD_HEADING,
+    DR_PILOTS_HEAD_PITCH,
+    DR_PILOTS_HEAD_ROLL,
     CNT_DATAREFS_XP                     // always last, number of elements
+};
+
+enum cmdRefsXP {
+    CR_NO_COMMAND = -1,                 // initialization placeholder
+    CR_GENERAL_LEFT = 0,                // first 16 commands grouped together
+    CR_GENERAL_RIGHT,                   // they move the spot on latitude (Z) and lonigtude (X)
+    CR_GENERAL_LEFT_FAST,               // there actual movement twords Z and X depends on current heading
+    CR_GENERAL_RIGHT_FAST,
+    CR_GENERAL_FORWARD,
+    CR_GENERAL_BACKWARD,
+    CR_GENERAL_FORWARD_FAST,
+    CR_GENERAL_BACKWARD_FAST,
+    CR_GENERAL_HAT_SWITCH_LEFT,         // hat switch
+    CR_GENERAL_HAT_SWITCH_RIGHT,
+    CR_GENERAL_HAT_SWITCH_UP,
+    CR_GENERAL_HAT_SWITCH_DOWN,
+    CR_GENERAL_HAT_SWITCH_UP_LEFT,
+    CR_GENERAL_HAT_SWITCH_UP_RIGHT,
+    CR_GENERAL_HAT_SWITCH_DOWN_LEFT,
+    CR_GENERAL_HAT_SWITCH_DOWN_RIGHT,
+    CR_GENERAL_UP,                      // up/down -> change altitude
+    CR_GENERAL_DOWN,
+    CR_GENERAL_UP_FAST,
+    CR_GENERAL_DOWN_FAST,
+    CR_GENERAL_ROT_LEFT,                // rotate/turn -> change heading
+    CR_GENERAL_ROT_RIGHT,
+    CR_GENERAL_ROT_LEFT_FAST,
+    CR_GENERAL_ROT_RIGHT_FAST,
+    CR_GENERAL_ROT_UP,                  // rotate/tilt -> change pitch
+    CR_GENERAL_ROT_DOWN,
+    CR_GENERAL_ROT_UP_FAST,
+    CR_GENERAL_ROT_DOWN_FAST,
+    CR_GENERAL_ZOOM_IN,                 // zoom
+    CR_GENERAL_ZOOM_OUT,
+    CR_GENERAL_ZOOM_IN_FAST,
+    CR_GENERAL_ZOOM_OUT_FAST,           // last command registered for camera movement
+    CNT_CMDREFS_XP                      // always last, number of elements
+};
+
+enum XPViewTypes {
+    VIEW_UNKNOWN    = 0,
+    VIEW_FWD_2D     = 1000,
+    VIEW_EXT_TOWER  = 1014,
+    VIEW_EXT_RNWY   = 1015,
+    VIEW_EXT_CHASE  = 1017,
+    VIEW_EXT_CIRCLE = 1018,
+    VIEW_EXT_STILL  = 1020,
+    VIEW_EXT_LINEAR = 1021,
+    VIEW_FWD_HUD    = 1023,
+    VIEW_FWD_NODISP = 1024,
+    VIEW_FWD_3D     = 1026,
+    VIEW_FREE_CAM   = 1028,
+    VIEW_EXT_RIDE   = 1031,
 };
 
 // Datarefs offered by LiveTraffic
@@ -129,7 +196,8 @@ enum dataRefsLT {
     DR_SIM_TIME,
     DR_CFG_AIRCRAFTS_DISPLAYED,
     DR_CFG_AUTO_START,
-    DR_CFG_AI_FOR_TCAS,
+    DR_CFG_AI_ON_REQUEST,
+    DR_CFG_AI_UNDER_CONTROL,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_COL_DYN,
@@ -147,6 +215,7 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
+    DR_CFG_LAST_CHECK_NEW_VER,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
     DR_CHANNEL_OPEN_SKY_ONLINE,
@@ -158,6 +227,17 @@ enum dataRefsLT {
     DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
     CNT_DATAREFS_LT                     // always last, number of elements
+};
+
+enum cmdRefsLT {
+    CR_ACINFOWND_OPEN = 0,
+    CR_ACINFOWND_OPEN_POPPED_OUT,
+    CR_ACINFOWND_HIDE_SHOW,
+    CR_ACINFOWND_CLOSE_ALL,
+    CR_AC_DISPLAYED,
+    CR_AC_TCAS_CONTROLLED,
+    CR_LABELS_TOGGLE,
+    CNT_CMDREFS_LT                      // always last, number of elements
 };
 
 constexpr int CNT_DR_CHANNELS = 6;          // number of flight data channels
@@ -284,12 +364,18 @@ public:
     
 public:
     pluginStateTy pluginState = STATE_STOPPED;
+#ifdef DEBUG
+    bool bSimVREntered = false;                 // for me to simulate some aspects of VR
+#endif
     
 //MARK: DataRefs
 protected:
     XPLMDataRef adrXP[CNT_DATAREFS_XP];                 // array of XP data refs to read from
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
-    
+public:
+    XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
+    XPLMCommandRef cmdLT[CNT_CMDREFS_LT];
+
 //MARK: Provided Data, i.e. global variables
 protected:
     XPLMPluginID pluginID       = 0;
@@ -309,10 +395,11 @@ protected:
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
     int iTodaysDayOfYear        = 0;
     time_t tStartThisYear = 0, tStartPrevYear = 0;
+    int lastCheckNewVer         = 0;    // when did we last check for updates? (hours since the epoch)
     
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
-    int bAIforTCAS              = true; // acquire multiplayer control for TCAS? (false might enhance interperability with other multiplayer clients)
+    int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 1,1,0,0,0,0,0,0, 0,0,1,0,1,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
@@ -355,8 +442,8 @@ public:
     
 protected:
     // call XPLMRegisterDataAccessor
-    bool RegisterDataAccessors (dataRefDefinitionT aDefs[],
-                                int cnt);
+    bool RegisterDataAccessors();
+    bool RegisterCommands();
     void* getVarAddr (dataRefsLT dr);
 
 //MARK: DataRef access
@@ -367,11 +454,19 @@ public:
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
     inline float GetZuluTimeSec() const         { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
-    inline bool  IsVREnabled() const            { return adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
+    inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
+    inline bool  IsVREnabled() const            { return
+#ifdef DEBUG
+        bSimVREntered ? true :                  // simulate some aspects of VR
+#endif
+        adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
 
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
+    inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
+    positionTy GetUsersPlanePos() const;
+    void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks
@@ -420,7 +515,8 @@ public:
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
     inline bool GetAutoStart() const { return bAutoStart != 0; }
-    inline bool GetAIforTCAS() const { return bAIforTCAS != 0; }
+    inline bool IsAIonRequest() const { return bAIonRequest != 0; }
+    static int HaveAIUnderControl(void* p=NULL) { return XPMPHasControlOfAIAircraft(); }
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
@@ -439,6 +535,9 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
+    
+    bool NeedNewVerCheck () const;
+    void SetLastCheckedNewVerNow ();
 
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }
@@ -502,6 +601,7 @@ public:
     static inline boundingBoxTy GetBoundingBox(double dist) // bounding box around current view pos
     { return boundingBoxTy(GetViewPos(), dist); }
     bool ShallDrawLabels() const;
+    bool ToggleLabelDraw();                 // returns new value
 };
 
 extern DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT];

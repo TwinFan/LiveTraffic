@@ -270,8 +270,6 @@ protected:
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
-    static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view
-    static positionTy   posExt;                 // external camera position
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -329,6 +327,7 @@ public:
     void ToggleCameraView();             // start an external view on this a/c
     void CalcCameraViewPos();
     inline bool IsInCameraView() const { return pExtViewAc == this; }
+    static bool IsCameraViewOn() { return pExtViewAc != NULL; }
 
 protected:
     void CalcLabelInternal (const LTFlightData::FDStaticData& statDat);
@@ -340,11 +339,26 @@ protected:
     // determines if now visible
     bool CalcVisible ();
     
+protected:
+    // *** Camera view ***
+    static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view
+    static positionTy   posExt;                 // external camera position
+    static XPViewTypes  prevView;               // View before activating camera
+    static XPLMCameraPosition_t extOffs;        // Camera offset from initial tail position
+
     // callback for external camera view
     static int CameraCB (XPLMCameraPosition_t* outCameraPosition,    /* Can be NULL */
                          int                   inIsLosingControl,
                          void *                inRefcon);
 
+    // command handling during camera view for camera movement
+    static void CameraRegisterCommands(bool bRegister);
+    static int CameraCommandsCB(
+        XPLMCommandRef      inCommand,
+        XPLMCommandPhase    inPhase,
+        void *              inRefcon);
+
+protected:
     // XPMP Aircraft Updates (callbacks)
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);
     virtual XPMPPlaneCallbackResult GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSurfaces);

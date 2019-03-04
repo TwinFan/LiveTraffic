@@ -34,9 +34,12 @@
 enum ACI_WIDGET_IDX_T {
     ACI_MAIN_WND     = 0,
     // key / search: input/output
-    ACI_CAP_AC_KEY_REG,
+    ACI_CAP_AC_KEY,
     ACI_TXT_AC_KEY,
+    ACI_BTN_AUTO,
+    ACI_CAP_AUTO,
     // static data
+    ACI_CAP_REG,
     ACI_TXT_REG,
     ACI_CAP_ICAO_CLASS,
     ACI_TXT_ICAO,
@@ -104,67 +107,70 @@ enum ACI_WIDGET_IDX_T {
 // window will be centered shortly before presenting it
 TFWidgetCreate_t ACI_WND[] =
 {
-    {   0,   0, 270, 350, 1, "LiveTraffic A/C Info", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
-    {   5,  20,  95,  10, 1, "A/C key | Registr.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   0,   0, 270, 365, 1, "LiveTraffic A/C Info", 1, NO_PARENT, xpWidgetClass_MainWindow, {xpProperty_MainWindowHasCloseBoxes, 1, xpProperty_MainWindowType,xpMainWindowStyle_Translucent,0,0} },
+    {   5,  20,  95,  10, 1, "A/C key",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  20,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_TextField,{xpProperty_TextFieldType,xpTextTranslucent, xpProperty_MaxCharacters,8, 0,0} },
-    { 195,  20,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5,  35,  95,  10, 1, "ICAO Type | Class.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120,  35,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195,  35,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5,  50,  95,  10, 1, "Manufacturer",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120,  50, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5,  65,  95,  10, 1, "Model",               0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 210,  22,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    { 220,  20,  55,  10, 1, "AUTO",                0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5,  35,  95,  10, 1, "Registr.",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120,  35,  70,  15, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5,  50,  95,  10, 1, "ICAO Type | Class.",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120,  50,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195,  50,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5,  65,  95,  10, 1, "Manufacturer",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  65, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5,  80,  95,  10, 1, "Operator",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5,  80,  95,  10, 1, "Model",               0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  80, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5,  95,  95,  10, 1, "CSL Model",           0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5,  95,  95,  10, 1, "Operator",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120,  95, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 110,  95,  10, 1, "CSL Model",           0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 110, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 115,  95,  10, 1, "Call Sign | Squawk",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 115,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 115,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 130,  95,  10, 1, "Flight: Route",       0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 130, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 130,  95,  10, 1, "Call Sign | Squawk",  0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 130,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 130,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 145,  95,  10, 1, "Flight: Route",       0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 145, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 150,  95,  10, 1, "Simulated Time",      0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 150, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 165,  95,  10, 1, "Last Data [s] | Chnl",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 165,  40,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 165, 165, 100,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 165,  95,  10, 1, "Simulated Time",      0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 165, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 180,  95,  10, 1, "Last Data [s] | Chnl",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 180,  40,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 165, 180, 100,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 185,  95,  10, 1, "Position",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 185, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 200,  95,  10, 1, "Bearing | Dist. [nm]",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 200,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 200,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 215,  95,  10, 1, "Flight Phase",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 215, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 230,  95,  10, 1, "Gear | Flaps",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 230,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 230,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 245,  95,  10, 1, "Lights",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 245, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 200,  95,  10, 1, "Position",            0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 200, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 215,  95,  10, 1, "Bearing | Dist. [nm]",0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 215,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 215,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 230,  95,  10, 1, "Flight Phase",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 230, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 245,  95,  10, 1, "Gear | Flaps",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 245,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 245,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 260,  95,  10, 1, "Lights",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 260, 145,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 265,  95,  10, 1, "Heading [°]",         0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 265,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 280,  95,  10, 1, "Pitch | Roll [°]",    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 280,  95,  10, 1, "Heading [°]",         0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 280,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 280,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 295,  95,  10, 1, "Pitch | Roll [°]",    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 295,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 295,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
 
-    {   5, 300,  95,  10, 1, "Altitude | AGL [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 120, 300,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 195, 300,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {   5, 315,  95,  10, 1, "Speed [kn] | VSI [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 315,  95,  10, 1, "Altitude | AGL [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 120, 315,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     { 195, 315,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {   5, 330,  95,  10, 1, "Speed [kn] | VSI [ft]", 0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 120, 330,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 195, 330,  70,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
     
-    {  10, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
-    {  20, 332,  55,  10, 1, "Camera",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    {  80, 335,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
-    {  90, 332,  55,  10, 1, "Visible",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 145, 335,  10,  10, 0, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
-    { 155, 332,  55,  10, 0, "Auto Visible",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
-    { 240, 335,  30,  10, 1, "?",                   0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonBehavior, xpButtonBehaviorPushButton,  0,0, 0,0} },
+    {  10, 350,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    {  20, 347,  55,  10, 1, "Camera",              0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    {  80, 350,  10,  10, 1, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    {  90, 347,  55,  10, 1, "Visible",             0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 145, 350,  10,  10, 0, "",                    0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior,xpButtonBehaviorCheckBox, 0,0} },
+    { 155, 347,  55,  10, 0, "Auto Visible",        0, ACI_MAIN_WND, xpWidgetClass_Caption, {xpProperty_CaptionLit,1, 0,0, 0,0} },
+    { 240, 350,  30,  10, 1, "?",                   0, ACI_MAIN_WND, xpWidgetClass_Button,  {xpProperty_ButtonBehavior, xpButtonBehaviorPushButton,  0,0, 0,0} },
 };
 
 const int NUM_WIDGETS = sizeof(ACI_WND)/sizeof(ACI_WND[0]);
@@ -312,8 +318,8 @@ bool TFACSearchEditWidget::MsgKeyPress (XPKeyState_t& key)
 // MARK: ACIWnd
 //
 
-// we keep a map of all created windows
-std::map<XPLMWindowID,ACIWnd*> mapACIWnd;
+// we keep a list of all created windows
+std::forward_list<ACIWnd*> listACIWnd;
 
 // Constructor fully initializes and display the window
 ACIWnd::ACIWnd(TFWndMode wndMode, const char* szKey) :
@@ -336,21 +342,27 @@ widgetIds(nullptr)
     // register myself in base class for message handling
     setId(widgetIds[0]);
     
-    // add myself to the map of windows
-    mapACIWnd.emplace(getWndId(),this);
+    // add myself to the list of windows
+    listACIWnd.push_front(this);
     
     // text field for a/c key entry, upper case only
     txtAcKey.setId(widgetIds[ACI_TXT_AC_KEY]);
+    // button for AUTO mode
+    btnAuto.setId(widgetIds[ACI_BTN_AUTO]);
+
+    // setting the initial key (a/c or AUTO)
     if (szKey) {
         // running in auto a/c mode?
         if (strncmp(szKey, INFO_WND_AUTO_AC, sizeof(INFO_WND_AUTO_AC)) == 0)
         {
-            bAutoAc = true;
+            btnAuto = true;
             SetDescriptor(GetDescriptor() + " (" INFO_WND_AUTO_AC ")");
             szKey = nullptr;
         }
-        else
+        else {
             txtAcKey.SearchFlightData(szKey);
+            btnAuto = false;
+        }
     }
     
     // value fields
@@ -382,7 +394,7 @@ widgetIds(nullptr)
     Center();
 
     // find the focus a/c if in AUTO mode
-    if (bAutoAc)
+    if (btnAuto)
         UpdateFocusAc();
     
     // Have no actual aircraft? Give user chance to enter something
@@ -409,15 +421,17 @@ ACIWnd::~ACIWnd()
     }
     
     // remove myself from the list of windows
-    try {
-        mapACIWnd.erase(getWndId());
-    }
-    catch (...) {}
+    listACIWnd.remove(this);
 }
 
 // static function: creates a new window
 ACIWnd* ACIWnd::OpenNewWnd (TFWndMode wndMode, const char* szIcao)
 {
+    // creation of windows only makes sense if windows are shown
+    if (!AreShown())
+        ToggleHideShowAll();
+    
+    // now create the new window
     ACIWnd* pWnd = new ACIWnd(wndMode, szIcao);
     if (pWnd && !pWnd->isEnabled()) {       // did not init successfully
         delete pWnd;
@@ -426,30 +440,68 @@ ACIWnd* ACIWnd::OpenNewWnd (TFWndMode wndMode, const char* szIcao)
     return pWnd;
 }
 
+//
+// MARK: Static functions on all windows
+//
+
+bool ACIWnd::bAreShown = true;
+
 // move all windows into/out of VR
 void ACIWnd::MoveAllVR (bool bIntoVR)
 {
     // move into VR
     if (bIntoVR) {
-        for (auto pair: mapACIWnd) {
-            if (pair.second->GetWndMode() == TF_MODE_FLOAT)
-                pair.second->SetWindowPositioningMode(xplm_WindowVR, -1);
+        for (ACIWnd* pWnd: listACIWnd) {
+            if (pWnd->GetWndMode() == TF_MODE_FLOAT)
+                pWnd->SetWindowPositioningMode(xplm_WindowVR, -1);
         }
     }
     // move out of VR
     else {
         int moveOfs = 0;
-        for (auto pair: mapACIWnd) {
-            if (pair.second->GetWndMode() == TF_MODE_VR) {
-                pair.second->SetWindowPositioningMode(xplm_WindowPositionFree, -1);
-                pair.second->Center();
+        for (ACIWnd* pWnd: listACIWnd) {
+            if (pWnd->GetWndMode() == TF_MODE_VR) {
+                pWnd->SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+                pWnd->Center();
                 // to avoid all windows being stacked we move them by a few pixels
-                pair.second->MoveBy(moveOfs, -moveOfs);
+                pWnd->MoveBy(moveOfs, -moveOfs);
                 moveOfs += 20;
             }
         }
     }
 }
+
+// show/hide all windows
+bool ACIWnd::ToggleHideShowAll()
+{
+    // Toggle
+    bAreShown = !bAreShown;
+    
+    // now apply that new state to all windows
+    for (ACIWnd* pWnd: listACIWnd)
+        pWnd->Show(bAreShown);
+    
+    // return new state
+    return bAreShown;
+}
+
+// close all windows
+void ACIWnd::CloseAll()
+{
+    // we don't close us when in VR camera view
+    if (dataRefs.IsVREnabled() && LTAircraft::IsCameraViewOn())
+        return;
+    
+    // keep closing the first window until map empty
+    while (!listACIWnd.empty()) {
+        ACIWnd* pWnd = *listACIWnd.begin();
+        delete pWnd;                        // destructor removes from list
+    }
+}
+
+//
+// MARK: Message handlers
+//
 
 // capture entry into the a/c key field
 bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
@@ -459,8 +511,8 @@ bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
         return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
     
     // my key changed!
-    bAutoAc = text == INFO_WND_AUTO_AC;     // auto switch a/c?
-    if (bAutoAc) {
+    btnAuto = (text == INFO_WND_AUTO_AC);   // auto switch a/c?
+    if (btnAuto) {
         txtAcKey.SetDescriptor("");         // remove text AUTO
         if (!UpdateFocusAc())               // try finding an aircraft
             UpdateDynValues();              // not found...but at least update window title
@@ -476,24 +528,42 @@ bool ACIWnd::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 // handles visibility buttons
 bool ACIWnd::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
 {
+    // click of the AUTO button -> maybe update selected a/c, but at least window title
+    if (btnAuto == buttonWidget) {
+        if (!UpdateFocusAc())
+            UpdateDynValues();
+    }
+    
     LTAircraft* pAc = txtAcKey.GetAircraft();
     if (pAc)
     {
         if (btnCamera == buttonWidget) {
             // Call a/c camera view
             pAc->ToggleCameraView();
-            btnCamera.SetChecked(pAc->IsInCameraView());
+            btnCamera = pAc->IsInCameraView();
+            
+            // in VR view we need to move at least the current window again into VR
+            // With switching to camera view the current position changed completely,
+            // while the a/c info windows remain in cockpit.
+            // Idea is: We move the window briefly back to normal view,
+            //          just to move it right away into VR again, where it is
+            //          supposed to show up.
+            if (dataRefs.IsVREnabled()) {
+                SetWindowPositioningMode(xplm_WindowPositionFree, -1);
+                SetWindowPositioningMode(xplm_WindowVR, -1);
+            }
+            
             return true;
         }
         else if (btnVisible == buttonWidget) {
             // visibility set directly, auto-visibility will be off then
             pAc->SetVisible(bNowChecked);
-            btnAutoVisible.SetChecked(pAc->IsAutoVisible());
+            btnAutoVisible = pAc->IsAutoVisible();
             return true;
         }
         else if (btnAutoVisible == buttonWidget) {
             // auto-visibility changed...returns current a/c visibiliy
-            btnVisible.SetChecked(pAc->SetAutoVisible(bNowChecked));
+            btnVisible = pAc->SetAutoVisible(bNowChecked);
             return true;
         }
     }
@@ -540,14 +610,23 @@ bool ACIWnd::TfwMsgMain1sTime ()
 // remove myself completely
 bool ACIWnd::MessageCloseButtonPushed ()
 {
+    // ignore the closing command if in VR _and_ running the external camera
+    if (dataRefs.IsVREnabled() && btnCamera)
+        return true;
+
+    // else: remove myself
     delete this;
     return true;
 }
 
+//
+// MARK: Update myself
+//
+
 // switch to another focus a/c?
 bool ACIWnd::UpdateFocusAc ()
 {
-    if (!bAutoAc) return false;
+    if (!btnAuto) return false;
     
     // find the current focus a/c and if different from current one then switch
     const LTFlightData* pFocusAc = LTFlightData::FindFocusAc(DataRefs::GetViewHeading());
@@ -696,9 +775,9 @@ void ACIWnd::UpdateDynValues()
         valVSI.SetDescriptor(pAc->GetVSI_ft());
         
         // visibility buttons
-        btnCamera.SetChecked(pAc->IsInCameraView());
-        btnVisible.SetChecked(pAc->IsVisible());
-        btnAutoVisible.SetChecked(pAc->IsAutoVisible());
+        btnCamera = pAc->IsInCameraView();
+        btnVisible = pAc->IsVisible();
+        btnAutoVisible = pAc->IsAutoVisible();
         btnAutoVisible.Show(dataRefs.IsAutoHidingActive());    // show button only if visibility is restricted
         capAutoVisible.Show(dataRefs.IsAutoHidingActive());
 
@@ -714,12 +793,12 @@ void ACIWnd::UpdateDynValues()
         })
             XPSetWidgetDescriptor(widgetIds[i], "");
 
-        btnCamera.SetChecked(false);
-        btnVisible.SetChecked(false);
-        btnAutoVisible.SetChecked(false);
+        btnCamera = false;
+        btnVisible = false;
+        btnAutoVisible = false;
     }
     
-    if (bAutoAc)
+    if (btnAuto)
         title += " (" INFO_WND_AUTO_AC ")";
     SetDescriptor(title);
 }

@@ -25,6 +25,7 @@
  */
 
 #include "LiveTraffic.h"
+#include <regex>
 
 //
 // MARK: global variables referred to via extern declarations in Constants.h
@@ -32,6 +33,10 @@
 char LT_VERSION[10] = "";
 char LT_VERSION_FULL[30] = "";
 char HTTP_USER_AGENT[50] = "";
+
+// version availble on X-Plane.org
+float verXPlaneOrg = NAN;
+int verDateXPlaneOrg = 0;
 
 // BETA versions are limited for 30 days...people shall use release versions!
 time_t LT_BETA_VER_LIMIT = 0;
@@ -117,8 +122,123 @@ bool InitFullVersion ()
              buildDate + 4
            );
     
-    if (VERSION_BETA && !CalcBetaVerTimeLimit())
-        return false;
+    // tell the world we are trying to start up
+    LOG_MSG(logMSG, MSG_STARTUP, LT_VERSION_FULL);
+
+    // in case of a BETA version this is the place to check for its time limit
+    if constexpr (VERSION_BETA) {
+        if (!CalcBetaVerTimeLimit())
+            return false;
+    }
 
     return true;
+}
+
+//
+// MARK: Fetch X-Plane.org's version
+//
+
+// Using CURL, we simply download from LT_DOWNLOAD_URL, looking for softwareVersion
+// Example:
+//      "softwareVersion": "0.93.190224"
+// The tricky part is the the chunks returned by CURL may break delivery
+// of that text inbetween, that's why we need to buffer a bit
+size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
+{
+    constexpr size_t bufSizeToKeep = 100;
+    
+    // Have we seen the version number already? Then just return
+    if (!std::isnan(verXPlaneOrg))
+        return nmemb;
+    
+    // copy buffer to our std::string
+    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
+    readBuf.append(ptr, nmemb);
+    
+    // quick search first
+    if (readBuf.find("\"softwareVersion\":") != std::string::npos) {
+        // now the more expensive regex search
+        // for the version number in the buffer
+        std::regex re_ver("\"softwareVersion\": \"(\\d+\\.\\d+)\\.(\\d+)\"");
+        std::smatch m;
+        std::regex_search(readBuf, m, re_ver);
+        
+        // two matches expected
+        if (m.size() == 3) {
+            std::string ver(m[1]);
+            std::string verDate(m[2]);
+            verXPlaneOrg = std::stof(ver);
+            verDateXPlaneOrg = std::stoi(verDate);
+        }
+    }
+    
+    // We don't need to keep all the buffer,
+    // reduce it to some reasonable size
+    if (readBuf.size() > bufSizeToKeep)
+        readBuf.erase(0, readBuf.size() - bufSizeToKeep);
+    
+    // all consumed
+    return nmemb;
+}
+
+// check on X-Plane.org what version's available there
+// This function would block. Idea is to call it in a thread like with std::async
+bool FetchXPlaneOrgVersion ()
+{
+    char curl_errtxt[CURL_ERROR_SIZE];
+    std::string readBuf;
+    
+    // initialize the CURL handle
+    CURL *pCurl = curl_easy_init();
+    if (!pCurl) {
+        LOG_MSG(logERR,ERR_CURL_EASY_INIT);
+        return false;
+    }
+    
+    // prepare the handle with the right options
+    verXPlaneOrg = NAN;
+    readBuf.reserve(CURL_MAX_WRITE_SIZE);
+    curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, FetchVersionCB);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+    curl_easy_setopt(pCurl, CURLOPT_URL, LT_DOWNLOAD_URL);
+
+    // perform the HTTP get request
+    CURLcode cc = CURLE_OK;
+    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
+    {
+        // problem with querying revocation list?
+        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+            // try not to query revoke list
+            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+            // and just give it another try
+            cc = curl_easy_perform(pCurl);
+        }
+        
+        // if (still) error, then log error
+        if (cc != CURLE_OK)
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, cc, curl_errtxt);
+    }
+    
+    if (cc == CURLE_OK)
+    {
+        // CURL was OK, now check HTTP response code
+        long httpResponse = 0;
+        curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+        
+        // not HTTP_OK?
+        if (httpResponse != HTTP_OK)
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, httpResponse, "HTTP response was not HTTP_OK")
+        else if (std::isnan(verXPlaneOrg))
+            // all OK but still no version number?
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, "Found no version info in response")
+    }
+    
+    // cleanup CURL handle
+    curl_easy_cleanup(pCurl);
+    
+    // return if we found something
+    return !std::isnan(verXPlaneOrg);
 }

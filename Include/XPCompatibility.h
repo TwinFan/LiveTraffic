@@ -28,6 +28,10 @@
 #ifndef XPCompatibility_h
 #define XPCompatibility_h
 
+#include "XPLMDisplay.h"
+#include "XPLMMenus.h"
+#include "XPLMUtilities.h"
+
 // MARK: struct sizes
 //       sizes of structs in XPLM210 build
 constexpr size_t XPLMCreateWindow_s_210 = offsetof(XPLMCreateWindow_t,decorateAsFloatingWindow);
@@ -37,34 +41,49 @@ constexpr size_t XPLMCreateWindow_s_210 = offsetof(XPLMCreateWindow_t,decorateAs
 // which are not part of XPLM210 and are therefore called
 // via XPLMFindSymbol
 
+// XP10: fails
 void XPC_SetWindowPositioningMode(XPLMWindowID              inWindowID,
                                   XPLMWindowPositioningMode inPositioningMode,
                                   int                       inMonitorIndex);
+// XP10: return 0
 XPLMWindowID XPC_GetWidgetUnderlyingWindow(XPWidgetID       inWidget);
+// XP10: fails, use LT_GetScreenSize
 void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBoundsCallback,
                                    void *               inRefcon);
+// XP10: fails, use LT_GetScreenSize
 void XPC_GetAllMonitorBoundsOS(XPLMReceiveMonitorBoundsOS_f inMonitorBoundsCallback,
                                void *               inRefcon);
+// XP10: returns silently
 void XPC_SetWindowTitle(XPLMWindowID         inWindowID,
                         const char *         inWindowTitle);
+// XP10: returns false
 bool XPC_WindowIsPoppedOut(XPLMWindowID      inWindowID);
+// XP10: returns false
 bool XPC_WindowIsInVR(XPLMWindowID           inWindowID);
+// XP10: fails
 void XPC_GetWindowGeometryOS(XPLMWindowID         inWindowID,
                              int *                outLeft,
                              int *                outTop,
                              int *                outRight,
                              int *                outBottom);
+// XP10: returns silently
 void XPC_SetWindowGeometryOS(XPLMWindowID         inWindowID,
                              int                  inLeft,
                              int                  inTop,
                              int                  inRight,
                              int                  inBottom);
+// XP10: fails
 void XPC_GetWindowGeometryVR(XPLMWindowID         inWindowID,
                              int *                outWidthBoxels,
                              int *                outHeightBoxels);
+// XP10: return ssilently
 void XPC_SetWindowGeometryVR(XPLMWindowID         inWindowID,
                              int                  widthBoxels,
                              int                  heightBoxels);
+// XP10: fails, use LT_AppendMenuItem
+int  XPC_AppendMenuItemWithCommand(XPLMMenuID           inMenu,
+                                   const char *         inItemName,
+                                   XPLMCommandRef       inCommandToExecute);
 
 // find and initialize all function pointers
 bool XPC_Init();
@@ -94,5 +113,12 @@ void LT_GetScreenSize (int& outLeft,
                        int& outBottom,
                        LTWhichScreenTy whichScreen,
                        bool bOSScreen = false);
+
+// append a menu item,
+// XP11: if given with command
+int LT_AppendMenuItem (XPLMMenuID   inMenu,
+                       const char*  inItemName,
+                       void*        inItemRef = NULL,
+                       XPLMCommandRef inCommandToExecute = NULL);
 
 #endif /* XPCompatibility_h */

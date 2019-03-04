@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{50ab93fd-ebe5-4767-98c9-f81193a338df}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ACInfoWnd.cpp">
@@ -106,5 +109,26 @@
     <ResourceCompile Include="LiveTraffic.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Resources\Doc8643.txt">
+      <Filter>Resources</Filter>
+    </Text>
+    <Text Include="Resources\related.txt">
+      <Filter>Resources</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\FlightModels.prf">
+      <Filter>Resources</Filter>
+    </None>
+    <None Include="docs\readme.html">
+      <Filter>Resources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\lights.png">
+      <Filter>Resources</Filter>
+    </Image>
   </ItemGroup>
 </Project>

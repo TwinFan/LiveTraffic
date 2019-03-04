@@ -29,6 +29,7 @@
 #include <fstream>
 #include <errno.h>
 #include <regex>
+#include <future>
 
 //
 //MARK: external references
@@ -170,15 +171,71 @@ catch (...)
 }
 
 //MARK: X-Plane Datarefs
-const char* DATA_REFS_XP[CNT_DATAREFS_XP] = {
+const char* DATA_REFS_XP[] = {
     "sim/time/total_running_time_sec",
     "sim/time/local_time_sec",
     "sim/time/local_date_days",
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
     "sim/graphics/view/view_is_external",
+    "sim/graphics/view/view_type",
+    "sim/flightmodel/position/latitude",
+    "sim/flightmodel/position/longitude",
+    "sim/flightmodel/position/elevation",
+    "sim/flightmodel/position/true_theta",
+    "sim/flightmodel/position/true_phi",
+    "sim/flightmodel/position/true_psi",
+    "sim/flightmodel/failures/onground_any",
     "sim/graphics/VR/enabled",
+    "sim/graphics/view/pilots_head_x",
+    "sim/graphics/view/pilots_head_y",
+    "sim/graphics/view/pilots_head_z",
+    "sim/graphics/view/pilots_head_psi",
+    "sim/graphics/view/pilots_head_the",
+    "sim/graphics/view/pilots_head_phi",
 };
+
+static_assert(sizeof(DATA_REFS_XP) / sizeof(DATA_REFS_XP[0]) == CNT_DATAREFS_XP,
+    "dataRefsXP and DATA_REFS_XP[] differ in number of elements");
+
+//MARK: X-Plane Command Refs
+const char* CMD_REFS_XP[] = {
+    "sim/general/left",
+    "sim/general/right",
+    "sim/general/left_fast",
+    "sim/general/right_fast",
+    "sim/general/forward",
+    "sim/general/backward",
+    "sim/general/forward_fast",
+    "sim/general/backward_fast",
+    "sim/general/hat_switch_left",
+    "sim/general/hat_switch_right",
+    "sim/general/hat_switch_up",
+    "sim/general/hat_switch_down",
+    "sim/general/hat_switch_up_left",
+    "sim/general/hat_switch_up_right",
+    "sim/general/hat_switch_down_left",
+    "sim/general/hat_switch_down_right",
+    "sim/general/up",
+    "sim/general/down",
+    "sim/general/up_fast",
+    "sim/general/down_fast",
+    "sim/general/rot_left",
+    "sim/general/rot_right",
+    "sim/general/rot_left_fast",
+    "sim/general/rot_right_fast",
+    "sim/general/rot_up",
+    "sim/general/rot_down",
+    "sim/general/rot_up_fast",
+    "sim/general/rot_down_fast",
+    "sim/general/zoom_in",
+    "sim/general/zoom_out",
+    "sim/general/zoom_in_fast",
+    "sim/general/zoom_out_fast",
+};
+
+static_assert(sizeof(CMD_REFS_XP) / sizeof(CMD_REFS_XP[0]) == CNT_CMDREFS_XP,
+    "cmdRefsXP and CMD_REFS_XP[] differ in number of elements");
 
 //
 //MARK: DataRefs::dataRefDefinitionT
@@ -215,7 +272,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/ai_for_tcas",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -233,6 +291,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -252,7 +311,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     switch (dr) {
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_AUTO_START:             return &bAutoStart;
-        case DR_CFG_AI_FOR_TCAS:            return &bAIforTCAS;
+        case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_LABELS:                 return &labelCfg;
         case DR_CFG_LABEL_SHOWN:            return &labelShown;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
@@ -270,6 +329,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
@@ -287,6 +347,23 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     }
 }
 
+//MARK: LiveTraffic Command Refs
+struct cmdRefDescrTy {
+    const char* cmdName;
+    const char* cmdDescr;
+} CMD_REFS_LT[] = {
+    {"LiveTraffic/Aircraft_Info_Wnd/Open",              "Opens an aircraft information window"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out aircraft information window (separate OS-level window)"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all aircraft information windows, but does not close"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all aircraft information windows"},
+    {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircrafts"},
+    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircrafts"},
+    {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
+};
+
+static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,
+              "cmdRefsLT and CMD_REFS_LT[] differ in number of elements");
+
 //MARK: Inform DataRefEditor about our datarefs
 // (see http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
 //      https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp )
@@ -302,8 +379,10 @@ const char* DATA_REF_EDITORS[] = {
 float LoopCBOneTimeSetup (float, float, int, void*)
 {
     static enum ONCE_CB_STATE
-    { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_CB_DONE }
+    { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_WAIT_FOR_VER, ONCE_CB_DONE }
     eState = ONCE_CB_ADD_DREFS;
+    
+    static std::future<bool> futVerCheck;
     
     switch (eState) {
         case ONCE_CB_ADD_DREFS:
@@ -327,6 +406,26 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             // Auto Start display of aircrafts
             if (dataRefs.GetAutoStart())
                 dataRefs.SetAircraftsDisplayed(true);
+            
+            // check at X-Plane.org for version updates
+            if (dataRefs.NeedNewVerCheck()) {
+                futVerCheck = std::async(std::launch::async, FetchXPlaneOrgVersion);
+                eState = ONCE_WAIT_FOR_VER;
+                return 2;
+            }
+            
+            // done, don't call me again
+            eState = ONCE_CB_DONE;
+            return 0;
+            
+        case ONCE_WAIT_FOR_VER:
+            // did the version check not yet come back?
+            if (std::future_status::ready != futVerCheck.wait_for(std::chrono::microseconds(0)))
+                return 2;
+                
+            // version check successful?
+            if (futVerCheck.get())
+                HandleNewVersionAvail();      // handle the outcome
             
             // done
             eState = ONCE_CB_DONE;
@@ -449,17 +548,28 @@ bool DataRefs::Init ()
     {
         if ( (adrXP[i] = XPLMFindDataRef (DATA_REFS_XP[i])) == NULL )
         {
-            // for XP10 compatibility we accept if we don't find "VR/enabled",
+            // for XP10 compatibility we accept if we don't find a few,
             // all else stays an error
-            if (i != DR_VR_ENABLED) {
+            if (i != DR_VR_ENABLED &&
+                i != DR_PILOTS_HEAD_ROLL) {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
             }
         }
     }
 
-    // register all LiveTraffic-provided dataRefs
-    if (!RegisterDataAccessors(DATA_REFS_LT, CNT_DATAREFS_LT))
+    // Fetch all XP-provided cmd refs and verify if OK
+    for (int i = 0; i < CNT_CMDREFS_XP; i++)
+    {
+        if ((cmdXP[i] = XPLMFindCommand(CMD_REFS_XP[i])) == NULL)
+        {
+            LOG_MSG(logFATAL, ERR_DATAREF_FIND, CMD_REFS_XP[i]);
+            return false;
+        }
+    }
+
+    // register all LiveTraffic-provided dataRefs and commands
+    if (!RegisterDataAccessors() || !RegisterCommands())
         return false;
 
     // Register callback to inform DataRef Editor later on
@@ -512,15 +622,14 @@ void DataRefs::Stop ()
 }
 
 // call XPLMRegisterDataAccessor
-bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
-                                      int cnt)
+bool DataRefs::RegisterDataAccessors ()
 {
     bool bRet = true;
     // loop over all data ref definitions
-    for (int i=0; i < cnt; i++)
+    for (int i=0; i < CNT_DATAREFS_LT; i++)
     {
         dataRefsLT eDataRef = dataRefsLT(i);
-        dataRefDefinitionT& def = aDefs[i];
+        dataRefDefinitionT& def = DATA_REFS_LT[i];
         
         // look up _and update_ refCon first if required
         // (can look up variable addresses only when object is known but not at compile time in definition of DATA_REFS_LT)
@@ -548,6 +657,55 @@ bool DataRefs::RegisterDataAccessors (dataRefDefinitionT aDefs[],
     return bRet;
 }
 
+// call XPLMRegisterDataAccessor
+bool DataRefs::RegisterCommands()
+{
+    bool bRet = true;
+    // loop over all data ref definitions
+    for (int i=0; i < CNT_CMDREFS_LT; i++)
+    {
+        // register command
+        if ( (cmdLT[i] =
+              XPLMCreateCommand(CMD_REFS_LT[i].cmdName,
+                                CMD_REFS_LT[i].cmdDescr)) == NULL )
+        { LOG_MSG(logERR,ERR_CREATE_COMMAND,CMD_REFS_LT[i].cmdName); bRet = false; }
+    }
+    return bRet;
+}
+
+// return user's plane pos
+positionTy DataRefs::GetUsersPlanePos() const
+{
+    positionTy pos
+    (
+     XPLMGetDatad(adrXP[DR_PLANE_LAT]),
+     XPLMGetDatad(adrXP[DR_PLANE_LON]),
+     XPLMGetDatad(adrXP[DR_PLANE_ELEV]),
+     GetSimTime(),
+     XPLMGetDataf(adrXP[DR_PLANE_HEADING]),
+     XPLMGetDataf(adrXP[DR_PLANE_PITCH]),
+     XPLMGetDataf(adrXP[DR_PLANE_ROLL]),
+     XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? positionTy::GND_ON : positionTy::GND_OFF
+    );
+    
+    // make invalid pos invalid
+    if (pos.lat() < -75 || pos.lat() > 75)
+        pos.lat() = NAN;
+    
+    return pos;
+}
+
+// return pilot's head position from 6 dataRefs combined
+void DataRefs::GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const
+{
+    headPos.x = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_X]);
+    headPos.y = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_Y]);
+    headPos.z = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_Z]);
+    headPos.heading = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_HEADING]);
+    headPos.pitch   = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_PITCH]);
+    headPos.roll    = adrXP[DR_PILOTS_HEAD_ROLL] ? XPLMGetDataf(adrXP[DR_PILOTS_HEAD_ROLL]) : 0.0f;
+    headPos.zoom    = 1.0f;
+}
 
 //
 //MARK: Generic Callbacks
@@ -870,8 +1028,7 @@ void DataRefs::SetAircraftsDisplayed ( int bEnable )
     }
     
     // update menu item's checkmark
-    MenuCheckAircraftsDisplayed ( bShowingAircrafts, GetNumAircrafts() );
-    MenuCheckTCASControl(XPMPHasControlOfAIAircraft());
+    MenuUpdateAllItemStatus();
 }
 
 int DataRefs::ToggleAircraftsDisplayed ()
@@ -984,6 +1141,27 @@ bool DataRefs::SetCfgValue (void* p, int val)
     
     // success
     return true;
+}
+
+// more than 24h passed since last version check?
+bool DataRefs::NeedNewVerCheck () const
+{
+    if (!lastCheckNewVer)
+        return true;
+    
+    // 'now' in hours since the epoch
+    int nowH = (int)std::chrono::duration_cast<std::chrono::hours>
+    (std::chrono::system_clock::now().time_since_epoch()).count();
+    
+    return nowH - lastCheckNewVer > LT_NEW_VER_CHECK_TIME;
+}
+
+// saves the fact that we just checked for a new version
+void DataRefs::SetLastCheckedNewVerNow ()
+{
+    lastCheckNewVer = (int)
+    std::chrono::duration_cast<std::chrono::hours>
+    (std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 // return color into a RGB array as XP likes it
@@ -1120,8 +1298,7 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
 // increase number of a/c, update menu item with that number
 int DataRefs::IncNumAircrafts()
 {
-    MenuCheckAircraftsDisplayed(bShowingAircrafts, ++cntAc);
-    return cntAc;
+    return ++cntAc;
 }
 
 // decreses number of aircrafts
@@ -1131,8 +1308,7 @@ int DataRefs::IncNumAircrafts()
 int DataRefs::DecNumAircrafts()
 {
     pAc=nullptr;
-    MenuCheckAircraftsDisplayed(bShowingAircrafts, --cntAc);
-    return cntAc;
+    return --cntAc;
 }
 
 
@@ -1486,7 +1662,12 @@ positionTy DataRefs::GetViewPos()
     double lat, lon, alt;
     XPLMLocalToWorld(camPos.x, camPos.y, camPos.z,
                      &lat, &lon, &alt);
-    return positionTy(lat,lon,alt);
+    
+    return positionTy(lat, lon, alt,
+                      dataRefs.GetSimTime(),
+                      camPos.heading,
+                      camPos.pitch,
+                      camPos.roll);
 }
 
 // return the direction the camera is looking to
@@ -1498,6 +1679,7 @@ double DataRefs::GetViewHeading()
     return camPos.heading;
 }
 
+// in current situation, shall we draw labels?
 bool DataRefs::ShallDrawLabels() const
 {
     // user doesn't want labels in VR but is in VR mode? -> no labels
@@ -1506,4 +1688,18 @@ bool DataRefs::ShallDrawLabels() const
     
     // now depends on internal or external view
     return IsViewExternal() ? labelShown.bExternal : labelShown.bInternal;
+}
+
+// in current situation, toggle label drawing
+bool DataRefs::ToggleLabelDraw()
+{
+    // Situation = VR?
+    if (IsVREnabled())
+        return (labelShown.bVR = !labelShown.bVR);
+    // Situation = External View?
+    if (IsViewExternal())
+        return (labelShown.bExternal = !labelShown.bExternal);
+    // Situation = Internal View
+    else
+        return (labelShown.bInternal = !labelShown.bInternal);
 }

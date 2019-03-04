@@ -30,8 +30,10 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 0.93f;
+constexpr float VERSION_NR = 0.94f;
 constexpr bool VERSION_BETA = true;
+extern float verXPlaneOrg;          // version on X-Plane.org
+extern int verDateXPlaneOrg;        // and its date
 
 //MARK: Window Position
 #define WIN_WIDTH       400         // window width
@@ -78,7 +80,13 @@ constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on gr
 constexpr double MDL_CLOSE_TO_GND_SLOW = 25;    // feet height considered "on ground" if moving with less than max taxi speed
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
-constexpr double MDL_EXT_CAMERA_PITCH  = -5;
+constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
+constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
+constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
+constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
+constexpr float  MDL_EXT_FAST_DEG =       5.0f;
+constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
+constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
 #define MDL_LABEL_COLOR         "LABEL_COLOR"
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
@@ -94,19 +102,23 @@ extern time_t LT_BETA_VER_LIMIT;        // BETA versions are limited
 extern char LT_BETA_VER_LIMIT_TXT[];
 #define BETA_LIMITED_VERSION    "BETA limited to %s"
 #define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN!"
+constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
 #define LT_CFG_VERSION          "1.1"        // current version of config file format
-#define LT_FM_VERSION           "1.0"        // version of flight model file format
+#define LT_FM_VERSION           "1.1"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircrafts based on live traffic."
+#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
+#define LT_DOWNLOAD_CH          "X-Plane.org"
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
+#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircrafts"
@@ -143,9 +155,12 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 //MARK: Menu Items
 #define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_AC_INFO_WND_POPOUT "Aircraft Info... (Popped out)"
+#define MENU_AC_INFO_WND_SHOWN  "Aircraft Info shown"
+#define MENU_AC_INFO_WND_CLOSEALL "Close All Windows"
 #define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
 #define MENU_TOGGLE_AC_NUM      "Aircrafts displayed (%d shown)"
 #define MENU_HAVE_TCAS          "TCAS controlled"
+#define MENU_TOGGLE_LABELS      "Labels shown"
 #define MENU_SETTINGS_UI        "Settings..."
 #define MENU_HELP               "Help"
 #define MENU_HELP_DOCUMENTATION "Documentation"
@@ -153,6 +168,7 @@ extern char LT_BETA_VER_LIMIT_TXT[];
 #define MENU_HELP_MENU_ITEMS    "Menu Items"
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
+#define MENU_NEWVER             "New Version %01.2f available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 #endif
@@ -203,6 +219,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_INIT           "Could not initialize CURL: %s"
 #define ERR_CURL_EASY_INIT      "Could not initialize easy CURL"
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"
+#define ERR_CURL_NOVERCHECK     "Could not browse X-Plane.org for version info: %d - %s"
 #define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
 #define ERR_CURL_REVOKE_MSG     "0x80092012"                // appears in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
@@ -211,8 +228,9 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
 #define ERR_NO_AC_TYPE          "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, will be rendered with standard a/c %s"
-#define ERR_DATAREF_FIND        "Could not find DataRef: %s"
+#define ERR_DATAREF_FIND        "Could not find DataRef/CmdRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
+#define ERR_CREATE_COMMAND      "Could not create command %s"
 #define ERR_DIR_CONTENT         "Could not retrieve directory content for %s"
 #define ERR_JSON_PARSE          "Parsing flight data as JSON failed"
 #define ERR_JSON_MAIN_OBJECT    "JSON: Getting main object failed"
@@ -235,6 +253,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
 #define ERR_CFG_FILE_OPEN_IN    "Could not open '%s': %s"
 #define ERR_CFG_FILE_VER        "Config file '%s' first line: Unsupported format or version: %s"
+#define ERR_CFG_FILE_VER_UNEXP  "Config file '%s' first line: Unexpected version %s, expected %s...trying to continue"
 #define ERR_CFG_FILE_IGNORE     "Ignoring unkown entry '%s' from config file '%s'"
 #define ERR_CFG_FILE_WORDS      "Expected two words (key, value) in config file '%s', line '%s': ignored"
 #define ERR_CFG_FILE_READ       "Could not read from '%s': %s"
