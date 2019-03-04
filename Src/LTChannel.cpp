@@ -636,6 +636,11 @@ void LTFlightDataHideAircraft()
         FDMainThread = std::thread();
     }
     
+    // tell all connection to close
+    for ( ptrLTChannelTy& p: listFDC ) {
+        p->Close();
+    }
+    
     // Remove all flight data info including displayed aircrafts
     try {
         // access guarded by a mutex

@@ -34,42 +34,67 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-UDPReceiver::UDPReceiver(const std::string& addr, int port)
-: f_port(port)
-, f_addr(addr)
+UDPReceiver::UDPReceiver(const std::string& addr, int port,
+                         size_t bufSize, unsigned timeOut_ms) :
+f_port(port), f_addr(addr)
+{
+    // open the socket
+    Open(addr, port, bufSize, timeOut_ms);
+}
+
+// cleanup: make sure the socket is closed
+UDPReceiver::~UDPReceiver()
+{
+    Close();
+}
+
+void UDPReceiver::Open(const std::string& addr, int port,
+                       size_t bufSize, unsigned timeOut_ms)
 {
     try {
-        const std::string decimal_port(std::to_string(port));
-        
+        f_port = port;
+        f_addr = addr;
+
+        const std::string decimal_port(std::to_string(f_port));
+
+        // get a socket
+        f_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        if(f_socket == -1)
+            throw UDPRuntimeError(("could not create UDP socket for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+
+        // define receive timeout
+#if IBM
+#error Timeout is passed in a DWORD???
+#else
+        struct timeval timeout;
+        timeout.tv_sec = timeOut_ms / 1000;
+        timeout.tv_usec = (timeOut_ms % 1000) * 1000;
+        if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+            throw UDPRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+#endif
+
+        // get a valid address based on inAddr/port
         struct addrinfo hints;
         memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_UNSPEC;
+        hints.ai_flags = AI_PASSIVE;
+        hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_DGRAM;
         hints.ai_protocol = IPPROTO_UDP;
         
-        int r = getaddrinfo(addr.c_str(), decimal_port.c_str(), &hints, &f_addrinfo);
+        int r = getaddrinfo(f_addr.c_str(), decimal_port.c_str(), &hints, &f_addrinfo);
         if(r != 0 || f_addrinfo == NULL)
-            throw UDPRuntimeError(("invalid address or port for UDP socket: \"" + addr + ":" + decimal_port + "\"").c_str());
+            throw UDPRuntimeError(("invalid address or port for UDP socket: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
-        f_socket = socket(f_addrinfo->ai_family, SOCK_DGRAM, IPPROTO_UDP);
-        if(f_socket == -1)
-            throw UDPRuntimeError(("could not create UDP socket for: \"" + addr + ":" + decimal_port + "\"").c_str());
-        
+        // bind the socket to the address:port
         r = bind(f_socket, f_addrinfo->ai_addr, f_addrinfo->ai_addrlen);
         if(r != 0)
-            throw UDPRuntimeError(("could not bind UDP socket with: \"" + addr + ":" + decimal_port + "\"").c_str());
+            throw UDPRuntimeError(("could not bind UDP socket with: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+
+        // reserve buffer
+        buf.resize(bufSize);
     }
     catch (...) {
-        // cleanup
-        if (f_socket >= 0) {
-            close(f_socket);
-            f_socket = -1;
-        }
-        
-        if (f_addrinfo) {
-            freeaddrinfo(f_addrinfo);
-            f_addrinfo = NULL;
-        }
+        Close();
         // re-throw
         throw;
     }
@@ -77,9 +102,9 @@ UDPReceiver::UDPReceiver(const std::string& addr, int port)
 
 /** \brief Clean up the UDP server.
  *
- * This function frees the address info structures and close the socket.
+ // Close: This function frees the address info structures and close the socket.
  */
-UDPReceiver::~UDPReceiver()
+void UDPReceiver::Close()
 {
     // cleanup
     if (f_socket >= 0) {
@@ -106,14 +131,20 @@ UDPReceiver::~UDPReceiver()
  * case this function will not block if no message is available. Instead
  * it returns immediately.
  *
- * \param[in] msg  The buffer where the message is saved.
- * \param[in] max_size  The maximum size the message (i.e. size of the \p msg buffer.)
+ * \param[in] max_size  The maximum size the message (i.e. size of the \p msg buffer.) If 0 then no change.
  *
  * \return The number of bytes read or -1 if an error occurs.
  */
-long UDPReceiver::recv(char *msg, size_t max_size)
+long UDPReceiver::recv(size_t max_size)
 {
-    return ::recv(f_socket, msg, max_size, 0);
+    // new buf size?
+    if (max_size > 0)
+        buf.reserve(max_size);
+    
+    long ret = ::recv(f_socket, buf.data(), buf.capacity(), 0);
+    if (ret >= 0)                       // we did receive something
+        buf.resize(ret);                // tell the buffer how much
+    return ret;
 }
 
 /** \brief Wait for data to come in.
@@ -135,27 +166,38 @@ long UDPReceiver::recv(char *msg, size_t max_size)
  *
  * \return -1 if an error occurs or the function timed out, the number of bytes received otherwise.
  */
-long UDPReceiver::timedRecv(char *msg, size_t max_size, int max_wait_ms)
+long UDPReceiver::timedRecv(int max_wait_ms, size_t max_size)
 {
-    fd_set s;
-    FD_ZERO(&s);
-    FD_SET(f_socket, &s);
+    fd_set sRead, sErr;
     struct timeval timeout;
+
+    FD_ZERO(&sRead);
+    FD_SET(f_socket, &sRead);           // check our socket
+    FD_COPY(&sRead, &sErr);             // also for errors
+    
     timeout.tv_sec = max_wait_ms / 1000;
     timeout.tv_usec = (max_wait_ms % 1000) * 1000;
-    int retval = select(f_socket + 1, &s, &s, &s, &timeout);
+    int retval = select(f_socket + 1, &sRead, NULL, &sErr, &timeout);
     if(retval == -1)
     {
         // select() set errno accordingly
+        buf.resize(0);
         return -1;
     }
     if(retval > 0)
     {
+        // was it an error that triggered?
+        if (FD_ISSET(f_socket,&sErr)) {
+            return -1;
+        }
+        
         // our socket has data
-        return ::recv(f_socket, msg, max_size, 0);
+        if (FD_ISSET(f_socket, &sRead))
+            return ::recv(f_socket, buf.data(), buf.capacity(), 0); // recv(max_size);
     }
     
     // our socket has no data
+    buf.resize(0);
     errno = EAGAIN;
     return -1;
 }

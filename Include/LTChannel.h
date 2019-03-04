@@ -82,6 +82,8 @@ public:
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fd) = 0;
+    // (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
+    virtual void Close () {}
 };
 
 // Collection of smart pointers requires C++ 17 to compile correctly!

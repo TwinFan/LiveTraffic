@@ -94,7 +94,6 @@
 		2573631F22233CDA005210C5 /* LTOpenSky.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTOpenSky.cpp; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
-		25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "RealTraffic dev1.0.pdf"; sourceTree = "<group>"; };
 		25865B0022065B8D009D5D9C /* udp_listen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_listen.py; sourceTree = "<group>"; };
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
@@ -186,6 +185,10 @@
 		25C59459207A2B7500E52073 /* DataRefs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DataRefs.cpp; sourceTree = "<group>"; };
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
+		25D09093222D69C400D52057 /* RTdev1.1.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.1.pdf; sourceTree = "<group>"; };
+		25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z_PE.txt; sourceTree = "<group>"; };
+		25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z.txt; sourceTree = "<group>"; };
+		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
 		25D29ABB207D48AA00A88505 /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPLM.framework; path = ../../Frameworks/XPLM.framework; sourceTree = "<group>"; };
 		25D29ABC207D48AA00A88505 /* XPWidgets.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPWidgets.framework; path = ../../Frameworks/XPWidgets.framework; sourceTree = "<group>"; };
 		25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BADA_Aircraft_Performance_Summary_Tables.pdf; sourceTree = "<group>"; };
@@ -344,8 +347,11 @@
 		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
 			isa = PBXGroup;
 			children = (
-				25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */,
+				25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */,
+				25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */,
+				25D09093222D69C400D52057 /* RTdev1.1.pdf */,
 				25865B0022065B8D009D5D9C /* udp_listen.py */,
+				25D09096222D7F0700D52057 /* udp_send.py */,
 			);
 			path = RealTraffic;
 			sourceTree = "<group>";

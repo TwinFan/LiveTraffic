@@ -58,21 +58,33 @@ private:
     int                 f_port          = 0;
     std::string         f_addr;
     struct addrinfo *   f_addrinfo      = NULL;
+    
+    // the data receive buffer
+    std::string         buf;
 
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
-    UDPReceiver(const std::string& addr, int port);
-    ~UDPReceiver();
+    UDPReceiver() {}
+    UDPReceiver(const std::string& addr, int port, size_t bufSize,
+                unsigned timeOut_ms = 0);
+    virtual ~UDPReceiver();
+    // opens/closes the socket
+    void Open(const std::string& addr, int port, size_t bufSize,
+              unsigned timeOut_ms = 0);
+    void Close();
+    inline bool isOpen() const { return (f_socket >= 0); }
     
     // attribute access
     inline int          getSocket() const   { return f_socket; }
     inline int          getPort() const     { return f_port; }
     inline std::string  getAddr() const     { return f_addr; }
     
-    // blocking receive of a UDP package
-    long                recv(char *msg, size_t max_size);
-    long                timedRecv(char *msg, size_t max_size, int max_wait_ms);
+    // receive a UDP datagram
+    long                recv(size_t max_size = 0);
+    long                timedRecv(int max_wait_ms, size_t max_size = 0);
     
+    // return the buffer
+    std::string getBuf () const             { return buf; }
 };
 
 #endif /* Network_h */
