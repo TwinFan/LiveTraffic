@@ -68,6 +68,7 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_BTN_ADSB_LIVE,
     UI_BASICS_BTN_REALTRAFFIC_LIVE,
     UI_BASICS_CAP_REALTRAFFIC_STATUS,
+    UI_BASICS_CAP_REALTRAFFIC_METAR,
 
     UI_BASICS_CAP_VERSION_TXT,
     UI_BASICS_CAP_VERSION,
@@ -217,6 +218,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10, 105,  10,  10, 1, "ADS-B Exchange",       0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 125,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  80, 123,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  20, 140,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
     {   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -395,7 +397,8 @@ void LTSettingsUI::Enable()
         btnRealTraffic.setId(widgetIds[UI_BASICS_BTN_REALTRAFFIC_LIVE],
                              DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE]);
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
-        capRealTrafficStatus.SetDescriptor(dataRefs.realTrafficStatus);
+        capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
+        UpdateRealTraffic();
         
         // * right-hand side *
         // landing lights during taxi?
@@ -639,7 +642,8 @@ bool LTSettingsUI::TfwMsgMain1sTime ()
     TFMainWindowWidget::TfwMsgMain1sTime();
     logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
     msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
-    capRealTrafficStatus.SetDescriptor(dataRefs.realTrafficStatus);
+    // real traffic stuff
+    UpdateRealTraffic();
     // read current 'when-to-show' config and set accordingly
     DataRefs::LabelShowCfgTy show = dataRefs.GetLabelShowCfg();
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,show.bExternal);
@@ -825,6 +829,19 @@ void LTSettingsUI::LabelBtnSave()
     show.bInternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,NULL);
     show.bVR          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,NULL);
     drCfgLabelShow.Set(show.GetInt());
+}
+
+void LTSettingsUI::UpdateRealTraffic()
+{
+    if (dataRefs.pRTConn) {
+        capRealTrafficStatus.SetDescriptor(dataRefs.pRTConn->GetStatusStr());
+        capRealTrafficMetar.SetDescriptor(dataRefs.pRTConn->IsConnected() ?
+                                          std::string("QNH ") + std::to_string(dataRefs.pRTConn->GetQnh()) +
+                                          " @ " + dataRefs.pRTConn->GetMetarIcao() : "");
+    } else {
+        capRealTrafficStatus.SetDescriptor("");
+        capRealTrafficMetar.SetDescriptor("");
+    }
 }
 
 void LTSettingsUI::SaveCSLPath(int idx)

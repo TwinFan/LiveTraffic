@@ -36,16 +36,23 @@
 //
 
 #define REALTRAFFIC_NAME        "RealTraffic"
-#define RT_LOCALHOST            "localhost"
-constexpr int RT_UDP_PORT_WEATHER   = 49004;
+#define RT_LOCALHOST            "0.0.0.0"
 constexpr int RT_UDP_PORT_AITRAFFIC = 49003;
+constexpr int RT_UDP_PORT_WEATHER   = 49004;
 constexpr size_t RT_UDP_BUF_SIZE    = 512;
 constexpr int RT_UDP_MAX_WAIT       = 1000;     // millisecond
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
+#define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports QNH %d and '%s'"
 
-#define ERR_UDP_RCVR_OPEN       "Error creating UDP receiver for %s:%d: %s"
-#define ERR_UDP_RCVR_RCVR       "Error receiving from %s:%d: %s"
+#define ERR_UDP_RCVR_OPEN       "RealTraffic: Error creating UDP receiver for %s:%d: %s"
+#define ERR_UDP_RCVR_RCVR       "RealTraffic: Error receiving from %s:%d: %s"
+#define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %d - ignored"
+
+// Weather JSON fields
+#define RT_WEATHER_ICAO         "ICAO"
+#define RT_WEATHER_QNH          "QNH"
+#define RT_WEATHER_METAR        "METAR"
 
 //
 // MARK: RealTraffic Connection
@@ -63,13 +70,21 @@ public:
     };
 
 protected:
+    // RealTraffic connection status
     volatile rtStatusTy status = RT_STATUS_NONE;
-    // traffic data
-    std::thread thrTrafficData;
+    // the map of flight data, where we deliver our data to
+    mapLTFlightDataTy& fdMap;
+    // udp thread and its sockets
+    std::thread thrUdpListener;
     UDPReceiver udpTrafficData;
+    UDPReceiver udpWeatherData;
+    // weather, esp. current barometric pressure to correct altitude values
+    int qnh = 2992;
+    std::string metar;
+    std::string metarIcao;
 
 public:
-    RealTrafficConnection ();
+    RealTrafficConnection (mapLTFlightDataTy& _fdMap);
     virtual ~RealTrafficConnection ();
 
     virtual std::string GetURL (const positionTy& pos) { return ""; }   // don't need URL, no request/reply
@@ -84,10 +99,19 @@ public:
     // SetValid also sets internal status
     virtual void SetValid (bool _valid, bool bMsg = true);
 
+    // Status
     inline rtStatusTy GetStatus () const { return status; }
+    std::string GetStatusStr () const;
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
     void SetStatus (rtStatusTy s);
+    
+    // Weather
+    inline int GetQnh() const { return qnh; }
+    inline std::string GetMetar() const { return metar; }
+    inline std::string GetMetarIcao() const { return metarIcao; }
+
+    // Start/Stop
     bool StartConnections ();
     bool StopConnections ();
     
@@ -96,6 +120,10 @@ protected:
     void udpListen ();
     // just a wrapper to call a member function
     static void udpListenS (RealTrafficConnection* me) { me->udpListen();}
+    
+    // Process received datagrams
+    bool ProcessRecvedTrafficData (std::string traffic);
+    bool ProcessRecvedWeatherData (std::string weather);
 };
 
 

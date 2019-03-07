@@ -201,6 +201,12 @@
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
+		25FC893B222F269700F5D57C /* KLAS_20190305_2055Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2055Z_PE.txt; sourceTree = "<group>"; };
+		25FC893C222F269700F5D57C /* KJFK_20190305_2028Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KJFK_20190305_2028Z_METAR.json; sourceTree = "<group>"; };
+		25FC893D222F269700F5D57C /* KJFK_20190305_2130Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KJFK_20190305_2130Z.txt; sourceTree = "<group>"; };
+		25FC893E222F269700F5D57C /* KLAS_20190305_2056Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2056Z.txt; sourceTree = "<group>"; };
+		25FC893F222F269700F5D57C /* KJFK_20190305_2028Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KJFK_20190305_2028Z_PE.txt; sourceTree = "<group>"; };
+		25FC8940222F269800F5D57C /* KLAS_20190305_2055Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KLAS_20190305_2055Z_METAR.json; sourceTree = "<group>"; };
 		D607B19909A556E400699BC3 /* mac.xpl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mac.xpl; sourceTree = BUILT_PRODUCTS_DIR; };
 		D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTraffic.cpp; sourceTree = "<group>"; };
 		D6A7BDA916A1DEA200D1426A /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
@@ -347,6 +353,12 @@
 		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
 			isa = PBXGroup;
 			children = (
+				25FC893C222F269700F5D57C /* KJFK_20190305_2028Z_METAR.json */,
+				25FC893F222F269700F5D57C /* KJFK_20190305_2028Z_PE.txt */,
+				25FC893D222F269700F5D57C /* KJFK_20190305_2130Z.txt */,
+				25FC8940222F269800F5D57C /* KLAS_20190305_2055Z_METAR.json */,
+				25FC893B222F269700F5D57C /* KLAS_20190305_2055Z_PE.txt */,
+				25FC893E222F269700F5D57C /* KLAS_20190305_2056Z.txt */,
 				25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */,
 				25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */,
 				25D09093222D69C400D52057 /* RTdev1.1.pdf */,

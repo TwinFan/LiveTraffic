@@ -31,6 +31,8 @@
 #include "TextIO.h"
 #include "CoordCalc.h"
 
+class RealTrafficConnection;
+
 //
 // MARK: Doc8643
 //
@@ -433,7 +435,7 @@ public:
     std::string cslFixAcIcaoType;       // set of fixed values to use for...
     std::string cslFixOpIcao;           // ...newly created aircrafts for...
     std::string cslFixLivery;           // ...CSL model package testing
-    std::string realTrafficStatus;      // Sttus of RealTraffic connection
+    RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
 
 //MARK: Constructor
 public:

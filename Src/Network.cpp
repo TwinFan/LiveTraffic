@@ -61,6 +61,14 @@ void UDPReceiver::Open(const std::string& addr, int port,
         f_socket = socket(AF_INET, SOCK_DGRAM, 0);
         if(f_socket == -1)
             throw UDPRuntimeError(("could not create UDP socket for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+        
+        // Reuse address and port to allow others to connect, too
+        int setToVal = 1;
+        if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, &setToVal, sizeof(setToVal)) < 0)
+            throw UDPRuntimeError(("could not setsockopt SO_REUSEADDR for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+        if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEPORT, &setToVal, sizeof(setToVal)) < 0)
+            throw UDPRuntimeError(("could not setsockopt SO_REUSEPORT for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+
 
         // define receive timeout
 #if IBM
