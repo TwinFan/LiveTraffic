@@ -35,13 +35,39 @@
 
     <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
 
-    <h3>v0.94.1900303 Pubic Beta - Release Candidate 2</h3>
+    <h3>v1.00.1900308</h3>
 
     <p>
         <b>To update</b> just copy the contents of the installation package over your existing
         installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
         existing one. There are no new files.
     </p>
+
+    <ul>
+        <li>
+            RELEASE BUILD, i.e. no time limit.
+        </li>
+        <li>
+            UPDATED <a href="https://github.com/TwinFan/LiveTraffic/issues/117">#117</a>
+            handling of AI/TCAS planes so that third-party plugins
+            have a better chance of seeing LiveTraffic's AI planes with their correct heading.<br>
+            X-Plane's internal map and Little NavMap now show LiveTraffic's planes.
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/118">#118</a>
+            reporting of warnings/infos while parsing CSL packages. Repeated
+            messages are now suppressed and only a counter reported.
+            Previosuly, packages with additional
+            parameters could cause thousands of lines of repeating <code>Log.txt</code> output.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/112">#112</a>
+            ASSERT FAILED for <code>bWrapAround</code>, a bug in handling
+            roll.
+        </li>
+    </ul>
+
+    <h3>v0.94.1900303 Pubic Beta - Release Candidate 2</h3>
 
     <ul>
         <li>
