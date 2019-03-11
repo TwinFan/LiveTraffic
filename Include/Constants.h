@@ -30,8 +30,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.00f;
-constexpr bool VERSION_BETA = false;
+constexpr float VERSION_NR = 1.01f;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -58,6 +58,10 @@ constexpr double Ms_per_FTm = M_per_FT / SEC_per_M;     //1 m/s = 196.85... ft/m
 constexpr double PI         = 3.1415926535897932384626433832795028841971693993751;
 constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 constexpr double JAN_FIRST_2019 = 1546344000;   // 01.01.2019
+constexpr double HPA_STANDARD   = 1013.25;      // air pressure
+constexpr double INCH_STANDARD  = 2992.1;
+constexpr double HPA_per_INCH   = HPA_STANDARD/INCH_STANDARD;
+constexpr double FT_per_HPA     = 30.0;         // ft altitude diff per hPa change
 
 //MARK: Flight Data-related
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames

@@ -25,7 +25,6 @@
  */
 
 #include "LiveTraffic.h"
-#include <regex>
 
 //
 // MARK: global variables referred to via extern declarations in Constants.h

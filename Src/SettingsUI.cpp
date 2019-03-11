@@ -26,8 +26,6 @@
 
 #include "LiveTraffic.h"
 
-#include <regex>
-
 //
 //MARK: LTSettingsUI
 //
@@ -836,8 +834,8 @@ void LTSettingsUI::UpdateRealTraffic()
     if (dataRefs.pRTConn) {
         capRealTrafficStatus.SetDescriptor(dataRefs.pRTConn->GetStatusStr());
         capRealTrafficMetar.SetDescriptor(dataRefs.pRTConn->IsConnected() ?
-                                          std::string("QNH ") + std::to_string(dataRefs.pRTConn->GetQnh()) +
-                                          " @ " + dataRefs.pRTConn->GetMetarIcao() : "");
+                                          std::to_string(std::lround(dataRefs.pRTConn->GetHPA())) +
+                                          " hPa @ " + dataRefs.pRTConn->GetMetarIcao() : "");
     } else {
         capRealTrafficStatus.SetDescriptor("");
         capRealTrafficMetar.SetDescriptor("");

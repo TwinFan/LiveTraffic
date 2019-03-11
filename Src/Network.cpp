@@ -49,7 +49,7 @@ UDPReceiver::~UDPReceiver()
 }
 
 void UDPReceiver::Open(const std::string& addr, int port,
-                       size_t bufSize, unsigned timeOut_ms)
+                       size_t _bufSize, unsigned timeOut_ms)
 {
     try {
         f_port = port;
@@ -99,7 +99,7 @@ void UDPReceiver::Open(const std::string& addr, int port,
             throw UDPRuntimeError(("could not bind UDP socket with: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
         // reserve buffer
-        buf.resize(bufSize);
+        SetBufSize(_bufSize);
     }
     catch (...) {
         Close();
@@ -124,7 +124,28 @@ void UDPReceiver::Close()
         freeaddrinfo(f_addrinfo);
         f_addrinfo = NULL;
     }
+    
+    // release buffer
+    SetBufSize(0);
 }
+
+// allocates the receiving buffer
+void UDPReceiver::SetBufSize(size_t _bufSize)
+{
+    // remove existing buffer
+    if (buf) {
+        delete[] buf;
+        buf = NULL;
+        bufSize = 0;
+    }
+    
+    // create a new one
+    if (_bufSize > 0) {
+        buf = new char[bufSize=_bufSize];
+        memset(buf, 0, bufSize);
+    }
+}
+
 
 /** \brief Wait on a message.
  *
@@ -143,15 +164,19 @@ void UDPReceiver::Close()
  *
  * \return The number of bytes read or -1 if an error occurs.
  */
-long UDPReceiver::recv(size_t max_size)
+long UDPReceiver::recv()
 {
-    // new buf size?
-    if (max_size > 0)
-        buf.reserve(max_size);
+    if (!buf) {
+        errno = ENOMEM;
+        return -1;
+    }
     
-    long ret = ::recv(f_socket, buf.data(), buf.capacity(), 0);
-    if (ret >= 0)                       // we did receive something
-        buf.resize(ret);                // tell the buffer how much
+    long ret = ::recv(f_socket, buf, bufSize-1, 0);
+    if (ret >= 0)  {                    // we did receive something
+        buf[ret] = 0;                   // zero-termination
+    } else {
+        buf[0] = 0;                     // empty string
+    }
     return ret;
 }
 
@@ -174,7 +199,7 @@ long UDPReceiver::recv(size_t max_size)
  *
  * \return -1 if an error occurs or the function timed out, the number of bytes received otherwise.
  */
-long UDPReceiver::timedRecv(int max_wait_ms, size_t max_size)
+long UDPReceiver::timedRecv(int max_wait_ms)
 {
     fd_set sRead, sErr;
     struct timeval timeout;
@@ -189,7 +214,7 @@ long UDPReceiver::timedRecv(int max_wait_ms, size_t max_size)
     if(retval == -1)
     {
         // select() set errno accordingly
-        buf.resize(0);
+        buf[0] = 0;                     // empty string
         return -1;
     }
     if(retval > 0)
@@ -201,11 +226,11 @@ long UDPReceiver::timedRecv(int max_wait_ms, size_t max_size)
         
         // our socket has data
         if (FD_ISSET(f_socket, &sRead))
-            return ::recv(f_socket, buf.data(), buf.capacity(), 0); // recv(max_size);
+            return recv();
     }
     
     // our socket has no data
-    buf.resize(0);
+    buf[0] = 0;                     // empty string
     errno = EAGAIN;
     return -1;
 }

@@ -28,8 +28,6 @@
 
 #include <fstream>
 #include <errno.h>
-#include <regex>
-#include <future>
 
 //
 //MARK: external references

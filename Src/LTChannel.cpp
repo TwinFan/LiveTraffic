@@ -26,7 +26,6 @@
 
 #include "LiveTraffic.h"
 
-#include <future>
 #include <fstream>
 
 // access to chrono literals like s for seconds

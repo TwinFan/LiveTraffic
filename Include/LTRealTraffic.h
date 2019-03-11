@@ -43,11 +43,38 @@ constexpr size_t RT_UDP_BUF_SIZE    = 512;
 constexpr int RT_UDP_MAX_WAIT       = 1000;     // millisecond
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
-#define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports QNH %d and '%s'"
+#define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
 
 #define ERR_UDP_RCVR_OPEN       "RealTraffic: Error creating UDP receiver for %s:%d: %s"
 #define ERR_UDP_RCVR_RCVR       "RealTraffic: Error receiving from %s:%d: %s"
 #define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %d - ignored"
+#define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
+
+// Traffic data format and fields
+#define RT_TRAFFIC_AITFC        "AITFC"
+#define RT_TRAFFIC_XTRAFFICPSX  "XTRAFFICPSX"
+#define RT_TRAFFIC_XATTPSX      "XATTPSX"
+#define RT_TRAFFIC_XGPSPSX      "XGPSPSX"
+
+enum RT_TFC_FIELDS_TY {         // fields in an AITFC message
+    RT_TFC_MSG_TYPE = 0,        // "AITFC" or "XTRAFFICPSX"
+    RT_TFC_HEXID,               // transponder hex code, converted to decimal
+    RT_TFC_LAT,                 // latitude in degrees
+    RT_TFC_LON,                 // longitude in degrees
+    RT_TFC_ALT,                 // altitude in feet (not adapted for local pressure)
+    RT_TFC_VS,                  // vertical speed in ft/min
+    RT_TFC_AIRBORNE,            // airborne: 1 or 0
+    RT_TFC_HDG,                 // heading (actually: true track)
+    RT_TFC_SPD,                 // speed in knots
+    RT_TFC_CS,                  // call sign
+    RT_TFC_TYPE,                // ICAO aircraft type (in XTRAFFICPSX: added in parentheses to call sign)
+                                // --- following fields only in AITFC ---
+    RT_TFC_TAIL,                // registration (tail number)
+    RT_TFC_FROM,                // origin airport (IATA code)
+    RT_TFC_TO,                  // destination airport (IATA code)
+};
+constexpr int RT_AITFC_NUM_FIELDS       = RT_TFC_TO+1;
+constexpr int RT_XTRAFFICPSX_NUM_FIELDS = RT_TFC_TYPE+1;
 
 // Weather JSON fields
 #define RT_WEATHER_ICAO         "ICAO"
@@ -74,12 +101,14 @@ protected:
     volatile rtStatusTy status = RT_STATUS_NONE;
     // the map of flight data, where we deliver our data to
     mapLTFlightDataTy& fdMap;
+    // current position which serves as center
+    positionTy posCamera;
     // udp thread and its sockets
     std::thread thrUdpListener;
     UDPReceiver udpTrafficData;
     UDPReceiver udpWeatherData;
     // weather, esp. current barometric pressure to correct altitude values
-    int qnh = 2992;
+    double hPa = HPA_STANDARD;
     std::string metar;
     std::string metarIcao;
 
@@ -107,7 +136,7 @@ public:
     void SetStatus (rtStatusTy s);
     
     // Weather
-    inline int GetQnh() const { return qnh; }
+    inline double GetHPA() const { return hPa; }
     inline std::string GetMetar() const { return metar; }
     inline std::string GetMetarIcao() const { return metarIcao; }
 

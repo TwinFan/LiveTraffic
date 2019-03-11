@@ -60,7 +60,8 @@ private:
     struct addrinfo *   f_addrinfo      = NULL;
     
     // the data receive buffer
-    std::string         buf;
+    char*               buf             = NULL;
+    size_t              bufSize         = 512;
 
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
@@ -74,17 +75,19 @@ public:
     void Close();
     inline bool isOpen() const { return (f_socket >= 0); }
     
+    void SetBufSize (size_t _bufSize);
+    
     // attribute access
     inline int          getSocket() const   { return f_socket; }
     inline int          getPort() const     { return f_port; }
     inline std::string  getAddr() const     { return f_addr; }
     
     // receive a UDP datagram
-    long                recv(size_t max_size = 0);
-    long                timedRecv(int max_wait_ms, size_t max_size = 0);
+    long                recv();
+    long                timedRecv(int max_wait_ms);
     
     // return the buffer
-    std::string getBuf () const             { return buf; }
+    const char* getBuf () const  { return buf ? buf : ""; }
 };
 
 #endif /* Network_h */

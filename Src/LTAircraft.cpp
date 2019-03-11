@@ -27,7 +27,6 @@
 #include "LiveTraffic.h"
 
 #include <fstream>
-#include <regex>
 
 //
 //MARK: Globals

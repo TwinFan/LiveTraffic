@@ -116,6 +116,14 @@
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;):LTFlightData.cpp">
       </ContextState>
       <ContextState
+         contextName = "UDPReceiver::recv(unsigned long):Network.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "buf">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "ADSBExchangeConnection::FetchAllAircrafts(positionTy const&amp;, LTFlightDataMap&amp;):LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -174,6 +182,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "LTFlightData::IsPosOK(positionTy const&amp;, positionTy const&amp;, double*, bool*):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
          contextName = "MovingParam::get():LTAircraft.cpp">
       </ContextState>
       <ContextState
@@ -213,15 +224,15 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "UDPReceiver::UDPReceiver(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;, int, unsigned long, unsigned int):Network.cpp">
+      </ContextState>
+      <ContextState
          contextName = "DataRefs::SaveCSLPath(int, DataRefs::CSLPathCfgTy):DataRefs.cpp">
          <PersistentStrings>
             <PersistentString
                value = "vCSLPaths">
             </PersistentString>
          </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "UDPReceiver::UDPReceiver(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;, int, unsigned long, unsigned int):Network.cpp">
       </ContextState>
       <ContextState
          contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
@@ -441,6 +452,11 @@
       </ContextState>
       <ContextState
          contextName = "LTFlightData::CreateAircraft(double):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "statData">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "XPMPRenderMultiplayerPlanes(int, int, void*):XPMPMultiplayer.cpp">
@@ -588,6 +604,9 @@
                value = "pitch">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "RealTrafficConnection::ProcessRecvedTrafficData(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;):LTRealTraffic.cpp">
       </ContextState>
       <ContextState
          contextName = "LTSettingsUI::SaveCSLPath(int):SettingsUI.cpp">

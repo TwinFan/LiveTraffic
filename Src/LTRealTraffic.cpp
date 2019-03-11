@@ -54,8 +54,11 @@ RealTrafficConnection::~RealTrafficConnection ()
 // Does not actually fetch data (the UDP thread does that) but
 // 1. Starts the connections
 // 2. updates the RealTraffic local server with out current position
-bool RealTrafficConnection::FetchAllData(const positionTy& /*pos*/)
+bool RealTrafficConnection::FetchAllData(const positionTy& pos)
 {
+    // store camera position for later calculations
+    posCamera = pos;
+    
     // if we are invalid or disabled we should shut down
     if (!IsValid() || !IsEnabled()) {
         return StopConnections();
@@ -165,9 +168,9 @@ void RealTrafficConnection::udpListen ()
         return;
     
     try {
-        // Open the UDP port (without timeOut...we rely on closing the socket)
-        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_UDP_BUF_SIZE);
-        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_UDP_BUF_SIZE);
+        // Open the UDP port
+        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_UDP_BUF_SIZE, RT_UDP_MAX_WAIT);
+        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_UDP_BUF_SIZE, RT_UDP_MAX_WAIT);
         const int maxSock = std::max(udpTrafficData.getSocket(),
                                      udpWeatherData.getSocket()) + 1;
 
@@ -253,17 +256,188 @@ void RealTrafficConnection::udpListen ()
     }
 }
 
-// process received traffic data
+// MARK: Traffic
+// Process received traffic data.
+// We keep this a bit flexible to be able to work with both
+// AITraffic format (port 49003), which is preferred as it has more fields:
+//      AITFC,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936,BCS1,N101DU,BOS,LGA
+// and the Foreflight format (broadcasted on port 49002):
+//      XATTPSX,0.0,0.0,-0.0
+//      XGPSPSX,-73.77869444,40.63992500,0.0,0.00,0.0
+//      XTRAFFICPSX,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936(BCS1)
+//
 bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
 {
-    // TODO: do something reasonable with it...
-    // too many entries - LOG_MSG(logDEBUG, "Received Traffic: %s", traffic.c_str());
+    // LOG_MSG(logDEBUG, "Received Traffic: %s", traffic.c_str());
+    
+    // sanity check
+    if (traffic.empty())
+        return false;
+    
+    // split the datagram up into its parts, keeping empty positions empty
+    std::vector<std::string> tfc = str_tokenize(traffic, ",()", false);
+    
+    // nothing found at all???
+    if (tfc.size() < 1)
+    { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+    
+    // There are two formats we are _really_ interested in: AITFC and XTRAFFICPSX
+    // Check for them and their correct number of fields
+    if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
+        if (tfc.size() < RT_AITFC_NUM_FIELDS)
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+    } else if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
+        if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+    } else
+        // other format than AITFC or XTRAFFICPSX
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+
+    // *** transponder code ***
+    // comes in decimal form, convert to proper upper case hex
+    char transpIcao[10];
+    snprintf (transpIcao, sizeof(transpIcao), "%06X", std::stoi(tfc[RT_TFC_HEXID]));
+
+    // *** position time ***
+    // RealTraffic doesn't send one, which really is a pitty
+    // so we assume 'now', corrected by network time offset
+    using namespace std::chrono;
+    double posTime = // system time in microseconds
+    double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
+    // divided by 1000000 to create seconds with fractionals
+    / 1000000.0
+    // corrected by network time diff (which only works if also OpenSky or ADSBEx are active)
+    + dataRefs.GetChTsOffset();
+    
+    // *** position ***
+    // RealTraffic always provides data 100km around current position
+    // Let's check if the data falls into our configured range and discard it if not
+    positionTy pos (std::stod(tfc[RT_TFC_LAT]),
+                    std::stod(tfc[RT_TFC_LON]),
+                    0,              // we take care of altitude later
+                    posTime);
+    
+    // position is rather important, we check for validity
+    // (we do allow alt=NAN if on ground)
+    if ( !pos.isNormal(true) ) {
+        LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao,pos.dbgTxt().c_str());
+        return false;
+    }
+    
+    // is position close enough to current pos?
+    if (posCamera.between(pos).dist > dataRefs.GetFdStdDistance_m())
+        return true;                // ignore silently, no error
+    
+    try {
+        // from here on access to fdMap guarded by a mutex
+        // until FD object is inserted and updated
+        std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+        
+        // get the fd object from the map, key is the transpIcao
+        // this fetches an existing or, if not existing, creates a new one
+        LTFlightData& fd = fdMap[transpIcao];
+        
+        // also get the data access lock once and for all
+        // so following fetch/update calls only make quick recursive calls
+        std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+        
+        // completely new? fill key fields
+        if ( fd.empty() )
+            fd.SetKey(transpIcao);
+        
+        // fill static data
+        {
+            LTFlightData::FDStaticData stat;
+            
+            stat.acTypeIcao     = tfc[RT_TFC_TYPE];
+            stat.call           = tfc[RT_TFC_CS];
+            
+            // we need the operator for livery, usually it is just the first 3 characters of the call sign
+            stat.opIcao         = stat.call.substr(0,3);
+            
+            if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
+                stat.reg            = tfc[RT_TFC_TAIL];
+                stat.originAp       = tfc[RT_TFC_FROM];
+                stat.destAp         = tfc[RT_TFC_TO];
+            }
+
+            fd.UpdateData(std::move(stat));
+        }
+        
+        // dynamic data
+        {   // unconditional...block is only for limiting local variables
+            LTFlightData::FDDynamicData dyn;
+            
+            // non-positional dynamic data
+            dyn.gnd =               tfc[RT_TFC_AIRBORNE] == "0";
+            dyn.heading =           std::stoi(tfc[RT_TFC_HDG]);
+            dyn.spd =               std::stoi(tfc[RT_TFC_SPD]);
+            dyn.vsi =               std::stoi(tfc[RT_TFC_VS]);
+            dyn.ts =                posTime;
+            dyn.pChannel =          this;
+            
+            // *** gnd detection hack ***
+            // RealTraffic keeps the airborne flag always 1,
+            // even with traffic which definitely sits on the gnd
+            // The most likely pattern for gnd traffic is "0,0,1"
+            // for alt,vsi,airborn
+            if (tfc[RT_TFC_ALT]         == "0" &&
+                tfc[RT_TFC_VS]          == "0" &&
+                tfc[RT_TFC_AIRBORNE]    == "1") {
+                dyn.gnd = true;
+            } else {
+                // probably not on gnd, so take care of altitude
+                // altitude comes without local pressure applied
+                double alt_f = std::stod(tfc[RT_TFC_ALT]);
+                alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
+                pos.alt_m() = alt_f * M_per_FT;
+            }
+            
+            // don't forget gnd-flag in position
+            pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
+
+            // add dynamic data
+            fd.AddDynData(dyn, 0, 0, &pos);
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+        return false;
+    }
+
+    // success
     return true;
 }
 
+// MARK: Weather
+// Process regular weather messages. They are important for QNH,
+// as RealTraffic doesn't adapt altitude readings in the traffic data.
+// Weather comes in JSON format, pretty-printed looking like this:
+// {
+//     "ICAO": "KJFK",
+//     "QNH": 2996,             # inches mercury in US!
+//     "METAR": "KJFK 052051Z 25016KT 10SM FEW050 FEW250 00/M09 A2996 RMK AO2 SLP144 T00001094 56025",
+//     "NAME": "John F Kennedy International Airport",
+//     "IATA": "JFK",
+//     "DISTNM": 0.1
+// }
+//
+// or like this:
+// {
+//     "ICAO": "OMDB",
+//     "QNH": 1015,             # hPa outside US
+//     "METAR": "OMDB 092300Z 27012KT 9999 BKN036 19/10 Q1015 NOSIG",
+//     "NAME": "Dubai International Airport",
+//     "IATA": "DXB",
+//     "DISTNM": 0.3
+// }
+
 bool RealTrafficConnection::ProcessRecvedWeatherData (std::string weather)
 {
-    // LOG_MSG(logDEBUG, "Received Weather: %s", weather.c_str());
+    LOG_MSG(logDEBUG, "Received Weather: %s", weather.c_str());
+    
+    // sanity check
+    if (weather.empty())
+        return false;
     
     // interpret weather
     JSON_Value* pRoot = json_parse_string(weather.c_str());
@@ -273,13 +447,19 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (std::string weather)
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return false; }
 
     // fetch QNH, sanity check
-    long newQNH = jog_l(pObj, RT_WEATHER_QNH);
-    if (2600 <= newQNH && newQNH <= 3400) {
+    double newQNH = jog_l(pObj, RT_WEATHER_QNH);
+    
+    // this could be inch mercury in the US...convert to hPa
+    if (2600 <= newQNH && newQNH <= 3400)
+        newQNH *= HPA_per_INCH;
+
+    // process a change
+    if (800 <= newQNH && newQNH <= 1100) {
         metarIcao = jog_s(pObj, RT_WEATHER_ICAO);
         metar =     jog_s(pObj, RT_WEATHER_METAR);
-        if (qnh != newQNH)                          // report a change in the log
-            LOG_MSG(logDEBUG, MSG_RT_WEATHER_IS, metarIcao.c_str(), newQNH, metar.c_str());
-        qnh = (int)newQNH;
+        if (!dequal(hPa, newQNH))                          // report a change in the log
+            LOG_MSG(logINFO, MSG_RT_WEATHER_IS, metarIcao.c_str(), std::lround(newQNH), metar.c_str());
+        hPa = newQNH;
         return true;
     } else {
         LOG_MSG(logWARN, ERR_RT_WEATHER_QNH, metarIcao.c_str(), newQNH);

@@ -185,6 +185,7 @@
 		25C59459207A2B7500E52073 /* DataRefs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DataRefs.cpp; sourceTree = "<group>"; };
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
+		25CDC7482236F034007F504B /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 10/Log.txt"; sourceTree = "<group>"; };
 		25D09093222D69C400D52057 /* RTdev1.1.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.1.pdf; sourceTree = "<group>"; };
 		25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z_PE.txt; sourceTree = "<group>"; };
 		25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z.txt; sourceTree = "<group>"; };
@@ -567,10 +568,11 @@
 		25A3889B209884B50015266E /* Links */ = {
 			isa = PBXGroup;
 			children = (
+				25CDC7482236F034007F504B /* Log.txt */,
+				251531BE21B867F900B5968A /* Log.txt */,
 				253B6F2E2225EC14001F8B42 /* Commands.txt */,
 				25271352220F36340039D2A4 /* LiveTraffic.prf */,
 				255F35AE2097C0730080B78E /* DataRefs.txt */,
-				251531BE21B867F900B5968A /* Log.txt */,
 			);
 			name = Links;
 			sourceTree = "<group>";

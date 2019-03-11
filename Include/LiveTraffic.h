@@ -67,8 +67,11 @@
 #include <list>
 #include <deque>
 #include <thread>
+#include <future>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <regex>
 
 // X-Plane SDK
 #include "XPLMDisplay.h"

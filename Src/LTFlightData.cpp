@@ -90,7 +90,9 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (!other.call.empty()) call = other.call;
     
     // little trick for priority: we trust the info with the longer flight number
-    if (other.flight.length() > flight.length()) {
+    if (other.flight.length() > flight.length() ||
+        // or no flight number info at all...
+        (other.flight.empty() && flight.empty())) {
         originAp = other.originAp;
         destAp = other.destAp;
         flight = other.flight;
@@ -1838,7 +1840,10 @@ bool LTFlightData::CreateAircraft ( double simTime )
                   statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
                 // ADSBEx doesn't send as clear an indicator, but data analysis
                 // suggests that EngType/Mount == 0 is a good indicator
-                 (statData.engType == 0 && statData.engMount == 0)))
+                 (statData.engType == 0 && statData.engMount == 0) ||
+                // for RealTraffic it is even more difficult...we best identify RT-only data with no operator (opIcao is taken from call sign)
+                 (statData.op.empty() && statData.reg.empty() && statData.destAp.empty()))
+                )
             {
                 // assume surface vehicle
                 statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
