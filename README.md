@@ -8,7 +8,7 @@ Well...turned out it's not *that* easy ;-)
 [Please see GitBook](https://twinfan.gitbook.io/livetraffic/) for further documentation on Features, Limitations, Requirements, Installation, Configuration...
 
 ## Status
-Currently in public beta, available on [x-plane.org](https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/).
+Available on [x-plane.org](https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/).
 
 ## License
 [MIT License](https://github.com/TwinFan/LiveTraffic/blob/master/LICENSE), essentially freeware.
