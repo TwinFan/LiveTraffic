@@ -154,9 +154,56 @@ public:
     };
     
     // KEY (protected, can be set only once, no mutex-control)
+public:
+    // in ascending order of priority
+    enum FDKeyType { KEY_UNKNOWN=0, KEY_OGN, KEY_RT, KEY_FLARM, KEY_ICAO };
+    struct FDKeyTy {
+        FDKeyType               eKeyType = KEY_UNKNOWN;
+        std::string             key;            // the primary key in use
+        unsigned long           num = 0;        // primary key's numeric representation
+        
+        std::string             icao;           // 24bit transponder address
+        std::string             flarm;          // FLARM id is 24bit (like ICAO)
+        std::string             rtId;           // RealTraffic's id is 32bit
+        std::string             ogn;            // OGN id is 32bit
+        
+        // setting keys and values
+        std::string SetKey (FDKeyType _eType, unsigned long _num);
+        std::string SetKey (FDKeyType _eType, const std::string _key, int base=16);
+        
+        std::string SetVal (FDKeyType _eType, unsigned long _num);
+        std::string SetVal (FDKeyType _eType, const std::string _val, int base=16);
+
+        // construction
+        FDKeyTy() {}
+        FDKeyTy(FDKeyType _eType, unsigned long _num)                   { SetKey(_eType,_num); }
+        FDKeyTy(FDKeyType _eType, const std::string _key, int base=16)  { SetKey(_eType, _key, base); }
+        
+        // copy/move operations
+        FDKeyTy(const FDKeyTy& o) = default;
+        FDKeyTy(FDKeyTy&& o) = default;
+        FDKeyTy& operator=(const FDKeyTy& o) = default;
+        FDKeyTy& operator=(FDKeyTy&& o) = default;
+
+        // strict order
+        inline bool operator==(const FDKeyTy& o) const { return eKeyType == o.eKeyType && key == o.key; }
+        inline bool operator!=(const FDKeyTy& o) const { return eKeyType != o.eKeyType || key != o.key; }
+        inline bool operator<(const FDKeyTy& o) const { return eKeyType == o.eKeyType ? key < o.key : eKeyType < o.eKeyType; }
+
+        // imitate some (std::)string functionality
+        inline bool operator==(const std::string o) const { return key == o; }
+        inline bool operator!=(const std::string o) const { return key != o; }
+        inline operator std::string() const { return key; }
+        
+        inline const char* c_str() const    { return key.c_str(); }
+        inline bool empty() const           { return key.empty(); }
+        void clear()                        { *this = FDKeyTy(); }
+        
+        // matches any string?
+        bool isMatch (const std::string t) const;
+    };
 protected:
-    std::string             transpIcao;     // 24bit transponder address                    3C4A25
-    unsigned int            transpIcaoInt;  // dito, but as an integer                      3951141
+    FDKeyTy acKey;
 
     // last used Receiver ID, identifies the receiver of the signal of this flight data
     int             rcvr;
@@ -187,6 +234,11 @@ protected:
     
     // object valid? (will be re-set in case of exceptions)
     bool                bValid;
+    
+#ifdef DEBUG
+public:
+    bool                bIsSelected;    // is selected aircraft for debugging/logging?
+#endif
 public:
     // the lock we use to update / fetch data for thread safety
     mutable std::recursive_mutex   dataAccessMutex;
@@ -219,11 +271,14 @@ public:
     void SetInvalid();
     
     // KEY into the map
-    void SetKey ( std::string key );
-    inline const std::string& key() const   { return transpIcao; }
-    inline unsigned int keyInt() const      { return transpIcaoInt; }
-    std::string keyDbg() const              { return key() + ' ' + statData.acId("-"); }
-    
+    void SetKey    (const FDKeyTy& _key)  { acKey = _key; }
+    void SetKey    (FDKeyType eType, unsigned long _num)                    { acKey.SetKey(eType, _num); }
+    void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
+    void SetKeyVal (FDKeyType eType, unsigned long _num)                    { acKey.SetVal(eType, _num); }
+    void SetKeyVal (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetVal(eType, _key, base); }
+    const FDKeyTy& key() const                              { return acKey; }
+    std::string keyDbg() const                              { return key().key + ' ' + statData.acId("-"); }
+
     // Search support: icao, registration, call sign, flight number matches?
     bool IsMatch (const std::string t) const;
     
@@ -317,7 +372,7 @@ public:
 };
 
 // global map of flight data, keyed by transpIcao
-typedef std::map<std::string,LTFlightData>  mapLTFlightDataTy;
+typedef std::map<LTFlightData::FDKeyTy,LTFlightData>  mapLTFlightDataTy;
 
 // the global map of all received flight data,
 // which also includes pointer to the simulated aircrafts

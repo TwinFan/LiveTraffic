@@ -97,11 +97,11 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
         
         // the key: transponder Icao code
-        std::string transpIcao (jag_s(pJAc, OPSKY_TRANSP_ICAO) );
-        str_toupper(transpIcao);
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
+                                     jag_s(pJAc, OPSKY_TRANSP_ICAO));
         
         // not matching a/c filter? -> skip it
-        if ((!acFilter.empty() && (acFilter != transpIcao)) )
+        if ((!acFilter.empty() && (fdKey != acFilter)) )
         {
             continue;
         }
@@ -113,7 +113,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[transpIcao];
+            LTFlightData& fd = fdMap[fdKey];
             
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls
@@ -121,7 +121,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // completely new? fill key fields
             if ( fd.empty() )
-                fd.SetKey(transpIcao);
+                fd.SetKey(fdKey);
             
             // fill static data
             {
@@ -162,7 +162,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( pos.isNormal(true) )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -214,7 +214,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         // fetch request from front of list and remove
         info = listAc.front();
         listAc.pop_front();
-        if (info.empty())           // empty???
+        if (info.acKey.icao.empty())        // empty or -more specifically- no ICAO code?
             continue;
         
         // delay subsequent requests
@@ -230,10 +230,10 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         pos.onGrnd = positionTy::GND_ON;            // flag for: master data
         
         // skip icao of which we know they will come back invalid
-        if ( std::find(invIcaos.cbegin(),invIcaos.cend(),info.transpIcao) == invIcaos.cend() )
+        if ( std::find(invIcaos.cbegin(),invIcaos.cend(),info.acKey.icao) == invIcaos.cend() )
         {
             // set key (transpIcao) so that other functions (GetURL) can access it
-            currKey = info.transpIcao;
+            currKey = info.acKey.icao;
             
             // make use of LTOnlineChannel's capability of reading online data
             if (LTOnlineChannel::FetchAllData(pos)) {
@@ -244,7 +244,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         bChannelOK = true;
                         break;
                     case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                        invIcaos.emplace_back(info.transpIcao);
+                        invIcaos.emplace_back(info.acKey.icao);
                         bChannelOK = true;              // but technically a valid response
                         break;
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
@@ -376,15 +376,16 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
         }
         
         // *** Meta Data ***
-        std::string transpIcao;
-        
+        // the key: transponder Icao code
+        LTFlightData::FDKeyTy fdKey;
+
         // access the meta data field group
         JSON_Object* pJAc = json_object_get_object(pMain, OPSKY_MD_GROUP);
         if (pJAc)
         {
             // fetch values from the online data
-            transpIcao          = jog_s(pJAc, OPSKY_MD_TRANSP_ICAO);
-            str_toupper(transpIcao);
+            fdKey.SetKey(LTFlightData::KEY_ICAO,
+                         jog_s(pJAc, OPSKY_MD_TRANSP_ICAO));
             statDat.reg         = jog_s(pJAc, OPSKY_MD_REG);
             statDat.country     = jog_s(pJAc, OPSKY_MD_COUNTRY);
             statDat.acTypeIcao  = jog_s(pJAc, OPSKY_MD_AC_TYPE_ICAO);
@@ -423,7 +424,8 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
         }
         
         // update the a/c's master data
-        UpdateStaticData(transpIcao, statDat);
+        if (!fdKey.empty())
+            UpdateStaticData(fdKey, statDat);
     }
     
     // we've processed all data, clear it and return success

@@ -39,18 +39,18 @@
 class TFACSearchEditWidget : public TFTextFieldWidget
 {
 protected:
-    std::string transpIcao;         // key to the a/c to display
+    LTFlightData::FDKeyTy acKey;            // key to the a/c to display
 public:
     TFACSearchEditWidget (XPWidgetID _me = NULL, const char* szKey = NULL);
 
     // Find my aircraft
-    const LTFlightData* SearchFlightData (const std::string key);
-    void SetTranspIcao (const std::string transpIcao);
+    const LTFlightData* SearchFlightData (const std::string ac_key);
+    void SetAcKey (const LTFlightData::FDKeyTy& _key);
 
     // Get the found aircraft
-    bool HasTranspIcao () const { return !transpIcao.empty(); }
-    const std::string GetTranspIcao () const { return transpIcao; }
-    unsigned int GetTranspIcaoInt () const { return (unsigned)strtoul (transpIcao.c_str(), NULL, 16); }
+    bool HasAcKey () const { return !acKey.empty(); }
+    const std::string GetAcKey () const { return acKey; }
+    unsigned int GetAcKeyNum () const { return (unsigned)strtoul (acKey.c_str(), NULL, 16); }
     LTFlightData* GetFlightData () const;
     LTAircraft* GetAircraft () const;
     

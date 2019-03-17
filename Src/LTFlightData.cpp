@@ -158,13 +158,68 @@ std::string LTFlightData::FDStaticData::flightRoute() const
     return (flight + ": ") + r;
 }
 
+// set the key value
+std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
+{
+    eKeyType = _eType;
+    num = _num;
+    return key = SetVal(eKeyType,num);
+}
+
+std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, const std::string _key, int base)
+{
+    return SetKey(_eType, std::stoul(_key, nullptr, base));
+}
+
+
+// FDKeyTy: Set any value
+std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, unsigned long _num)
+{
+    // convert to uppercase hex string
+    char buf[50];
+    switch(_eType) {
+        case KEY_OGN:
+            snprintf(buf, sizeof(buf), "%08lX", num);
+            return ogn = buf;
+        case KEY_RT:
+            snprintf(buf, sizeof(buf), "%08lX", num);
+            return rtId = buf;
+        case KEY_FLARM:
+            snprintf(buf, sizeof(buf), "%06lX", num);
+            return flarm = buf;
+        case KEY_ICAO:
+            snprintf(buf, sizeof(buf), "%06lX", num);
+            return icao = buf;
+        default:
+            // must not happen
+            LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
+            return "";
+    }
+
+}
+
+std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, const std::string _val, int base)
+{
+    return SetVal(_eType, std::stoul(_val, nullptr, base));
+}
+
+// matches any string?
+bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
+{
+    return (t == key ||
+            t == icao ||
+            t == flarm ||
+            t == rtId ||
+            t == ogn);
+}
+
+
 //
 //MARK: Flight Data
 //
 
 // Constructor
 LTFlightData::LTFlightData () :
-transpIcaoInt(0),
 rcvr(0),sig(0),
 rotateTS(NAN),
 youngestTS(0),
@@ -202,8 +257,7 @@ LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         // copy data
-        transpIcao          = fd.transpIcao;        // key
-        transpIcaoInt       = fd.transpIcaoInt;
+        acKey               = fd.acKey;             // key
         rcvr                = fd.rcvr;
         sig                 = fd.sig;
         labelStat           = fd.labelStat;
@@ -232,22 +286,11 @@ void LTFlightData::SetInvalid()
         pAc->SetInvalid();
 }
 
-// setting the key is possible only once
-void LTFlightData::SetKey( std::string key )
-{
-    if ( transpIcao.empty() ) {
-        transpIcao = key;
-        
-        // convert the hex string to an unsigned int
-        transpIcaoInt = (unsigned)strtoul ( key.c_str(), NULL, 16 );        
-    }
-}
-
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const
 {
-    // we can compare icao without lock
-    if (transpIcao == t)
+    // we can compare key without lock
+    if (acKey.isMatch(t))
         return true;
     
     // everything else must be guarded
@@ -836,8 +879,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
 // the mutex used to synch access to the list of keys which await pos calculation
 std::mutex calcNextPosListMutex;
 // and that list of pairs <key,simTime>
-typedef std::deque<std::pair<std::string,double>> dequeStrDoubleTy;
-dequeStrDoubleTy dequeKeyPosCalc;
+typedef std::pair<LTFlightData::FDKeyTy,double> keyTimePairTy;
+typedef std::deque<keyTimePairTy> dequeKeyTimeTy;
+dequeKeyTimeTy dequeKeyPosCalc;
 
 // The main function for the position calculation thread
 // It receives keys to work on in the dequeKeyPosCalc list and calls
@@ -846,7 +890,7 @@ void LTFlightData::CalcNextPosMain ()
 {
     // loop till said to stop
     while ( !bFDMainStop ) {
-        std::pair<std::string,double> pair (std::string(),0);
+        keyTimePairTy pair;
         
         // thread-safely access the list of keys to fetch one for processing
         try {
@@ -857,7 +901,7 @@ void LTFlightData::CalcNextPosMain ()
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "CalcNextPosMain", e.what());
-            pair = std::pair<std::string,double> (std::string(),0);
+            pair = keyTimePairTy();
         }
         
         // there was something in the list to process? Do so!
@@ -901,14 +945,14 @@ void LTFlightData::TriggerCalcNewPos ( double simTime )
         std::lock_guard<std::mutex> lock (calcNextPosListMutex);
         
         // search for key in the list, if already included update simTime and return
-        for (dequeStrDoubleTy::value_type &i: dequeKeyPosCalc)
+        for (keyTimePairTy &i: dequeKeyPosCalc)
             if(i.first==key()) {
                 i.second = fmax(simTime,i.second);   // update simTime to latest
                 return;
             }
         
         // not in list, so add to list of keys to calculate including simTime
-        dequeKeyPosCalc.emplace_back(std::pair(key(),simTime));
+        dequeKeyPosCalc.emplace_back(key(),simTime);
         
         // trigger the calc thread to wake up
         FDThreadSynchCV.notify_all();
@@ -1217,6 +1261,23 @@ void LTFlightData::AppendNewPos()
             
             // *** heading ***
             
+            // Most calculations and data cleansing actions base on timestamp.
+            // Here for heading we do one early check based on _distance_
+            // between adjacent positions: If the new position i / p is
+            // near (SIMILAR_POS_DIST) to std::prev(i) then we override
+            // i's heading with that of prev(i) to prevent 'dancing' planes
+            // on the spot.
+            // This has beed added when taking RealTraffic on board, which
+            // delivers 'dancing' track/heading values for stationary planes.
+            // There is no way of finding the 'right' heading in these cases,
+            // the plane points anywhere...but at least it doesn't dance.
+            if (i != posDeque.begin()) {            // is there anything before i?
+                const positionTy& prevP = *std::prev(i);
+                const vectorTy vec = prevP.between(p);
+                if (vec.dist <= SIMILAR_POS_DIST)
+                    p.heading() = prevP.heading();
+            }
+            
             // Recalc heading of adjacent positions: before p, p itself, and after p
             if (i != posDeque.begin())              // is there anything before i?
                 CalcHeading(std::prev(i));
@@ -1234,7 +1295,7 @@ void LTFlightData::AppendNewPos()
                 p.pitch() = 2;
             
             // *** roll ***
-            // TODO: Calc roll
+            // LTAircraft::CalcPPos takes care of the details
             p.roll() = 0;
             
             // *** last checks ***
@@ -1854,7 +1915,7 @@ bool LTFlightData::CreateAircraft ( double simTime )
                 // TODO: Make use of man/mdl, see issue #44
                 statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
                 LOG_MSG(logWARN,ERR_NO_AC_TYPE,
-                        transpIcao.c_str(),
+                        key().c_str(),
                         statData.man.c_str(), statData.mdl.c_str(),
                         statData.acTypeIcao.c_str());
             }
@@ -1911,7 +1972,7 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
     double bestRating = std::numeric_limits<double>::max();
     
     // walk the map of flight data
-    for ( std::pair<const std::string,LTFlightData>& fdPair: mapFd )
+    for ( std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd )
     {
         // no a/c? -> not relevant
         if (!fdPair.second.pAc)
@@ -1948,7 +2009,7 @@ LTFlightDataList::LTFlightDataList ( OrderByTy ordrBy )
 {
     // copy the entire map into a simple list
     lst.reserve(mapFd.size());
-    for ( std::pair<const std::string,LTFlightData>& fdPair: mapFd )
+    for ( std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd )
         lst.emplace_back(&fdPair.second);
     
     // apply the initial ordering

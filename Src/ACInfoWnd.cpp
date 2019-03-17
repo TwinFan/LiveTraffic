@@ -199,16 +199,16 @@ TFTextFieldWidget(_me)
 // - registration
 // - call sign
 // - flight number
-const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string key)
+const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ac_key)
 {
     mapLTFlightDataTy::const_iterator fdIter = mapFd.cend();
     
-    if (!key.empty()) {
+    if (!ac_key.empty()) {
         // is it a small integer number, i.e. used as index?
-        if (key.length() <= 3 &&
-            key.find_first_not_of("0123456789") == std::string::npos)
+        if (ac_key.length() <= 3 &&
+            ac_key.find_first_not_of("0123456789") == std::string::npos)
         {
-            int i = std::stoi(key);
+            int i = std::stoi(ac_key);
             // let's find the i-th aircraft by looping over all flight data
             // and count those objects, which have an a/c
             if (i > 0) for (fdIter = mapFd.cbegin();
@@ -225,30 +225,30 @@ const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ke
             // search the map of flight data by text key
             fdIter =
             std::find_if(mapFd.cbegin(), mapFd.cend(),
-                         [&key](const mapLTFlightDataTy::value_type& mfd)
-                         { return mfd.second.IsMatch(key); }
+                         [&ac_key](const mapLTFlightDataTy::value_type& mfd)
+                         { return mfd.second.IsMatch(ac_key); }
                          );
         }
     }
     
     // found?
     if (fdIter != mapFd.cend()) {
-        SetTranspIcao(fdIter->second.key());
+        SetAcKey(fdIter->second.key());
         // return the result
         return &fdIter->second;
     }
     
     // not found
-    transpIcao.clear();
+    acKey.clear();
     return nullptr;
 }
 
-void TFACSearchEditWidget::SetTranspIcao (const std::string _icao)
+void TFACSearchEditWidget::SetAcKey (const LTFlightData::FDKeyTy& _key)
 {
-    // remember transpIcao
-    oldDescriptor = transpIcao = _icao;
-    // replace my own content with the transpIcao hex code
-    SetDescriptor(transpIcao);
+    // remember key
+    acKey = _key;
+    // replace my own content with the new key (hex code)
+    SetDescriptor(oldDescriptor = acKey);
 }
 
 // Get my defined aircraft
@@ -260,14 +260,18 @@ void TFACSearchEditWidget::SetTranspIcao (const std::string _icao)
 //       we return. But not any longer.
 LTFlightData* TFACSearchEditWidget::GetFlightData () const
 {
+    // short-cut if there's no key
+    if (acKey.empty())
+        return nullptr;
+    
     // find the flight data by key
-    mapLTFlightDataTy::iterator fdIter = mapFd.find(transpIcao);
+    mapLTFlightDataTy::iterator fdIter = mapFd.find(acKey);
     // return flight data if found
     return fdIter != mapFd.end() ? &fdIter->second : nullptr;
 
 }
 
-// even if FlightData existis, a/c might still be NULL if not yet created!
+// even if FlightData exists, a/c might still be NULL if not yet created!
 LTAircraft* TFACSearchEditWidget::GetAircraft () const
 {
     LTFlightData* pFD = GetFlightData();
@@ -284,7 +288,7 @@ bool TFACSearchEditWidget::MsgTextFieldChanged (XPWidgetID textWidget,
     
     // it was me...so start a search with what is in my edit field
     if (text == INFO_WND_AUTO_AC)
-        transpIcao.clear();         // AUTO -> handled by main window
+        acKey.clear();              // AUTO -> handled by main window
     else
         SearchFlightData(text);     // otherwise search for the a/c
     
@@ -630,8 +634,8 @@ bool ACIWnd::UpdateFocusAc ()
     
     // find the current focus a/c and if different from current one then switch
     const LTFlightData* pFocusAc = LTFlightData::FindFocusAc(DataRefs::GetViewHeading());
-    if (pFocusAc && pFocusAc->key() != txtAcKey.GetTranspIcao()) {
-        txtAcKey.SetTranspIcao(pFocusAc->key());
+    if (pFocusAc && pFocusAc->key() != txtAcKey.GetAcKey()) {
+        txtAcKey.SetAcKey(pFocusAc->key());
         UpdateStatValues();
         UpdateDynValues();
         if (txtAcKey.HaveKeyboardFocus())
@@ -644,9 +648,9 @@ bool ACIWnd::UpdateFocusAc ()
         // Clear static values - did we actually clear anything?
         if (ClearStaticValues()) {
             // only then (i.e. the first time we really remove text)
-            // also remove the key (otherwise the user might have starte entering a new key already,
+            // also remove the key (otherwise the user might have started entering a new key already,
             // which we don't want to clear every second)
-            txtAcKey.SetTranspIcao("");
+            txtAcKey.SetAcKey(LTFlightData::FDKeyTy());
         }
         
         // start at least the timer for regular focus a/c updates
@@ -706,7 +710,7 @@ void ACIWnd::UpdateStatValues()
         
         // set as 'selected' aircraft for debug output
         dataRefs.LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)),
-                            txtAcKey.GetTranspIcaoInt());
+                            txtAcKey.GetAcKeyNum());
     } else {
         // clear static values
         ClearStaticValues();

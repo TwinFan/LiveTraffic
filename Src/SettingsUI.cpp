@@ -567,8 +567,8 @@ bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
     // *** Advanced ***
     if (txtDebugFilter == textWidget) {
         // set the filter a/c if defined
-        if (txtDebugFilter.HasTranspIcao())
-            DataRefs::LTSetDebugAcFilter(NULL,txtDebugFilter.GetTranspIcaoInt());
+        if (txtDebugFilter.HasAcKey())
+            DataRefs::LTSetDebugAcFilter(NULL,txtDebugFilter.GetAcKeyNum());
         else
             DataRefs::LTSetDebugAcFilter(NULL,0);
         return true;

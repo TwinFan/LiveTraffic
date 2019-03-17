@@ -54,6 +54,7 @@ RealTrafficConnection::~RealTrafficConnection ()
 // Does not actually fetch data (the UDP thread does that) but
 // 1. Starts the connections
 // 2. updates the RealTraffic local server with out current position
+// 3. cleans up map of datagrams for duplicate check
 bool RealTrafficConnection::FetchAllData(const positionTy& pos)
 {
     // store camera position for later calculations
@@ -73,6 +74,9 @@ bool RealTrafficConnection::FetchAllData(const positionTy& pos)
     if (IsConnected())
     {
         // TODO: Tell RT our position
+        
+        // cleanup map of last datagrams
+        CleanupMapDatagrams();
     }
     
     return true;
@@ -266,49 +270,71 @@ void RealTrafficConnection::udpListen ()
 //      XGPSPSX,-73.77869444,40.63992500,0.0,0.00,0.0
 //      XTRAFFICPSX,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936(BCS1)
 //
-bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
+bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
 {
-    // LOG_MSG(logDEBUG, "Received Traffic: %s", traffic.c_str());
-    
-    // sanity check
-    if (traffic.empty())
+    // sanity check: not empty
+    if (!traffic || !traffic[0])
         return false;
     
+    // any a/c filter defined for debugging purposes?
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+
     // split the datagram up into its parts, keeping empty positions empty
     std::vector<std::string> tfc = str_tokenize(traffic, ",()", false);
     
     // nothing found at all???
     if (tfc.size() < 1)
-    { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+    { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
     
     // There are two formats we are _really_ interested in: AITFC and XTRAFFICPSX
     // Check for them and their correct number of fields
     if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
         if (tfc.size() < RT_AITFC_NUM_FIELDS)
-        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
     } else if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
         if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
-        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
     } else
         // other format than AITFC or XTRAFFICPSX
-        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic.c_str()); return false; }
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
 
     // *** transponder code ***
     // comes in decimal form, convert to proper upper case hex
-    char transpIcao[10];
-    snprintf (transpIcao, sizeof(transpIcao), "%06X", std::stoi(tfc[RT_TFC_HEXID]));
-
+    const unsigned long numId = std::stoul(tfc[RT_TFC_HEXID]);
+    
+    // ignore aircrafts, which don't want to be tracked
+    if (numId == 0)
+        return true;            // ignore silently
+    
     // *** position time ***
     // RealTraffic doesn't send one, which really is a pitty
     // so we assume 'now', corrected by network time offset
     using namespace std::chrono;
-    double posTime = // system time in microseconds
+    const double posTime = // system time in microseconds
     double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
     // divided by 1000000 to create seconds with fractionals
     / 1000000.0
     // corrected by network time diff (which only works if also OpenSky or ADSBEx are active)
     + dataRefs.GetChTsOffset();
     
+    // check for duplicate data
+    // RealTraffic sends bursts of data every 10s, but that doesn't necessarily
+    // mean that anything really moved. Data could be stale.
+    // But as data doesn't come with a timestamp we have no means of identifying it.
+    // So here we just completely ignore data which looks exactly like the previous datagram
+    if (IsDatagramDuplicate(numId, posTime, traffic))
+        return true;            // ignore silently
+
+    // *** Process received data ***
+
+    // key is most likely an Icao transponder code, but could also be a Realtraffic internal id
+    const LTFlightData::FDKeyTy fdKey (numId <= MAX_TRANSP_ICAO ? LTFlightData::KEY_ICAO : LTFlightData::KEY_RT,
+                                       numId);
+    
+    // not matching a/c filter? -> skip it
+    if ((!acFilter.empty() && (fdKey != acFilter)))
+        return true;            // silently
+
     // *** position ***
     // RealTraffic always provides data 100km around current position
     // Let's check if the data falls into our configured range and discard it if not
@@ -320,7 +346,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
     // position is rather important, we check for validity
     // (we do allow alt=NAN if on ground)
     if ( !pos.isNormal(true) ) {
-        LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao,pos.dbgTxt().c_str());
+        LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
         return false;
     }
     
@@ -335,7 +361,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
-        LTFlightData& fd = fdMap[transpIcao];
+        LTFlightData& fd = fdMap[fdKey];
         
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
@@ -343,7 +369,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
         
         // completely new? fill key fields
         if ( fd.empty() )
-            fd.SetKey(transpIcao);
+            fd.SetKey(fdKey);
         
         // fill static data
         {
@@ -381,9 +407,10 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
             // even with traffic which definitely sits on the gnd
             // The most likely pattern for gnd traffic is "0,0,1"
             // for alt,vsi,airborn
+            // but "0,0,0" would mean the same, wouldn't it?
+            // So we test for ALT and VS only:
             if (tfc[RT_TFC_ALT]         == "0" &&
-                tfc[RT_TFC_VS]          == "0" &&
-                tfc[RT_TFC_AIRBORNE]    == "1") {
+                tfc[RT_TFC_VS]          == "0") {
                 dyn.gnd = true;
             } else {
                 // probably not on gnd, so take care of altitude
@@ -408,6 +435,57 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
     return true;
 }
 
+
+// Is it a duplicate? (if not datagram is _moved_ into a map)
+bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
+                                                 double posTime,
+                                                 const char* datagram)
+{
+    // access to map is guarded by a lock
+    std::lock_guard<std::mutex> lock(mapMutex);
+    
+    // is the plane, identified by numId unkown?
+    auto it = mapDatagrams.find(numId);
+    if (it == mapDatagrams.end()) {
+        // add the datagram the first time for this plane
+        mapDatagrams.emplace(numId, RTUDPDatagramTy(posTime,datagram));
+        // no duplicate
+        return false;
+    }
+    
+    // plane known...is the data identical? -> duplicate
+    RTUDPDatagramTy& d = it->second;
+    if (d.datagram == datagram)
+        return true;
+        
+    // plane known, but data different, replace data in map
+    d.posTime = posTime;
+    d.datagram = datagram;
+    
+    // no duplicate
+    return false;
+}
+
+// remove outdated entries from mapDatagrams
+void RealTrafficConnection::CleanupMapDatagrams()
+{
+    // access to map is guarded by a lock
+    std::lock_guard<std::mutex> lock(mapMutex);
+
+    // cut-off time is current sim time minus buffering period,
+    // or in other words: Remove all data that had no updates for
+    // an entire buffering time period
+    const double cutOff = dataRefs.GetSimTime() - dataRefs.GetFdBufPeriod();
+    
+    for (auto it = mapDatagrams.begin(); it != mapDatagrams.end(); ) {
+        if (it->second.posTime < cutOff)
+            it = mapDatagrams.erase(it);
+        else
+            ++it;            
+    }
+}
+
+
 // MARK: Weather
 // Process regular weather messages. They are important for QNH,
 // as RealTraffic doesn't adapt altitude readings in the traffic data.
@@ -431,16 +509,16 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (std::string traffic)
 //     "DISTNM": 0.3
 // }
 
-bool RealTrafficConnection::ProcessRecvedWeatherData (std::string weather)
+bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
 {
-    LOG_MSG(logDEBUG, "Received Weather: %s", weather.c_str());
-    
-    // sanity check
-    if (weather.empty())
+    // sanity check: not empty
+    if (!weather || !weather[0])
         return false;
     
+    LOG_MSG(logDEBUG, "Received Weather: %s", weather);
+    
     // interpret weather
-    JSON_Value* pRoot = json_parse_string(weather.c_str());
+    JSON_Value* pRoot = json_parse_string(weather);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return false; }
     // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot);
@@ -466,3 +544,4 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (std::string weather)
         return false;
     }
 }
+

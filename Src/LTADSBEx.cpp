@@ -83,13 +83,13 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
         
         // the key: transponder Icao code
-        std::string transpIcao ( jog_s(pJAc, ADSBEX_TRANSP_ICAO) );
-        str_toupper(transpIcao);
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
+                                     jog_s(pJAc, ADSBEX_TRANSP_ICAO));
         
         // data already stale? -> skip it
         if ( jog_b(pJAc, ADSBEX_POS_STALE) ||
             // not matching a/c filter? -> skip it
-            (!acFilter.empty() && (acFilter != transpIcao)) )
+            (!acFilter.empty() && (fdKey != acFilter)) )
         {
             continue;
         }
@@ -101,7 +101,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[transpIcao];
+            LTFlightData& fd = fdMap[fdKey];
             
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls
@@ -109,7 +109,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // completely new? fill key fields
             if ( fd.empty() )
-                fd.SetKey(transpIcao);
+                fd.SetKey(fdKey);
             
             // fill static data
             {
@@ -178,7 +178,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                   (int)jog_l(pJAc, ADSBEX_SIG),
                                   &pos);
                 else
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -441,13 +441,13 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             if (!pJAc) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
             
             // the key: transponder Icao code
-            std::string transpIcao ( jog_s(pJAc, ADSBEX_TRANSP_ICAO) );
-            str_toupper(transpIcao);
+            LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
+                                         jog_s(pJAc, ADSBEX_TRANSP_ICAO));
             
             // data already stale? -> skip it
             if ( jog_b(pJAc, ADSBEX_POS_STALE) ||
                 // not matching a/c filter? -> skip it
-                (!acFilter.empty() && (acFilter != transpIcao)) )
+                (!acFilter.empty() && (fdKey != acFilter)) )
             {
                 json_value_free (pRoot);
                 continue;
@@ -468,14 +468,17 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // stay with the same receiver minute after minute (file-to-file)
             // as this is more likely to avoid spikes when connection this
             // minute's trail with last minute's trail
-            mapLTFlightDataTy::iterator fdIter = fdMap.find(transpIcao);
+            
+
+            
+            mapLTFlightDataTy::iterator fdIter = fdMap.find(fdKey);
             if ( fdIter != fdMap.end() && fdIter->second.GetRcvr() == rcvr ) {
                 qual *= 3;
                 qual /= 2;
             }
             
             // did we find another line for this a/c earlier in this file?
-            mapFDSelectionTy::iterator selIter = selMap.find(transpIcao);
+            mapFDSelectionTy::iterator selIter = selMap.find(fdKey.icao);
             
             // if so we have to compare qualities, the better one survives
             if ( selIter != selMap.end() )
@@ -488,7 +491,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 }
             } else {
                 // first time we see this a/c in this file -> add to map
-                selMap.emplace(std::make_pair(transpIcao, FDSelection {qual, std::move(ln)} ));
+                selMap.emplace(std::make_pair(fdKey.icao, FDSelection {qual, std::move(ln)} ));
             }
             
             // done with interpreting this line
@@ -513,8 +516,9 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // get the fd object from the map, key is the transpIcao
                 // this fetches an existing or, if not existing, creates a new one
-                const std::string& transpIcao = selVal.first;
-                LTFlightData& fd = fdMap[transpIcao];
+                LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
+                                             selVal.first);
+                LTFlightData& fd = fdMap[fdKey];
                 
                 // also get the data access lock once and for all
                 // so following fetch/update calls only make quick recursive calls
@@ -522,7 +526,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // completely new? fill key fields
                 if ( fd.empty() )
-                    fd.SetKey(transpIcao);
+                    fd.SetKey(fdKey);
                 
                 // fill static
                 {
@@ -623,12 +627,12 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                                     json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
                                 // only keep new trail if it is a valid position
                                 if ( !addedTrail.isNormal() ) {
-                                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),addedTrail.dbgTxt().c_str());
+                                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
                                     trails.pop_back();  // otherwise remove right away
                                 }
                             }
                         else
-                            LOG_MSG(logERR,ADSBEX_HIST_TRAIL_ERR,transpIcao.c_str(),posTime);
+                            LOG_MSG(logERR,ADSBEX_HIST_TRAIL_ERR,fdKey.c_str(),posTime);
                     }
                     
                     // if we did find enough trails work on them
@@ -748,7 +752,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     }
                 }
                 else {
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,transpIcao.c_str(),mainPos.dbgTxt().c_str());
+                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),mainPos.dbgTxt().c_str());
                 }
             } catch(const std::system_error& e) {
                 LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

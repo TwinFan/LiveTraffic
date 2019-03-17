@@ -111,14 +111,16 @@ public:
 
 // list of a/c for which static data is yet missing
 struct acStatUpdateTy {
-    std::string transpIcao;         // to find master data
+    LTFlightData::FDKeyTy acKey;    // to find master data
     std::string callSign;           // to query route information
+    
     acStatUpdateTy() {}
-    acStatUpdateTy(std::string t, std::string c) :
-    transpIcao(t), callSign(c) {}
+    acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c) :
+    acKey(k), callSign(c) {}
+
     inline bool operator == (const acStatUpdateTy& o) const
-    { return transpIcao == o.transpIcao && callSign == o.callSign; }
-    inline bool empty () const { return transpIcao.empty() && callSign.empty(); }
+    { return acKey == o.acKey && callSign == o.callSign; }
+    inline bool empty () const { return acKey.empty() && callSign.empty(); }
 };
 typedef std::list<acStatUpdateTy> listAcStatUpdateTy;
 
@@ -135,11 +137,11 @@ protected:
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
 	LTACMasterdataChannel () {}
-    virtual bool UpdateStaticData (std::string key,
+    virtual bool UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
                                    const LTFlightData::FDStaticData& dat);
     
     // request to fetch master data
-    static void RequestMasterData (const std::string transpIcao,
+    static void RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                    const std::string callSign);
     static void ClearMasterDataRequests ();
     

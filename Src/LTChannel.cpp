@@ -192,7 +192,7 @@ void LTChannel::SetEnable (bool bEnable)
 //
 
 // fetches a/c master data and updates the respective static data in the FDMap
-bool LTACMasterdataChannel::UpdateStaticData (std::string keyAc,
+bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
                                               const LTFlightData::FDStaticData& dat)
 {
     // Find and update respective flight data
@@ -219,13 +219,13 @@ bool LTACMasterdataChannel::UpdateStaticData (std::string keyAc,
 
 // static function to add key/callSign to list of data,
 // for which master data shall be requested by a master data channel
-void LTACMasterdataChannel::RequestMasterData (const std::string transpIcao,
+void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                                const std::string callSign)
 {
     // just add the request to the request list, uniquely
     push_back_unique<listAcStatUpdateTy>
     (listAcStatUpdate,
-     acStatUpdateTy(transpIcao,callSign));
+     acStatUpdateTy(keyAc,callSign));
 }
 
 void LTACMasterdataChannel::ClearMasterDataRequests ()

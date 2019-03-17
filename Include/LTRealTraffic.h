@@ -81,6 +81,16 @@ constexpr int RT_XTRAFFICPSX_NUM_FIELDS = RT_TFC_TYPE+1;
 #define RT_WEATHER_QNH          "QNH"
 #define RT_WEATHER_METAR        "METAR"
 
+// map of id to last received datagram (for duplicate datagram detection)
+struct RTUDPDatagramTy {
+    double posTime;
+    std::string datagram;
+    
+    // we always move the datagram data
+    RTUDPDatagramTy(double _time, const char* _data) :
+    posTime(_time), datagram(_data) {}
+};
+
 //
 // MARK: RealTraffic Connection
 //
@@ -101,6 +111,9 @@ protected:
     volatile rtStatusTy status = RT_STATUS_NONE;
     // the map of flight data, where we deliver our data to
     mapLTFlightDataTy& fdMap;
+    // map of last received datagrams for duplicate detection
+    std::unordered_map<unsigned long,RTUDPDatagramTy> mapDatagrams;
+    std::mutex mapMutex;
     // current position which serves as center
     positionTy posCamera;
     // udp thread and its sockets
@@ -151,8 +164,16 @@ protected:
     static void udpListenS (RealTrafficConnection* me) { me->udpListen();}
     
     // Process received datagrams
-    bool ProcessRecvedTrafficData (std::string traffic);
-    bool ProcessRecvedWeatherData (std::string weather);
+    bool ProcessRecvedTrafficData (const char* traffic);
+    bool ProcessRecvedWeatherData (const char* weather);
+    
+    // UDP datagram duplicate check
+    // Is it a duplicate? (if not datagram is _moved_ into a map)
+    bool IsDatagramDuplicate (unsigned long numId,
+                              double posTime,
+                              const char* datagram);
+    // remove outdated entries from mapDatagrams
+    void CleanupMapDatagrams();
 };
 
 

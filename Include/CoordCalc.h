@@ -208,7 +208,8 @@ public:
 typedef std::deque<positionTy> dequePositionTy;
 
 // stringify all elements of a list for debugging purposes
-std::string positionDeque2String (const dequePositionTy& l);
+std::string positionDeque2String (const dequePositionTy& l,
+                                  const positionTy* posAfterLast = nullptr);
 
 // find youngest position with timestamp less than parameter ts
 dequePositionTy::const_iterator positionDequeFindBefore (const dequePositionTy& l, double ts);

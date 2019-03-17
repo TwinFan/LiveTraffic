@@ -732,7 +732,8 @@ bool DataRefs::FetchPAc ()
         return false;
     
     // find that key's element
-    mapLTFlightDataTy::const_iterator fdIter = mapFd.find(keyAc);
+    LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO, keyAc);
+    mapLTFlightDataTy::const_iterator fdIter = mapFd.find(fdKey);
     if (fdIter != mapFd.end()) {
         // found, save ptr to a/c
         pAc = fdIter->second.GetAircraft();
@@ -752,7 +753,7 @@ bool DataRefs::FetchPAc ()
 void DataRefs::LTSetAcKey(void*, int key)
 {
     // sanity check
-    if ( key < 0 || key > 0xFFFFFF )
+    if ( key < 0 || key > MAX_TRANSP_ICAO )
         return;
     
     // default: nothing found
@@ -811,7 +812,7 @@ int DataRefs::LTGetAcInfoI(void* p)
 
     // return a/c info
     switch ( reinterpret_cast<long long>(p) ) {
-        case DR_AC_KEY: return dataRefs.pAc->fd.keyInt();
+        case DR_AC_KEY: return (int)dataRefs.pAc->fd.key().num;
         case DR_AC_ON_GND: return dataRefs.pAc->IsOnGrnd();
         case DR_AC_PHASE: return dataRefs.pAc->GetFlightPhase();
         case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->surfaces.lights.bcnLights;
@@ -1189,7 +1190,7 @@ void DataRefs::LTSetDebugAcFilter( void* /*inRefcon*/, int i )
     bool bWasFilterDefined = dataRefs.uDebugAcFilter != 0;
     
     // match hex range of transpIcao codes
-    if ( 0x000000 <= i && i <= 0xFFFFFF ) {
+    if ( 0x000000 <= i && i <= MAX_TRANSP_ICAO ) {
         dataRefs.uDebugAcFilter = unsigned(i);
         
         // also set the key for the a/c info datarefs

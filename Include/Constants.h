@@ -59,11 +59,15 @@ constexpr double PI         = 3.141592653589793238462643383279502884197169399375
 constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 constexpr double JAN_FIRST_2019 = 1546344000;   // 01.01.2019
 constexpr double HPA_STANDARD   = 1013.25;      // air pressure
-constexpr double INCH_STANDARD  = 2992.1;
+constexpr double INCH_STANDARD  = 2992.126;
 constexpr double HPA_per_INCH   = HPA_STANDARD/INCH_STANDARD;
-constexpr double FT_per_HPA     = 30.0;         // ft altitude diff per hPa change
+// The pressure drops approximately by 11.3 Pa per meter in first 1000 meters above sea level.
+constexpr double PA_per_M       = 11.3;         // https://en.wikipedia.org/wiki/Barometric_formula
+// ft altitude diff per hPa change
+constexpr double FT_per_HPA     = (100/PA_per_M)/M_per_FT;
 
 //MARK: Flight Data-related
+constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position

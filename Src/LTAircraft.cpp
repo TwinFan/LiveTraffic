@@ -946,7 +946,15 @@ LTAircraft::operator std::string() const
              GetSpeed_kt(),
              GetVSI_ft(),
              phase, FlightPhase2String(phase).c_str());
-    return std::string(buf) + positionDeque2String(posList);
+    
+    // We'll add out position list soon. To be able to also add a vector
+    // to the first pos in the flight data we look for that
+    const positionTy* firstFdPos = nullptr;
+    const dequePositionTy& fdPosDeque = fd.GetPosDeque();
+    if (!fdPosDeque.empty())
+        firstFdPos = &(fdPosDeque.front());
+    
+    return std::string(buf) + positionDeque2String(posList, firstFdPos);
 }
 
 // Update the aircraft's label
@@ -1997,6 +2005,10 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         int cycle = XPLMGetCycleNumber();
         if ( cycle != currCycle.num )            // new cycle!
             NextCycle(cycle);
+        
+#ifdef DEBUG
+        fd.bIsSelected = bIsSelected = (key() == dataRefs.GetSelectedAcKey());
+#endif
         
         // calculate new position and return it
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized
