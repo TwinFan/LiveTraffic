@@ -237,7 +237,7 @@ protected:
     
 #ifdef DEBUG
 public:
-    bool                bIsSelected;    // is selected aircraft for debugging/logging?
+    bool                bIsSelected = false;    // is selected aircraft for debugging/logging?
 #endif
 public:
     // the lock we use to update / fetch data for thread safety
@@ -297,6 +297,7 @@ public:
     
     // based on buffered positions calculate the next position to fly to in a separate thread
     void DataCleansing (bool& bChanged);
+    void DataSmoothing (bool& bChanged);
     bool CalcNextPos ( double simTime );
     static void CalcNextPosMain ();
     void TriggerCalcNewPos ( double simTime );

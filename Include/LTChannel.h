@@ -79,6 +79,10 @@ public:
     virtual bool IsEnabled () const;
     virtual void SetEnable (bool bEnable);
     
+    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+    { gndRange = 0.0; airbRange = 0.0; return false; }
+
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fd) = 0;

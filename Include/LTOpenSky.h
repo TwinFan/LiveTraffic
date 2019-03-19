@@ -48,6 +48,9 @@ constexpr int OPSKY_VSI           = 11;              // vertical rate
 constexpr int OPSKY_ELEVATION     = 13;              // geo_altitude
 constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 
+constexpr double OPSKY_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
+constexpr double OPSKY_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
+
 //
 //MARK: OpenSky
 //
@@ -64,6 +67,9 @@ public:
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual const char* ChName() const { return OPSKY_NAME; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
+    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
 };
 
 //MARK: OpenSky Master Data Constats

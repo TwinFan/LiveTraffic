@@ -40,7 +40,9 @@
 constexpr int RT_UDP_PORT_AITRAFFIC = 49003;
 constexpr int RT_UDP_PORT_WEATHER   = 49004;
 constexpr size_t RT_UDP_BUF_SIZE    = 512;
-constexpr int RT_UDP_MAX_WAIT       = 1000;     // millisecond
+
+constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
+constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
@@ -122,6 +124,7 @@ protected:
     UDPReceiver udpWeatherData;
     // weather, esp. current barometric pressure to correct altitude values
     double hPa = HPA_STANDARD;
+    std::string lastWeather;            // for duplicate detection
     std::string metar;
     std::string metarIcao;
 
@@ -140,6 +143,9 @@ public:
     virtual void Close ();
     // SetValid also sets internal status
     virtual void SetValid (bool _valid, bool bMsg = true);
+    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
 
     // Status
     inline rtStatusTy GetStatus () const { return status; }
@@ -168,7 +174,7 @@ protected:
     bool ProcessRecvedWeatherData (const char* weather);
     
     // UDP datagram duplicate check
-    // Is it a duplicate? (if not datagram is _moved_ into a map)
+    // Is it a duplicate? (if not datagram is copied into a map)
     bool IsDatagramDuplicate (unsigned long numId,
                               double posTime,
                               const char* datagram);

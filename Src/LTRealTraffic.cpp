@@ -173,8 +173,8 @@ void RealTrafficConnection::udpListen ()
     
     try {
         // Open the UDP port
-        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_UDP_BUF_SIZE, RT_UDP_MAX_WAIT);
-        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_UDP_BUF_SIZE, RT_UDP_MAX_WAIT);
+        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_UDP_BUF_SIZE);
+        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_UDP_BUF_SIZE);
         const int maxSock = std::max(udpTrafficData.getSocket(),
                                      udpWeatherData.getSocket()) + 1;
 
@@ -436,7 +436,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
 }
 
 
-// Is it a duplicate? (if not datagram is _moved_ into a map)
+// Is it a duplicate? (if not datagram is copied into a map)
 bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
                                                  double posTime,
                                                  const char* datagram)
@@ -515,7 +515,12 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
     if (!weather || !weather[0])
         return false;
     
-    LOG_MSG(logDEBUG, "Received Weather: %s", weather);
+    // duplicate?
+    if (lastWeather == weather)
+        return true;            // ignore silently
+    lastWeather = weather;
+    
+    LOG_MSG(logDEBUG, "Received new Weather: %s", weather);
     
     // interpret weather
     JSON_Value* pRoot = json_parse_string(weather);
