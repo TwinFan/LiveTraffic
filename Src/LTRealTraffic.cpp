@@ -66,21 +66,35 @@ bool RealTrafficConnection::FetchAllData(const positionTy& pos)
     }
     
     // need to start up?
-    if (status == RT_STATUS_NONE) {
-        return StartConnections();
-    }
+    if (status != RT_STATUS_CONNECTED_FULL &&
+        !StartConnections())
+        return false;
     
     // do anything only in a normal status
     if (IsConnected())
     {
-        // TODO: Tell RT our position
+        // Send current position
+        SendUsersPlanePos();
         
         // cleanup map of last datagrams
         CleanupMapDatagrams();
+        
+        // map is empty? That only happens if we don't receive data
+        // continuously
+        if (mapDatagrams.empty())
+            // se Udp status to unavailable, but keep listener running
+            SetStatusUdp(false, false);
     }
     
     return true;
 }
+
+// if channel is disabled make sure all connections are closed
+void RealTrafficConnection::DoDisabledProcessing()
+{
+    StopConnections();
+}
+
 
 // closes all connections
 void RealTrafficConnection::Close()
@@ -91,9 +105,118 @@ void RealTrafficConnection::Close()
 // sets the status and updates global text to show elsewhere
 void RealTrafficConnection::SetStatus(rtStatusTy s)
 {
+    // consistent status decision
+    std::lock_guard<std::recursive_mutex> lock(rtMutex);
+
     status = s;
     LOG_MSG(logINFO, MSG_RT_STATUS,
             s == RT_STATUS_NONE ? "Stopped" : GetStatusStr().c_str());
+}
+
+void RealTrafficConnection::SetStatusTcp(bool bEnable, bool bStopTcp)
+{
+    static bool bInCall = false;
+    
+    // avoid recursiv calls from error handlers
+    if (bInCall)
+        return;
+    bInCall = true;
+    
+    // consistent status decision
+    std::lock_guard<std::recursive_mutex> lock(rtMutex);
+
+    if (bEnable) switch (status) {
+        case RT_STATUS_NONE:
+        case RT_STATUS_STARTING:
+            SetStatus(RT_STATUS_CONNECTED_TO);
+            break;
+        case RT_STATUS_CONNECTED_PASSIVELY:
+            SetStatus(RT_STATUS_CONNECTED_FULL);
+            break;
+        case RT_STATUS_CONNECTED_TO:
+        case RT_STATUS_CONNECTED_FULL:
+        case RT_STATUS_STOPPING:
+            // no change
+            break;
+    } else {
+        // Disable - also disconnect, otherwise restart wouldn't work
+        if (bStopTcp)
+            StopTcpConnection();
+        
+        // set status
+        switch (status) {
+        case RT_STATUS_NONE:
+        case RT_STATUS_STARTING:
+        case RT_STATUS_CONNECTED_PASSIVELY:
+        case RT_STATUS_STOPPING:
+            // no change
+            break;
+        case RT_STATUS_CONNECTED_TO:
+            SetStatus(RT_STATUS_STARTING);
+            break;
+        case RT_STATUS_CONNECTED_FULL:
+            SetStatus(RT_STATUS_CONNECTED_PASSIVELY);
+            break;
+
+        }
+        
+    }
+    
+    bInCall = false;
+
+}
+
+void RealTrafficConnection::SetStatusUdp(bool bEnable, bool bStopUdp)
+{
+    static bool bInCall = false;
+    
+    // avoid recursiv calls from error handlers
+    if (bInCall)
+        return;
+    bInCall = true;
+    
+    // consistent status decision
+    std::lock_guard<std::recursive_mutex> lock(rtMutex);
+    
+    if (bEnable) switch (status) {
+        case RT_STATUS_NONE:
+        case RT_STATUS_STARTING:
+            SetStatus(RT_STATUS_CONNECTED_PASSIVELY);
+            break;
+        case RT_STATUS_CONNECTED_TO:
+            SetStatus(RT_STATUS_CONNECTED_FULL);
+            break;
+        case RT_STATUS_CONNECTED_PASSIVELY:
+        case RT_STATUS_CONNECTED_FULL:
+        case RT_STATUS_STOPPING:
+            // no change
+            break;
+    } else {
+        // Disable - also disconnect, otherwise restart wouldn't work
+        if (bStopUdp)
+            StopUdpConnection();
+        
+        // reset weather
+        InitWeather();
+        
+        // set status
+        switch (status) {
+        case RT_STATUS_NONE:
+        case RT_STATUS_STARTING:
+        case RT_STATUS_CONNECTED_TO:
+        case RT_STATUS_STOPPING:
+            // no change
+            break;
+        case RT_STATUS_CONNECTED_PASSIVELY:
+            SetStatus(RT_STATUS_STARTING);
+            break;
+        case RT_STATUS_CONNECTED_FULL:
+            SetStatus(RT_STATUS_CONNECTED_TO);
+            break;
+        }
+    }
+    
+    bInCall = false;
 }
     
 std::string RealTrafficConnection::GetStatusStr() const
@@ -118,16 +241,32 @@ void RealTrafficConnection::SetValid (bool _valid, bool bMsg)
     LTOnlineChannel::SetValid(_valid, bMsg);
 }
 
-// starts the UDP listening thread
+// starts all networking threads
 bool RealTrafficConnection::StartConnections()
 {
-    // the thread should not be running already
-    if (thrUdpListener.joinable())
-        return true;
+    // don't start if we shall stop
+    if (status == RT_STATUS_STOPPING)
+        return false;
     
-    // now go start the threads
-    SetStatus(RT_STATUS_STARTING);
-    thrUdpListener = std::thread (udpListenS, this);
+    // set startup status
+    if (status == RT_STATUS_NONE)
+        SetStatus(RT_STATUS_STARTING);
+    
+    // *** TCP server for RealTraffic to connect to ***
+    if (!thrTcpRunning && !tcpPosSender.IsConnected()) {
+        if (thrTcpServer.joinable())
+            thrTcpServer.join();
+        thrTcpRunning = true;
+        thrTcpServer = std::thread (tcpConnectionS, this);
+    }
+    
+    // *** UDP data listener ***
+    if (!thrUdpRunning) {
+        if (thrUdpListener.joinable())
+            thrUdpListener.join();
+        thrUdpRunning = true;
+        thrUdpListener = std::thread (udpListenS, this);
+    }
     
     // looks ok
     return true;
@@ -143,21 +282,125 @@ bool RealTrafficConnection::StopConnections()
     // tell the threads to stop now
     SetStatus(RT_STATUS_STOPPING);
 
-    // close all connections, this will also break out of all
-    // blocking calls for receiving message and hence terminate the threads
-    udpTrafficData.Close();
-    udpWeatherData.Close();
-
-    // wait for threads to finish (as they wake up periodically only this can take a moment)
-    if (thrUdpListener.joinable()) {
-        thrUdpListener.join();
-        thrUdpListener = std::thread();
-    }
+    // stop both TCP and UDP
+    StopTcpConnection();
+    StopUdpConnection();
 
     // stopped
     SetStatus(RT_STATUS_NONE);
     return true;
 }
+
+
+
+//
+// MARK: TCP Connection
+//
+
+void RealTrafficConnection::tcpConnection ()
+{
+    // sanity check: return in case of wrong status
+    if (!IsConnecting()) {
+        thrTcpRunning = false;
+        return;
+    }
+    
+    // port to use is configurable
+    int tcpPort = dataRefs.GetRTPort();
+    
+    try {
+        bStopTcp = false;
+        tcpPosSender.Open (RT_LOCALHOST, tcpPort, RT_NET_BUF_SIZE);
+        if (tcpPosSender.listenAccept()) {
+            // so we did accept a connection!
+            SetStatusTcp(true, false);
+            // send our first position
+            SendUsersPlanePos();
+        }
+        else
+        {
+            // short-cut if we are to shut down (return from 'select' due to closed socket)
+            if (!bStopTcp) {
+                // not forced to shut down...report other problem
+                SHOW_MSG(logERR,ERR_TCP_CANTLISTEN);
+                SetStatusTcp(false, true);
+            }
+        }
+    }
+    catch (std::runtime_error e) {
+        LOG_MSG(logERR, ERR_TCP_LISTENACCEPT,
+                RT_LOCALHOST, std::to_string(tcpPort).c_str(),
+                e.what());
+        // invalidate the channel
+        SetStatusTcp(false, true);
+        SetValid(false, true);
+    }
+    
+    // We make sure that, once leaving this thread, there is no
+    // open listener (there might be a connected socket, though)
+    tcpPosSender.CloseListenerOnly();
+    thrTcpRunning = false;
+}
+
+bool RealTrafficConnection::StopTcpConnection ()
+{
+    // close all connections, this will also break out of all
+    // blocking calls for receiving message and hence terminate the threads
+    bStopTcp = true;
+    tcpPosSender.Close();
+    
+    // wait for threads to finish (if I'm not myself this thread...)
+    if (std::this_thread::get_id() != thrTcpServer.get_id()) {
+        if (thrTcpServer.joinable())
+            thrTcpServer.join();
+        thrTcpServer = std::thread();
+    }
+    
+    return true;
+}
+
+
+// send position to RealTraffic so that RT knows which area
+// we are interested and to give us local weather
+// Example:
+// “Qs121=6747;289;5.449771266137578;37988724;501908;0.6564195830703577;-2.1443275933742236”
+void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
+{
+    if (!tcpPosSender.IsConnected())
+    { LOG_MSG(logWARN,ERR_TCP_NOTCONNECTED); return; }
+        
+    if (!pos.isFullyValid())
+    { LOG_MSG(logWARN,ERR_TCP_INV_POS); return; }
+
+    // format the string to send
+    char s[200];
+    snprintf(s,sizeof(s),
+             "Qs121=%ld;%ld;%.15f;%ld;%ld;%.15f;%.15f\n",
+             lround(deg2rad(pos.pitch()) * 100000.0),   // pitch
+             lround(deg2rad(pos.roll()) * 100000.0),    // bank/roll
+             deg2rad(pos.heading()),                    // heading
+             lround(pos.alt_ft() * 1000.0),             // altitude
+             lround(speed_m),                           // speed
+             deg2rad(pos.lat()),                        // latitude
+             deg2rad(pos.lon())                         // longitude
+    );
+    
+    // send the string
+    if (!tcpPosSender.write(s)) {
+        LOG_MSG(logERR,ERR_TCP_WRITE_FAILED);
+        SetStatusTcp(false, true);
+    }
+}
+
+// send the position of the user's plane
+void RealTrafficConnection::SendUsersPlanePos()
+{
+    double airSpeed_m = 0.0;
+    positionTy pos = dataRefs.GetUsersPlanePos(airSpeed_m);
+    SendPos(pos, airSpeed_m);
+}
+
+
 
 //
 // MARK: UDP Listen Thread - Traffic
@@ -168,19 +411,22 @@ bool RealTrafficConnection::StopConnections()
 void RealTrafficConnection::udpListen ()
 {
     // sanity check: return in case of wrong status
-    if (!IsConnecting())
+    if (!IsConnecting()) {
+        thrUdpRunning = false;
         return;
+    }
     
     try {
         // Open the UDP port
-        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_UDP_BUF_SIZE);
-        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_UDP_BUF_SIZE);
+        bStopUdp = false;
+        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_NET_BUF_SIZE);
+        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_NET_BUF_SIZE);
         const int maxSock = std::max(udpTrafficData.getSocket(),
                                      udpWeatherData.getSocket()) + 1;
 
         // return from the thread when requested
         // (not checking for weather socker...not essential)
-        while (udpTrafficData.isOpen() && IsConnecting())
+        while (udpTrafficData.isOpen() && IsConnecting() && !bStopUdp)
         {
             // wait for a UDP datagram on either socket (traffic, weather)
             fd_set sRead;
@@ -190,12 +436,12 @@ void RealTrafficConnection::udpListen ()
             int retval = select(maxSock, &sRead, NULL, NULL, NULL);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (status == RT_STATUS_STOPPING)
+            if (bStopUdp)
                 break;
 
             // select call failed???
             if(retval == -1)
-                throw UDPRuntimeError("'select' failed");
+                throw NetRuntimeError("'select' failed");
 
             // select successful - traffic data
             if (retval > 0 && FD_ISSET(udpTrafficData.getSocket(), &sRead))
@@ -207,10 +453,8 @@ void RealTrafficConnection::udpListen ()
                 if (rcvdBytes > 0)
                 {
                     // yea, we received something!
-                    if (status == RT_STATUS_STARTING)
-                        SetStatus(RT_STATUS_CONNECTED_PASSIVELY);
-                    else if (status == RT_STATUS_CONNECTED_TO)
-                        SetStatus(RT_STATUS_CONNECTED_FULL);
+                    SetStatusUdp(true, false);
+
                     // have it processed
                     ProcessRecvedTrafficData(udpTrafficData.getBuf());
                 }
@@ -235,7 +479,7 @@ void RealTrafficConnection::udpListen ()
             }
             
             // short-cut if we are to shut down
-            if (status == RT_STATUS_STOPPING)
+            if (bStopUdp)
                 break;
             
             // handling of errors, both from select and from recv
@@ -245,8 +489,10 @@ void RealTrafficConnection::udpListen ()
                 strerror_s(sErr, sizeof(sErr), errno);
                 LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, sErr);
                 // increase error count...bail out if too bad
-                if (!IncErrCnt())
+                if (!IncErrCnt()) {
+                    SetStatusUdp(false, true);
                     break;
+                }
             }
         }
     }
@@ -256,9 +502,35 @@ void RealTrafficConnection::udpListen ()
                 RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC,
                 e.what());
         // invalidate the channel
+        SetStatusUdp(false, true);
         SetValid(false, true);
     }
+    
+    // Let's make absolutely sure that any connection is really closed
+    // once we return from this thread
+    udpTrafficData.Close();
+    udpWeatherData.Close();
+    thrUdpRunning = false;
 }
+
+bool RealTrafficConnection::StopUdpConnection ()
+{
+    // close all connections, this will also break out of all
+    // blocking calls for receiving message and hence terminate the threads
+    bStopUdp = true;
+    udpTrafficData.Close();
+    udpWeatherData.Close();
+    
+    // wait for thread to finish if I'm not this thread myself
+    if (std::this_thread::get_id() != thrUdpListener.get_id()) {
+        if (thrUdpListener.joinable())
+            thrUdpListener.join();
+        thrUdpListener = std::thread();
+    }
+    
+    return true;
+}
+
 
 // MARK: Traffic
 // Process received traffic data.
@@ -404,13 +676,16 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
             
             // *** gnd detection hack ***
             // RealTraffic keeps the airborne flag always 1,
-            // even with traffic which definitely sits on the gnd
-            // The most likely pattern for gnd traffic is "0,0,1"
-            // for alt,vsi,airborn
-            // but "0,0,0" would mean the same, wouldn't it?
-            // So we test for ALT and VS only:
-            if (tfc[RT_TFC_ALT]         == "0" &&
-                tfc[RT_TFC_VS]          == "0") {
+            // even with traffic which definitely sits on the gnd.
+            // Also, reported altitude never seems to become negative,
+            // though this would be required in high pressure weather
+            // at airports roughly at sea level.
+            // If "0" is reported we assume "on gnd" and bypass
+            // the pressure correction.
+            // Otherwise we need to completely
+            // rely on our own altitude-to-ground detection.
+            if (tfc[RT_TFC_ALT]         == "0") {
+                pos.alt_m() = NAN;          // have proper gnd altitude calculated
                 dyn.gnd = true;
             } else {
                 // probably not on gnd, so take care of altitude
@@ -441,8 +716,8 @@ bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
                                                  double posTime,
                                                  const char* datagram)
 {
-    // access to map is guarded by a lock
-    std::lock_guard<std::mutex> lock(mapMutex);
+    // access is guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(rtMutex);
     
     // is the plane, identified by numId unkown?
     auto it = mapDatagrams.find(numId);
@@ -469,13 +744,13 @@ bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
 // remove outdated entries from mapDatagrams
 void RealTrafficConnection::CleanupMapDatagrams()
 {
-    // access to map is guarded by a lock
-    std::lock_guard<std::mutex> lock(mapMutex);
+    // access is guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(rtMutex);
 
-    // cut-off time is current sim time minus buffering period,
+    // cut-off time is current sim time minus outdated interval,
     // or in other words: Remove all data that had no updates for
-    // an entire buffering time period
-    const double cutOff = dataRefs.GetSimTime() - dataRefs.GetFdBufPeriod();
+    // the outdated period, planes will vanish soon anyway
+    const double cutOff = dataRefs.GetSimTime() - dataRefs.GetAcOutdatedIntvl();
     
     for (auto it = mapDatagrams.begin(); it != mapDatagrams.end(); ) {
         if (it->second.posTime < cutOff)
@@ -550,3 +825,11 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
     }
 }
 
+// initialize weather info
+void RealTrafficConnection::InitWeather()
+{
+    hPa = HPA_STANDARD;
+    lastWeather.clear();
+    metar.clear();
+    metarIcao.clear();
+}

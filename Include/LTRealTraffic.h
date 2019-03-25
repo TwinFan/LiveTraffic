@@ -39,13 +39,19 @@
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr int RT_UDP_PORT_AITRAFFIC = 49003;
 constexpr int RT_UDP_PORT_WEATHER   = 49004;
-constexpr size_t RT_UDP_BUF_SIZE    = 512;
+constexpr size_t RT_NET_BUF_SIZE    = 512;
 
 constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
 constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
+
+#define ERR_TCP_LISTENACCEPT    "RealTraffic: Error opening the TCP port on %s:%s: %s"
+#define ERR_TCP_CANTLISTEN      "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
+#define ERR_TCP_NOTCONNECTED    "RealTraffic: Cannot send position: not connected"
+#define ERR_TCP_INV_POS         "RealTraffic: Cannot send position: position not fully valid"
+#define ERR_TCP_WRITE_FAILED    "RealTraffic: Could not send position: write operation failed"
 
 #define ERR_UDP_RCVR_OPEN       "RealTraffic: Error creating UDP receiver for %s:%d: %s"
 #define ERR_UDP_RCVR_RCVR       "RealTraffic: Error receiving from %s:%d: %s"
@@ -109,19 +115,29 @@ public:
     };
 
 protected:
+    // general lock to synch thread access to object members
+    std::recursive_mutex rtMutex;
     // RealTraffic connection status
     volatile rtStatusTy status = RT_STATUS_NONE;
     // the map of flight data, where we deliver our data to
     mapLTFlightDataTy& fdMap;
-    // map of last received datagrams for duplicate detection
-    std::unordered_map<unsigned long,RTUDPDatagramTy> mapDatagrams;
-    std::mutex mapMutex;
+
+    // tcp connection to send current position
+    std::thread thrTcpServer;
+    TCPConnection tcpPosSender;
+    volatile bool bStopTcp = false;
+    volatile bool thrTcpRunning = false;
     // current position which serves as center
     positionTy posCamera;
+
     // udp thread and its sockets
     std::thread thrUdpListener;
     UDPReceiver udpTrafficData;
     UDPReceiver udpWeatherData;
+    volatile bool bStopUdp = false;
+    volatile bool thrUdpRunning = false;
+    // map of last received datagrams for duplicate detection
+    std::unordered_map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     // weather, esp. current barometric pressure to correct altitude values
     double hPa = HPA_STANDARD;
     std::string lastWeather;            // for duplicate detection
@@ -140,6 +156,7 @@ public:
     // interface called from LTChannel
     virtual bool FetchAllData(const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap) { return true; }
+    virtual void DoDisabledProcessing();
     virtual void Close ();
     // SetValid also sets internal status
     virtual void SetValid (bool _valid, bool bMsg = true);
@@ -153,6 +170,8 @@ public:
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
     void SetStatus (rtStatusTy s);
+    void SetStatusTcp (bool bEnable, bool bStopTcp);
+    void SetStatusUdp (bool bEnable, bool bStopUdp);
     
     // Weather
     inline double GetHPA() const { return hPa; }
@@ -164,11 +183,21 @@ public:
     bool StopConnections ();
     
 protected:
+    // MARK: TCP
+    void tcpConnection ();
+    static void tcpConnectionS (RealTrafficConnection* me) { me->tcpConnection();}
+    bool StopTcpConnection ();
+
+    void SendPos (const positionTy& pos, double speed_m);
+    void SendUsersPlanePos();
+
+    // MARK: UDP
     // UDP Listen: the main function for receiving UDP broadcasts
     void udpListen ();
     // just a wrapper to call a member function
     static void udpListenS (RealTrafficConnection* me) { me->udpListen();}
-    
+    bool StopUdpConnection ();
+
     // Process received datagrams
     bool ProcessRecvedTrafficData (const char* traffic);
     bool ProcessRecvedWeatherData (const char* weather);
@@ -180,6 +209,9 @@ protected:
                               const char* datagram);
     // remove outdated entries from mapDatagrams
     void CleanupMapDatagrams();
+    
+    // initialize weather info
+    void InitWeather();
 };
 
 

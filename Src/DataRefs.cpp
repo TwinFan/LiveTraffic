@@ -183,6 +183,7 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/true_theta",
     "sim/flightmodel/position/true_phi",
     "sim/flightmodel/position/true_psi",
+    "sim/flightmodel/position/true_airspeed",
     "sim/flightmodel/failures/onground_any",
     "sim/graphics/VR/enabled",
     "sim/graphics/view/pilots_head_x",
@@ -289,6 +290,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/port",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -327,6 +329,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_RT_PORT:                return &rtPort;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
@@ -672,7 +675,7 @@ bool DataRefs::RegisterCommands()
 }
 
 // return user's plane pos
-positionTy DataRefs::GetUsersPlanePos() const
+positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m ) const
 {
     positionTy pos
     (
@@ -689,6 +692,9 @@ positionTy DataRefs::GetUsersPlanePos() const
     // make invalid pos invalid
     if (pos.lat() < -75 || pos.lat() > 75)
         pos.lat() = NAN;
+    
+    // also fetch true airspeed
+    trueAirspeed_m = XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
     
     return pos;
 }

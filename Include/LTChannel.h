@@ -86,6 +86,8 @@ public:
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fd) = 0;
+    // do something while disabled?
+    virtual void DoDisabledProcessing () {}
     // (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
     virtual void Close () {}
 };

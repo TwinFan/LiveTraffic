@@ -43,21 +43,20 @@
 // and port combinaison cannot be resolved or if the socket cannot be
 // opened.
 
-class UDPRuntimeError : public std::runtime_error
+class NetRuntimeError : public std::runtime_error
 {
 public:
-    UDPRuntimeError(const char *w) : std::runtime_error(w) {}
+    std::string errTxt;
+    NetRuntimeError(const char *w);
 };
 
-// Receives UDP messages
-
-class UDPReceiver
+// Base class for socket-based networking
+class SocketNetworking
 {
-private:
+protected:
     int                 f_socket        = -1;
     int                 f_port          = 0;
     std::string         f_addr;
-    struct addrinfo *   f_addrinfo      = NULL;
     
     // the data receive buffer
     char*               buf             = NULL;
@@ -65,29 +64,86 @@ private:
 
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
-    UDPReceiver() {}
-    UDPReceiver(const std::string& addr, int port, size_t bufSize,
-                unsigned timeOut_ms = 0);
-    virtual ~UDPReceiver();
+    SocketNetworking() {}
+    SocketNetworking(const std::string& addr, int port, size_t bufSize,
+                     unsigned timeOut_ms = 0);
+    virtual ~SocketNetworking();
+
     // opens/closes the socket
-    void Open(const std::string& addr, int port, size_t bufSize,
-              unsigned timeOut_ms = 0);
-    void Close();
+    virtual void Open(const std::string& addr, int port, size_t bufSize,
+                      unsigned timeOut_ms = 0);
+    virtual void Close();
     inline bool isOpen() const { return (f_socket >= 0); }
     
     void SetBufSize (size_t _bufSize);
+    std::string GetLastErr();
     
     // attribute access
     inline int          getSocket() const   { return f_socket; }
     inline int          getPort() const     { return f_port; }
     inline std::string  getAddr() const     { return f_addr; }
+
+    // return the buffer
+    const char* getBuf () const  { return buf ? buf : ""; }
     
-    // receive a UDP datagram
+    // receive messages
     long                recv();
     long                timedRecv(int max_wait_ms);
     
-    // return the buffer
-    const char* getBuf () const  { return buf ? buf : ""; }
+    // convert addresses to string
+    static std::string GetAddrString (const struct sockaddr* addr);
+    
+protected:
+    // subclass tell which addresses to look for
+    virtual void GetAddrHints (struct addrinfo& hints) = 0;
+};
+
+// Receives UDP messages
+
+class UDPReceiver : public SocketNetworking
+{
+public:
+    // The address is a string and it can represent an IPv4 or IPv6 address.
+    UDPReceiver() : SocketNetworking() {}
+    UDPReceiver(const std::string& addr, int port, size_t bufSize,
+                unsigned timeOut_ms = 0) :
+        SocketNetworking(addr,port,bufSize,timeOut_ms) {}
+    
+    
+protected:
+    virtual void GetAddrHints (struct addrinfo& hints);
+};
+
+// Receives TCP connections
+
+class TCPConnection : public SocketNetworking
+{
+protected:
+    int                 f_session_socket = -1;
+    struct sockaddr_in  f_session_addr;
+    
+public:
+    // The address is a string and it can represent an IPv4 or IPv6 address.
+    TCPConnection() : SocketNetworking() {}
+    TCPConnection(const std::string& addr, int port, size_t bufSize,
+                  unsigned timeOut_ms = 0) :
+        SocketNetworking(addr,port,bufSize,timeOut_ms) {}
+    
+    virtual void Close();       // also close session connection
+    void CloseListenerOnly();   // only closes the listening socket, but not a session connection
+
+    // Listen for and accept connections
+    void listen (int numConnections = 1);
+    bool accept (bool bUnlisten = false);
+    bool listenAccept (int numConnections = 1);
+    
+    bool IsConnected () const { return f_session_socket >= 0; };
+    
+    // write messages on session connection
+    bool write(const char* msg);
+
+protected:
+    virtual void GetAddrHints (struct addrinfo& hints);
 };
 
 #endif /* Network_h */

@@ -65,6 +65,7 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_BTN_OPENSKY_MASTERDATA,
     UI_BASICS_BTN_ADSB_LIVE,
     UI_BASICS_BTN_REALTRAFFIC_LIVE,
+    UI_BASICS_INT_REALTRAFFIC_PORT,
     UI_BASICS_CAP_REALTRAFFIC_STATUS,
     UI_BASICS_CAP_REALTRAFFIC_METAR,
 
@@ -214,9 +215,10 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  70,  10,  10, 1, "OpenSky Network",      0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange",       0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 125,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  80, 123,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    {  20, 140,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10, 125,  10,  10, 1, "RealTraffic | Port:",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { -50, 125, -10,  15, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    {   5, 140,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 155,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
     {   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -396,6 +398,9 @@ void LTSettingsUI::Enable()
                              DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE]);
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
         capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
+        intRealTrafficPort.setId(widgetIds[UI_BASICS_INT_REALTRAFFIC_PORT],
+                                 DATA_REFS_LT[DR_CFG_RT_PORT]);
+
         UpdateRealTraffic();
         
         // * right-hand side *

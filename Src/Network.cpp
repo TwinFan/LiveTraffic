@@ -33,41 +33,65 @@
 #include "LiveTraffic.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
-UDPReceiver::UDPReceiver(const std::string& addr, int port,
-                         size_t bufSize, unsigned timeOut_ms) :
+//
+// MARK: SocketNetworking
+//
+
+NetRuntimeError::NetRuntimeError(const char *w) :
+std::runtime_error(w)
+{
+    // make network error available
+    char sErr[SERR_LEN];
+    strerror_s(sErr, sizeof(sErr), errno);
+    errTxt = sErr;              // copy
+}
+
+SocketNetworking::SocketNetworking(const std::string& addr, int port,
+                                   size_t bufSize, unsigned timeOut_ms) :
 f_port(port), f_addr(addr)
 {
     // open the socket
     Open(addr, port, bufSize, timeOut_ms);
 }
 
-// cleanup: make sure the socket is closed
-UDPReceiver::~UDPReceiver()
+// cleanup: make sure the socket is closed and all memory cleanup up
+SocketNetworking::~SocketNetworking()
 {
     Close();
 }
 
-void UDPReceiver::Open(const std::string& addr, int port,
+void SocketNetworking::Open(const std::string& addr, int port,
                        size_t _bufSize, unsigned timeOut_ms)
 {
+    struct addrinfo *   addrinfo      = NULL;
     try {
+        // store member values
         f_port = port;
         f_addr = addr;
-
         const std::string decimal_port(std::to_string(f_port));
 
+        // get a valid address based on inAddr/port
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        GetAddrHints(hints);            // ask subclasses
+        
+        int r = getaddrinfo(f_addr.c_str(), decimal_port.c_str(), &hints, &addrinfo);
+        if(r != 0 || addrinfo == NULL)
+            throw NetRuntimeError(("invalid address or port for socket: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+        
         // get a socket
-        f_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        f_socket = socket(addrinfo->ai_family, addrinfo->ai_socktype, addrinfo->ai_protocol);
         if(f_socket == -1)
-            throw UDPRuntimeError(("could not create UDP socket for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+            throw NetRuntimeError(("could not create socket for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
         
         // Reuse address and port to allow others to connect, too
         int setToVal = 1;
         if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, &setToVal, sizeof(setToVal)) < 0)
-            throw UDPRuntimeError(("could not setsockopt SO_REUSEADDR for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+            throw NetRuntimeError(("could not setsockopt SO_REUSEADDR for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
         if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEPORT, &setToVal, sizeof(setToVal)) < 0)
-            throw UDPRuntimeError(("could not setsockopt SO_REUSEPORT for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+            throw NetRuntimeError(("could not setsockopt SO_REUSEPORT for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
 
         // define receive timeout
@@ -78,30 +102,28 @@ void UDPReceiver::Open(const std::string& addr, int port,
         timeout.tv_sec = timeOut_ms / 1000;
         timeout.tv_usec = (timeOut_ms % 1000) * 1000;
         if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
-            throw UDPRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+            throw NetRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 #endif
 
-        // get a valid address based on inAddr/port
-        struct addrinfo hints;
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_flags = AI_PASSIVE;
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_DGRAM;
-        hints.ai_protocol = IPPROTO_UDP;
-        
-        int r = getaddrinfo(f_addr.c_str(), decimal_port.c_str(), &hints, &f_addrinfo);
-        if(r != 0 || f_addrinfo == NULL)
-            throw UDPRuntimeError(("invalid address or port for UDP socket: \"" + f_addr + ":" + decimal_port + "\"").c_str());
-
         // bind the socket to the address:port
-        r = bind(f_socket, f_addrinfo->ai_addr, f_addrinfo->ai_addrlen);
+        r = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
         if(r != 0)
-            throw UDPRuntimeError(("could not bind UDP socket with: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+            throw NetRuntimeError(("could not bind UDP socket with: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
-        // reserve buffer
+        // free adress info
+        freeaddrinfo(addrinfo);
+        addrinfo = NULL;
+
+        // reserve receive buffer
         SetBufSize(_bufSize);
     }
     catch (...) {
+        // free adress info
+        if (addrinfo) {
+            freeaddrinfo(addrinfo);
+            addrinfo = NULL;
+        }
+        // make sure everything is closed
         Close();
         // re-throw
         throw;
@@ -112,7 +134,7 @@ void UDPReceiver::Open(const std::string& addr, int port,
  *
  // Close: This function frees the address info structures and close the socket.
  */
-void UDPReceiver::Close()
+void SocketNetworking::Close()
 {
     // cleanup
     if (f_socket >= 0) {
@@ -120,17 +142,12 @@ void UDPReceiver::Close()
         f_socket = -1;
     }
     
-    if (f_addrinfo) {
-        freeaddrinfo(f_addrinfo);
-        f_addrinfo = NULL;
-    }
-    
     // release buffer
     SetBufSize(0);
 }
 
 // allocates the receiving buffer
-void UDPReceiver::SetBufSize(size_t _bufSize)
+void SocketNetworking::SetBufSize(size_t _bufSize)
 {
     // remove existing buffer
     if (buf) {
@@ -144,6 +161,14 @@ void UDPReceiver::SetBufSize(size_t _bufSize)
         buf = new char[bufSize=_bufSize];
         memset(buf, 0, bufSize);
     }
+}
+
+// updates the error text and returns it
+std::string SocketNetworking::GetLastErr()
+{
+    char sErr[SERR_LEN];
+    strerror_s(sErr, sizeof(sErr), errno);
+    return std::string(sErr);
 }
 
 
@@ -164,7 +189,7 @@ void UDPReceiver::SetBufSize(size_t _bufSize)
  *
  * \return The number of bytes read or -1 if an error occurs.
  */
-long UDPReceiver::recv()
+long SocketNetworking::recv()
 {
     if (!buf) {
         errno = ENOMEM;
@@ -193,13 +218,11 @@ long UDPReceiver::recv()
  * This function blocks for a maximum amount of time as defined by
  * max_wait_ms. It may return sooner with an error or a message.
  *
- * \param[in] msg  The buffer where the message will be saved.
- * \param[in] max_size  The size of the \p msg buffer in bytes.
  * \param[in] max_wait_ms  The maximum number of milliseconds to wait for a message.
  *
  * \return -1 if an error occurs or the function timed out, the number of bytes received otherwise.
  */
-long UDPReceiver::timedRecv(int max_wait_ms)
+long SocketNetworking::timedRecv(int max_wait_ms)
 {
     fd_set sRead, sErr;
     struct timeval timeout;
@@ -234,3 +257,130 @@ long UDPReceiver::timedRecv(int max_wait_ms)
     errno = EAGAIN;
     return -1;
 }
+
+// return a string for a IPv4 and IPv6 address
+std::string GetAddrString (const struct sockaddr* addr)
+{
+    std::string s (std::max(INET_ADDRSTRLEN,INET6_ADDRSTRLEN), '\0');
+    
+    switch(addr->sa_family) {
+        case AF_INET: {
+            struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
+            inet_ntop(AF_INET, &(addr_in->sin_addr), s.data(), (socklen_t)s.length());
+            break;
+        }
+        case AF_INET6: {
+            struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)addr;
+            inet_ntop(AF_INET6, &(addr_in6->sin6_addr), s.data(), (socklen_t)s.length());
+            break;
+        }
+        default:
+            break;
+    }
+    
+    return s;
+}
+
+//
+// MARK: UDPReceiver
+//
+
+// UDP only allows UDP
+void UDPReceiver::GetAddrHints (struct addrinfo& hints)
+{
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_protocol = IPPROTO_UDP;
+}
+
+//
+// MARK: TCPConnection
+//
+
+void TCPConnection::Close()
+{
+    // also close session connection
+    if (f_session_socket >= 0) {
+        close(f_session_socket);
+        f_session_socket = -1;
+    }
+    
+    // pass on to base class
+    SocketNetworking::Close();
+}
+
+// only closes the listening socket, but not a session connection
+void TCPConnection::CloseListenerOnly()
+{
+    // just call the base class Close, bypassing our own virtual function
+    SocketNetworking::Close();
+}
+
+// Listen for and accept connections
+void TCPConnection::listen (int numConnections)
+{
+    if (::listen(f_socket, numConnections) < 0)
+        throw NetRuntimeError(("can't listen on socket: \"" + f_addr + ":" + std::to_string(f_port) + "\"").c_str());
+}
+
+bool TCPConnection::accept (bool bUnlisten)
+{
+    socklen_t addrLen = sizeof(f_session_addr);
+    memset (&f_session_addr, 0, sizeof(f_session_addr));
+    
+    // potentially blocking call
+    f_session_socket = ::accept (f_socket, (struct sockaddr*)&f_session_addr, &addrLen);
+    
+    // if we are to "unlisten" then we close the listening socket
+    if (f_session_socket >= 0 && bUnlisten) {
+        CloseListenerOnly();
+    }
+    
+    // successful?
+    return f_session_socket >= 0;
+}
+
+// just combines the above
+bool TCPConnection::listenAccept (int numConnections)
+{
+    try {
+        listen(numConnections);
+        // if we wait for exactly one connection then we "unlisten" once we accepted that one connection:
+        return accept(numConnections == 1);
+    }
+    catch (NetRuntimeError e) {
+        LOG_MSG(logERR, "%s (%s)", e.what(), e.errTxt.c_str());
+    }
+    return false;
+}
+
+// write a message out
+bool TCPConnection::write(const char* msg)
+{
+    size_t index=0;
+    size_t length = strlen(msg);
+    while (index<length) {
+        ssize_t count=::write(f_session_socket, msg+index, length-index);
+        if (count<0) {
+            if (errno==EINTR) continue;
+            LOG_MSG(logERR, "%s (%s)",
+                    ("write failed: \"" + f_addr + ":" + std::to_string(f_port) + "\"").c_str(),
+                    GetLastErr().c_str());
+            return false;
+        } else {
+            index+=count;
+        }
+    }
+    return true;
+}
+
+// TCP only allows TCP
+void TCPConnection::GetAddrHints (struct addrinfo& hints)
+{
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+}
+

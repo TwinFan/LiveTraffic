@@ -105,6 +105,7 @@ enum dataRefsXP {
     DR_PLANE_PITCH,
     DR_PLANE_ROLL,
     DR_PLANE_HEADING,
+    DR_PLANE_TRUE_AIRSPEED,
     DR_PLANE_ONGRND,
     DR_VR_ENABLED,                      // VR stuff
     DR_PILOTS_HEAD_X,
@@ -217,6 +218,7 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
+    DR_CFG_RT_PORT,
     DR_CFG_LAST_CHECK_NEW_VER,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
@@ -397,6 +399,7 @@ protected:
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
     int iTodaysDayOfYear        = 0;
     time_t tStartThisYear = 0, tStartPrevYear = 0;
+    int rtPort                  = 10747;// port opened for RT to connect
     int lastCheckNewVer         = 0;    // when did we last check for updates? (hours since the epoch)
     
     // generic config values
@@ -468,7 +471,7 @@ public:
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
     inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
-    positionTy GetUsersPlanePos() const;
+    positionTy GetUsersPlanePos(double& trueAirspeed_m) const;
     void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic
@@ -538,6 +541,7 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
+    inline int GetRTPort() const { return rtPort; }
     
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

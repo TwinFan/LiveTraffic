@@ -732,6 +732,8 @@ void ACIWnd::UpdateDynValues()
     const LTAircraft* pAc = txtAcKey.GetAircraft();
 
     if (pAc) {
+        char szBuf[20];
+
         // _last_ dyn data object
         const LTFlightData& fd = pAc->fd;
         const LTFlightData::FDDynamicData dyn (fd.WaitForSafeCopyDyn(false));
@@ -751,7 +753,6 @@ void ACIWnd::UpdateDynValues()
         ts *= -1;
         if (-10000 <= ts && ts <= 10000)
         {
-            char szBuf[20];
             snprintf(szBuf,sizeof(szBuf),"%+.1f", ts);
             XPSetWidgetDescriptor(widgetIds[ACI_TXT_LAST_DATA], szBuf);
         }
@@ -767,7 +768,8 @@ void ACIWnd::UpdateDynValues()
         valGear.SetDescriptor(pAc->GetGearPos(), 1);
         valFlaps.SetDescriptor(pAc->GetFlapsPos(), 1);
         valLights.SetDescriptor(pAc->GetLightsStr());
-        valHeading.SetDescriptor(pos.heading());
+        snprintf(szBuf,sizeof(szBuf),"%03.f", pos.heading());   // heading with 3 digits (leading zeros)
+        valHeading.SetDescriptor(szBuf);
         valPitch.SetDescriptor(pAc->GetPitch());
         valRoll.SetDescriptor(pAc->GetRoll());
         valAlt.SetDescriptor(round(pos.alt_ft()));

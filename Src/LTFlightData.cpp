@@ -652,17 +652,6 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     if (speed < 1.0)
         return;
 
-#ifdef DEBUG
-    const std::string posStringBefore(Positions2String());
-    {
-        auto boo = std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
-                                      [](const positionTy& a, const positionTy& b){return dequal(a.ts(),b.ts());});
-        if (boo != posDeque.cend())
-            LOG_MSG(logWARN,"Same TS found in %s: %0.1f\n%s", keyDbg().c_str(), boo->ts(),
-                    Positions2String().c_str());
-    }
-#endif
-
     // all positions between first and last are now to be moved in a way
     // that the speed stays constant in all segments
     itPrev = posDeque.begin();
@@ -687,16 +676,6 @@ void LTFlightData::DataSmoothing (bool& bChanged)
         posDeque.erase(dup);
     }
     
-#ifdef DEBUG
-    {
-        auto boo = std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
-                                      [](const positionTy& a, const positionTy& b){return dequal(a.ts(),b.ts());});
-        if (boo != posDeque.cend())
-            LOG_MSG(logWARN,"Same TS found in %s: %0.1f\n%s", keyDbg().c_str(), boo->ts(),
-                    Positions2String().c_str());
-    }
-#endif
-
     // so we changed data
     bChanged = true;
 }
@@ -1309,15 +1288,6 @@ void LTFlightData::AppendNewPos()
             return;
         }
         
-#ifdef DEBUG
-        {
-            auto boo = std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
-                                          [](const positionTy& a, const positionTy& b){return dequal(a.ts(),b.ts());});
-            if (boo != posDeque.cend())
-                LOG_MSG(logWARN,"Same TS found in %s: %0.1f\n%s", keyDbg().c_str(), boo->ts(),
-                        Positions2String().c_str());
-        }
-#endif
        // loop the positions to add
         while (!posToAdd.empty())
         {
@@ -1447,17 +1417,6 @@ void LTFlightData::AppendNewPos()
             
             // should be fully valid position now
             LOG_ASSERT_FD(*this, p.isFullyValid());
-            
-#ifdef DEBUG
-            {
-                auto boo = std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
-                                              [](const positionTy& a, const positionTy& b){return dequal(a.ts(),b.ts());});
-                if (boo != posDeque.cend())
-                    LOG_MSG(logWARN,"Same TS found in %s: %0.1f\n%s", keyDbg().c_str(), boo->ts(),
-                            Positions2String().c_str());
-            }
-#endif
-
         }
         
         // posDeque should be sorted, i.e. no two adjacent positions a,b should be a > b

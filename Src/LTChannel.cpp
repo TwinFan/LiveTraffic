@@ -543,12 +543,16 @@ void LTFlightDataSelectAc ()
                     // fetch all aicrafts
                     if ( p->IsEnabled() ) {
                         
+                        // if enabled fetch data and process it
                         if ( p->FetchAllData(pos) && !bFDMainStop ) {
                             if (p->ProcessFetchedData(mapFd))
                                 // reduce error count if processed successfully
                                 // as a chance to appear OK in the long run
                                 p->DecErrCnt();
                         }
+                    } else {
+                        // if disabled...maybe do still some processing to connections
+                        p->DoDisabledProcessing();
                     }
                 } catch (const std::exception& e) {
                     LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());

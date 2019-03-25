@@ -47,6 +47,7 @@ protected:
     TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
     TFButtonDataRef btnRealTraffic;
     TFWidget capRealTrafficStatus, capRealTrafficMetar;
+    TFIntFieldDataRef intRealTrafficPort;
     // right hand side
     TFButtonDataRef btnLndLightsTaxi;
     TFIntFieldDataRef intHideBelowAGL;

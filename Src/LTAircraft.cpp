@@ -949,12 +949,15 @@ LTAircraft::operator std::string() const
     
     // We'll add out position list soon. To be able to also add a vector
     // to the first pos in the flight data we look for that
-    const positionTy* firstFdPos = nullptr;
+    positionTy firstFdPos;
+    const positionTy* pFirstFdPos = nullptr;
     const dequePositionTy& fdPosDeque = fd.GetPosDeque();
-    if (!fdPosDeque.empty())
-        firstFdPos = &(fdPosDeque.front());
+    if (!fdPosDeque.empty()) {
+        firstFdPos = fdPosDeque.front();    // copy for a bit better thread safety
+        pFirstFdPos = &firstFdPos;
+    }
     
-    return std::string(buf) + positionDeque2String(posList, firstFdPos);
+    return std::string(buf) + positionDeque2String(posList, pFirstFdPos);
 }
 
 // Update the aircraft's label
