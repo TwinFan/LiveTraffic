@@ -759,7 +759,7 @@ bool DataRefs::FetchPAc ()
 void DataRefs::LTSetAcKey(void*, int key)
 {
     // sanity check
-    if ( key < 0 || key > MAX_TRANSP_ICAO )
+    if ( key < 0 || (unsigned)key > MAX_TRANSP_ICAO )
         return;
     
     // default: nothing found
@@ -1196,7 +1196,7 @@ void DataRefs::LTSetDebugAcFilter( void* /*inRefcon*/, int i )
     bool bWasFilterDefined = dataRefs.uDebugAcFilter != 0;
     
     // match hex range of transpIcao codes
-    if ( 0x000000 <= i && i <= MAX_TRANSP_ICAO ) {
+    if ( 0x000000 <= i && (unsigned)i <= MAX_TRANSP_ICAO ) {
         dataRefs.uDebugAcFilter = unsigned(i);
         
         // also set the key for the a/c info datarefs

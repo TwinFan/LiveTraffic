@@ -155,7 +155,7 @@ public:
 
     // interface called from LTChannel
     virtual bool FetchAllData(const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap) { return true; }
+    virtual bool ProcessFetchedData (mapLTFlightDataTy&) { return true; }
     virtual void DoDisabledProcessing();
     virtual void Close ();
     // SetValid also sets internal status

@@ -105,10 +105,9 @@ class UDPReceiver : public SocketNetworking
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
     UDPReceiver() : SocketNetworking() {}
-    UDPReceiver(const std::string& addr, int port, size_t bufSize,
-                unsigned timeOut_ms = 0) :
-        SocketNetworking(addr,port,bufSize,timeOut_ms) {}
-    
+    UDPReceiver(const std::string& _addr, int _port, size_t _bufSize,
+                unsigned _timeOut_ms = 0) :
+        SocketNetworking(_addr,_port,_bufSize,_timeOut_ms) {}
     
 protected:
     virtual void GetAddrHints (struct addrinfo& hints);
@@ -125,9 +124,9 @@ protected:
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
     TCPConnection() : SocketNetworking() {}
-    TCPConnection(const std::string& addr, int port, size_t bufSize,
-                  unsigned timeOut_ms = 0) :
-        SocketNetworking(addr,port,bufSize,timeOut_ms) {}
+    TCPConnection(const std::string& _addr, int _port, size_t _bufSize,
+                  unsigned _timeOut_ms = 0) :
+        SocketNetworking(_addr,_port,_bufSize,_timeOut_ms) {}
     
     virtual void Close();       // also close session connection
     void CloseListenerOnly();   // only closes the listening socket, but not a session connection
