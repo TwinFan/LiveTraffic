@@ -148,7 +148,7 @@ public:
     RealTrafficConnection (mapLTFlightDataTy& _fdMap);
     virtual ~RealTrafficConnection ();
 
-    virtual std::string GetURL (const positionTy& pos) { return ""; }   // don't need URL, no request/reply
+    virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
     virtual bool IsLiveFeed() const { return true; }
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual const char* ChName() const { return REALTRAFFIC_NAME; }
@@ -170,8 +170,8 @@ public:
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
     void SetStatus (rtStatusTy s);
-    void SetStatusTcp (bool bEnable, bool bStopTcp);
-    void SetStatusUdp (bool bEnable, bool bStopUdp);
+    void SetStatusTcp (bool bEnable, bool _bStopTcp);
+    void SetStatusUdp (bool bEnable, bool _bStopUdp);
     
     // Weather
     inline double GetHPA() const { return hPa; }

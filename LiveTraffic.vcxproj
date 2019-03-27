@@ -138,6 +138,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <UseFullPaths>false</UseFullPaths>
+      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>..\..\Libs\$(Configuration);..\..\XPSDK\Libraries\Win;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -216,11 +217,15 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
     <ClCompile Include="src\CoordCalc.cpp" />
     <ClCompile Include="src\DataRefs.cpp" />
     <ClCompile Include="src\LiveTraffic.cpp" />
+    <ClCompile Include="Src\LTADSBEx.cpp" />
     <ClCompile Include="src\LTAircraft.cpp" />
     <ClCompile Include="src\LTChannel.cpp" />
     <ClCompile Include="src\LTFlightData.cpp" />
     <ClCompile Include="src\LTMain.cpp" />
+    <ClCompile Include="Src\LTOpenSky.cpp" />
+    <ClCompile Include="Src\LTRealTraffic.cpp" />
     <ClCompile Include="src\LTVersion.cpp" />
+    <ClCompile Include="Src\Network.cpp" />
     <ClCompile Include="Src\parson.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

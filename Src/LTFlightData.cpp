@@ -179,16 +179,16 @@ std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, unsigned long _num)
     char buf[50];
     switch(_eType) {
         case KEY_OGN:
-            snprintf(buf, sizeof(buf), "%08lX", num);
+            snprintf(buf, sizeof(buf), "%08lX", _num);
             return ogn = buf;
         case KEY_RT:
-            snprintf(buf, sizeof(buf), "%08lX", num);
+            snprintf(buf, sizeof(buf), "%08lX", _num);
             return rtId = buf;
         case KEY_FLARM:
-            snprintf(buf, sizeof(buf), "%06lX", num);
+            snprintf(buf, sizeof(buf), "%06lX", _num);
             return flarm = buf;
         case KEY_ICAO:
-            snprintf(buf, sizeof(buf), "%06lX", num);
+            snprintf(buf, sizeof(buf), "%06lX", _num);
             return icao = buf;
         default:
             // must not happen

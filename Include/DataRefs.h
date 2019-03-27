@@ -406,7 +406,7 @@ protected:
     int bAutoStart              = true; // shall display a/c right after startup?
     int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
     // which elements make up an a/c label?
-    LabelCfgTy labelCfg = { 1,1,0,0,0,0,0,0, 0,0,1,0,1,0 };
+    LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW; // label color, by default yellow

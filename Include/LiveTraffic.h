@@ -29,8 +29,11 @@
 #define LiveTraffic_h
 
 // LiveTraffic is coded against SDK 3.01 (X-Plane 11.20 and above), so XPLM200, XPLM210, XPLM300, and XPLM301 must be defined
-#if !defined(XPLM200) || !defined(XPLM210)
-#error This is made to be compiled at least against the XPLM210 SDK (X-plane 10.20 and above)
+// XP10 compatibility is achieved by not using XP11 functions directly, see XPCompatibility.cpp.
+// By defining up to XPLM301 all data types are available already. There are only very very rare cases when a structure
+// gets extended in XPLM300 and later. Those rare cases are covered in code (see TextIO.cpp for an example).
+#if !defined(XPLM200) || !defined(XPLM210) || !defined(XPLM300) || !defined(XPLM301)
+#error This is made to be compiled at least against the XPLM301 SDK (X-plane 11.20 and above)
 #endif
 
 // MARK: Includes
@@ -44,6 +47,7 @@
 
 // Windows
 #if IBM
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 // we prefer std::max/min of <algorithm>
 #undef max

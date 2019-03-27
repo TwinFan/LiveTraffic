@@ -113,7 +113,7 @@ void RealTrafficConnection::SetStatus(rtStatusTy s)
             s == RT_STATUS_NONE ? "Stopped" : GetStatusStr().c_str());
 }
 
-void RealTrafficConnection::SetStatusTcp(bool bEnable, bool bStopTcp)
+void RealTrafficConnection::SetStatusTcp(bool bEnable, bool _bStopTcp)
 {
     static bool bInCall = false;
     
@@ -140,7 +140,7 @@ void RealTrafficConnection::SetStatusTcp(bool bEnable, bool bStopTcp)
             break;
     } else {
         // Disable - also disconnect, otherwise restart wouldn't work
-        if (bStopTcp)
+        if (_bStopTcp)
             StopTcpConnection();
         
         // set status
@@ -166,7 +166,7 @@ void RealTrafficConnection::SetStatusTcp(bool bEnable, bool bStopTcp)
 
 }
 
-void RealTrafficConnection::SetStatusUdp(bool bEnable, bool bStopUdp)
+void RealTrafficConnection::SetStatusUdp(bool bEnable, bool _bStopUdp)
 {
     static bool bInCall = false;
     
@@ -193,7 +193,7 @@ void RealTrafficConnection::SetStatusUdp(bool bEnable, bool bStopUdp)
             break;
     } else {
         // Disable - also disconnect, otherwise restart wouldn't work
-        if (bStopUdp)
+        if (_bStopUdp)
             StopUdpConnection();
         
         // reset weather
@@ -421,8 +421,8 @@ void RealTrafficConnection::udpListen ()
         bStopUdp = false;
         udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_NET_BUF_SIZE);
         udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_NET_BUF_SIZE);
-        const int maxSock = std::max(udpTrafficData.getSocket(),
-                                     udpWeatherData.getSocket()) + 1;
+        const int maxSock = std::max((int)udpTrafficData.getSocket(),
+                                     (int)udpWeatherData.getSocket()) + 1;
 
         // return from the thread when requested
         // (not checking for weather socker...not essential)

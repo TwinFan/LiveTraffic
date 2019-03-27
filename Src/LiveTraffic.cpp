@@ -27,6 +27,10 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+#if IBM
+#include <objbase.h>        // for CoInitializeEx
+#endif
+
 // in LTVersion.cpp:
 extern bool InitFullVersion ();
 

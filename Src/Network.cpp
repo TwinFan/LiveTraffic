@@ -32,8 +32,16 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 #include <fcntl.h>
+#if IBM
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#undef errno
+#define errno WSAGetLastError()     // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
+#define close closesocket
+#else
 #include <unistd.h>
 #include <arpa/inet.h>
+#endif
 
 //
 // MARK: SocketNetworking
@@ -83,20 +91,26 @@ void SocketNetworking::Open(const std::string& addr, int port,
         
         // get a socket
         f_socket = socket(addrinfo->ai_family, addrinfo->ai_socktype, addrinfo->ai_protocol);
-        if(f_socket == -1)
+        if(f_socket == INVALID_SOCKET)
             throw NetRuntimeError(("could not create socket for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
         
         // Reuse address and port to allow others to connect, too
         int setToVal = 1;
+#if IBM
+        if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&setToVal, sizeof(setToVal)) < 0)
+            throw NetRuntimeError(("could not setsockopt SO_REUSEADDR for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+#else
         if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, &setToVal, sizeof(setToVal)) < 0)
             throw NetRuntimeError(("could not setsockopt SO_REUSEADDR for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
         if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEPORT, &setToVal, sizeof(setToVal)) < 0)
             throw NetRuntimeError(("could not setsockopt SO_REUSEPORT for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
-
+#endif
 
         // define receive timeout
 #if IBM
-#error Timeout is passed in a DWORD???
+        DWORD wsTimeout = timeOut_ms;
+        if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&wsTimeout, sizeof(wsTimeout)) < 0)
+            throw NetRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 #else
         struct timeval timeout;
         timeout.tv_sec = timeOut_ms / 1000;
@@ -106,7 +120,7 @@ void SocketNetworking::Open(const std::string& addr, int port,
 #endif
 
         // bind the socket to the address:port
-        r = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
+        r = bind(f_socket, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
         if(r != 0)
             throw NetRuntimeError(("could not bind UDP socket with: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
@@ -137,9 +151,9 @@ void SocketNetworking::Open(const std::string& addr, int port,
 void SocketNetworking::Close()
 {
     // cleanup
-    if (f_socket >= 0) {
+    if (f_socket != INVALID_SOCKET) {
         close(f_socket);
-        f_socket = -1;
+        f_socket = INVALID_SOCKET;
     }
     
     // release buffer
@@ -167,7 +181,17 @@ void SocketNetworking::SetBufSize(size_t _bufSize)
 std::string SocketNetworking::GetLastErr()
 {
     char sErr[SERR_LEN];
+#if IBM
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,   // flags
+        NULL,                                                                   // lpsource
+        WSAGetLastError(),                                                      // message id
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),                              // languageid
+        sErr,                                                                   // output buffer
+        sizeof(sErr),                                                           // size of msgbuf, bytes
+        NULL);
+#else
     strerror_s(sErr, sizeof(sErr), errno);
+#endif
     return std::string(sErr);
 }
 
@@ -192,11 +216,15 @@ std::string SocketNetworking::GetLastErr()
 long SocketNetworking::recv()
 {
     if (!buf) {
+#if IBM
+        WSASetLastError(WSA_NOT_ENOUGH_MEMORY);
+#else
         errno = ENOMEM;
+#endif
         return -1;
     }
     
-    long ret = ::recv(f_socket, buf, bufSize-1, 0);
+    long ret = ::recv(f_socket, buf, (int)bufSize-1, 0);
     if (ret >= 0)  {                    // we did receive something
         buf[ret] = 0;                   // zero-termination
     } else {
@@ -229,11 +257,12 @@ long SocketNetworking::timedRecv(int max_wait_ms)
 
     FD_ZERO(&sRead);
     FD_SET(f_socket, &sRead);           // check our socket
-    FD_COPY(&sRead, &sErr);             // also for errors
-    
+    FD_ZERO(&sErr);                     // also for errors
+    FD_SET(f_socket, &sErr);
+
     timeout.tv_sec = max_wait_ms / 1000;
     timeout.tv_usec = (max_wait_ms % 1000) * 1000;
-    int retval = select(f_socket + 1, &sRead, NULL, &sErr, &timeout);
+    int retval = select((int)f_socket + 1, &sRead, NULL, &sErr, &timeout);
     if(retval == -1)
     {
         // select() set errno accordingly
@@ -254,7 +283,11 @@ long SocketNetworking::timedRecv(int max_wait_ms)
     
     // our socket has no data
     buf[0] = 0;                     // empty string
+#if IBM
+    WSASetLastError(WSAEWOULDBLOCK);
+#else
     errno = EAGAIN;
+#endif
     return -1;
 }
 
@@ -301,9 +334,9 @@ void UDPReceiver::GetAddrHints (struct addrinfo& hints)
 void TCPConnection::Close()
 {
     // also close session connection
-    if (f_session_socket >= 0) {
+    if (f_session_socket != INVALID_SOCKET) {
         close(f_session_socket);
-        f_session_socket = -1;
+        f_session_socket = INVALID_SOCKET;
     }
     
     // pass on to base class
@@ -333,12 +366,12 @@ bool TCPConnection::accept (bool bUnlisten)
     f_session_socket = ::accept (f_socket, (struct sockaddr*)&f_session_addr, &addrLen);
     
     // if we are to "unlisten" then we close the listening socket
-    if (f_session_socket >= 0 && bUnlisten) {
+    if (f_session_socket != INVALID_SOCKET && bUnlisten) {
         CloseListenerOnly();
     }
     
     // successful?
-    return f_session_socket >= 0;
+    return f_session_socket != INVALID_SOCKET;
 }
 
 // just combines the above
@@ -361,7 +394,11 @@ bool TCPConnection::write(const char* msg)
     size_t index=0;
     size_t length = strlen(msg);
     while (index<length) {
+#if IBM
+        int count = ::send(f_session_socket, msg + index, (int)(length - index), 0);
+#else
         ssize_t count=::write(f_session_socket, msg+index, length-index);
+#endif
         if (count<0) {
             if (errno==EINTR) continue;
             LOG_MSG(logERR, "%s (%s)",

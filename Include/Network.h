@@ -35,8 +35,14 @@
 #define Network_h
 
 #include <sys/types.h>
+#if IBM
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <netdb.h>
+typedef int SOCKET;             // Windows defines SOCKET, so we define it for non-Windows manually
+constexpr SOCKET INVALID_SOCKET = -1;
+#endif
 #include <stdexcept>
 
 // The UDPRuntimeError exception is raised when the address
@@ -54,7 +60,7 @@ public:
 class SocketNetworking
 {
 protected:
-    int                 f_socket        = -1;
+    SOCKET              f_socket        = INVALID_SOCKET;
     int                 f_port          = 0;
     std::string         f_addr;
     
@@ -73,13 +79,13 @@ public:
     virtual void Open(const std::string& addr, int port, size_t bufSize,
                       unsigned timeOut_ms = 0);
     virtual void Close();
-    inline bool isOpen() const { return (f_socket >= 0); }
+    inline bool isOpen() const { return (f_socket != INVALID_SOCKET); }
     
     void SetBufSize (size_t _bufSize);
     std::string GetLastErr();
     
     // attribute access
-    inline int          getSocket() const   { return f_socket; }
+    inline SOCKET       getSocket() const   { return f_socket; }
     inline int          getPort() const     { return f_port; }
     inline std::string  getAddr() const     { return f_addr; }
 
@@ -118,7 +124,7 @@ protected:
 class TCPConnection : public SocketNetworking
 {
 protected:
-    int                 f_session_socket = -1;
+    SOCKET              f_session_socket = INVALID_SOCKET;
     struct sockaddr_in  f_session_addr;
     
 public:
@@ -136,7 +142,7 @@ public:
     bool accept (bool bUnlisten = false);
     bool listenAccept (int numConnections = 1);
     
-    bool IsConnected () const { return f_session_socket >= 0; };
+    bool IsConnected () const { return f_session_socket != INVALID_SOCKET; };
     
     // write messages on session connection
     bool write(const char* msg);

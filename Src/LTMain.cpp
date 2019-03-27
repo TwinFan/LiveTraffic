@@ -26,6 +26,10 @@
 
 #include "LiveTraffic.h"
 
+#if IBM
+#include <shellapi.h>           // for ShellExecuteA
+#endif
+
 //MARK: Path helpers
 
 // construct path: if passed-in base is a full path just take it
