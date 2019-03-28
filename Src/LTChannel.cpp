@@ -341,7 +341,15 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
         return;
     }
     
-    // logging enabled. Need to open the file first?
+    // *** Logging enabled ***
+    
+    // As there are different threads (e.g. in LTRealTraffic), which send data,
+    // we guard file writing with a lock, so that no line gets intermingled
+    // with another thread's data:
+    static std::mutex logRawMutex;
+    std::lock_guard<std::mutex> lock(logRawMutex);
+    
+    // Need to open the file first?
     if (!outRaw.is_open()) {
         // open the file, append to it
         std::string sFileName (LTCalcFullPath(PATH_DEBUG_RAW_FD));

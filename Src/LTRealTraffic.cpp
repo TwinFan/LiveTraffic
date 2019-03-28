@@ -390,6 +390,7 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
         LOG_MSG(logERR,ERR_TCP_WRITE_FAILED);
         SetStatusTcp(false, true);
     }
+    DebugLogRaw(s);
 }
 
 // send the position of the user's plane
@@ -547,6 +548,9 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // sanity check: not empty
     if (!traffic || !traffic[0])
         return false;
+    
+    // Raw data logging
+    DebugLogRaw(traffic);
     
     // any a/c filter defined for debugging purposes?
     const std::string acFilter ( dataRefs.GetDebugAcFilter() );
@@ -789,6 +793,9 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
     // sanity check: not empty
     if (!weather || !weather[0])
         return false;
+    
+    // Raw data logging
+    DebugLogRaw(weather);
     
     // duplicate?
     if (lastWeather == weather)
