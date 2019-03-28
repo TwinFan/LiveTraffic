@@ -56,12 +56,12 @@ std::runtime_error(w)
     errTxt = sErr;              // copy
 }
 
-SocketNetworking::SocketNetworking(const std::string& addr, int port,
-                                   size_t bufSize, unsigned timeOut_ms) :
-f_port(port), f_addr(addr)
+SocketNetworking::SocketNetworking(const std::string& _addr, int _port,
+                                   size_t _bufSize, unsigned _timeOut_ms) :
+f_port(_port), f_addr(_addr)
 {
     // open the socket
-    Open(addr, port, bufSize, timeOut_ms);
+    Open(_addr, _port, _bufSize, _timeOut_ms);
 }
 
 // cleanup: make sure the socket is closed and all memory cleanup up

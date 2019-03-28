@@ -35,6 +35,7 @@
 		25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29ABC207D48AA00A88505 /* XPWidgets.framework */; };
 		25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
+		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
@@ -208,6 +209,8 @@
 		25FC893E222F269700F5D57C /* KLAS_20190305_2056Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2056Z.txt; sourceTree = "<group>"; };
 		25FC893F222F269700F5D57C /* KJFK_20190305_2028Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KJFK_20190305_2028Z_PE.txt; sourceTree = "<group>"; };
 		25FC8940222F269800F5D57C /* KLAS_20190305_2055Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KLAS_20190305_2055Z_METAR.json; sourceTree = "<group>"; };
+		25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTForeFlight.cpp; sourceTree = "<group>"; };
+		25FEB7BA224D7C8C002A051F /* LTForeFlight.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTForeFlight.h; sourceTree = "<group>"; };
 		D607B19909A556E400699BC3 /* mac.xpl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mac.xpl; sourceTree = BUILT_PRODUCTS_DIR; };
 		D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTraffic.cpp; sourceTree = "<group>"; };
 		D6A7BDA916A1DEA200D1426A /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
@@ -287,6 +290,7 @@
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
+				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
 				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
 				2573631922233008005210C5 /* LTRealTraffic.cpp */,
@@ -390,6 +394,7 @@
 				25A095C92203B01300658AA8 /* LTAircraft.h */,
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
+				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
 				257363182222C8E2005210C5 /* Network.h */,
@@ -701,6 +706,7 @@
 				2591F96C219700C200F0D436 /* LTFlightradar24.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
+				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
 				254EA4702083E403008A312F /* parson.c in Sources */,
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,

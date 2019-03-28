@@ -71,8 +71,8 @@ protected:
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
     SocketNetworking() {}
-    SocketNetworking(const std::string& addr, int port, size_t bufSize,
-                     unsigned timeOut_ms = 0);
+    SocketNetworking(const std::string& _addr, int _port, size_t _bufSize,
+                     unsigned _timeOut_ms = 0);
     virtual ~SocketNetworking();
 
     // opens/closes the socket

@@ -116,6 +116,7 @@
 // LiveTraffic channels
 #include "Network.h"
 #include "LTChannel.h"
+#include "LTForeFlight.h"
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"

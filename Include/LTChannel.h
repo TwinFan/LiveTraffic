@@ -53,7 +53,8 @@ public:
     enum LTChannelType {
         CHT_UNKNOWN = 0,
         CHT_TRACKING_DATA,
-        CHT_MASTER_DATA
+        CHT_MASTER_DATA,
+        CHT_TRAFFIC_SENDER,         // sends out data (not receiving)
     };
 protected:
     dataRefsLT channel;             // id of channel (see dataRef)
