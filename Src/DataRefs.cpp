@@ -183,6 +183,7 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/true_theta",
     "sim/flightmodel/position/true_phi",
     "sim/flightmodel/position/true_psi",
+    "sim/flightmodel/position/hpath",
     "sim/flightmodel/position/true_airspeed",
     "sim/flightmodel/failures/onground_any",
     "sim/graphics/VR/enabled",
@@ -245,6 +246,7 @@ void* GET_VAR = reinterpret_cast<void*>(INT_MIN);
 
 // list of all datRef definitions offered by LiveTraffic:
 DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
+    // a/c information
     {"livetraffic/ac/key",                          DataRefs::LTGetAcInfoI, DataRefs::LTSetAcKey,   (void*)DR_AC_KEY, false },
     {"livetraffic/ac/num",                          DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_NUM, false },
     {"livetraffic/ac/on_gnd",                       DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_ON_GND, false },
@@ -267,8 +269,11 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/ac/lights/landing",               DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_LANDING, false },
     {"livetraffic/ac/bearing",                      DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_BEARING, false },
     {"livetraffic/ac/dist",                         DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_DIST, false },
+
     {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)1, false },
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
+
+    // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -290,18 +295,29 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/channel/real_traffic/port",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+
+    // debug options
+    {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
+    {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    
+    // channel configuration options
+    {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+
+    // channels, in ascending order of priority
+    {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
-    {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
-    {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
-    {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
 };
 
 // returns the actual address of the variable within DataRefs, which stores the value of interest as per dataRef definition
@@ -309,6 +325,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 void* DataRefs::getVarAddr (dataRefsLT dr)
 {
     switch (dr) {
+        // configuration options
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
@@ -329,17 +346,23 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
-        case DR_CFG_RT_PORT:                return &rtPort;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
+        // debug options
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
             
+        // channel configuration options
+        case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
+        case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
+        case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
+        case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
+
         default:
             // flight channels
-            if (DR_CHANNEL_FIRST <= dr && dr < DR_CHANNEL_FIRST + CNT_DR_CHANNELS)
+            if (DR_CHANNEL_FIRST <= dr && dr <= DR_CHANNEL_LAST)
                 return &bChannel[dr-DR_CHANNEL_FIRST];
             
             // else: must not happen
@@ -680,7 +703,7 @@ bool DataRefs::RegisterCommands()
 }
 
 // return user's plane pos
-positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m ) const
+positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) const
 {
     positionTy pos
     (
@@ -698,9 +721,10 @@ positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m ) const
     if (pos.lat() < -75 || pos.lat() > 75)
         pos.lat() = NAN;
     
-    // also fetch true airspeed
-    trueAirspeed_m = XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
-    
+    // also fetch true airspeed and track
+    trueAirspeed_m =    XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
+    track =             XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
+
     return pos;
 }
 
@@ -1152,6 +1176,25 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // success
     return true;
 }
+
+// generic config access (not as fast as specific access, but good for rare access)
+bool  DataRefs::GetCfgBool  (dataRefsLT dr)
+{
+    return GetCfgInt(dr) != 0;
+}
+
+int   DataRefs::GetCfgInt   (dataRefsLT dr)
+{
+    assert(0 <= dr && dr < CNT_DATAREFS_LT);
+    return DATA_REFS_LT[dr].getDatai();
+}
+
+float DataRefs::GetCfgFloat (dataRefsLT dr)
+{
+    assert(0 <= dr && dr < CNT_DATAREFS_LT);
+    return DATA_REFS_LT[dr].getDataf();
+}
+
 
 // more than 24h passed since last version check?
 bool DataRefs::NeedNewVerCheck () const

@@ -495,6 +495,8 @@ bool LTFlightDataEnable()
         listFDC.emplace_back(new ADSBExchangeConnection);
         // load online master data connections
         listFDC.emplace_back(new OpenSkyAcMasterdata);
+        // load other channels
+        listFDC.emplace_back(new ForeFlightSender(mapFd));
     }
     
     // check for validity after construction, disable all invalid ones

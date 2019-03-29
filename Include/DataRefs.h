@@ -105,6 +105,7 @@ enum dataRefsXP {
     DR_PLANE_PITCH,
     DR_PLANE_ROLL,
     DR_PLANE_HEADING,
+    DR_PLANE_TRACK,
     DR_PLANE_TRUE_AIRSPEED,
     DR_PLANE_ONGRND,
     DR_VR_ENABLED,                      // VR stuff
@@ -172,6 +173,7 @@ enum XPViewTypes {
 
 // Datarefs offered by LiveTraffic
 enum dataRefsLT {
+    // a/c information
     DR_AC_KEY = 0,                      // a/c info read/write
     DR_AC_NUM,                          // int a/c info
     DR_AC_ON_GND,
@@ -197,6 +199,8 @@ enum dataRefsLT {
     
     DR_SIM_DATE,
     DR_SIM_TIME,
+    
+    // configuration options
     DR_CFG_AIRCRAFTS_DISPLAYED,
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
@@ -218,19 +222,31 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
-    DR_CFG_RT_PORT,
     DR_CFG_LAST_CHECK_NEW_VER,
-    DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
-    DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
-    DR_CHANNEL_OPEN_SKY_ONLINE,
-    DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
-    DR_CHANNEL_REAL_TRAFFIC_ONLINE,
-    DR_CHANNEL_FUTUREDATACHN_ONLINE,
+    
+    // debug options
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
     DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
-    CNT_DATAREFS_LT                     // always last, number of elements
+    
+    // channel configuration options
+    DR_CFG_RT_LISTEN_PORT,
+    DR_CFG_RT_TRAFFIC_PORT,
+    DR_CFG_RT_WEATHER_PORT,
+    DR_CFG_FF_SEND_PORT,
+
+    // channels, in ascending order of priority
+    DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
+    DR_CHANNEL_FORE_FLIGHT_SENDER,
+    DR_CHANNEL_OPEN_GLIDER_NET,
+    DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
+    DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
+    DR_CHANNEL_OPEN_SKY_ONLINE,
+    DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
+    DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
+    // always last, number of elements:
+    CNT_DATAREFS_LT
 };
 
 enum cmdRefsLT {
@@ -244,8 +260,10 @@ enum cmdRefsLT {
     CNT_CMDREFS_LT                      // always last, number of elements
 };
 
-constexpr int CNT_DR_CHANNELS = 6;          // number of flight data channels
-constexpr int DR_CHANNEL_FIRST = DR_CHANNEL_ADSB_EXCHANGE_ONLINE;
+// first/last channel; number of channels:
+constexpr int DR_CHANNEL_FIRST  = DR_CHANNEL_FUTUREDATACHN_ONLINE;
+constexpr int DR_CHANNEL_LAST   = CNT_DATAREFS_LT-1;
+constexpr int CNT_DR_CHANNELS   = DR_CHANNEL_LAST+1 - DR_CHANNEL_FIRST;
 
 class DataRefs
 {
@@ -399,7 +417,6 @@ protected:
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
     int iTodaysDayOfYear        = 0;
     time_t tStartThisYear = 0, tStartPrevYear = 0;
-    int rtPort                  = 10747;// port opened for RT to connect
     int lastCheckNewVer         = 0;    // when did we last check for updates? (hours since the epoch)
     
     // generic config values
@@ -420,6 +437,12 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
+
+    // channel config options
+    int rtListenPort    = 10747;        // port opened for RT to connect
+    int rtTrafficPort   = 49003;        // UDP Port receiving traffic
+    int rtWeatherPort   = 49004;        // UDP Port receiving weather info
+    int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
@@ -471,7 +494,7 @@ public:
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
     inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
-    positionTy GetUsersPlanePos(double& trueAirspeed_m) const;
+    positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
     void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic
@@ -520,6 +543,13 @@ public:
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
+    
+    // generic config access (not as fast as specific access, but good for rare access)
+    static bool  GetCfgBool  (dataRefsLT dr);
+    static int   GetCfgInt   (dataRefsLT dr);
+    static float GetCfgFloat (dataRefsLT dr);
+                     
+    // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
@@ -541,7 +571,6 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
-    inline int GetRTPort() const { return rtPort; }
     
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

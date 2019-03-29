@@ -45,6 +45,16 @@ constexpr SOCKET INVALID_SOCKET = -1;
 #endif
 #include <stdexcept>
 
+// error messages used in derived classes
+#define ERR_TCP_LISTENACCEPT    "%s: Error opening the TCP port on %s:%s: %s"
+#define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
+#define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
+#define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
+
+#define ERR_UDP_RCVR_OPEN       "%s: Error creating UDP socket for %s:%d: %s"
+#define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
+
+
 // The UDPRuntimeError exception is raised when the address
 // and port combinaison cannot be resolved or if the socket cannot be
 // opened.
@@ -72,12 +82,12 @@ public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
     SocketNetworking() {}
     SocketNetworking(const std::string& _addr, int _port, size_t _bufSize,
-                     unsigned _timeOut_ms = 0);
+                     unsigned _timeOut_ms = 0, bool _bBroadcast = false);
     virtual ~SocketNetworking();
 
     // opens/closes the socket
-    virtual void Open(const std::string& addr, int port, size_t bufSize,
-                      unsigned timeOut_ms = 0);
+    virtual void Open(const std::string& _addr, int _port, size_t _bufSize,
+                      unsigned _timeOut_ms = 0, bool _bBroadcast = false);
     virtual void Close();
     inline bool isOpen() const { return (f_socket != INVALID_SOCKET); }
     
@@ -95,6 +105,9 @@ public:
     // receive messages
     long                recv();
     long                timedRecv(int max_wait_ms);
+    
+    // send broadcast message
+    bool broadcast (const char* msg);
     
     // convert addresses to string
     static std::string GetAddrString (const struct sockaddr* addr);
@@ -144,8 +157,8 @@ public:
     
     bool IsConnected () const { return f_session_socket != INVALID_SOCKET; };
     
-    // write messages on session connection
-    bool write(const char* msg);
+    // send messages on session connection
+    bool send(const char* msg);
 
 protected:
     virtual void GetAddrHints (struct addrinfo& hints);

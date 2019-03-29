@@ -37,8 +37,6 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 #define RT_LOCALHOST            "0.0.0.0"
-constexpr int RT_UDP_PORT_AITRAFFIC = 49003;
-constexpr int RT_UDP_PORT_WEATHER   = 49004;
 constexpr size_t RT_NET_BUF_SIZE    = 512;
 
 constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
@@ -47,14 +45,7 @@ constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
 
-#define ERR_TCP_LISTENACCEPT    "RealTraffic: Error opening the TCP port on %s:%s: %s"
-#define ERR_TCP_CANTLISTEN      "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
-#define ERR_TCP_NOTCONNECTED    "RealTraffic: Cannot send position: not connected"
-#define ERR_TCP_INV_POS         "RealTraffic: Cannot send position: position not fully valid"
-#define ERR_TCP_WRITE_FAILED    "RealTraffic: Could not send position: write operation failed"
-
-#define ERR_UDP_RCVR_OPEN       "RealTraffic: Error creating UDP receiver for %s:%d: %s"
-#define ERR_UDP_RCVR_RCVR       "RealTraffic: Error receiving from %s:%d: %s"
+#define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
 #define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %d - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
 
@@ -178,11 +169,11 @@ public:
     inline std::string GetMetar() const { return metar; }
     inline std::string GetMetarIcao() const { return metarIcao; }
 
+protected:
     // Start/Stop
     bool StartConnections ();
     bool StopConnections ();
     
-protected:
     // MARK: TCP
     void tcpConnection ();
     static void tcpConnectionS (RealTrafficConnection* me) { me->tcpConnection();}

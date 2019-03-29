@@ -45,9 +45,7 @@ fdMap(_fdMap)
 // Destructor makes sure we are cleaned up
 RealTrafficConnection::~RealTrafficConnection ()
 {
-    if (status != RT_STATUS_NONE)
-        StopConnections();
-    
+    StopConnections();
     dataRefs.pRTConn = nullptr;
 }
         
@@ -306,7 +304,7 @@ void RealTrafficConnection::tcpConnection ()
     }
     
     // port to use is configurable
-    int tcpPort = dataRefs.GetRTPort();
+    int tcpPort = DataRefs::GetCfgInt(DR_CFG_RT_LISTEN_PORT);
     
     try {
         bStopTcp = false;
@@ -322,13 +320,13 @@ void RealTrafficConnection::tcpConnection ()
             // short-cut if we are to shut down (return from 'select' due to closed socket)
             if (!bStopTcp) {
                 // not forced to shut down...report other problem
-                SHOW_MSG(logERR,ERR_TCP_CANTLISTEN);
+                SHOW_MSG(logERR,ERR_RT_CANTLISTEN);
                 SetStatusTcp(false, true);
             }
         }
     }
     catch (std::runtime_error e) {
-        LOG_MSG(logERR, ERR_TCP_LISTENACCEPT,
+        LOG_MSG(logERR, ERR_TCP_LISTENACCEPT, ChName(),
                 RT_LOCALHOST, std::to_string(tcpPort).c_str(),
                 e.what());
         // invalidate the channel
@@ -367,10 +365,10 @@ bool RealTrafficConnection::StopTcpConnection ()
 void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 {
     if (!tcpPosSender.IsConnected())
-    { LOG_MSG(logWARN,ERR_TCP_NOTCONNECTED); return; }
+    { LOG_MSG(logWARN,ERR_SOCK_NOTCONNECTED,ChName()); return; }
         
     if (!pos.isFullyValid())
-    { LOG_MSG(logWARN,ERR_TCP_INV_POS); return; }
+    { LOG_MSG(logWARN,ERR_SOCK_INV_POS,ChName()); return; }
 
     // format the string to send
     char s[200];
@@ -386,8 +384,8 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
     );
     
     // send the string
-    if (!tcpPosSender.write(s)) {
-        LOG_MSG(logERR,ERR_TCP_WRITE_FAILED);
+    if (!tcpPosSender.send(s)) {
+        LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
         SetStatusTcp(false, true);
     }
     DebugLogRaw(s);
@@ -397,7 +395,8 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 void RealTrafficConnection::SendUsersPlanePos()
 {
     double airSpeed_m = 0.0;
-    positionTy pos = dataRefs.GetUsersPlanePos(airSpeed_m);
+    double track = 0.0;
+    positionTy pos = dataRefs.GetUsersPlanePos(airSpeed_m,track);
     SendPos(pos, airSpeed_m);
 }
 
@@ -417,11 +416,16 @@ void RealTrafficConnection::udpListen ()
         return;
     }
     
+    int port = 0;
     try {
         // Open the UDP port
         bStopUdp = false;
-        udpTrafficData.Open (RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, RT_NET_BUF_SIZE);
-        udpWeatherData.Open (RT_LOCALHOST, RT_UDP_PORT_WEATHER,   RT_NET_BUF_SIZE);
+        udpTrafficData.Open (RT_LOCALHOST,
+                             port = DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
+                             RT_NET_BUF_SIZE);
+        udpWeatherData.Open (RT_LOCALHOST,
+                             port = DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT),
+                             RT_NET_BUF_SIZE);
         const int maxSock = std::max((int)udpTrafficData.getSocket(),
                                      (int)udpWeatherData.getSocket()) + 1;
 
@@ -488,7 +492,8 @@ void RealTrafficConnection::udpListen ()
                 // not just a normal timeout?
                 char sErr[SERR_LEN];
                 strerror_s(sErr, sizeof(sErr), errno);
-                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC, sErr);
+                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
+                        sErr);
                 // increase error count...bail out if too bad
                 if (!IncErrCnt()) {
                     SetStatusUdp(false, true);
@@ -499,8 +504,8 @@ void RealTrafficConnection::udpListen ()
     }
     catch (std::runtime_error e) {
         // exception...can only really happen in UDPReceiver::Open
-        LOG_MSG(logERR, ERR_UDP_RCVR_OPEN,
-                RT_LOCALHOST, RT_UDP_PORT_AITRAFFIC,
+        LOG_MSG(logERR, ERR_UDP_RCVR_OPEN, ChName(),
+                RT_LOCALHOST, port,
                 e.what());
         // invalidate the channel
         SetStatusUdp(false, true);

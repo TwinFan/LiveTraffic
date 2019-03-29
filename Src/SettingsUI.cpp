@@ -399,7 +399,7 @@ void LTSettingsUI::Enable()
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
         capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
         intRealTrafficPort.setId(widgetIds[UI_BASICS_INT_REALTRAFFIC_PORT],
-                                 DATA_REFS_LT[DR_CFG_RT_PORT]);
+                                 DATA_REFS_LT[DR_CFG_RT_LISTEN_PORT]);
 
         UpdateRealTraffic();
         

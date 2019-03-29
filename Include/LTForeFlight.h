@@ -35,6 +35,16 @@
 //
 
 #define FOREFLIGHT_NAME        "ForeFlight"
+#define FF_LOCALHOST            "0.0.0.0"
+constexpr size_t FF_NET_BUF_SIZE    = 512;
+
+// sending intervals in milliseonds
+constexpr std::chrono::milliseconds FF_INTVL_GPS    = std::chrono::milliseconds(1000); // 1 Hz
+constexpr std::chrono::milliseconds FF_INTVL_ATT    = std::chrono::milliseconds( 200); // 5 Hz
+constexpr std::chrono::milliseconds FF_INTVL_TRAFFIC= std::chrono::milliseconds(5000); // every 5s
+
+#define MSG_FF_OPENED           "ForeFlight: Starting to send"
+#define MSG_FF_STOPPED          "ForeFlight: Stopped"
 
 //
 // MARK: ForeFlight Sender
@@ -44,9 +54,18 @@ class ForeFlightSender : public LTOnlineChannel, LTFlightDataChannel
 protected:
     // the map of flight data, data that we send out to ForeFlight
     mapLTFlightDataTy& fdMap;
+    // the network object we use to send our data
+    UDPReceiver udpSender;
+    bool    bSendUsersPlane = true;
+    bool    bSendAITraffic  = true;
+    // time points last sent something
+    std::chrono::steady_clock::time_point lastGPS;
+    std::chrono::steady_clock::time_point lastAtt;
+    std::chrono::steady_clock::time_point lastTraffic;
 
 public:
     ForeFlightSender (mapLTFlightDataTy& _fdMap);
+    virtual ~ForeFlightSender ();
 
     virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
     virtual bool IsLiveFeed() const { return true; }
@@ -58,6 +77,18 @@ public:
     virtual bool ProcessFetchedData (mapLTFlightDataTy&) { return true; }
     virtual void DoDisabledProcessing();
     virtual void Close ();
+    
+protected:
+    // Start/Stop
+    bool StartConnection ();
+    bool StopConnection ();
+    
+    // send positions
+    void SendAll();
+    void SendGPS (const positionTy& pos, double speed_m, double track); // position of user's aircraft
+    void SendAtt (const positionTy& pos, double speed_m, double track); // attitude of user's aircraft
+    void SendAllTraffic (); // other traffic
+    void SendTraffic (const LTFlightData& fd);
 };
 
 #endif /* LTForeFlight_h */

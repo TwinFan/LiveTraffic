@@ -57,11 +57,12 @@ std::runtime_error(w)
 }
 
 SocketNetworking::SocketNetworking(const std::string& _addr, int _port,
-                                   size_t _bufSize, unsigned _timeOut_ms) :
+                                   size_t _bufSize, unsigned _timeOut_ms,
+                                   bool _bBroadcast) :
 f_port(_port), f_addr(_addr)
 {
     // open the socket
-    Open(_addr, _port, _bufSize, _timeOut_ms);
+    Open(_addr, _port, _bufSize, _timeOut_ms, _bBroadcast);
 }
 
 // cleanup: make sure the socket is closed and all memory cleanup up
@@ -70,14 +71,14 @@ SocketNetworking::~SocketNetworking()
     Close();
 }
 
-void SocketNetworking::Open(const std::string& addr, int port,
-                       size_t _bufSize, unsigned timeOut_ms)
+void SocketNetworking::Open(const std::string& _addr, int _port,
+                       size_t _bufSize, unsigned _timeOut_ms, bool _bBroadcast)
 {
     struct addrinfo *   addrinfo      = NULL;
     try {
         // store member values
-        f_port = port;
-        f_addr = addr;
+        f_port = _port;
+        f_addr = _addr;
         const std::string decimal_port(std::to_string(f_port));
 
         // get a valid address based on inAddr/port
@@ -108,16 +109,28 @@ void SocketNetworking::Open(const std::string& addr, int port,
 
         // define receive timeout
 #if IBM
-        DWORD wsTimeout = timeOut_ms;
+        DWORD wsTimeout = _timeOut_ms;
         if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&wsTimeout, sizeof(wsTimeout)) < 0)
             throw NetRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 #else
         struct timeval timeout;
-        timeout.tv_sec = timeOut_ms / 1000;
-        timeout.tv_usec = (timeOut_ms % 1000) * 1000;
+        timeout.tv_sec = _timeOut_ms / 1000;
+        timeout.tv_usec = (_timeOut_ms % 1000) * 1000;
         if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
             throw NetRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 #endif
+        
+        // if requested allow for sending broadcasts
+        if (_bBroadcast) {
+            setToVal = 1;
+#if IBM
+            if (setsockopt(f_socket, SOL_SOCKET, SO_BROADCAST, (char*)&setToVal, sizeof(setToVal)) < 0)
+                throw NetRuntimeError(("could not setsockopt SO_BROADCAST for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+#else
+            if (setsockopt(f_socket, SOL_SOCKET, SO_BROADCAST, &setToVal, sizeof(setToVal)) < 0)
+                throw NetRuntimeError(("could not setsockopt SO_BROADCAST for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+#endif
+        }
 
         // bind the socket to the address:port
         r = bind(f_socket, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
@@ -291,8 +304,37 @@ long SocketNetworking::timedRecv(int max_wait_ms)
     return -1;
 }
 
+// sends the message as a broadcast
+bool SocketNetworking::broadcast (const char* msg)
+{
+    int index=0;
+    int length = (int)strlen(msg);
+    
+    struct sockaddr_in s;
+    memset(&s, '\0', sizeof(struct sockaddr_in));
+    s.sin_family = AF_INET;
+    s.sin_port = (in_port_t)htons(f_port);
+    s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+    
+    while (index<length) {
+        int count = (int)::sendto(f_socket, msg + index, (int)(length - index), 0,
+                                  (struct sockaddr *)&s, sizeof(s));
+        if (count<0) {
+            if (errno==EINTR) continue;
+            LOG_MSG(logERR, "%s (%s)",
+                    ("sendto failed: \"" + f_addr + ":" + std::to_string(f_port) + "\"").c_str(),
+                    GetLastErr().c_str());
+            return false;
+        } else {
+            index+=count;
+        }
+    }
+    return true;
+}
+
+
 // return a string for a IPv4 and IPv6 address
-std::string GetAddrString (const struct sockaddr* addr)
+std::string SocketNetworking::GetAddrString (const struct sockaddr* addr)
 {
     std::string s (std::max(INET_ADDRSTRLEN,INET6_ADDRSTRLEN), '\0');
     
@@ -389,20 +431,16 @@ bool TCPConnection::listenAccept (int numConnections)
 }
 
 // write a message out
-bool TCPConnection::write(const char* msg)
+bool TCPConnection::send(const char* msg)
 {
-    size_t index=0;
-    size_t length = strlen(msg);
+    int index=0;
+    int length = (int)strlen(msg);
     while (index<length) {
-#if IBM
-        int count = ::send(f_session_socket, msg + index, (int)(length - index), 0);
-#else
-        ssize_t count=::write(f_session_socket, msg+index, length-index);
-#endif
+        int count = (int)::send(f_session_socket, msg + index, (int)(length - index), 0);
         if (count<0) {
             if (errno==EINTR) continue;
             LOG_MSG(logERR, "%s (%s)",
-                    ("write failed: \"" + f_addr + ":" + std::to_string(f_port) + "\"").c_str(),
+                    ("send failed: \"" + f_addr + ":" + std::to_string(f_port) + "\"").c_str(),
                     GetLastErr().c_str());
             return false;
         } else {
