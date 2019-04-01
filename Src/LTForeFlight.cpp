@@ -46,7 +46,7 @@ ForeFlightSender::~ForeFlightSender()
 }
 
 // if called makes sure the UDP client is up and running
-bool ForeFlightSender::FetchAllData(const positionTy& pos)
+bool ForeFlightSender::FetchAllData(const positionTy&)
 {
     // if we are invalid or disabled we should shut down
     if (!IsValid() || !IsEnabled()) {
@@ -269,7 +269,7 @@ void ForeFlightSender::SendGPS (const positionTy& pos, double speed_m, double tr
 
 // send attitude of user's aircraft
 // "XATTMy Sim,180.2,0.1,0.2"
-void ForeFlightSender::SendAtt (const positionTy& pos, double speed_m, double track)
+void ForeFlightSender::SendAtt (const positionTy& pos, double /*speed_m*/, double /*track*/)
 {
     // format the string to send
     char s[200];

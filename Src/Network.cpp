@@ -38,6 +38,7 @@
 #undef errno
 #define errno WSAGetLastError()     // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
 #define close closesocket
+typedef USHORT in_port_t;
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -313,7 +314,7 @@ bool SocketNetworking::broadcast (const char* msg)
     struct sockaddr_in s;
     memset(&s, '\0', sizeof(struct sockaddr_in));
     s.sin_family = AF_INET;
-    s.sin_port = (in_port_t)htons(f_port);
+    s.sin_port = htons((in_port_t)f_port);
     s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
     
     while (index<length) {

@@ -221,6 +221,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
     <ClCompile Include="src\LTAircraft.cpp" />
     <ClCompile Include="src\LTChannel.cpp" />
     <ClCompile Include="src\LTFlightData.cpp" />
+    <ClCompile Include="Src\LTForeFlight.cpp" />
     <ClCompile Include="src\LTMain.cpp" />
     <ClCompile Include="Src\LTOpenSky.cpp" />
     <ClCompile Include="Src\LTRealTraffic.cpp" />
@@ -263,9 +264,14 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
     <ClInclude Include="include\CoordCalc.h" />
     <ClInclude Include="include\DataRefs.h" />
     <ClInclude Include="include\LiveTraffic.h" />
+    <ClInclude Include="Include\LTADSBEx.h" />
     <ClInclude Include="include\LTAircraft.h" />
     <ClInclude Include="include\LTChannel.h" />
     <ClInclude Include="include\LTFlightData.h" />
+    <ClInclude Include="Include\LTForeFlight.h" />
+    <ClInclude Include="Include\LTOpenSky.h" />
+    <ClInclude Include="Include\LTRealTraffic.h" />
+    <ClInclude Include="Include\Network.h" />
     <ClInclude Include="include\parson.h" />
     <ClInclude Include="include\SettingsUI.h" />
     <ClInclude Include="include\TextIO.h" />
