@@ -65,7 +65,6 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_BTN_OPENSKY_MASTERDATA,
     UI_BASICS_BTN_ADSB_LIVE,
     UI_BASICS_BTN_REALTRAFFIC_LIVE,
-    UI_BASICS_INT_REALTRAFFIC_PORT,
     UI_BASICS_CAP_REALTRAFFIC_STATUS,
     UI_BASICS_CAP_REALTRAFFIC_METAR,
 
@@ -80,6 +79,13 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_INT_HIDE_BELOW_AGL,
     UI_BASICS_BTN_HIDE_TAXIING,
     UI_BASICS_BTN_AI_ON_REQUEST,
+
+    UI_BASICS_CAP_OUTPUT_CHANNELS,
+    UI_BASICS_BTN_FOREFLIGHT_SEND,
+    UI_BASICS_INT_FOREFLIGHT_INTVL,
+    UI_BASICS_CAP_FOREFLIGHT_S,
+    UI_BASICS_BTN_FOREFLIGHT_USERSPLANE,
+    UI_BASICS_BTN_FOREFLIGHT_TRAFFIC,
 
     UI_BASICS_CAP_DBG_LIMIT,
     
@@ -215,8 +221,8 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  70,  10,  10, 1, "OpenSky Network",      0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange",       0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 125,  10,  10, 1, "RealTraffic | Port:",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    { -50, 125, -10,  15, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+
+    {  10, 125,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {   5, 140,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {   5, 155,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
@@ -226,11 +232,19 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 200,  50, -10, -10, 0, "Basics Right",         0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0, 0,0, 0,0} },
     {   5,   8,  -5,  10, 1, "Misc options:",        0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  10,  25,  10,  10, 1, "Landing lights during taxi", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+
     {   5,  50,  -5,  10, 1, "Parallel with other traffic plugins:",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {   5,  68, 140,  10, 1, "No a/c below [ft AGL]",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { -50,  68, -10,  15, 1, "",                     0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
     {  10,  85,  10,  10, 1, "Hide a/c while taxiing", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 105,  10,  10, 1, "AI/TCAS on request only", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 100,  10,  10, 1, "AI/TCAS on request only", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+
+    {   5, 125,  -5,  10, 1, "Output Channels:",    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10, 140,  10,  10, 1, "ForeFlight | every",  0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { -50, 138, -15,  15, 1, "",                    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,6, 0,0, 0,0} },
+    { -15, 140, -10,  10, 1, "s",                   0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  25, 155,  10,  10, 1, "User's Plane",        0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    { 120, 155,  10,  10, 1, "Traffic",             0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
 
     {   5, -15,  -5,  10, 1, "",                    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     // "A/C Label" tab
@@ -398,8 +412,6 @@ void LTSettingsUI::Enable()
                              DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE]);
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
         capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
-        intRealTrafficPort.setId(widgetIds[UI_BASICS_INT_REALTRAFFIC_PORT],
-                                 DATA_REFS_LT[DR_CFG_RT_LISTEN_PORT]);
 
         UpdateRealTraffic();
         
@@ -417,6 +429,16 @@ void LTSettingsUI::Enable()
         // AI/TCAS on request only?
         btnAIonRequest.setId(widgetIds[UI_BASICS_BTN_AI_ON_REQUEST],
                              DATA_REFS_LT[DR_CFG_AI_ON_REQUEST]);
+        
+        // ForeFlight
+        btnForeFlight.setId(widgetIds[UI_BASICS_BTN_FOREFLIGHT_SEND],
+                            DATA_REFS_LT[DR_CHANNEL_FORE_FLIGHT_SENDER]);
+        intFFTrfcIntvl.setId(widgetIds[UI_BASICS_INT_FOREFLIGHT_INTVL],
+                             DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC_INTVL]);
+        btnFFUsersPlane.setId(widgetIds[UI_BASICS_BTN_FOREFLIGHT_USERSPLANE],
+                              DATA_REFS_LT[DR_CFG_FF_SEND_USER_PLANE]);
+        btnFFTraffic.setId(widgetIds[UI_BASICS_BTN_FOREFLIGHT_TRAFFIC],
+                           DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC]);
         
         // version number
         XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],
@@ -837,7 +859,7 @@ void LTSettingsUI::LabelBtnSave()
 void LTSettingsUI::UpdateRealTraffic()
 {
     if (dataRefs.pRTConn) {
-        capRealTrafficStatus.SetDescriptor(dataRefs.pRTConn->GetStatusStr());
+        capRealTrafficStatus.SetDescriptor(dataRefs.pRTConn->GetStatusWithTimeStr());
         capRealTrafficMetar.SetDescriptor(dataRefs.pRTConn->IsConnected() ?
                                           std::to_string(std::lround(dataRefs.pRTConn->GetHPA())) +
                                           " hPa @ " + dataRefs.pRTConn->GetMetarIcao() : "");

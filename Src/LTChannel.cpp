@@ -534,7 +534,7 @@ void LTFlightDataSelectAc ()
         // determine when to be called next
         // (calls to network requests might take a long time,
         //  see wait in OpenSkyAcMasterdata::FetchAllData)
-        auto nextWakeup = std::chrono::system_clock::now();
+        auto nextWakeup = std::chrono::steady_clock::now();
         nextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
         
         // LiveTraffic Top Level Exception Handling

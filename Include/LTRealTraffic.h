@@ -44,6 +44,7 @@ constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
+#define MSG_RT_LAST_RCVD        " | last: %lds ago"
 
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
 #define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %d - ignored"
@@ -127,6 +128,7 @@ protected:
     UDPReceiver udpWeatherData;
     volatile bool bStopUdp = false;
     volatile bool thrUdpRunning = false;
+    double lastReceivedTime     = 0.0;  // copy of simTime
     // map of last received datagrams for duplicate detection
     std::unordered_map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     // weather, esp. current barometric pressure to correct altitude values
@@ -157,7 +159,9 @@ public:
 
     // Status
     inline rtStatusTy GetStatus () const { return status; }
+    double GetLastRcvdTime () const { return lastReceivedTime; }
     std::string GetStatusStr () const;
+    std::string GetStatusWithTimeStr () const;
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
     void SetStatus (rtStatusTy s);

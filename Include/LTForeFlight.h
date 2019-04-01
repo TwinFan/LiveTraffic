@@ -41,7 +41,6 @@ constexpr size_t FF_NET_BUF_SIZE    = 512;
 // sending intervals in milliseonds
 constexpr std::chrono::milliseconds FF_INTVL_GPS    = std::chrono::milliseconds(1000); // 1 Hz
 constexpr std::chrono::milliseconds FF_INTVL_ATT    = std::chrono::milliseconds( 200); // 5 Hz
-constexpr std::chrono::milliseconds FF_INTVL_TRAFFIC= std::chrono::milliseconds(5000); // every 5s
 
 #define MSG_FF_OPENED           "ForeFlight: Starting to send"
 #define MSG_FF_STOPPED          "ForeFlight: Stopped"
@@ -54,7 +53,12 @@ class ForeFlightSender : public LTOnlineChannel, LTFlightDataChannel
 protected:
     // the map of flight data, data that we send out to ForeFlight
     mapLTFlightDataTy& fdMap;
-    // the network object we use to send our data
+    // thread
+    std::thread thrUdpSender;
+    volatile bool bStopUdpSender  = true;   // tells thread to stop
+    std::mutex  ffStopMutex;                // supports wake-up and stop synchronization
+    std::condition_variable ffStopCV;
+    // UDP sender
     UDPReceiver udpSender;
     bool    bSendUsersPlane = true;
     bool    bSendAITraffic  = true;
@@ -84,7 +88,9 @@ protected:
     bool StopConnection ();
     
     // send positions
-    void SendAll();
+    void udpSend();                 // thread's main function
+    static void udpSendS (ForeFlightSender* me) { me->udpSend(); }
+    std::chrono::time_point<std::chrono::steady_clock> SendAll();
     void SendGPS (const positionTy& pos, double speed_m, double track); // position of user's aircraft
     void SendAtt (const positionTy& pos, double speed_m, double track); // attitude of user's aircraft
     void SendAllTraffic (); // other traffic

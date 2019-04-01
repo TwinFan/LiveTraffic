@@ -241,6 +241,14 @@
          contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
       </ContextState>
       <ContextState
+         contextName = "RealTrafficConnection::SendPos(positionTy const&amp;, double):LTRealTraffic.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "errno">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "LTFlightDataCreateNewAc():LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -253,6 +261,9 @@
       </ContextState>
       <ContextState
          contextName = "LTOnlineChannel::FetchAllData(positionTy const&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::AppendNewPos():LTFlightData.cpp">
       </ContextState>
       <ContextState
          contextName = "ADSBExchangeHistorical::FetchAllFlightData(positionTy const&amp;):LTFlightData.cpp">
@@ -275,9 +286,6 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "positionTy::operator|=(positionTy const&amp;):CoordCalc.cpp">
-      </ContextState>
-      <ContextState
          contextName = "AccelParam::AccelParam(double, double, double, double):LTAircraft.cpp">
       </ContextState>
       <ContextState
@@ -287,7 +295,7 @@
          contextName = "LTChannel::DecErrCnt():LTChannel.cpp">
       </ContextState>
       <ContextState
-         contextName = "LTFlightData::AppendNewPos():LTFlightData.cpp">
+         contextName = "positionTy::operator|=(positionTy const&amp;):CoordCalc.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAircraft::CalcFlightModel():LTAircraft.cpp">
@@ -356,10 +364,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -527,10 +535,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -578,10 +586,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -592,10 +600,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">

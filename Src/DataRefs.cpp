@@ -308,6 +308,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/fore_flight/interval",    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
@@ -359,6 +362,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
+        case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
+        case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
+        case DR_CFG_FF_SEND_TRAFFIC_INTVL:  return &ffSendTrfcIntvl;
 
         default:
             // flight channels
@@ -1166,7 +1172,13 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
-        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60)
+        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
+        rtListenPort    < 1024              || rtListenPort     > 65535 ||
+        rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
+        rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
+        ffSendPort      < 1024              || ffSendPort       > 65535
+        )
     {
         // undo change
         *reinterpret_cast<int*>(p) = oldVal;

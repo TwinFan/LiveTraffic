@@ -235,6 +235,9 @@ enum dataRefsLT {
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
     DR_CFG_FF_SEND_PORT,
+    DR_CFG_FF_SEND_USER_PLANE,
+    DR_CFG_FF_SEND_TRAFFIC,
+    DR_CFG_FF_SEND_TRAFFIC_INTVL,
 
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
@@ -443,6 +446,9 @@ protected:
     int rtTrafficPort   = 49003;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
+    int bffUserPlane    = 1;            // bool Send User plane data?
+    int bffTraffic      = 1;            // bool Send traffic data?
+    int ffSendTrfcIntvl = 5;            // [s] interval to broadcast traffic info
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     

@@ -230,6 +230,18 @@ std::string RealTrafficConnection::GetStatusStr() const
     return "";
 }
 
+std::string RealTrafficConnection::GetStatusWithTimeStr() const
+{
+    std::string s (GetStatusStr());
+    if (IsConnected() && lastReceivedTime > 0.0) {
+        char sIntvl[50];
+        long intvl = std::lround(dataRefs.GetSimTime() - lastReceivedTime);
+        snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,intvl);
+        s += sIntvl;
+    }
+    return s;
+}
+
 // also take care of status
 void RealTrafficConnection::SetValid (bool _valid, bool bMsg)
 {
@@ -556,6 +568,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     
     // Raw data logging
     DebugLogRaw(traffic);
+    lastReceivedTime = dataRefs.GetSimTime();
     
     // any a/c filter defined for debugging purposes?
     const std::string acFilter ( dataRefs.GetDebugAcFilter() );
