@@ -448,7 +448,7 @@ protected:
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
-    int ffSendTrfcIntvl = 5;            // [s] interval to broadcast traffic info
+    int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     

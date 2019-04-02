@@ -138,22 +138,107 @@ void ForeFlightSender::udpSend()
     //
     // *** Loop for sending data ***
     //
+    // We place 20ms pause between any two broadcasts in order not to overtax
+    // the network. Increases reliability. The logic is then as follows:
+    // The loop keeps running till stop.
+    // We check if it is time for ATT or GPS data and send that if so.
+    // If not we continue with the traffic planes.
+    //   Once we reach the end of all traffic we won't start again
+    //   before reaching the proper time.
+    // Between any two broadcasts there is 20ms break.
+    //
+    LTFlightData::FDKeyTy lastKey;          // last traffic sent out
     while ( !bStopUdpSender )
     {
-        // send all data, SendAll tells us when to wake up next
-        std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
-        SendAll();
+        bool bDidSendSomething = false;
         
-        // if we get 0 in return then there was a problem and we break out
-        if (nextWakeup == std::chrono::time_point<std::chrono::steady_clock>())
-            break;
+        // now
+        std::chrono::time_point<std::chrono::steady_clock> now =
+        std::chrono::steady_clock::now();
+        
+        // send user's plane at all?
+        if (bSendUsersPlane) {
+            double airSpeed_m   = 0.0;
+            double track        = 0.0;
+            positionTy pos;
 
+            // time for GPS?
+            if (now >= nextGPS)
+            {
+                pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                SendGPS(pos, airSpeed_m, track);
+                nextGPS = now + FF_INTVL_GPS;
+                bDidSendSomething = true;
+            }
+            
+            // time for ATT?
+            if (now >= nextAtt)
+            {
+                if (!pos.isNormal())
+                    pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                SendAtt(pos, airSpeed_m, track);
+                nextAtt = now + FF_INTVL_ATT;
+                bDidSendSomething = true;
+            }
+        }
+
+        // send traffic at all?
+        // not yet send GPS/ATT?
+        // time to send some traffic?
+        if (bSendAITraffic && !bDidSendSomething &&
+            now >= nextTraffic)
+        {
+            // from here on access to fdMap guarded by a mutex
+            std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
+            if (lock) {
+                if (!fdMap.empty()) {
+                    // just starting with a new round?
+                    if (lastKey == LTFlightData::FDKeyTy())
+                        lastStartOfTraffic = now;
+                    
+                    // next key to send? (shall have an actual a/c)
+                    mapLTFlightDataTy::const_iterator mapIter;
+                    for (mapIter = fdMap.upper_bound(lastKey);
+                         mapIter != fdMap.cend() && !mapIter->second.hasAc();
+                         mapIter++);
+                    
+                    // something left?
+                    if (mapIter != fdMap.cend()) {
+                        // send that plane's info
+                        SendTraffic(mapIter->second);
+                        // wake up soon again for the rest
+                        lastKey = mapIter->first;
+                        nextTraffic = now + FF_INTVL;
+                    }
+                    else {
+                        // we're done with one round, start over
+                        lastKey = LTFlightData::FDKeyTy();
+                        nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
+                    }
+                }
+                else {
+                    // map's empty, so we are done
+                    lastKey = LTFlightData::FDKeyTy();
+                    nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
+                }
+            } else {
+                // wake up soon again for the rest
+                nextTraffic = now + FF_INTVL;
+            }
+        }
+        
         // sleep until time or if woken up for termination
         // by condition variable trigger
+        if (!bStopUdpSender)
         {
+            std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
+            bSendUsersPlane && bSendAITraffic  ? std::min({nextGPS, nextAtt, nextTraffic}) :
+            bSendUsersPlane && !bSendAITraffic ? std::min(nextGPS, nextAtt) :
+            nextTraffic;
+            
             std::unique_lock<std::mutex> lk(ffStopMutex);
             ffStopCV.wait_until(lk, nextWakeup,
-                                       [this]{return bStopUdpSender;});
+                                [this]{return bStopUdpSender;});
             lk.unlock();
         }
     }
@@ -163,54 +248,6 @@ void ForeFlightSender::udpSend()
     //
     udpSender.Close();
     LOG_MSG(logINFO, MSG_FF_STOPPED);
-}
-
-// main sending function, decides what to send and calls detail send functions
-// returns next wakeup
-std::chrono::time_point<std::chrono::steady_clock> ForeFlightSender::SendAll()
-{
-    // can only do with a UDP socket
-    if (!udpSender.isOpen())
-    {   LOG_MSG(logWARN,ERR_SOCK_NOTCONNECTED,ChName());
-        return std::chrono::time_point<std::chrono::steady_clock>(); }
-    
-    // time now is:
-    lastAtt = std::chrono::steady_clock::now();
-    
-    // info on user's own plane:
-    if (bSendUsersPlane) {
-        double airSpeed_m   = 0.0;
-        double track        = 0.0;
-        positionTy pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
-        if (!pos.isFullyValid())
-        {   LOG_MSG(logWARN,ERR_SOCK_INV_POS,ChName());
-            return std::chrono::time_point<std::chrono::steady_clock>(); }
-
-        // GPS info every second only
-        if (lastAtt - lastGPS >= FF_INTVL_GPS) {
-            SendGPS(pos, airSpeed_m, track);
-            lastGPS = lastAtt;
-        }
-        
-        // we always send attitude info
-        SendAtt(pos, airSpeed_m, track);
-    }
-    
-    // info on AI planes
-    const std::chrono::seconds ffIntvlTraffic =
-        std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
-    if (bSendAITraffic) {
-        if (lastAtt - lastTraffic >= ffIntvlTraffic) {
-            SendAllTraffic();
-            lastTraffic = lastAtt;
-        }
-    }
-    
-    // when to call next depends on what we want to send
-    return
-    bSendUsersPlane ? lastAtt + FF_INTVL_ATT :
-    bSendAITraffic  ? lastTraffic + ffIntvlTraffic :
-    std::chrono::time_point<std::chrono::steady_clock>();
 }
 
 // Send all traffic aircrafts' data
@@ -232,6 +269,8 @@ void ForeFlightSender::SendAllTraffic ()
         
         // Send traffic data for this object
         SendTraffic(fd);
+        
+        //
     }
 }
 

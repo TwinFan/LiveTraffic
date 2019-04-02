@@ -185,10 +185,10 @@ public:
         FDKeyTy& operator=(const FDKeyTy& o) = default;
         FDKeyTy& operator=(FDKeyTy&& o) = default;
 
-        // strict order
-        inline bool operator==(const FDKeyTy& o) const { return eKeyType == o.eKeyType && key == o.key; }
-        inline bool operator!=(const FDKeyTy& o) const { return eKeyType != o.eKeyType || key != o.key; }
-        inline bool operator<(const FDKeyTy& o) const { return eKeyType == o.eKeyType ? key < o.key : eKeyType < o.eKeyType; }
+        // strict order based on numeric value
+        inline bool operator==(const FDKeyTy& o) const { return eKeyType == o.eKeyType && num == o.num; }
+        inline bool operator!=(const FDKeyTy& o) const { return eKeyType != o.eKeyType || num != o.num; }
+        inline bool operator<(const FDKeyTy& o) const { return eKeyType == o.eKeyType ? num < o.num : eKeyType < o.eKeyType; }
 
         // imitate some (std::)string functionality
         inline bool operator==(const std::string o) const { return key == o; }
