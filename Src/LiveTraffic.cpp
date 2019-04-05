@@ -499,6 +499,5 @@ void LTErrorCB (const char* msg)
     char s[512];
     snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s\n", LIVE_TRAFFIC, msg);
     XPLMDebugString(s);
-    assert(msg!=NULL);          // we bail out and hope the debugger is attached, so we can debug where we come from
 }
 #endif

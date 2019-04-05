@@ -1273,7 +1273,7 @@ bool LTAircraft::CalcPPos()
     // (this also applies to artificial roll-out phase)
     if (f > 1.0 &&
         (phase == FPH_TAXI || phase >= FPH_TOUCH_DOWN) &&
-        speed.m_s() > 0 &&
+        speed.m_s() > 0.0 &&
         !bArtificalPos)
     {
         // init deceleration down to zero

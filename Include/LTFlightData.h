@@ -345,6 +345,7 @@ public:
     bool TryGetSafeCopy ( FDDynamicData& outDyn ) const;    // tries to get a copy, fails if lock unavailable
     FDDynamicData WaitForSafeCopyDyn(bool bFirst = true) const;  // waits for lock and returns a copy
     FDDynamicData GetUnsafeDyn() const;                     // no lock, potentially inconsistent!
+    bool GetCurrChannel (const LTChannel* &pChn) const;
     
     inline int GetRcvr() const { return rcvr; }
     

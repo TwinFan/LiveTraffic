@@ -156,6 +156,8 @@ public:
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
     virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
     { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
+    // shall data of this channel be subject to hovering flight detection?
+    virtual bool DoHoverDetection () const { return true; }
 
     // Status
     inline rtStatusTy GetStatus () const { return status; }

@@ -348,7 +348,8 @@ void RealTrafficConnection::tcpConnection ()
     
     // We make sure that, once leaving this thread, there is no
     // open listener (there might be a connected socket, though)
-    tcpPosSender.CloseListenerOnly();
+    if (!bStopTcp)                  // already closed if stop flag set, avoid rare crashes if called in parallel
+        tcpPosSender.CloseListenerOnly();
     thrTcpRunning = false;
 }
 
@@ -526,8 +527,10 @@ void RealTrafficConnection::udpListen ()
     
     // Let's make absolutely sure that any connection is really closed
     // once we return from this thread
-    udpTrafficData.Close();
-    udpWeatherData.Close();
+    if (!bStopUdp) {                // already closed if stop flag set, avoid rare crashes if called in parallel
+        udpTrafficData.Close();
+        udpWeatherData.Close();
+    }
     thrUdpRunning = false;
 }
 

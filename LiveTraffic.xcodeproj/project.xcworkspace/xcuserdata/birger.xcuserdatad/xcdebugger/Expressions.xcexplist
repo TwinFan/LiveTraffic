@@ -105,7 +105,7 @@
                value = "pos1">
             </PersistentString>
             <PersistentString
-               value = "statData.call">
+               value = "takeOffTS">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -227,24 +227,24 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "RealTrafficConnection::SendPos(positionTy const&amp;, double):LTRealTraffic.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "errno">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "UDPReceiver::UDPReceiver(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;, int, unsigned long, unsigned int):Network.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::SaveCSLPath(int, DataRefs::CSLPathCfgTy):DataRefs.cpp">
          <PersistentStrings>
             <PersistentString
                value = "vCSLPaths">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
-      </ContextState>
-      <ContextState
-         contextName = "RealTrafficConnection::SendPos(positionTy const&amp;, double):LTRealTraffic.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "errno">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -364,10 +364,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -535,10 +535,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -586,10 +586,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -600,10 +600,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">

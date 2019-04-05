@@ -443,7 +443,9 @@ std::string LTFlightData::ComposeLabel() const
 void LTFlightData::DataCleansing (bool& bChanged)
 {
     //
-    // Remove weird positions. A position is 'weird', if
+    // *** Remove weird positions ***
+    //
+    // A position is 'weird', if
     // - VSI would be more than +/- 2 * mdl.VSI_INIT_CLIMB
     // - heading change would be more than
     if (( pAc && posDeque.size() >= 1) ||
@@ -588,6 +590,62 @@ void LTFlightData::DataCleansing (bool& bChanged)
             }
         } // inner while loop over positions
     } // outer if of data cleansing
+    
+    // *** Hovering-along-the-runway detection ***
+    
+    // RealTraffic's data sometimes has the issue that after approach
+    // a plane does not touch down but instead there is actual tracking
+    // data that lets the plane fly along the runway a few dozen feet
+    // above ground. Looks like calculated predictive data for
+    // case of missing ADS-B data... But prevents LiveTraffic from
+    // just using its autoland feature, which would look a lot better.
+    // So let's remove that hovering stuff
+    
+    const LTChannel* pChn = nullptr;
+    if (pAc && !posDeque.empty() &&
+        LTAircraft::FPH_APPROACH <= pAc->GetFlightPhase() &&
+        pAc->GetFlightPhase() < LTAircraft::FPH_LANDING &&
+        GetCurrChannel(pChn) && pChn->DoHoverDetection())
+    {
+        // We have a plane which is in approach.
+        const LTAircraft::FlightModel& mdl = pAc->mdl;
+        const double maxHoverAlt_m = pAc->GetTerrainAlt_m() + (MAX_HOVER_AGL * M_per_FT);
+        
+        // What we now search for is data at level altitude following a descend.
+        // So we follow our positions as long as they are descending.
+        // Then we remove all data which is hovering at level altitude
+        // some few dozen feet above ground.
+        
+        // this increments iter as long as the next pos is descending
+        positionTy prevPos = pAc->GetToPos();       // we start comparing with current 'to'-pos of aircraft
+        dequePositionTy::const_iterator iter;
+        for (iter = posDeque.cbegin();              // start at the beginning
+             
+             iter != posDeque.cend() &&             // it's not yet the end, AND
+             !iter->IsOnGnd() &&                    // not on ground, AND
+             iter->vsi_ft(prevPos) < -mdl.VSI_STABLE; // descending considerably
+             
+             prevPos = *iter++ );                   // increment
+        
+        // 'prevPos' now is the last pos of the descend and will no longer change
+        // 'iter' points to the first pos _after_ descend
+        // and is the first deletion candidate.
+        // Delete all positions hovering above the runway.
+        while (iter != posDeque.cend() &&                         // not the end,
+               !iter->IsOnGnd() &&                                // between ground and
+               iter->alt_m() < maxHoverAlt_m &&                   // max hover altitude
+               std::abs(iter->vsi_ft(prevPos)) <= mdl.VSI_STABLE) // and flying level
+        {
+            // remove that hovering position
+            if constexpr (VERSION_BETA) {
+                LOG_MSG(logDEBUG, DBG_HOVER_POS_REMOVED,
+                        keyDbg().c_str(),
+                        iter->dbgTxt().c_str());
+            }
+            iter = posDeque.erase(iter);        // erase and returns element thereafter
+            bChanged = true;
+        }
+    }
 }
 
 // Smoothing data means:
@@ -605,9 +663,8 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     double airbRange = 0.0;
     
     // shall we do data smoothing at all?
-    if (dynDataDeque.empty() ||
-        !dynDataDeque.front().pChannel ||
-        !dynDataDeque.front().pChannel->DoDataSmoothing(gndRange,airbRange))
+    const LTChannel* pChn = nullptr;
+    if (!GetCurrChannel(pChn) || !pChn->DoDataSmoothing(gndRange,airbRange))
         return;
     
     // find first and last positions for smoothing
@@ -891,8 +948,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     const double toClimb_s = height_m / climbVsi;   // how long to climb to reach 'to'?
                     const double takeOffTS = to_i.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
                     
-                    // Continue only for timestamps in the future
-                    if (ppos_i.ts() < takeOffTS)
+                    // Continue only for timestamps in the future,
+                    // i.e. if take off is calculated to be after current to-position
+                    if (pAc->GetToPos().ts() < takeOffTS)
                     {
                         rotateTS = takeOffTS - mdl.ROTATE_TIME;         // timestamp when to rotate
 
@@ -921,13 +979,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                 // If this pos's heading is the same as for take off we just remove it.
                                 // Which allows the accelerate algorithm to accelerate all the distance to take-off point
                                 if (abs(HeadingDiff(iter->heading(), vec.angle)) <= MDL_SAME_TRACK_DIFF) {
-                                    posDeque.erase(iter);
-                                    // as all iterators are invalid we need to start over the loop
-                                    iter = posDeque.begin();
-                                    continue;
+                                    iter = posDeque.erase(iter);
+                                    continue;               // start over loop with next element after the erased one
                                 }
                                 
-                                // ... we stay on the ground
+                                // before take off we stay on the ground
                                 if (!iter->IsOnGnd()) {
                                     iter->onGrnd = positionTy::GND_ON;
                                     iter->alt_m() = NAN;            // TryFetchNewPos will calc terrain altitude
@@ -944,6 +1000,25 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         // found no insert position??? need to add it to the end
                         if (toIter == posDeque.end())
                             posDeque.push_back(takeOffPos);
+                        else
+                        {
+                            // we did find an insert position
+                            // we now also remove everything between this
+                            // inserted take-off position and the first
+                            // in-flight position, which is to_i.
+                            // (This can remove ppos_i!)
+                            dequePositionTy::iterator rmIter = posDeque.begin();
+                            // but runs only until first in-flight position
+                            while (rmIter != posDeque.end() && rmIter->ts() < to_i.ts())
+                            {
+                                // skip positions before and including take off pos
+                                if (rmIter->ts() <= takeOffTS + 0.001)
+                                    rmIter++;
+                                else
+                                    // a position after take off but before in-flight is to be removed
+                                    rmIter = posDeque.erase(rmIter);
+                            }
+                        }
                         
                         // output debug info on request
                         if (dataRefs.GetDebugAcPos(key())) {
@@ -1768,6 +1843,20 @@ LTFlightData::FDDynamicData LTFlightData::GetUnsafeDyn() const
 {
     return dynDataDeque.empty() ? FDDynamicData() : dynDataDeque.front();
 }
+
+// returns false if there is no dynamic data
+// returns true and set chn to the current channel if there is dynamic data
+bool LTFlightData::GetCurrChannel (const LTChannel* &pChn) const
+{
+    if (dynDataDeque.empty()) {
+        pChn = nullptr;
+        return false;
+    }
+
+    pChn = dynDataDeque.front().pChannel;
+    return pChn != nullptr;
+}
+
 
 // find two positions around given timestamp ts
 // pBefore and pAfter can come back NULL!

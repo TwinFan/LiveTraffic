@@ -83,6 +83,8 @@ public:
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
     virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
     { gndRange = 0.0; airbRange = 0.0; return false; }
+    // shall data of this channel be subject to hovering flight detection?
+    virtual bool DoHoverDetection () const { return false; }
 
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
