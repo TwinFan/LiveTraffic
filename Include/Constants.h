@@ -30,8 +30,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.01f;
-constexpr bool VERSION_BETA = true;
+constexpr float VERSION_NR = 1.10f;
+constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -79,6 +79,7 @@ constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-
 constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
 constexpr double AC_HIDE_LON        =  -8.264134;
 constexpr double AC_HIDE_ALT        = 50;
+constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -307,6 +308,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
 #define DBG_INV_POS_REMOVED     "DEBUG %s: Removed an invalid position: %s"
 #define DBG_INV_POS_AC_REMOVED  "DEBUG %s: Removed a/c due to invalid positions"
+#define DBG_HOVER_POS_REMOVED   "DEBUG %s: Removed a hovering position: %s"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
 #define DBG_AC_CHANNEL_SWITCH   "DEBUG %s: SWITCHED CHANNEL from '%s' to '%s'"

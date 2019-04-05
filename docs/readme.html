@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -82,43 +82,33 @@
 
     <h2>v1.10</h2>
 
-    <h3>v1.01.190401 Closed Beta for RealTraffic</h3>
+    <p>
+    <b>To update</b> just copy the contents of the installation package over your existing
+    installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
+    existing one. There are no new files.
+    </p>
+    
+    <h3>v1.10.190406</h3>
 
     <ul>
         <li>
-            BETA BUILD, i.e. with 1 month time limit.
-        </li>
-        <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/65">#65</a>
             RealTraffic as a new channel. See
-            <a href="https://twinfan.gitbook.io/livetraffic/v/v1.10/setup/installation/realtraffic-connectivity">configuration instructions</a>.<br>
-            Known Limitations:
-            <ul>
-                <li>
-                    Occasionally, planes on final hover all along the runway,
-                    finally either disappear or move backwards to a point where
-                    they taxi off the runway. This movement is actually in the
-                    received tracking data. Need to devise a cleansing method
-                    to get rid of it.
-                </li>
-                <li>
-                    Heading for stationary planes is inaccurate, i.e. planes at
-                    parking positions will likely point into the wrong direction.
-                    In the tracking data, heading/track info keeps moving around.
-                    Changes are filtered out, but the initial heading is any one
-                    received first by chance.<br />
-                    Unsure if I can solve this without knowledge of taxi ways.
-                </li>
-            </ul>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity">configuration instructions</a>.<br>
         </li>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/47">#47</a>
             ForeFlight as an output channel. See
-            <a href="https://twinfan.gitbook.io/livetraffic/v/v1.10/setup/installation/foreflight">configuration info</a>.<br>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/foreflight">configuration info</a>.<br>
         </li>
         <li>
             FIXED checking for updates so that it happens every 48h only
             if no update was found during last check.
+        </li>
+        <li>
+            REMOVED <a href="https://github.com/TwinFan/LiveTraffic/issues/125">#125</a>
+            historic options from config file to prevent users from being trapped
+            with "No enabled active channel...".
         </li>
     </ul>
 
@@ -126,12 +116,6 @@
     <h2>v1.00 Public Release</h2>
 
     <h3>v1.00.190309</h3>
-
-    <p>
-        <b>To update</b> just copy the contents of the installation package over your existing
-        installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
-        existing one. There are no new files.
-    </p>
 
     <ul>
         <li>
