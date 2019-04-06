@@ -72,7 +72,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>win</TargetName>
     <TargetExt>.xpl</TargetExt>
-    <OutDir>build\LiveTraffic\64\</OutDir>
+    <OutDir>build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>build\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <LinkIncremental />
@@ -82,7 +82,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>win</TargetName>
     <TargetExt>.xpl</TargetExt>
-    <OutDir>build\LiveTraffic\64\</OutDir>
+    <OutDir>build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>build\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <CustomBuildAfterTargets>

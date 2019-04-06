@@ -925,6 +925,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // in later runs we use future data from our queue
                 const positionTy& ppos_i  = i == 0 ? pAc->GetPPos() : posDeque[i-1];
                 positionTy& to_i          = posDeque[i];
+                const double to_i_ts      = to_i.ts();  // the reference might become invalid later once we start erasing, so we copy this timestamp that we need
                 
                 // we look up to 35s into the future
                 if (ppos_i.ts() > simTime + MDL_TO_LOOK_AHEAD)
@@ -1012,8 +1013,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             // in-flight position, which is to_i.
                             // (This can remove ppos_i!)
                             dequePositionTy::iterator rmIter = posDeque.begin();
-                            // but runs only until first in-flight position
-                            while (rmIter != posDeque.end() && rmIter->ts() < to_i.ts())
+                            // but runs only until first in-flight position (to_i, we saved its timestamp)
+                            while (rmIter != posDeque.end() && rmIter->ts() < to_i_ts)
                             {
                                 // skip positions before and including take off pos
                                 if (rmIter->ts() <= takeOffTS + 0.001)
