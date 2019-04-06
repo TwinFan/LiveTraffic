@@ -64,9 +64,14 @@ set(Header_Files
     Include/CoordCalc.h
     Include/DataRefs.h
     Include/LiveTraffic.h
+    Include/LTADSBEx.h
     Include/LTAircraft.h
     Include/LTChannel.h
     Include/LTFlightData.h
+    Include/LTForeFlight.h
+    Include/LTOpenSky.h
+    Include/LTRealTraffic.h
+    Include/Network.h
     Include/parson.h
     Include/SettingsUI.h
     Include/TextIO.h
@@ -83,11 +88,16 @@ set(Source_Files
     Src/CoordCalc.cpp
     Src/DataRefs.cpp
     Src/LiveTraffic.cpp
+    Src/LTADSBEx.cpp
     Src/LTAircraft.cpp
     Src/LTChannel.cpp
     Src/LTFlightData.cpp
+    Src/LTForeFlight.cpp
     Src/LTMain.cpp
+    Src/LTOpenSky.cpp
+    Src/LTRealTraffic.cpp
     Src/LTVersion.cpp
+    Src/Network.cpp
     Src/parson.c
     Src/SettingsUI.cpp
     Src/TextIO.cpp

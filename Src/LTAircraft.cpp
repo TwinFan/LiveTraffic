@@ -27,7 +27,6 @@
 #include "LiveTraffic.h"
 
 #include <fstream>
-#include <regex>
 
 //
 //MARK: Globals
@@ -947,7 +946,18 @@ LTAircraft::operator std::string() const
              GetSpeed_kt(),
              GetVSI_ft(),
              phase, FlightPhase2String(phase).c_str());
-    return std::string(buf) + positionDeque2String(posList);
+    
+    // We'll add out position list soon. To be able to also add a vector
+    // to the first pos in the flight data we look for that
+    positionTy firstFdPos;
+    const positionTy* pFirstFdPos = nullptr;
+    const dequePositionTy& fdPosDeque = fd.GetPosDeque();
+    if (!fdPosDeque.empty()) {
+        firstFdPos = fdPosDeque.front();    // copy for a bit better thread safety
+        pFirstFdPos = &firstFdPos;
+    }
+    
+    return std::string(buf) + positionDeque2String(posList, pFirstFdPos);
 }
 
 // Update the aircraft's label
@@ -1263,7 +1273,7 @@ bool LTAircraft::CalcPPos()
     // (this also applies to artificial roll-out phase)
     if (f > 1.0 &&
         (phase == FPH_TAXI || phase >= FPH_TOUCH_DOWN) &&
-        speed.m_s() > 0 &&
+        speed.m_s() > 0.0 &&
         !bArtificalPos)
     {
         // init deceleration down to zero
@@ -1998,6 +2008,10 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         int cycle = XPLMGetCycleNumber();
         if ( cycle != currCycle.num )            // new cycle!
             NextCycle(cycle);
+        
+#ifdef DEBUG
+        fd.bIsSelected = bIsSelected = (key() == dataRefs.GetSelectedAcKey());
+#endif
         
         // calculate new position and return it
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized

@@ -378,7 +378,8 @@ positionTy::onGrndE positionTy::DeriveGrndStatus (positionTy::onGrndE from,
 //
 
 // stringify all elements of a list
-std::string positionDeque2String (const dequePositionTy& _l)
+std::string positionDeque2String (const dequePositionTy& _l,
+                                  const positionTy* posAfterLast)
 {
     std::string ret;
     
@@ -396,6 +397,12 @@ std::string positionDeque2String (const dequePositionTy& _l)
             {
                 ret += ' ';                     // add vector to next position
                 ret += iter->between(*std::next(iter));
+            } else if (posAfterLast) {          // a pos after last is given for final vector?
+                const vectorTy v = iter->between(*posAfterLast);
+                if (v.dist > 0.00001) {         // and that pos is not about the same as current
+                    ret += ' ';                 // add vector to that position
+                    ret += v;
+                }
             }
             ret += '\n';
         }

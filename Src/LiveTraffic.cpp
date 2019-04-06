@@ -27,6 +27,10 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+#if IBM
+#include <objbase.h>        // for CoInitializeEx
+#endif
+
 // in LTVersion.cpp:
 extern bool InitFullVersion ();
 
@@ -175,9 +179,15 @@ void HandleNewVersionAvail ()
     if (std::isnan(verXPlaneOrg) || aMenuItems[MENU_ID_NEWVER] != 0)
         return;
     
+
     // if the X-Plane.org version is not newer don't worry either
-    if (verXPlaneOrg <= VERSION_NR)
+    if (verXPlaneOrg <= VERSION_NR) {
+        // save the current timestamp so we don't check too often
+        // (we specifically don't do this in case an update is found,
+        //  this way we keep reminding the user once there really IS an update.)
+        dataRefs.SetLastCheckedNewVerNow();
         return;
+    }
     
     // *** New version available! ***
     // add another menu item directing to the new version
@@ -188,9 +198,6 @@ void HandleNewVersionAvail ()
 
     // make the user aware
     SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,verXPlaneOrg);
-    
-    // save the current timestamp so we don't check too often
-    dataRefs.SetLastCheckedNewVerNow();
 }
 
 bool RegisterMenuItem ()
@@ -492,6 +499,5 @@ void LTErrorCB (const char* msg)
     char s[512];
     snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s\n", LIVE_TRAFFIC, msg);
     XPLMDebugString(s);
-    assert(msg!=NULL);          // we bail out and hope the debugger is attached, so we can debug where we come from
 }
 #endif

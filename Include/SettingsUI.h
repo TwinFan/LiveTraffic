@@ -45,6 +45,11 @@ protected:
                     btnBasicsAutoStart;
     // enable/disable flight data channels
     TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
+    TFButtonDataRef btnRealTraffic;
+    TFWidget capRealTrafficStatus, capRealTrafficMetar;
+    TFButtonDataRef btnForeFlight;
+    TFIntFieldDataRef intFFTrfcIntvl;
+    TFButtonDataRef btnFFUsersPlane, btnFFTraffic;
     // right hand side
     TFButtonDataRef btnLndLightsTaxi;
     TFIntFieldDataRef intHideBelowAGL;
@@ -104,6 +109,9 @@ protected:
     // Handle checkboxes for a/c labels
     void LabelBtnInit();
     void LabelBtnSave();
+    
+    // Handle RealTraffic status
+    void UpdateRealTraffic();
     
     // Save CSL path / Load a CSL package
     void SaveCSLPath(int idx);

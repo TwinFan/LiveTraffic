@@ -28,8 +28,6 @@
 
 #include <fstream>
 #include <errno.h>
-#include <regex>
-#include <future>
 
 //
 //MARK: external references
@@ -185,6 +183,8 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/true_theta",
     "sim/flightmodel/position/true_phi",
     "sim/flightmodel/position/true_psi",
+    "sim/flightmodel/position/hpath",
+    "sim/flightmodel/position/true_airspeed",
     "sim/flightmodel/failures/onground_any",
     "sim/graphics/VR/enabled",
     "sim/graphics/view/pilots_head_x",
@@ -245,7 +245,8 @@ static_assert(sizeof(CMD_REFS_XP) / sizeof(CMD_REFS_XP[0]) == CNT_CMDREFS_XP,
 void* GET_VAR = reinterpret_cast<void*>(INT_MIN);
 
 // list of all datRef definitions offered by LiveTraffic:
-DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
+DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
+    // a/c information
     {"livetraffic/ac/key",                          DataRefs::LTGetAcInfoI, DataRefs::LTSetAcKey,   (void*)DR_AC_KEY, false },
     {"livetraffic/ac/num",                          DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_NUM, false },
     {"livetraffic/ac/on_gnd",                       DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_ON_GND, false },
@@ -268,8 +269,11 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/ac/lights/landing",               DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_LANDING, false },
     {"livetraffic/ac/bearing",                      DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_BEARING, false },
     {"livetraffic/ac/dist",                         DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_DIST, false },
+
     {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)1, false },
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
+
+    // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -280,7 +284,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/msg_area_level",              DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
-    {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, true },
+    {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, false },
     {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/max_full_num_ac",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/full_distance",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -292,25 +296,39 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[] = {
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+
+    // debug options
     {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-};
+    
+    // channel configuration options
+    {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/fore_flight/interval",    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
-static_assert(sizeof(DATA_REFS_LT)/sizeof(DATA_REFS_LT[0]) == CNT_DATAREFS_LT,
-              "dataRefsLT and DATA_REFS_LT[] differ in number of elements");
+    // channels, in ascending order of priority
+    {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+};
 
 // returns the actual address of the variable within DataRefs, which stores the value of interest as per dataRef definition
 // (called in case dataRefDefinitionT::refCon == GET_VAR)
 void* DataRefs::getVarAddr (dataRefsLT dr)
 {
     switch (dr) {
+        // configuration options
         case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
@@ -333,14 +351,24 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
+        // debug options
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
             
+        // channel configuration options
+        case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
+        case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
+        case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
+        case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
+        case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
+        case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
+        case DR_CFG_FF_SEND_TRAFFIC_INTVL:  return &ffSendTrfcIntvl;
+
         default:
             // flight channels
-            if (DR_CHANNEL_FIRST <= dr && dr < DR_CHANNEL_FIRST + CNT_DR_CHANNELS)
+            if (DR_CHANNEL_FIRST <= dr && dr <= DR_CHANNEL_LAST)
                 return &bChannel[dr-DR_CHANNEL_FIRST];
             
             // else: must not happen
@@ -475,9 +503,14 @@ iLogLevel (initLogLevel)
         iLogLevel = logDEBUG;
 #endif
     
-    // enable all channels
+    // disable all channels
     for ( int& i: bChannel )
-        i = true;
+        i = false;
+
+    // enable OpenSky and ADSBEx by default
+    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
+    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+    SetChannelEnabled(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, true);
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));
@@ -676,7 +709,7 @@ bool DataRefs::RegisterCommands()
 }
 
 // return user's plane pos
-positionTy DataRefs::GetUsersPlanePos() const
+positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) const
 {
     positionTy pos
     (
@@ -694,6 +727,10 @@ positionTy DataRefs::GetUsersPlanePos() const
     if (pos.lat() < -75 || pos.lat() > 75)
         pos.lat() = NAN;
     
+    // also fetch true airspeed and track
+    trueAirspeed_m =    XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
+    track =             XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
+
     return pos;
 }
 
@@ -736,7 +773,8 @@ bool DataRefs::FetchPAc ()
         return false;
     
     // find that key's element
-    mapLTFlightDataTy::const_iterator fdIter = mapFd.find(keyAc);
+    LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO, keyAc);
+    mapLTFlightDataTy::const_iterator fdIter = mapFd.find(fdKey);
     if (fdIter != mapFd.end()) {
         // found, save ptr to a/c
         pAc = fdIter->second.GetAircraft();
@@ -756,7 +794,7 @@ bool DataRefs::FetchPAc ()
 void DataRefs::LTSetAcKey(void*, int key)
 {
     // sanity check
-    if ( key < 0 || key > 0xFFFFFF )
+    if ( key < 0 || (unsigned)key > MAX_TRANSP_ICAO )
         return;
     
     // default: nothing found
@@ -815,7 +853,7 @@ int DataRefs::LTGetAcInfoI(void* p)
 
     // return a/c info
     switch ( reinterpret_cast<long long>(p) ) {
-        case DR_AC_KEY: return dataRefs.pAc->fd.keyInt();
+        case DR_AC_KEY: return (int)dataRefs.pAc->fd.key().num;
         case DR_AC_ON_GND: return dataRefs.pAc->IsOnGrnd();
         case DR_AC_PHASE: return dataRefs.pAc->GetFlightPhase();
         case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->surfaces.lights.bcnLights;
@@ -1134,7 +1172,13 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
-        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60)
+        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
+        rtListenPort    < 1024              || rtListenPort     > 65535 ||
+        rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
+        rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
+        ffSendPort      < 1024              || ffSendPort       > 65535
+        )
     {
         // undo change
         *reinterpret_cast<int*>(p) = oldVal;
@@ -1144,6 +1188,25 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // success
     return true;
 }
+
+// generic config access (not as fast as specific access, but good for rare access)
+bool  DataRefs::GetCfgBool  (dataRefsLT dr)
+{
+    return GetCfgInt(dr) != 0;
+}
+
+int   DataRefs::GetCfgInt   (dataRefsLT dr)
+{
+    assert(0 <= dr && dr < CNT_DATAREFS_LT);
+    return DATA_REFS_LT[dr].getDatai();
+}
+
+float DataRefs::GetCfgFloat (dataRefsLT dr)
+{
+    assert(0 <= dr && dr < CNT_DATAREFS_LT);
+    return DATA_REFS_LT[dr].getDataf();
+}
+
 
 // more than 24h passed since last version check?
 bool DataRefs::NeedNewVerCheck () const
@@ -1193,7 +1256,7 @@ void DataRefs::LTSetDebugAcFilter( void* /*inRefcon*/, int i )
     bool bWasFilterDefined = dataRefs.uDebugAcFilter != 0;
     
     // match hex range of transpIcao codes
-    if ( 0x000000 <= i && i <= 0xFFFFFF ) {
+    if ( 0x000000 <= i && (unsigned)i <= MAX_TRANSP_ICAO ) {
         dataRefs.uDebugAcFilter = unsigned(i);
         
         // also set the key for the a/c info datarefs

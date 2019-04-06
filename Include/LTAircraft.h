@@ -265,7 +265,9 @@ protected:
     
     // object valid? (set to false after exceptions)
     bool                bValid;
-    
+#ifdef DEBUG
+    bool                bIsSelected = false;    // is selected for logging/debugging?
+#endif
     // visibility
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
@@ -275,7 +277,7 @@ public:
     virtual ~LTAircraft();
     
     // key for maps
-    inline const std::string& key() const { return fd.key(); }
+    inline const std::string& key() const { return fd.key().key; }
     // labels to pin to aircrafts on the screes
     inline const std::string label() const { return szLabelAc; }
     void LabelUpdate();

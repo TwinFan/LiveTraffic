@@ -31,6 +31,8 @@
 #include "TextIO.h"
 #include "CoordCalc.h"
 
+class RealTrafficConnection;
+
 //
 // MARK: Doc8643
 //
@@ -103,6 +105,8 @@ enum dataRefsXP {
     DR_PLANE_PITCH,
     DR_PLANE_ROLL,
     DR_PLANE_HEADING,
+    DR_PLANE_TRACK,
+    DR_PLANE_TRUE_AIRSPEED,
     DR_PLANE_ONGRND,
     DR_VR_ENABLED,                      // VR stuff
     DR_PILOTS_HEAD_X,
@@ -169,6 +173,7 @@ enum XPViewTypes {
 
 // Datarefs offered by LiveTraffic
 enum dataRefsLT {
+    // a/c information
     DR_AC_KEY = 0,                      // a/c info read/write
     DR_AC_NUM,                          // int a/c info
     DR_AC_ON_GND,
@@ -194,6 +199,8 @@ enum dataRefsLT {
     
     DR_SIM_DATE,
     DR_SIM_TIME,
+    
+    // configuration options
     DR_CFG_AIRCRAFTS_DISPLAYED,
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
@@ -216,16 +223,33 @@ enum dataRefsLT {
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
     DR_CFG_LAST_CHECK_NEW_VER,
-    DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
-    DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
-    DR_CHANNEL_OPEN_SKY_ONLINE,
-    DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
-    DR_CHANNEL_FUTUREDATACHN_ONLINE,
+    
+    // debug options
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
     DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
-    CNT_DATAREFS_LT                     // always last, number of elements
+    
+    // channel configuration options
+    DR_CFG_RT_LISTEN_PORT,
+    DR_CFG_RT_TRAFFIC_PORT,
+    DR_CFG_RT_WEATHER_PORT,
+    DR_CFG_FF_SEND_PORT,
+    DR_CFG_FF_SEND_USER_PLANE,
+    DR_CFG_FF_SEND_TRAFFIC,
+    DR_CFG_FF_SEND_TRAFFIC_INTVL,
+
+    // channels, in ascending order of priority
+    DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
+    DR_CHANNEL_FORE_FLIGHT_SENDER,
+    DR_CHANNEL_OPEN_GLIDER_NET,
+    DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
+    DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
+    DR_CHANNEL_OPEN_SKY_ONLINE,
+    DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
+    DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
+    // always last, number of elements:
+    CNT_DATAREFS_LT
 };
 
 enum cmdRefsLT {
@@ -239,8 +263,10 @@ enum cmdRefsLT {
     CNT_CMDREFS_LT                      // always last, number of elements
 };
 
-constexpr int CNT_DR_CHANNELS = 5;          // number of flight data channels
-constexpr int DR_CHANNEL_FIRST = DR_CHANNEL_ADSB_EXCHANGE_ONLINE;
+// first/last channel; number of channels:
+constexpr int DR_CHANNEL_FIRST  = DR_CHANNEL_FUTUREDATACHN_ONLINE;
+constexpr int DR_CHANNEL_LAST   = CNT_DATAREFS_LT-1;
+constexpr int CNT_DR_CHANNELS   = DR_CHANNEL_LAST+1 - DR_CHANNEL_FIRST;
 
 class DataRefs
 {
@@ -400,7 +426,7 @@ protected:
     int bAutoStart              = true; // shall display a/c right after startup?
     int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
     // which elements make up an a/c label?
-    LabelCfgTy labelCfg = { 1,1,0,0,0,0,0,0, 0,0,1,0,1,0 };
+    LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW; // label color, by default yellow
@@ -414,6 +440,15 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
+
+    // channel config options
+    int rtListenPort    = 10747;        // port opened for RT to connect
+    int rtTrafficPort   = 49003;        // UDP Port receiving traffic
+    int rtWeatherPort   = 49004;        // UDP Port receiving weather info
+    int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
+    int bffUserPlane    = 1;            // bool Send User plane data?
+    int bffTraffic      = 1;            // bool Send traffic data?
+    int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
@@ -432,6 +467,7 @@ public:
     std::string cslFixAcIcaoType;       // set of fixed values to use for...
     std::string cslFixOpIcao;           // ...newly created aircrafts for...
     std::string cslFixLivery;           // ...CSL model package testing
+    RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
 
 //MARK: Constructor
 public:
@@ -464,7 +500,7 @@ public:
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
     inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
-    positionTy GetUsersPlanePos() const;
+    positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
     void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic
@@ -513,6 +549,13 @@ public:
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
+    
+    // generic config access (not as fast as specific access, but good for rare access)
+    static bool  GetCfgBool  (dataRefsLT dr);
+    static int   GetCfgInt   (dataRefsLT dr);
+    static float GetCfgFloat (dataRefsLT dr);
+                     
+    // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }

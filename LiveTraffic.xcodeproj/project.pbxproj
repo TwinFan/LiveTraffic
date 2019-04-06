@@ -17,8 +17,11 @@
 		2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042921AAC9B5001E2F2A /* GSS.framework */; };
 		2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */; };
 		2564042E21AACB3D001E2F2A /* libpng.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042D21AACB3D001E2F2A /* libpng.framework */; };
+		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
+		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
+		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
+		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
-		2591F96C219700C200F0D436 /* LTFlightradar24.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2591F96B219700C200F0D436 /* LTFlightradar24.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
@@ -31,6 +34,7 @@
 		25D29ABE207D48AA00A88505 /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D29ABC207D48AA00A88505 /* XPWidgets.framework */; };
 		25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
+		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
@@ -80,9 +84,16 @@
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
 		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
 		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
+		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
+		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
+		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
+		2573631B22233041005210C5 /* LTRealTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTRealTraffic.h; sourceTree = "<group>"; };
+		2573631C22233CCA005210C5 /* LTOpenSky.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTOpenSky.h; sourceTree = "<group>"; };
+		2573631D22233CCA005210C5 /* LTADSBEx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTADSBEx.h; sourceTree = "<group>"; };
+		2573631E22233CDA005210C5 /* LTADSBEx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTADSBEx.cpp; sourceTree = "<group>"; };
+		2573631F22233CDA005210C5 /* LTOpenSky.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTOpenSky.cpp; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
-		25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "RealTraffic dev1.0.pdf"; sourceTree = "<group>"; };
 		25865B0022065B8D009D5D9C /* udp_listen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_listen.py; sourceTree = "<group>"; };
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
@@ -174,6 +185,11 @@
 		25C59459207A2B7500E52073 /* DataRefs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DataRefs.cpp; sourceTree = "<group>"; };
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
+		25CDC7482236F034007F504B /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 10/Log.txt"; sourceTree = "<group>"; };
+		25D09093222D69C400D52057 /* RTdev1.1.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.1.pdf; sourceTree = "<group>"; };
+		25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z_PE.txt; sourceTree = "<group>"; };
+		25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z.txt; sourceTree = "<group>"; };
+		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
 		25D29ABB207D48AA00A88505 /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPLM.framework; path = ../../Frameworks/XPLM.framework; sourceTree = "<group>"; };
 		25D29ABC207D48AA00A88505 /* XPWidgets.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPWidgets.framework; path = ../../Frameworks/XPWidgets.framework; sourceTree = "<group>"; };
 		25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BADA_Aircraft_Performance_Summary_Tables.pdf; sourceTree = "<group>"; };
@@ -186,6 +202,14 @@
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
+		25FC893B222F269700F5D57C /* KLAS_20190305_2055Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2055Z_PE.txt; sourceTree = "<group>"; };
+		25FC893C222F269700F5D57C /* KJFK_20190305_2028Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KJFK_20190305_2028Z_METAR.json; sourceTree = "<group>"; };
+		25FC893D222F269700F5D57C /* KJFK_20190305_2130Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KJFK_20190305_2130Z.txt; sourceTree = "<group>"; };
+		25FC893E222F269700F5D57C /* KLAS_20190305_2056Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2056Z.txt; sourceTree = "<group>"; };
+		25FC893F222F269700F5D57C /* KJFK_20190305_2028Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KJFK_20190305_2028Z_PE.txt; sourceTree = "<group>"; };
+		25FC8940222F269800F5D57C /* KLAS_20190305_2055Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KLAS_20190305_2055Z_METAR.json; sourceTree = "<group>"; };
+		25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTForeFlight.cpp; sourceTree = "<group>"; };
+		25FEB7BA224D7C8C002A051F /* LTForeFlight.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTForeFlight.h; sourceTree = "<group>"; };
 		D607B19909A556E400699BC3 /* mac.xpl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mac.xpl; sourceTree = BUILT_PRODUCTS_DIR; };
 		D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTraffic.cpp; sourceTree = "<group>"; };
 		D6A7BDA916A1DEA200D1426A /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
@@ -261,11 +285,16 @@
 				2558579320950C6700816F65 /* CoordCalc.cpp */,
 				25C59459207A2B7500E52073 /* DataRefs.cpp */,
 				D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */,
+				2573631E22233CDA005210C5 /* LTADSBEx.cpp */,
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
+				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
+				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
+				2573631922233008005210C5 /* LTRealTraffic.cpp */,
 				25ABEEFD219A1C2100F61413 /* LTVersion.cpp */,
+				257363162222C879005210C5 /* Network.cpp */,
 				254EA46F2083E403008A312F /* parson.c */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
@@ -328,8 +357,17 @@
 		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
 			isa = PBXGroup;
 			children = (
-				25865AFF22065B8D009D5D9C /* RealTraffic dev1.0.pdf */,
+				25FC893C222F269700F5D57C /* KJFK_20190305_2028Z_METAR.json */,
+				25FC893F222F269700F5D57C /* KJFK_20190305_2028Z_PE.txt */,
+				25FC893D222F269700F5D57C /* KJFK_20190305_2130Z.txt */,
+				25FC8940222F269800F5D57C /* KLAS_20190305_2055Z_METAR.json */,
+				25FC893B222F269700F5D57C /* KLAS_20190305_2055Z_PE.txt */,
+				25FC893E222F269700F5D57C /* KLAS_20190305_2056Z.txt */,
+				25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */,
+				25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */,
+				25D09093222D69C400D52057 /* RTdev1.1.pdf */,
 				25865B0022065B8D009D5D9C /* udp_listen.py */,
+				25D09096222D7F0700D52057 /* udp_send.py */,
 			);
 			path = RealTraffic;
 			sourceTree = "<group>";
@@ -351,9 +389,14 @@
 				25A095C02203B01300658AA8 /* CoordCalc.h */,
 				25A095C72203B01300658AA8 /* DataRefs.h */,
 				25A095C82203B01300658AA8 /* LiveTraffic.h */,
+				2573631D22233CCA005210C5 /* LTADSBEx.h */,
 				25A095C92203B01300658AA8 /* LTAircraft.h */,
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
+				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
+				2573631C22233CCA005210C5 /* LTOpenSky.h */,
+				2573631B22233041005210C5 /* LTRealTraffic.h */,
+				257363182222C8E2005210C5 /* Network.h */,
 				25A095C12203B01300658AA8 /* parson.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
 				25A095BE2203B01300658AA8 /* TextIO.h */,
@@ -529,10 +572,11 @@
 		25A3889B209884B50015266E /* Links */ = {
 			isa = PBXGroup;
 			children = (
+				25CDC7482236F034007F504B /* Log.txt */,
+				251531BE21B867F900B5968A /* Log.txt */,
 				253B6F2E2225EC14001F8B42 /* Commands.txt */,
 				25271352220F36340039D2A4 /* LiveTraffic.prf */,
 				255F35AE2097C0730080B78E /* DataRefs.txt */,
-				251531BE21B867F900B5968A /* Log.txt */,
 			);
 			name = Links;
 			sourceTree = "<group>";
@@ -625,13 +669,11 @@
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				English,
-				Japanese,
-				French,
-				German,
+				Base,
+				en,
 			);
 			mainGroup = D607B15F09A5563000699BC3;
 			productRefGroup = D607B19A09A556E400699BC3 /* Products */;
@@ -654,11 +696,15 @@
 				25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */,
 				2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */,
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
+				2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */,
+				2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */,
+				257363172222C879005210C5 /* Network.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
-				2591F96C219700C200F0D436 /* LTFlightradar24.cpp in Sources */,
+				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
+				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
 				254EA4702083E403008A312F /* parson.c in Sources */,
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
@@ -694,7 +740,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.00;
+				CURRENT_PROJECT_VERSION = 1.10;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
@@ -771,7 +817,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.00;
+				CURRENT_PROJECT_VERSION = 1.10;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";

@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.00f;
+constexpr float VERSION_NR = 1.10f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -58,28 +58,37 @@ constexpr double Ms_per_FTm = M_per_FT / SEC_per_M;     //1 m/s = 196.85... ft/m
 constexpr double PI         = 3.1415926535897932384626433832795028841971693993751;
 constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 constexpr double JAN_FIRST_2019 = 1546344000;   // 01.01.2019
+constexpr double HPA_STANDARD   = 1013.25;      // air pressure
+constexpr double INCH_STANDARD  = 2992.126;
+constexpr double HPA_per_INCH   = HPA_STANDARD/INCH_STANDARD;
+// The pressure drops approximately by 11.3 Pa per meter in first 1000 meters above sea level.
+constexpr double PA_per_M       = 11.3;         // https://en.wikipedia.org/wiki/Barometric_formula
+// ft altitude diff per hPa change
+constexpr double FT_per_HPA     = (100/PA_per_M)/M_per_FT;
 
 //MARK: Flight Data-related
+constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
-constexpr double FD_GND_CHECK_AGL = 300;        // [ft] if pos is that close to terrain alt but grndStatus OFF then double-check using YProbe
-constexpr double FD_GND_AGL =       10;         // [ft] consider pos 'ON GRND' if this close to YProbe
+constexpr double FD_GND_AGL =       50;         // [ft] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
 constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
 constexpr double AC_HIDE_LON        =  -8.264134;
 constexpr double AC_HIDE_ALT        = 50;
+constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
 constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
-constexpr double MDL_CLOSE_TO_GND_SLOW = 25;    // feet height considered "on ground" if moving with less than max taxi speed
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
+constexpr double MDL_SAME_TRACK_DIFF  =   3.0;  // [¡] max degree difference considered "same track"
+constexpr double MDL_TO_LOOK_AHEAD  =    35.0;  // [s] to look ahead for take off prediction
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
@@ -276,112 +285,6 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_FM_REGEX            "%s in '%s', line %d: %s"
 constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while reading config file, then: dead
 
-//MARK: OpenSky
-#define OPSKY_NAME              "OpenSky Live Online"
-#define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
-#define OPSKY_TIME              "time"
-#define OPSKY_AIRCRAFT_ARR      "states"
-constexpr int OPSKY_TRANSP_ICAO   = 0;               // icao24
-constexpr int OPSKY_CALL          = 1;               // callsign
-constexpr int OPSKY_COUNTRY       = 2;               // origin_county
-constexpr int OPSKY_POS_TIME      = 3;               // time_position
-constexpr int OPSKY_LON           = 5;               // longitude
-constexpr int OPSKY_LAT           = 6;               // latitude
-constexpr int OPSKY_GND           = 8;               // on_ground
-constexpr int OPSKY_SPD           = 9;               // velocity
-constexpr int OPSKY_HEADING       = 10;              // heading
-constexpr int OPSKY_VSI           = 11;              // vertical rate
-constexpr int OPSKY_ELEVATION     = 13;              // geo_altitude
-constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
-
-//MARK: OpenSky Master Data
-constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 2 requests
-#define OPSKY_MD_NAME           "OpenSky Masterdata Online"
-#define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
-#define OPSKY_MD_GROUP          "MASTER"        // made-up group of master data fields
-#define OPSKY_MD_TRANSP_ICAO    "icao24"
-#define OPSKY_MD_COUNTRY        "country"
-#define OPSKY_MD_MAN            "manufacturerName"
-#define OPSKY_MD_MDL            "model"
-#define OPSKY_MD_OP_ICAO        "operatorIcao"
-#define OPSKY_MD_OP             "owner"
-#define OPSKY_MD_REG            "registration"
-#define OPSKY_MD_AC_TYPE_ICAO   "typecode"
-#define OPSKY_MD_CAT_DESCR      "categoryDescription"
-#define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
-#define OPSKY_MD_TEX_NO_CAT		"No ADS-B Emitter Category Information"
-
-#define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
-#define OPSKY_ROUTE_GROUP       "ROUTE"         // made-up group of route information fields
-#define OPSKY_ROUTE_CALLSIGN    "callsign"
-#define OPSKY_ROUTE_ROUTE       "route"
-#define OPSKY_ROUTE_OP_IATA     "operatorIata"
-#define OPSKY_ROUTE_FLIGHT_NR   "flightNumber"
-
-
-//MARK: ADS-B Exchange
-#define ADSBEX_NAME             "ADSB Exchange Live Online"
-#define ADSBEX_URL_ALL          "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat=%f&lng=%f&fDstU=%d"
-#define ADSBEX_URL_AC           "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?fIcoQ=%s"
-#define ADSBEX_TIME             "stm"
-#define ADSBEX_AIRCRAFT_ARR     "acList"
-#define ADSBEX_TRANSP_ICAO      "Icao"          // Key data
-#define ADSBEX_TRT              "Trt"
-#define ADSBEX_RCVR             "Rcvr"
-#define ADSBEX_SIG              "Sig"
-#define ADSBEX_RADAR_CODE       "Sqk"           // Dynamic data
-#define ADSBEX_CALL             "Call"
-#define ADSBEX_C_MSG            "CMsgs"
-#define ADSBEX_LAT              "Lat"
-#define ADSBEX_LON              "Long"
-#define ADSBEX_ELEVATION        "GAlt"
-#define ADSBEX_HEADING          "Trak"
-#define ADSBEX_GND              "Gnd"
-#define ADSBEX_IN_HG            "InHg"
-#define ADSBEX_POS_TIME         "PosTime"
-#define ADSBEX_POS_STALE        "PosStale"
-#define ADSBEX_BRNG             "Brng"
-#define ADSBEX_DST              "Dst"
-#define ADSBEX_SPD              "Spd"
-#define ADSBEX_VSI              "Vsi"
-#define ADSBEX_REG              "Reg"
-#define ADSBEX_COUNTRY          "Cou"
-#define ADSBEX_AC_TYPE_ICAO     "Type"
-#define ADSBEX_MAN              "Man"
-#define ADSBEX_MDL              "Mdl"
-#define ADSBEX_YEAR             "Year"
-#define ADSBEX_MIL              "Mil"
-#define ADSBEX_OP               "Op"
-#define ADSBEX_OP_ICAO          "OpIcao"
-#define ADSBEX_COS              "Cos"               // array of short trails
-#define ADSBEX_ENG_TYPE         "EngType"
-#define ADSBEX_ENG_MOUNT        "EngMount"
-#define ADSBEX_ORIGIN           "From"
-#define ADSBEX_DESTINATION      "To"
-
-#define ADSBEX_HIST_NAME        "ADSB Exchange Historic File"
-constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line
-constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneous line we stop reading
-#define ADSBEX_HIST_PATH        "Custom Data/ADSB"  // TODO: Move to options: relative to XP main
-#define ADSBEX_HIST_PATH_2      "Custom Data/ADSB2" // TODO: Move to options: fallback, if first one doesn't work
-#define ADSBEX_HIST_DATE_PATH   "%c%04d-%02d-%02d"
-#define ADSBEX_HIST_FILE_NAME   "%c%04d-%02d-%02d-%02d%02dZ.json"
-#define ADSBEX_HIST_PATH_EMPTY  "Historic Data Path doesn't exist or folder empty at %s"
-#define ADSBEX_HIST_TRY_FALLBACK "Trying fallback as primary Historic Data Path doesn't exist or folder empty at %s"
-#define ADSBEX_HIST_FALLBACK_EMPTY  "Also fallback Historic Data Path doesn't exist or folder empty at %s"
-#define ADSBEX_HIST_FILE_ERR    "Could not open historic file '%s': %s"
-#define ADSBEX_HIST_READ_FILE   "Reading from historic file %s"
-#define ADSBEX_HIST_LN1_END     "\"acList\":["      // end of first line
-#define ADSBEX_HIST_LAT         "\"Lat\":"          // latitude tag
-#define ADSBEX_HIST_LONG        "\"Long\":"         // longitude tag
-#define ADSBEX_HIST_COS         "\"Cos\":["         // start of short trails
-#define ADSBEX_HIST_LAST_LN     "]"                 // begin of last line
-#define ADSBEX_HIST_LN1_UNEXPECT "First line doesn't look like hist file: %s"
-#define ADSBEX_HIST_LN_ERROR    "Error reading line %d of hist file %s"
-#define ADSBEX_HIST_TRAIL_ERR   "Trail data not quadrupels (%s @ %f)"
-#define ADSBEX_HIST_START_FILE  "START OF FILE "
-#define ADSBEX_HIST_END_FILE    "END OF FILE "
-
 //MARK: Debug Texts
 #define DBG_MENU_CREATED        "Menu created"
 #define DBG_WND_CREATED_UNTIL   "Created window, display until total running time %.2f, for text: %s"
@@ -405,6 +308,7 @@ constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many error
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
 #define DBG_INV_POS_REMOVED     "DEBUG %s: Removed an invalid position: %s"
 #define DBG_INV_POS_AC_REMOVED  "DEBUG %s: Removed a/c due to invalid positions"
+#define DBG_HOVER_POS_REMOVED   "DEBUG %s: Removed a hovering position: %s"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
 #define DBG_AC_CHANNEL_SWITCH   "DEBUG %s: SWITCHED CHANNEL from '%s' to '%s'"
