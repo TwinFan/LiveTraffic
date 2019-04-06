@@ -772,6 +772,13 @@ bool LTFlightData::CalcNextPos ( double simTime )
         while (dynDataDeque.size() >= 2 && dynDataDeque[1].ts <= simTime)
             dynDataDeque.pop_front();
         
+        // *** Maintenance of positions queue ***
+        
+        // *** Data Smoothing ***
+        // (potentially changes timestamp, so needs to be befure
+        //  maintenance, which relies on timestamps)
+        DataSmoothing(bChanged);
+        
         // *** maintenance of buffered positions ***
         
         // Differs depending on: is there an a/c yet?
@@ -806,9 +813,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
             if (posDeque.size() < 2)
                 return false;
         }
-        
-        // *** Data Smoothing ***
-        DataSmoothing(bChanged);
         
         // *** Data Cleansing ***
         DataCleansing(bChanged);
