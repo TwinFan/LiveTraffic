@@ -717,7 +717,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
                 // altitude comes without local pressure applied
                 double alt_f = std::stod(tfc[RT_TFC_ALT]);
                 alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
-                pos.alt_m() = alt_f * M_per_FT;
+                pos.SetAltFt(alt_f);
             }
             
             // don't forget gnd-flag in position

@@ -31,44 +31,58 @@
 #include "LTChannel.h"
 
 //MARK: ADS-B Exchange Constants
-#define ADSBEX_NAME             "ADSB Exchange Live Online"
-#define ADSBEX_URL_ALL          "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat=%f&lng=%f&fDstU=%d"
-#define ADSBEX_URL_AC           "https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?fIcoQ=%s"
-#define ADSBEX_TIME             "stm"
-#define ADSBEX_AIRCRAFT_ARR     "acList"
-#define ADSBEX_TRANSP_ICAO      "Icao"          // Key data
-#define ADSBEX_TRT              "Trt"
+#define ADSBEX_NAME             "ADS-B Exchange Online"
+#define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/json/lat/%f/lon/%f/dist/%d/"
+#define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
+#define ADSBEX_TIME             "ctime"
+#define ADSBEX_AIRCRAFT_ARR     "ac"
+#define ADSBEX_TRANSP_ICAO      "icao"          // Key data
+#define ADSBEX_TRT              "trt"
+#define ADSBEX_RADAR_CODE       "sqk"           // Dynamic data
+#define ADSBEX_CALL             "call"
+// #define ADSBEX_C_MSG            "CMsgs"
+#define ADSBEX_LAT              "lat"
+#define ADSBEX_LON              "lon"
+// #define ADSBEX_ELEVATION        "GAlt"          // geometric altitude
+#define ADSBEX_ALT              "alt"           // barometric altitude
+#define ADSBEX_HEADING          "trak"
+#define ADSBEX_GND              "gnd"
+// #define ADSBEX_IN_HG            "InHg"
+#define ADSBEX_POS_TIME         "postime"
+// #define ADSBEX_POS_STALE        "PosStale"
+// #define ADSBEX_BRNG             "Brng"
+// #define ADSBEX_DST              "Dst"
+#define ADSBEX_SPD              "spd"
+#define ADSBEX_VSI              "vsi"
+#define ADSBEX_REG              "reg"
+// #define ADSBEX_COUNTRY          "Cou"
+#define ADSBEX_AC_TYPE_ICAO     "type"
+// #define ADSBEX_MAN              "Man"
+// #define ADSBEX_MDL              "Mdl"
+// #define ADSBEX_YEAR             "Year"
+#define ADSBEX_MIL              "mil"
+// #define ADSBEX_OP               "Op"
+// #define ADSBEX_OP_ICAO          "OpIcao"
+// #define ADSBEX_ENG_TYPE         "EngType"
+// #define ADSBEX_ENG_MOUNT        "EngMount"
+// #define ADSBEX_ORIGIN           "From"
+// #define ADSBEX_DESTINATION      "To"
+
+// still used in historic data code, unsure if supported:
 #define ADSBEX_RCVR             "Rcvr"
 #define ADSBEX_SIG              "Sig"
-#define ADSBEX_RADAR_CODE       "Sqk"           // Dynamic data
-#define ADSBEX_CALL             "Call"
-#define ADSBEX_C_MSG            "CMsgs"
-#define ADSBEX_LAT              "Lat"
-#define ADSBEX_LON              "Long"
-#define ADSBEX_ELEVATION        "GAlt"
-#define ADSBEX_HEADING          "Trak"
-#define ADSBEX_GND              "Gnd"
-#define ADSBEX_IN_HG            "InHg"
-#define ADSBEX_POS_TIME         "PosTime"
-#define ADSBEX_POS_STALE        "PosStale"
-#define ADSBEX_BRNG             "Brng"
-#define ADSBEX_DST              "Dst"
-#define ADSBEX_SPD              "Spd"
-#define ADSBEX_VSI              "Vsi"
-#define ADSBEX_REG              "Reg"
-#define ADSBEX_COUNTRY          "Cou"
-#define ADSBEX_AC_TYPE_ICAO     "Type"
-#define ADSBEX_MAN              "Man"
-#define ADSBEX_MDL              "Mdl"
-#define ADSBEX_YEAR             "Year"
-#define ADSBEX_MIL              "Mil"
-#define ADSBEX_OP               "Op"
-#define ADSBEX_OP_ICAO          "OpIcao"
 #define ADSBEX_COS              "Cos"               // array of short trails
-#define ADSBEX_ENG_TYPE         "EngType"
-#define ADSBEX_ENG_MOUNT        "EngMount"
-#define ADSBEX_ORIGIN           "From"
-#define ADSBEX_DESTINATION      "To"
+
+// Testing an API key
+#define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
+#define ADSBEX_ERR              "ERR"
+#define ADSBEX_NO_API_KEY       "NO API KEY"
+#define ERR_ADSBEX_KEY_TECH     "ADSBEx: Technical problem while testing key: %d - %s"
+#define MSG_ADSBEX_KEY_SUCCESS  "ADS-B Exchange: API Key tested SUCCESSFULLY"
+#define ERR_ADSBEX_KEY_FAILED   "ADS-B Exchange: API Key INVALID"
+#define ERR_ADSBEX_KEY_UNKNOWN  "ADS-B Exchange: API Key test responded with unknown answer"
+#define ERR_ADSBEX_NO_KEY_DEF   "ADS-B Exchange: API Key missing. Get one at adsbexchange.com and enter it in Basic Settings."
+#define ERR_ADSBEX_OTHER        "ADS-B Exchange: Received an ERRor response: %s"
 
 constexpr double ADSBEX_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
 constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
@@ -78,6 +92,8 @@ constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 //
 class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
 {
+protected:
+    struct curl_slist* slistKey = NULL;
 public:
     ADSBExchangeConnection () :
     LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
@@ -92,11 +108,28 @@ public:
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
     virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
     { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
+    
+protected:
+    // need to add/cleanup API key
+    virtual bool InitCurl ();
+    virtual void CleanupCurl ();
+    
+public:
+    // Just quickly sends one simple request to ADSBEx and checks if the response is not "NO KEY"
+    // Does a SHOW_MSG about the result and saves the key to dataRefs on success.
+    static void TestADSBExAPIKey (const std::string newKey);
+    // Fetch result of last test, which is running in a separate thread
+    // returns if the result is available. If available, actual result is returned in bIsKeyValid
+    static bool TestADSBExAPIKeyResult (bool& bIsKeyValid);
+protected:
+    // actual test, blocks, should by called via std::async
+    static bool DoTestADSBExAPIKey (const std::string newKey);
+    static size_t DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t nmemb, void* userdata);
 };
 
 
 //MARK: ADS-B Exchange (Historic) Constants
-#define ADSBEX_HIST_NAME        "ADSB Exchange Historic File"
+#define ADSBEX_HIST_NAME        "ADS-B Exchange Historic"
 constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line
 constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneous line we stop reading
 #define ADSBEX_HIST_PATH        "Custom Data/ADSB"  // TODO: Move to options: relative to XP main

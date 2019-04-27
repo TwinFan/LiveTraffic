@@ -454,6 +454,7 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sADSBExAPIKey;
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -594,6 +595,9 @@ public:
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
+    
+    std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
+    void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
     
     // timestamp offset network vs. system clock
     inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }

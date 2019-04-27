@@ -1479,6 +1479,8 @@ bool DataRefs::LoadConfigFile()
                 dataRefs.SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
                 dataRefs.SetDefaultCarIcaoType(sVal);
+            else if (sDataRef == CFG_ADSBEX_API_KEY)
+                dataRefs.SetADSBExAPIKey(sVal);
             else
             {
                 // unknown config entry, ignore
@@ -1575,6 +1577,8 @@ bool DataRefs::SaveConfigFile()
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << dataRefs.GetDefaultAcIcaoType() << '\n';
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << dataRefs.GetDefaultCarIcaoType() << '\n';
+    if (!dataRefs.GetADSBExAPIKey().empty())
+        fOut << CFG_ADSBEX_API_KEY << ' ' << dataRefs.GetADSBExAPIKey() << '\n';
 
     // *** [CSLPatchs] ***
     // add section of CSL paths to the end
