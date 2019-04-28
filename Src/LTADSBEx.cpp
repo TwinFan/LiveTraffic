@@ -134,9 +134,11 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             {
                 LTFlightData::FDStaticData stat;
                 stat.reg =        jog_s(pJAc, ADSBEX_REG);
+                stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
                 stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                 stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
                 stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
+                stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
 
                 // update the a/c's master data
@@ -160,8 +162,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 // altitude, if airborne; correct for baro pressure difference
-                double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
-                alt_ft += dataRefs.GetAltCorrection_ft();
+                const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
 
                 // position and its ground status
                 positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
@@ -199,17 +200,6 @@ bool ADSBExchangeConnection::InitCurl ()
         SHOW_MSG(logERR, ERR_ADSBEX_NO_KEY_DEF);
         SetValid(false);
         return false;
-    }
-    
-    // we better have real weather enabled so that altitude correction
-    // is more likely to work well
-    // repeat this warning ever 10 minutes
-    if (!dataRefs.IsRealWeatherInUse() &&
-        std::chrono::steady_clock::now() >= lastNoRealWeatherWarn + INTLV_NO_REAL_WEATHER_WARN) {
-        lastNoRealWeatherWarn = std::chrono::steady_clock::now();
-        SHOW_MSG(logWARN, MSG_NO_REAL_WEATHER);
-    } else {
-        lastNoRealWeatherWarn = std::chrono::time_point<std::chrono::steady_clock>();
     }
     
     // let's do the standard CURL init first
@@ -708,9 +698,11 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 {
                     LTFlightData::FDStaticData stat;
                     stat.reg =        jog_s(pJAc, ADSBEX_REG);
+                    stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
                     stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
                     stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
                     stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
+                    stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
                     stat.call =       jog_s(pJAc, ADSBEX_CALL);
 
                     // update the a/c's master data
@@ -737,9 +729,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                               (int)jog_sl(pJAc, ADSBEX_SIG));
                 
                 // altitude, if airborne
-                double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
-                // FIXME: Convert barometric to geometric altitude
-                //        alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
+                const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
                 
                 // position data, including short trails
                 positionTy mainPos (jog_sn_nan(pJAc, ADSBEX_LAT),
