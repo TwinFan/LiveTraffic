@@ -149,6 +149,9 @@ public:
         std::string route() const;
         // flight + route (this is "flight: originAp-destAp", but considers empty txt)
         std::string flightRoute() const;
+        // best guess for an airline livery: opIcao if exists, otherwise first 3 digits of call sign
+        inline std::string airlineCode() const
+            { return opIcao.empty() ? call.substr(0,3) : opIcao; }
         // has been initialized at least once?
         bool isInit() const { return bInit; }
     };

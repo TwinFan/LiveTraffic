@@ -137,6 +137,9 @@ public:
     bool ExistsProperty (XPWidgetPropertyID prop) const;
     void SetProperty (XPWidgetPropertyID prop, intptr_t val);
     
+    void SetEnabled (bool bEnabled) { SetProperty(xpProperty_Enabled, bEnabled); }
+    bool IsEnabled () const { return GetBoolProperty(xpProperty_Enabled); }
+    
     // this allows using '*this' as widget id
     operator XPWidgetID() const { return me; }
     XPWidgetID getId() const { return me; }
@@ -291,7 +294,7 @@ public:
 // TFButtonDataRef
 // (button toggles an int dataRef between 0 and 1)
 //
-class TFButtonDataRef : public TFButtonWidget, TFDataRefLink
+class TFButtonDataRef : public TFButtonWidget, public TFDataRefLink
 {
 public:
     TFButtonDataRef (XPWidgetID _me = NULL, const char* dataRefName=NULL);
