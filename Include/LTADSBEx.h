@@ -84,6 +84,9 @@
 #define ERR_ADSBEX_NO_KEY_DEF   "ADS-B Exchange: API Key missing. Get one at adsbexchange.com and enter it in Basic Settings."
 #define ERR_ADSBEX_OTHER        "ADS-B Exchange: Received an ERRor response: %s"
 
+#define MSG_NO_REAL_WEATHER     "No real weather active. Affects ADSBEx altitude correction. Enable in X-Plane's Flight Configuration > Weather."
+constexpr std::chrono::duration INTLV_NO_REAL_WEATHER_WARN = std::chrono::minutes(10);
+
 constexpr double ADSBEX_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
 constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 
@@ -93,7 +96,9 @@ constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 protected:
+    std::string apiKey;
     struct curl_slist* slistKey = NULL;
+    std::chrono::time_point<std::chrono::steady_clock> lastNoRealWeatherWarn;
 public:
     ADSBExchangeConnection () :
     LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),

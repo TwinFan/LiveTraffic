@@ -99,6 +99,8 @@ enum dataRefsXP {
     DR_ZULU_TIME_SEC,
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
+    DR_WEATHER_BARO_SEA,                // XP's weather
+    DR_WEATHER_USE_REAL,
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
@@ -496,6 +498,12 @@ public:
         bSimVREntered ? true :                  // simulate some aspects of VR
 #endif
         adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
+    // weather / air pressure
+    inline float GetWeatherBaroSea_inch () const { return XPLMGetDataf(adrXP[DR_WEATHER_BARO_SEA]) * 100.0f; }
+    inline double GetWeatherBaroSea_hpa () const { return GetWeatherBaroSea_inch() * HPA_per_INCH; }
+    inline bool IsRealWeatherInUse () const     { return XPLMGetDatai(adrXP[DR_WEATHER_USE_REAL]) != 0; }
+    // how many feet to add to barometric altitude to get geometric altitude?
+    inline double GetAltCorrection_ft () const  { return (GetWeatherBaroSea_hpa() - HPA_STANDARD) * FT_per_HPA; }
 
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }

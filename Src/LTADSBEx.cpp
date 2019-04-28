@@ -138,8 +138,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
                 stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                // we need the operator for livery, usually it is just the first 3 characters of the call sign
-                stat.opIcao         = stat.call.substr(0,3);
 
                 // update the a/c's master data
                 fd.UpdateData(std::move(stat));
@@ -161,10 +159,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.ts =                posTime;
                 dyn.pChannel =          this;
                 
-                // altitude, if airborne
+                // altitude, if airborne; correct for baro pressure difference
                 double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
-                // FIXME: Convert barometric to geometric altitude
-                //        alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
+                alt_ft += dataRefs.GetAltCorrection_ft();
 
                 // position and its ground status
                 positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
@@ -178,7 +175,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( pos.isNormal(true) )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -193,6 +190,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 }
 
 // add/cleanup API key
+// (this is actually called prior to each request, so quite often)
 bool ADSBExchangeConnection::InitCurl ()
 {
     // we require an API key
@@ -203,15 +201,33 @@ bool ADSBExchangeConnection::InitCurl ()
         return false;
     }
     
+    // we better have real weather enabled so that altitude correction
+    // is more likely to work well
+    // repeat this warning ever 10 minutes
+    if (!dataRefs.IsRealWeatherInUse() &&
+        std::chrono::steady_clock::now() >= lastNoRealWeatherWarn + INTLV_NO_REAL_WEATHER_WARN) {
+        lastNoRealWeatherWarn = std::chrono::steady_clock::now();
+        SHOW_MSG(logWARN, MSG_NO_REAL_WEATHER);
+    } else {
+        lastNoRealWeatherWarn = std::chrono::time_point<std::chrono::steady_clock>();
+    }
+    
     // let's do the standard CURL init first
     if (!LTOnlineChannel::InitCurl())
         return false;
     
-    // now add the key
-    if (!slistKey) {
-        slistKey = curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+theKey).c_str());
-        LOG_ASSERT(slistKey);
+    // did the API key change?
+    if (!slistKey || theKey != apiKey) {
+        apiKey = theKey;
+        if (slistKey) {
+            curl_slist_free_all(slistKey);
+            slistKey = NULL;
+        }
+        slistKey = curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+apiKey).c_str());
     }
+    
+    // now add/overwrite the key
+    LOG_ASSERT(slistKey);
     curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slistKey);
     return true;
 }
@@ -696,8 +712,6 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
                     stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
                     stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                    // we need the operator for livery, usually it is just the first 3 characters of the call sign
-                    stat.opIcao         = stat.call.substr(0,3);
 
                     // update the a/c's master data
                     fd.UpdateData(std::move(stat));
@@ -771,7 +785,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                                     json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
                                 // only keep new trail if it is a valid position
                                 if ( !addedTrail.isNormal() ) {
-                                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
+                                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
                                     trails.pop_back();  // otherwise remove right away
                                 }
                             }
@@ -896,7 +910,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     }
                 }
                 else {
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),mainPos.dbgTxt().c_str());
+                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),mainPos.dbgTxt().c_str());
                 }
             } catch(const std::system_error& e) {
                 LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

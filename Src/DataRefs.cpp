@@ -177,6 +177,8 @@ const char* DATA_REFS_XP[] = {
     "sim/time/zulu_time_sec",
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
+    "sim/weather/barometer_sealevel_inhg",      // float  y    29.92    +- ....        The barometric pressure at sea level.
+    "sim/weather/use_real_weather_bool",        // int    y    0,1    Whether a real weather file is in use."
     "sim/flightmodel/position/latitude",
     "sim/flightmodel/position/longitude",
     "sim/flightmodel/position/elevation",
@@ -510,7 +512,6 @@ iLogLevel (initLogLevel)
     // enable OpenSky and ADSBEx by default
     SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
     SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-    SetChannelEnabled(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, true);
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));

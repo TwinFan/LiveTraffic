@@ -834,7 +834,7 @@ LTAircraft::LTAircraft(LTFlightData& inFd) :
 // Using registration as livery indicator, allows for different liveries per actual airframe
 // Debug options to set fixed type/op/livery take precedence
 XPCAircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafeCopyStat().acTypeIcao}).c_str(),
-            str_first_non_empty({dataRefs.cslFixOpIcao,     inFd.WaitForSafeCopyStat().opIcao}).c_str(),
+            str_first_non_empty({dataRefs.cslFixOpIcao,     inFd.WaitForSafeCopyStat().airlineCode()}).c_str(),
             str_first_non_empty({dataRefs.cslFixLivery,     inFd.WaitForSafeCopyStat().reg}).c_str()),
 // class members
 fd(inFd),
