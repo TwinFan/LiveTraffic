@@ -82,13 +82,30 @@
 
     <h2>v1.10</h2>
 
+    <h3>v1.15.190428 ADSBEx with API Key</h3>
+
     <p>
-    <b>To update</b> just copy the contents of the installation package over your existing
-    installation in <code>Resources/plugins/LiveTraffic</code>. Each file in the package replaces an
-    existing one. There are no new files.
+    <b>To update</b> coming from v1.10 just copy the binaries in the <code>64</code>
+    directory.
     </p>
     
-    <h3>v1.10.190406</h3>
+    <ul>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/132">#132</a>
+            channel ADS-B Exchange to
+            <a href="https://www.adsbexchange.com/data/">new API</a>
+            after public API closed down.<br>
+            <b>Note: API key required</b>, to get one you need to be feeding
+            ADS-B data to ADS-B Exchange. Then, you can
+            <a href="https://adsbexchange.com/contact/">request a key there</a>.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/131">#131</a>
+            errorneous warning <code>valid OBJ8 part types are LIGHTS or SOLID. Got LIGHTS.</code>.
+        </li>
+    </ul>
+    
+    <h3>v1.10.190406 RealTraffic, ForeFlight</h3>
 
     <ul>
         <li>

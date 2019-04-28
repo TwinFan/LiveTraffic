@@ -100,6 +100,13 @@ double jog_n_nan (const JSON_Object *object, const char *name)
         return NAN;
 }
 
+double jog_sn_nan (const JSON_Object *object, const char *name)
+{
+    const char* s = json_object_get_string ( object, name );
+    return s ? strtod(s,NULL) : NAN;
+}
+
+
 // access to JSON array string fields, with NULL replaced by ""
 const char* jag_s (const JSON_Array *array, size_t idx)
 {

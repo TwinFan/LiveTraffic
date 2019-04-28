@@ -643,7 +643,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // position is rather important, we check for validity
     // (we do allow alt=NAN if on ground)
     if ( !pos.isNormal(true) ) {
-        LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
         return false;
     }
     
@@ -674,9 +674,6 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
             
             stat.acTypeIcao     = tfc[RT_TFC_TYPE];
             stat.call           = tfc[RT_TFC_CS];
-            
-            // we need the operator for livery, usually it is just the first 3 characters of the call sign
-            stat.opIcao         = stat.call.substr(0,3);
             
             if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
                 stat.reg            = tfc[RT_TFC_TAIL];
@@ -717,7 +714,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
                 // altitude comes without local pressure applied
                 double alt_f = std::stod(tfc[RT_TFC_ALT]);
                 alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
-                pos.alt_m() = alt_f * M_per_FT;
+                pos.SetAltFt(alt_f);
             }
             
             // don't forget gnd-flag in position

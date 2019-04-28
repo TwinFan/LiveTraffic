@@ -154,7 +154,8 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
                                 jag_n_nan(pJAc, OPSKY_LON),
                                 jag_n_nan(pJAc, OPSKY_ELEVATION),
-                                posTime);
+                                posTime,
+                                dyn.heading);
                 pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
                 
                 // position is rather important, we check for validity
@@ -162,7 +163,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if ( pos.isNormal(true) )
                     fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

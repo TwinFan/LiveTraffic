@@ -35,8 +35,8 @@
 std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {
     char url[128] = "";
-    snprintf(url, sizeof(url), ADSBEX_URL_ALL, pos.lat(), pos.lon(),
-             dataRefs.GetFdStdDistance_km());
+    snprintf(url, sizeof(url), ADSBEX_URL, pos.lat(), pos.lon(),
+             dataRefs.GetFdStdDistance_nm());
     return std::string(url);
 }
 
@@ -54,10 +54,23 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     JSON_Value* pRoot = json_parse_string(netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
-    // let's cycle the aircrafts
     // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+    
+    // test for ERRor response
+    const std::string errTxt = jog_s(pObj, ADSBEX_ERR);
+    if (!errTxt.empty()) {
+        if (errTxt == ADSBEX_NO_API_KEY) {
+            SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+            SetValid(false);
+        } else {
+            LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
+            IncErrCnt();
+        }
+        json_value_free (pRoot);
+        return false;
+    }
     
     // for determining an offset as compared to network time we need to know network time
     double adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
@@ -65,9 +78,15 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(adsbxTime);
     
+    // let's cycle the aircrafts
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, ADSBEX_AIRCRAFT_ARR);
-    if (!pJAcList) { LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR); IncErrCnt(); return false; }
+    if (!pJAcList) {
+        LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR);
+        IncErrCnt();
+        json_value_free (pRoot);
+        return false;
+    }
     
     // iterate all aircrafts in the received flight data (can be 0)
     for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
@@ -78,18 +97,18 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             LOG_MSG(logERR,ERR_JSON_AC,i+1,ADSBEX_AIRCRAFT_ARR);
             if (IncErrCnt())
                 continue;
-            else
+            else {
+                json_value_free (pRoot);
                 return false;
+            }
         }
         
         // the key: transponder Icao code
         LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
                                      jog_s(pJAc, ADSBEX_TRANSP_ICAO));
         
-        // data already stale? -> skip it
-        if ( jog_b(pJAc, ADSBEX_POS_STALE) ||
-            // not matching a/c filter? -> skip it
-            (!acFilter.empty() && (fdKey != acFilter)) )
+        // not matching a/c filter? -> skip it
+        if (!acFilter.empty() && (fdKey != acFilter))
         {
             continue;
         }
@@ -115,31 +134,11 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             {
                 LTFlightData::FDStaticData stat;
                 stat.reg =        jog_s(pJAc, ADSBEX_REG);
-                stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
                 stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
-                stat.man =        jog_s(pJAc, ADSBEX_MAN);
-                stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                stat.engType =    (int)jog_l(pJAc, ADSBEX_ENG_TYPE);
-                stat.engMount =   (int)jog_l(pJAc, ADSBEX_ENG_MOUNT);
-                stat.year =  (int)jog_sl(pJAc, ADSBEX_YEAR);
-                stat.mil =        jog_b(pJAc, ADSBEX_MIL);
-                stat.trt          = transpTy(jog_l(pJAc,ADSBEX_TRT));
-                stat.op =         jog_s(pJAc, ADSBEX_OP);
-                stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
+                stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
+                stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
                 stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                
-                // try getting origin/destination
-                // FROM
-                std::string s = jog_s(pJAc, ADSBEX_ORIGIN);
-                if (s.length() == 4 ||          // extract 4 letter airport code from beginning
-                    (s.length() > 4 && s[4] == ' '))
-                    stat.originAp = s.substr(0,4);
-                // TO
-                s = jog_s(pJAc, ADSBEX_DESTINATION);
-                if (s.length() == 4 ||          // extract 4 letter airport code from beginning
-                    (s.length() > 4 && s[4] == ' '))
-                    stat.destAp = s.substr(0,4);
-                
+
                 // update the a/c's master data
                 fd.UpdateData(std::move(stat));
             }
@@ -149,36 +148,34 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 LTFlightData::FDDynamicData dyn;
                 
                 // ADS-B returns Java tics, that is milliseconds, we use seconds
-                double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
+                double posTime = jog_sn(pJAc, ADSBEX_POS_TIME) / 1000.0;
                 
                 // non-positional dynamic data
                 dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
-                dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
-                dyn.heading =           jog_n_nan(pJAc, ADSBEX_HEADING);
-                dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
-                dyn.brng =              jog_n(pJAc, ADSBEX_BRNG);
-                dyn.dst =               jog_n(pJAc, ADSBEX_DST);
-                dyn.spd =               jog_n(pJAc, ADSBEX_SPD);
-                dyn.vsi =               jog_n(pJAc, ADSBEX_VSI);
+                dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
+                dyn.heading =           jog_sn_nan(pJAc, ADSBEX_HEADING);
+                dyn.spd =               jog_sn(pJAc, ADSBEX_SPD);
+                dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
                 dyn.ts =                posTime;
                 dyn.pChannel =          this;
                 
+                // altitude, if airborne; correct for baro pressure difference
+                double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
+                alt_ft += dataRefs.GetAltCorrection_ft();
+
                 // position and its ground status
-                positionTy pos (jog_n_nan(pJAc, ADSBEX_LAT),
-                                jog_n_nan(pJAc, ADSBEX_LON),
-                                // ADSB data is feet, positionTy expects meter
-                                jog_n_nan(pJAc, ADSBEX_ELEVATION) * M_per_FT,
-                                posTime);
+                positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
+                                jog_sn_nan(pJAc, ADSBEX_LON),
+                                alt_ft * M_per_FT,
+                                posTime,
+                                dyn.heading);
                 pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
                 
                 // position is rather important, we check for validity
                 if ( pos.isNormal(true) )
-                    fd.AddDynData(dyn,
-                                  (int)jog_l(pJAc, ADSBEX_RCVR),
-                                  (int)jog_l(pJAc, ADSBEX_SIG),
-                                  &pos);
+                    fd.AddDynData(dyn, 0, 0, &pos);
                 else
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -190,6 +187,187 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // success
     return true;
+}
+
+// add/cleanup API key
+// (this is actually called prior to each request, so quite often)
+bool ADSBExchangeConnection::InitCurl ()
+{
+    // we require an API key
+    const std::string theKey (dataRefs.GetADSBExAPIKey());
+    if (theKey.empty()) {
+        SHOW_MSG(logERR, ERR_ADSBEX_NO_KEY_DEF);
+        SetValid(false);
+        return false;
+    }
+    
+    // we better have real weather enabled so that altitude correction
+    // is more likely to work well
+    // repeat this warning ever 10 minutes
+    if (!dataRefs.IsRealWeatherInUse() &&
+        std::chrono::steady_clock::now() >= lastNoRealWeatherWarn + INTLV_NO_REAL_WEATHER_WARN) {
+        lastNoRealWeatherWarn = std::chrono::steady_clock::now();
+        SHOW_MSG(logWARN, MSG_NO_REAL_WEATHER);
+    } else {
+        lastNoRealWeatherWarn = std::chrono::time_point<std::chrono::steady_clock>();
+    }
+    
+    // let's do the standard CURL init first
+    if (!LTOnlineChannel::InitCurl())
+        return false;
+    
+    // did the API key change?
+    if (!slistKey || theKey != apiKey) {
+        apiKey = theKey;
+        if (slistKey) {
+            curl_slist_free_all(slistKey);
+            slistKey = NULL;
+        }
+        slistKey = curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+apiKey).c_str());
+    }
+    
+    // now add/overwrite the key
+    LOG_ASSERT(slistKey);
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slistKey);
+    return true;
+}
+
+void ADSBExchangeConnection::CleanupCurl ()
+{
+    LTOnlineChannel::CleanupCurl();
+    curl_slist_free_all(slistKey);
+    slistKey = NULL;
+}
+
+
+//
+// MARK: Static Test for ADSBEx key
+//
+
+std::future<bool> futADSBExKeyValid;
+bool bADSBExKeyTestRunning = false;
+
+//  just quickly sends one simple request to ADSBEx and checks if the response is not "NO KEY"
+void ADSBExchangeConnection::TestADSBExAPIKey (const std::string newKey)
+{
+    // this is not thread-safe if called from different threads...but we don't do that
+    if (bADSBExKeyTestRunning)
+        return;
+    bADSBExKeyTestRunning = true;
+    
+    // call the blocking function in a separate thread and have the result delivered via future
+    futADSBExKeyValid = std::async(std::launch::async, DoTestADSBExAPIKey, newKey);
+}
+
+// Fetch result of last test, which is running in a separate thread
+// returns if the result is available. If available, actual result is returned in bIsKeyValid
+bool ADSBExchangeConnection::TestADSBExAPIKeyResult (bool& bIsKeyValid)
+{
+    // did the check not yet come back?
+    if (std::future_status::ready != futADSBExKeyValid.wait_for(std::chrono::microseconds(0)))
+        return false;
+    
+    // is done, return the result
+    bIsKeyValid = futADSBExKeyValid.get();
+    return true;
+}
+
+
+// actual test, blocks, should by called via std::async
+bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
+{
+    bool bResult = false;
+    char curl_errtxt[CURL_ERROR_SIZE];
+    std::string readBuf;
+    
+    // initialize the CURL handle
+    CURL *pCurl = curl_easy_init();
+    if (!pCurl) {
+        LOG_MSG(logERR,ERR_CURL_EASY_INIT);
+        return false;
+    }
+    
+    // prepare the handle with the right options
+    readBuf.reserve(CURL_MAX_WRITE_SIZE);
+    curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestADSBExAPIKeyCB);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+    curl_easy_setopt(pCurl, CURLOPT_URL, ADSBEX_VERIFY_KEY_URL);
+    
+    // prepare the additional HTTP header required for API key
+    struct curl_slist* slist = curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+newKey).c_str());
+    LOG_ASSERT(slist);
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slist);
+    
+    // perform the HTTP get request
+    CURLcode cc = CURLE_OK;
+    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
+    {
+        // problem with querying revocation list?
+        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+            // try not to query revoke list
+            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+            // and just give it another try
+            cc = curl_easy_perform(pCurl);
+        }
+        
+        // if (still) error, then log error
+        if (cc != CURLE_OK)
+            LOG_MSG(logERR, ERR_ADSBEX_KEY_TECH, cc, curl_errtxt);
+    }
+    
+    if (cc == CURLE_OK)
+    {
+        // CURL was OK, now check HTTP response code
+        long httpResponse = 0;
+        curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+        
+        // not HTTP_OK?
+        if (httpResponse != HTTP_OK)
+            LOG_MSG(logERR, ERR_ADSBEX_KEY_TECH, httpResponse, "HTTP response was not HTTP_OK")
+            else
+            {
+                // Response code was HTTP_OK, now check what we received in the buffer
+                if (readBuf.find(ADSBEX_AIRCRAFT_ARR) != std::string::npos &&
+                    readBuf.find(ADSBEX_TIME) != std::string::npos)
+                {
+                    // looks like a valid response containing a/c info
+                    bResult = true;
+                    dataRefs.SetADSBExAPIKey(newKey);
+                    SHOW_MSG(logMSG, MSG_ADSBEX_KEY_SUCCESS);
+                }
+                else if (readBuf.find(ADSBEX_ERR) != std::string::npos &&
+                         readBuf.find(ADSBEX_NO_API_KEY) != std::string::npos)
+                {
+                    // definitely received an error response
+                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+                }
+                else
+                {
+                    // somehow an unknown answer...
+                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_UNKNOWN);
+                }
+            }
+    }
+    
+    // cleanup CURL handle
+    curl_easy_cleanup(pCurl);
+    curl_slist_free_all(slist);
+    
+    bADSBExKeyTestRunning = false;
+    return bResult;
+}
+
+size_t ADSBExchangeConnection::DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t nmemb, void* userdata)
+{
+    // add buffer to our std::string
+    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
+    readBuf.append(ptr, nmemb);
+    
+    // all consumed
+    return nmemb;
 }
 
 //
@@ -444,10 +622,8 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
                                          jog_s(pJAc, ADSBEX_TRANSP_ICAO));
             
-            // data already stale? -> skip it
-            if ( jog_b(pJAc, ADSBEX_POS_STALE) ||
-                // not matching a/c filter? -> skip it
-                (!acFilter.empty() && (fdKey != acFilter)) )
+            // not matching a/c filter? -> skip it
+            if  (!acFilter.empty() && (fdKey != acFilter))
             {
                 json_value_free (pRoot);
                 continue;
@@ -532,31 +708,11 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 {
                     LTFlightData::FDStaticData stat;
                     stat.reg =        jog_s(pJAc, ADSBEX_REG);
-                    stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
                     stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
-                    stat.man =        jog_s(pJAc, ADSBEX_MAN);
-                    stat.mdl =        jog_s(pJAc, ADSBEX_MDL);
-                    stat.engType =    (int)jog_l(pJAc, ADSBEX_ENG_TYPE);
-                    stat.engMount =   (int)jog_l(pJAc, ADSBEX_ENG_MOUNT);
-                    stat.year =  (int)jog_sl(pJAc, ADSBEX_YEAR);
-                    stat.mil =        jog_b(pJAc, ADSBEX_MIL);
-                    stat.trt          = transpTy(jog_l(pJAc,ADSBEX_TRT));
-                    stat.op =         jog_s(pJAc, ADSBEX_OP);
-                    stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
+                    stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
+                    stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
                     stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                    
-                    // try getting origin/destination
-                    // FROM
-                    std::string s = jog_s(pJAc, ADSBEX_ORIGIN);
-                    if (s.length() == 4 ||          // extract 4 letter airport code from beginning
-                        (s.length() > 4 && s[4] == ' '))
-                        stat.originAp = s.substr(0,4);
-                    // TO
-                    s = jog_s(pJAc, ADSBEX_DESTINATION);
-                    if (s.length() == 4 ||          // extract 4 letter airport code from beginning
-                        (s.length() > 4 && s[4] == ' '))
-                        stat.destAp = s.substr(0,4);
-                    
+
                     // update the a/c's master data
                     fd.UpdateData(std::move(stat));
                 }
@@ -569,25 +725,27 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // non-positional dynamic data
                 dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
-                dyn.gnd =               jog_b(pJAc, ADSBEX_GND);
-                dyn.heading =           jog_n_nan(pJAc, ADSBEX_HEADING);
-                dyn.inHg =              jog_n(pJAc, ADSBEX_IN_HG);
-                dyn.brng =              jog_n(pJAc, ADSBEX_BRNG);
-                dyn.dst =               jog_n(pJAc, ADSBEX_DST);
-                dyn.spd =               jog_n(pJAc, ADSBEX_SPD);
-                dyn.vsi =               jog_n(pJAc, ADSBEX_VSI);
+                dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
+                dyn.heading =           jog_sn_nan(pJAc, ADSBEX_HEADING);
+                dyn.spd =               jog_sn(pJAc, ADSBEX_SPD);
+                dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
                 dyn.ts =                posTime;
                 dyn.pChannel =          this;
                 
                 fd.AddDynData(dyn,
-                              (int)jog_l(pJAc, ADSBEX_RCVR),
-                              (int)jog_l(pJAc, ADSBEX_SIG));
+                              (int)jog_sl(pJAc, ADSBEX_RCVR),
+                              (int)jog_sl(pJAc, ADSBEX_SIG));
+                
+                // altitude, if airborne
+                double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
+                // FIXME: Convert barometric to geometric altitude
+                //        alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
                 
                 // position data, including short trails
-                positionTy mainPos (jog_n_nan(pJAc, ADSBEX_LAT),
-                                    jog_n_nan(pJAc, ADSBEX_LON),
+                positionTy mainPos (jog_sn_nan(pJAc, ADSBEX_LAT),
+                                    jog_sn_nan(pJAc, ADSBEX_LON),
                                     // ADSB data is feet, positionTy expects meter
-                                    jog_n_nan(pJAc, ADSBEX_ELEVATION) * M_per_FT,
+                                    alt_ft * M_per_FT,
                                     posTime,
                                     dyn.heading);
                 
@@ -627,7 +785,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                                     json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
                                 // only keep new trail if it is a valid position
                                 if ( !addedTrail.isNormal() ) {
-                                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
+                                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
                                     trails.pop_back();  // otherwise remove right away
                                 }
                             }
@@ -752,7 +910,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     }
                 }
                 else {
-                    LOG_MSG(logINFO,ERR_POS_UNNORMAL,fdKey.c_str(),mainPos.dbgTxt().c_str());
+                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),mainPos.dbgTxt().c_str());
                 }
             } catch(const std::system_error& e) {
                 LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

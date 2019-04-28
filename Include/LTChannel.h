@@ -180,8 +180,8 @@ public:
     virtual ~LTOnlineChannel ();
     
 protected:
-    bool InitCurl ();
-    void CleanupCurl ();
+    virtual bool InitCurl ();
+    virtual void CleanupCurl ();
     // CURL callback
     static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
     // logs raw data to a text file
@@ -259,6 +259,7 @@ inline long jog_l (const JSON_Object *object, const char *name)
 
 // access to JSON number with 'null' returned as 'NAN'
 double jog_n_nan (const JSON_Object *object, const char *name);
+double jog_sn_nan (const JSON_Object *object, const char *name);
 
 // access to JSON boolean field (replaces -1 with false)
 inline bool jog_b (const JSON_Object *object, const char *name)
@@ -266,6 +267,12 @@ inline bool jog_b (const JSON_Object *object, const char *name)
     // json_object_get_boolean returns -1 if field doesn't exit, so we
     // 'convert' -1 and 0 both to false with the following comparison:
     return json_object_get_boolean (object, name) > 0;
+}
+
+// interprets a string-encapsulated number "0" as false, all else as true
+inline bool jog_sb (const JSON_Object *object, const char *name)
+{
+    return jog_sl (object, name) != 0;
 }
 
 // access to JSON array string fields, with NULL replaced by ""

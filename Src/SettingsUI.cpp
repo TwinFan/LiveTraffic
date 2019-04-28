@@ -64,6 +64,7 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_BTN_OPENSKY_LIVE,
     UI_BASICS_BTN_OPENSKY_MASTERDATA,
     UI_BASICS_BTN_ADSB_LIVE,
+    UI_BASICS_TXT_ADSB_API_KEY,
     UI_BASICS_BTN_REALTRAFFIC_LIVE,
     UI_BASICS_CAP_REALTRAFFIC_STATUS,
     UI_BASICS_CAP_REALTRAFFIC_METAR,
@@ -220,11 +221,12 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {   5,  50,  -5,  10, 1, "Flight Data Channels:",0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  10,  70,  10,  10, 1, "OpenSky Network",      0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 105,  10,  10, 1, "ADS-B Exchange",       0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 105,  10,  10, 1, "ADS-B Exchange, API Key:",    0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10, 120,  -5,  15, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_TextField, {xpProperty_MaxCharacters,36, 0,0, 0,0} },
 
-    {  10, 125,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5, 140,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    {   5, 155,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10, 150,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5, 165,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 180,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
     {   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -408,6 +410,14 @@ void LTSettingsUI::Enable()
                               DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA]);
         btnADSBLive.setId(widgetIds[UI_BASICS_BTN_ADSB_LIVE],
                               DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE]);
+        txtADSBAPIKey.setId(widgetIds[UI_BASICS_TXT_ADSB_API_KEY]);
+        if (dataRefs.GetADSBExAPIKey().empty()) {       // no API key
+            btnADSBLive.Set(0);                         // disable channel
+            btnADSBLive.SetEnabled(false);              // disable check box
+        }
+        else
+            txtADSBAPIKey.SetDescriptor(dataRefs.GetADSBExAPIKey());
+        
         btnRealTraffic.setId(widgetIds[UI_BASICS_BTN_REALTRAFFIC_LIVE],
                              DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE]);
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
@@ -591,6 +601,23 @@ void LTSettingsUI::Show (bool bShow)
 // and into CSL paths
 bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
 {
+    // *** Basic ***
+    if (txtADSBAPIKey == textWidget) {
+        // did the key really change?
+        const std::string newKey(txtADSBAPIKey.GetDescriptor());
+        if (newKey.empty()) {
+            dataRefs.SetADSBExAPIKey(newKey);
+            btnADSBLive.Set(0);                         // disable channel
+            btnADSBLive.SetEnabled(false);              // disable check box
+        }
+        else if (newKey != dataRefs.GetADSBExAPIKey())
+        {
+            // key changed, test it
+            ADSBExchangeConnection::TestADSBExAPIKey(newKey);
+            btnADSBLive.SetEnabled(true);               // enable check box
+        }
+    }
+    
     // *** Advanced ***
     if (txtDebugFilter == textWidget) {
         // set the filter a/c if defined

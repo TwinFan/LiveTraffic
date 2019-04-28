@@ -99,6 +99,8 @@ enum dataRefsXP {
     DR_ZULU_TIME_SEC,
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
+    DR_WEATHER_BARO_SEA,                // XP's weather
+    DR_WEATHER_USE_REAL,
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
@@ -454,6 +456,7 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sADSBExAPIKey;
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -495,6 +498,12 @@ public:
         bSimVREntered ? true :                  // simulate some aspects of VR
 #endif
         adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
+    // weather / air pressure
+    inline float GetWeatherBaroSea_inch () const { return XPLMGetDataf(adrXP[DR_WEATHER_BARO_SEA]) * 100.0f; }
+    inline double GetWeatherBaroSea_hpa () const { return GetWeatherBaroSea_inch() * HPA_per_INCH; }
+    inline bool IsRealWeatherInUse () const     { return XPLMGetDatai(adrXP[DR_WEATHER_USE_REAL]) != 0; }
+    // how many feet to add to barometric altitude to get geometric altitude?
+    inline double GetAltCorrection_ft () const  { return (GetWeatherBaroSea_hpa() - HPA_STANDARD) * FT_per_HPA; }
 
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
@@ -594,6 +603,9 @@ public:
     inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
+    
+    std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
+    void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
     
     // timestamp offset network vs. system clock
     inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }
