@@ -34,6 +34,14 @@
 #define ADSBEX_NAME             "ADS-B Exchange Online"
 #define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/json/lat/%f/lon/%f/dist/%d/"
 #define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
+
+#define ADSBEX_RAPIDAPI_25_URL  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/%f/lon/%f/dist/25/"
+#define ADSBEX_RAPIDAPI_HOST    "X-RapidAPI-Host:adsbx-flight-sim-traffic.p.rapidapi.com"
+#define ADSBEX_RAPIDAPI_KEY     "X-RapidAPI-Key:"
+#define ADSBEX_RAPIDAPI_RLIMIT  "X-RateLimit-Requests-Limit:"
+#define ADSBEX_RAPIDAPI_RREMAIN "X-RateLimit-Requests-Remaining:"
+
+#define ADSBEX_TOTAL            "total"
 #define ADSBEX_TIME             "ctime"
 #define ADSBEX_AIRCRAFT_ARR     "ac"
 #define ADSBEX_TRANSP_ICAO      "icao"          // Key data
@@ -77,6 +85,11 @@
 #define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
 #define ADSBEX_ERR              "ERR"
 #define ADSBEX_NO_API_KEY       "NO API KEY"
+
+#define ADSBEX_VERIFY_RAPIDAPI  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/0.0/lon/0.0/dist/25/"
+#define ADSBEX_RAPID_ERR        "message"
+#define ADSBEX_NO_RAPIDAPI_KEY  "Key doesn't exists"
+
 #define ERR_ADSBEX_KEY_TECH     "ADSBEx: Technical problem while testing key: %d - %s"
 #define MSG_ADSBEX_KEY_SUCCESS  "ADS-B Exchange: API Key tested SUCCESSFULLY"
 #define ERR_ADSBEX_KEY_FAILED   "ADS-B Exchange: API Key INVALID"
@@ -92,8 +105,12 @@ constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 //
 class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
 {
+public:
+    enum keyTypeE { ADSBEX_KEY_NONE=0, ADSBEX_KEY_EXCHANGE, ADSBEX_KEY_RAPIDAPI };
+    
 protected:
     std::string apiKey;
+    keyTypeE keyTy = ADSBEX_KEY_NONE;
     struct curl_slist* slistKey = NULL;
 public:
     ADSBExchangeConnection () :
@@ -114,8 +131,13 @@ protected:
     // need to add/cleanup API key
     virtual bool InitCurl ();
     virtual void CleanupCurl ();
+    // make list of HTTP header fields
+    static struct curl_slist* MakeCurlSList (keyTypeE keyTy, const std::string theKey);
+    // read header and parse for request limit/remaining
+    static size_t ReceiveHeader(char *buffer, size_t size, size_t nitems, void *userdata);
     
 public:
+    static keyTypeE GetKeyType (const std::string theKey);
     // Just quickly sends one simple request to ADSBEx and checks if the response is not "NO KEY"
     // Does a SHOW_MSG about the result and saves the key to dataRefs on success.
     static void TestADSBExAPIKey (const std::string newKey);

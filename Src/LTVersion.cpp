@@ -229,10 +229,10 @@ bool FetchXPlaneOrgVersion ()
         
         // not HTTP_OK?
         if (httpResponse != HTTP_OK)
-            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, httpResponse, "HTTP response was not HTTP_OK")
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, httpResponse, ERR_HTTP_NOT_OK)
         else if (std::isnan(verXPlaneOrg))
             // all OK but still no version number?
-            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, "Found no version info in response")
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, ERR_FOUND_NO_VER_INFO)
     }
     
     // cleanup CURL handle

@@ -46,6 +46,7 @@ protected:
     // enable/disable flight data channels
     TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
     TFTextFieldWidget txtADSBAPIKey;
+    TFWidget capADSBOutput;
     TFButtonDataRef btnRealTraffic;
     TFWidget capRealTrafficStatus, capRealTrafficMetar;
     TFButtonDataRef btnForeFlight;

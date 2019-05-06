@@ -65,6 +65,7 @@ enum UI_WIDGET_IDX_T {
     UI_BASICS_BTN_OPENSKY_MASTERDATA,
     UI_BASICS_BTN_ADSB_LIVE,
     UI_BASICS_TXT_ADSB_API_KEY,
+    UI_BASICS_CAP_ADSB_OUTPUT,
     UI_BASICS_BTN_REALTRAFFIC_LIVE,
     UI_BASICS_CAP_REALTRAFFIC_STATUS,
     UI_BASICS_CAP_REALTRAFFIC_METAR,
@@ -222,11 +223,12 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  70,  10,  10, 1, "OpenSky Network",      0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  10, 105,  10,  10, 1, "ADS-B Exchange, API Key:",    0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10, 120,  -5,  15, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_TextField, {xpProperty_MaxCharacters,36, 0,0, 0,0} },
+    {  10, 120,  -5,  15, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
+    {  10, 138,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
-    {  10, 150,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5, 165,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {  10, 165,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {   5, 180,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 195,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
 
     {   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -417,14 +419,13 @@ void LTSettingsUI::Enable()
         }
         else
             txtADSBAPIKey.SetDescriptor(dataRefs.GetADSBExAPIKey());
+        capADSBOutput.setId(widgetIds[UI_BASICS_CAP_ADSB_OUTPUT]);
         
         btnRealTraffic.setId(widgetIds[UI_BASICS_BTN_REALTRAFFIC_LIVE],
                              DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE]);
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
         capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
 
-        UpdateRealTraffic();
-        
         // * right-hand side *
         // landing lights during taxi?
         btnLndLightsTaxi.setId(widgetIds[UI_BASICS_BTN_LND_LIGHTS_TAXI],
@@ -565,6 +566,9 @@ void LTSettingsUI::Enable()
         txtFixLivery.setId(widgetIds[UI_DEBUG_TXT_FIX_LIVERY]);
         txtFixLivery.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
         txtFixOp.SetDescriptor(dataRefs.cslFixLivery);
+        
+        // update all values that would be updated anyway
+        TfwMsgMain1sTime();
 
         // center the UI
         Center();
@@ -692,16 +696,32 @@ bool LTSettingsUI::MsgHidden (XPWidgetID hiddenWidget)
 bool LTSettingsUI::TfwMsgMain1sTime ()
 {
     TFMainWindowWidget::TfwMsgMain1sTime();
-    logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
-    msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
+    
+    // *** Basics ***
+    
+    // ADSBEx: Feedback
+    if (dataRefs.ADSBExRLimit || dataRefs.ADSBExRRemain) {
+        char buf[100];
+        snprintf(buf, sizeof(buf), MSG_ADSBEX_LIMITE,
+                 dataRefs.ADSBExRRemain, dataRefs.ADSBExRLimit);
+        capADSBOutput.SetDescriptor(buf);
+    } else
+        capADSBOutput.SetDescriptor("");
+    
     // real traffic stuff
     UpdateRealTraffic();
+
+    // *** A/C Labels ***
     // read current 'when-to-show' config and set accordingly
     DataRefs::LabelShowCfgTy show = dataRefs.GetLabelShowCfg();
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,show.bExternal);
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,show.bInternal);
     XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,show.bVR);
 
+    // *** Advanced ***
+    logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
+    msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
+    
     return true;
 }
 

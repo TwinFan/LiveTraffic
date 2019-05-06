@@ -134,6 +134,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_NUM_AC_ZERO         "No more aircrafts displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircrafts, displaying %d, still %d seconds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
+#define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fkm"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
@@ -214,6 +215,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
 constexpr long HTTP_BAD_REQUEST =   400;
+constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
@@ -233,6 +235,8 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
 #define ERR_CURL_REVOKE_MSG     "revocation"                // appears in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
+#define ERR_HTTP_NOT_OK         "HTTP response was not HTTP_OK"
+#define ERR_FOUND_NO_VER_INFO   "Found no version info in response"
 #define ERR_CH_NONE_ACTIVE      "No enabled active channel for tracking data! Check Basic Settings and enable channels."
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"

@@ -1524,8 +1524,9 @@ bool DataRefs::LoadConfigFile()
             // enabled?
             bool bEnabled = ln[0][0] == '1';
             
-            // add the path to the list (unvalidated!)
-            vCSLPaths.emplace_back(bEnabled, std::move(ln[1]));
+            // add the path to the list (unvalidated!) if no duplicate
+            if (std::find(vCSLPaths.begin(), vCSLPaths.end(), ln[1]) == vCSLPaths.end())
+                vCSLPaths.emplace_back(bEnabled, std::move(ln[1]));
         }
     }
 

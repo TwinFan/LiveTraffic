@@ -386,6 +386,7 @@ public:
         inline bool empty() const   { return path.empty(); }
         inline bool enabled() const { return bEnabled && !empty(); }
         inline bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
+        inline bool operator== (const std::string& s) const { return path == s; }
     };
     typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     
@@ -471,6 +472,8 @@ public:
     std::string cslFixOpIcao;           // ...newly created aircrafts for...
     std::string cslFixLivery;           // ...CSL model package testing
     RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
+    long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
+    long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
 
 //MARK: Constructor
 public:

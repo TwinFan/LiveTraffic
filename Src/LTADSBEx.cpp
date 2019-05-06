@@ -35,14 +35,28 @@
 std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {
     char url[128] = "";
-    snprintf(url, sizeof(url), ADSBEX_URL, pos.lat(), pos.lon(),
-             dataRefs.GetFdStdDistance_nm());
+    if (keyTy == ADSBEX_KEY_RAPIDAPI)
+        snprintf(url, sizeof(url), ADSBEX_RAPIDAPI_25_URL, pos.lat(), pos.lon());
+    else
+        snprintf(url, sizeof(url), ADSBEX_URL, pos.lat(), pos.lon(),
+                 dataRefs.GetFdStdDistance_nm());
     return std::string(url);
 }
 
 // update shared flight data structures with received flight data
 bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 {
+    // some things depend on the key type
+    const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
+    const char* sNOK = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
+    
+    // received an UNAUTHOIZRED response? Then the key is invalid!
+    if (httpResponse == HTTP_UNAUTHORIZED) {
+        SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+        SetValid(false);
+        return false;
+    }
+
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -59,9 +73,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // test for ERRor response
-    const std::string errTxt = jog_s(pObj, ADSBEX_ERR);
+    const std::string errTxt = jog_s(pObj, sERR);
     if (!errTxt.empty()) {
-        if (errTxt == ADSBEX_NO_API_KEY) {
+        if (errTxt == sNOK) {
             SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
             SetValid(false);
         } else {
@@ -81,15 +95,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // let's cycle the aircrafts
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, ADSBEX_AIRCRAFT_ARR);
-    if (!pJAcList) {
-        LOG_MSG(logERR,ERR_JSON_ACLIST,ADSBEX_AIRCRAFT_ARR);
-        IncErrCnt();
-        json_value_free (pRoot);
-        return false;
-    }
-    
-    // iterate all aircrafts in the received flight data (can be 0)
-    for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
+    // iterate all aircrafts in the received flight data (can be 0 or even pJAcList == NULL!)
+    for ( size_t i=0; pJAcList && (i < json_array_get_count(pJAcList)); i++ )
     {
         // get the aircraft
         JSON_Object* pJAc = json_array_get_object(pJAcList,i);
@@ -196,7 +203,9 @@ bool ADSBExchangeConnection::InitCurl ()
 {
     // we require an API key
     const std::string theKey (dataRefs.GetADSBExAPIKey());
-    if (theKey.empty()) {
+    keyTy = GetKeyType(theKey);
+    if (!keyTy) {
+        apiKey.clear();
         SHOW_MSG(logERR, ERR_ADSBEX_NO_KEY_DEF);
         SetValid(false);
         return false;
@@ -205,7 +214,10 @@ bool ADSBExchangeConnection::InitCurl ()
     // let's do the standard CURL init first
     if (!LTOnlineChannel::InitCurl())
         return false;
-    
+
+    // maybe read headers
+    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, keyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
+
     // did the API key change?
     if (!slistKey || theKey != apiKey) {
         apiKey = theKey;
@@ -213,7 +225,7 @@ bool ADSBExchangeConnection::InitCurl ()
             curl_slist_free_all(slistKey);
             slistKey = NULL;
         }
-        slistKey = curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+apiKey).c_str());
+        slistKey = MakeCurlSList(keyTy, apiKey);
     }
     
     // now add/overwrite the key
@@ -229,6 +241,54 @@ void ADSBExchangeConnection::CleanupCurl ()
     slistKey = NULL;
 }
 
+// make list of HTTP header fields
+struct curl_slist* ADSBExchangeConnection::MakeCurlSList (keyTypeE keyTy, const std::string theKey)
+{
+    switch (keyTy) {
+        case ADSBEX_KEY_EXCHANGE:
+            return curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+theKey).c_str());
+        case ADSBEX_KEY_RAPIDAPI:
+        {
+            struct curl_slist* slist = curl_slist_append(NULL, ADSBEX_RAPIDAPI_HOST);
+            return curl_slist_append(slist, (std::string(ADSBEX_RAPIDAPI_KEY)+theKey).c_str());
+        }
+        default:
+            return NULL;
+    }
+    
+    
+}
+
+// read header and parse for request limit/remaining
+size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
+{
+    const size_t len = nitems * size;
+    static size_t lenRLimit  = strlen(ADSBEX_RAPIDAPI_RLIMIT);
+    static size_t lenRRemain = strlen(ADSBEX_RAPIDAPI_RREMAIN);
+    char num[50];
+
+    // Limit?
+    if (len > lenRLimit &&
+        memcmp(buffer, ADSBEX_RAPIDAPI_RLIMIT, lenRLimit) == 0)
+    {
+        const size_t copyCnt = std::min(len-lenRLimit,sizeof(num)-1);
+        memcpy(num, buffer+lenRLimit, copyCnt);
+        num[copyCnt]=0;                 // zero termination
+        dataRefs.ADSBExRLimit = std::atol(num);
+    }
+    // Remining?
+    else if (len > lenRRemain &&
+             memcmp(buffer, ADSBEX_RAPIDAPI_RREMAIN, lenRRemain) == 0)
+    {
+        const size_t copyCnt = std::min(len-lenRRemain,sizeof(num)-1);
+        memcpy(num, buffer+lenRRemain, copyCnt);
+        num[copyCnt]=0;                 // zero termination
+        dataRefs.ADSBExRRemain = std::atol(num);
+    }
+
+    // always say we processed everything, otherwise HTTP processing would stop!
+    return len;
+}
 
 //
 // MARK: Static Test for ADSBEx key
@@ -236,6 +296,19 @@ void ADSBExchangeConnection::CleanupCurl ()
 
 std::future<bool> futADSBExKeyValid;
 bool bADSBExKeyTestRunning = false;
+
+// Which type of key did the user enter?
+ADSBExchangeConnection::keyTypeE ADSBExchangeConnection::GetKeyType (const std::string theKey)
+{
+    if (theKey.empty())
+        return ADSBEX_KEY_NONE;
+    // for the old-style key we just count hyphens...don't be tooooo exact
+    else if (std::count(theKey.begin(), theKey.end(), '-') == 4)
+        return ADSBEX_KEY_EXCHANGE;
+    // all else is assume new style
+    else
+        return ADSBEX_KEY_RAPIDAPI;
+}
 
 //  just quickly sends one simple request to ADSBEx and checks if the response is not "NO KEY"
 void ADSBExchangeConnection::TestADSBExAPIKey (const std::string newKey)
@@ -270,6 +343,14 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     char curl_errtxt[CURL_ERROR_SIZE];
     std::string readBuf;
     
+    // differentiate based on key type
+    keyTypeE testKeyTy = GetKeyType(newKey);
+    if (!testKeyTy) return false;
+    
+    const char* sURL = testKeyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_VERIFY_KEY_URL   : ADSBEX_VERIFY_RAPIDAPI;
+    const char* sERR = testKeyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
+    const char* sNOK = testKeyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
+    
     // initialize the CURL handle
     CURL *pCurl = curl_easy_init();
     if (!pCurl) {
@@ -280,13 +361,14 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     // prepare the handle with the right options
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, testKeyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestADSBExAPIKeyCB);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
     curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    curl_easy_setopt(pCurl, CURLOPT_URL, ADSBEX_VERIFY_KEY_URL);
+    curl_easy_setopt(pCurl, CURLOPT_URL, sURL);
     
     // prepare the additional HTTP header required for API key
-    struct curl_slist* slist = curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+newKey).c_str());
+    struct curl_slist* slist = MakeCurlSList(testKeyTy, newKey);
     LOG_ASSERT(slist);
     curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slist);
     
@@ -314,13 +396,11 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
         long httpResponse = 0;
         curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
         
-        // not HTTP_OK?
-        if (httpResponse != HTTP_OK)
-            LOG_MSG(logERR, ERR_ADSBEX_KEY_TECH, httpResponse, "HTTP response was not HTTP_OK")
-            else
-            {
+        // Check HTTP return code
+        switch (httpResponse) {
+            case HTTP_OK:
                 // Response code was HTTP_OK, now check what we received in the buffer
-                if (readBuf.find(ADSBEX_AIRCRAFT_ARR) != std::string::npos &&
+                if (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&
                     readBuf.find(ADSBEX_TIME) != std::string::npos)
                 {
                     // looks like a valid response containing a/c info
@@ -328,8 +408,8 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                     dataRefs.SetADSBExAPIKey(newKey);
                     SHOW_MSG(logMSG, MSG_ADSBEX_KEY_SUCCESS);
                 }
-                else if (readBuf.find(ADSBEX_ERR) != std::string::npos &&
-                         readBuf.find(ADSBEX_NO_API_KEY) != std::string::npos)
+                else if (readBuf.find(sERR) != std::string::npos &&
+                         readBuf.find(sNOK) != std::string::npos)
                 {
                     // definitely received an error response
                     SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
@@ -339,7 +419,15 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                     // somehow an unknown answer...
                     SHOW_MSG(logERR, ERR_ADSBEX_KEY_UNKNOWN);
                 }
-            }
+                break;
+                
+            case HTTP_UNAUTHORIZED:
+                SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+                break;
+
+            default:
+                SHOW_MSG(logERR, ERR_ADSBEX_KEY_TECH, httpResponse, ERR_HTTP_NOT_OK);
+        }
     }
     
     // cleanup CURL handle
