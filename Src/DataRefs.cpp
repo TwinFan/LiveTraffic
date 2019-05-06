@@ -599,8 +599,9 @@ bool DataRefs::Init ()
     {
         if ((cmdXP[i] = XPLMFindCommand(CMD_REFS_XP[i])) == NULL)
         {
-            LOG_MSG(logFATAL, ERR_DATAREF_FIND, CMD_REFS_XP[i]);
-            return false;
+            // Not finding a command is not fatal.
+            // Just be aware that it could come back zero when using.
+            LOG_MSG(logWARN, ERR_DATAREF_FIND, CMD_REFS_XP[i]);
         }
     }
 
