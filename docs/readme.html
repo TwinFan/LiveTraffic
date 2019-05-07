@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -82,6 +82,34 @@
 
     <h2>v1.10</h2>
 
+    <h3>v1.16.190507 ADSBEx with RapidAPI</h3>
+    
+    <p>
+    <b>To update</b> coming from v1.15 just copy the content of the <code>64</code>
+    directory into <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic/64</code>.
+    </p>
+    
+    <ul>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/138">#138</a>
+            ability to connect to ADS-B Exhcange via
+            <a href="https://rapidapi.com/adsbx/api/adsbx-flight-sim-traffic">RapidAPI</a>.<br>
+            <b>Note: This is a paid service.</b> See
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/ads-b-exchange">documentation</a>
+            for more info.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/135">#135</a>
+            ADSBEx channel no longer fails and disables when no aircrafts are returned.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/137">#137</a>
+            LiveTraffic no longer fails to start up if X-Plane commands (like
+            <code>sim/general/hat_switch_left</code>) are not found. This might allow
+            using LiveTraffic even on outdated vesions like XP10.45 (untested).
+        </li>
+    </ul>
+    
     <h3>v1.15.190428 ADSBEx with API Key</h3>
 
     <p>
