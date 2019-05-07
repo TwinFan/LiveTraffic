@@ -51,7 +51,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     const char* sNOK = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
     
     // received an UNAUTHOIZRED response? Then the key is invalid!
-    if (httpResponse == HTTP_UNAUTHORIZED) {
+    if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
         SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
         SetValid(false);
         return false;
@@ -422,6 +422,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                 break;
                 
             case HTTP_UNAUTHORIZED:
+            case HTTP_FORBIDDEN:
                 SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
                 break;
 

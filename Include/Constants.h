@@ -216,6 +216,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 constexpr long HTTP_OK =            200;
 constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
+constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
