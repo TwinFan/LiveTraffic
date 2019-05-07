@@ -599,8 +599,9 @@ bool DataRefs::Init ()
     {
         if ((cmdXP[i] = XPLMFindCommand(CMD_REFS_XP[i])) == NULL)
         {
-            LOG_MSG(logFATAL, ERR_DATAREF_FIND, CMD_REFS_XP[i]);
-            return false;
+            // Not finding a command is not fatal.
+            // Just be aware that it could come back zero when using.
+            LOG_MSG(logWARN, ERR_DATAREF_FIND, CMD_REFS_XP[i]);
         }
     }
 
@@ -1523,8 +1524,9 @@ bool DataRefs::LoadConfigFile()
             // enabled?
             bool bEnabled = ln[0][0] == '1';
             
-            // add the path to the list (unvalidated!)
-            vCSLPaths.emplace_back(bEnabled, std::move(ln[1]));
+            // add the path to the list (unvalidated!) if no duplicate
+            if (std::find(vCSLPaths.begin(), vCSLPaths.end(), ln[1]) == vCSLPaths.end())
+                vCSLPaths.emplace_back(bEnabled, std::move(ln[1]));
         }
     }
 

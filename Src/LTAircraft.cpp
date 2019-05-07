@@ -1871,10 +1871,12 @@ void LTAircraft::CameraRegisterCommands(bool bRegister)
 {
     // first time init?
     for (int i = CR_GENERAL_LEFT; i <= CR_GENERAL_ZOOM_OUT_FAST; i++) {
-        if (bRegister)
-            XPLMRegisterCommandHandler(dataRefs.cmdXP[i], CameraCommandsCB, 0, (void*)(long long)i);
-        else
-            XPLMUnregisterCommandHandler(dataRefs.cmdXP[i], CameraCommandsCB, 0, (void*)(long long)i);
+        if (dataRefs.cmdXP[i]) {
+            if (bRegister)
+                XPLMRegisterCommandHandler(dataRefs.cmdXP[i], CameraCommandsCB, 0, (void*)(long long)i);
+            else
+                XPLMUnregisterCommandHandler(dataRefs.cmdXP[i], CameraCommandsCB, 0, (void*)(long long)i);
+        }
     }
 }
 
