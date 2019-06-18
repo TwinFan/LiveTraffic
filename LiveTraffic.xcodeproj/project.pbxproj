@@ -83,7 +83,6 @@
 		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
 		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
-		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
 		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
 		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
 		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
@@ -171,12 +170,10 @@
 		25A096102203B0C500658AA8 /* XPMPMultiplayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPMultiplayer.h; sourceTree = "<group>"; };
 		25A096112203B0C500658AA8 /* XPMPPlaneRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPPlaneRenderer.h; sourceTree = "<group>"; };
 		25A096122203B0C500658AA8 /* libxplanemp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libxplanemp.a; sourceTree = "<group>"; };
-		25A9FEF92164E199002BF424 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = ../../Frameworks/libcurl.framework; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
-		25ABF651226E2D50008365AF /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = ../../Frameworks/xplanemp.framework; sourceTree = "<group>"; };
 		25ABF654226E2F4C008365AF /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = "../../Frameworks-release/libcurl.framework"; sourceTree = "<group>"; };
 		25ABF655226E2F4C008365AF /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = "../../Frameworks-release/xplanemp.framework"; sourceTree = "<group>"; };
 		25ABF656226E2F4C008365AF /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = "../../Frameworks-release/libpng.framework"; sourceTree = "<group>"; };
@@ -622,8 +619,6 @@
 			isa = PBXGroup;
 			children = (
 				25ABF656226E2F4C008365AF /* libpng.framework */,
-				25ABF651226E2D50008365AF /* xplanemp.framework */,
-				2564042D21AACB3D001E2F2A /* libpng.framework */,
 				25ABF654226E2F4C008365AF /* libcurl.framework */,
 				25ABF655226E2F4C008365AF /* xplanemp.framework */,
 				2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */,
@@ -631,7 +626,6 @@
 				2564042721AAC937001E2F2A /* LDAP.framework */,
 				2564042521AAC914001E2F2A /* Security.framework */,
 				25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */,
-				25A9FEF92164E199002BF424 /* libcurl.framework */,
 				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
 				D6A7BDA916A1DEA200D1426A /* OpenGL.framework */,
 			);
@@ -742,7 +736,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.16;
+				CURRENT_PROJECT_VERSION = 1.20;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
@@ -818,7 +812,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.16;
+				CURRENT_PROJECT_VERSION = 1.20;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";

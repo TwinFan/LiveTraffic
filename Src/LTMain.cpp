@@ -406,7 +406,6 @@ bool LTMainInit ()
     const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
     const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG));
     const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
     const char* cszResult = XPMPMultiplayerInitLegacyData
     (
         cslPath.c_str(),                // we pass in the first found CSL dir
@@ -422,18 +421,6 @@ bool LTMainInit ()
         XPMPMultiplayerCleanup();
         LTFlightDataStop();
         return false;
-    }
-    
-    // yet another init function...also necessary
-    cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
-                                     &MPFloatPrefsFunc,
-                                     pathRes.c_str());
-    if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
-        XPMPMultiplayerCleanup();
-        LTFlightDataStop();
-        return false;
-        
     }
     
     // now register all other CSLs directories that we found earlier
@@ -468,6 +455,17 @@ bool LTMainEnable ()
 {
     LOG_ASSERT(dataRefs.pluginState == STATE_INIT);
 
+    // Initialize libxplanemp
+    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
+    const char*cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
+                                                &MPFloatPrefsFunc,
+                                                pathRes.c_str());
+    if ( cszResult[0] ) {
+        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
+        XPMPMultiplayerCleanup();
+        return false;
+    }
+    
     // Enable fetching flight data
     if (!LTFlightDataEnable()) return false;
 
@@ -529,6 +527,13 @@ bool LTMainTryGetAIAircraft ()
     return true;
 }
 
+/// Disable Multiplayer place drawing, releasing multiuser planes
+void LTMainReleaseAIAircraft ()
+{
+    // just pass on to libxplanemp
+    XPMPMultiplayerDisable ();
+}
+
 // Remove all aircrafts
 void LTMainHideAircraft ()
 {
@@ -564,6 +569,9 @@ void LTMainDisable ()
     
     // disable fetching flight data
     LTFlightDataDisable();
+    
+    // De-init libxplanemp
+    XPMPMultiplayerCleanup();
     
     // save config file
     dataRefs.SaveConfigFile();

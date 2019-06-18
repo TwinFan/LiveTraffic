@@ -130,6 +130,7 @@ bool LTMainInit ();
 bool LTMainEnable ();
 bool LTMainShowAircraft ();
 bool LTMainTryGetAIAircraft ();
+void LTMainReleaseAIAircraft ();
 void LTMainHideAircraft ();
 void LTMainDisable ();
 void LTMainStop ();

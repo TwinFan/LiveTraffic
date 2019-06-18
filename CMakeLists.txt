@@ -2,7 +2,7 @@
 #
 
 cmake_minimum_required(VERSION 3.9)
-project(LiveTraffic VERSION 1.16 DESCRIPTION "LiveTraffic X-Plane plugin")
+project(LiveTraffic VERSION 1.20 DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # By default, use optimized release configuration.
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
