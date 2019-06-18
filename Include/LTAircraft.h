@@ -272,6 +272,7 @@ protected:
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
+    int                 aiPrio = 0;     ///< prio for AI slotting (libxplanemp)
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -340,6 +341,8 @@ protected:
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();
+    /// Determines AI priority based on bearing to user's plane and ground status
+    void CalcAIPrio ();
     
 protected:
     // *** Camera view ***

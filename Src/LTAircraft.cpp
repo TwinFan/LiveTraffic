@@ -43,6 +43,9 @@ struct cycleInfo {
 cycleInfo prevCycle = { -1, -1, -1, 0 };
 cycleInfo currCycle = { -1, -1, -1, 0 };
 
+/// Position of user's plane, updated irregularly but often enough
+positionTy posUsersPlane;
+
 // cycle the cycle...that is move the old current values to previous
 // and fetch new current values
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
@@ -1691,6 +1694,8 @@ bool LTAircraft::YProbe ()
         
         // calc current bearing and distance for pure informational purpose ***
         vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
+        // update AI slotting priority
+        CalcAIPrio();
         // update the a/c label with fresh values
         LabelUpdate();
     }
@@ -1765,6 +1770,45 @@ bool LTAircraft::CalcVisible ()
 
     // return new visibility
     return bVisible;
+}
+
+/// Determines AI priority based on bearing to user's plane and ground status
+/// 1. Planes in the 30° sector in front of user's plane
+/// 2. Planes in the 90° sector in front of user's plane
+/// 3. All else
+/// If user is flying then airborne planes have in total higher prio than
+/// taxiing planes.
+/// @Warning Should only be called "every so often" but not every drawing frame
+void LTAircraft::CalcAIPrio ()
+{
+    // If this is the plane, which is currently in camera view,
+    // then we want to see it in map apps as well:
+    if (IsInCameraView()) {
+        aiPrio = 0;
+        return;
+    }
+    
+    // user's plane's position and bearing from user's plane to this aircraft
+    double speed, track;
+    positionTy posUser = dataRefs.GetUsersPlanePos(speed, track);
+    if (posUser.IsOnGnd())              // if on the ground
+        track = posUser.heading();      // heading is more reliable
+    const double bearing = posUser.angle(ppos);
+    const double diff = abs(HeadingDiff(track, bearing));
+    
+    // 1. Planes in the 30° sector in front of user's plane
+    if (diff < 30)
+        aiPrio = 0;
+    // 2. Planes in the 90° sector in front of user's plane
+    else if (diff < 90)
+        aiPrio = 1;
+    // 3. All else (default)
+    else
+        aiPrio = 2;
+    
+    // Ground consideration only if user's plane is flying but this a/c not
+    if (!posUser.IsOnGnd() && IsOnGrnd())
+        aiPrio += 3;
 }
 
 //
@@ -2024,6 +2068,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
                 *outPosition = prevPos;         // camera position is set before pos is recalculated...let position trail one frame behind
             else
                 *outPosition = ppos;
+            outPosition->aiPrio = aiPrio;       // AI slotting priority
             prevPos = ppos;
             
             // if invisible move a/c to unreachable position

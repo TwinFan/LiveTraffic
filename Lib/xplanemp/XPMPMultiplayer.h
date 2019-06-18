@@ -100,6 +100,7 @@ typedef	struct {
 	char 	label[32];
 	float 	offsetScale;
 	bool 	clampToGround;
+    int     aiPrio = 0;     // Priority for AI/TCAS consideration, the lower the earlier
     float   label_color[4] = {1, 1, 0, 1};  // label base color
 } XPMPPlanePosition_t;
 
