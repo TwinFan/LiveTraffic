@@ -388,8 +388,8 @@ struct cmdRefDescrTy {
     {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out aircraft information window (separate OS-level window)"},
     {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all aircraft information windows, but does not close"},
     {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all aircraft information windows"},
-    {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircrafts"},
-    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircrafts"},
+    {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircraft"},
+    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircraft"},
     {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
 };
 
