@@ -891,7 +891,6 @@ bValid(true)
         // calculate our first position, must also succeed
         if (!CalcPPos())
             LOG_MSG(logERR,ERR_AC_CALC_PPOS,fd.key().c_str());
-        prevPos = ppos;
         
         // if we start on the ground then have the gear out already
         if (IsOnGrnd())
@@ -2064,12 +2063,8 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             CalcPPos())
         {
             // copy ppos (by type conversion)
-            if (IsInCameraView())
-                *outPosition = prevPos;         // camera position is set before pos is recalculated...let position trail one frame behind
-            else
-                *outPosition = ppos;
+            *outPosition = ppos;
             outPosition->aiPrio = aiPrio;       // AI slotting priority
-            prevPos = ppos;
             
             // if invisible move a/c to unreachable position
             if (!IsVisible()) {

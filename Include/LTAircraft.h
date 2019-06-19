@@ -234,7 +234,7 @@ public:
 protected:
     // this is "ppos", the present simulated position,
     // where the aircraft is to be drawn
-    positionTy          ppos, prevPos;
+    positionTy          ppos;
     // and this the current vector from 'from' to 'to'
     vectorTy            vec;
     
