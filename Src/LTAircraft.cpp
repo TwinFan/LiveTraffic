@@ -1788,12 +1788,12 @@ void LTAircraft::CalcAIPrio ()
     }
     
     // user's plane's position and bearing from user's plane to this aircraft
-    double speed, track;
-    positionTy posUser = dataRefs.GetUsersPlanePos(speed, track);
+    double userSpeed, userTrack;
+    positionTy posUser = dataRefs.GetUsersPlanePos(userSpeed, userTrack);
     if (posUser.IsOnGnd())              // if on the ground
-        track = posUser.heading();      // heading is more reliable
+        userTrack = posUser.heading();      // heading is more reliable
     const double bearing = posUser.angle(ppos);
-    const double diff = abs(HeadingDiff(track, bearing));
+    const double diff = abs(HeadingDiff(userTrack, bearing));
     
     // 1. Planes in the 30° sector in front of user's plane
     if (diff < 30)
