@@ -2107,7 +2107,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
         if (!dataRefs.IsReInitAll()) {
             // get current gear/flaps value (might be moving)
             surfaces.gearPosition = (float)gear.get();
-            surfaces.flapRatio = (float)flaps.get();
+            surfaces.slatRatio = surfaces.flapRatio = (float)flaps.get();
         }
         
         // just copy over our entire structure
