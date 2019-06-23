@@ -21,6 +21,7 @@ AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during 
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             25    # [ft] height AGL to start flare
 MAX_TAXI_SPEED        30    # [kt] below that: taxi, above that: take-off/roll-out
+MIN_REVERS_SPEED      80    # [kt] use reversers down to this speed
 TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
 FLIGHT_TURN_TIME     120    # [s] time for a 360° turn in flight
 ROLL_MAX_BANK         30    # [°] max bank angle
@@ -68,6 +69,7 @@ LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultip
 ROLL_RATE              6    # [°/s] roll rate in normal turns
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
+PROP_RPM_MAX        1200    # [rpm] maximum propeller revolutions per minute
 EXT_CAMERA_LON_OFS   -20    # longitudinal external camera offset
 EXT_CAMERA_LAT_OFS     0    # lateral...
 EXT_CAMERA_VERT_OFS   10    # vertical...
@@ -114,6 +116,9 @@ VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailab
 VSI_INIT_CLIMB       400    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB      60    # [kt] initial climb speed if take-off-vector not available
 
+[Heli:MediumJets]
+PROP_RPM_MAX         400    # [rpm] maximum propeller revolutions per minute
+
 [Map]
 # The Map section matches flight models (defined previously,
 # so [Map] has to be last) with aircraft types.
@@ -135,6 +140,7 @@ SPEED_INIT_CLIMB      60    # [kt] initial climb speed if take-off-vector not av
 #  M;L2T;DH8A;CT-142 Dash 8;DE HAVILLAND CANADA
 #  L;L2P;BE58;58 Baron;BEECH
 #  L;L1P;C172;172 Skyhawk;CESSNA
+#  L;H1T;B06;206A JetRanger;BELL
 #  -;-;GLID;Glider;(ANY MANUFACTURER)
 #
 # See https://www.icao.int/publications/doc8643 for details and all
@@ -172,6 +178,7 @@ MediumProps    ^M;L\dT;
 BizJet         ^L;L\dJ;
 GA             ^L;L\dP;
 LightAC        ^-;
+Heli           ^L;H
 
 # This last line matches anything and serves as a default:
 

@@ -162,6 +162,12 @@ typedef	struct {
 	float                 yokeHeading;
 	float                 yokeRoll;
 	xpmp_LightStatus      lights;
+    float                 engRotDegree = 0.0f;  // engine rotation angle (degrees 0..360)
+    float                 engRotRpm = 0.0f;     // engine rotation speed (rpm)
+    float                 propRotDegree = 0.0f; // prop rotation angle (degrees 0..360)
+    float                 propRotRpm = 0.0f;    // prop rotation speed (rpm)
+    float                 reversRatio = 0.0f;   // thrust reversers ratio
+    bool                  touchDown = false;    // moment of touch down
 } XPMPPlaneSurfaces_t;
 
 

@@ -534,6 +534,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(AGL_GEAR_UP);
     else FM_ASSIGN(AGL_FLARE);
     else FM_ASSIGN(MAX_TAXI_SPEED);
+    else FM_ASSIGN(MIN_REVERS_SPEED);
     else FM_ASSIGN(TAXI_TURN_TIME);
     else FM_ASSIGN(FLIGHT_TURN_TIME);
     else FM_ASSIGN(ROLL_MAX_BANK);
@@ -549,6 +550,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_FLAP_ADD);
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN_MIN(PITCH_RATE, 1.0);    // avoid zero - this becomes a divisor
+    else FM_ASSIGN(PROP_RPM_MAX);
     else if (name == "LIGHT_PATTERN") {
         if ((int)val < 0 || (int)val > 2) {
             LOG_MSG(logWARN, ERR_CFG_VAL_INVALID, fileName, ln, text.c_str());
@@ -854,6 +856,8 @@ flaps(mdl.FLAPS_DURATION),
 heading(mdl.TAXI_TURN_TIME, 360, 0, true),
 roll(2*mdl.ROLL_MAX_BANK / mdl.ROLL_RATE, mdl.ROLL_MAX_BANK, -mdl.ROLL_MAX_BANK, false),
 pitch((mdl.PITCH_MAX-mdl.PITCH_MIN)/mdl.PITCH_RATE, mdl.PITCH_MAX, mdl.PITCH_MIN),
+reversers(2.0),
+spoilers(0.5),
 probeRef(NULL), probeNextTs(0), terrainAlt(0),
 bValid(true)
 {
@@ -1568,8 +1572,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         rotateTs = NAN;             // 'eat' the rotate timestamp, so we don't rotate any longer
     }
     
-    // entered climb (from below)
-    if (ENTERED(FPH_CLIMB)) {
+    // entered climb (from below) or climbing (catches go-around)
+    if (ENTERED(FPH_CLIMB) || phase == FPH_CLIMB) {
         surfaces.lights.taxiLights = 0;
         surfaces.thrust = 0.8f;
         gear.up();
@@ -1611,14 +1615,21 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // touch-down
     if (ENTERED(FPH_TOUCH_DOWN)) {
-        surfaces.spoilerRatio = surfaces.speedBrakeRatio = 1.0;
+        spoilers.max();                 // start deploying spoilers
+        reversers.max();                // start opening reversers
         ppos.onGrnd = positionTy::GND_ON;
         pitch.moveTo(0);
     }
     
     // roll-out
     if (ENTERED(FPH_ROLL_OUT)) {
-        surfaces.thrust = -0.9f;         // reversers...does that work???
+        surfaces.thrust = -0.9f;         // reversers
+    }
+    
+    // stop reversers below 80kn
+    if (phase == FPH_ROLL_OUT && GetSpeed_kt() < mdl.MIN_REVERS_SPEED) {
+        surfaces.thrust = 0.1f;
+        reversers.min();
     }
     
     // *** landing light ***
@@ -1643,10 +1654,11 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     }
     
     // taxiing (includings rolling off the runway after landing (cycle phase back to beginning))
-    if ( phase == FPH_TAXI ) {
+    if ( phase == FPH_TAXI || phase == FPH_STOPPED_ON_RWY ) {
         flaps.up();
-        surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
+        spoilers.min();
         surfaces.thrust = 0.1f;
+        reversers.min();
         surfaces.lights.taxiLights = 1;
         surfaces.lights.landLights = dataRefs.GetLndLightsTaxi() ? 1 : 0;
         surfaces.lights.strbLights = 0;
@@ -2108,6 +2120,27 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
             // get current gear/flaps value (might be moving)
             surfaces.gearPosition = (float)gear.get();
             surfaces.slatRatio = surfaces.flapRatio = (float)flaps.get();
+            surfaces.spoilerRatio = surfaces.speedBrakeRatio = (float)spoilers.get();
+            surfaces.reversRatio = (float)reversers.get();
+
+            // for engine / prop rotation we derive a value based on flight model
+            if (doc8643.hasRotor())
+                surfaces.engRotRpm = surfaces.propRotRpm = mdl.PROP_RPM_MAX;
+            else
+                surfaces.engRotRpm = surfaces.propRotRpm =
+                    mdl.PROP_RPM_MAX/2 + surfaces.thrust * mdl.PROP_RPM_MAX/2;
+            
+            // Make props and rotors somewhat move
+            // We don't make exact calcs based on actual time here...that's overkill
+            // Let's assume a framerate of 30fps, i.e. each call means 1/30s has passed
+            surfaces.engRotDegree += surfaces.engRotRpm/60.0f/30.0f*360.0f;
+            while (surfaces.engRotDegree >= 360.0f)
+                surfaces.engRotDegree -= 360.0f;
+            surfaces.propRotDegree = surfaces.engRotDegree;
+            
+            // 'moment' of touch down?
+            // (We use the reversers deploy time for this...that's 2s)
+            surfaces.touchDown = reversers.isIncrease() && reversers.inMotion();
         }
         
         // just copy over our entire structure

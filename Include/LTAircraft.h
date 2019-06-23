@@ -158,6 +158,7 @@ public:
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
         double MAX_TAXI_SPEED =   50;     // below that: taxi, above that: take-off/roll-out
+        double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
         double TAXI_TURN_TIME =   45;     // seconds for a 360° turn on the ground
         double FLIGHT_TURN_TIME = 120;    // seconds for a 360° turn in flight
         double ROLL_MAX_BANK =    30;     // [°] max bank angle
@@ -173,6 +174,7 @@ public:
         double PITCH_FLAP_ADD =   4;      // [°] to add if flaps extended
         double PITCH_FLARE =      10;     // [°] pitch during flare
         double PITCH_RATE =       5;      // [°/s] pitch rate of change
+        double PROP_RPM_MAX =     1200;   // [rpm] maximum propeller revolutions per minute
         int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
@@ -254,6 +256,8 @@ protected:
     MovingParam         heading;        // used when turning
     MovingParam         roll;
     MovingParam         pitch;
+    MovingParam         reversers;      ///< reverser open ratio
+    MovingParam         spoilers;       ///< spoiler extension ratio
     
     // Y-Probe
     XPLMProbeRef        probeRef;
