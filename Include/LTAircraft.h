@@ -148,6 +148,7 @@ public:
     public:
         std::string modelName;
         double GEAR_DURATION =    10;     // time for gear up/down
+        double GEAR_DEFLECTION =  0.5;    // [m] main gear deflection on meters during touch down
         double FLAPS_DURATION =   5;      // time for full flaps extension from 0% to 100%
         double VSI_STABLE =       100;    // [ft/min] less than this VSI is considered 'stable'
         double ROTATE_TIME =      3;      // [s] to rotate before lift off
@@ -258,6 +259,8 @@ protected:
     MovingParam         pitch;
     MovingParam         reversers;      ///< reverser open ratio
     MovingParam         spoilers;       ///< spoiler extension ratio
+    MovingParam         tireRpm;        ///< models slow-down after take-off
+    MovingParam         gearDeflection; ///< main gear deflection in meters during touch-down
     
     // Y-Probe
     XPLMProbeRef        probeRef;

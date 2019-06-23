@@ -97,6 +97,12 @@ constexpr float  MDL_EXT_FAST_DEG =       5.0f;
 constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
 constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
 #define MDL_LABEL_COLOR         "LABEL_COLOR"
+constexpr double MDL_REVERSERS_TIME = 2.0;  ///< [s] to open/close reversers
+constexpr double MDL_SPOILERS_TIME  = 0.5;  ///< [s] to extend/retract spoilers
+constexpr double MDL_TIRE_SLOW_TIME = 5.0;  ///< [s] time till tires stop rotating after take-off
+constexpr double MDL_TIRE_MAX_RPM = 2000;   ///< [rpm] max tire rotation speed
+constexpr double MDL_TIRE_CF_M      = 3.2;  ///< [m] tire circumfence (3.2m for a 40-inch tire)
+constexpr double MDL_GEAR_DEFL_TIME = 0.5;  ///< [s] time for gear deflection (one direction...up down is twice this value)
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
 constexpr int COLOR_RED         = 0xFF0000;

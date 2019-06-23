@@ -11,6 +11,7 @@ LiveTraffic 1.1
 # These values are also the hard-coded defaults in case
 # the entire config file went missing.
 GEAR_DURATION         10    # [s] time for gear up/down
+GEAR_DEFLECTION        0.5  # [m] main gear deflection during touch-down
 FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
 VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
 ROTATE_TIME            3    # [s] to rotate before lift off
@@ -49,6 +50,7 @@ EXT_CAMERA_VERT_OFS   20    # vertical...
 LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 
 [HugeJets:MediumJets]
+GEAR_DEFLECTION        0.75 # [m] main gear deflection during touch-down
 FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
 ROTATE_TIME            4    # [s] to rotate before lift off
 VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available
@@ -75,6 +77,7 @@ EXT_CAMERA_LAT_OFS     0    # lateral...
 EXT_CAMERA_VERT_OFS   10    # vertical...
 
 [BizJet:MediumJets]
+GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
 ROLL_RATE              8    # [°/s] roll rate in normal turns
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
@@ -84,6 +87,7 @@ EXT_CAMERA_LAT_OFS     0    # lateral...
 EXT_CAMERA_VERT_OFS   10    # vertical...
 
 [GA:MediumJets]
+GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
 ROTATE_TIME            2    # [s] to rotate before lift off
 VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       500    # [ft/min] assumed vsi if take-off-vector not available
@@ -117,6 +121,7 @@ VSI_INIT_CLIMB       400    # [ft/min] assumed vsi if take-off-vector not availa
 SPEED_INIT_CLIMB      60    # [kt] initial climb speed if take-off-vector not available
 
 [Heli:MediumJets]
+GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
 PROP_RPM_MAX         400    # [rpm] maximum propeller revolutions per minute
 
 [Map]

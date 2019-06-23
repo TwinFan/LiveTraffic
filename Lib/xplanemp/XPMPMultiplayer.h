@@ -162,6 +162,9 @@ typedef	struct {
 	float                 yokeHeading;
 	float                 yokeRoll;
 	xpmp_LightStatus      lights;
+    float                 tireDeflect = 0.0f;   // tire deflection (meters)
+    float                 tireRotDegree = 0.0f; // tire rotation angle (degrees 0..360)
+    float                 tireRotRpm = 0.0f;    // tire rotation speed (rpm)
     float                 engRotDegree = 0.0f;  // engine rotation angle (degrees 0..360)
     float                 engRotRpm = 0.0f;     // engine rotation speed (rpm)
     float                 propRotDegree = 0.0f; // prop rotation angle (degrees 0..360)

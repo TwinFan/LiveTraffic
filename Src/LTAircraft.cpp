@@ -89,6 +89,33 @@ bool NextCycle (int newCycle)
     return true;
 }
 
+/// @brief Calculates tire rpm based on aircraft speed
+/// @param kn Aircraft speed in knots
+/// @return Tire revolutions per minute
+inline double TireRpm (double kn)
+{
+    return
+    // speed in meters per minute
+    (kn / KT_per_M_per_S * SEC_per_M)
+    // divided by tire's (constant) circumfence
+    / MDL_TIRE_CF_M;
+}
+
+/// @brief Rotation: Computes turn in degrees based on rpm and timeframe
+/// @param rpm Rotation speed in revolutions per minute
+/// @param s Timeframe to consider in seconds
+/// @return Turn amount in degrees
+inline double RpmToDegree (double rpm, double s)
+{
+    return
+    // revolutions per second
+    rpm/60.0
+    // multiplied by seconds gives revolutions
+    * s
+    // multiplied by 360 degrees per revolution gives degrees
+    * 360.0;
+}
+
 //
 // MARK: MovingParam
 //
@@ -524,6 +551,7 @@ bool fm_processModelLine (const char* fileName, int ln,
 #define FM_ASSIGN_MIN(nameOfVal,minVal) if (name == #nameOfVal) fm.nameOfVal = std::max(val,minVal)
 
     FM_ASSIGN(GEAR_DURATION);
+    else FM_ASSIGN(GEAR_DEFLECTION);
     else FM_ASSIGN(FLAPS_DURATION);
     else FM_ASSIGN(VSI_STABLE);
     else FM_ASSIGN(ROTATE_TIME);
@@ -856,8 +884,10 @@ flaps(mdl.FLAPS_DURATION),
 heading(mdl.TAXI_TURN_TIME, 360, 0, true),
 roll(2*mdl.ROLL_MAX_BANK / mdl.ROLL_RATE, mdl.ROLL_MAX_BANK, -mdl.ROLL_MAX_BANK, false),
 pitch((mdl.PITCH_MAX-mdl.PITCH_MIN)/mdl.PITCH_RATE, mdl.PITCH_MAX, mdl.PITCH_MIN),
-reversers(2.0),
-spoilers(0.5),
+reversers(MDL_REVERSERS_TIME),
+spoilers(MDL_SPOILERS_TIME),
+tireRpm(MDL_TIRE_SLOW_TIME, MDL_TIRE_MAX_RPM),
+gearDeflection(MDL_GEAR_DEFL_TIME, mdl.GEAR_DEFLECTION),
 probeRef(NULL), probeNextTs(0), terrainAlt(0),
 bValid(true)
 {
@@ -1367,6 +1397,9 @@ bool LTAircraft::CalcPPos()
         // on the ground we are...on the ground, not moving vertically
         ppos.SetAltFt(terrainAlt);
         vsi = 0;
+        // but tires are rotating
+        tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
+                                tireRpm.defMax));
     } else {
         // not on the ground
         // just lifted off? then recalc vsi
@@ -1558,12 +1591,19 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         flaps.half();
     }
     
-    // Lift Off
+    // Rotating
     if (ENTERED(FPH_ROTATE)) {
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE)
             pitch.max();
+    }
+    
+    // Lift off
+    if (ENTERED(FPH_LIFT_OFF)) {
+        // Tires are rotating but shall stop in max 5s
+        if (gear.isDown())
+            tireRpm.min();                              // "move" to 0
     }
     
     // entered Initial Climb
@@ -1615,8 +1655,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // touch-down
     if (ENTERED(FPH_TOUCH_DOWN)) {
+        gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
-        reversers.max();                // start opening reversers
         ppos.onGrnd = positionTy::GND_ON;
         pitch.moveTo(0);
     }
@@ -1624,12 +1664,19 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // roll-out
     if (ENTERED(FPH_ROLL_OUT)) {
         surfaces.thrust = -0.9f;         // reversers
+        reversers.max();                 // start opening reversers
     }
     
-    // stop reversers below 80kn
-    if (phase == FPH_ROLL_OUT && GetSpeed_kt() < mdl.MIN_REVERS_SPEED) {
-        surfaces.thrust = 0.1f;
-        reversers.min();
+    // if deflected all the way down: start returning to normal
+    if (gearDeflection.isDown())
+        gearDeflection.min();
+
+    if (phase >= FPH_ROLL_OUT || phase == FPH_TAXI) {
+        // stop reversers below 80kn
+        if (GetSpeed_kt() < mdl.MIN_REVERS_SPEED) {
+            surfaces.thrust = 0.1f;
+            reversers.min();
+        }
     }
     
     // *** landing light ***
@@ -2076,13 +2123,18 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         {
             // copy ppos (by type conversion)
             *outPosition = ppos;
-            outPosition->aiPrio = aiPrio;       // AI slotting priority
             
-            // if invisible move a/c to unreachable position
-            if (!IsVisible()) {
+            if (IsVisible()) {
+                outPosition->aiPrio = aiPrio;       // AI slotting priority
+                // alter altitude by main gear deflection, so plane moves down
+                if (IsOnGrnd())
+                    outPosition->elevation -= gearDeflection.is() / M_per_FT;
+            } else {
+                // if invisible move a/c to unreachable position
                 outPosition->lat = AC_HIDE_LAT;
                 outPosition->lon = AC_HIDE_LON;
                 outPosition->elevation = AC_HIDE_ALT;
+                outPosition->aiPrio = 100;
             }
             
             // add the label
@@ -2130,14 +2182,21 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
                 surfaces.engRotRpm = surfaces.propRotRpm =
                     mdl.PROP_RPM_MAX/2 + surfaces.thrust * mdl.PROP_RPM_MAX/2;
             
-            // Make props and rotors somewhat move
-            // We don't make exact calcs based on actual time here...that's overkill
-            // Let's assume a framerate of 30fps, i.e. each call means 1/30s has passed
-            surfaces.engRotDegree += surfaces.engRotRpm/60.0f/30.0f*360.0f;
+            // Make props and rotors move based on rotation speed and time passed since last cycle
+            surfaces.engRotDegree += RpmToDegree(surfaces.engRotRpm, currCycle.diffTime);
             while (surfaces.engRotDegree >= 360.0f)
                 surfaces.engRotDegree -= 360.0f;
             surfaces.propRotDegree = surfaces.engRotDegree;
             
+            // Gear deflection - has an effect during touch-down only
+            surfaces.tireDeflect = gearDeflection.get();
+            
+            // Tire rotation similarly
+            surfaces.tireRotRpm = tireRpm.get();
+            surfaces.tireRotDegree += RpmToDegree(surfaces.tireRotRpm, currCycle.diffTime);
+            while (surfaces.tireRotDegree >= 360.0f)
+                surfaces.tireRotDegree -= 360.0f;
+
             // 'moment' of touch down?
             // (We use the reversers deploy time for this...that's 2s)
             surfaces.touchDown = reversers.isIncrease() && reversers.inMotion();
@@ -2159,6 +2218,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
 
 XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
 {
+    XPMPPlaneCallbackResult ret = xpmpData_Unchanged;
     try {
         // object invalid (due to exceptions most likely), don't use anymore, don't call LT functions
         if (!IsValid())
@@ -2175,6 +2235,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
             {
                 // copy fresh radar data
                 radar               = dynCopy.radar;
+                ret = xpmpData_NewData;
             }
         }
         
@@ -2182,8 +2243,13 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         // just copy over our entire structure
         *outRadar = radar;
         
-        // assume every 100th cycle something change...not more often at least
-        return currCycle.num % 100 == 0 ? xpmpData_NewData : xpmpData_Unchanged;
+        // if invisible we deactivate TCAS/AI/multiplayer
+        if (!IsVisible()) {
+            outRadar->mode = xpmpTransponderMode_Standby;
+            ret = xpmpData_NewData;
+        }
+        
+        return ret;
 
     } catch (const std::exception& e) {
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
