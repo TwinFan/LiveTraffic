@@ -177,6 +177,9 @@ enum UI_WIDGET_IDX_T {
     UI_CSL_BTN_ENABLE_7,
     UI_CSL_TXT_PATH_7,
     UI_CSL_BTN_LOAD_7,
+    
+    UI_CSL_BTN_REGISTER_LIBXPLANEMP_DR,
+    UI_CSL_CAP_REGISTER_LIBXPLANEMP_DR,
 
     UI_CSL_CAP_DEFAULT_AC_TYPE,
     UI_CSL_TXT_DEFAULT_AC_TYPE,
@@ -332,6 +335,8 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10, 150,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
     {  25, 147, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField, {0,0, 0,0, 0,0} },
     { 330, 150,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpPushButton, xpProperty_ButtonBehavior,xpButtonBehaviorPushButton, 0,0} },
+    {  10, 185,  10,  10, 1, "Register original libxplanemp CSL dataRefs",  0, UI_CSL_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  20, 200,  -5,  10, 1, "(Requires restart. Read help before deactivating!)", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     {   5, 230, 130,  10, 1, "Default a/c type",    0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 135, 227,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
     {   5, 250, 130,  10, 1, "Ground vehicle type", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -531,6 +536,9 @@ void LTSettingsUI::Enable()
                 txtCSLPaths[i].SetDescriptor(paths[i].path);    // text field
             }
         }
+        
+        btnRegLibXPlanempDR.setId(widgetIds[UI_CSL_BTN_REGISTER_LIBXPLANEMP_DR],
+                                  DATA_REFS_LT[DR_CFG_DR_LIBXPLANEMP]);
         
         txtDefaultAcType.setId(widgetIds[UI_CSL_TXT_DEFAULT_AC_TYPE]);
         txtDefaultAcType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;

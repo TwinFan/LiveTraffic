@@ -80,14 +80,60 @@
 
     <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
 
+    <h2>v1.20</h2>
+
+    <b>To update</b> copy <em>all</em> files from the ZIP archive over their existing
+    old versions under <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic</code>.
+    Not only the executables changed, but also <code>Resources</code> files
+    like <code>Doc8643.txt</code> or <code>related.txt</code>.
+    Keep the content of your <code>Resources/CSL</code> folder!
+    </p>
+    
+    <ul>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/111">#111</a>
+            menu item "TCAS controlled": Can now also be <strong>de</strong>activated
+            to give up AI plane/TCAS control, so another plugin can take
+            over mid-flight.
+        </li>
+        <li>
+            CAHNGED <a href="https://github.com/TwinFan/LiveTraffic/issues/120">#120</a>
+            <a href="https://github.com/TwinFan/LiveTraffic/issues/129">#129</a>
+            how planes are selected for the max 19 AI/TCAS slots:
+            Planes in front have priority over those to the side over those
+            in the back. And planes on the ground have even lower priority
+            if you are airborne.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/143">#143</a>
+            a power user workaround to run another multiplayer client in parallel
+            with working animations/lights. Requires your local CSL models to be
+            changed by the latest CSL2XSB script. Please see
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
+            documentation for details</a>.
+        </li>
+        <li>
+            ADDED rotor / propellor / reversers / wheel animations. Requires
+            <ul><li>supporting CSL models (many in the Bluebell package work)</li>
+                <li>conversion of CSL models with latest CSL2XSB script</li></ul>
+            See <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
+            documentation for details</a>.
+        </li>
+        <li>Features relevant to other plugins' developers:
+            <ul>
+                <li>All <code>sim/multiplayer/position</code> dataRefs are now
+                    provided for AI planes, including <code>v_x/y/z</code>.</li>
+                <li>Position reporting by <code>sim/multiplayer/position</code>
+                    is the <em>next</em> drawing cycle's position,
+                    which helps camera plugins to stay in synch with focus plane.</li>
+            </ul>
+    </ul>
+
     <h2>v1.10</h2>
 
     <h3>v1.16.190507 ADSBEx with RapidAPI</h3>
     
     <p>
-    <b>To update</b> coming from v1.15 just copy the content of the <code>64</code>
-    directory into <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic/64</code>.
-    </p>
     
     <ul>
         <li>
