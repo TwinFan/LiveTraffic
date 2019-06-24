@@ -2177,23 +2177,23 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
 
             // for engine / prop rotation we derive a value based on flight model
             if (doc8643.hasRotor())
-                surfaces.engRotRpm = surfaces.propRotRpm = mdl.PROP_RPM_MAX;
+                surfaces.engRotRpm = surfaces.propRotRpm = float(mdl.PROP_RPM_MAX);
             else
                 surfaces.engRotRpm = surfaces.propRotRpm =
-                    mdl.PROP_RPM_MAX/2 + surfaces.thrust * mdl.PROP_RPM_MAX/2;
+                    float(mdl.PROP_RPM_MAX/2 + surfaces.thrust * mdl.PROP_RPM_MAX/2);
             
             // Make props and rotors move based on rotation speed and time passed since last cycle
-            surfaces.engRotDegree += RpmToDegree(surfaces.engRotRpm, currCycle.diffTime);
+            surfaces.engRotDegree += (float)RpmToDegree(surfaces.engRotRpm, currCycle.diffTime);
             while (surfaces.engRotDegree >= 360.0f)
                 surfaces.engRotDegree -= 360.0f;
             surfaces.propRotDegree = surfaces.engRotDegree;
             
             // Gear deflection - has an effect during touch-down only
-            surfaces.tireDeflect = gearDeflection.get();
+            surfaces.tireDeflect = (float)gearDeflection.get();
             
             // Tire rotation similarly
-            surfaces.tireRotRpm = tireRpm.get();
-            surfaces.tireRotDegree += RpmToDegree(surfaces.tireRotRpm, currCycle.diffTime);
+            surfaces.tireRotRpm = (float)tireRpm.get();
+            surfaces.tireRotDegree += (float)RpmToDegree(surfaces.tireRotRpm, currCycle.diffTime);
             while (surfaces.tireRotDegree >= 360.0f)
                 surfaces.tireRotDegree -= 360.0f;
 
