@@ -2282,15 +2282,15 @@ XPMPPlaneCallbackResult LTAircraft::GetInfoTexts(XPMPInfoTexts_t* outInfo)
                 assert(outInfo->size == sizeof(XPMPInfoTexts_t));
                 memset(outInfo, 0, sizeof(XPMPInfoTexts_t));
                 outInfo->size = sizeof(XPMPInfoTexts_t);
-                strcpy(outInfo->tailNum,        strAtMost(statCopy.reg,         sizeof(outInfo->tailNum)-1).c_str());
-                strcpy(outInfo->icaoAcType,     strAtMost(statCopy.acTypeIcao,  sizeof(outInfo->icaoAcType)-1).c_str());
-                strcpy(outInfo->manufacturer,   strAtMost(statCopy.man,         sizeof(outInfo->manufacturer)-1).c_str());
-                strcpy(outInfo->model,          strAtMost(statCopy.mdl,         sizeof(outInfo->model)-1).c_str());
-                strcpy(outInfo->icaoAirline,    strAtMost(statCopy.opIcao,      sizeof(outInfo->icaoAirline)-1).c_str());
-                strcpy(outInfo->airline,        strAtMost(statCopy.op,          sizeof(outInfo->airline)-1).c_str());
-                strcpy(outInfo->flightNum,      strAtMost(statCopy.flight,      sizeof(outInfo->flightNum)-1).c_str());
-                strcpy(outInfo->aptFrom,        strAtMost(statCopy.originAp,    sizeof(outInfo->aptFrom)-1).c_str());
-                strcpy(outInfo->aptTo,          strAtMost(statCopy.destAp,      sizeof(outInfo->aptTo)-1).c_str());
+                strcpy_s(outInfo->tailNum,      sizeof(outInfo->tailNum),       strAtMost(statCopy.reg, sizeof(outInfo->tailNum) - 1).c_str());
+                strcpy_s(outInfo->icaoAcType,   sizeof(outInfo->icaoAcType),    strAtMost(statCopy.acTypeIcao, sizeof(outInfo->icaoAcType) - 1).c_str());
+                strcpy_s(outInfo->manufacturer, sizeof(outInfo->manufacturer),  strAtMost(statCopy.man, sizeof(outInfo->manufacturer) - 1).c_str());
+                strcpy_s(outInfo->model,        sizeof(outInfo->model),         strAtMost(statCopy.mdl, sizeof(outInfo->model) - 1).c_str());
+                strcpy_s(outInfo->icaoAirline,  sizeof(outInfo->icaoAirline),   strAtMost(statCopy.opIcao, sizeof(outInfo->icaoAirline) - 1).c_str());
+                strcpy_s(outInfo->airline,      sizeof(outInfo->airline),       strAtMost(statCopy.op, sizeof(outInfo->airline) - 1).c_str());
+                strcpy_s(outInfo->flightNum,    sizeof(outInfo->flightNum),     strAtMost(statCopy.flight, sizeof(outInfo->flightNum) - 1).c_str());
+                strcpy_s(outInfo->aptFrom,      sizeof(outInfo->aptFrom),       strAtMost(statCopy.originAp, sizeof(outInfo->aptFrom) - 1).c_str());
+                strcpy_s(outInfo->aptTo,        sizeof(outInfo->aptTo),         strAtMost(statCopy.destAp,      sizeof(outInfo->aptTo)-1).c_str());
 
                 // so wen send new data
                 bSendNewInfoData = false;
