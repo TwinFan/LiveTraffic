@@ -275,6 +275,7 @@ protected:
 #ifdef DEBUG
     bool                bIsSelected = false;    // is selected for logging/debugging?
 #endif
+    bool                bSendNewInfoData = false; ///< is there new static data to announce?
     // visibility
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
@@ -328,6 +329,8 @@ public:
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
     void SetInvalid() { bValid = false; }
+    inline bool ShallSendNewInfoData () const { return bSendNewInfoData; }
+    inline void SetSendNewInfoData () { bSendNewInfoData = true; }
     // Visibility
     inline bool IsVisible() const { return bVisible; }
     inline bool IsAutoVisible() const { return bAutoVisible; }
@@ -375,6 +378,7 @@ protected:
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);
     virtual XPMPPlaneCallbackResult GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSurfaces);
     virtual XPMPPlaneCallbackResult GetPlaneRadar(XPMPPlaneRadar_t* outRadar);
+    virtual XPMPPlaneCallbackResult GetInfoTexts(XPMPInfoTexts_t * outInfoTexts);
 };
 
 #endif /* LTAircraft_h */

@@ -1962,6 +1962,10 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
             pAc->ChangeModel (statData);
         }
         
+        // tell the aircraft to report new info data, e.g. to multiplayer clients
+        if (pAc)
+            pAc->SetSendNewInfoData();
+        
         // update the static parts of the label
         UpdateStaticLabel();
         

@@ -201,6 +201,27 @@ typedef	struct {
 	long					code;
 	XPMPTransponderMode		mode;
 } XPMPPlaneRadar_t;
+    
+/*
+ * XPMPTexts_t;
+ *
+ * This structure define textual information of planes to be passed on
+ * via shared dataRefs to other plugins. It is not used within xplanemp
+ * in any way, just passed on.
+ *
+ */
+struct XPMPInfoTexts_t {
+    long size;
+    char tailNum[10];               // registration, tail number
+    char icaoAcType[5];             // ICAO aircraft type, 3-4 chars
+    char manufacturer[40];          // a/c manufacturer, human readable
+    char model[40];                 // a/c model, human readable
+    char icaoAirline[4];            // ICAO airline code
+    char airline[40];               // airline, human readable
+    char flightNum [10];            // flight number
+    char aptFrom [5];               // Origin airport (ICAO)
+    char aptTo [5];                 // Destination airport (ICAO)
+};
 
 /*
  * XPMPPlaneData
@@ -211,7 +232,8 @@ typedef	struct {
 enum {
 	xpmpDataType_Position 	= 1L << 1,
 	xpmpDataType_Surfaces 	= 1L << 2,
-	xpmpDataType_Radar 		= 1L << 3
+	xpmpDataType_Radar 		= 1L << 3,
+    xpmpDataType_InfoTexts  = 1L << 4,
 };
 typedef	int			XPMPPlaneDataType;
 

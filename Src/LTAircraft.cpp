@@ -2260,6 +2260,54 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
     return xpmpData_Unavailable;
 }
 
+XPMPPlaneCallbackResult LTAircraft::GetInfoTexts(XPMPInfoTexts_t* outInfo)
+{
+    try {
+        // object invalid (due to exceptions most likely), don't use anymore, don't call LT functions
+        if (!IsValid() || dataRefs.IsReInitAll())
+            return xpmpData_Unavailable;
+        
+        // Is there new data to send?
+        if (ShallSendNewInfoData())
+        {
+            // fetch new data if available
+            LTFlightData::FDStaticData statCopy;
+            if ( fd.TryGetSafeCopy(statCopy) )
+            {
+                // not even initialized???
+                if (!statCopy.isInit())
+                    return xpmpData_Unavailable;
+                
+                // copy data over to libxplanemp
+                assert(outInfo->size == sizeof(XPMPInfoTexts_t));
+                memset(outInfo, 0, sizeof(XPMPInfoTexts_t));
+                outInfo->size = sizeof(XPMPInfoTexts_t);
+                strcpy(outInfo->tailNum,        strAtMost(statCopy.reg,         sizeof(outInfo->tailNum)-1).c_str());
+                strcpy(outInfo->icaoAcType,     strAtMost(statCopy.acTypeIcao,  sizeof(outInfo->icaoAcType)-1).c_str());
+                strcpy(outInfo->manufacturer,   strAtMost(statCopy.man,         sizeof(outInfo->manufacturer)-1).c_str());
+                strcpy(outInfo->model,          strAtMost(statCopy.mdl,         sizeof(outInfo->model)-1).c_str());
+                strcpy(outInfo->icaoAirline,    strAtMost(statCopy.opIcao,      sizeof(outInfo->icaoAirline)-1).c_str());
+                strcpy(outInfo->airline,        strAtMost(statCopy.op,          sizeof(outInfo->airline)-1).c_str());
+                strcpy(outInfo->flightNum,      strAtMost(statCopy.flight,      sizeof(outInfo->flightNum)-1).c_str());
+                strcpy(outInfo->aptFrom,        strAtMost(statCopy.originAp,    sizeof(outInfo->aptFrom)-1).c_str());
+                strcpy(outInfo->aptTo,          strAtMost(statCopy.destAp,      sizeof(outInfo->aptTo)-1).c_str());
+
+                // so wen send new data
+                bSendNewInfoData = false;
+                return xpmpData_NewData;
+            }
+        }
+        return xpmpData_Unchanged;
+        
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {}
+    
+    // for any kind of exception: don't use this object any more!
+    SetInvalid();
+    return xpmpData_Unavailable;
+}
+
 // fetches and then returns the name of the aircraft model in use
 std::string LTAircraft::GetModelName() const
 {
