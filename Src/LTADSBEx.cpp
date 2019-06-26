@@ -86,6 +86,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         return false;
     }
     
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
+    
     // for determining an offset as compared to network time we need to know network time
     double adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
     if (adsbxTime > JAN_FIRST_2019)
@@ -180,8 +183,14 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
                 
                 // position is rather important, we check for validity
-                if ( pos.isNormal(true) )
-                    fd.AddDynData(dyn, 0, 0, &pos);
+                if ( pos.isNormal(true) ) {
+                    // ADSBEx, especially the RAPID API version, returns
+                    // aircraft regardless of distance. To avoid planes
+                    // created and immediately removed due to distanced settings
+                    // we continue only if pos is within wanted range
+                    if ( pos.dist(viewPos) <= dataRefs.GetFdStdDistance_m() )
+                        fd.AddDynData(dyn, 0, 0, &pos);
+                }
                 else
                     LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }

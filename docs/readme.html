@@ -70,6 +70,7 @@
         <code>LiveTraffic/64/win.xpl</code><br>
         <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
         <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
+        <code>LiveTraffic/Resources/CSL2XSB.py</code><br>
         <code>LiveTraffic/Resources/Doc8643.txt</code><br>
         <code>LiveTraffic/Resources/FlightModels.prf</code><br>
         <code>LiveTraffic/Resources/lights.png</code><br>
@@ -86,6 +87,7 @@
     old versions under <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic</code>.
     Not only the executables changed, but also <code>Resources</code> files
     like <code>Doc8643.txt</code>, <code>FlightModels.prf</code> and <code>related.txt</code>.
+    Also, the script <code>Resources/CSL2XSB.py</code> is now provided as a new file.
     Keep the content of your <code>Resources/CSL</code> folder!
     </p>
     
@@ -118,6 +120,11 @@
                 <li>conversion of CSL models with latest CSL2XSB script</li></ul>
             See <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
             documentation for details</a>.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/139">#139</a>
+            ADSBEx data will only be processed if in configured range to avoid
+            immediate removal of planes after creation.
         </li>
         <li>Features relevant to other plugins' developers:
             <ul>
