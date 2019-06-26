@@ -121,11 +121,6 @@
             See <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
             documentation for details</a>.
         </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/139">#139</a>
-            ADSBEx data will only be processed if in configured range to avoid
-            immediate removal of planes after creation.
-        </li>
         <li>Features relevant to other plugins' developers:
             <ul>
                 <li>ADDED: All <code>sim/multiplayer/position</code> dataRefs are now
@@ -138,6 +133,22 @@
                     about planes as <a href="https://forums.x-plane.org/index.php?/files/file/52997-fstrampfree/">
                         suggested by FSTramp</a>.</li>
             </ul>
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/139">#139</a>
+            ADSBEx data will only be processed if in configured range to avoid
+            immediate removal of planes after creation.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/140">#140</a>
+            identification of network problems with revocation lists on
+            non-English installations of Windows.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/14">#14</a>
+            Set a timeout of 30s for most network operations to avoid hang-ups
+            when network gets lost.
+        </li>
     </ul>
 
     <h2>v1.10</h2>

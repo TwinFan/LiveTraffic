@@ -290,6 +290,8 @@ bool LTOnlineChannel::InitCurl ()
     }
     
     // define the handle
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
@@ -418,7 +420,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
         // problem with querying revocation list?
-        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+        if (IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
             LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
@@ -459,6 +461,18 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     
     // success
     return true;
+}
+
+// Is the given network error text possibly caused by problems querying the revocation list?
+bool LTOnlineChannel::IsRevocationError (const std::string& err)
+{
+    // we can check for the word "revocation", but in localized versions of
+    // Windows this is translated! We have, so far, seen two different error codes.
+    // So what we do is to look for all three things:
+    for (const std::string s: ERR_CURL_REVOKE_MSG)
+        if (err.find(s) != std::string::npos)
+            return true;
+    return false;
 }
 
 //

@@ -191,6 +191,9 @@ public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos) = 0;
     virtual bool IsLiveFeed () const    { return true; }
+    
+    /// Is the given network error text possibly caused by problems querying the revocation list?
+    static bool IsRevocationError (const std::string& err);
 };
 
 //

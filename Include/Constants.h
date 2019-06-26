@@ -225,6 +225,7 @@ constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
+constexpr long CURL_TIMEOUT =        30;        ///< [s] network timeout, see CURLOPT_TIMEOUT
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
@@ -240,7 +241,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"
 #define ERR_CURL_NOVERCHECK     "Could not browse X-Plane.org for version info: %d - %s"
 #define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
-#define ERR_CURL_REVOKE_MSG     "revocation"                // appears in error text if querying revocation list fails
+#define ERR_CURL_REVOKE_MSG     {"revocation","80092012","80092013"}  // appear in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
 #define ERR_HTTP_NOT_OK         "HTTP response was not HTTP_OK"
 #define ERR_FOUND_NO_VER_INFO   "Found no version info in response"

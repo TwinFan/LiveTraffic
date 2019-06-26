@@ -369,6 +369,8 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     
     // prepare the handle with the right options
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, testKeyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestADSBExAPIKeyCB);
@@ -386,7 +388,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
         // problem with querying revocation list?
-        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+        if (IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
             LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
