@@ -120,9 +120,13 @@ public:
 
 // list of a/c for which static data is yet missing
 struct acStatUpdateTy {
+public:
     LTFlightData::FDKeyTy acKey;    // to find master data
     std::string callSign;           // to query route information
+protected:
+    bool bProcessed = false;        ///< has been processed by some master data channel?
     
+public:
     acStatUpdateTy() {}
     acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c) :
     acKey(k), callSign(c) {}
@@ -130,6 +134,9 @@ struct acStatUpdateTy {
     inline bool operator == (const acStatUpdateTy& o) const
     { return acKey == o.acKey && callSign == o.callSign; }
     inline bool empty () const { return acKey.empty() && callSign.empty(); }
+    
+    inline void SetProcessed () { bProcessed = true; }
+    inline bool HasBeenProcessed () const { return bProcessed; }
 };
 typedef std::list<acStatUpdateTy> listAcStatUpdateTy;
 
@@ -139,6 +146,8 @@ private:
     // global list of a/c for which static data is yet missing
     // (reset with every network request cycle)
     static listAcStatUpdateTy listAcStatUpdate;
+    /// Lock controlling multi-threaded access to `listAcSTatUpdate`
+    static std::mutex listAcStatMutex;
 
 protected:
     listAcStatUpdateTy listAc;      // object-private list of a/c to query

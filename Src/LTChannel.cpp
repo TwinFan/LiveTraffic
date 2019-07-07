@@ -42,6 +42,8 @@ double initTimeBufFilled = 0;       // in 'simTime'
 // global list of a/c for which static data is yet missing
 // (reset with every network request cycle)
 listAcStatUpdateTy LTACMasterdataChannel::listAcStatUpdate;
+// Lock controlling multi-threaded access to `listAcSTatUpdate`
+std::mutex LTACMasterdataChannel::listAcStatMutex;
 
 // Thread synch support (specifically for stopping them)
 std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
@@ -229,15 +231,32 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
 void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                                const std::string callSign)
 {
-    // just add the request to the request list, uniquely
-    push_back_unique<listAcStatUpdateTy>
-    (listAcStatUpdate,
-     acStatUpdateTy(keyAc,callSign));
+    try {
+        // multi-threaded access guarded by listAcStatMutex
+        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        
+        // just add the request to the request list, uniquely
+        push_back_unique<listAcStatUpdateTy>
+        (listAcStatUpdate,
+         acStatUpdateTy(keyAc,callSign));
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+    }
 }
 
 void LTACMasterdataChannel::ClearMasterDataRequests ()
 {
-    listAcStatUpdate.clear();
+    try {
+        // multi-threaded access guarded by listAcStatMutex
+        std::lock_guard<std::mutex> lock (listAcStatMutex);
+
+        // remove all processed entries
+        listAcStatUpdate.remove_if
+        ([](acStatUpdateTy& acStatUpd){ return acStatUpd.HasBeenProcessed(); });
+
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+    }
 }
 
 
@@ -245,8 +264,19 @@ void LTACMasterdataChannel::ClearMasterDataRequests ()
 // the global one is refreshed before the next call.
 void LTACMasterdataChannel::CopyGlobalRequestList ()
 {
-    for (const acStatUpdateTy& info: listAcStatUpdate)
-        push_back_unique<listAcStatUpdateTy>(listAc, info);
+    try {
+        // multi-threaded access guarded by listAcStatMutex
+        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        
+        // Copy global list into local and
+        // mark the global record "processed" so it can be cleaned up
+        for (acStatUpdateTy& info: listAcStatUpdate) {
+            push_back_unique<listAcStatUpdateTy>(listAc, info);
+            info.SetProcessed();
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+    }
 }
 
 //
@@ -563,9 +593,6 @@ void LTFlightDataSelectAc ()
             // where are we right now?
             positionTy pos (dataRefs.GetViewPos());
             
-            // reset list of a/c needing master data updates
-            LTACMasterdataChannel::ClearMasterDataRequests();
-            
             // cycle all flight data connections
             for ( ptrLTChannelTy& p: listFDC )
             {
@@ -598,6 +625,10 @@ void LTFlightDataSelectAc ()
                 if ( bFDMainStop )
                     break;
             }
+
+            // Clear away processed master data requests
+            LTACMasterdataChannel::ClearMasterDataRequests();
+            
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
             // in case of any exception here completely re-init
