@@ -197,27 +197,91 @@ public:
     };
     
 public:
+    /// @brief Flight phase
     enum FlightPhase {
-        FPH_UNKNOWN     = 0,
-        FPH_TAXI        = 10,
-        FPH_TAKE_OFF    = 20,
-        FPH_TO_ROLL,
-        FPH_ROTATE,
-        FPH_LIFT_OFF,
-        FPH_INITIAL_CLIMB,
-        FPH_CLIMB       = 30,
-        FPH_CRUISE      = 40,
-        FPH_DESCEND     = 50,
-        FPH_APPROACH    = 60,
-        FPH_FINAL,
-        FPH_LANDING     = 70,
-        FPH_FLARE,
-        FPH_TOUCH_DOWN,                 // this is a one-frame-only 'phase'!
-        FPH_ROLL_OUT,
-        FPH_STOPPED_ON_RWY              // ...after artifically roll-out with no more live positions remaining
+        FPH_UNKNOWN     = 0,            ///< used for initializations
+        FPH_TAXI        = 10,           ///< Taxiing
+        FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
+        FPH_TO_ROLL,                    ///< Take-off roll
+        FPH_ROTATE,                     ///< Rotating
+        FPH_LIFT_OFF,                   ///< Lift-off, until "gear-up" height
+        FPH_INITIAL_CLIMB,              ///< Initial climb, until "flaps-up" height
+        FPH_CLIMB       = 30,           ///< Regular climbout
+        FPH_CRUISE      = 40,           ///< Cruising, no altitude change
+        FPH_DESCEND     = 50,           ///< Descend, more then 100ft/min descend
+        FPH_APPROACH    = 60,           ///< Approach, below "flaps-down" height
+        FPH_FINAL,                      ///< Final, below "gear-down" height
+        FPH_LANDING     = 70,           ///< Group of status for landing:
+        FPH_FLARE,                      ///< Flare, when reaching "flare		" height
+        FPH_TOUCH_DOWN,                 ///< The one cycle when plane touches down, don't rely on catching it...it's really one cycle only
+        FPH_ROLL_OUT,                   ///< Roll-out after touch-down until reaching taxi speed or stopping
+        FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
     };
     static std::string FlightPhase2String (FlightPhase phase);
     
+public:
+    /// @brief Bulk data transfer structur for communication with LTAPI
+    /// @note To avoid alignment issues with arrays we keep this struct 8-byte-aligned
+    struct LTAPIBulkData {
+    public:
+        // identification
+        uint64_t        keyNum;             ///< a/c id, usually transp hex code, or any other unique id (FLARM etc.)
+        // position, attitude
+        float           lat;                ///< [°] latitude
+        float           lon;                ///< [°] longitude
+        float           alt_ft;             ///< [ft] altitude
+        float           heading;            ///< [°] heading
+        float           track;              ///< [°] track over ground
+        float           roll;               ///< [°] roll:  positive right
+        float           pitch;              ///< [°] pitch: positive up
+        float           speed_kt;           ///< [kt] ground speed
+        float           vsi_ft;             ///< [ft/minute] vertical speed, positive up
+        float           terrainAlt_ft;      ///< [ft] terrain altitude beneath plane
+        float           height_ft;          ///< [ft] height AGL
+        // configuration
+        float           flaps;              ///< flap position: 0.0 retracted, 1.0 fully extended
+        float           gear;               ///< gear position: 0.0 retracted, 1.0 fully extended
+        float           reversers;          ///< reversers position: 0.0 closed, 1.0 fully opened
+        // simulation
+        float           bearing;            ///< [°] to current camera position
+        float           dist_nm;            ///< [nm] distance to current camera
+        
+        struct BulkBitsTy {
+            FlightPhase phase : 8;          ///< flight phase, see LTAircraft::FlightPhase
+            bool        onGnd : 1;          ///< Is plane on ground?
+            // Lights:
+            bool        taxi       : 1;     ///< taxi lights
+            bool        land       : 1;     ///< landing lights
+            bool        bcn        : 1;     ///< beacon light
+            bool        strb       : 1;     ///< strobe light
+            bool        nav        : 1;     ///< navigaton lights
+            
+            unsigned    filler     : 2;     ///< unused, fills up to 8 byte alignment
+        } bits;
+    };
+    
+    /// @brief Bulk text transfer structur for communication with LTAPI
+    /// @note To avoid alignment issues with arrays we keep this struct 8-byte-aligned
+    struct LTAPIBulkInfoTexts {
+    public:
+        // identification
+        uint64_t        keyNum;             ///< a/c id, usually transp hex code, or any other unique id (FLARM etc.)
+        char            registration[8];    ///< tail number like "D-AISD"
+        // aircraft model/operator
+        char            modelIcao[8];       ///< ICAO aircraft type like "A321"
+        char            acClass[8];         ///< a/c class like "L2J"
+        char            opIcao[8];          ///< ICAO-code of operator like "DLH"
+        char            man[40];            ///< human-readable manufacturer like "Airbus"
+        char            model[40];          ///< human-readable a/c model like "A321-231"
+        char            op[40];             ///< human-readable operator like "Lufthansa"
+        // flight data
+        char            callSign[8];        ///< call sign like "DLH56C"
+        char            squawk[8];          ///< squawk code (as text) like "1000"
+        char            flightNumber[8];    ///< flight number like "LH1113"
+        char            origin[8];          ///< origin airport (IATA or ICAO) like "MAD" or "LEMD"
+        char            destination[8];     ///< destination airport (IATA or ICAO) like "FRA" or "EDDF"
+        char            trackedBy[24];      ///< name of channel deliverying the underlying tracking data
+    };
 public:
     // reference to the defining flight data
     LTFlightData& fd;
@@ -311,6 +375,7 @@ public:
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
+    inline double GetReverserPos() const { return reversers.is(); }
     inline double GetSpeed_kt() const { return speed.kt(); }                     // kt
     inline double GetSpeed_m_s() const { return speed.m_s(); }   // m/s
     inline double GetVSI_ft() const { return vsi; }                         // ft/m
@@ -326,6 +391,8 @@ public:
     inline vectorTy GetVec() const { return vec; }
     inline vectorTy GetVecView() const { return vecView; }
     std::string GetLightsStr() const;
+    void CopyBulkData (LTAPIBulkData* pOut, size_t size) const;       ///< copies a/c info into bulk structure
+    void CopyBulkData (LTAPIBulkInfoTexts* pOut, size_t size) const;  ///< copies a/c text info into bulk structure
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
     void SetInvalid() { bValid = false; }

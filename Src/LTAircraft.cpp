@@ -1776,6 +1776,84 @@ std::string LTAircraft::GetLightsStr() const
     return std::string(buf);
 }
 
+// copies a/c info out into the bulk structure for LTAPI usage
+/// @param pOut points to output data area
+/// @param size Structure size to be copied. This can be less than sizeof(LTAPIBulkData) once new version are out.
+/// @note This function is comparably quick, includes important location info,
+///       but misses textual information, see other CopyBulkData() for that.
+void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkData* pOut,
+                               size_t size) const
+{
+    // So far, we only know of this one structure version.
+    // If size isn't enough for that we bail:
+    if (size < sizeof(LTAPIBulkData))
+        return;
+
+    // fill all values one by one
+    // identification
+    pOut->keyNum = fd.key().num;
+    // position, attitude
+    pOut->lat = (float)GetPPos().lat();
+    pOut->lon = (float)GetPPos().lon();
+    pOut->alt_ft = (float)GetPPos().alt_ft();
+    pOut->heading = (float)GetHeading();
+    pOut->track = (float)GetTrack();
+    pOut->roll = (float)GetRoll();
+    pOut->pitch = (float)GetPitch();
+    pOut->speed_kt = (float)GetSpeed_kt();
+    pOut->vsi_ft = (float)GetVSI_ft();
+    pOut->terrainAlt_ft = (float)GetTerrainAlt_ft();
+    pOut->height_ft = (float)GetPHeight_ft();
+    // configuration
+    pOut->flaps = (float)GetFlapsPos();
+    pOut->gear = (float)GetGearPos();
+    pOut->reversers = (float)GetReverserPos();
+    // simulation
+    pOut->bearing = (float)GetVecView().angle;
+    pOut->dist_nm = (float)GetVecView().dist / M_per_NM;
+    pOut->bits.phase = GetFlightPhase();
+    pOut->bits.onGnd = IsOnGrnd();
+    pOut->bits.taxi = surfaces.lights.taxiLights;
+    pOut->bits.land = surfaces.lights.landLights;
+    pOut->bits.bcn  = surfaces.lights.bcnLights;
+    pOut->bits.strb = surfaces.lights.strbLights;
+    pOut->bits.nav  = surfaces.lights.navLights;
+    pOut->bits.filler = 0;
+}
+    
+// copies text information out into the bulk structure for LTAPI usage
+/// @param pOut points to output data area
+/// @param size Structure size to be copied. This can be less than sizeof(LTAPIBulkData) once new version are out.
+/// @warning This function is comparably expensive, needs 2 locks for flight data
+void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkInfoTexts* pOut,
+                               size_t size) const
+{
+    // So far, we only know of this one structure version.
+    // If size isn't enough for that we bail:
+    if (size < sizeof(LTAPIBulkInfoTexts))
+        return;
+    
+    // Fill the output buffer one by one
+    const LTFlightData::FDStaticData stat = fd.WaitForSafeCopyStat();
+    const LTFlightData::FDDynamicData dyn = fd.WaitForSafeCopyDyn();
+    pOut->keyNum = fd.key().num;
+    STRCPY_S(pOut->registration,    stat.reg.c_str());
+    // aircraft model/operator
+    STRCPY_S(pOut->modelIcao,       stat.acTypeIcao.c_str());
+    STRCPY_S(pOut->acClass,         stat.catDescr.c_str());
+    STRCPY_S(pOut->opIcao,          stat.opIcao.c_str());
+    STRCPY_ATMOST(pOut->man,        stat.man);
+    STRCPY_ATMOST(pOut->model,      stat.mdl);
+    STRCPY_ATMOST(pOut->op,         stat.op);
+    // flight data
+    STRCPY_S(pOut->callSign,        stat.call.c_str());
+    STRCPY_S(pOut->squawk,          dyn.GetSquawk().c_str());
+    STRCPY_S(pOut->flightNumber,    stat.flight.c_str());
+    STRCPY_S(pOut->origin,          stat.originAp.c_str());
+    STRCPY_S(pOut->destination,     stat.destAp.c_str());
+    STRCPY_S(pOut->trackedBy,       dyn.pChannel ? dyn.pChannel->ChName() : "-");
+}
+
 //
 // MARK: Visibility
 //

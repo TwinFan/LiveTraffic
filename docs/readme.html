@@ -121,7 +121,7 @@
             See <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
             documentation for details</a>.
         </li>
-        <li>Features relevant to other plugins' developers:
+        <li><strong>Features relevant to other plugins' developers:</strong>
             <ul>
                 <li>ADDED: All <code>sim/multiplayer/position</code> dataRefs are now
                     provided for AI planes, including <code>v_x/y/z</code>.</li>
@@ -132,7 +132,19 @@
                     shared dataRefs for providing textual information
                     about planes as <a href="https://forums.x-plane.org/index.php?/files/file/52997-fstrampfree/">
                         suggested by FSTramp</a>.</li>
+                <li>CHANGED and ENHANCED <a href="https://github.com/TwinFan/LiveTraffic/issues/86">#86</a>
+                    communication to
+                    <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>,
+                    which is now an efficient bulk data transfer and includes
+                    many text info elements.
             </ul>
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/146">#146</a>:
+            If using RealTraffic data, OpenSky Master Data will now always be queried
+            and used if activated (Activation of OpenSky Master Data is always
+            recommended). Previously, for most planes no master data was
+            requested and display relied on RealTraffic's info only.
         </li>
         <li>
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/139">#139</a>

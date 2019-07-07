@@ -254,6 +254,10 @@ inline struct tm *localtime_s(struct tm * result, const time_t * time)
 
 #endif
 
+/// Simpler access to strcpy_s if dest is a char array (not a pointer!)
+#define STRCPY_S(dest,src) strcpy_s(dest,sizeof(dest),src)
+#define STRCPY_ATMOST(dest,src) strcpy_s(dest,sizeof(dest),strAtMost(src,sizeof(dest)-1).c_str())
+
 #if APL == 1
 // XCode/Linux don't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
 inline int strerror_s( char *buf, size_t bufsz, int errnum )

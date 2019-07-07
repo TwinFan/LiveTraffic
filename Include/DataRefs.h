@@ -205,6 +205,9 @@ enum dataRefsLT {
     DR_AC_BEARING,
     DR_AC_DIST,                         // last of a/c info
     
+    DR_AC_BULK_QUICK,               // bulk a/c primarily for communication with LTAPI
+    DR_AC_BULK_EXPENSIVE,           // similar, but for expensive data, should be called less often
+    
     DR_SIM_DATE,
     DR_SIM_TIME,
     
@@ -289,6 +292,7 @@ public:
         XPLMSetDatai_f ifWrite      = NULL;
         XPLMGetDataf_f ffRead       = NULL;
         XPLMSetDataf_f ffWrite      = NULL;
+        XPLMGetDatab_f bfRead       = NULL;
         void* refCon                = NULL;
         bool bCfgFile               = false;
         
@@ -311,6 +315,15 @@ public:
         ffRead(_ffRead), ffWrite(_ffWrite),
         refCon(_refCon), bCfgFile(_bCfg) {}
 
+        // constructor for xplmType_Data
+        dataRefDefinitionT (const char* name,
+                            XPLMGetDatab_f _bfRead, XPLMSetDataf_f /*_bfWrite*/ = NULL,
+                            void* _refCon = NULL,
+                            bool _bCfg = false) :
+        dataName(name), dataType(xplmType_Data),
+        bfRead(_bfRead), 
+        refCon(_refCon), bCfgFile(_bCfg) {}
+        
         // allows using the object in string context -> dataName
         inline const std::string getDataNameStr() const { return dataName; }
         inline const char* getDataName() const { return dataName.c_str(); }
@@ -324,7 +337,8 @@ public:
         inline XPLMSetDatai_f setDatai_f () const { return ifWrite; }
         inline XPLMGetDataf_f getDataf_f () const { return ffRead; }
         inline XPLMSetDataf_f setDataf_f () const { return ffWrite; }
-        
+        inline XPLMGetDatab_f getDatab_f () const { return bfRead; }
+
         inline XPLMDataTypeID getDataType() const { return dataType; }
         inline void* getRefCon() const { return refCon; }
         inline void setRefCon (void* _refCon) { refCon = _refCon; }
@@ -528,6 +542,10 @@ public:
     static int   LTGetInt(void* p);
     static float LTGetFloat(void* p);
     static void  LTSetBool(void* p, int i);
+    
+    // Bulk data access to transfer a lot of a/c info to LTAPI
+    static int LTGetBulkAc (void* inRefcon, void * outValue,
+                            int inStartIdx, int inNumAc);
 
 protected:
     // a/c info
