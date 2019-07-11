@@ -1840,21 +1840,21 @@ void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkInfoTexts* pOut,
     const LTFlightData::FDStaticData stat = fd.WaitForSafeCopyStat();
     const LTFlightData::FDDynamicData dyn = fd.WaitForSafeCopyDyn();
     pOut->keyNum = fd.key().num;
-    STRCPY_S(pOut->registration,    stat.reg.c_str());
+    STRCPY_ATMOST(pOut->registration,    stat.reg.c_str());
     // aircraft model/operator
-    STRCPY_S(pOut->modelIcao,       stat.acTypeIcao.c_str());
-    STRCPY_S(pOut->acClass,         stat.catDescr.c_str());
-    STRCPY_S(pOut->opIcao,          stat.opIcao.c_str());
+    STRCPY_ATMOST(pOut->modelIcao,       stat.acTypeIcao.c_str());
+    STRCPY_ATMOST(pOut->acClass,         stat.catDescr.c_str());
+    STRCPY_ATMOST(pOut->opIcao,          stat.opIcao.c_str());
     STRCPY_ATMOST(pOut->man,        stat.man);
     STRCPY_ATMOST(pOut->model,      stat.mdl);
     STRCPY_ATMOST(pOut->op,         stat.op);
     // flight data
-    STRCPY_S(pOut->callSign,        stat.call.c_str());
-    STRCPY_S(pOut->squawk,          dyn.GetSquawk().c_str());
-    STRCPY_S(pOut->flightNumber,    stat.flight.c_str());
-    STRCPY_S(pOut->origin,          stat.originAp.c_str());
-    STRCPY_S(pOut->destination,     stat.destAp.c_str());
-    STRCPY_S(pOut->trackedBy,       dyn.pChannel ? dyn.pChannel->ChName() : "-");
+    STRCPY_ATMOST(pOut->callSign,        stat.call.c_str());
+    STRCPY_ATMOST(pOut->squawk,          dyn.GetSquawk().c_str());
+    STRCPY_ATMOST(pOut->flightNumber,    stat.flight.c_str());
+    STRCPY_ATMOST(pOut->origin,          stat.originAp.c_str());
+    STRCPY_ATMOST(pOut->destination,     stat.destAp.c_str());
+    STRCPY_ATMOST(pOut->trackedBy,       dyn.pChannel ? dyn.pChannel->ChName() : "-");
 }
 
 //
