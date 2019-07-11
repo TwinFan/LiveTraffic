@@ -1818,7 +1818,10 @@ void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkData* pOut,
     pOut->bits.bcn  = surfaces.lights.bcnLights;
     pOut->bits.strb = surfaces.lights.strbLights;
     pOut->bits.nav  = surfaces.lights.navLights;
-    pOut->bits.filler = 0;
+    pOut->bits.filler1 = 0;
+    pOut->bits.multiIdx = multiIdx;
+    pOut->bits.filler2 = 0;
+    pOut->bits.filler3 = 0;
 }
     
 // copies text information out into the bulk structure for LTAPI usage
@@ -2194,6 +2197,11 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
 #ifdef DEBUG
         fd.bIsSelected = bIsSelected = (key() == dataRefs.GetSelectedAcKey());
 #endif
+        
+        // libxplanemp provides us with the multiplayer index, i.e. the plane's
+        // index if reported via sim/multiplayer/position dataRefs.
+        // We just store it.
+        multiIdx = outPosition->multiIdx;
         
         // calculate new position and return it
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized

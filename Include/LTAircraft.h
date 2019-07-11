@@ -255,8 +255,12 @@ public:
             bool        bcn        : 1;     ///< beacon light
             bool        strb       : 1;     ///< strobe light
             bool        nav        : 1;     ///< navigaton lights
-            
-            unsigned    filler     : 2;     ///< unused, fills up to 8 byte alignment
+            unsigned    filler1    : 2;     ///< unused, fills up to byte alignment
+            // Misc
+            int         multiIdx   : 8;    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
+            // Filler for 8-byte alignment
+            unsigned    filler2    : 8;
+            unsigned    filler3    : 32;
         } bits;
     };
     
@@ -345,6 +349,7 @@ protected:
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
     int                 aiPrio = 0;     ///< prio for AI slotting (libxplanemp)
+    int                 multiIdx = 0;   ///< plane's multiplayer index if reported via sim/multiplayer/position dataRefs, 0 otherwise
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
