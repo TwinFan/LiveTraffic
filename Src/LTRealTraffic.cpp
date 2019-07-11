@@ -586,7 +586,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // There are two formats we are _really_ interested in: AITFC and XTRAFFICPSX
     // Check for them and their correct number of fields
     if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
-        if (tfc.size() < RT_AITFC_NUM_FIELDS)
+        if (tfc.size() < RT_AITFC_NUM_FIELDS_MIN)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
     } else if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
         if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
@@ -604,10 +604,20 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         return true;            // ignore silently
     
     // *** position time ***
-    // RealTraffic doesn't send one, which really is a pitty
-    // so we assume 'now', corrected by network time offset
     using namespace std::chrono;
-    const double posTime = // system time in microseconds
+    // There are 2 possibilities:
+    // 1. As of v7.0.55 RealTraffic can send a timestamp (when configured
+    //    to use the "LiveTraffic" as Simulator in use, I assume)
+    // 2. Before that or with other settings there is no timestamp
+    //    so we assume 'now', corrected by network time offset
+    
+    const double posTime =
+    // Timestamp included?
+    (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC &&
+     tfc.size() >= RT_TFC_TIMESTAMP+1) ?
+    // use that delivered timestamp
+    std::stod(tfc[RT_TFC_TIMESTAMP]) :
+    // system time in microseconds
     double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
     // divided by 1000000 to create seconds with fractionals
     / 1000000.0
