@@ -21,9 +21,6 @@
 		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
-		25ABF657226E2F4C008365AF /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25ABF654226E2F4C008365AF /* libcurl.framework */; };
-		25ABF658226E2F4C008365AF /* xplanemp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25ABF655226E2F4C008365AF /* xplanemp.framework */; };
-		25ABF659226E2F4C008365AF /* libpng.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25ABF656226E2F4C008365AF /* libpng.framework */; };
 		25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F52203B0C500658AA8 /* XPLM.framework */; };
 		25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F42203B0C500658AA8 /* XPWidgets.framework */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
@@ -35,6 +32,7 @@
 		25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
+		AA3F560822D33EE8001E8C37 /* mac.xpl in CopyFiles */ = {isa = PBXBuildFile; fileRef = D607B19909A556E400699BC3 /* mac.xpl */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
@@ -44,10 +42,20 @@
 		251531BC21B863D000B5968A /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "/Users/birger/Applications/X-Plane 11/Resources/plugins/LiveTraffic/64";
-			dstSubfolderSpec = 0;
+			dstPath = LiveTraffic/64;
+			dstSubfolderSpec = 16;
 			files = (
 				251531BD21B863F700B5968A /* mac.xpl in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA3F560722D33EA8001E8C37 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(COMMON_INSTALL_DIR)/Products/$(CONFIGURATION)/$(PROJECT_NAME)/64";
+			dstSubfolderSpec = 0;
+			files = (
+				AA3F560822D33EE8001E8C37 /* mac.xpl in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +91,7 @@
 		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
 		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
+		2564042D21AACB3D001E2F2A /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = ../../Frameworks/libpng.framework; sourceTree = "<group>"; };
 		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
 		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
 		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
@@ -170,10 +179,12 @@
 		25A096102203B0C500658AA8 /* XPMPMultiplayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPMultiplayer.h; sourceTree = "<group>"; };
 		25A096112203B0C500658AA8 /* XPMPPlaneRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPPlaneRenderer.h; sourceTree = "<group>"; };
 		25A096122203B0C500658AA8 /* libxplanemp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libxplanemp.a; sourceTree = "<group>"; };
+		25A9FEF92164E199002BF424 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = ../../Frameworks/libcurl.framework; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
+		25ABF651226E2D50008365AF /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = ../../Frameworks/xplanemp.framework; sourceTree = "<group>"; };
 		25ABF654226E2F4C008365AF /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = "../../Frameworks-release/libcurl.framework"; sourceTree = "<group>"; };
 		25ABF655226E2F4C008365AF /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = "../../Frameworks-release/xplanemp.framework"; sourceTree = "<group>"; };
 		25ABF656226E2F4C008365AF /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = "../../Frameworks-release/libpng.framework"; sourceTree = "<group>"; };
@@ -225,11 +236,8 @@
 				2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */,
 				D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */,
 				25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */,
-				25ABF659226E2F4C008365AF /* libpng.framework in Frameworks */,
-				25ABF657226E2F4C008365AF /* libcurl.framework in Frameworks */,
 				25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */,
 				25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */,
-				25ABF658226E2F4C008365AF /* xplanemp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -619,6 +627,8 @@
 			isa = PBXGroup;
 			children = (
 				25ABF656226E2F4C008365AF /* libpng.framework */,
+				25ABF651226E2D50008365AF /* xplanemp.framework */,
+				2564042D21AACB3D001E2F2A /* libpng.framework */,
 				25ABF654226E2F4C008365AF /* libcurl.framework */,
 				25ABF655226E2F4C008365AF /* xplanemp.framework */,
 				2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */,
@@ -626,6 +636,7 @@
 				2564042721AAC937001E2F2A /* LDAP.framework */,
 				2564042521AAC914001E2F2A /* Security.framework */,
 				25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */,
+				25A9FEF92164E199002BF424 /* libcurl.framework */,
 				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
 				D6A7BDA916A1DEA200D1426A /* OpenGL.framework */,
 			);
@@ -639,9 +650,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D607B19B09A556E400699BC3 /* Build configuration list for PBXNativeTarget "mac" */;
 			buildPhases = (
+				AA3F560622D338CB001E8C37 /* ShellScript */,
 				D607B19609A556E400699BC3 /* Sources */,
 				D607B19709A556E400699BC3 /* Frameworks */,
 				251531BC21B863D000B5968A /* CopyFiles */,
+				AA3F560722D33EA8001E8C37 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -680,6 +693,26 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA3F560622D338CB001E8C37 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Make sure our defined Common directory is created to avoid\n# issues referring to it in a search path before we have put\n# anything there. Note: if you want the common install location\n# to be somewhere different, consider changing the variable\n# COMMON_INSTALL_FRAMEWORKS instead, since this just adds\n# \"/Frameworks\" to the end of it, so you can easily move it all.\n# Also be sure you only change it in the *project* buld settings,\n# not directly in the target build settings which will inherit it.\nmkdir -p ${COMMON_INSTALL_FRAMEWORKS_DIR}/${CONFIGURATION}\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D607B19609A556E400699BC3 /* Sources */ = {
@@ -737,6 +770,8 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COMMON_INSTALL_DIR = "$(PROJECT_DIR)/../Common";
+				COMMON_INSTALL_FRAMEWORKS_DIR = "$(COMMON_INSTALL_DIR)/Frameworks";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1.20;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -747,7 +782,7 @@
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(XPSDK_ROOT)/Libraries/Mac",
-					"/Users/birger/Programming/Frameworks-debug",
+					"$(COMMON_INSTALL_FRAMEWORKS_DIR)/Debug",
 				);
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -785,13 +820,21 @@
 					"$(XPSDK_ROOT)/CHeaders/XPLM",
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIBRARY_SEARCH_PATHS = "$(THIRD_PARTY_LIBRARIES)";
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
+				OTHER_LDFLAGS = (
+					"$(OTHER_LDFLAGS)",
+					"-framework",
+					xplanemp,
+					"-lcurl",
+					"-lpng",
+				);
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
+				THIRD_PARTY_LIBRARIES = /opt/local/lib/;
 				XPSDK_ROOT = Lib/XPSDK301;
 			};
 			name = Debug;
@@ -822,6 +865,8 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COMMON_INSTALL_DIR = "$(PROJECT_DIR)/../Common";
+				COMMON_INSTALL_FRAMEWORKS_DIR = "$(COMMON_INSTALL_DIR)/Frameworks";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1.20;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -831,7 +876,7 @@
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(XPSDK_ROOT)/Libraries/Mac",
-					"/Users/birger/Programming/Frameworks-release",
+					"$(COMMON_INSTALL_FRAMEWORKS_DIR)/Release",
 				);
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -867,12 +912,20 @@
 					"$(XPSDK_ROOT)/CHeaders/XPLM",
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIBRARY_SEARCH_PATHS = "$(THIRD_PARTY_LIBRARIES)";
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
+				OTHER_LDFLAGS = (
+					"$(OTHER_LDFLAGS)",
+					"-framework",
+					xplanemp,
+					"-lcurl",
+					"-lpng",
+				);
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
+				THIRD_PARTY_LIBRARIES = /opt/local/lib/;
 				XPSDK_ROOT = Lib/XPSDK301;
 			};
 			name = Release;
@@ -881,10 +934,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/XPSDK301/Libraries/Mac",
-				);
+				COMMON_INSTALL_DIR = "$(inherited)";
+				COMMON_INSTALL_FRAMEWORKS_DIR = "$(inherited)";
+				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
@@ -902,7 +954,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = TwinFan.plugin.LiveTraffic;
 				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
 				PRODUCT_NAME = mac;
+				THIRD_PARTY_LIBRARIES = "$(inherited)";
 				VALID_ARCHS = x86_64;
+				XPSDK_ROOT = "$(inherited)";
 			};
 			name = Debug;
 		};
@@ -910,11 +964,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				DEVELOPMENT_TEAM = W5UR4ZV2BP;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/XPSDK301/Libraries/Mac",
-				);
+				COMMON_INSTALL_DIR = "$(inherited)";
+				COMMON_INSTALL_FRAMEWORKS_DIR = "$(inherited)";
+				DEVELOPMENT_TEAM = WDZFKR6BW2;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
@@ -932,7 +985,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = TwinFan.plugin.LiveTraffic;
 				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
 				PRODUCT_NAME = mac;
+				THIRD_PARTY_LIBRARIES = "$(inherited)";
 				VALID_ARCHS = x86_64;
+				XPSDK_ROOT = "$(inherited)";
 			};
 			name = Release;
 		};
