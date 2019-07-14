@@ -97,6 +97,7 @@
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
+		2593063D22DB411500C82D4F /* LTAPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAPI.h; sourceTree = "<group>"; };
 		2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Log_HoursOfExecution_For_Analysis.txt; sourceTree = "<group>"; wrapsLines = 0; };
 		25A095BE2203B01300658AA8 /* TextIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TextIO.h; sourceTree = "<group>"; };
 		25A095BF2203B01300658AA8 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; };
@@ -379,6 +380,14 @@
 			path = Src;
 			sourceTree = "<group>";
 		};
+		2593063C22DB411500C82D4F /* LTAPI */ = {
+			isa = PBXGroup;
+			children = (
+				2593063D22DB411500C82D4F /* LTAPI.h */,
+			);
+			path = LTAPI;
+			sourceTree = "<group>";
+		};
 		25A095BD2203B01300658AA8 /* Include */ = {
 			isa = PBXGroup;
 			children = (
@@ -407,6 +416,7 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				2593063C22DB411500C82D4F /* LTAPI */,
 				25A095CB2203B0C500658AA8 /* XPSDK301 */,
 				25A0960E2203B0C500658AA8 /* xplanemp */,
 			);
@@ -783,6 +793,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(XPSDK_ROOT)/CHeaders/Widgets",
 					"$(XPSDK_ROOT)/CHeaders/XPLM",
+					Lib/LTAPI,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = NO;
@@ -865,6 +876,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(XPSDK_ROOT)/CHeaders/Widgets",
 					"$(XPSDK_ROOT)/CHeaders/XPLM",
+					Lib/LTAPI,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = YES;

@@ -799,10 +799,10 @@ int DataRefs::LTGetBulkAc (void* inRefcon, void * outData,
     {
         if (dr == DR_AC_BULK_QUICK) {
             size_quick = inNumBytes;
-            return (int)sizeof(LTAircraft::LTAPIBulkData);
+            return (int)sizeof(LTAPIAircraft::LTAPIBulkData);
         } else {
             size_expensive = inNumBytes;
-            return (int)sizeof(LTAircraft::LTAPIBulkInfoTexts);
+            return (int)sizeof(LTAPIAircraft::LTAPIBulkInfoTexts);
         }
     }
     
@@ -832,9 +832,9 @@ int DataRefs::LTGetBulkAc (void* inRefcon, void * outData,
         // copy data of the current aircraft
         const LTAircraft& ac = *fdIter->second.GetAircraft();
         if (dr == DR_AC_BULK_QUICK)
-            ac.CopyBulkData ((LTAircraft::LTAPIBulkData*)pOut, size);
+            ac.CopyBulkData ((LTAPIAircraft::LTAPIBulkData*)pOut, size);
         else
-            ac.CopyBulkData((LTAircraft::LTAPIBulkInfoTexts*)pOut, size);
+            ac.CopyBulkData((LTAPIAircraft::LTAPIBulkInfoTexts*)pOut, size);
     }
     
     // how many bytes copied?

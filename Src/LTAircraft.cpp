@@ -1781,12 +1781,12 @@ std::string LTAircraft::GetLightsStr() const
 /// @param size Structure size to be copied. This can be less than sizeof(LTAPIBulkData) once new version are out.
 /// @note This function is comparably quick, includes important location info,
 ///       but misses textual information, see other CopyBulkData() for that.
-void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkData* pOut,
+void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
                                size_t size) const
 {
     // So far, we only know of this one structure version.
     // If size isn't enough for that we bail:
-    if (size < sizeof(LTAPIBulkData))
+    if (size < sizeof(LTAPIAircraft::LTAPIBulkData))
         return;
 
     // fill all values one by one
@@ -1811,7 +1811,7 @@ void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkData* pOut,
     // simulation
     pOut->bearing = (float)GetVecView().angle;
     pOut->dist_nm = (float)GetVecView().dist / M_per_NM;
-    pOut->bits.phase = GetFlightPhase();
+    pOut->bits.phase = LTAPIAircraft::LTFlightPhase(GetFlightPhase());
     pOut->bits.onGnd = IsOnGrnd();
     pOut->bits.taxi = surfaces.lights.taxiLights;
     pOut->bits.land = surfaces.lights.landLights;
@@ -1828,33 +1828,35 @@ void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkData* pOut,
 /// @param pOut points to output data area
 /// @param size Structure size to be copied. This can be less than sizeof(LTAPIBulkData) once new version are out.
 /// @warning This function is comparably expensive, needs 2 locks for flight data
-void LTAircraft::CopyBulkData (LTAircraft::LTAPIBulkInfoTexts* pOut,
+void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
                                size_t size) const
 {
     // So far, we only know of this one structure version.
     // If size isn't enough for that we bail:
-    if (size < sizeof(LTAPIBulkInfoTexts))
+    if (size < sizeof(LTAPIAircraft::LTAPIBulkInfoTexts))
         return;
     
     // Fill the output buffer one by one
     const LTFlightData::FDStaticData stat = fd.WaitForSafeCopyStat();
     const LTFlightData::FDDynamicData dyn = fd.WaitForSafeCopyDyn();
     pOut->keyNum = fd.key().num;
-    STRCPY_ATMOST(pOut->registration,    stat.reg.c_str());
+    STRCPY_ATMOST(pOut->registration,   stat.reg);
     // aircraft model/operator
-    STRCPY_ATMOST(pOut->modelIcao,       stat.acTypeIcao.c_str());
-    STRCPY_ATMOST(pOut->acClass,         stat.catDescr.c_str());
-    STRCPY_ATMOST(pOut->opIcao,          stat.opIcao.c_str());
-    STRCPY_ATMOST(pOut->man,        stat.man);
-    STRCPY_ATMOST(pOut->model,      stat.mdl);
-    STRCPY_ATMOST(pOut->op,         stat.op);
+    STRCPY_ATMOST(pOut->modelIcao,      stat.acTypeIcao);
+    STRCPY_ATMOST(pOut->acClass,        doc8643.classification);
+    STRCPY_ATMOST(pOut->wtc,            doc8643.wtc);
+    STRCPY_ATMOST(pOut->opIcao,         stat.opIcao);
+    STRCPY_ATMOST(pOut->man,            stat.man);
+    STRCPY_ATMOST(pOut->model,          stat.mdl);
+    STRCPY_ATMOST(pOut->catDescr,       stat.catDescr);
+    STRCPY_ATMOST(pOut->op,             stat.op);
     // flight data
-    STRCPY_ATMOST(pOut->callSign,        stat.call.c_str());
-    STRCPY_ATMOST(pOut->squawk,          dyn.GetSquawk().c_str());
-    STRCPY_ATMOST(pOut->flightNumber,    stat.flight.c_str());
-    STRCPY_ATMOST(pOut->origin,          stat.originAp.c_str());
-    STRCPY_ATMOST(pOut->destination,     stat.destAp.c_str());
-    STRCPY_ATMOST(pOut->trackedBy,       dyn.pChannel ? dyn.pChannel->ChName() : "-");
+    STRCPY_ATMOST(pOut->callSign,       stat.call);
+    STRCPY_ATMOST(pOut->squawk,         dyn.GetSquawk());
+    STRCPY_ATMOST(pOut->flightNumber,   stat.flight);
+    STRCPY_ATMOST(pOut->origin,         stat.originAp);
+    STRCPY_ATMOST(pOut->destination,    stat.destAp);
+    STRCPY_ATMOST(pOut->trackedBy,      dyn.pChannel ? dyn.pChannel->ChName() : "-");
 }
 
 //
