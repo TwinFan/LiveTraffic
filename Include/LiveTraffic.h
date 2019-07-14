@@ -101,6 +101,9 @@
 #pragma warning (pop)
 #endif
 
+// LTAPI Includes, this defines the bulk transfer structure
+#include "LTAPI.h"
+
 // LiveTraffic Includes
 #include "Constants.h"
 #include "DataRefs.h"

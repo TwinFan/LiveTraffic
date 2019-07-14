@@ -121,7 +121,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -166,7 +166,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -275,6 +275,7 @@
     <ClInclude Include="include\TextIO.h" />
     <ClInclude Include="include\TFWidgets.h" />
     <ClInclude Include="Include\XPCompatibility.h" />
+    <ClInclude Include="Lib\LTAPI\LTAPI.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

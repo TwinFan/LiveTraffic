@@ -218,74 +218,7 @@ public:
         FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
     };
     static std::string FlightPhase2String (FlightPhase phase);
-    
-public:
-    /// @brief Bulk data transfer structur for communication with LTAPI
-    /// @note To avoid alignment issues with arrays we keep this struct 8-byte-aligned
-    struct LTAPIBulkData {
-    public:
-        // identification
-        uint64_t        keyNum;             ///< a/c id, usually transp hex code, or any other unique id (FLARM etc.)
-        // position, attitude
-        float           lat;                ///< [°] latitude
-        float           lon;                ///< [°] longitude
-        float           alt_ft;             ///< [ft] altitude
-        float           heading;            ///< [°] heading
-        float           track;              ///< [°] track over ground
-        float           roll;               ///< [°] roll:  positive right
-        float           pitch;              ///< [°] pitch: positive up
-        float           speed_kt;           ///< [kt] ground speed
-        float           vsi_ft;             ///< [ft/minute] vertical speed, positive up
-        float           terrainAlt_ft;      ///< [ft] terrain altitude beneath plane
-        float           height_ft;          ///< [ft] height AGL
-        // configuration
-        float           flaps;              ///< flap position: 0.0 retracted, 1.0 fully extended
-        float           gear;               ///< gear position: 0.0 retracted, 1.0 fully extended
-        float           reversers;          ///< reversers position: 0.0 closed, 1.0 fully opened
-        // simulation
-        float           bearing;            ///< [°] to current camera position
-        float           dist_nm;            ///< [nm] distance to current camera
-        
-        struct BulkBitsTy {
-            FlightPhase phase : 8;          ///< flight phase, see LTAircraft::FlightPhase
-            bool        onGnd : 1;          ///< Is plane on ground?
-            // Lights:
-            bool        taxi       : 1;     ///< taxi lights
-            bool        land       : 1;     ///< landing lights
-            bool        bcn        : 1;     ///< beacon light
-            bool        strb       : 1;     ///< strobe light
-            bool        nav        : 1;     ///< navigaton lights
-            unsigned    filler1    : 2;     ///< unused, fills up to byte alignment
-            // Misc
-            int         multiIdx   : 8;    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
-            // Filler for 8-byte alignment
-            unsigned    filler2    : 8;
-            unsigned    filler3    : 32;
-        } bits;
-    };
-    
-    /// @brief Bulk text transfer structur for communication with LTAPI
-    /// @note To avoid alignment issues with arrays we keep this struct 8-byte-aligned
-    struct LTAPIBulkInfoTexts {
-    public:
-        // identification
-        uint64_t        keyNum;             ///< a/c id, usually transp hex code, or any other unique id (FLARM etc.)
-        char            registration[8];    ///< tail number like "D-AISD"
-        // aircraft model/operator
-        char            modelIcao[8];       ///< ICAO aircraft type like "A321"
-        char            acClass[8];         ///< a/c class like "L2J"
-        char            opIcao[8];          ///< ICAO-code of operator like "DLH"
-        char            man[40];            ///< human-readable manufacturer like "Airbus"
-        char            model[40];          ///< human-readable a/c model like "A321-231"
-        char            op[40];             ///< human-readable operator like "Lufthansa"
-        // flight data
-        char            callSign[8];        ///< call sign like "DLH56C"
-        char            squawk[8];          ///< squawk code (as text) like "1000"
-        char            flightNumber[8];    ///< flight number like "LH1113"
-        char            origin[8];          ///< origin airport (IATA or ICAO) like "MAD" or "LEMD"
-        char            destination[8];     ///< destination airport (IATA or ICAO) like "FRA" or "EDDF"
-        char            trackedBy[24];      ///< name of channel deliverying the underlying tracking data
-    };
+
 public:
     // reference to the defining flight data
     LTFlightData& fd;
@@ -396,8 +329,8 @@ public:
     inline vectorTy GetVec() const { return vec; }
     inline vectorTy GetVecView() const { return vecView; }
     std::string GetLightsStr() const;
-    void CopyBulkData (LTAPIBulkData* pOut, size_t size) const;       ///< copies a/c info into bulk structure
-    void CopyBulkData (LTAPIBulkInfoTexts* pOut, size_t size) const;  ///< copies a/c text info into bulk structure
+    void CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut, size_t size) const;       ///< copies a/c info into bulk structure
+    void CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut, size_t size) const;  ///< copies a/c text info into bulk structure
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
     void SetInvalid() { bValid = false; }
