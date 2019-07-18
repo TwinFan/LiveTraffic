@@ -121,7 +121,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -158,16 +158,15 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"
-copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraffic\Releases\Current\LiveTraffic\64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Copying win.xpl into my X-Plane plugin path and to Dropbox</Message>
+      <Message>Copying win.xpl into my X-Plane plugin path</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\xplanemp\;..\..\LibIncludes\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -204,9 +203,8 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"
-copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraffic\Releases\Current\LiveTraffic\64"</Command>
-      <Message>Copying win.xpl into my X-Plane plugin path and to Dropbox</Message>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"</Command>
+      <Message>Copying win.xpl into my X-Plane plugin path</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -277,6 +275,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\Users\birge\Dropbox\LiveTraf
     <ClInclude Include="include\TextIO.h" />
     <ClInclude Include="include\TFWidgets.h" />
     <ClInclude Include="Include\XPCompatibility.h" />
+    <ClInclude Include="Lib\LTAPI\LTAPI.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

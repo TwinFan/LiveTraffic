@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.15f;
+constexpr float VERSION_NR = 1.20f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -97,6 +97,12 @@ constexpr float  MDL_EXT_FAST_DEG =       5.0f;
 constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
 constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
 #define MDL_LABEL_COLOR         "LABEL_COLOR"
+constexpr double MDL_REVERSERS_TIME = 2.0;  ///< [s] to open/close reversers
+constexpr double MDL_SPOILERS_TIME  = 0.5;  ///< [s] to extend/retract spoilers
+constexpr double MDL_TIRE_SLOW_TIME = 5.0;  ///< [s] time till tires stop rotating after take-off
+constexpr double MDL_TIRE_MAX_RPM = 2000;   ///< [rpm] max tire rotation speed
+constexpr double MDL_TIRE_CF_M      = 3.2;  ///< [m] tire circumfence (3.2m for a 40-inch tire)
+constexpr double MDL_GEAR_DEFL_TIME = 0.5;  ///< [s] time for gear deflection (one direction...up down is twice this value)
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
 constexpr int COLOR_RED         = 0xFF0000;
@@ -110,7 +116,7 @@ extern char HTTP_USER_AGENT[];          // like "LiveTraffic/1.0"
 extern time_t LT_BETA_VER_LIMIT;        // BETA versions are limited
 extern char LT_BETA_VER_LIMIT_TXT[];
 #define BETA_LIMITED_VERSION    "BETA limited to %s"
-#define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN!"
+#define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN! Get an up-to-date version from X-Plane.org."
 constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 
 //MARK: Text Constants
@@ -119,7 +125,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LT_CFG_VERSION          "1.1"        // current version of config file format
 #define LT_FM_VERSION           "1.1"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
-#define PLUGIN_DESCRIPTION      "Create Multiplayer Aircrafts based on live traffic."
+#define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
 #define LT_DOWNLOAD_CH          "X-Plane.org"
 #define MSG_DISABLED            "Disabled"
@@ -130,20 +136,21 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
-#define MSG_NUM_AC_INIT         "Initially created %d aircrafts"
-#define MSG_NUM_AC_ZERO         "No more aircrafts displayed"
-#define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircrafts, displaying %d, still %d seconds to buffer"
+#define MSG_NUM_AC_INIT         "Initially created %d aircraft"
+#define MSG_NUM_AC_ZERO         "No more aircraft displayed"
+#define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %d seconds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
+#define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fkm"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
-#define INFO_AC_ALL_REMOVED     "Removed all aircrafts"
+#define INFO_AC_ALL_REMOVED     "Removed all aircraft"
 #define INFO_WND_AUTO_AC        "AUTO"
 #define INFO_AC_HIDDEN          "A/c %s hidden"
 #define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
 #define INFO_AC_SHOWN           "A/c %s visible"
 #define INFO_AC_SHOWN_AUTO      "A/c %s automatically visible"
-#define MSG_TOO_MANY_AC         "Reached limit of %d aircrafts, will create new ones only after removing outdated ones."
+#define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will create new ones only after removing outdated ones."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
 #define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"
 #define MSG_MDL_NOT_FORCED      "Settings > Debug: Model matching no longer forced"
@@ -167,8 +174,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_AC_INFO_WND_POPOUT "Aircraft Info... (Popped out)"
 #define MENU_AC_INFO_WND_SHOWN  "Aircraft Info shown"
 #define MENU_AC_INFO_WND_CLOSEALL "Close All Windows"
-#define MENU_TOGGLE_AIRCRAFTS   "Aircrafts displayed"
-#define MENU_TOGGLE_AC_NUM      "Aircrafts displayed (%d shown)"
+#define MENU_TOGGLE_AIRCRAFTS   "Aircraft displayed"
+#define MENU_TOGGLE_AC_NUM      "Aircraft displayed (%d shown)"
 #define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_TOGGLE_LABELS      "Labels shown"
 #define MENU_SETTINGS_UI        "Settings..."
@@ -214,8 +221,11 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
 constexpr long HTTP_BAD_REQUEST =   400;
+constexpr long HTTP_UNAUTHORIZED =  401;
+constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
+constexpr long CURL_TIMEOUT =        30;        ///< [s] network timeout, see CURLOPT_TIMEOUT
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
@@ -231,8 +241,10 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"
 #define ERR_CURL_NOVERCHECK     "Could not browse X-Plane.org for version info: %d - %s"
 #define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
-#define ERR_CURL_REVOKE_MSG     "revocation"                // appears in error text if querying revocation list fails
+#define ERR_CURL_REVOKE_MSG     {"revocation","80092012","80092013"}  // appear in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
+#define ERR_HTTP_NOT_OK         "HTTP response was not HTTP_OK"
+#define ERR_FOUND_NO_VER_INFO   "Found no version info in response"
 #define ERR_CH_NONE_ACTIVE      "No enabled active channel for tracking data! Check Basic Settings and enable channels."
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
@@ -244,7 +256,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_DIR_CONTENT         "Could not retrieve directory content for %s"
 #define ERR_JSON_PARSE          "Parsing flight data as JSON failed"
 #define ERR_JSON_MAIN_OBJECT    "JSON: Getting main object failed"
-#define ERR_JSON_ACLIST         "JSON: List of aircrafts (%s) not found"
+#define ERR_JSON_ACLIST         "JSON: List of aircraft (%s) not found"
 #define ERR_JSON_AC             "JSON: Could not get %d. aircraft in '%s'"
 #define ERR_NEW_OBJECT          "Could not create new object (memory?): %s"
 #define ERR_LOCK_ERROR          "Could not acquire lock for '%s': %s"
@@ -256,7 +268,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_POS_UNNORMAL        "A/c %s reached invalid pos: %s"
 #define ERR_IGNORE_POS          "A/c %s: Ignoring data leading to sharp turn or invalid speed: %s"
 #define ERR_INV_TRANP_ICAO      "Ignoring data for invalid transponder code '%s'"
-#define ERR_TIME_NONLINEAR      "Time moved non-linear/jumped by %.1f seconds, will re-init aircrafts."
+#define ERR_TIME_NONLINEAR      "Time moved non-linear/jumped by %.1f seconds, will re-init aircraft."
 #define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"
 #define ERR_WIDGET_CREATE       "Could not create widget required for settings UI"
 #define ERR_CFG_FILE_OPEN_OUT   "Could not create config file '%s': %s"

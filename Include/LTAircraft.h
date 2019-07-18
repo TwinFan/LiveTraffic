@@ -148,6 +148,7 @@ public:
     public:
         std::string modelName;
         double GEAR_DURATION =    10;     // time for gear up/down
+        double GEAR_DEFLECTION =  0.5;    // [m] main gear deflection on meters during touch down
         double FLAPS_DURATION =   5;      // time for full flaps extension from 0% to 100%
         double VSI_STABLE =       100;    // [ft/min] less than this VSI is considered 'stable'
         double ROTATE_TIME =      3;      // [s] to rotate before lift off
@@ -158,6 +159,7 @@ public:
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
         double MAX_TAXI_SPEED =   50;     // below that: taxi, above that: take-off/roll-out
+        double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
         double TAXI_TURN_TIME =   45;     // seconds for a 360° turn on the ground
         double FLIGHT_TURN_TIME = 120;    // seconds for a 360° turn in flight
         double ROLL_MAX_BANK =    30;     // [°] max bank angle
@@ -173,6 +175,7 @@ public:
         double PITCH_FLAP_ADD =   4;      // [°] to add if flaps extended
         double PITCH_FLARE =      10;     // [°] pitch during flare
         double PITCH_RATE =       5;      // [°/s] pitch rate of change
+        double PROP_RPM_MAX =     1200;   // [rpm] maximum propeller revolutions per minute
         int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
@@ -194,27 +197,28 @@ public:
     };
     
 public:
+    /// @brief Flight phase
     enum FlightPhase {
-        FPH_UNKNOWN     = 0,
-        FPH_TAXI        = 10,
-        FPH_TAKE_OFF    = 20,
-        FPH_TO_ROLL,
-        FPH_ROTATE,
-        FPH_LIFT_OFF,
-        FPH_INITIAL_CLIMB,
-        FPH_CLIMB       = 30,
-        FPH_CRUISE      = 40,
-        FPH_DESCEND     = 50,
-        FPH_APPROACH    = 60,
-        FPH_FINAL,
-        FPH_LANDING     = 70,
-        FPH_FLARE,
-        FPH_TOUCH_DOWN,                 // this is a one-frame-only 'phase'!
-        FPH_ROLL_OUT,
-        FPH_STOPPED_ON_RWY              // ...after artifically roll-out with no more live positions remaining
+        FPH_UNKNOWN     = 0,            ///< used for initializations
+        FPH_TAXI        = 10,           ///< Taxiing
+        FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
+        FPH_TO_ROLL,                    ///< Take-off roll
+        FPH_ROTATE,                     ///< Rotating
+        FPH_LIFT_OFF,                   ///< Lift-off, until "gear-up" height
+        FPH_INITIAL_CLIMB,              ///< Initial climb, until "flaps-up" height
+        FPH_CLIMB       = 30,           ///< Regular climbout
+        FPH_CRUISE      = 40,           ///< Cruising, no altitude change
+        FPH_DESCEND     = 50,           ///< Descend, more then 100ft/min descend
+        FPH_APPROACH    = 60,           ///< Approach, below "flaps-down" height
+        FPH_FINAL,                      ///< Final, below "gear-down" height
+        FPH_LANDING     = 70,           ///< Group of status for landing:
+        FPH_FLARE,                      ///< Flare, when reaching "flare		" height
+        FPH_TOUCH_DOWN,                 ///< The one cycle when plane touches down, don't rely on catching it...it's really one cycle only
+        FPH_ROLL_OUT,                   ///< Roll-out after touch-down until reaching taxi speed or stopping
+        FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
     };
     static std::string FlightPhase2String (FlightPhase phase);
-    
+
 public:
     // reference to the defining flight data
     LTFlightData& fd;
@@ -234,7 +238,7 @@ public:
 protected:
     // this is "ppos", the present simulated position,
     // where the aircraft is to be drawn
-    positionTy          ppos, prevPos;
+    positionTy          ppos;
     // and this the current vector from 'from' to 'to'
     vectorTy            vec;
     
@@ -254,6 +258,10 @@ protected:
     MovingParam         heading;        // used when turning
     MovingParam         roll;
     MovingParam         pitch;
+    MovingParam         reversers;      ///< reverser open ratio
+    MovingParam         spoilers;       ///< spoiler extension ratio
+    MovingParam         tireRpm;        ///< models slow-down after take-off
+    MovingParam         gearDeflection; ///< main gear deflection in meters during touch-down
     
     // Y-Probe
     XPLMProbeRef        probeRef;
@@ -268,10 +276,13 @@ protected:
 #ifdef DEBUG
     bool                bIsSelected = false;    // is selected for logging/debugging?
 #endif
+    bool                bSendNewInfoData = false; ///< is there new static data to announce?
     // visibility
     bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
+    int                 aiPrio = 0;     ///< prio for AI slotting (libxplanemp)
+    int                 multiIdx = 0;   ///< plane's multiplayer index if reported via sim/multiplayer/position dataRefs, 0 otherwise
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -302,6 +313,7 @@ public:
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
+    inline double GetReverserPos() const { return reversers.is(); }
     inline double GetSpeed_kt() const { return speed.kt(); }                     // kt
     inline double GetSpeed_m_s() const { return speed.m_s(); }   // m/s
     inline double GetVSI_ft() const { return vsi; }                         // ft/m
@@ -317,9 +329,13 @@ public:
     inline vectorTy GetVec() const { return vec; }
     inline vectorTy GetVecView() const { return vecView; }
     std::string GetLightsStr() const;
+    void CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut, size_t size) const;       ///< copies a/c info into bulk structure
+    void CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut, size_t size) const;  ///< copies a/c text info into bulk structure
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
     void SetInvalid() { bValid = false; }
+    inline bool ShallSendNewInfoData () const { return bSendNewInfoData; }
+    inline void SetSendNewInfoData () { bSendNewInfoData = true; }
     // Visibility
     inline bool IsVisible() const { return bVisible; }
     inline bool IsAutoVisible() const { return bAutoVisible; }
@@ -340,6 +356,8 @@ protected:
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();
+    /// Determines AI priority based on bearing to user's plane and ground status
+    void CalcAIPrio ();
     
 protected:
     // *** Camera view ***
@@ -365,6 +383,7 @@ protected:
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);
     virtual XPMPPlaneCallbackResult GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSurfaces);
     virtual XPMPPlaneCallbackResult GetPlaneRadar(XPMPPlaneRadar_t* outRadar);
+    virtual XPMPPlaneCallbackResult GetInfoTexts(XPMPInfoTexts_t * outInfoTexts);
 };
 
 #endif /* LTAircraft_h */

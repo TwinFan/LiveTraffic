@@ -186,9 +186,7 @@ void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags
 XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
 {
     // consider configured level for msg area
-    // for this consideration we treat logMSG the same way as logINFO,
-    // i.e. logMSG is more likely to be suppressed
-    if ( (lvl == logMSG ? logINFO : lvl) < dataRefs.GetMsgAreaLevel())
+    if ( lvl < dataRefs.GetMsgAreaLevel())
         return g_window;
     
     va_list args;

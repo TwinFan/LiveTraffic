@@ -387,6 +387,17 @@ extern mapLTFlightDataTy mapFd;
 //  to avoid deadlocks, mapFdMutex is considered a higher-level lock)
 extern std::mutex      mapFdMutex;
 
+/// @brief Returns the next flight data, which has a defined aircraft (pAc)
+/// @param iter Starting point
+inline mapLTFlightDataTy::iterator mapFdNextWithAc (mapLTFlightDataTy::iterator iter)
+{   return std::find_if(std::next(iter), mapFd.end(),
+                        [](const mapLTFlightDataTy::value_type& fd){return fd.second.hasAc();} );
+}
+
+/// @brief Find "i-th" aircraft, i.e. the i-th flight data with assigned pAc
+/// @param idx Index of aircraft to find, 1-based: pass in 1 to find the first
+mapLTFlightDataTy::iterator mapFdAcByIdx (int idx);
+
 //
 // MARK: Ordered lists of flight data
 //       Note that included objects aren't valid for long!

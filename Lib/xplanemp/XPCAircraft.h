@@ -20,6 +20,11 @@ public:
 
 	virtual	XPMPPlaneCallbackResult	GetPlaneRadar(
 			XPMPPlaneRadar_t *	outRadar)=0;
+
+    // overriding info text callback is optional
+    virtual XPMPPlaneCallbackResult GetInfoTexts(
+            XPMPInfoTexts_t *   /*outInfoTexts*/)
+    {  return xpmpData_Unavailable; }
 protected:
 
 	XPMPPlaneID			mPlane;

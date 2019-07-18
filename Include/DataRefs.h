@@ -68,6 +68,12 @@ public:
     // return the string for FlightModel matching
     operator std::string() const;
     
+    // Helicopter or Gyrocopter with big rotor?
+    inline bool hasRotor () const
+    { return classification.size() >= 1 ?
+        (classification[0] == 'H' || classification[0] == 'G') : false;
+    }
+    
     // static functions for reading the doc8643.txt file
     // and returning information from it
 public:
@@ -199,6 +205,9 @@ enum dataRefsLT {
     DR_AC_BEARING,
     DR_AC_DIST,                         // last of a/c info
     
+    DR_AC_BULK_QUICK,               // bulk a/c primarily for communication with LTAPI
+    DR_AC_BULK_EXPENSIVE,           // similar, but for expensive data, should be called less often
+    
     DR_SIM_DATE,
     DR_SIM_TIME,
     
@@ -224,6 +233,7 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
+    DR_CFG_DR_LIBXPLANEMP,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -282,6 +292,7 @@ public:
         XPLMSetDatai_f ifWrite      = NULL;
         XPLMGetDataf_f ffRead       = NULL;
         XPLMSetDataf_f ffWrite      = NULL;
+        XPLMGetDatab_f bfRead       = NULL;
         void* refCon                = NULL;
         bool bCfgFile               = false;
         
@@ -304,6 +315,15 @@ public:
         ffRead(_ffRead), ffWrite(_ffWrite),
         refCon(_refCon), bCfgFile(_bCfg) {}
 
+        // constructor for xplmType_Data
+        dataRefDefinitionT (const char* name,
+                            XPLMGetDatab_f _bfRead, XPLMSetDataf_f /*_bfWrite*/ = NULL,
+                            void* _refCon = NULL,
+                            bool _bCfg = false) :
+        dataName(name), dataType(xplmType_Data),
+        bfRead(_bfRead), 
+        refCon(_refCon), bCfgFile(_bCfg) {}
+        
         // allows using the object in string context -> dataName
         inline const std::string getDataNameStr() const { return dataName; }
         inline const char* getDataName() const { return dataName.c_str(); }
@@ -317,7 +337,8 @@ public:
         inline XPLMSetDatai_f setDatai_f () const { return ifWrite; }
         inline XPLMGetDataf_f getDataf_f () const { return ffRead; }
         inline XPLMSetDataf_f setDataf_f () const { return ffWrite; }
-        
+        inline XPLMGetDatab_f getDatab_f () const { return bfRead; }
+
         inline XPLMDataTypeID getDataType() const { return dataType; }
         inline void* getRefCon() const { return refCon; }
         inline void setRefCon (void* _refCon) { refCon = _refCon; }
@@ -386,6 +407,7 @@ public:
         inline bool empty() const   { return path.empty(); }
         inline bool enabled() const { return bEnabled && !empty(); }
         inline bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
+        inline bool operator== (const std::string& s) const { return path == s; }
     };
     typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     
@@ -442,6 +464,7 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
+    int drLibXplaneMP   = 1;            // CSL models: register original 'libxplanemp' dataRefs?
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -471,6 +494,8 @@ public:
     std::string cslFixOpIcao;           // ...newly created aircrafts for...
     std::string cslFixLivery;           // ...CSL model package testing
     RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
+    long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
+    long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
 
 //MARK: Constructor
 public:
@@ -517,6 +542,10 @@ public:
     static int   LTGetInt(void* p);
     static float LTGetFloat(void* p);
     static void  LTSetBool(void* p, int i);
+    
+    // Bulk data access to transfer a lot of a/c info to LTAPI
+    static int LTGetBulkAc (void* inRefcon, void * outValue,
+                            int inStartIdx, int inNumAc);
 
 protected:
     // a/c info
@@ -586,7 +615,10 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
-    
+
+    inline bool GetDrLibXplaneMP() const { return drLibXplaneMP != 0; }
+    inline void SetDrLibXplaneMP(int i) { drLibXplaneMP = i; }
+
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();
 

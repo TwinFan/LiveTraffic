@@ -197,6 +197,8 @@ bool FetchXPlaneOrgVersion ()
     // prepare the handle with the right options
     verXPlaneOrg = NAN;
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, FetchVersionCB);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
@@ -208,7 +210,7 @@ bool FetchXPlaneOrgVersion ()
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
         // problem with querying revocation list?
-        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+        if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
             LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
@@ -229,10 +231,10 @@ bool FetchXPlaneOrgVersion ()
         
         // not HTTP_OK?
         if (httpResponse != HTTP_OK)
-            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, httpResponse, "HTTP response was not HTTP_OK")
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, httpResponse, ERR_HTTP_NOT_OK)
         else if (std::isnan(verXPlaneOrg))
             // all OK but still no version number?
-            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, "Found no version info in response")
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, ERR_FOUND_NO_VER_INFO)
     }
     
     // cleanup CURL handle
