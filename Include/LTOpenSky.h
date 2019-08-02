@@ -72,7 +72,7 @@ public:
     { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
 };
 
-//MARK: OpenSky Master Data Constats
+//MARK: OpenSky Master Data Constants
 constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 2 requests
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"

@@ -124,24 +124,48 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     int l, t, r, b;
     XPLMGetWindowGeometry(in_window_id, &l, &t, &r, &b);
     
+#ifdef USE_XPLM_BOX
     XPLMDrawTranslucentDarkBox(l, t, r, b);
+#else
+    // Draw the box directly in OpenGL:
+    {	// TODO: move to real method or macro:
+        static float savedColor_fv[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        static float rgba_fv[4] = { 0.23f, 0.23f, 0.26f, 0.55f };	// dark gray at 55% opacity
+        glGetFloatv(GL_COLOR_ARRAY, savedColor_fv); // save color so we don't affect it permanently
+        glColor4fv(rgba_fv);
+        
+        float x1 = (l > r ? r : l);
+        float x2 = (l > r ? l : r);
+        float y1 = (t > b ? b : t);
+        float y2 = (t > b ? t : b);
+        
+        glBegin(GL_POLYGON);
+        glVertex2f(x1, y1);
+        glVertex2f(x1, y2);
+        glVertex2f(x2, y2);
+        glVertex2f(x2, y1);
+        glEnd();
+        
+        glColor4fv(savedColor_fv);
+    }
+#endif
     
-    b = WIN_WIDTH;                          // word wrap width = window width
+    int w = WIN_WIDTH - 2 * WIN_TEXT_PADDING;   // word wrap width
     
     // for each line of text to be displayed
     float currTime = dataRefs.GetTotalRunningTimeSec();
     t -= WIN_ROW_HEIGHT;                    // move down to text's baseline
     for (auto iter = listTexts.cbegin();
          iter != listTexts.cend();
-         t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
+         t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rows (after word wrap)...just assume 2 rows are enough
     {
         // still a valid entry?
         if (iter->fTimeDisp > 0 && currTime <= iter->fTimeDisp)
         {
             // draw text, take color based on msg level
-            XPLMDrawString(COL_LVL[iter->lvlDisp], l, t,
+            XPLMDrawString(COL_LVL[iter->lvlDisp], l + WIN_TEXT_PADDING, t,
                            const_cast<char*>(iter->text.c_str()),
-                           &b, xplmFont_Proportional);
+                           &w, xplmFont_Proportional);
             // cancel any idea of removing the msg window
             fTimeRemove = NAN;
             // next element
@@ -163,7 +187,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
             fTimeRemove = currTime + WIN_TIME_REMAIN;
         else if (currTime >= fTimeRemove) {
             // time's up: remove
-            DestroyWindow();
+            RemoveWindow();
             fTimeRemove = NAN;
         }
     }
@@ -182,8 +206,8 @@ void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags
 { }
 
 
-//MARK: custom X-Plane message Window - Create / Destroy
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
+//MARK: custom X-Plane message Window - Create / Show / Hide
+XPLMWindowID DisplayMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
 {
     // consider configured level for msg area
     if ( lvl < dataRefs.GetMsgAreaLevel())
@@ -213,7 +237,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     // add to list of display texts
     listTexts.emplace_back(std::move(dispTxt));
     
-    // Otherwise: Create the message window
+    // Otherwise: Create or reveal the message window
     XPLMCreateWindow_t params;
     params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
     params.visible = 1;
@@ -236,11 +260,11 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     LT_GetScreenSize(params.left, params.top, params.right, params.bottom,
                      LT_SCR_RIGHT_TOP_MOST);
     
-    // define a window in the top right corner,
+    // maintain message window in the top right corner,
     // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
     // enough height for all lines of text
     params.top -= WIN_FROM_TOP;
-    params.right -= WIN_FROM_RIGHT;
+    params.right -= WIN_FROM_RIGHT + WIN_EDGE_MARGIN;
     params.left = params.right - WIN_WIDTH;
     params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1));
     
@@ -248,7 +272,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     if (g_window)
         XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
     else {
-        // otherwise create a new one
+        // otherwise create it (on first use only)
         g_window = XPLMCreateWindowEx(&params);
         LOG_ASSERT(g_window);
     }
@@ -257,14 +281,23 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
 }
 
 
-void DestroyWindow()
+void RemoveWindow()
 {
+    // hide window until we need it again
+    // note: window will only be destroyed in disable callback
     if ( g_window )
     {
-        XPLMDestroyWindow(g_window);
+        XPLMSetWindowIsVisible(g_window, 0);
         g_window = NULL;
         listTexts.clear();
    }
+}
+
+
+void DestroyWindow()
+{
+    // destroy log window
+    XPLMDestroyWindow(g_window);
 }
 
 //

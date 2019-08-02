@@ -272,6 +272,7 @@ enum cmdRefsLT {
     CR_AC_DISPLAYED,
     CR_AC_TCAS_CONTROLLED,
     CR_LABELS_TOGGLE,
+    CR_SETTINGS_TOGGLE,
     CNT_CMDREFS_LT                      // always last, number of elements
 };
 

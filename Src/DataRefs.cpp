@@ -393,6 +393,7 @@ struct cmdRefDescrTy {
     {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircraft"},
     {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircraft"},
     {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
+    {"LiveTraffic/Toggle_Settings_UI",                  "Shows/Hides LiveTraffic settings window"},
 };
 
 static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,

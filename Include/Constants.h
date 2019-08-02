@@ -36,10 +36,13 @@ extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
 //MARK: Window Position
-#define WIN_WIDTH       400         // window width
+#define WIN_WIDTH       348         // window width
 #define WIN_ROW_HEIGHT   20         // height of line of text
-#define WIN_FROM_TOP     50
+#define WIN_FROM_TOP     51
 #define WIN_FROM_RIGHT    0
+
+#define WIN_TEXT_PADDING 12         // padding of text area inside window bounds
+#define WIN_EDGE_MARGIN   6         // margin from window edge to screen edge (any edge except top)
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
 constexpr float WIN_TIME_REMAIN=0.5f;   // seconds to keep the msg window after last message

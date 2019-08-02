@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
-		251531BD21B863F700B5968A /* mac.xpl in CopyFiles */ = {isa = PBXBuildFile; fileRef = D607B19909A556E400699BC3 /* mac.xpl */; };
 		2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2536421C2215FE81000DC56F /* XPCompatibility.cpp */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
@@ -32,6 +31,7 @@
 		25E9C2A9207D4F0D00D3C642 /* libz.1.2.11.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
+		AA00027A22F4493200FECFA7 /* mac.xpl in CopyFiles */ = {isa = PBXBuildFile; fileRef = D607B19909A556E400699BC3 /* mac.xpl */; };
 		AA3F560822D33EE8001E8C37 /* mac.xpl in CopyFiles */ = {isa = PBXBuildFile; fileRef = D607B19909A556E400699BC3 /* mac.xpl */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
@@ -39,13 +39,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		251531BC21B863D000B5968A /* CopyFiles */ = {
+		AA00027922F4491000FECFA7 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = LiveTraffic/64;
-			dstSubfolderSpec = 16;
+			dstPath = "$(XPLANE_INSTALL_DIR)/Resources/plugins/LiveTraffic/64";
+			dstSubfolderSpec = 0;
 			files = (
-				251531BD21B863F700B5968A /* mac.xpl in CopyFiles */,
+				AA00027A22F4493200FECFA7 /* mac.xpl in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -663,8 +663,8 @@
 				AA3F560622D338CB001E8C37 /* ShellScript */,
 				D607B19609A556E400699BC3 /* Sources */,
 				D607B19709A556E400699BC3 /* Frameworks */,
-				251531BC21B863D000B5968A /* CopyFiles */,
 				AA3F560722D33EA8001E8C37 /* CopyFiles */,
+				AA00027922F4491000FECFA7 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -846,6 +846,7 @@
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
 				THIRD_PARTY_LIBRARIES = /opt/local/lib/;
+				XPLANE_INSTALL_DIR = "/Users/brat/Desktop/X-Plane 11";
 				XPSDK_ROOT = Lib/XPSDK301;
 			};
 			name = Debug;
@@ -938,6 +939,7 @@
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
 				THIRD_PARTY_LIBRARIES = /opt/local/lib/;
+				XPLANE_INSTALL_DIR = "/Users/brat/Desktop/X-Plane 11";
 				XPSDK_ROOT = Lib/XPSDK301;
 			};
 			name = Release;

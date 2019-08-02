@@ -99,11 +99,14 @@ throw LTErrorFD(fdref,__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);
 
 // MARK: custom X-Plane message Window
 
-// Creates a window and displays the given szMsg for fTimeToDisplay seconds
+// Makes message window visible for given szMsg for fTimeToDisplay seconds
 // fTimeToDisplay == 0 -> no limit
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...);
+XPLMWindowID DisplayMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...);
 
-// Destroys the windows (if still active)
+// Hides the message window (if still active)
+void RemoveWindow();
+
+// Destroys the message window
 void DestroyWindow();
 
 // MARK: Write to X-Plane log
@@ -125,7 +128,7 @@ void LogMsg ( const char* szFile, int ln, const char* szFunc, logLevelTy lvl, co
 // Display AND log a message as above
 #define SHOW_MSG(lvl,...) {                                         \
     LOG_MSG(lvl,__VA_ARGS__);                                       \
-    CreateMsgWindow(WIN_TIME_DISPLAY,lvl,__VA_ARGS__);              \
+    DisplayMsgWindow(WIN_TIME_DISPLAY,lvl,__VA_ARGS__);              \
 }
 
 // Throw in an assert-style (logging takes place in LTErrorFD constructor)

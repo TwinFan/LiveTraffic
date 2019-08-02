@@ -773,7 +773,7 @@ void LTFlightDataAcMaintenance()
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(float(AC_MAINT_INTVL - .05), logINFO, MSG_BUF_FILL_COUNTDOWN,
+        DisplayMsgWindow(float(AC_MAINT_INTVL - .05), logINFO, MSG_BUF_FILL_COUNTDOWN,
                         int(mapFd.size()),
                         numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));
@@ -783,9 +783,9 @@ void LTFlightDataAcMaintenance()
     } else {
         // tell the user a change from or to zero aircrafts (actually showing)
         if ( !numAcBefore && (numAcAfter > 0))
-            CreateMsgWindow(WIN_TIME_DISPLAY, logINFO, MSG_NUM_AC_INIT, numAcAfter);
+            DisplayMsgWindow(WIN_TIME_DISPLAY, logINFO, MSG_NUM_AC_INIT, numAcAfter);
         if ( (numAcBefore > 0) && !numAcAfter)
-            CreateMsgWindow(WIN_TIME_DISPLAY, logINFO, MSG_NUM_AC_ZERO);
+            DisplayMsgWindow(WIN_TIME_DISPLAY, logINFO, MSG_NUM_AC_ZERO);
     }
 }
 

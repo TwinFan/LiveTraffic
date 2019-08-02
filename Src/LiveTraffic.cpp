@@ -52,7 +52,7 @@ enum menuItems {
     MENU_ID_TOGGLE_AIRCRAFTS,
     MENU_ID_HAVE_TCAS,
     MENU_ID_TOGGLE_LABELS,
-    MENU_ID_SETTINGS_UI,
+    MENU_ID_TOGGLE_SETTINGS,
     MENU_ID_HELP,
     MENU_ID_HELP_DOCUMENTATION,
     MENU_ID_HELP_FAQ,
@@ -105,9 +105,17 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_LABELS],
                                   dataRefs.ToggleLabelDraw() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
-            case MENU_ID_SETTINGS_UI:
-                settingsUI.Show();
-                settingsUI.Center();
+            case MENU_ID_TOGGLE_SETTINGS:
+                // TODO: probably should move this logic into an LTSettingsUI::Toggle() method.
+                if (!settingsUI.isEnabled() || !settingsUI.isVisible()) {
+                    bool needsCentering = !settingsUI.isEnabled();
+                    settingsUI.Show();          // makes sure widget hierarchy is created, then shows it
+                    if (needsCentering)
+                        settingsUI.Center();    // only center first time (TODO: handle VR/non-VR switch)
+                }
+                else settingsUI.Show(false);    // hide the settings UI
+                XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_SETTINGS],
+                                  settingsUI.isEnabled() && settingsUI.isVisible() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_NEWVER:
                 LTOpenURL(LT_DOWNLOAD_URL);
@@ -265,8 +273,11 @@ bool RegisterMenuItem ()
     XPLMAppendMenuSeparator(menuID);
     
     // Show Settings UI
-    aMenuItems[MENU_ID_SETTINGS_UI] =
-    XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
+    aMenuItems[MENU_ID_TOGGLE_SETTINGS] =
+    LT_AppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_TOGGLE_SETTINGS,
+                      dataRefs.cmdLT[CR_SETTINGS_TOGGLE]);
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_SETTINGS],
+                      settingsUI.isEnabled() && settingsUI.isVisible() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     
     // --- Help submenu ---
     aMenuItems[MENU_ID_HELP] =
@@ -314,6 +325,7 @@ struct cmdMenuMap {
     cmdRefsLT cmd;
     menuItems menu;
 } CMD_MENU_MAP[] = {
+    { CR_SETTINGS_TOGGLE,           MENU_ID_TOGGLE_SETTINGS },
     { CR_ACINFOWND_OPEN,            MENU_ID_AC_INFO_WND },
     { CR_ACINFOWND_OPEN_POPPED_OUT, MENU_ID_AC_INFO_WND_POPOUT },
     { CR_ACINFOWND_HIDE_SHOW,       MENU_ID_AC_INFO_WND_SHOWN },
@@ -363,26 +375,26 @@ PLUGIN_API int XPluginStart(
         
         // init our version number
         // (also outputs the "LiveTraffic ... starting up" log message)
-        if (!InitFullVersion ()) { DestroyWindow(); return 0; }
+        if (!InitFullVersion ()) { RemoveWindow(); return 0; }
         
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
 
         // init DataRefs
-        if (!dataRefs.Init()) { DestroyWindow(); return 0; }
+        if (!dataRefs.Init()) { RemoveWindow(); return 0; }
         
         // read FlightModel.prf file (which we could live without)
         LTAircraft::FlightModel::ReadFlightModelFile();
         
         // init Aircraft handling (including XPMP)
-        if (!LTMainInit()) { DestroyWindow(); return 0; }
+        if (!LTMainInit()) { RemoveWindow(); return 0; }
         
         // register commands
-        if (!RegisterCommandHandlers()) { DestroyWindow(); return 0; }
+        if (!RegisterCommandHandlers()) { RemoveWindow(); return 0; }
         
         // create menu
-        if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
+        if (!RegisterMenuItem()) { RemoveWindow(); return 0; }
         
 #if IBM
         // Windows: Recommended before calling ShellExecuteA
@@ -485,7 +497,7 @@ PLUGIN_API void    XPluginStop(void)
         dataRefs.Stop();
         
         // last chance to remove the message area window
-        DestroyWindow();
+        RemoveWindow();
 
 #if IBM
         // Windows: Balance CoInitializeEx
