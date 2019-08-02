@@ -83,6 +83,21 @@
 
     <h2>v1.20</h2>
 
+    <h3>v1.21 Fixits</h3>
+    
+    <b>To update</b> coming from v1.20 just copy the 3 files
+    <code>LiveTraffic/64/*.xpl</code>.
+    
+    <ul>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/148">#148</a>
+            late reaction to activating OpenSky Master Data mid-flight and
+            memory leak when OpenSky Master Data stays inactive.
+        </li>
+    </ul>
+
+    <h3>v1.20.190718 CSL / AI / Multiplayer enhancements</h3>
+
     <b>To update</b> copy <em>all</em> files from the ZIP archive over their existing
     old versions under <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic</code>.
     Not only the executables changed, but also <code>Resources</code> files
@@ -111,23 +126,29 @@
             a power user workaround to run another multiplayer client in parallel
             with working animations/lights. Requires your local CSL models to be
             changed by the latest CSL2XSB script. Please see
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">
             documentation for details</a>.
         </li>
         <li>
             ADDED rotor / propellor / reversers / wheel animations. Requires
             <ul><li>supporting CSL models (many in the Bluebell package work)</li>
                 <li>conversion of CSL models with latest CSL2XSB script</li></ul>
-            See <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
+            See <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">
             documentation for details</a>.
         </li>
+        <li>
+            UPDATED, basically rewrote the <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
+                documentation page on many multiplayer clients in parallel<a/>,
+                like when also using XSquawkBox, X-IvAp, Swift and the like.
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/147">#147</a>:
             RealTraffic now provides a proper timestamp in its tracking data,
             which LiveTraffic uses for path calculations.
         </li>
-        <li><strong>Features relevant to other plugins' developers:</strong>
+        <li><strong>Features relevant to other plugins' or CSL model developers:</strong>
             <ul>
+                <li>ADDED support for <a href="https://github.com/TwinFan/libxplanemp/wiki/OBJ8-CSL-dataRefs">
+                    more CSL animation dataRefs</a>.</li>
                 <li>ADDED: All <code>sim/multiplayer/position</code> dataRefs are now
                     provided for AI planes, including <code>v_x/y/z</code>.</li>
                 <li>CHANGED: Position reporting by <code>sim/multiplayer/position</code>
@@ -137,6 +158,8 @@
                     shared dataRefs for providing textual information
                     about planes as <a href="https://forums.x-plane.org/index.php?/files/file/52997-fstrampfree/">
                         suggested by FSTramp</a>.</li>
+                <li>SEE the <a href="https://github.com/TwinFan/libxplanemp/wiki">
+                    Wiki of my libxplanemp fork</a> for more details.</li>
                 <li>CHANGED and ENHANCED <a href="https://github.com/TwinFan/LiveTraffic/issues/86">#86</a>
                     communication to
                     <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>,

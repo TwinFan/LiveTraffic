@@ -33,9 +33,6 @@
 //MARK: external references
 //
 
-// provided in LTFlightData.cpp
-extern mapLTFlightDataTy mapFd;
-
 // return color into a RGB array as XP likes it
 void conv_color (int inCol, float outColor[4])
 {
