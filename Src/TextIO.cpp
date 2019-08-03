@@ -237,22 +237,8 @@ XPLMWindowID DisplayMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* 
     // add to list of display texts
     listTexts.emplace_back(std::move(dispTxt));
     
-    // Otherwise: Create or reveal the message window
+    // create or reveal/resize the message window
     XPLMCreateWindow_t params;
-    params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
-    params.visible = 1;
-    params.drawWindowFunc = draw_msg;
-    // Note on "dummy" handlers:
-    // Even if we don't want to handle these events, we have to register a "do-nothing" callback for them
-    params.handleMouseClickFunc = dummy_mouse_handler;
-    params.handleRightClickFunc = dummy_mouse_handler;
-    params.handleMouseWheelFunc = dummy_wheel_handler;
-    params.handleKeyFunc = dummy_key_handler;
-    params.handleCursorFunc = dummy_cursor_status_handler;
-    params.refcon = NULL;
-    params.layer = xplm_WindowLayerFloatingWindows;
-    // No decoration...this is just message output and shall stay where it is
-    params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
     
     // Set the window's initial bounds
     // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
@@ -267,14 +253,31 @@ XPLMWindowID DisplayMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* 
     params.right -= WIN_FROM_RIGHT + WIN_EDGE_MARGIN;
     params.left = params.right - WIN_WIDTH;
     params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1));
-    
-    // if the window still exists just resize it
-    if (g_window)
-        XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
-    else {
-        // otherwise create it (on first use only)
+
+    // create the window if it does not exist
+    if (!g_window) {
+        params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
+        params.visible = 1;
+        params.drawWindowFunc = draw_msg;
+        // Note on "dummy" handlers:
+        // Even if we don't want to handle these events, we have to register a "do-nothing" callback for them
+        params.handleMouseClickFunc = dummy_mouse_handler;
+        params.handleRightClickFunc = dummy_mouse_handler;
+        params.handleMouseWheelFunc = dummy_wheel_handler;
+        params.handleKeyFunc = dummy_key_handler;
+        params.handleCursorFunc = dummy_cursor_status_handler;
+        params.refcon = NULL;
+        params.layer = xplm_WindowLayerFloatingWindows;
+        // No decoration...this is just message output and shall stay where it is
+        params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
+        
         g_window = XPLMCreateWindowEx(&params);
         LOG_ASSERT(g_window);
+    }
+    else {
+        // if the window still exists just resize it and unhide it
+        XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
+        XPLMSetWindowIsVisible(g_window, 1);
     }
     
     return g_window;
@@ -288,7 +291,6 @@ void RemoveWindow()
     if ( g_window )
     {
         XPLMSetWindowIsVisible(g_window, 0);
-        g_window = NULL;
         listTexts.clear();
    }
 }
@@ -297,7 +299,8 @@ void RemoveWindow()
 void DestroyWindow()
 {
     // destroy log window
-    XPLMDestroyWindow(g_window);
+    if (g_window)
+        XPLMDestroyWindow(g_window);
 }
 
 //

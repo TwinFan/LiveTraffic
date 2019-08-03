@@ -497,7 +497,7 @@ PLUGIN_API void    XPluginStop(void)
         dataRefs.Stop();
         
         // last chance to remove the message area window
-        RemoveWindow();
+        DestroyWindow();
 
 #if IBM
         // Windows: Balance CoInitializeEx
