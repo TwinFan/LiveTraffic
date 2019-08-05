@@ -375,26 +375,26 @@ PLUGIN_API int XPluginStart(
         
         // init our version number
         // (also outputs the "LiveTraffic ... starting up" log message)
-        if (!InitFullVersion ()) { RemoveWindow(); return 0; }
+        if (!InitFullVersion ()) { DestroyWindow(); return 0; }
         
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
 
         // init DataRefs
-        if (!dataRefs.Init()) { RemoveWindow(); return 0; }
+        if (!dataRefs.Init()) { DestroyWindow(); return 0; }
         
         // read FlightModel.prf file (which we could live without)
         LTAircraft::FlightModel::ReadFlightModelFile();
         
         // init Aircraft handling (including XPMP)
-        if (!LTMainInit()) { RemoveWindow(); return 0; }
+        if (!LTMainInit()) { DestroyWindow(); return 0; }
         
         // register commands
-        if (!RegisterCommandHandlers()) { RemoveWindow(); return 0; }
+        if (!RegisterCommandHandlers()) { DestroyWindow(); return 0; }
         
         // create menu
-        if (!RegisterMenuItem()) { RemoveWindow(); return 0; }
+        if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
         
 #if IBM
         // Windows: Recommended before calling ShellExecuteA

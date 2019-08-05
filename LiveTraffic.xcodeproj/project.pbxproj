@@ -624,6 +624,7 @@
 				D607B19A09A556E400699BC3 /* Products */,
 			);
 			sourceTree = "<group>";
+			usesTabs = 0;
 		};
 		D607B19A09A556E400699BC3 /* Products */ = {
 			isa = PBXGroup;
