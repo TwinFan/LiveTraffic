@@ -298,6 +298,9 @@ void TFWidget::setId(XPWidgetID _me)
 void TFWidget::Show (bool bShow)
 {
     if (bShow) {
+        // udate geometry if needed to make visible
+        if (!XPGetParentWidget(me))
+            AuditWindowGeometry();  // ensure viable window position (root widget only)
         if (wndId)
             XPLMSetWindowIsVisible(wndId, 1);
         XPShowWidget(me);
@@ -418,6 +421,73 @@ void TFWidget::SetGeometry (int left, int top, int right, int bottom)
             XPC_SetWindowGeometryVR(me, right-left, top-bottom);
             break;
     }
+}
+
+// check for screen geometry changes and "fix" window accordingly
+void TFWidget::AuditWindowGeometry ()
+{
+    // only valid if called on root widget:
+    if (XPGetParentWidget(me))  // should we use "me != XPFindRootWidget(me)" instead? better way to restrict to root?
+        return; // ignore it    // TODO: we *could* do below for root widget of any widget called, but seems too risky
+    
+    // for all other modes, get window position/size to audit
+    int wndMode = GetWndMode();
+    int left=0, top=0, right=0, bottom=0;
+    GetGeometry(&left, &top, &right, &bottom);
+
+    // always re-center in VR mode
+    if ((top == 0 && left == 0) || wndMode == TF_MODE_VR) {
+        Center();
+        return;
+    }
+    
+    int width = right - left;
+    int height = top - bottom;
+    
+    // don't do anything if widget has 0 width or 0 height:
+    if (width == 0 || height == 0)
+        return;// TODO: we *could* have new "default width/height", and recenter if provided
+
+    // get screen geometry based on current mode
+    int scrnLeft=0, scrnTop=0, scrnRight=0, scrnBottom=0;
+    LT_GetScreenSize(scrnLeft, scrnTop, scrnRight, scrnBottom,
+                     LT_SCR_LOWEST_IDX, wndMode == TF_MODE_POPOUT);
+    
+    // pull screen edges in tighter for safety
+    if (wndMode != TF_MODE_POPOUT) scrnTop -= 100;  // below unclickable area where menu bar is
+    scrnLeft += MIN_WINDOW_BOXELS_VISIBLE;
+    scrnTop -= MIN_WINDOW_BOXELS_VISIBLE;
+    scrnRight -= MIN_WINDOW_BOXELS_VISIBLE;
+    scrnBottom += MIN_WINDOW_BOXELS_VISIBLE;
+    
+    // keep window in allowable region
+    if (right < scrnLeft) {
+        right = scrnLeft;
+        left = right - width;
+    }
+    else if (left > scrnRight) {
+        left = scrnRight;
+        right = left + width;
+    }
+    if (top < scrnBottom) {
+        top = scrnBottom;
+        bottom = top - height;
+    }
+#if !CAN_DRAG_WIDGETS_FROM_BODY
+    else if (top > scrnTop) {
+        top = scrnTop;
+        bottom = top - height;
+    }
+#else
+    // If it ever becomes possible to move a widget by dragging from the
+    // body (or anywhere below the title bar), this method should be used.
+    else if (bottom > scrnTop) {
+        bottom = scrnTop;
+        top = scrnTop + height;
+    }
+#endif
+    
+    MoveTo(left, top);
 }
 
 // what kind of window are we?

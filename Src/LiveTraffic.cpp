@@ -106,14 +106,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                                   dataRefs.ToggleLabelDraw() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_TOGGLE_SETTINGS:
-                // TODO: probably should move this logic into an LTSettingsUI::Toggle() method.
-                if (!settingsUI.isEnabled() || !settingsUI.isVisible()) {
-                    bool needsCentering = !settingsUI.isEnabled();
-                    settingsUI.Show();          // makes sure widget hierarchy is created, then shows it
-                    if (needsCentering)
-                        settingsUI.Center();    // only center first time (TODO: handle VR/non-VR switch)
-                }
-                else settingsUI.Show(false);    // hide the settings UI
+                settingsUI.ToggleShow();    // show/hide settings (and create, reposition if needed)
                 XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_SETTINGS],
                                   settingsUI.isEnabled() && settingsUI.isVisible() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;

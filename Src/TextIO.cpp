@@ -292,15 +292,16 @@ void RemoveWindow()
     {
         XPLMSetWindowIsVisible(g_window, 0);
         listTexts.clear();
-   }
+    }
 }
 
 
 void DestroyWindow()
 {
     // destroy log window
-    if (g_window)
+    if ( g_window )
         XPLMDestroyWindow(g_window);
+    g_window = 0;
 }
 
 //

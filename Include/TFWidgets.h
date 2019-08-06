@@ -51,6 +51,8 @@ enum TFWndMode {
     TF_MODE_VR                      // XP11 moved to VR window
 };
 
+#define MIN_WINDOW_BOXELS_VISIBLE 40	// how far window will be moved onto screen if partially offscreen when shown
+
 //
 //MARK: replacement/enhancement for XPUCreateWidgets
 //
@@ -106,7 +108,8 @@ public:
     // Actions
     virtual void Show (bool bShow = true);
     bool isVisible() const;
-    
+	virtual void ToggleShow ()		{ Show(!isVisible()); }
+
     void MoveTo (int left, int top);
     void MoveBy (int x, int y);
     void Center ();
@@ -115,6 +118,7 @@ public:
     int GetWidth () const;
     int GetHeight () const;
     void SetGeometry (int left, int top, int right, int bottom);
+	void AuditWindowGeometry ();	// set root widget's geometry if needed to make visible
     
     TFWndMode GetWndMode () const;
     inline void SetWindowPositioningMode(XPLMWindowPositioningMode inPositioningMode,

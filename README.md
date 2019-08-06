@@ -33,3 +33,19 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 ## To use docker
 - CD to repo folder where you see .git
 - (cd docker; make)
+
+## To use Xcode (macOS only)
+This repository contains all the Xcode project files needed to clone into Xcode, and build with practically no configuration required:
+- Go to Xcode's splash screen (aka `Welcome to X-Code` window) and click `Clone an Existing Project` on the bottom left.
+- Paste this repository's URL into the box (e.g., "`https://github.com/TwinFan/livetraffic`") and click `Clone`.
+- On the next screen, choose a folder for the project wisely:
+- this project depends on `libxplanemp` which you likely will also want to build from sources;
+- you should ensure this folder is ***parallel*** to the `libxplanemp` project directory, i.e., so they share a common root;
+- for more explanation, see below: **"Resolving required dependencies"**.
+- ... dependencies ...
+- ... pick scheme ...
+- ... build ...
+- ... see output ...
+
+## Resolving required dependencies (libpng, libxplanemp, etc.)
+... this section needs to have answers for all platforms and build environments ...
