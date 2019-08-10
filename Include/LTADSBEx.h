@@ -83,8 +83,8 @@
 
 // Testing an API key
 #define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
-#define ADSBEX_ERR              "ERR"
-#define ADSBEX_NO_API_KEY       "NO API KEY"
+#define ADSBEX_ERR              "msg"
+#define ADSBEX_NO_API_KEY       "You need a key."
 
 #define ADSBEX_VERIFY_RAPIDAPI  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/0.0/lon/0.0/dist/25/"
 #define ADSBEX_RAPID_ERR        "message"
