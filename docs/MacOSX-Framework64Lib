@@ -5,6 +5,7 @@
 # i.e. removed all PPC and 32 bit stuff.
 #
 # Added '--disable-shared --enable-static' to ./configure
+# Disabled unneeded protocols
 # Added '-Wno-deprecated-declarations' to CFLAGS
 #
 
@@ -26,12 +27,10 @@ MINVER64='-mmacosx-version-min='$MACVER64
 
 # Let's start
 if test -d $SDK64_DIR; then
-    echo "----Cleaning up..."
-    make clean
-
     echo "----Configuring libcurl for 64 bit static library framework..."
-    ./configure --disable-dependency-tracking --disable-shared --enable-static --with-gssapi --with-darwinssl \
-    --disable-ldap --disable-ldaps \
+    ./configure --disable-dependency-tracking --disable-shared --enable-static --enable-optimize --with-gssapi --with-darwinssl \
+    --disable-ldap --disable-ldaps --disable-ftp --disable-file --disable-rtsp --disable-dict --disable-telnet --disable-tftp \
+    --disable-pop3 --disable-imap --disable-smb --disable-smtp --disable-gopher --disable-dict --disable-telnet --disable-tftp \
     CFLAGS="-Wno-deprecated-declarations -Os -isysroot $SDK64_DIR $ARCHES64" \
     LDFLAGS="-Wl,-syslibroot,$SDK64_DIR $ARCHES64 -Wl,-headerpad_max_install_names" \
     CC=$CC
@@ -40,7 +39,9 @@ if test -d $SDK64_DIR; then
     make -j `sysctl -n hw.logicalcpu_max`
 
     echo "----Creating 64 bit framework..."
-    rm -r libcurl.framework
+    if test -d libcurl.framework; then
+        rm -r libcurl.framework
+    fi
     # create the structure including the Info.plist file and all public headers
     mkdir -p libcurl.framework/${FRAMEWORK_VERSION}/Resources
     /usr/bin/sed -e "s/7\.12\.3/$VERSION/" lib/libcurl.plist >libcurl.framework/${FRAMEWORK_VERSION}/Resources/Info.plist
