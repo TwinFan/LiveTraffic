@@ -100,7 +100,9 @@ typedef	struct {
 	char 	label[32];
 	float 	offsetScale;
 	bool 	clampToGround;
+    int     aiPrio = 0;     // Priority for AI/TCAS consideration, the lower the earlier
     float   label_color[4] = {1, 1, 0, 1};  // label base color
+    int     multiIdx = 0;       // OUT: set by libxplanemp to inform application about multiplay index in use
 } XPMPPlanePosition_t;
 
 
@@ -161,6 +163,15 @@ typedef	struct {
 	float                 yokeHeading;
 	float                 yokeRoll;
 	xpmp_LightStatus      lights;
+    float                 tireDeflect = 0.0f;   // tire deflection (meters)
+    float                 tireRotDegree = 0.0f; // tire rotation angle (degrees 0..360)
+    float                 tireRotRpm = 0.0f;    // tire rotation speed (rpm)
+    float                 engRotDegree = 0.0f;  // engine rotation angle (degrees 0..360)
+    float                 engRotRpm = 0.0f;     // engine rotation speed (rpm)
+    float                 propRotDegree = 0.0f; // prop rotation angle (degrees 0..360)
+    float                 propRotRpm = 0.0f;    // prop rotation speed (rpm)
+    float                 reversRatio = 0.0f;   // thrust reversers ratio
+    bool                  touchDown = false;    // moment of touch down
 } XPMPPlaneSurfaces_t;
 
 
@@ -191,6 +202,27 @@ typedef	struct {
 	long					code;
 	XPMPTransponderMode		mode;
 } XPMPPlaneRadar_t;
+    
+/*
+ * XPMPTexts_t;
+ *
+ * This structure define textual information of planes to be passed on
+ * via shared dataRefs to other plugins. It is not used within xplanemp
+ * in any way, just passed on.
+ *
+ */
+struct XPMPInfoTexts_t {
+    long size;
+    char tailNum[10];               // registration, tail number
+    char icaoAcType[5];             // ICAO aircraft type, 3-4 chars
+    char manufacturer[40];          // a/c manufacturer, human readable
+    char model[40];                 // a/c model, human readable
+    char icaoAirline[4];            // ICAO airline code
+    char airline[40];               // airline, human readable
+    char flightNum [10];            // flight number
+    char aptFrom [5];               // Origin airport (ICAO)
+    char aptTo [5];                 // Destination airport (ICAO)
+};
 
 /*
  * XPMPPlaneData
@@ -201,7 +233,8 @@ typedef	struct {
 enum {
 	xpmpDataType_Position 	= 1L << 1,
 	xpmpDataType_Surfaces 	= 1L << 2,
-	xpmpDataType_Radar 		= 1L << 3
+	xpmpDataType_Radar 		= 1L << 3,
+    xpmpDataType_InfoTexts  = 1L << 4,
 };
 typedef	int			XPMPPlaneDataType;
 

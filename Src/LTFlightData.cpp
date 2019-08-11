@@ -1962,6 +1962,10 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
             pAc->ChangeModel (statData);
         }
         
+        // tell the aircraft to report new info data, e.g. to multiplayer clients
+        if (pAc)
+            pAc->SetSendNewInfoData();
+        
         // update the static parts of the label
         UpdateStaticLabel();
         
@@ -2209,6 +2213,28 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
     return ret;
 }
 
+//
+// MARK: mapLTFlightDataTy
+//
+
+// Find "i-th" aircraft, i.e. the i-th flight data with assigned pAc
+mapLTFlightDataTy::iterator mapFdAcByIdx (int idx)
+{
+    // let's find the i-th aircraft by looping over all flight data
+    // and count those objects, which have an a/c
+    int i = 0;
+    for (mapLTFlightDataTy::iterator fdIter = mapFd.begin();
+         fdIter != mapFd.end();
+         ++fdIter)
+    {
+        if (fdIter->second.hasAc())         // has an a/c
+            if ( ++i == idx )               // and it's the i-th!
+                return fdIter;
+    }
+    
+    // not found
+    return mapFd.end();
+}
 
 //
 // MARK: LTFlightDataList

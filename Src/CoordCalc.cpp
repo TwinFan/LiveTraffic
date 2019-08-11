@@ -198,8 +198,8 @@ positionTy::operator XPMPPlanePosition_t() const
         float(nanToZero(roll())),
         float(nanToZero(heading())),
         "",              // can't compute label here!
-        // make sure vertical offset is applied, and standard color yellow
-        1.0f, true, {1, 1, 0, 1}
+        // make sure vertical offset is applied, AI prio 0, and standard color yellow
+        1.0f, true, 0, {1, 1, 0, 1}
     };
 }
 

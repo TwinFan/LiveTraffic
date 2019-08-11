@@ -72,9 +72,12 @@ enum RT_TFC_FIELDS_TY {         // fields in an AITFC message
     RT_TFC_TAIL,                // registration (tail number)
     RT_TFC_FROM,                // origin airport (IATA code)
     RT_TFC_TO,                  // destination airport (IATA code)
+                                // --- following field introduced in v7.0.55 only ---
+    RT_TFC_TIMESTAMP,           // timestamp for position and others above
 };
-constexpr int RT_AITFC_NUM_FIELDS       = RT_TFC_TO+1;
 constexpr int RT_XTRAFFICPSX_NUM_FIELDS = RT_TFC_TYPE+1;
+constexpr int RT_AITFC_NUM_FIELDS_MIN   = RT_TFC_TO+1;
+constexpr int RT_AITFC_NUM_FIELDS_MAX   = RT_TFC_TIMESTAMP+1;
 
 // Weather JSON fields
 #define RT_WEATHER_ICAO         "ICAO"

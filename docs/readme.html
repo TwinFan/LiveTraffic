@@ -70,6 +70,7 @@
         <code>LiveTraffic/64/win.xpl</code><br>
         <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
         <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
+        <code>LiveTraffic/Resources/CSL2XSB.py</code><br>
         <code>LiveTraffic/Resources/Doc8643.txt</code><br>
         <code>LiveTraffic/Resources/FlightModels.prf</code><br>
         <code>LiveTraffic/Resources/lights.png</code><br>
@@ -80,14 +81,108 @@
 
     <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
 
+    <h2>v1.20</h2>
+
+    <h3>v1.20.190718 CSL / AI / Multiplayer enhancements</h3>
+
+    <b>To update</b> copy <em>all</em> files from the ZIP archive over their existing
+    old versions under <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic</code>.
+    Not only the executables changed, but also <code>Resources</code> files
+    like <code>Doc8643.txt</code>, <code>FlightModels.prf</code> and <code>related.txt</code>.
+    Also, the script <code>Resources/CSL2XSB.py</code> is now provided as a new file.
+    Keep the content of your <code>Resources/CSL</code> folder!
+    </p>
+    
+    <ul>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/111">#111</a>
+            menu item "TCAS controlled": Can now also be <strong>de</strong>activated
+            to give up AI plane/TCAS control, so another plugin can take
+            over mid-flight.
+        </li>
+        <li>
+            CAHNGED <a href="https://github.com/TwinFan/LiveTraffic/issues/120">#120</a>
+            <a href="https://github.com/TwinFan/LiveTraffic/issues/129">#129</a>
+            how planes are selected for the max 19 AI/TCAS slots:
+            Planes in front have priority over those to the side over those
+            in the back. And planes on the ground have even lower priority
+            if you are airborne.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/143">#143</a>
+            a power user workaround to run another multiplayer client in parallel
+            with working animations/lights. Requires your local CSL models to be
+            changed by the latest CSL2XSB script. Please see
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">
+            documentation for details</a>.
+        </li>
+        <li>
+            ADDED rotor / propellor / reversers / wheel animations. Requires
+            <ul><li>supporting CSL models (many in the Bluebell package work)</li>
+                <li>conversion of CSL models with latest CSL2XSB script</li></ul>
+            See <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">
+            documentation for details</a>.
+        </li>
+        <li>
+            UPDATED, basically rewrote the <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
+                documentation page on many multiplayer clients in parallel<a/>,
+                like when also using XSquawkBox, X-IvAp, Swift and the like.
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/147">#147</a>:
+            RealTraffic now provides a proper timestamp in its tracking data,
+            which LiveTraffic uses for path calculations.
+        </li>
+        <li><strong>Features relevant to other plugins' or CSL model developers:</strong>
+            <ul>
+                <li>ADDED support for <a href="https://github.com/TwinFan/libxplanemp/wiki/OBJ8-CSL-dataRefs">
+                    more CSL animation dataRefs</a>.</li>
+                <li>ADDED: All <code>sim/multiplayer/position</code> dataRefs are now
+                    provided for AI planes, including <code>v_x/y/z</code>.</li>
+                <li>CHANGED: Position reporting by <code>sim/multiplayer/position</code>
+                    is the <em>next</em> drawing cycle's position,
+                    which helps camera plugins to stay in synch with focus plane.</li>
+                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/144">#144</a>
+                    shared dataRefs for providing textual information
+                    about planes as <a href="https://forums.x-plane.org/index.php?/files/file/52997-fstrampfree/">
+                        suggested by FSTramp</a>.</li>
+                <li>SEE the <a href="https://github.com/TwinFan/libxplanemp/wiki">
+                    Wiki of my libxplanemp fork</a> for more details.</li>
+                <li>CHANGED and ENHANCED <a href="https://github.com/TwinFan/LiveTraffic/issues/86">#86</a>
+                    communication to
+                    <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>,
+                    which is now an efficient bulk data transfer and includes
+                    many text info elements.
+            </ul>
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/146">#146</a>:
+            If using RealTraffic data, OpenSky Master Data will now always be queried
+            and used if activated (Activation of OpenSky Master Data is always
+            recommended). Previously, for most planes no master data was
+            requested and display relied on RealTraffic's info only.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/139">#139</a>
+            ADSBEx data will only be processed if in configured range to avoid
+            immediate removal of planes after creation.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/140">#140</a>
+            identification of network problems with revocation lists on
+            non-English installations of Windows.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/14">#14</a>
+            Set a timeout of 30s for most network operations to avoid hang-ups
+            when network gets lost.
+        </li>
+    </ul>
+
     <h2>v1.10</h2>
 
     <h3>v1.16.190507 ADSBEx with RapidAPI</h3>
     
     <p>
-    <b>To update</b> coming from v1.15 just copy the content of the <code>64</code>
-    directory into <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic/64</code>.
-    </p>
     
     <ul>
         <li>

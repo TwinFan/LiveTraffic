@@ -43,6 +43,9 @@ struct cycleInfo {
 cycleInfo prevCycle = { -1, -1, -1, 0 };
 cycleInfo currCycle = { -1, -1, -1, 0 };
 
+/// Position of user's plane, updated irregularly but often enough
+positionTy posUsersPlane;
+
 // cycle the cycle...that is move the old current values to previous
 // and fetch new current values
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
@@ -84,6 +87,33 @@ bool NextCycle (int newCycle)
     }
     
     return true;
+}
+
+/// @brief Calculates tire rpm based on aircraft speed
+/// @param kn Aircraft speed in knots
+/// @return Tire revolutions per minute
+inline double TireRpm (double kn)
+{
+    return
+    // speed in meters per minute
+    (kn / KT_per_M_per_S * SEC_per_M)
+    // divided by tire's (constant) circumfence
+    / MDL_TIRE_CF_M;
+}
+
+/// @brief Rotation: Computes turn in degrees based on rpm and timeframe
+/// @param rpm Rotation speed in revolutions per minute
+/// @param s Timeframe to consider in seconds
+/// @return Turn amount in degrees
+inline double RpmToDegree (double rpm, double s)
+{
+    return
+    // revolutions per second
+    rpm/60.0
+    // multiplied by seconds gives revolutions
+    * s
+    // multiplied by 360 degrees per revolution gives degrees
+    * 360.0;
 }
 
 //
@@ -521,6 +551,7 @@ bool fm_processModelLine (const char* fileName, int ln,
 #define FM_ASSIGN_MIN(nameOfVal,minVal) if (name == #nameOfVal) fm.nameOfVal = std::max(val,minVal)
 
     FM_ASSIGN(GEAR_DURATION);
+    else FM_ASSIGN(GEAR_DEFLECTION);
     else FM_ASSIGN(FLAPS_DURATION);
     else FM_ASSIGN(VSI_STABLE);
     else FM_ASSIGN(ROTATE_TIME);
@@ -531,6 +562,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(AGL_GEAR_UP);
     else FM_ASSIGN(AGL_FLARE);
     else FM_ASSIGN(MAX_TAXI_SPEED);
+    else FM_ASSIGN(MIN_REVERS_SPEED);
     else FM_ASSIGN(TAXI_TURN_TIME);
     else FM_ASSIGN(FLIGHT_TURN_TIME);
     else FM_ASSIGN(ROLL_MAX_BANK);
@@ -546,6 +578,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_FLAP_ADD);
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN_MIN(PITCH_RATE, 1.0);    // avoid zero - this becomes a divisor
+    else FM_ASSIGN(PROP_RPM_MAX);
     else if (name == "LIGHT_PATTERN") {
         if ((int)val < 0 || (int)val > 2) {
             LOG_MSG(logWARN, ERR_CFG_VAL_INVALID, fileName, ln, text.c_str());
@@ -851,6 +884,10 @@ flaps(mdl.FLAPS_DURATION),
 heading(mdl.TAXI_TURN_TIME, 360, 0, true),
 roll(2*mdl.ROLL_MAX_BANK / mdl.ROLL_RATE, mdl.ROLL_MAX_BANK, -mdl.ROLL_MAX_BANK, false),
 pitch((mdl.PITCH_MAX-mdl.PITCH_MIN)/mdl.PITCH_RATE, mdl.PITCH_MAX, mdl.PITCH_MIN),
+reversers(MDL_REVERSERS_TIME),
+spoilers(MDL_SPOILERS_TIME),
+tireRpm(MDL_TIRE_SLOW_TIME, MDL_TIRE_MAX_RPM),
+gearDeflection(MDL_GEAR_DEFL_TIME, mdl.GEAR_DEFLECTION),
 probeRef(NULL), probeNextTs(0), terrainAlt(0),
 bValid(true)
 {
@@ -888,7 +925,6 @@ bValid(true)
         // calculate our first position, must also succeed
         if (!CalcPPos())
             LOG_MSG(logERR,ERR_AC_CALC_PPOS,fd.key().c_str());
-        prevPos = ppos;
         
         // if we start on the ground then have the gear out already
         if (IsOnGrnd())
@@ -1361,6 +1397,9 @@ bool LTAircraft::CalcPPos()
         // on the ground we are...on the ground, not moving vertically
         ppos.SetAltFt(terrainAlt);
         vsi = 0;
+        // but tires are rotating
+        tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
+                                tireRpm.defMax));
     } else {
         // not on the ground
         // just lifted off? then recalc vsi
@@ -1552,12 +1591,19 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         flaps.half();
     }
     
-    // Lift Off
+    // Rotating
     if (ENTERED(FPH_ROTATE)) {
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE)
             pitch.max();
+    }
+    
+    // Lift off
+    if (ENTERED(FPH_LIFT_OFF)) {
+        // Tires are rotating but shall stop in max 5s
+        if (gear.isDown())
+            tireRpm.min();                              // "move" to 0
     }
     
     // entered Initial Climb
@@ -1566,8 +1612,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         rotateTs = NAN;             // 'eat' the rotate timestamp, so we don't rotate any longer
     }
     
-    // entered climb (from below)
-    if (ENTERED(FPH_CLIMB)) {
+    // entered climb (from below) or climbing (catches go-around)
+    if (ENTERED(FPH_CLIMB) || phase == FPH_CLIMB) {
         surfaces.lights.taxiLights = 0;
         surfaces.thrust = 0.8f;
         gear.up();
@@ -1609,14 +1655,28 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // touch-down
     if (ENTERED(FPH_TOUCH_DOWN)) {
-        surfaces.spoilerRatio = surfaces.speedBrakeRatio = 1.0;
+        gearDeflection.max();           // start main gear deflection
+        spoilers.max();                 // start deploying spoilers
         ppos.onGrnd = positionTy::GND_ON;
         pitch.moveTo(0);
     }
     
     // roll-out
     if (ENTERED(FPH_ROLL_OUT)) {
-        surfaces.thrust = -0.9f;         // reversers...does that work???
+        surfaces.thrust = -0.9f;         // reversers
+        reversers.max();                 // start opening reversers
+    }
+    
+    // if deflected all the way down: start returning to normal
+    if (gearDeflection.isDown())
+        gearDeflection.min();
+
+    if (phase >= FPH_ROLL_OUT || phase == FPH_TAXI) {
+        // stop reversers below 80kn
+        if (GetSpeed_kt() < mdl.MIN_REVERS_SPEED) {
+            surfaces.thrust = 0.1f;
+            reversers.min();
+        }
     }
     
     // *** landing light ***
@@ -1641,10 +1701,11 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     }
     
     // taxiing (includings rolling off the runway after landing (cycle phase back to beginning))
-    if ( phase == FPH_TAXI ) {
+    if ( phase == FPH_TAXI || phase == FPH_STOPPED_ON_RWY ) {
         flaps.up();
-        surfaces.spoilerRatio = surfaces.speedBrakeRatio = 0.0;
+        spoilers.min();
         surfaces.thrust = 0.1f;
+        reversers.min();
         surfaces.lights.taxiLights = 1;
         surfaces.lights.landLights = dataRefs.GetLndLightsTaxi() ? 1 : 0;
         surfaces.lights.strbLights = 0;
@@ -1691,6 +1752,8 @@ bool LTAircraft::YProbe ()
         
         // calc current bearing and distance for pure informational purpose ***
         vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
+        // update AI slotting priority
+        CalcAIPrio();
         // update the a/c label with fresh values
         LabelUpdate();
     }
@@ -1711,6 +1774,89 @@ std::string LTAircraft::GetLightsStr() const
             surfaces.lights.landLights ? "land" : "----"
             );
     return std::string(buf);
+}
+
+// copies a/c info out into the bulk structure for LTAPI usage
+/// @param pOut points to output data area
+/// @param size Structure size to be copied. This can be less than sizeof(LTAPIBulkData) once new version are out.
+/// @note This function is comparably quick, includes important location info,
+///       but misses textual information, see other CopyBulkData() for that.
+void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
+                               size_t size) const
+{
+    // So far, we only know of this one structure version.
+    // If size isn't enough for that we bail:
+    if (size < sizeof(LTAPIAircraft::LTAPIBulkData))
+        return;
+
+    // fill all values one by one
+    // identification
+    pOut->keyNum = fd.key().num;
+    // position, attitude
+    pOut->lat = (float)GetPPos().lat();
+    pOut->lon = (float)GetPPos().lon();
+    pOut->alt_ft = (float)GetPPos().alt_ft();
+    pOut->heading = (float)GetHeading();
+    pOut->track = (float)GetTrack();
+    pOut->roll = (float)GetRoll();
+    pOut->pitch = (float)GetPitch();
+    pOut->speed_kt = (float)GetSpeed_kt();
+    pOut->vsi_ft = (float)GetVSI_ft();
+    pOut->terrainAlt_ft = (float)GetTerrainAlt_ft();
+    pOut->height_ft = (float)GetPHeight_ft();
+    // configuration
+    pOut->flaps = (float)GetFlapsPos();
+    pOut->gear = (float)GetGearPos();
+    pOut->reversers = (float)GetReverserPos();
+    // simulation
+    pOut->bearing = (float)GetVecView().angle;
+    pOut->dist_nm = (float)GetVecView().dist / M_per_NM;
+    pOut->bits.phase = LTAPIAircraft::LTFlightPhase(GetFlightPhase());
+    pOut->bits.onGnd = IsOnGrnd();
+    pOut->bits.taxi = surfaces.lights.taxiLights;
+    pOut->bits.land = surfaces.lights.landLights;
+    pOut->bits.bcn  = surfaces.lights.bcnLights;
+    pOut->bits.strb = surfaces.lights.strbLights;
+    pOut->bits.nav  = surfaces.lights.navLights;
+    pOut->bits.filler1 = 0;
+    pOut->bits.multiIdx = multiIdx;
+    pOut->bits.filler2 = 0;
+    pOut->bits.filler3 = 0;
+}
+    
+// copies text information out into the bulk structure for LTAPI usage
+/// @param pOut points to output data area
+/// @param size Structure size to be copied. This can be less than sizeof(LTAPIBulkData) once new version are out.
+/// @warning This function is comparably expensive, needs 2 locks for flight data
+void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
+                               size_t size) const
+{
+    // So far, we only know of this one structure version.
+    // If size isn't enough for that we bail:
+    if (size < sizeof(LTAPIAircraft::LTAPIBulkInfoTexts))
+        return;
+    
+    // Fill the output buffer one by one
+    const LTFlightData::FDStaticData stat = fd.WaitForSafeCopyStat();
+    const LTFlightData::FDDynamicData dyn = fd.WaitForSafeCopyDyn();
+    pOut->keyNum = fd.key().num;
+    STRCPY_ATMOST(pOut->registration,   stat.reg);
+    // aircraft model/operator
+    STRCPY_ATMOST(pOut->modelIcao,      stat.acTypeIcao);
+    STRCPY_ATMOST(pOut->acClass,        doc8643.classification);
+    STRCPY_ATMOST(pOut->wtc,            doc8643.wtc);
+    STRCPY_ATMOST(pOut->opIcao,         stat.opIcao);
+    STRCPY_ATMOST(pOut->man,            stat.man);
+    STRCPY_ATMOST(pOut->model,          stat.mdl);
+    STRCPY_ATMOST(pOut->catDescr,       stat.catDescr);
+    STRCPY_ATMOST(pOut->op,             stat.op);
+    // flight data
+    STRCPY_ATMOST(pOut->callSign,       stat.call);
+    STRCPY_ATMOST(pOut->squawk,         dyn.GetSquawk());
+    STRCPY_ATMOST(pOut->flightNumber,   stat.flight);
+    STRCPY_ATMOST(pOut->origin,         stat.originAp);
+    STRCPY_ATMOST(pOut->destination,    stat.destAp);
+    STRCPY_ATMOST(pOut->trackedBy,      dyn.pChannel ? dyn.pChannel->ChName() : "-");
 }
 
 //
@@ -1765,6 +1911,45 @@ bool LTAircraft::CalcVisible ()
 
     // return new visibility
     return bVisible;
+}
+
+/// Determines AI priority based on bearing to user's plane and ground status
+/// 1. Planes in the 30° sector in front of user's plane
+/// 2. Planes in the 90° sector in front of user's plane
+/// 3. All else
+/// If user is flying then airborne planes have in total higher prio than
+/// taxiing planes.
+/// @Warning Should only be called "every so often" but not every drawing frame
+void LTAircraft::CalcAIPrio ()
+{
+    // If this is the plane, which is currently in camera view,
+    // then we want to see it in map apps as well:
+    if (IsInCameraView()) {
+        aiPrio = 0;
+        return;
+    }
+    
+    // user's plane's position and bearing from user's plane to this aircraft
+    double userSpeed, userTrack;
+    positionTy posUser = dataRefs.GetUsersPlanePos(userSpeed, userTrack);
+    if (posUser.IsOnGnd())              // if on the ground
+        userTrack = posUser.heading();      // heading is more reliable
+    const double bearing = posUser.angle(ppos);
+    const double diff = abs(HeadingDiff(userTrack, bearing));
+    
+    // 1. Planes in the 30° sector in front of user's plane
+    if (diff < 30)
+        aiPrio = 0;
+    // 2. Planes in the 90° sector in front of user's plane
+    else if (diff < 90)
+        aiPrio = 1;
+    // 3. All else (default)
+    else
+        aiPrio = 2;
+    
+    // Ground consideration only if user's plane is flying but this a/c not
+    if (!posUser.IsOnGnd() && IsOnGrnd())
+        aiPrio += 3;
 }
 
 //
@@ -2015,22 +2200,29 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         fd.bIsSelected = bIsSelected = (key() == dataRefs.GetSelectedAcKey());
 #endif
         
+        // libxplanemp provides us with the multiplayer index, i.e. the plane's
+        // index if reported via sim/multiplayer/position dataRefs.
+        // We just store it.
+        multiIdx = outPosition->multiIdx;
+        
         // calculate new position and return it
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized
             CalcPPos())
         {
             // copy ppos (by type conversion)
-            if (IsInCameraView())
-                *outPosition = prevPos;         // camera position is set before pos is recalculated...let position trail one frame behind
-            else
-                *outPosition = ppos;
-            prevPos = ppos;
+            *outPosition = ppos;
             
-            // if invisible move a/c to unreachable position
-            if (!IsVisible()) {
+            if (IsVisible()) {
+                outPosition->aiPrio = aiPrio;       // AI slotting priority
+                // alter altitude by main gear deflection, so plane moves down
+                if (IsOnGrnd())
+                    outPosition->elevation -= gearDeflection.is() / M_per_FT;
+            } else {
+                // if invisible move a/c to unreachable position
                 outPosition->lat = AC_HIDE_LAT;
                 outPosition->lon = AC_HIDE_LON;
                 outPosition->elevation = AC_HIDE_ALT;
+                outPosition->aiPrio = 100;
             }
             
             // add the label
@@ -2067,7 +2259,35 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
         if (!dataRefs.IsReInitAll()) {
             // get current gear/flaps value (might be moving)
             surfaces.gearPosition = (float)gear.get();
-            surfaces.flapRatio = (float)flaps.get();
+            surfaces.slatRatio = surfaces.flapRatio = (float)flaps.get();
+            surfaces.spoilerRatio = surfaces.speedBrakeRatio = (float)spoilers.get();
+            surfaces.reversRatio = (float)reversers.get();
+
+            // for engine / prop rotation we derive a value based on flight model
+            if (doc8643.hasRotor())
+                surfaces.engRotRpm = surfaces.propRotRpm = float(mdl.PROP_RPM_MAX);
+            else
+                surfaces.engRotRpm = surfaces.propRotRpm =
+                    float(mdl.PROP_RPM_MAX/2 + surfaces.thrust * mdl.PROP_RPM_MAX/2);
+            
+            // Make props and rotors move based on rotation speed and time passed since last cycle
+            surfaces.engRotDegree += (float)RpmToDegree(surfaces.engRotRpm, currCycle.diffTime);
+            while (surfaces.engRotDegree >= 360.0f)
+                surfaces.engRotDegree -= 360.0f;
+            surfaces.propRotDegree = surfaces.engRotDegree;
+            
+            // Gear deflection - has an effect during touch-down only
+            surfaces.tireDeflect = (float)gearDeflection.get();
+            
+            // Tire rotation similarly
+            surfaces.tireRotRpm = (float)tireRpm.get();
+            surfaces.tireRotDegree += (float)RpmToDegree(surfaces.tireRotRpm, currCycle.diffTime);
+            while (surfaces.tireRotDegree >= 360.0f)
+                surfaces.tireRotDegree -= 360.0f;
+
+            // 'moment' of touch down?
+            // (We use the reversers deploy time for this...that's 2s)
+            surfaces.touchDown = reversers.isIncrease() && reversers.inMotion();
         }
         
         // just copy over our entire structure
@@ -2086,6 +2306,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSur
 
 XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
 {
+    XPMPPlaneCallbackResult ret = xpmpData_Unchanged;
     try {
         // object invalid (due to exceptions most likely), don't use anymore, don't call LT functions
         if (!IsValid())
@@ -2102,6 +2323,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
             {
                 // copy fresh radar data
                 radar               = dynCopy.radar;
+                ret = xpmpData_NewData;
             }
         }
         
@@ -2109,13 +2331,66 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         // just copy over our entire structure
         *outRadar = radar;
         
-        // assume every 100th cycle something change...not more often at least
-        return currCycle.num % 100 == 0 ? xpmpData_NewData : xpmpData_Unchanged;
+        // if invisible we deactivate TCAS/AI/multiplayer
+        if (!IsVisible()) {
+            outRadar->mode = xpmpTransponderMode_Standby;
+            ret = xpmpData_NewData;
+        }
+        
+        return ret;
 
     } catch (const std::exception& e) {
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
     } catch (...) {}
 
+    // for any kind of exception: don't use this object any more!
+    SetInvalid();
+    return xpmpData_Unavailable;
+}
+
+XPMPPlaneCallbackResult LTAircraft::GetInfoTexts(XPMPInfoTexts_t* outInfo)
+{
+    try {
+        // object invalid (due to exceptions most likely), don't use anymore, don't call LT functions
+        if (!IsValid() || dataRefs.IsReInitAll())
+            return xpmpData_Unavailable;
+        
+        // Is there new data to send?
+        if (ShallSendNewInfoData())
+        {
+            // fetch new data if available
+            LTFlightData::FDStaticData statCopy;
+            if ( fd.TryGetSafeCopy(statCopy) )
+            {
+                // not even initialized???
+                if (!statCopy.isInit())
+                    return xpmpData_Unavailable;
+                
+                // copy data over to libxplanemp
+                assert(outInfo->size == sizeof(XPMPInfoTexts_t));
+                memset(outInfo, 0, sizeof(XPMPInfoTexts_t));
+                outInfo->size = sizeof(XPMPInfoTexts_t);
+                strcpy_s(outInfo->tailNum,      sizeof(outInfo->tailNum),       strAtMost(statCopy.reg, sizeof(outInfo->tailNum) - 1).c_str());
+                strcpy_s(outInfo->icaoAcType,   sizeof(outInfo->icaoAcType),    strAtMost(statCopy.acTypeIcao, sizeof(outInfo->icaoAcType) - 1).c_str());
+                strcpy_s(outInfo->manufacturer, sizeof(outInfo->manufacturer),  strAtMost(statCopy.man, sizeof(outInfo->manufacturer) - 1).c_str());
+                strcpy_s(outInfo->model,        sizeof(outInfo->model),         strAtMost(statCopy.mdl, sizeof(outInfo->model) - 1).c_str());
+                strcpy_s(outInfo->icaoAirline,  sizeof(outInfo->icaoAirline),   strAtMost(statCopy.opIcao, sizeof(outInfo->icaoAirline) - 1).c_str());
+                strcpy_s(outInfo->airline,      sizeof(outInfo->airline),       strAtMost(statCopy.op, sizeof(outInfo->airline) - 1).c_str());
+                strcpy_s(outInfo->flightNum,    sizeof(outInfo->flightNum),     strAtMost(statCopy.flight, sizeof(outInfo->flightNum) - 1).c_str());
+                strcpy_s(outInfo->aptFrom,      sizeof(outInfo->aptFrom),       strAtMost(statCopy.originAp, sizeof(outInfo->aptFrom) - 1).c_str());
+                strcpy_s(outInfo->aptTo,        sizeof(outInfo->aptTo),         strAtMost(statCopy.destAp,      sizeof(outInfo->aptTo)-1).c_str());
+
+                // so wen send new data
+                bSendNewInfoData = false;
+                return xpmpData_NewData;
+            }
+        }
+        return xpmpData_Unchanged;
+        
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+    } catch (...) {}
+    
     // for any kind of exception: don't use this object any more!
     SetInvalid();
     return xpmpData_Unavailable;

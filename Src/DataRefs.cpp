@@ -271,6 +271,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/ac/lights/landing",               DataRefs::LTGetAcInfoI, NULL,                   (void*)DR_AC_LIGHTS_LANDING, false },
     {"livetraffic/ac/bearing",                      DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_BEARING, false },
     {"livetraffic/ac/dist",                         DataRefs::LTGetAcInfoF, NULL,                   (void*)DR_AC_DIST, false },
+    
+    {"livetraffic/bulk/quick",                      DataRefs::LTGetBulkAc,  NULL,                   (void*)DR_AC_BULK_QUICK, false },
+    {"livetraffic/bulk/expensive",                  DataRefs::LTGetBulkAc,  NULL,                   (void*)DR_AC_BULK_EXPENSIVE, false },
 
     {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)1, false },
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
@@ -297,6 +300,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/dr_libxplanemp",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -351,6 +355,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_DR_LIBXPLANEMP:         return &drLibXplaneMP;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options
@@ -388,8 +393,8 @@ struct cmdRefDescrTy {
     {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out aircraft information window (separate OS-level window)"},
     {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all aircraft information windows, but does not close"},
     {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all aircraft information windows"},
-    {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircrafts"},
-    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircrafts"},
+    {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircraft"},
+    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircraft"},
     {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
 };
 
@@ -685,7 +690,8 @@ bool DataRefs::RegisterDataAccessors ()
                                        NULL,NULL,               // double
                                        NULL,NULL,               // int array
                                        NULL,NULL,               // float array
-                                       NULL,NULL,               // data
+                                       def.getDatab_f(),        // data (read only)
+                                       NULL,
                                        def.getRefCon(),         // read refCon
                                        def.getRefCon()          // write refCon
                                        )) == NULL )
@@ -759,6 +765,84 @@ void    DataRefs::LTSetBool(void* p, int i)
 { *reinterpret_cast<int*>(p) = i != 0; }
 
 //
+// MARK: Bulk dataRef
+//
+
+/// @brief Bulk data access to transfer a lot of a/c info to LTAPI
+/// @param inRefcon DR_AC_BULK_QUICK or DR_AC_BULK_EXPENSIVE
+/// @param[out] outData Points to buffer provided by caller, can be NULL to "negotiate" struct size
+/// @param inStartPos array position to start with, multiple of agreed struct size
+/// @param inNumBytes Number of byte to copy, multiple of agreed struct size / or caller's struct size during "negotiation"
+/// @return number of bytes stored
+/// @note This dataRef is "rogue" as per XPLMGetDatab API documentation:
+///       It has other semantics than X-Plane's API describes.
+///       When passing in NULL for `outData`, then `inNumAc` has to be filled
+///       with caller's structur size and LiveTraffic returns LiveTraffic's
+///       struct size.
+///       LTAPI will for its convenience always use its size, makes it easier
+///       to allocate array memory there.
+///       LiveTraffic will only fill as much as requested and use the
+///       passed in size to advance the array pointer.
+///       This way version differences between LiveTraffic and LTAPI can
+///       be overcome and still an array of a/c info can be transferred.
+int DataRefs::LTGetBulkAc (void* inRefcon, void * outData,
+                           int inStartPos, int inNumBytes)
+{
+    // quick or expensive one?
+    dataRefsLT dr = (dataRefsLT)reinterpret_cast<long long>(inRefcon);
+    LOG_ASSERT(dr == DR_AC_BULK_QUICK || dr == DR_AC_BULK_EXPENSIVE);
+
+    // "Negotiation": In case of version differences between calling app
+    // and LiveTraffic we need to be conscious of the callers struct size.
+    static int size_quick = 0, size_expensive = 0;
+    if (!outData)
+    {
+        if (dr == DR_AC_BULK_QUICK) {
+            size_quick = inNumBytes;
+            return (int)sizeof(LTAPIAircraft::LTAPIBulkData);
+        } else {
+            size_expensive = inNumBytes;
+            return (int)sizeof(LTAPIAircraft::LTAPIBulkInfoTexts);
+        }
+    }
+    
+    // Validations before starting normal operations
+    // Size must have been negotiated first
+    int size = dr == DR_AC_BULK_QUICK ? size_quick : size_expensive;
+    if (!size) return 0;
+
+    // Positions / copy size must both be multiples of agreed size
+    // (This is also a safeguard against attempts to access the bulk
+    //  dataRefs by apps that don't implement proper array semantics and
+    //  "negotiation", read: Don't use LTAPI.)
+    if ((inStartPos % size != 0) ||
+        (inNumBytes % size != 0))
+        return 0;
+    
+    // Normal operation: loop over requested a/c
+    const int startAc = 1 + inStartPos / size;      // first a/c index (1-based)
+    const int endAc = startAc + (inNumBytes / size);// last+1 a/c index (passed-the-end)
+    char* pOut = (char*)outData;                    // point to current output position
+    int iAc = startAc;                              // current a/c index (1-based)
+    for (mapLTFlightDataTy::iterator fdIter = mapFdAcByIdx(iAc);
+         fdIter != mapFd.end() && iAc < endAc;
+         // iterator to next FlighData _with_ aircraft; advance output pointer
+         fdIter = mapFdNextWithAc(fdIter), iAc++, pOut += size)
+    {
+        // copy data of the current aircraft
+        const LTAircraft& ac = *fdIter->second.GetAircraft();
+        if (dr == DR_AC_BULK_QUICK)
+            ac.CopyBulkData ((LTAPIAircraft::LTAPIBulkData*)pOut, size);
+        else
+            ac.CopyBulkData((LTAPIAircraft::LTAPIBulkInfoTexts*)pOut, size);
+    }
+    
+    // how many bytes copied?
+    return (iAc - startAc) * size;
+}
+
+
+//
 //MARK: Aircraft Information
 //
 
@@ -811,21 +895,12 @@ void DataRefs::LTSetAcKey(void*, int key)
     // for any number below number of a/c displayed we assume: index
     else if ( key <= dataRefs.cntAc )
     {
-        // let's find the i-th aircraft by looping over all flight data
-        // and count those objects, which have an a/c
-        int i = 0;
-        for (mapLTFlightDataTy::const_iterator fdIter = mapFd.cbegin();
-             fdIter != mapFd.cend();
-             ++fdIter)
-        {
-            if (fdIter->second.hasAc()) {       // has an a/c
-                if ( ++i == key ) {             // and it's the i-th!
-                    dataRefs.keyAc = fdIter->second.key();
-                    dataRefs.pAc = fdIter->second.GetAircraft();
-                    return;
-                }
-                
-            }
+        // let's find the i-th aircraft
+        mapLTFlightDataTy::iterator fdIter = mapFdAcByIdx(key);
+        if (fdIter != mapFd.end()) {
+            dataRefs.keyAc = fdIter->second.key();
+            dataRefs.pAc = fdIter->second.GetAircraft();
+            return;
         }
     }
     // so we deal with a transpIcao code

@@ -42,6 +42,8 @@ double initTimeBufFilled = 0;       // in 'simTime'
 // global list of a/c for which static data is yet missing
 // (reset with every network request cycle)
 listAcStatUpdateTy LTACMasterdataChannel::listAcStatUpdate;
+// Lock controlling multi-threaded access to `listAcSTatUpdate`
+std::mutex LTACMasterdataChannel::listAcStatMutex;
 
 // Thread synch support (specifically for stopping them)
 std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
@@ -229,15 +231,32 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
 void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                                const std::string callSign)
 {
-    // just add the request to the request list, uniquely
-    push_back_unique<listAcStatUpdateTy>
-    (listAcStatUpdate,
-     acStatUpdateTy(keyAc,callSign));
+    try {
+        // multi-threaded access guarded by listAcStatMutex
+        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        
+        // just add the request to the request list, uniquely
+        push_back_unique<listAcStatUpdateTy>
+        (listAcStatUpdate,
+         acStatUpdateTy(keyAc,callSign));
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+    }
 }
 
 void LTACMasterdataChannel::ClearMasterDataRequests ()
 {
-    listAcStatUpdate.clear();
+    try {
+        // multi-threaded access guarded by listAcStatMutex
+        std::lock_guard<std::mutex> lock (listAcStatMutex);
+
+        // remove all processed entries
+        listAcStatUpdate.remove_if
+        ([](acStatUpdateTy& acStatUpd){ return acStatUpd.HasBeenProcessed(); });
+
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+    }
 }
 
 
@@ -245,8 +264,19 @@ void LTACMasterdataChannel::ClearMasterDataRequests ()
 // the global one is refreshed before the next call.
 void LTACMasterdataChannel::CopyGlobalRequestList ()
 {
-    for (const acStatUpdateTy& info: listAcStatUpdate)
-        push_back_unique<listAcStatUpdateTy>(listAc, info);
+    try {
+        // multi-threaded access guarded by listAcStatMutex
+        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        
+        // Copy global list into local and
+        // mark the global record "processed" so it can be cleaned up
+        for (acStatUpdateTy& info: listAcStatUpdate) {
+            push_back_unique<listAcStatUpdateTy>(listAc, info);
+            info.SetProcessed();
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+    }
 }
 
 //
@@ -290,6 +320,8 @@ bool LTOnlineChannel::InitCurl ()
     }
     
     // define the handle
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
@@ -418,7 +450,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
         // problem with querying revocation list?
-        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+        if (IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
             LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
@@ -459,6 +491,18 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     
     // success
     return true;
+}
+
+// Is the given network error text possibly caused by problems querying the revocation list?
+bool LTOnlineChannel::IsRevocationError (const std::string& err)
+{
+    // we can check for the word "revocation", but in localized versions of
+    // Windows this is translated! We have, so far, seen two different error codes.
+    // So what we do is to look for all three things:
+    for (const std::string s: ERR_CURL_REVOKE_MSG)
+        if (err.find(s) != std::string::npos)
+            return true;
+    return false;
 }
 
 //
@@ -549,9 +593,6 @@ void LTFlightDataSelectAc ()
             // where are we right now?
             positionTy pos (dataRefs.GetViewPos());
             
-            // reset list of a/c needing master data updates
-            LTACMasterdataChannel::ClearMasterDataRequests();
-            
             // cycle all flight data connections
             for ( ptrLTChannelTy& p: listFDC )
             {
@@ -584,6 +625,10 @@ void LTFlightDataSelectAc ()
                 if ( bFDMainStop )
                     break;
             }
+
+            // Clear away processed master data requests
+            LTACMasterdataChannel::ClearMasterDataRequests();
+            
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
             // in case of any exception here completely re-init

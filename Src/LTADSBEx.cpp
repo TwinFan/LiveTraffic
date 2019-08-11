@@ -86,6 +86,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         return false;
     }
     
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
+    
     // for determining an offset as compared to network time we need to know network time
     double adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
     if (adsbxTime > JAN_FIRST_2019)
@@ -180,8 +183,14 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
                 
                 // position is rather important, we check for validity
-                if ( pos.isNormal(true) )
-                    fd.AddDynData(dyn, 0, 0, &pos);
+                if ( pos.isNormal(true) ) {
+                    // ADSBEx, especially the RAPID API version, returns
+                    // aircraft regardless of distance. To avoid planes
+                    // created and immediately removed due to distanced settings
+                    // we continue only if pos is within wanted range
+                    if ( pos.dist(viewPos) <= dataRefs.GetFdStdDistance_m() )
+                        fd.AddDynData(dyn, 0, 0, &pos);
+                }
                 else
                     LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
@@ -360,6 +369,8 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     
     // prepare the handle with the right options
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, testKeyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestADSBExAPIKeyCB);
@@ -377,7 +388,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
         // problem with querying revocation list?
-        if (strstr(curl_errtxt, ERR_CURL_REVOKE_MSG)) {
+        if (IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
             LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
