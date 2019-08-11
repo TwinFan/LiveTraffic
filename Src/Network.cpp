@@ -31,7 +31,6 @@
 
 // All includes are collected in one header
 #include "LiveTraffic.h"
-#include <fcntl.h>
 #if IBM
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -42,6 +41,7 @@ typedef USHORT in_port_t;
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #endif
 
 //
@@ -376,21 +376,31 @@ void UDPReceiver::GetAddrHints (struct addrinfo& hints)
 
 void TCPConnection::Close()
 {
+    // close listener first
+    CloseListenerOnly();
+
     // also close session connection
     if (f_session_socket != INVALID_SOCKET) {
         close(f_session_socket);
         f_session_socket = INVALID_SOCKET;
     }
-    
-    // pass on to base class
-    SocketNetworking::Close();
 }
 
 // only closes the listening socket, but not a session connection
 void TCPConnection::CloseListenerOnly()
 {
-    // just call the base class Close, bypassing our own virtual function
-    SocketNetworking::Close();
+#if APL == 1 || LIN == 1
+    // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+    if (selfPipe[1] == INVALID_SOCKET ||
+        write(selfPipe[1], "STOP", 4) < 0)
+    {
+        // if the self-pipe didn't work:
+#endif
+        // just call the base class Close, bypassing our own virtual function
+        SocketNetworking::Close();
+#if APL == 1 || LIN == 1
+    }
+#endif
 }
 
 // Listen for and accept connections
@@ -417,11 +427,51 @@ bool TCPConnection::accept (bool bUnlisten)
     return f_session_socket != INVALID_SOCKET;
 }
 
-// just combines the above
+// just combines the above and includes a `select` on a self-pipe
+// to be able to interrupt waiting at any time
 bool TCPConnection::listenAccept (int numConnections)
 {
     try {
         listen(numConnections);
+
+#if APL == 1 || LIN == 1
+        // the self-pipe to shut down the UDP socket gracefully
+        if (pipe(selfPipe) < 0)
+            throw NetRuntimeError("Couldn't create pipe");
+        const SOCKET readPipe = selfPipe[0];
+        fcntl(readPipe, F_SETFL, O_NONBLOCK);
+        
+        // wait for an incoming connection or a signal on the pipe
+        fd_set sRead;
+        FD_ZERO(&sRead);
+        FD_SET(f_socket, &sRead);       // check our listen sockets
+        FD_SET(readPipe, &sRead);       // and the self-pipe
+        const int maxSock = std::max(f_socket, selfPipe[0]) + 1;
+        for(;;) {
+            int retval = select(maxSock, &sRead, NULL, NULL, NULL);
+            
+            // select call failed?
+            if(retval < 0)
+                throw NetRuntimeError("'select' failed");
+            
+            // if anything is available
+            if (retval > 0) {
+                // something is available now, so we no longer need the self-pipe
+                for (SOCKET &s: selfPipe) {
+                    close(s);
+                    s = INVALID_SOCKET;
+                }
+
+                // check for self-pipe...if so then just exit
+                if (FD_ISSET(readPipe, &sRead))
+                    return false;
+            
+                // exit loop if the listen-socket is ready to be read
+                if (FD_ISSET(f_socket, &sRead))
+                    break;
+            }
+        }
+#endif
         // if we wait for exactly one connection then we "unlisten" once we accepted that one connection:
         return accept(numConnections == 1);
     }

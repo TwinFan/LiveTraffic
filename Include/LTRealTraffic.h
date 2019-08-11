@@ -129,6 +129,10 @@ protected:
     std::thread thrUdpListener;
     UDPReceiver udpTrafficData;
     UDPReceiver udpWeatherData;
+#if APL == 1 || LIN == 1
+    // the self-pipe to shut down the UDP listener thread gracefully
+    SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
+#endif
     volatile bool bStopUdp = false;
     volatile bool thrUdpRunning = false;
     double lastReceivedTime     = 0.0;  // copy of simTime

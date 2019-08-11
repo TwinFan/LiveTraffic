@@ -27,6 +27,11 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+#if APL == 1 || LIN == 1
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
 //
 // MARK: RealTraffic Connection
 //
@@ -348,7 +353,9 @@ void RealTrafficConnection::tcpConnection ()
     
     // We make sure that, once leaving this thread, there is no
     // open listener (there might be a connected socket, though)
+#if IBM
     if (!bStopTcp)                  // already closed if stop flag set, avoid rare crashes if called in parallel
+#endif
         tcpPosSender.CloseListenerOnly();
     thrTcpRunning = false;
 }
@@ -439,8 +446,15 @@ void RealTrafficConnection::udpListen ()
         udpWeatherData.Open (RT_LOCALHOST,
                              port = DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT),
                              RT_NET_BUF_SIZE);
-        const int maxSock = std::max((int)udpTrafficData.getSocket(),
-                                     (int)udpWeatherData.getSocket()) + 1;
+        int maxSock = std::max((int)udpTrafficData.getSocket(),
+                               (int)udpWeatherData.getSocket()) + 1;
+#if APL == 1 || LIN == 1
+        // the self-pipe to shut down the UDP socket gracefully
+        if (pipe(udpPipe) < 0)
+            throw NetRuntimeError("Couldn't create pipe");
+        fcntl(udpPipe[0], F_SETFL, O_NONBLOCK);
+        maxSock = std::max(maxSock, udpPipe[0]+1);
+#endif
 
         // return from the thread when requested
         // (not checking for weather socker...not essential)
@@ -451,6 +465,9 @@ void RealTrafficConnection::udpListen ()
             FD_ZERO(&sRead);
             FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
             FD_SET(udpWeatherData.getSocket(), &sRead);
+#if APL == 1 || LIN == 1
+            FD_SET(udpPipe[0], &sRead);
+#endif
             int retval = select(maxSock, &sRead, NULL, NULL, NULL);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
@@ -527,21 +544,41 @@ void RealTrafficConnection::udpListen ()
     
     // Let's make absolutely sure that any connection is really closed
     // once we return from this thread
+#if APL == 1 || LIN == 1
+    udpTrafficData.Close();
+    udpWeatherData.Close();
+    // close the self-pipe sockets
+    for (SOCKET &s: udpPipe) {
+        if (s != INVALID_SOCKET) close(s);
+        s = INVALID_SOCKET;
+    }
+#else
     if (!bStopUdp) {                // already closed if stop flag set, avoid rare crashes if called in parallel
         udpTrafficData.Close();
         udpWeatherData.Close();
     }
+#endif
     thrUdpRunning = false;
 }
 
 bool RealTrafficConnection::StopUdpConnection ()
 {
-    // close all connections, this will also break out of all
-    // blocking calls for receiving message and hence terminate the threads
     bStopUdp = true;
-    udpTrafficData.Close();
-    udpWeatherData.Close();
-    
+#if APL == 1 || LIN == 1
+    // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+    if (udpPipe[1] == INVALID_SOCKET ||
+        write(udpPipe[1], "STOP", 4) < 0)
+    {
+        // if the self-pipe didn't work:
+#endif
+        // close all connections, this will also break out of all
+        // blocking calls for receiving message and hence terminate the threads
+        udpTrafficData.Close();
+        udpWeatherData.Close();
+#if APL == 1 || LIN == 1
+    }
+#endif
+
     // wait for thread to finish if I'm not this thread myself
     if (std::this_thread::get_id() != thrUdpListener.get_id()) {
         if (thrUdpListener.joinable())
@@ -839,9 +876,14 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return false; }
 
-    // fetch QNH, sanity check
-    double newQNH = jog_l(pObj, RT_WEATHER_QNH);
+    // fetch QNH
+    // This value seems to be sent without (in the very first message)
+    // and with quotes (thereafter), so we try both ways to get a reasonable value:
     
+    double newQNH = jog_sl(pObj, RT_WEATHER_QNH);
+    if (newQNH < 1.0)
+        newQNH = jog_l(pObj, RT_WEATHER_QNH);
+
     // this could be inch mercury in the US...convert to hPa
     if (2600 <= newQNH && newQNH <= 3400)
         newQNH *= HPA_per_INCH;
