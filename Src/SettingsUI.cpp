@@ -152,6 +152,8 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_INT_FD_BUF_PERIOD,
     UI_ADVCD_CAP_AC_OUTDATED_INTVL,
     UI_ADVCD_INT_AC_OUTDATED_INTVL,
+    UI_ADVCD_CAP_NETW_TIMEOUT,
+    UI_ADVCD_INT_NETW_TIMEOUT,
 
     // "CSL" tab
     UI_CSL_SUB_WND,
@@ -311,6 +313,8 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 230, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
     {   5, 170, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 190, 225,  10, 1, "Network timeout [s]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 190,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
     // "CSL" tab
     {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -522,6 +526,8 @@ void LTSettingsUI::Enable()
                           DATA_REFS_LT[DR_CFG_FD_BUF_PERIOD]);
         intAcOutdatedIntvl.setId(widgetIds[UI_ADVCD_INT_AC_OUTDATED_INTVL],
                           DATA_REFS_LT[DR_CFG_AC_OUTDATED_INTVL]);
+        intNetwTimeout.setId(widgetIds[UI_ADVCD_INT_NETW_TIMEOUT],
+                          DATA_REFS_LT[DR_CFG_NETW_TIMEOUT]);
 
         // *** CSL ***
         // Initialize all paths (3 elements each: check box, text field, button)

@@ -294,6 +294,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -349,6 +350,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
+        case DR_CFG_NETW_TIMEOUT:           return &netwTimeout;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
@@ -1247,6 +1249,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
         acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        netwTimeout     < 15                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||

@@ -71,6 +71,7 @@ protected:
     TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
     TFIntFieldDataRef intFdStdDistance, intFdRefreshIntvl;
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
+    TFIntFieldDataRef intNetwTimeout;
 
     // CSL tab
     enum { SETUI_CSL_PATHS=7, SETUI_CSL_ELEMS_PER_PATH=3 };

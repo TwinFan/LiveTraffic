@@ -328,7 +328,7 @@ bool LTOnlineChannel::InitCurl ()
     
     // define the handle
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
