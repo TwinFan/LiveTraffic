@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Based on 'MacOSX-Framwork' as distributed with the curl source archive,
+# adapted to produce a 64 bit static library only with current software,
+# i.e. removed all PPC and 32 bit stuff.
+#
+# Added '--disable-shared --enable-static' to ./configure
+# Disabled unneeded protocols
+# Added '-Wno-deprecated-declarations' to CFLAGS
+#
+
+# bail out in case of errors
+set -e
+
+# fetch CURL version number from curlver.h
+VERSION=`/usr/bin/sed -ne 's/^#define LIBCURL_VERSION "\(.*\)"/\1/p' include/curl/curlver.h`
+FRAMEWORK_VERSION=Versions/Release-$VERSION
+
+# path to the XCode developer tools and to the SDK, version numbers
+DEVELOPER_PATH=`xcode-select --print-path`
+SDK_PATH="$DEVELOPER_PATH/Platforms/MacOSX.platform/Developer/SDKs"
+ARCHES64='-arch x86_64'
+SDK64=`ls -r $SDK_PATH|egrep -v "10.[0-4][^0-9]" | head -1`
+SDK64_DIR=$SDK_PATH/$SDK64
+MACVER64=`echo $SDK64|sed -e s/[a-zA-Z]//g -e s/.\$//`
+MINVER64='-mmacosx-version-min='$MACVER64
+
+# Let's start
+if test -d $SDK64_DIR; then
+    echo "----Configuring libcurl for 64 bit static library framework..."
+    ./configure --disable-dependency-tracking --disable-shared --enable-static --enable-optimize --with-gssapi --with-darwinssl \
+    --disable-ldap --disable-ldaps --disable-ftp --disable-file --disable-rtsp --disable-dict --disable-telnet --disable-tftp \
+    --disable-pop3 --disable-imap --disable-smb --disable-smtp --disable-gopher --disable-dict --disable-telnet --disable-tftp \
+    CFLAGS="-Wno-deprecated-declarations -Os -isysroot $SDK64_DIR $ARCHES64" \
+    LDFLAGS="-Wl,-syslibroot,$SDK64_DIR $ARCHES64 -Wl,-headerpad_max_install_names" \
+    CC=$CC
+
+    echo "----Building 64 bit libcurl..."
+    make -j `sysctl -n hw.logicalcpu_max`
+
+    echo "----Creating 64 bit framework..."
+    if test -d libcurl.framework; then
+        rm -r libcurl.framework
+    fi
+    # create the structure including the Info.plist file and all public headers
+    mkdir -p libcurl.framework/${FRAMEWORK_VERSION}/Resources
+    /usr/bin/sed -e "s/7\.12\.3/$VERSION/" lib/libcurl.plist >libcurl.framework/${FRAMEWORK_VERSION}/Resources/Info.plist
+    mkdir -p libcurl.framework/${FRAMEWORK_VERSION}/Headers/curl
+    cp include/curl/*.h libcurl.framework/${FRAMEWORK_VERSION}/Headers/curl
+
+    # finally, copy the static library into place and add symlinks where needed
+    cp lib/.libs/libcurl.a libcurl.framework/${FRAMEWORK_VERSION}/libcurl
+    pushd libcurl.framework
+    ln -fs ${FRAMEWORK_VERSION}/libcurl libcurl
+    ln -fs ${FRAMEWORK_VERSION}/Resources Resources
+    ln -fs ${FRAMEWORK_VERSION}/Headers Headers
+    cd Versions
+    ln -fs $(basename "${FRAMEWORK_VERSION}") Current
+    popd
+
+    echo "SUCCESS: libcurl.framework is built and can now be included in other projects."
+    echo "Remember to define CURL_STATICLIB before including curl.h!"
+else
+    echo "Building libcurl.framework requires Mac OS X 10.4 or later with the MacOSX10.4/5/6 SDK installed."
+fi
