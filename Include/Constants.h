@@ -42,7 +42,7 @@ extern int verDateXPlaneOrg;        // and its date
 #define WIN_FROM_RIGHT    0
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
-constexpr float WIN_TIME_REMAIN=0.5f;   // seconds to keep the msg window after last message
+constexpr float WIN_TIME_REMAIN=1.0f;   // seconds to keep the msg window after last message
 
 //MARK: Unit conversions
 constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a lat degree
