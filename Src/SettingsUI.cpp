@@ -192,6 +192,7 @@ enum UI_WIDGET_IDX_T {
     UI_DEBUG_SUB_WND,
     UI_DEBUG_CAP_FILTER,
     UI_DEBUG_TXT_FILTER,
+    UI_DEBUG_BTN_LOG_LEVEL_DEBUG,
     UI_DEBUG_BTN_LOG_ACPOS,
     UI_DEBUG_BTN_LOG_MODELMATCH,
     UI_DEBUG_BTN_LOG_RAW_FD,
@@ -349,16 +350,17 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {  10,  50, -10, -10, 0, "Debug",               0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10, 215,  10, 1, "Filter for transponder hex code:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 220,  10,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
-    {  10,  30,  10,  10, 1, "Debug: Log a/c positions",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10,  45,  10,  10, 1, "Debug: Log model matching (XPlaneMP)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {  10,  60,  10,  10, 1, "Debug: Log raw network flight data (LTRawFD.log)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
-    {   5,  80,  -5,  10, 1, "Forced model matching parameters for next aircraft to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    {   5,  95, 215,  10, 1, "ICAO a/c type:",       0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220,  95,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
-    {   5, 115, 215,  10, 1, "ICAO operator/airline:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 115,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 135, 215,  10, 1, "livery/registration:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
-    { 220, 135,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
+    {  10,  30,  10,  10, 1, "Log.txt: Set Log Level = \"Debug\"",     0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  45,  10,  10, 1, "Log.txt: Log a/c positions",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  60,  10,  10, 1, "Log.txt: Log model matching (XPlaneMP)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {  10,  80,  10,  10, 1, "LTRawFD.log: Log raw network flight data",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button, {xpProperty_ButtonType, xpRadioButton, xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox, 0,0} },
+    {   5, 105,  -5,  10, 1, "Forced model matching parameters for next aircraft to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 120, 215,  10, 1, "ICAO a/c type:",       0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 120,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,4, 0,0, 0,0} },
+    {   5, 140, 215,  10, 1, "ICAO operator/airline:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 140,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 160, 215,  10, 1, "livery/registration:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 220, 160,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,8, 0,0, 0,0} },
 };
 
 constexpr int NUM_WIDGETS = sizeof(SETTINGS_UI)/sizeof(SETTINGS_UI[0]);
@@ -561,6 +563,7 @@ void LTSettingsUI::Enable()
         txtDebugFilter.SearchFlightData(dataRefs.GetDebugAcFilter());
         
         // debug options
+        btnDebugLogLevelDebug.setId(widgetIds[UI_DEBUG_BTN_LOG_LEVEL_DEBUG]);
         btnDebugLogACPos.setId(widgetIds[UI_DEBUG_BTN_LOG_ACPOS],
                                DATA_REFS_LT[DR_DBG_AC_POS]);
         btnDebugLogModelMatch.setId(widgetIds[UI_DEBUG_BTN_LOG_MODELMATCH],
@@ -736,6 +739,10 @@ bool LTSettingsUI::TfwMsgMain1sTime ()
     logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
     msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
     
+    // *** Debug ***
+    // "Log-Level = Debug" is checked if, well, log level is set to Debug
+    btnDebugLogLevelDebug.SetChecked(dataRefs.GetLogLevel() == logDEBUG);
+    
     return true;
 }
 
@@ -822,6 +829,14 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
             SaveCSLPath(i);
             return true;
         }
+    
+    // *** Advanced ***
+    // if "Level-Level = DEBUG" is activate we set Log level to Debug,
+    // if it is deactviated we set back to Warning
+    if ( btnDebugLogLevelDebug == buttonWidget) {
+        dataRefs.SetLogLevel(bNowChecked ? logDEBUG : logWARN);
+        return true;
+    }
     
     return bRet;
 }

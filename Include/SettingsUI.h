@@ -82,6 +82,7 @@ protected:
     
     // Debug tab
     TFACSearchEditWidget txtDebugFilter;
+    TFButtonWidget btnDebugLogLevelDebug;
     TFButtonDataRef btnDebugLogACPos, btnDebugLogModelMatch, btnDebugLogRawFd;
     TFTextFieldWidget txtFixAcType, txtFixOp, txtFixLivery;
 
