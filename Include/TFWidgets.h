@@ -297,8 +297,12 @@ public:
 class TFButtonDataRef : public TFButtonWidget, public TFDataRefLink
 {
 public:
+    // shall parent window still be informed via MsgButtonStateChanged?
+    bool bInformParent = false;
+public:
     TFButtonDataRef (XPWidgetID _me = NULL, const char* dataRefName=NULL);
-    void setId (XPWidgetID _me, const char* dataRefName);
+    void setId (XPWidgetID _me, const char* dataRefName,
+                bool _bInformParent = false);
 protected:
     void Synch ();       // button state with current data ref value
     virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);

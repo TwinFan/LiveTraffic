@@ -150,18 +150,18 @@
          contextName = "LTAircraft::~LTAircraft():LTAircraft.cpp">
       </ContextState>
       <ContextState
-         contextName = "FetchVersionCB(char*, unsigned long, unsigned long, void*):LTVersion.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "ptr+2700">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
          contextName = "RealTrafficConnection::ProcessRecvedWeatherData(char const*):LTRealTraffic.cpp">
          <PersistentStrings>
             <PersistentString
                value = "(weather+12)">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "FetchVersionCB(char*, unsigned long, unsigned long, void*):LTVersion.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ptr+2700">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -392,12 +392,15 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
-            </PersistentString>
-            <PersistentString
                value = "tcas">
             </PersistentString>
+            <PersistentString
+               value = "iter-&gt;second">
+            </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LoadConfigFile():DataRefs.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
@@ -407,6 +410,14 @@
          <PersistentStrings>
             <PersistentString
                value = "posStringBefore">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LTSetBool(void*, int):DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "dataRefs.bChannel">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -571,10 +582,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -622,10 +633,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -636,10 +647,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">

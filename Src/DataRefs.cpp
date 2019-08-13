@@ -761,7 +761,16 @@ int     DataRefs::LTGetInt(void* p)     { return *reinterpret_cast<int*>(p); }
 float   DataRefs::LTGetFloat(void* p)   { return *reinterpret_cast<float*>(p); }
 
 void    DataRefs::LTSetBool(void* p, int i)
-{ *reinterpret_cast<int*>(p) = i != 0; }
+{
+    *reinterpret_cast<int*>(p) = i != 0;
+    
+    // also enable OpenSky Master data if OpenSky tracking data is now enabled
+    if (((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_ONLINE - DR_CHANNEL_FIRST]) && i) ||
+        // override OpenSky Master if OpenSky tracking active
+        ((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST]) &&
+         dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) )
+        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+}
 
 //
 // MARK: Bulk dataRef

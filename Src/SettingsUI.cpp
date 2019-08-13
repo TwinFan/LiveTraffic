@@ -433,7 +433,8 @@ void LTSettingsUI::Enable()
         capADSBOutput.setId(widgetIds[UI_BASICS_CAP_ADSB_OUTPUT]);
         
         btnRealTraffic.setId(widgetIds[UI_BASICS_BTN_REALTRAFFIC_LIVE],
-                             DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE]);
+                             DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE],
+                             true);     // still inform the settings UI of state changes
         capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
         capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
 
@@ -775,6 +776,12 @@ bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChec
         subDebug.Show(bNowChecked);
         return true;
     }
+    
+    // *** Basics ***
+    // If RealTraffic is now activated then we also activate OpenSky Master as a courtesy,
+    // but we never deactivate OpenSky Master this way.
+    if (btnRealTraffic == buttonWidget && bNowChecked)
+        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
 
     // *** A/C Labels ***
     // if any of the a/c label check boxes changes we set the config accordingly
