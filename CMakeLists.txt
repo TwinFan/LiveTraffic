@@ -12,10 +12,9 @@ endif ()
 set(CMAKE_CXX_STANDARD 17)
 
 # Set include directories used by our code and dependencies.
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Src")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/xplanemp")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
+include_directories("${CMAKE_SOURCE_DIR}/Include")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/xplanemp/xplanemp.framework/Headers")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/Widgets")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/Wrappers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/XPLM")
@@ -78,9 +77,10 @@ set(Header_Files
     Include/TextIO.h
     Include/TFWidgets.h
     Include/XPCompatibility.h
-    Lib/xplanemp/XPCAircraft.h
-    Lib/xplanemp/XPMPMultiplayer.h
-    Lib/xplanemp/XPMPPlaneRenderer.h
+    Lib/LTAPI/LTAPI.h
+    Lib/xplanemp/xplanemp.framework/Headers/XPCAircraft.h
+    Lib/xplanemp/xplanemp.framework/Headers/XPMPMultiplayer.h
+    Lib/xplanemp/xplanemp.framework/Headers/XPMPPlaneRenderer.h
 )
 source_group("Header Files" FILES ${Header_Files})
 

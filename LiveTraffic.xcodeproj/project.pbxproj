@@ -156,10 +156,6 @@
 		25A0960B2203B0C500658AA8 /* XPStandardWidgets.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPStandardWidgets.pas; sourceTree = "<group>"; };
 		25A0960C2203B0C500658AA8 /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
 		25A0960D2203B0C500658AA8 /* license.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = license.txt; sourceTree = "<group>"; };
-		25A0960F2203B0C500658AA8 /* XPCAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCAircraft.h; sourceTree = "<group>"; };
-		25A096102203B0C500658AA8 /* XPMPMultiplayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPMultiplayer.h; sourceTree = "<group>"; };
-		25A096112203B0C500658AA8 /* XPMPPlaneRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPMPPlaneRenderer.h; sourceTree = "<group>"; };
-		25A096122203B0C500658AA8 /* libxplanemp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libxplanemp.a; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
@@ -404,7 +400,6 @@
 			children = (
 				2593063C22DB411500C82D4F /* LTAPI */,
 				25A095CB2203B0C500658AA8 /* XPSDK301 */,
-				25A0960E2203B0C500658AA8 /* xplanemp */,
 			);
 			path = Lib;
 			sourceTree = "<group>";
@@ -550,17 +545,6 @@
 				25A0960B2203B0C500658AA8 /* XPStandardWidgets.pas */,
 			);
 			path = Widgets;
-			sourceTree = "<group>";
-		};
-		25A0960E2203B0C500658AA8 /* xplanemp */ = {
-			isa = PBXGroup;
-			children = (
-				25A0960F2203B0C500658AA8 /* XPCAircraft.h */,
-				25A096102203B0C500658AA8 /* XPMPMultiplayer.h */,
-				25A096112203B0C500658AA8 /* XPMPPlaneRenderer.h */,
-				25A096122203B0C500658AA8 /* libxplanemp.a */,
-			);
-			path = xplanemp;
 			sourceTree = "<group>";
 		};
 		25A3889B209884B50015266E /* Links */ = {
@@ -741,7 +725,6 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				EXECUTABLE_EXTENSION = xpl;
-				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -774,8 +757,9 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					"Lib/XPSDK301/CHeaders/**",
 					Lib/LTAPI,
+					Lib/xplanemp/xplanemp.framework/Headers,
+					"Lib/XPSDK301/CHeaders/**",
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = NO;
@@ -823,7 +807,6 @@
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				EXECUTABLE_EXTENSION = xpl;
-				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -854,8 +837,9 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					"Lib/XPSDK301/CHeaders/**",
 					Lib/LTAPI,
+					Lib/xplanemp/xplanemp.framework/Headers,
+					"Lib/XPSDK301/CHeaders/**",
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = YES;
