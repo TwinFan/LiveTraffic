@@ -643,10 +643,11 @@ TFButtonWidget(_me), TFDataRefLink(dataRefName)
 }
 
 // (deferred) initialization
-void TFButtonDataRef::setId (XPWidgetID _me, const char* dataRefName)
+void TFButtonDataRef::setId (XPWidgetID _me, const char* dataRefName, bool _bInformParent)
 {
     TFButtonWidget::setId(_me);             // hook into message loop
     TFDataRefLink::setDataRef(dataRefName); // link to dataRef
+    bInformParent = _bInformParent;         // shall parent be informed anyway?
     Synch();                     // read current value
 }
 
@@ -664,9 +665,11 @@ bool TFButtonDataRef::MsgButtonStateChanged (XPWidgetID buttonWidget,
     // handle message also in class hierarchy
     TFButtonWidget::MsgButtonStateChanged(buttonWidget, bNowChecked);
 
-    // set dataRef accordingly, message is handled
+    // set dataRef accordingly
     Set(bNowChecked ? 1 : 0);
-    return true;
+    
+    // handled...but shall parent still be informed?
+    return !bInformParent;
 }
 
 // every second sync the button's status with dataRef's reality

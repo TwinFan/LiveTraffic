@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.20f;
+constexpr float VERSION_NR = 1.21f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -42,7 +42,7 @@ extern int verDateXPlaneOrg;        // and its date
 #define WIN_FROM_RIGHT    0
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
-constexpr float WIN_TIME_REMAIN=0.5f;   // seconds to keep the msg window after last message
+constexpr float WIN_TIME_REMAIN=1.0f;   // seconds to keep the msg window after last message
 
 //MARK: Unit conversions
 constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a lat degree
@@ -225,7 +225,6 @@ constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
-constexpr long CURL_TIMEOUT =        30;        ///< [s] network timeout, see CURLOPT_TIMEOUT
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"

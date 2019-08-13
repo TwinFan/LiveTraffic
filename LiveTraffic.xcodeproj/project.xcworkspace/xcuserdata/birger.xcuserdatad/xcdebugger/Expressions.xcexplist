@@ -150,6 +150,14 @@
          contextName = "LTAircraft::~LTAircraft():LTAircraft.cpp">
       </ContextState>
       <ContextState
+         contextName = "RealTrafficConnection::ProcessRecvedWeatherData(char const*):LTRealTraffic.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "(weather+12)">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "FetchVersionCB(char*, unsigned long, unsigned long, void*):LTVersion.cpp">
          <PersistentStrings>
             <PersistentString
@@ -298,15 +306,15 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "AccelParam::AccelParam(double, double, double, double):LTAircraft.cpp">
-      </ContextState>
-      <ContextState
          contextName = "DataRefs::GetSimTime() const:DataRefs.cpp">
          <PersistentStrings>
             <PersistentString
                value = "DATA_REFS_LT">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "AccelParam::AccelParam(double, double, double, double):LTAircraft.cpp">
       </ContextState>
       <ContextState
          contextName = "LTChannel::DecErrCnt():LTChannel.cpp">
@@ -392,6 +400,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "DataRefs::LoadConfigFile():DataRefs.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -399,6 +410,14 @@
          <PersistentStrings>
             <PersistentString
                value = "posStringBefore">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "DataRefs::LTSetBool(void*, int):DataRefs.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "dataRefs.bChannel">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

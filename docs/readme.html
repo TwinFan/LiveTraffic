@@ -83,6 +83,55 @@
 
     <h2>v1.20</h2>
 
+    <h3>v1.21 Fixits</h3>
+    
+    <b>To update</b> coming from v1.20 just copy the 3 files
+    <code>LiveTraffic/64/*.xpl</code>.
+    
+    <ul>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/152">#152</a>
+            option <i>Log.txt: Set Log Level = "Debug"</i> to
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug Settings</a>, in case users search there
+            when following
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/174691-if-you-want-support-contains-template/">support request guidelines</a>.
+            Unchecking this option resets Log Level to "Warning".
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/149">#149</a>:
+            OpenSky Master Data channel is enforced to be active, when OpenSky
+            tracking data is used to avoid
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/186475-take-off-planes-are-shown-as-follow-me-cars/">"only A320/follow-me car" issue</a>.<br>
+            Also, OpenSky Master is enabled as a recommendation when activating
+            RealTraffic channel (but can be deactivated manually in this case).
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/122">#122</a>
+            drawing of message area's background, possibly reducing cloud texture glitches.
+            Fix courtesy of slgoldberg.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/153">#153</a>
+            validation of original ADSBEx API keys after ADSBEx's server response changed.
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/151">#151</a>
+            network timeout to 90s and made it configurable in Advanced Settings.
+            This shall reduce the likelyhood that tracking requests to OpenSky
+            time out.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/148">#148</a>
+            late reaction to activating OpenSky Master Data mid-flight and
+            memory leak when OpenSky Master Data stays inactive.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/136">#136</a>
+            (Linux only) freeze when stopping a/c display / deactivating LiveTraffic /
+            stopping X-Plane with RealTraffic channel on but no RealTraffic app running.
+        </li>
+    </ul>
+
     <h3>v1.20.190718 CSL / AI / Multiplayer enhancements</h3>
 
     <b>To update</b> copy <em>all</em> files from the ZIP archive over their existing

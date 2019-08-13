@@ -246,6 +246,36 @@ TFWndMode GetDefaultWndOpenMode ()
         TF_MODE_VR : TF_MODE_FLOAT;     // XP11, VR vs. non-VR
 }
 
+// Replacement for XPLMDrawTranslucentDarkBox courtesy of slgoldberg
+// see https://github.com/TwinFan/LiveTraffic/pull/150
+// May be a fix to the Cloud texture glitches, issue #122
+void LTDrawTranslucentDarkBox (int l, int t, int r, int b)
+{
+#ifdef USE_XPLM_BOX
+    XPLMDrawTranslucentDarkBox(l, t, r, b);
+#else
+    // Draw the box directly in OpenGL, hopefully avoiding issue #122 cloud texture glitches:
+    static float savedColor_fv[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    static float rgba_fv[4] = { 0.23f, 0.23f, 0.26f, 0.55f };    // dark gray at 55% opacity
+    glGetFloatv(GL_COLOR_ARRAY, savedColor_fv); // save color so we don't affect it permanently
+    glColor4fv(rgba_fv);
+    
+    float x1 = float(l > r ? r : l);
+    float x2 = float(l > r ? l : r);
+    float y1 = float(t > b ? b : t);
+    float y2 = float(t > b ? t : b);
+    
+    glBegin(GL_POLYGON);
+    glVertex2f(x1, y1);
+    glVertex2f(x1, y2);
+    glVertex2f(x2, y2);
+    glVertex2f(x2, y1);
+    glEnd();
+    
+    glColor4fv(savedColor_fv);
+#endif
+}
+
 //
 //MARK: Callbacks
 //

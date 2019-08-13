@@ -75,7 +75,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // test for ERRor response
     const std::string errTxt = jog_s(pObj, sERR);
     if (!errTxt.empty()) {
-        if (errTxt == sNOK) {
+        if (begins_with<std::string>(errTxt, sNOK)) {
             SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
             SetValid(false);
         } else {
@@ -370,7 +370,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     // prepare the handle with the right options
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, CURL_TIMEOUT);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, testKeyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestADSBExAPIKeyCB);
@@ -410,20 +410,21 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
         // Check HTTP return code
         switch (httpResponse) {
             case HTTP_OK:
-                // Response code was HTTP_OK, now check what we received in the buffer
-                if (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&
+                // check for msg/message saying "wrong key":
+                if (readBuf.find(sERR) != std::string::npos &&
+                    readBuf.find(sNOK) != std::string::npos)
+                {
+                    // definitely received an error response
+                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+                }
+                // check what we received in the buffer
+                else if (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&
                     readBuf.find(ADSBEX_TIME) != std::string::npos)
                 {
                     // looks like a valid response containing a/c info
                     bResult = true;
                     dataRefs.SetADSBExAPIKey(newKey);
                     SHOW_MSG(logMSG, MSG_ADSBEX_KEY_SUCCESS);
-                }
-                else if (readBuf.find(sERR) != std::string::npos &&
-                         readBuf.find(sNOK) != std::string::npos)
-                {
-                    // definitely received an error response
-                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
                 }
                 else
                 {

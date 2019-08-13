@@ -139,7 +139,11 @@ class TCPConnection : public SocketNetworking
 protected:
     SOCKET              f_session_socket = INVALID_SOCKET;
     struct sockaddr_in  f_session_addr;
-    
+#if APL == 1 || LIN == 1
+    // the self-pipe to shut down the TCP listener gracefully
+    SOCKET selfPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
+#endif
+
 public:
     // The address is a string and it can represent an IPv4 or IPv6 address.
     TCPConnection() : SocketNetworking() {}

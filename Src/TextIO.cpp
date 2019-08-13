@@ -124,7 +124,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     int l, t, r, b;
     XPLMGetWindowGeometry(in_window_id, &l, &t, &r, &b);
     
-    XPLMDrawTranslucentDarkBox(l, t, r, b);
+    LTDrawTranslucentDarkBox(l, t, r, b);
     
     b = WIN_WIDTH;                          // word wrap width = window width
     
@@ -163,7 +163,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
             fTimeRemove = currTime + WIN_TIME_REMAIN;
         else if (currTime >= fTimeRemove) {
             // time's up: remove
-            DestroyWindow();
+            XPLMSetWindowIsVisible ( g_window, false );
             fTimeRemove = NAN;
         }
     }
@@ -245,8 +245,11 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1));
     
     // if the window still exists just resize it
-    if (g_window)
+    if (g_window) {
+        if (!XPLMGetWindowIsVisible( g_window))
+            XPLMSetWindowIsVisible ( g_window, true );
         XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
+    }
     else {
         // otherwise create a new one
         g_window = XPLMCreateWindowEx(&params);

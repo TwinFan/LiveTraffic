@@ -230,6 +230,7 @@ enum dataRefsLT {
     DR_CFG_FD_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_AC_OUTDATED_INTVL,
+    DR_CFG_NETW_TIMEOUT,
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
@@ -461,6 +462,7 @@ protected:
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
+    int netwTimeout     = 90;           // [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
@@ -611,6 +613,7 @@ public:
     inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
+    inline int GetNetwTimeout() const { return netwTimeout; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
