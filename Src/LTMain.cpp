@@ -260,10 +260,10 @@ void LTDrawTranslucentDarkBox (int l, int t, int r, int b)
     glGetFloatv(GL_COLOR_ARRAY, savedColor_fv); // save color so we don't affect it permanently
     glColor4fv(rgba_fv);
     
-    float x1 = (l > r ? r : l);
-    float x2 = (l > r ? l : r);
-    float y1 = (t > b ? b : t);
-    float y2 = (t > b ? t : b);
+    float x1 = float(l > r ? r : l);
+    float x2 = float(l > r ? l : r);
+    float y1 = float(t > b ? b : t);
+    float y2 = float(t > b ? t : b);
     
     glBegin(GL_POLYGON);
     glVertex2f(x1, y1);
