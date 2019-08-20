@@ -27,6 +27,7 @@
 #ifndef LTAPI_h
 #define LTAPI_h
 
+#include <cstring>
 #include <memory>
 #include <string>
 #include <list>
@@ -34,6 +35,7 @@
 #include <chrono>
 
 #include "XPLMDataAccess.h"
+#include "XPLMGraphics.h"
 
 class LTDataRef;
 
@@ -253,6 +255,15 @@ public:
     float           getBearing()        const { return bulk.bearing; }          ///< [°] to current camera position
     float           getDistNm()         const { return bulk.dist_nm; }          ///< [nm] distance to current camera
     int             getMultiIdx()       const { return bulk.bits.multiIdx; }    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
+
+    // calculated
+    /// @brief `lat`/`lon`/`alt` converted to local coordinates
+    /// @see https://developer.x-plane.com/sdk/XPLMGraphics/#XPLMWorldToLocal
+    /// @param[out] x Local x coordinate
+    /// @param[out] y Local y coordinate
+    /// @param[out] z Local z coordinate
+    void            getLocalCoord (double& x, double& y, double& z) const
+    { XPLMWorldToLocal(bulk.lat,bulk.lon,bulk.alt_ft, &x,&y,&z); }
 
 public:
     /// @brief Standard object creation callback.
