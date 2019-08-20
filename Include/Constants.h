@@ -30,8 +30,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.21f;
-constexpr bool VERSION_BETA = false;
+constexpr float VERSION_NR = 1.22f;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
