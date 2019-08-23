@@ -93,9 +93,9 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (other.flight.length() > flight.length() ||
         // or no flight number info at all...
         (other.flight.empty() && flight.empty())) {
-        originAp = other.originAp;
-        destAp = other.destAp;
-        flight = other.flight;
+        if (!other.originAp.empty()) originAp = other.originAp;
+        if (!other.destAp.empty()) destAp = other.destAp;
+        if (!other.flight.empty()) flight = other.flight;
     }
     
     // operator / Airline
@@ -2097,6 +2097,21 @@ bool LTFlightData::CreateAircraft ( double simTime )
         if ( !CalcNextPos(simTime) )
             return false;
         
+        // If we still have no acTypeIcao we can try a lookup by model text
+        if ( statData.acTypeIcao.empty() )
+        {
+            std::string mdl (statData.mdl);
+            str_toupper(trim(mdl));
+            if ( !(statData.acTypeIcao = ModelIcaoType::getIcaoType(mdl)).empty() )
+            {
+                // yea, found something by mdl!
+                LOG_MSG(logWARN,ERR_NO_AC_TYPE_BUT_MDL,
+                        key().c_str(),
+                        statData.man.c_str(), statData.mdl.c_str(),
+                        statData.acTypeIcao.c_str());
+            }
+        }
+        
         // a few last checks and decisions, e.g. now we definitely do need a plane type
         if ( statData.acTypeIcao.empty() )
         {
@@ -2125,7 +2140,6 @@ bool LTFlightData::CreateAircraft ( double simTime )
             else
             {
                 // we have no better idea than standard
-                // TODO: Make use of man/mdl, see issue #44
                 statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
                 LOG_MSG(logWARN,ERR_NO_AC_TYPE,
                         key().c_str(),

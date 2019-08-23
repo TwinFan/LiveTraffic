@@ -85,8 +85,11 @@
 
     <h3>v1.22 Fixits</h3>
     
-    <p><b>To update</b> coming from v1.21 just copy the 3 files
-    <code>LiveTraffic/64/*.xpl</code>.</p>
+    <b>To update</b> coming from v1.21
+    <ul>
+        <li>copy the 3 files <code>LiveTraffic/64/*.xpl</code>.</li>
+        <li>copy the new file <code>LiveTraffic/Resources/model_typecode.txt</code>.
+    </ul>
     
     <p><i>Note to users of ABC by @slgoldberg:</i> Please also
     <a href="https://forums.x-plane.org/index.php?/files/file/46121-abc-plugin-a-better-circle-for-x-plane-11/">update ABC</a>
@@ -95,6 +98,14 @@
     <p>Changes to LiveTraffic:</p>
     
     <ul>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44</a>
+            lookup of a/c type designator by human-readable model text.
+            Can avoid using standard A320/follow-me car in many, though not all cases.<br>
+            Many thanks to @crbascott for providing the mapping file
+            <code>model_typecode.txt</code>, which you need to place into
+            <code>LiveTraffic/Resources</code>.
+        </li>
         <li>
             2 changes to <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>
             for other plugins' benefit:

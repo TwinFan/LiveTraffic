@@ -173,6 +173,7 @@
 		25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z_PE.txt; sourceTree = "<group>"; };
 		25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z.txt; sourceTree = "<group>"; };
 		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
+		25D59F4B23106A79002D81CF /* model_typecode.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = model_typecode.txt; sourceTree = "<group>"; };
 		25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BADA_Aircraft_Performance_Summary_Tables.pdf; sourceTree = "<group>"; };
 		25D6542A210C630800E65D77 /* Calc.xlsx */ = {isa = PBXFileReference; lastKnownFileType = file; path = Calc.xlsx; sourceTree = "<group>"; };
 		25D6542B210C631B00E65D77 /* Deceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Deceleration.psd; sourceTree = "<group>"; };
@@ -327,6 +328,7 @@
 		2577B6A0216A9397004B432D /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				25D59F4B23106A79002D81CF /* model_typecode.txt */,
 				25D712AA21B72EF900B5802F /* lights.png */,
 				25D712A921B72EF900B5802F /* related.txt */,
 				25D712A821B72E1700B5802F /* Doc8643.txt */,
