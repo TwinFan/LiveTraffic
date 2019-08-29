@@ -915,7 +915,13 @@ bValid(true)
         CalcLabelInternal(statCopy);
         
         // init surfaces
-        memset ( &surfaces, 0, sizeof(surfaces));
+        surfaces =
+        {
+            0,
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            { 0 },
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, false
+        };
         surfaces.size = sizeof(surfaces);
         
         // init moving params where necessary
@@ -937,7 +943,8 @@ bValid(true)
                 statCopy.opIcao.c_str(),
                 GetModelName().c_str(),
                 mdl.modelName.c_str(),
-                vecView.angle, vecView.dist/M_per_KM);
+                vecView.angle, vecView.dist/M_per_NM,
+                dynCopy.pChannel ? dynCopy.pChannel->ChName() : "?");
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
