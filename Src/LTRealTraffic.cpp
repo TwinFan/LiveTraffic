@@ -342,7 +342,7 @@ void RealTrafficConnection::tcpConnection ()
             }
         }
     }
-    catch (std::runtime_error e) {
+    catch (std::runtime_error& e) {
         LOG_MSG(logERR, ERR_TCP_LISTENACCEPT, ChName(),
                 RT_LOCALHOST, std::to_string(tcpPort).c_str(),
                 e.what());
@@ -532,7 +532,7 @@ void RealTrafficConnection::udpListen ()
             }
         }
     }
-    catch (std::runtime_error e) {
+    catch (std::runtime_error& e) {
         // exception...can only really happen in UDPReceiver::Open
         LOG_MSG(logERR, ERR_UDP_RCVR_OPEN, ChName(),
                 RT_LOCALHOST, port,
