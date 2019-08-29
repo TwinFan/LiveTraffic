@@ -27,6 +27,7 @@
 #ifndef LTAPI_h
 #define LTAPI_h
 
+#include <cstring>
 #include <memory>
 #include <string>
 #include <list>
@@ -34,6 +35,7 @@
 #include <chrono>
 
 #include "XPLMDataAccess.h"
+#include "XPLMGraphics.h"
 
 class LTDataRef;
 
@@ -84,9 +86,9 @@ public:
         // identification
         uint64_t        keyNum          = 0;  ///< a/c id, usually transp hex code, or any other unique id (FLARM etc.)
         // position, attitude
-        float           lat             = 0.0f; ///< [°] latitude
-        float           lon             = 0.0f; ///< [°] longitude
-        float           alt_ft          = 0.0f; ///< [ft] altitude
+        float           lat_f           = 0.0f; ///< deprecated: [°] latitude
+        float           lon_f           = 0.0f; ///< deprecated: [°] longitude
+        float           alt_ft_f        = 0.0f; ///< deprecated: [ft] altitude
         float           heading         = 0.0f; ///< [°] heading
         float           track           = 0.0f; ///< [°] track over ground
         float           roll            = 0.0f; ///< [°] roll:  positive right
@@ -120,6 +122,12 @@ public:
             unsigned    filler3     : 32;
         } bits;                             ///< Flights phase, on-ground status, lights
         
+        // V1.22 additions
+        double          lat             = 0.0f; ///< [°] latitude
+        double          lon             = 0.0f; ///< [°] longitude
+        double          alt_ft          = 0.0f; ///< [ft] altitude
+
+        
         /// Constructor initializes some data without defaults
         LTAPIBulkData()
         { memset(&bits, 0, sizeof(bits)); }
@@ -148,6 +156,9 @@ public:
         char            origin[8];          ///< origin airport (IATA or ICAO) like "MAD" or "LEMD"
         char            destination[8];     ///< destination airport (IATA or ICAO) like "FRA" or "EDDF"
         char            trackedBy[24];      ///< name of channel deliverying the underlying tracking data
+
+        // V1.22 additions
+        char            cslModel[24];       ///< name of CSL model used for actual rendering of plane
 
         /// Constructor initializes all data with zeroes
         LTAPIBulkInfoTexts()
@@ -185,10 +196,12 @@ public:
     // Updates all fields, set bUpdated and returns true.
     /// @brief Updates the aircraft with fresh numerical values, called from LTAPIConnect::UpdateAcList()
     /// @param __bulk A structure with updated numeric aircraft data
-    virtual bool updateAircraft(const LTAPIBulkData& __bulk);
+    /// @param __inSize Number of bytes returned by LiveTraffic
+    virtual bool updateAircraft(const LTAPIBulkData& __bulk, size_t __inSize);
     /// @brief Updates the aircraft with fresh textual information, called from LTAPIConnect::UpdateAcList()
     /// @param __info A structure with updated textual info
-    virtual bool updateAircraft(const LTAPIBulkInfoTexts& __info);
+    /// @param __inSize Number of bytes returned by LiveTraffic
+    virtual bool updateAircraft(const LTAPIBulkInfoTexts& __info, size_t __inSize);
     /// Helper in update loop to detected removed aircrafts
     bool isUpdated () const { return bUpdated; }
     /// Helper in update loop, resets `bUpdated` flag
@@ -208,6 +221,7 @@ public:
     std::string     getModel()          const { return info.model; }            ///< human-readable a/c model like "A321-231"
     std::string     getCatDescr()       const { return info.catDescr; }         ///< human-readable category description
     std::string     getOp()             const { return info.op; }               ///< human-readable operator like "Lufthansa"
+    std::string     getCslModel()       const { return info.cslModel; }         ///< name of CSL model used for actual rendering of plane
     // flight data
     std::string     getCallSign()       const { return info.callSign; }         ///< call sign like "DLH56C"
     std::string     getSquawk()         const { return info.squawk; }           ///< squawk code (as text) like "1000"
@@ -218,9 +232,9 @@ public:
     // combined info
     std::string     getDescription()    const;                                  ///< some reasonable descriptive string formed from the above, like an identifier, type, form/to
     // position, attitude
-    float           getLat()            const { return bulk.lat; }              ///< [°] latitude
-    float           getLon()            const { return bulk.lon; }              ///< [°] longitude
-    float           getAltFt()          const { return bulk.alt_ft; }           ///< [ft] altitude
+    double          getLat()            const { return bulk.lat; }              ///< [°] latitude
+    double          getLon()            const { return bulk.lon; }              ///< [°] longitude
+    double          getAltFt()          const { return bulk.alt_ft; }           ///< [ft] altitude
     float           getHeading()        const { return bulk.heading; }          ///< [°] heading
     float           getTrack()          const { return bulk.track; }            ///< [°] track over ground
     float           getRoll()           const { return bulk.roll; }             ///< [°] roll: positive right
@@ -241,6 +255,15 @@ public:
     float           getBearing()        const { return bulk.bearing; }          ///< [°] to current camera position
     float           getDistNm()         const { return bulk.dist_nm; }          ///< [nm] distance to current camera
     int             getMultiIdx()       const { return bulk.bits.multiIdx; }    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
+
+    // calculated
+    /// @brief `lat`/`lon`/`alt` converted to local coordinates
+    /// @see https://developer.x-plane.com/sdk/XPLMGraphics/#XPLMWorldToLocal
+    /// @param[out] x Local x coordinate
+    /// @param[out] y Local y coordinate
+    /// @param[out] z Local z coordinate
+    void            getLocalCoord (double& x, double& y, double& z) const
+    { XPLMWorldToLocal(bulk.lat,bulk.lon,bulk.alt_ft, &x,&y,&z); }
 
 public:
     /// @brief Standard object creation callback.
@@ -297,7 +320,7 @@ public:
     
 protected:
     /// Number of aircraft to fetch in one bulk operation
-    const int iBulkAc;
+    const int iBulkAc = 50;
     /// bulk data array for communication with LT
     std::unique_ptr<LTAPIAircraft::LTAPIBulkData[]> vBulkNum;
     /// bulk info text array for communication with LT
@@ -435,6 +458,18 @@ public:
 protected:
 };
 
+//
+// Sizes for version compatibility comparison
+//
 
+/// Size of original bulk structure as per LiveTraffic v1.20
+constexpr size_t LTAPIBulkData_v120 = 80;
+/// Size of current bulk structure
+constexpr size_t LTAPIBulkData_v122 = sizeof(LTAPIAircraft::LTAPIBulkData);
+
+/// Size of original bulk info structure as per LiveTraffic v1.20
+constexpr size_t LTAPIBulkInfoTexts_v120 = 264;
+/// Size of current bulk info structure
+constexpr size_t LTAPIBulkInfoTexts_v122 = sizeof(LTAPIAircraft::LTAPIBulkInfoTexts);
 
 #endif /* LTAPI_h */

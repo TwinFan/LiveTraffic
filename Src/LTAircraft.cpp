@@ -915,7 +915,13 @@ bValid(true)
         CalcLabelInternal(statCopy);
         
         // init surfaces
-        memset ( &surfaces, 0, sizeof(surfaces));
+        surfaces =
+        {
+            0,
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            { 0 },
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, false
+        };
         surfaces.size = sizeof(surfaces);
         
         // init moving params where necessary
@@ -937,7 +943,8 @@ bValid(true)
                 statCopy.opIcao.c_str(),
                 GetModelName().c_str(),
                 mdl.modelName.c_str(),
-                vecView.angle, vecView.dist/M_per_KM);
+                vecView.angle, vecView.dist/M_per_NM,
+                dynCopy.pChannel ? dynCopy.pChannel->ChName() : "?");
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
@@ -1784,18 +1791,17 @@ std::string LTAircraft::GetLightsStr() const
 void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
                                size_t size) const
 {
-    // So far, we only know of this one structure version.
-    // If size isn't enough for that we bail:
-    if (size < sizeof(LTAPIAircraft::LTAPIBulkData))
+    // If size isn't enough for original structure we bail:
+    if (size < LTAPIBulkData_v120)
         return;
 
     // fill all values one by one
     // identification
     pOut->keyNum = fd.key().num;
     // position, attitude
-    pOut->lat = (float)GetPPos().lat();
-    pOut->lon = (float)GetPPos().lon();
-    pOut->alt_ft = (float)GetPPos().alt_ft();
+    pOut->lat_f = (float)GetPPos().lat();
+    pOut->lon_f = (float)GetPPos().lon();
+    pOut->alt_ft_f = (float)GetPPos().alt_ft();
     pOut->heading = (float)GetHeading();
     pOut->track = (float)GetTrack();
     pOut->roll = (float)GetRoll();
@@ -1822,6 +1828,13 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
     pOut->bits.multiIdx = multiIdx;
     pOut->bits.filler2 = 0;
     pOut->bits.filler3 = 0;
+    
+    // v1.22 additions
+    if (size >= LTAPIBulkData_v122) {
+        pOut->lat = GetPPos().lat();
+        pOut->lon = GetPPos().lon();
+        pOut->alt_ft = GetPPos().alt_ft();
+    }
 }
     
 // copies text information out into the bulk structure for LTAPI usage
@@ -1831,9 +1844,8 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
 void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
                                size_t size) const
 {
-    // So far, we only know of this one structure version.
-    // If size isn't enough for that we bail:
-    if (size < sizeof(LTAPIAircraft::LTAPIBulkInfoTexts))
+    // If size isn't enough for original structure we bail:
+    if (size < LTAPIBulkInfoTexts_v120)
         return;
     
     // Fill the output buffer one by one
@@ -1857,6 +1869,11 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
     STRCPY_ATMOST(pOut->origin,         stat.originAp);
     STRCPY_ATMOST(pOut->destination,    stat.destAp);
     STRCPY_ATMOST(pOut->trackedBy,      dyn.pChannel ? dyn.pChannel->ChName() : "-");
+    
+    // v1.22 additions
+    if (size >= LTAPIBulkInfoTexts_v122) {
+        STRCPY_ATMOST(pOut->cslModel,   GetModelName());
+    }
 }
 
 //

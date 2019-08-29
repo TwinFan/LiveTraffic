@@ -78,8 +78,27 @@ public:
     // and returning information from it
 public:
     static bool ReadDoc8643File ();
-    static const Doc8643& get (const std::string _type);
+    static const Doc8643& get (const std::string& _type);
 };
+
+//
+// MARK: ModelIcaoType
+//
+
+/// @brief Represents an entry in the `model_typecode.txt` file
+/// @details The `model_typecode.txt` file matches
+/// non-standardized human-readable `model` entries in
+/// tracking data (especially in OpenSky's data) to an ICAO a/c type code.
+/// The file has been created by forum user crbascott.
+/// @see https://forums.x-plane.org/index.php?/forums/topic/188206-matching-lacks-icao-ac-type-code/
+namespace ModelIcaoType
+{
+    /// Read the `model_typecode.txt` file
+    bool ReadFile ();
+    /// Lookup ICAO type designator for human-readable model text, empty if nothing found
+    const std::string& getIcaoType (const std::string& _model);
+}
+
 
 //
 // MARK: DataRefs

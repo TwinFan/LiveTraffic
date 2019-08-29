@@ -120,7 +120,7 @@ void ForeFlightSender::udpSend()
             udpSender.Open (FF_LOCALHOST, port, FF_NET_BUF_SIZE, 0, true);
             LOG_MSG(logINFO, MSG_FF_OPENED);
         }
-        catch (std::runtime_error e) {
+        catch (std::runtime_error& e) {
             // exception...can only really happen in UDPReceiver::Open
             LOG_MSG(logERR, ERR_UDP_RCVR_OPEN, ChName(),
                     FF_LOCALHOST, port,

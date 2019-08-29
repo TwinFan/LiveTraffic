@@ -49,7 +49,7 @@ void conv_color (int inCol, float outColor[4])
 //
 
 // global map, which stores the content of the doc8643 file
-std::map<std::string, Doc8643> mapDoc8643;
+std::unordered_map<std::string, Doc8643> mapDoc8643;
 const Doc8643 DOC8643_EMPTY;    // objet returned if Doc8643::get fails
 
 // constructor setting all elements
@@ -155,7 +155,7 @@ bool Doc8643::ReadDoc8643File ()
 }
 
 // return the matching Doc8643 object from the global map
-const Doc8643& Doc8643::get (const std::string _type)
+const Doc8643& Doc8643::get (const std::string& _type)
 try
 {
     return mapDoc8643.at(_type);
@@ -163,6 +163,116 @@ try
 catch (...)
 {
     return DOC8643_EMPTY;
+}
+
+//
+// MARK: ModelIcaoType
+//
+
+namespace ModelIcaoType
+{
+    /// Map, which stores the content of the model_typecode.txt file:
+    /// human-readable model text maps to ICAO type cide
+    std::unordered_map<std::string, std::string> mapModelIcaoType;
+    
+    /// global empty string returned if nothing is found in map
+    const std::string gEmptyString;
+
+    // Read the `model_typecode.txt` file
+    bool ReadFile ()
+    {
+        // clear the map
+        mapModelIcaoType.clear();
+        
+        // Put together path to model_typecode.txt
+        std::string path (LTCalcFullPluginPath(PATH_MODEL_TYPECODE_TXT));
+        
+        // open the file for reading
+        std::ifstream fIn (path);
+        if (!fIn) {
+            // if there is no config file output a warning, but otherwise no worries
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            SHOW_MSG(logERR, ERR_CFG_FILE_OPEN_IN,
+                     path.c_str(), sErr);
+            return false;
+        }
+        
+        // loop over lines of the file
+        std::string text;
+        int errCnt = 0;
+        for (int ln=1; fIn && errCnt <= ERR_CFG_FILE_MAXWARN; ln++) {
+            // read entire line
+            safeGetline(fIn, text);
+            if (text.empty())           // skip empty lines silently
+                continue;
+            
+            // ignore the first line, if it is just the column header
+            if (ln == 1 && text == "MODEL|TYPECODE")
+                continue;
+            
+            // Elements model and type code are separate by pipe.
+            // Find the last pipe in line (just in case there happens to a pipe in the model name, which is the first field)
+            const std::string::size_type pos = text.rfind('|');
+            // not found a pipe?
+            if (pos == std::string::npos ||
+                // pipe is first or last character? not good either as either string would be empty then
+                pos == 0 || pos == text.size()-1) {
+                // I/O was good, but line has wrong format
+                SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
+                         path.c_str(), ln, text.c_str());
+                errCnt++;
+            }
+            
+            // everything to the left is mode text
+            std::string mdl = text.substr(0,pos);
+            str_toupper(trim(mdl));
+            // everything to the right is type code, which should exist
+            // (but if not we use it anyway...)
+            std::string type = text.substr(pos+1);
+            str_toupper(trim(type));
+#if TEST_MODEL_TYPE_CODES
+            // quite many invalid codes are in the file, which originates
+            // in the OpenSky aircraft database...we don't warn about all of them
+            if (Doc8643::get(type) == DOC8643_EMPTY) {
+                LOG_MSG(logWARN, ERR_CFG_TYPE_INVALID,
+                        path.c_str(), ln,
+                        type.c_str());
+            }
+#endif
+            
+            // and just move it to the map:
+            mapModelIcaoType.emplace(std::move(mdl),
+                                     std::move(type));
+        }
+
+        // close file
+        fIn.close();
+        
+        // too many warnings?
+        if (errCnt > ERR_CFG_FILE_MAXWARN) {
+            SHOW_MSG(logERR, ERR_CFG_FILE_READ,
+                     path.c_str(), ERR_CFG_FILE_TOOMANY);
+            return false;
+        }
+        
+        // looks like success
+        return true;
+    }
+    
+    // Lookup ICAO type designator for human-readable model text, empty if nothing found
+    const std::string& getIcaoType (const std::string& _model)
+    {
+        try {
+            // lookup a value on the map, throws std::out_of_range if nothing found
+            return mapModelIcaoType.at(_model);
+        }
+        catch (...) {
+            // caught exception -> nothing found in map, return something empty
+            return gEmptyString;
+        }
+    }
+
 }
 
 //MARK: X-Plane Datarefs
@@ -618,6 +728,9 @@ bool DataRefs::Init ()
     
     // read Doc8643 file (which we could live without)
     Doc8643::ReadDoc8643File();
+    
+    // read model_typecode file (which we could live without)
+    ModelIcaoType::ReadFile();
     
     // read configuration file if any
     if (!LoadConfigFile())

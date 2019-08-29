@@ -475,7 +475,7 @@ bool TCPConnection::listenAccept (int numConnections)
         // if we wait for exactly one connection then we "unlisten" once we accepted that one connection:
         return accept(numConnections == 1);
     }
-    catch (NetRuntimeError e) {
+    catch (NetRuntimeError& e) {
         LOG_MSG(logERR, "%s (%s)", e.what(), e.errTxt.c_str());
     }
     return false;
