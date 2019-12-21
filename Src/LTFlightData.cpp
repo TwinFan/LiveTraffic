@@ -2149,7 +2149,19 @@ bool LTFlightData::CreateAircraft ( double simTime )
         }
         
         // create the object (constructor will recursively re-access the lock)
-        pAc = new LTAircraft(*this);
+        try {
+            pAc = new LTAircraft(*this);
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_EXCEPTION_AC_CREATE,
+                    key().c_str(), statData.acTypeIcao.c_str(),
+                    e.what());
+            pAc = nullptr;
+        }
+        catch(...) {
+            LOG_MSG(logERR, ERR_UNKN_EXCP_AC_CREATE,
+                    key().c_str(), statData.acTypeIcao.c_str());
+            pAc = nullptr;
+        }
         if (!pAc)
         {
             LOG_MSG(logERR,ERR_NEW_OBJECT,key().c_str());

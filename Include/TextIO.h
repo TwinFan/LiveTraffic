@@ -87,8 +87,6 @@ public:
     // copy/move constructor/assignment as per default
     LTErrorFD (const LTErrorFD& o) = default;
     LTErrorFD (LTErrorFD&& o) = default;
-    LTErrorFD& operator = (const LTErrorFD& o) = default;
-    LTErrorFD& operator = (LTErrorFD&& o) = default;
 };
 
 #define THROW_ERROR(lvl,...)                                        \

@@ -264,11 +264,9 @@ protected:
 public:
     LTFlightData();
     LTFlightData(const LTFlightData&);
-    LTFlightData(LTFlightData&&) = default;
     ~LTFlightData();
     
     LTFlightData& operator=(const LTFlightData&);
-    LTFlightData& operator=(LTFlightData&&) = default;
     
     bool IsValid() const { return bValid; }
     void SetInvalid();

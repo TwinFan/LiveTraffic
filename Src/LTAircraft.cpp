@@ -185,6 +185,8 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
                             double _startTS, double _by_ts,
                             bool _startEarly)
 {
+    LOG_ASSERT((defMin <= _to) && (_to <= defMax));
+
     // current value equals target already
     if (dequal(_to, val)) {
         SetVal(_to);                // just set the target value bit-euqal, no moving
@@ -195,7 +197,8 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
         // default values
         if (std::isnan(_from))       _from = val;
         if (std::isnan(_startTS))    _startTS = currCycle.simTime;
-        
+        LOG_ASSERT((defMin <= _from) && (_from <= defMax));
+
         // cleanup funny ts configurations
         if (_by_ts <= currCycle.simTime) {      // supposed to be done already?
             SetVal(_to);                        // just set the target value
@@ -525,13 +528,13 @@ bool fm_processModelLine (const char* fileName, int ln,
         return true;
     }
     
-    // split into name and value
-    static std::regex re ("(\\w+)\\s+(-?\\d+(\\.\\d+)?)");
+    // split into name and value (keeping integer and digits separate to avoid different decimal interpretation later on)
+    static std::regex re ("(\\w+)\\s+(-?\\d+)(\\.\\d+)?");
     std::smatch m;
     std::regex_search(text, m, re);
     
-    // three matches expected
-    if (m.size() != 4) {
+    // two or three matches expected
+    if (m.size() < 3 || m.size() > 4) {
         LOG_MSG(logWARN, ERR_CFG_FORMAT, fileName, ln, text.c_str());
         return false;
     }
@@ -539,6 +542,17 @@ bool fm_processModelLine (const char* fileName, int ln,
     // name and value
     std::string name (m[1]);
     double val = std::atof(m[2].str().c_str());
+    
+    // Are there some decimal places given?
+    // (This handling makes us independend of atof() interpreting any localized decimal point.
+    //  See https://github.com/TwinFan/LiveTraffic/issues/156 )
+    if (m.size() == 4 && m[3].str().size() >= 2) {
+        // copy everything after the dot
+        std::string decimals = m[3].str().substr(1);
+        const double divisor = std::pow(10, decimals.length());
+        const double dec = std::atof(decimals.c_str()) / divisor;
+        val += dec;
+    }
     
     // some very very basic bounds checking
     if (val < -10000 || val > 60000) {
@@ -550,9 +564,9 @@ bool fm_processModelLine (const char* fileName, int ln,
 #define FM_ASSIGN(nameOfVal) if (name == #nameOfVal) fm.nameOfVal = val
 #define FM_ASSIGN_MIN(nameOfVal,minVal) if (name == #nameOfVal) fm.nameOfVal = std::max(val,minVal)
 
-    FM_ASSIGN(GEAR_DURATION);
-    else FM_ASSIGN(GEAR_DEFLECTION);
-    else FM_ASSIGN(FLAPS_DURATION);
+    FM_ASSIGN_MIN(GEAR_DURATION,1.0);       // avoid zero - this is a moving parameter
+    else FM_ASSIGN_MIN(GEAR_DEFLECTION,0.1);// avoid zero - this is a moving parameter
+    else FM_ASSIGN_MIN(FLAPS_DURATION,1.0); // avoid zero - this is a moving parameter
     else FM_ASSIGN(VSI_STABLE);
     else FM_ASSIGN(ROTATE_TIME);
     else FM_ASSIGN(VSI_FINAL);
@@ -565,7 +579,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(MIN_REVERS_SPEED);
     else FM_ASSIGN(TAXI_TURN_TIME);
     else FM_ASSIGN(FLIGHT_TURN_TIME);
-    else FM_ASSIGN(ROLL_MAX_BANK);
+    else FM_ASSIGN_MIN(ROLL_MAX_BANK,1.0);  // avoid zero - this is a moving parameter
     else FM_ASSIGN_MIN(ROLL_RATE, 1.0);     // avoid zero - this becomes a divisor
     else FM_ASSIGN(FLAPS_UP_SPEED);
     else FM_ASSIGN(FLAPS_DOWN_SPEED);
@@ -810,6 +824,8 @@ const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
     }
     
     // no match: return default
+    LOG_MSG(logWARN, ERR_FM_NOT_FOUND,
+            acTypeIcao.c_str(), acSpec.c_str());
     return MDL_DEFAULT;
 }
 

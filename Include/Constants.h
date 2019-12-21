@@ -30,7 +30,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.22f;
+constexpr float VERSION_NR = 1.23f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -271,6 +271,8 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_INV_TRANP_ICAO      "Ignoring data for invalid transponder code '%s'"
 #define ERR_TIME_NONLINEAR      "Time moved non-linear/jumped by %.1f seconds, will re-init aircraft."
 #define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"
+#define ERR_EXCEPTION_AC_CREATE "Exception occured while creating a/c %s of type %s: %s"
+#define ERR_UNKN_EXCP_AC_CREATE "Unknown " ERR_EXCEPTION_AC_CREATE
 #define ERR_WIDGET_CREATE       "Could not create widget required for settings UI"
 #define ERR_CFG_FILE_OPEN_OUT   "Could not create config file '%s': %s"
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
@@ -298,6 +300,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_FM_UNKNOWN_SECTION  "Referring to unknown model section in '%s', line %d: %s"
 #define ERR_FM_UNKNOWN_PARENT   "Parent section missing in '%s', line %d: %s"
 #define ERR_FM_REGEX            "%s in '%s', line %d: %s"
+#define ERR_FM_NOT_FOUND        "Found no flight model for ICAO %s/match-string %s: will use default"
 constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while reading config file, then: dead
 
 //MARK: Debug Texts
