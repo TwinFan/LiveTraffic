@@ -124,7 +124,8 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     int l, t, r, b;
     XPLMGetWindowGeometry(in_window_id, &l, &t, &r, &b);
     
-    LTDrawTranslucentDarkBox(l, t, r, b);
+    // Full as translucent dark box
+    XPLMDrawTranslucentDarkBox(l, t, r, b);
     
     b = WIN_WIDTH;                          // word wrap width = window width
     

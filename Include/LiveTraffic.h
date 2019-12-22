@@ -115,6 +115,7 @@
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
 #include "XPCompatibility.h"
+#include "LTApt.h"
 
 // LiveTraffic channels
 #include "Network.h"
@@ -239,9 +240,6 @@ bool FetchXPlaneOrgVersion ();
 
 // default window open mode depends on XP10/11 and VR
 TFWndMode GetDefaultWndOpenMode ();
-
-// Replacement for XPLMDrawTranslucentDarkBox courtesy of slgoldberg
-void LTDrawTranslucentDarkBox (int l, int t, int r, int b);
 
 // MARK: Compiler differences
 

@@ -11,6 +11,7 @@
 		2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2536421C2215FE81000DC56F /* XPCompatibility.cpp */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
+		25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25624BD923B014F600B899E1 /* LTApt.cpp */; };
 		2564042621AAC914001E2F2A /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042521AAC914001E2F2A /* Security.framework */; };
 		2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042921AAC9B5001E2F2A /* GSS.framework */; };
 		2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */; };
@@ -65,6 +66,8 @@
 		255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1022Z.json"; sourceTree = "<group>"; };
 		255F35AE2097C0730080B78E /* DataRefs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = DataRefs.txt; path = "../../../Applications/X-Plane 11/Resources/plugins/DataRefs.txt"; sourceTree = "<group>"; };
 		25606F8D21B362790017D1EE /* readme.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = readme.html; sourceTree = "<group>"; };
+		25624BD923B014F600B899E1 /* LTApt.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTApt.cpp; sourceTree = "<group>"; };
+		25624BDB23B0150300B899E1 /* LTApt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTApt.h; sourceTree = "<group>"; };
 		2564042521AAC914001E2F2A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
@@ -263,6 +266,7 @@
 		255857992095B78300816F65 /* Src */ = {
 			isa = PBXGroup;
 			children = (
+				25624BD923B014F600B899E1 /* LTApt.cpp */,
 				257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */,
 				2558579320950C6700816F65 /* CoordCalc.cpp */,
 				25C59459207A2B7500E52073 /* DataRefs.cpp */,
@@ -375,6 +379,7 @@
 		25A095BD2203B01300658AA8 /* Include */ = {
 			isa = PBXGroup;
 			children = (
+				25624BDB23B0150300B899E1 /* LTApt.h */,
 				25A095C62203B01300658AA8 /* ACInfoWnd.h */,
 				25A095C52203B01300658AA8 /* Constants.h */,
 				25A095C02203B01300658AA8 /* CoordCalc.h */,
@@ -682,6 +687,7 @@
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
+				25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */,
 				254EA4702083E403008A312F /* parson.c in Sources */,
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,

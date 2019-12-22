@@ -66,6 +66,7 @@ set(Header_Files
     Include/LiveTraffic.h
     Include/LTADSBEx.h
     Include/LTAircraft.h
+    Include/LTApt.h
     Include/LTChannel.h
     Include/LTFlightData.h
     Include/LTForeFlight.h
@@ -91,6 +92,7 @@ set(Source_Files
     Src/LiveTraffic.cpp
     Src/LTADSBEx.cpp
     Src/LTAircraft.cpp
+    Src/LTApt.cpp
     Src/LTChannel.cpp
     Src/LTFlightData.cpp
     Src/LTForeFlight.cpp
