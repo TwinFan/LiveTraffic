@@ -510,78 +510,6 @@ struct cmdRefDescrTy {
 static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,
               "cmdRefsLT and CMD_REFS_LT[] differ in number of elements");
 
-//MARK: Inform DataRefEditor about our datarefs
-// (see http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
-//      https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp )
-
-// DataRef editors, which we inform about our dataRefs
-#define MSG_ADD_DATAREF 0x01000000
-const char* DATA_REF_EDITORS[] = {
-    "xplanesdk.examples.DataRefEditor",
-    "com.leecbaker.datareftool"
-};
-
-
-float LoopCBOneTimeSetup (float, float, int, void*)
-{
-    static enum ONCE_CB_STATE
-    { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_WAIT_FOR_VER, ONCE_CB_DONE }
-    eState = ONCE_CB_ADD_DREFS;
-    
-    static std::future<bool> futVerCheck;
-    
-    switch (eState) {
-        case ONCE_CB_ADD_DREFS:
-            // loop over all available data ref editor signatures
-            for (const char* szDREditor: DATA_REF_EDITORS) {
-                // find the plugin by signature
-                XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
-                if (PluginID != XPLM_NO_PLUGIN_ID) {
-                    // send message regarding each dataRef we offer
-                    for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
-                        XPLMSendMessageToPlugin(PluginID,
-                                                MSG_ADD_DATAREF,
-                                                (void*)def.getDataName());
-                }
-            }
-            // next: Auto Start, but wait another 2 seconds for that
-            eState = ONCE_CB_AUTOSTART;
-            return 2;
-            
-        case ONCE_CB_AUTOSTART:
-            // Auto Start display of aircrafts
-            if (dataRefs.GetAutoStart())
-                dataRefs.SetAircraftsDisplayed(true);
-            
-            // check at X-Plane.org for version updates
-            if (dataRefs.NeedNewVerCheck()) {
-                futVerCheck = std::async(std::launch::async, FetchXPlaneOrgVersion);
-                eState = ONCE_WAIT_FOR_VER;
-                return 2;
-            }
-            
-            // done, don't call me again
-            eState = ONCE_CB_DONE;
-            return 0;
-            
-        case ONCE_WAIT_FOR_VER:
-            // did the version check not yet come back?
-            if (std::future_status::ready != futVerCheck.wait_for(std::chrono::microseconds(0)))
-                return 2;
-                
-            // version check successful?
-            if (futVerCheck.get())
-                HandleNewVersionAvail();      // handle the outcome
-            
-            // done
-            eState = ONCE_CB_DONE;
-            [[fallthrough]];
-        default:
-            // don't want to be called again
-            return 0;
-    }
-}
-
 // returns offset to UTC in seconds
 // https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
 int timeOffsetUTC()
@@ -723,9 +651,6 @@ bool DataRefs::Init ()
     if (!RegisterDataAccessors() || !RegisterCommands())
         return false;
 
-    // Register callback to inform DataRef Editor later on
-    XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
-    
     // read Doc8643 file (which we could live without)
     Doc8643::ReadDoc8643File();
     
@@ -770,9 +695,6 @@ void DataRefs::Stop ()
         XPLMUnregisterDataAccessor(dr);
         dr = NULL;
     }
-    
-    // unregister the callback for informing DRE
-    XPLMUnregisterFlightLoopCallback(LoopCBOneTimeSetup, NULL);
 }
 
 // call XPLMRegisterDataAccessor

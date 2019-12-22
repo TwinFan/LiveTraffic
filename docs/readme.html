@@ -74,6 +74,7 @@
         <code>LiveTraffic/Resources/Doc8643.txt</code><br>
         <code>LiveTraffic/Resources/FlightModels.prf</code><br>
         <code>LiveTraffic/Resources/lights.png</code><br>
+        <code>LiveTraffic/Resources/model_typecode.txt</code><br>
         <code>LiveTraffic/Resources/related.txt</code><br>
     </P>
 
@@ -85,12 +86,16 @@
     
     <h3>v1.23</h3>
     <ul>
+        <li>UPDATED <code>Doc8643.txt</code> and <code>related.txt</code> to
+            include new ICAO aircraft type codes like B3XM (B737 MAX 10)
+        </li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/156">#156</a>
             a bug preventing the display of aircraft when decimal point in
             regional settings differs from dot.
         </li>
-        <li>UPDATED <code>Doc8643.txt</code> and <code>related.txt</code> to
-            include new ICAO aircraft type codes like B3XM (B737 MAX 10)
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/50">#50</a>
+            a crash in X-Plane startup after failed initalization of LiveTraffic
+            (again), e.g. due to invalid configuration file.
         </li>
     </ul>
 

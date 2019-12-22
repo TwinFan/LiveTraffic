@@ -341,6 +341,83 @@ bool RegisterCommandHandlers ()
     return true;
 }
 
+//MARK: One-Time Setup (Flight Loop Callback)
+
+// For informing dataRe Editor and tool see
+// http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
+// https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp
+
+// DataRef editors, which we inform about our dataRefs
+#define MSG_ADD_DATAREF 0x01000000
+const char* DATA_REF_EDITORS[] = {
+    "xplanesdk.examples.DataRefEditor",
+    "com.leecbaker.datareftool"
+};
+
+/// One-Time Setup state
+static enum ONCE_CB_STATE
+{ ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_WAIT_FOR_VER, ONCE_CB_DONE }
+eOneTimeState = ONCE_CB_ADD_DREFS;
+
+
+/// Flightloop callback for one-time setup
+float LoopCBOneTimeSetup (float, float, int, void*)
+{
+    static std::future<bool> futVerCheck;
+    
+    switch (eOneTimeState) {
+        case ONCE_CB_ADD_DREFS:
+            // loop over all available data ref editor signatures
+            for (const char* szDREditor: DATA_REF_EDITORS) {
+                // find the plugin by signature
+                XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
+                if (PluginID != XPLM_NO_PLUGIN_ID) {
+                    // send message regarding each dataRef we offer
+                    for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
+                        XPLMSendMessageToPlugin(PluginID,
+                                                MSG_ADD_DATAREF,
+                                                (void*)def.getDataName());
+                }
+            }
+            // next: Auto Start, but wait another 2 seconds for that
+            eOneTimeState = ONCE_CB_AUTOSTART;
+            return 2;
+            
+        case ONCE_CB_AUTOSTART:
+            // Auto Start display of aircrafts
+            if (dataRefs.GetAutoStart())
+                dataRefs.SetAircraftsDisplayed(true);
+            
+            // check at X-Plane.org for version updates
+            if (dataRefs.NeedNewVerCheck()) {
+                futVerCheck = std::async(std::launch::async, FetchXPlaneOrgVersion);
+                eOneTimeState = ONCE_WAIT_FOR_VER;
+                return 2;
+            }
+            
+            // done, don't call me again
+            eOneTimeState = ONCE_CB_DONE;
+            return 0;
+            
+        case ONCE_WAIT_FOR_VER:
+            // did the version check not yet come back?
+            if (std::future_status::ready != futVerCheck.wait_for(std::chrono::microseconds(0)))
+                return 2;
+                
+            // version check successful?
+            if (futVerCheck.get())
+                HandleNewVersionAvail();      // handle the outcome
+            
+            // done
+            eOneTimeState = ONCE_CB_DONE;
+            [[fallthrough]];
+        default:
+            // don't want to be called again
+            return 0;
+    }
+}
+
+
 //MARK: XPlugin Callbacks
 PLUGIN_API int XPluginStart(
 							char *		outName,
@@ -404,6 +481,10 @@ PLUGIN_API int XPluginStart(
 PLUGIN_API int  XPluginEnable(void)
 {
     try {
+        // Register callback to inform DataRef Editor later on
+        eOneTimeState = ONCE_CB_ADD_DREFS;
+        XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
+        
         // Enable showing aircrafts
         if (!LTMainEnable()) return 0;
 
@@ -455,6 +536,9 @@ PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * /*i
 
 PLUGIN_API void XPluginDisable(void) {
     try {
+        // unregister the one-time callback, just in case
+        XPLMUnregisterFlightLoopCallback(LoopCBOneTimeSetup, NULL);
+
         // if there still is a message window remove it
         DestroyWindow();
         
