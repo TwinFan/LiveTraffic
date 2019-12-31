@@ -186,7 +186,7 @@ public:
     inline double dist (const positionTy& pos2 ) const        { return CoordDistance ( *this, pos2); }
     inline vectorTy between (const positionTy& pos2 ) const   { return CoordVectorBetween ( *this, pos2); }
     inline positionTy destPos (const vectorTy& vec ) const    { return CoordPlusVector ( *this, vec); }
- //   positionTy deltaPos (const vectorTy& vec ) const;
+    inline positionTy operator+ (const vectorTy& vec ) const  { return destPos (vec); }
     inline double vsi_m (const positionTy& posTo) const       { return (posTo.alt_m()-alt_m()) / (posTo.ts()-ts()); }   // [m/s]
     inline double vsi_ft (const positionTy& posTo) const      { return vsi_m(posTo) * SEC_per_M/M_per_FT; }             // [ft/min]
     inline double speed_m (const positionTy& posTo) const     { return dist(posTo) / (posTo.ts()-ts()); }               // [m/s]
@@ -199,10 +199,6 @@ public:
     // convert between World and Local OpenGL coordinates
     positionTy& LocalToWorld ();
     positionTy& WorldToLocal ();
-    /* FIXME: Remove
-    // return an on-ground-status guess based on a from-status and a to-status
-    static onGrndE DeriveGrndStatus (onGrndE from, onGrndE to);
-     */
 };
 
 typedef std::deque<positionTy> dequePositionTy;
@@ -222,8 +218,9 @@ void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
 // return the average of two headings, shorter side, normalized to [0;360)
 double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
 
-// return the smaller difference between two headings
-// -180 <= HeadingDiff <= 180
+/// @brief Difference between two headings
+/// @returns number of degrees to turn from h1 to reach h2
+/// -180 <= HeadingDiff <= 180
 double HeadingDiff (double h1, double h2);
 
 // a bounding box has a north/west and a south/east corner
@@ -234,11 +231,27 @@ struct boundingBoxTy {
     boundingBoxTy () : nw(), se() {}
     boundingBoxTy (const positionTy& inNw, const positionTy& inSe ) :
     nw(inNw), se(inSe) {}
-    // computes a bounding box based on a central position and a box width/
-    // height (height defaults to width)
-    boundingBoxTy (const positionTy& center, double width, double height=-1 );
     
-    // standard string for any output purposes (returns static buffer!)
+    /// @brief computes a bounding box based on a central position and a box width/height
+    /// @param center Center position
+    /// @param width Width of box in meters
+    /// @param height Height of box in meters (defaults to `width`)
+    boundingBoxTy (const positionTy& center, double width, double height = NAN );
+    
+    /// Enlarge the box by the given x/y values in meters on each side (`y` defaults to `x`)
+    void enlarge (double x, double y = NAN);
+    /// Increases the bounding box to include the given position
+    void enlarge (const positionTy& lPos);
+    /// Increases the bounding box to include the given position(s)
+    void enlarge (std::initializer_list<positionTy> lPos) {
+       for (const positionTy& pos: lPos)
+            enlarge(pos);
+    }
+    
+    /// Center point of bounding box
+    positionTy center () const;
+
+    // standard string for any output purposes
     operator std::string() const;
     
     // is position within bounding box?

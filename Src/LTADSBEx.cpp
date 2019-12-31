@@ -95,10 +95,10 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(adsbxTime);
     
-    // let's cycle the aircrafts
+    // let's cycle the aircraft
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, ADSBEX_AIRCRAFT_ARR);
-    // iterate all aircrafts in the received flight data (can be 0 or even pJAcList == NULL!)
+    // iterate all aircraft in the received flight data (can be 0 or even pJAcList == NULL!)
     for ( size_t i=0; pJAcList && (i < json_array_get_count(pJAcList)); i++ )
     {
         // get the aircraft
@@ -505,7 +505,7 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
     // save last path verified to minimize I/O
     std::string lastCheckedPath;
     
-    // the bounding box: only aircrafts in this box are considered
+    // the bounding box: only aircraft in this box are considered
     boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
     
     // simulated "now" in full minutes UTC
@@ -944,7 +944,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 std::prev(iBef)->between(refPos).vsi : // take the vsi between these two
                                 mdl.VSI_FINAL * Ms_per_FTm;            // no, assume reasonable vsi
                                 
-                                const double vsiDirectMain = refPos.between(mainPos).vsi;
+                                const double vsiDirectMain = refPos.vsi_m(mainPos);
                                 
                                 if (vsiBef < -(mdl.VSI_STABLE * Ms_per_FTm) && vsiBef < vsiDirectMain)
                                 {

@@ -414,7 +414,7 @@ void LTSettingsUI::Enable()
         //      which receives the callbacks for the changed dataRefs)
         //      Class LTSettingsUI has no more code for handling these:
         btnBasicsEnable.setId(widgetIds[UI_BASICS_BTN_ENABLE],
-                              DATA_REFS_LT[DR_CFG_AIRCRAFTS_DISPLAYED]);
+                              DATA_REFS_LT[DR_CFG_AIRCRAFT_DISPLAYED]);
         btnBasicsAutoStart.setId(widgetIds[UI_BASICS_BTN_AUTO_START],
                               DATA_REFS_LT[DR_CFG_AUTO_START]);
         btnOpenSkyLive.setId(widgetIds[UI_BASICS_BTN_OPENSKY_LIVE],

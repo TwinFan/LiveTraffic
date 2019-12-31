@@ -231,7 +231,7 @@ enum dataRefsLT {
     DR_SIM_TIME,
     
     // configuration options
-    DR_CFG_AIRCRAFTS_DISPLAYED,
+    DR_CFG_AIRCRAFT_DISPLAYED,
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
     DR_CFG_AI_UNDER_CONTROL,
@@ -450,7 +450,7 @@ protected:
     XPLMPluginID pluginID       = 0;
     logLevelTy iLogLevel        = logWARN;
     logLevelTy iMsgAreaLevel    = logINFO;
-    int bShowingAircrafts       = false;
+    int bShowingAircraft        = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
@@ -474,12 +474,12 @@ protected:
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW; // label color, by default yellow
-    int maxNumAc        = 50;           // how many aircrafts to create at most?
+    int maxNumAc        = 50;           // how many aircraft to create at most?
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
     int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
-    int fdBufPeriod     = 90;           // seconds to buffer before simulating aircrafts
+    int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
     int netwTimeout     = 90;           // [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
@@ -512,7 +512,7 @@ protected:
 //MARK: Debug helpers (public)
 public:
     std::string cslFixAcIcaoType;       // set of fixed values to use for...
-    std::string cslFixOpIcao;           // ...newly created aircrafts for...
+    std::string cslFixOpIcao;           // ...newly created aircraft for...
     std::string cslFixLivery;           // ...CSL model package testing
     RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
@@ -585,11 +585,11 @@ public:
     static void LTSetSimDateTime(void* p, int i);
     static int LTGetSimDateTime(void* p);
 
-    // livetraffic/cfg/aircrafts_displayed: Aircrafts Displayed
-    static void LTSetAircraftsDisplayed(void* p, int i);
-    inline int GetAircraftsDisplayed() const  { return bShowingAircrafts; }
-    void SetAircraftsDisplayed ( int bEnable );
-    int ToggleAircraftsDisplayed ();        // returns new status (displayed?)
+    // livetraffic/cfg/aircrafts_displayed: Aircraft Displayed
+    static void LTSetAircraftDisplayed(void* p, int i);
+    inline int AreAircraftDisplayed() const  { return bShowingAircraft; }
+    void SetAircraftDisplayed ( int bEnable );
+    int ToggleAircraftDisplayed ();        // returns new status (displayed?)
     
     inline XPLMPluginID GetMyPluginId() const { return pluginID; }
     
@@ -684,10 +684,10 @@ public:
     // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP API)
     inline bool GetDebugModelMatching() const   { return bDebugModelMatching; }
     
-    // Number of aircrafts
-    inline int GetNumAircrafts() const          { return cntAc; }
-    int IncNumAircrafts();
-    int DecNumAircrafts();
+    // Number of aircraft
+    inline int GetNumAc() const                 { return cntAc; }
+    int IncNumAc();
+    int DecNumAc();
 
     // Get XP System Path
     inline std::string GetXPSystemPath() const  { return XPSystemPath; }

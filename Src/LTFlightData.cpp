@@ -31,7 +31,7 @@
 //
 
 // the global map of all received flight data,
-// which also includes pointer to the simulated aircrafts
+// which also includes pointer to the simulated aircraft
 mapLTFlightDataTy mapFd;
 // modifying the map is controlled by a mutex
 // (note that mapFdMutex must be locked before dataAccessMutex
@@ -697,10 +697,10 @@ void LTFlightData::DataSmoothing (bool& bChanged)
          itPrev != itLast;
          ++it, ++itPrev)
     {
-        dist += itPrev->between(*it).dist;                      // distance between prev and next
+        dist += itPrev->dist(*it);                              // distance between prev and next
     }
     const double totTime = itLast->ts() - posFirst.ts();
-    // sanity check: some easonable time
+    // sanity check: some reasonable time
     if (totTime < 1.0)
         return;
     // avg speed:
@@ -718,7 +718,7 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     {
         // speed is constant, but distances differs from leg to leg
         // and, thus, determines time difference:
-        it->ts() = itPrev->ts() + itPrev->between(*it).dist / speed;
+        it->ts() = itPrev->ts() + itPrev->dist(*it) / speed;
     }
     
     // If previously there where two (or more) positions with the exact same
@@ -791,9 +791,71 @@ bool LTFlightData::CalcNextPos ( double simTime )
             
             // no positions left?
             if (posDeque.empty()) {
-                if (dataRefs.GetDebugAcPos(key()))
-                    LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
-                return false;
+                // If descending: Try finding a runway to land on
+                if (pAc->GetVSI_ft() < -pAc->mdl.VSI_STABLE)
+                {
+                    const positionTy& acTo = pAc->GetToPos();
+                    positionTy posRwy = LTAptFindRwy(*pAc);
+                    if (posRwy.isNormal()) {
+                        // found a landing spot!
+                        // If it is 'far' away in terms of time then we don't add it
+                        // directly...maybe the channel wakes up and gives us
+                        // real data that we don't want to miss.
+                        // So we add only a part of the way to the rwy.
+                        vectorTy vecRwy = acTo.between(posRwy);
+
+                        // At most we travel as far as a refresh interval takes us
+                        const double d_ts = posRwy.ts() - simTime;
+                        if (d_ts > (double)dataRefs.GetFdRefreshIntvl())
+                        {
+                            // shorten the distance so it only takes as long as a refresh interval
+                            vecRwy.dist *= (double)dataRefs.GetFdRefreshIntvl() / d_ts;
+                            posRwy = acTo + vecRwy;
+                            posRwy.flightPhase = LTAircraft::FPH_APPROACH;
+                            // Add the it to the queue
+                            LOG_MSG(logDEBUG, "%s: Added intermediate %s",
+                                    keyDbg().c_str(),
+                                    std::string(posRwy).c_str());
+                            posDeque.emplace_back(std::move(posRwy));
+                        } else {
+                            // The final leg down onto the runway.
+                            // Little trick here: We add 2 stops to make sure
+                            // that latest shortly before touching down we
+                            // are fully aligned with the runway.
+                            // Rwy heading is given in posRwy.heading().
+                            positionTy posBefore =
+                            posRwy + vectorTy(std::fmod(posRwy.heading() + 180.0, 360.0),   // angle (reversed!)
+                                              ART_RWY_ALIGN_DIST,                           // distance
+                                              -vecRwy.vsi,                                  // VSI (reversed!)
+                                              std::min(vecRwy.speed,                        // speed (capped at max final speed)
+                                                       pAc->mdl.FLAPS_DOWN_SPEED * ART_FINAL_SPEED_F / KT_per_M_per_S));
+                            // Timestamp is now beyond posRwy.ts() as time always moves forward,
+                            // but posBefore is _before_ posRwy:
+                            posBefore.ts() -= 2 * (posBefore.ts() - posRwy.ts());
+                            posBefore.onGrnd = positionTy::GND_OFF;
+                            posBefore.flightPhase = LTAircraft::FPH_FINAL;
+                            
+                            // Add both position to the queue
+                            LOG_MSG(logDEBUG, "%s: Added final %s",
+                                    keyDbg().c_str(),
+                                    std::string(posBefore).c_str());
+                            posDeque.emplace_back(std::move(posBefore));
+                            LOG_MSG(logDEBUG, "%s: Added touch-down %s",
+                                    keyDbg().c_str(),
+                                    std::string(posRwy).c_str());
+                            posDeque.emplace_back(std::move(posRwy));
+                        }
+                        bChanged = true;
+                    }
+                }
+
+                // still no positions left?
+                if (posDeque.empty())
+                {
+                    if (dataRefs.GetDebugAcPos(key()))
+                        LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
+                    return false;
+                }
             }
         } else {
             // If there is no a/c yet then we need one past and
@@ -1423,11 +1485,11 @@ void LTFlightData::AppendNewPos()
                     size_t idx = std::distance(posDeque.begin(), i);
                     if (idx >= 2) {
                         pBefore = &(posDeque[idx-1]);
-                        heading = posDeque[idx-2].between(*pBefore).angle;
+                        heading = posDeque[idx-2].angle(*pBefore);
                     } else if (idx == 1) {
                         pBefore = &(posDeque[0]);
                         if (pAc)
-                            heading = pAc->GetToPos().between(*pBefore).angle;
+                            heading = pAc->GetToPos().angle(*pBefore);
                     } else if (pAc) {            // idx == 0 -> insert at beginning
                         pBefore = &(pAc->GetToPos());
                         heading = pAc->GetTrack();
@@ -2078,8 +2140,8 @@ bool LTFlightData::CreateAircraft ( double simTime )
     // short-cut if exists already
     if ( hasAc() ) return true;
     
-    // short-cut if too many aircrafts created already
-    if ( dataRefs.GetNumAircrafts() >= dataRefs.GetMaxNumAc() ) {
+    // short-cut if too many aircraft created already
+    if ( dataRefs.GetNumAc() >= dataRefs.GetMaxNumAc() ) {
         if ( !bTooManyAcMsgShown )              // show warning once only per session
             SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
         bTooManyAcMsgShown = true;
@@ -2183,7 +2245,7 @@ void LTFlightData::DestroyAircraft ()
 }
 
 // static function to
-// update the CSL model of all aircrafts (e.g. after loading new CSL models)
+// update the CSL model of all aircraft (e.g. after loading new CSL models)
 void LTFlightData::UpdateAllModels ()
 {
     try {

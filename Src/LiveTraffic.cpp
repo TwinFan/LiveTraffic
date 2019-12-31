@@ -49,7 +49,7 @@ enum menuItems {
     MENU_ID_AC_INFO_WND_POPOUT,
     MENU_ID_AC_INFO_WND_SHOWN,
     MENU_ID_AC_INFO_WND_CLOSE_ALL,
-    MENU_ID_TOGGLE_AIRCRAFTS,
+    MENU_ID_TOGGLE_AIRCRAFT,
     MENU_ID_HAVE_TCAS,
     MENU_ID_TOGGLE_LABELS,
     MENU_ID_SETTINGS_UI,
@@ -90,8 +90,8 @@ void MenuHandler(void * /*mRef*/, void * iRef)
             case MENU_ID_AC_INFO_WND_CLOSE_ALL:
                 ACIWnd::CloseAll();
                 break;
-            case MENU_ID_TOGGLE_AIRCRAFTS:
-                dataRefs.ToggleAircraftsDisplayed();
+            case MENU_ID_TOGGLE_AIRCRAFT:
+                dataRefs.ToggleAircraftDisplayed();
                 break;
             case MENU_ID_HAVE_TCAS:
                 if (dataRefs.HaveAIUnderControl())
@@ -133,12 +133,12 @@ void MenuHandlerHelp (void * /*mRef*/, void * iRef)
     LTOpenHelp(helpPath);
 }
 
-// the "Aircrafts displayed" menu item includes the number of displayed a/c
+// the "Aircraft displayed" menu item includes the number of displayed a/c
 // (if the item is checked, i.e. active)
-void MenuCheckAircraftsDisplayed ( bool bChecked, int numAc )
+void MenuCheckAircraftDisplayed ( bool bChecked, int numAc )
 {
-    XPLMCheckMenuItem(// checkmark the menu item if aircrafts shown
-                      menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
+    XPLMCheckMenuItem(// checkmark the menu item if aircraft shown
+                      menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFT],
                       bChecked ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     
     // update menu item's name with number of a/c
@@ -147,13 +147,13 @@ void MenuCheckAircraftsDisplayed ( bool bChecked, int numAc )
     {
         char szItemName[50];
         snprintf(szItemName, sizeof(szItemName), MENU_TOGGLE_AC_NUM, numAc);
-        XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
+        XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_TOGGLE_AIRCRAFT],
                             szItemName, 0);
     }
         else
     {
-        XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],
-                            MENU_TOGGLE_AIRCRAFTS, 0);
+        XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_TOGGLE_AIRCRAFT],
+                            MENU_TOGGLE_AIRCRAFT, 0);
     }
 }
 
@@ -170,8 +170,8 @@ void MenuUpdateAllItemStatus()
     XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_LABELS],
                       dataRefs.ShallDrawLabels() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     // a/c displayed?
-    MenuCheckAircraftsDisplayed (dataRefs.GetAircraftsDisplayed(),
-                                 dataRefs.GetNumAircrafts() );
+    MenuCheckAircraftDisplayed (dataRefs.AreAircraftDisplayed(),
+                                 dataRefs.GetNumAc() );
     // checkmark the menu item if TCAS under control
     XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
                       dataRefs.HaveAIUnderControl() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
@@ -242,11 +242,11 @@ bool RegisterMenuItem ()
     // Separator
     XPLMAppendMenuSeparator(menuID);
     
-    // Show Aircrafts / with checkmark symbol
-    aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS] =
-    LT_AppendMenuItem(menuID, MENU_TOGGLE_AIRCRAFTS, (void *)MENU_ID_TOGGLE_AIRCRAFTS,
+    // Show Aircraft / with checkmark symbol
+    aMenuItems[MENU_ID_TOGGLE_AIRCRAFT] =
+    LT_AppendMenuItem(menuID, MENU_TOGGLE_AIRCRAFT, (void *)MENU_ID_TOGGLE_AIRCRAFT,
                       dataRefs.cmdLT[CR_AC_DISPLAYED]);
-    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFT],xplm_Menu_Unchecked);
     
     // Have/Get TCAS / with checkmark symbol
     aMenuItems[MENU_ID_HAVE_TCAS] =
@@ -318,7 +318,7 @@ struct cmdMenuMap {
     { CR_ACINFOWND_OPEN_POPPED_OUT, MENU_ID_AC_INFO_WND_POPOUT },
     { CR_ACINFOWND_HIDE_SHOW,       MENU_ID_AC_INFO_WND_SHOWN },
     { CR_ACINFOWND_CLOSE_ALL,       MENU_ID_AC_INFO_WND_CLOSE_ALL },
-    { CR_AC_DISPLAYED,              MENU_ID_TOGGLE_AIRCRAFTS },
+    { CR_AC_DISPLAYED,              MENU_ID_TOGGLE_AIRCRAFT },
     { CR_AC_TCAS_CONTROLLED,        MENU_ID_HAVE_TCAS },
     { CR_LABELS_TOGGLE,             MENU_ID_TOGGLE_LABELS },
 };
@@ -384,9 +384,9 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             return 2;
             
         case ONCE_CB_AUTOSTART:
-            // Auto Start display of aircrafts
+            // Auto Start display of aircraft
             if (dataRefs.GetAutoStart())
-                dataRefs.SetAircraftsDisplayed(true);
+                dataRefs.SetAircraftDisplayed(true);
             
             // check at X-Plane.org for version updates
             if (dataRefs.NeedNewVerCheck()) {
@@ -485,7 +485,10 @@ PLUGIN_API int  XPluginEnable(void)
         eOneTimeState = ONCE_CB_ADD_DREFS;
         XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
         
-        // Enable showing aircrafts
+        // Start reading apt.dat
+        LTAptEnable();
+        
+        // Enable showing aircraft
         if (!LTMainEnable()) return 0;
 
         // Create a message window and say hello
@@ -545,11 +548,11 @@ PLUGIN_API void XPluginDisable(void) {
         // deregister Settings UI
         settingsUI.Disable();
         
-        // stop showing aircrafts
+        // stop showing aircraft
         LTMainDisable ();
 
-        // Meu item "Aircrafts displayed" no checkmark symbol (but room one later)
-        XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
+        // Stop reading apt.dat
+        LTAptDisable();
 
         LOG_MSG(logMSG, MSG_DISABLED);
 

@@ -581,7 +581,7 @@ void LTFlightDataStop()
 }
 
 //
-//MARK: Show/Select Aircrafts / Thread Control
+//MARK: Show/Select Aircraft / Thread Control
 //
 // this function is spawned as a separate thread in LTFlightDataShowAircraft
 // and it runs in a loop until LTFlightDataHideAircraft stops it
@@ -656,7 +656,7 @@ void LTFlightDataSelectAc ()
     }
 }
 
-// called from main thread to start showing aircrafts
+// called from main thread to start showing aircraft
 bool LTFlightDataShowAircraft()
 {
     // is there a main thread running already? -> just return
@@ -675,7 +675,7 @@ bool LTFlightDataShowAircraft()
         return false;
     }
     
-    // create a new thread that receives flight data / creates aircrafts
+    // create a new thread that receives flight data / creates aircraft
     bFDMainStop = false;
     FDMainThread = std::thread ( LTFlightDataSelectAc );
     // and one for position calculation
@@ -692,7 +692,7 @@ bool LTFlightDataShowAircraft()
     return true;
 }
 
-// called from main thread to stop showing aircrafts
+// called from main thread to stop showing aircraft
 void LTFlightDataHideAircraft()
 {
     // is there a main thread running? -> stop it and wait for it to return
@@ -713,12 +713,12 @@ void LTFlightDataHideAircraft()
         p->Close();
     }
     
-    // Remove all flight data info including displayed aircrafts
+    // Remove all flight data info including displayed aircraft
     try {
         // access guarded by a mutex
         std::lock_guard<std::mutex> lock (mapFdMutex);
         mapFd.clear();
-        LOG_ASSERT ( dataRefs.GetNumAircrafts() == 0 );
+        LOG_ASSERT ( dataRefs.GetNumAc() == 0 );
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
     }
@@ -734,7 +734,7 @@ void LTFlightDataHideAircraft()
 
 void LTFlightDataAcMaintenance()
 {
-    int numAcBefore = dataRefs.GetNumAircrafts();
+    int numAcBefore = dataRefs.GetNumAc();
     
     try {
         // access guarded by the fd mutex
@@ -761,7 +761,7 @@ void LTFlightDataAcMaintenance()
     }
     
     /*** UI messages about filling up the buffer ***/
-    int numAcAfter = dataRefs.GetNumAircrafts();
+    int numAcAfter = dataRefs.GetNumAc();
     
     // initially: we might see some a/c but don't have enough data yet
     if ( initTimeBufFilled < 0 ) {
@@ -781,7 +781,7 @@ void LTFlightDataAcMaintenance()
         if (dataRefs.GetSimTime() >= initTimeBufFilled)
             initTimeBufFilled = 0;
     } else {
-        // tell the user a change from or to zero aircrafts (actually showing)
+        // tell the user a change from or to zero aircraft (actually showing)
         if ( !numAcBefore && (numAcAfter > 0))
             CreateMsgWindow(WIN_TIME_DISPLAY, logINFO, MSG_NUM_AC_INIT, numAcAfter);
         if ( (numAcBefore > 0) && !numAcAfter)

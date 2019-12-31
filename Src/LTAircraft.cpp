@@ -78,9 +78,9 @@ bool NextCycle (int newCycle)
     // time should move forward (positive difference) and not too much either
     // If time moved to far between two calls then we better start over
     // (but no problem if no a/c yet displayed anyway)
-    if (dataRefs.GetNumAircrafts() > 0 &&
+    if (dataRefs.GetNumAc() > 0 &&
         (currCycle.diffTime < 0 || currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
-        // too much time passed...we start over and reinit all aircrafts
+        // too much time passed...we start over and reinit all aircraft
         dataRefs.SetReInitAll(true);
         SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
         return false;
@@ -953,7 +953,7 @@ bValid(true)
             gear.SetVal(gear.defMax);
         
         // tell the world we've added something
-        dataRefs.IncNumAircrafts();
+        dataRefs.IncNumAc();
         LOG_MSG(logINFO,INFO_AC_ADDED,
                 labelInternal.c_str(),
                 statCopy.opIcao.c_str(),
@@ -978,8 +978,8 @@ LTAircraft::~LTAircraft()
     if (probeRef)
         XPLMDestroyProbe(probeRef);
     
-    // Decrease number of visible aircrafts and log a message about that fact
-    dataRefs.DecNumAircrafts();
+    // Decrease number of visible aircraft and log a message about that fact
+    dataRefs.DecNumAc();
     LOG_MSG(logINFO,INFO_AC_REMOVED,labelInternal.c_str());
 }
 
@@ -1427,7 +1427,7 @@ bool LTAircraft::CalcPPos()
         // not on the ground
         // just lifted off? then recalc vsi
         if (phase == FPH_LIFT_OFF && dequal(vsi, 0)) {
-            vsi = ppos.between(to).vsi_ft();
+            vsi = ppos.vsi_ft(to);
         }
     }
     

@@ -138,7 +138,7 @@ public:
 
 //
 //MARK: LTAircraft
-//      Represents an aircrafts as displayed in XP by use of the
+//      Represents an aircraft as displayed in XP by use of the
 //      XP Multiplayer Lib
 //
 class LTAircraft : XPCAircraft
@@ -152,7 +152,7 @@ public:
         double FLAPS_DURATION =   5;      // time for full flaps extension from 0% to 100%
         double VSI_STABLE =       100;    // [ft/min] less than this VSI is considered 'stable'
         double ROTATE_TIME =      3;      // [s] to rotate before lift off
-        double VSI_FINAL =        -600;   // [ft/min] assumed vsi for final if vector unavailable
+        double VSI_FINAL =        -800;   // [ft/min] assumed vsi for final if vector unavailable
         double VSI_INIT_CLIMB =   1500;   // [ft/min] assumed vsi if take-off-vector not available
         double SPEED_INIT_CLIMB = 150;    // [kt] initial climb speed if take-off-vector not available
         double AGL_GEAR_DOWN =    1600;   // height AGL at which to lower the gear during approach
@@ -289,7 +289,7 @@ public:
     
     // key for maps
     inline const std::string& key() const { return fd.key().key; }
-    // labels to pin to aircrafts on the screes
+    // labels to pin to aircraft on the screes
     inline const std::string label() const { return szLabelAc; }
     void LabelUpdate();
     // stringify e.g. for debugging info purposes

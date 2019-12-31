@@ -194,7 +194,7 @@ TFTextFieldWidget(_me)
         SearchFlightData(szKey);
 }
 
-// Use the provided key to seach the list of aircrafts if something matches:
+// Use the provided key to seach the list of aircraft if something matches:
 // - icao transponder code
 // - registration
 // - call sign
@@ -252,9 +252,9 @@ void TFACSearchEditWidget::SetAcKey (const LTFlightData::FDKeyTy& _key)
 }
 
 // Get my defined aircraft
-// As aircrafts can be removed any frame this needs to be called
+// As aircraft can be removed any frame this needs to be called
 // over and over again.
-// Note: Deleting aircrafts happens in a flight loop callback,
+// Note: Deleting aircraft happens in a flight loop callback,
 //       which is the same thread as this here is running in.
 //       So we can safely assume the returned pointer is valid until
 //       we return. But not any longer.
@@ -278,7 +278,7 @@ LTAircraft* TFACSearchEditWidget::GetAircraft () const
     return pFD ? pFD->GetAircraft() : nullptr;
 }
 
-// capture entry into myself -> trigger search for aircrafts
+// capture entry into myself -> trigger search for aircraft
 bool TFACSearchEditWidget::MsgTextFieldChanged (XPWidgetID textWidget,
                                                 std::string text)
 {
