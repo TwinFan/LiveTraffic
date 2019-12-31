@@ -636,7 +636,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // comes in decimal form, convert to proper upper case hex
     const unsigned long numId = std::stoul(tfc[RT_TFC_HEXID]);
     
-    // ignore aircrafts, which don't want to be tracked
+    // ignore aircraft, which don't want to be tracked
     if (numId == 0)
         return true;            // ignore silently
     

@@ -250,7 +250,7 @@ void ForeFlightSender::udpSend()
     LOG_MSG(logINFO, MSG_FF_STOPPED);
 }
 
-// Send all traffic aircrafts' data
+// Send all traffic aircraft's data
 void ForeFlightSender::SendAllTraffic ()
 {
     // from here on access to fdMap guarded by a mutex

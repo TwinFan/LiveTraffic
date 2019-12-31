@@ -153,7 +153,7 @@ PROP_RPM_MAX         400    # [rpm] maximum propeller revolutions per minute
 # registered values.
 # LiveTraffic takes the aircraft types from the Doc8643.txt file.
 #
-# The idea is to define a flight model which matches a wide range of aircrafts,
+# The idea is to define a flight model which matches a wide range of aircraft,
 # like 'huge jets', 'medium jets', 'regional commuters', 'general aviation'.
 #
 # Then for a given aircraft as per live flight data LiveTraffic has to find a

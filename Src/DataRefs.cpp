@@ -386,7 +386,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
 
     // configuration options
-    {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftsDisplayed, GET_VAR, false },
+    {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
@@ -443,7 +443,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
 {
     switch (dr) {
         // configuration options
-        case DR_CFG_AIRCRAFTS_DISPLAYED:    return &bShowingAircrafts;
+        case DR_CFG_AIRCRAFT_DISPLAYED:    return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_LABELS:                 return &labelCfg;
@@ -1170,33 +1170,33 @@ int DataRefs::LTGetSimDateTime(void* p)
     }
 }
 
-// Enable/Disable display of aircrafts
-void DataRefs::LTSetAircraftsDisplayed(void*, int i)
-{ dataRefs.SetAircraftsDisplayed (i); }
+// Enable/Disable display of aircraft
+void DataRefs::LTSetAircraftDisplayed(void*, int i)
+{ dataRefs.SetAircraftDisplayed (i); }
 
-void DataRefs::SetAircraftsDisplayed ( int bEnable )
+void DataRefs::SetAircraftDisplayed ( int bEnable )
 {
     // Do what we are asked to do
     if ( bEnable )
     {
-        bShowingAircrafts = LTMainShowAircraft();
+        bShowingAircraft = LTMainShowAircraft();
     }
     else
     {
         LTMainHideAircraft();
-        bShowingAircrafts = 0;
+        bShowingAircraft = 0;
     }
     
     // update menu item's checkmark
     MenuUpdateAllItemStatus();
 }
 
-int DataRefs::ToggleAircraftsDisplayed ()
+int DataRefs::ToggleAircraftDisplayed ()
 {
     // set the switch to the other value
-    SetAircraftsDisplayed ( !bShowingAircrafts );
+    SetAircraftDisplayed ( !bShowingAircraft );
     // return the new status
-    return bShowingAircrafts;
+    return bShowingAircraft;
 }
 
 // Log Level
@@ -1246,9 +1246,9 @@ bool DataRefs::SetUseHistData (bool bUseHistData, bool bForceReload)
     // if we change this setting while running
     // we 'simulate' a re-initialization
     if (pluginState >= STATE_ENABLED) {
-        // remove all existing aircrafts
-        bool bShowAc = dataRefs.GetAircraftsDisplayed();
-        dataRefs.SetAircraftsDisplayed(false);
+        // remove all existing aircraft
+        bool bShowAc = dataRefs.AreAircraftDisplayed();
+        dataRefs.SetAircraftDisplayed(false);
 
         // disable myself / stop all connections
         LTMainDisable();
@@ -1259,7 +1259,7 @@ bool DataRefs::SetUseHistData (bool bUseHistData, bool bForceReload)
         // create the connections to flight data
         if ( LTMainEnable() ) {
             // display aircraft (if that was the case previously)
-            dataRefs.SetAircraftsDisplayed(bShowAc);
+            dataRefs.SetAircraftDisplayed(bShowAc);
             return true;
         }
         else {
@@ -1482,16 +1482,16 @@ void DataRefs::dataRefDefinitionT::setData (const std::string& s)
 //MARK: Increse/decrease number of a/c
 
 // increase number of a/c, update menu item with that number
-int DataRefs::IncNumAircrafts()
+int DataRefs::IncNumAc()
 {
     return ++cntAc;
 }
 
-// decreses number of aircrafts
+// decreses number of aircraft
 // which by itself is simplistic, but as the just removed a/c
 // _could_ be the one we are monitoring in our dataRefs (we don't know)
 // we better invalidate the pAc ptr and force the dataRef to find the a/c again
-int DataRefs::DecNumAircrafts()
+int DataRefs::DecNumAc()
 {
     pAc=nullptr;
     return --cntAc;

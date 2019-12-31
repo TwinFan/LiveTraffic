@@ -232,7 +232,7 @@ TFWndMode GetDefaultWndOpenMode ()
 //
 
 // flight loop callback, will be called every second if enabled
-// creates/destroys aircrafts by looping the flight data map
+// creates/destroys aircraft by looping the flight data map
 float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*)
 {
     static float elapsedSinceLastAcMaint = 0.0f;
@@ -445,7 +445,7 @@ bool LTMainInit ()
     return true;
 }
 
-// Enabling showing aircrafts
+// Enabling showing aircraft
 bool LTMainEnable ()
 {
     LOG_ASSERT(dataRefs.pluginState == STATE_INIT);
@@ -470,15 +470,15 @@ bool LTMainEnable ()
     return true;
 }
 
-// Actually do show aircrafts
+// Actually do show aircraft
 bool LTMainShowAircraft ()
 {
     LOG_ASSERT(dataRefs.pluginState >= STATE_ENABLED);
     
     // short cut if already showing
-    if ( dataRefs.GetAircraftsDisplayed() ) return true;
+    if ( dataRefs.AreAircraftDisplayed() ) return true;
     
-    // select aircrafts for display
+    // select aircraft for display
     dataRefs.ChTsOffsetReset();             // reset network time offset
     if ( !LTFlightDataShowAircraft() ) return false;
 
@@ -486,14 +486,14 @@ bool LTMainShowAircraft ()
     //   and is the possible point of conflict with other plugins
     //   using xplanemp, so we push it out to as late as possible.
     
-    // Refresh set of aircrafts loaded
+    // Refresh set of aircraft loaded
     XPMPLoadPlanesIfNecessary();
     
     // Enable Multiplayer plane drawing, acquire multiuser planes
     if (!dataRefs.IsAIonRequest())      // but only if not only on request
         LTMainTryGetAIAircraft();
     
-    // enable the flight loop callback to maintain aircrafts
+    // enable the flight loop callback to maintain aircraft
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
                                       FLIGHT_LOOP_INTVL,    // every 5th frame
                                       1,            // relative to now
@@ -514,7 +514,7 @@ bool LTMainTryGetAIAircraft ()
     const char* cszResult = XPMPMultiplayerEnable();
     if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
     
-    // If we don't control AI aircrafts we can't create TCAS blibs.
+    // If we don't control AI aircraft we can't create TCAS blibs.
     if (!dataRefs.HaveAIUnderControl()) {
         // inform the use about this fact, but otherwise continue
         SHOW_MSG(logWARN,ERR_NO_TCAS);
@@ -529,15 +529,15 @@ void LTMainReleaseAIAircraft ()
     XPMPMultiplayerDisable ();
 }
 
-// Remove all aircrafts
+// Remove all aircraft
 void LTMainHideAircraft ()
 {
     LOG_ASSERT(dataRefs.pluginState >= STATE_ENABLED);
 
     // short cut if not showing
-    if ( !dataRefs.GetAircraftsDisplayed() ) return;
+    if ( !dataRefs.AreAircraftDisplayed() ) return;
     
-    // hide aircrafts, disconnect internet streams
+    // hide aircraft, disconnect internet streams
     LTFlightDataHideAircraft ();
 
     // disable the flight loop callback
@@ -554,13 +554,13 @@ void LTMainHideAircraft ()
     dataRefs.pluginState = STATE_ENABLED;
 }
 
-// Stop showing aircrafts
+// Stop showing aircraft
 void LTMainDisable ()
 {
     LOG_ASSERT(dataRefs.pluginState >= STATE_ENABLED);
 
-    // remove aircrafts...just to be sure
-    dataRefs.SetAircraftsDisplayed(false);
+    // remove aircraft...just to be sure
+    dataRefs.SetAircraftDisplayed(false);
     
     // disable fetching flight data
     LTFlightDataDisable();

@@ -1,6 +1,5 @@
 TODO
 ===
-Globally replace 'aircrafts'
 
 TEST
 ===

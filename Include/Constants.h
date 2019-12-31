@@ -182,7 +182,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_AC_INFO_WND_POPOUT "Aircraft Info... (Popped out)"
 #define MENU_AC_INFO_WND_SHOWN  "Aircraft Info shown"
 #define MENU_AC_INFO_WND_CLOSEALL "Close All Windows"
-#define MENU_TOGGLE_AIRCRAFTS   "Aircraft displayed"
+#define MENU_TOGGLE_AIRCRAFT    "Aircraft displayed"
 #define MENU_TOGGLE_AC_NUM      "Aircraft displayed (%d shown)"
 #define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_TOGGLE_LABELS      "Labels shown"

@@ -59,7 +59,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     JSON_Value* pRoot = json_parse_string(netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
-    // let's cycle the aircrafts
+    // let's cycle the aircraft
     // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
@@ -83,7 +83,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             return false;
         }
     }
-    // iterate all aircrafts in the received flight data (can be 0)
+    // iterate all aircraft in the received flight data (can be 0)
     else for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
     {
         // get the aircraft (which is just an array of values)

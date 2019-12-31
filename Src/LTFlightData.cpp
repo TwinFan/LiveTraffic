@@ -31,7 +31,7 @@
 //
 
 // the global map of all received flight data,
-// which also includes pointer to the simulated aircrafts
+// which also includes pointer to the simulated aircraft
 mapLTFlightDataTy mapFd;
 // modifying the map is controlled by a mutex
 // (note that mapFdMutex must be locked before dataAccessMutex
@@ -2140,8 +2140,8 @@ bool LTFlightData::CreateAircraft ( double simTime )
     // short-cut if exists already
     if ( hasAc() ) return true;
     
-    // short-cut if too many aircrafts created already
-    if ( dataRefs.GetNumAircrafts() >= dataRefs.GetMaxNumAc() ) {
+    // short-cut if too many aircraft created already
+    if ( dataRefs.GetNumAc() >= dataRefs.GetMaxNumAc() ) {
         if ( !bTooManyAcMsgShown )              // show warning once only per session
             SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
         bTooManyAcMsgShown = true;
@@ -2245,7 +2245,7 @@ void LTFlightData::DestroyAircraft ()
 }
 
 // static function to
-// update the CSL model of all aircrafts (e.g. after loading new CSL models)
+// update the CSL model of all aircraft (e.g. after loading new CSL models)
 void LTFlightData::UpdateAllModels ()
 {
     try {

@@ -138,7 +138,7 @@ public:
 
 //
 //MARK: LTAircraft
-//      Represents an aircrafts as displayed in XP by use of the
+//      Represents an aircraft as displayed in XP by use of the
 //      XP Multiplayer Lib
 //
 class LTAircraft : XPCAircraft
@@ -289,7 +289,7 @@ public:
     
     // key for maps
     inline const std::string& key() const { return fd.key().key; }
-    // labels to pin to aircrafts on the screes
+    // labels to pin to aircraft on the screes
     inline const std::string label() const { return szLabelAc; }
     void LabelUpdate();
     // stringify e.g. for debugging info purposes

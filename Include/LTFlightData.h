@@ -378,7 +378,7 @@ public:
 typedef std::map<LTFlightData::FDKeyTy,LTFlightData>  mapLTFlightDataTy;
 
 // the global map of all received flight data,
-// which also includes pointer to the simulated aircrafts
+// which also includes pointer to the simulated aircraft
 extern mapLTFlightDataTy mapFd;
 // modifying the map is controlled by a mutex
 // (note that mapFdMutex must be locked before dataAccessMutex

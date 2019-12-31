@@ -41,7 +41,7 @@ protected:
     TFWidget subBasicsLive, subBasicsRight, subAcLabel, subAdvcd, subCSL, subDebug;
     
     // Basics tab
-    TFButtonDataRef btnBasicsEnable,    // enable display of aircrafts
+    TFButtonDataRef btnBasicsEnable,    // enable display of aircraft
                     btnBasicsAutoStart;
     // enable/disable flight data channels
     TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
