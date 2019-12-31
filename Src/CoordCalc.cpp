@@ -128,7 +128,10 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
                                               (float)pos.Z(),
                                               &probeInfo);
     if (res != xplm_ProbeHitTerrain)
-    {LOG_MSG(logERR,ERR_Y_PROBE,int(res),posAt.dbgTxt().c_str()); return NAN;}
+    {
+        LOG_MSG(logDEBUG,ERR_Y_PROBE,int(res),posAt.dbgTxt().c_str());
+        return 0.0;                 // assume water
+    }
     
     // convert to World coordinates and save terrain altitude [in ft]
     pos = positionTy(probeInfo);
@@ -356,23 +359,7 @@ positionTy& positionTy::WorldToLocal()
     }
     return *this;
 }
-/* FIXME: Remove
-// return an on-ground-status guess based on a from-status and a to-status
-positionTy::onGrndE positionTy::DeriveGrndStatus (positionTy::onGrndE from,
-                                                   positionTy::onGrndE to)
-{
-    static const onGrndE gndMatrix[GND_ON+1][GND_ON+1] = {
-    // from: GND_UNKNOWN, GND_LEAVING, GND_OFF,       GND_APPROACHING, GND_ON              to:
-        { GND_UNKNOWN, GND_UNKNOWN, GND_UNKNOWN,     GND_UNKNOWN,     GND_UNKNOWN },    // GND_UNKNOWN
-        { GND_UNKNOWN, GND_LEAVING, GND_UNKNOWN,     GND_UNKNOWN,     GND_LEAVING },    // GND_LEAVING
-        { GND_UNKNOWN, GND_LEAVING, GND_OFF ,        GND_UNKNOWN,     GND_LEAVING },    // GND_OFF
-        { GND_UNKNOWN, GND_UNKNOWN, GND_APPROACHING, GND_APPROACHING, GND_UNKNOWN },    // GND_APPROACHING
-        { GND_UNKNOWN, GND_UNKNOWN, GND_APPROACHING, GND_APPROACHING, GND_ON      },    // GND_ON
-    };
-    LOG_ASSERT(gndMatrix[to][from] != GND_UNKNOWN);
-    return gndMatrix[to][from];
-}
-*/
+
 //
 //MARK: dequePositionTy
 //
@@ -493,19 +480,74 @@ double HeadingDiff (double head1, double head2)
 boundingBoxTy::boundingBoxTy (const positionTy& center, double width, double height ) :
 nw(center), se(center)          // corners initialized with center position
 {
+    // now enlarge in all directions
+    enlarge(width/2.0,height/2.0);
+}
+    
+// Enlarge the box by the given width/height in meters (height defaults to width)
+void boundingBoxTy::enlarge (double x, double y)
+{
     // height defaults to width
-    if ( height < 0 ) height = width;
+    if (std::isnan(y)) y = x;
     
     // we move 45 degrees from the center point to the nw and se corners,
     // use good ole pythagoras, probably not _exact_ but good enough here
-    width /= 2;             // we move only half the given distances as we start in the center
-    height /= 2;
-    // now for pythagoras:
-    double d = sqrt(width*width + height*height);
+    const double d = sqrt(x*x + y*y);
     
     // let's move the corners out:
     nw += vectorTy ( 315, d, NAN, NAN );
     se += vectorTy ( 135, d, NAN, NAN );
+}
+
+// Increases the bounding box to include the given position
+void boundingBoxTy::enlarge (const positionTy& lPos)
+{
+    // in the special case that the bounding box isn't initialized
+    // we make it the size of this point:
+    if (std::isnan(nw.lon())) {
+        nw = se = lPos;
+        return;
+    }
+    
+    // Latitude is easy as it must be between -90 and 90 degrees
+    if (lPos.lat() < se.lat())
+        se.lat() = lPos.lat();
+    else if (lPos.lat() > nw.lat())
+        nw.lat() = lPos.lat();
+    
+    // Longitude is more complex, the bounding box can be enlarged
+    // both to the east or to the west to include lPos.
+    // Which way to go? We go the way with the shorter added angle
+    const double diffW = HeadingDiff(nw.lon(), lPos.lon());
+    const double diffE = HeadingDiff(se.lon(), lPos.lon());
+    
+    // There are 2 special cases:
+    // 1. The longitude is already included in the bounding box if diffW points east _and_ diffE points west,
+    // 2. The bounding box is a single point
+    if (dequal(diffW, diffE)) {
+        if (diffW < 0.0)                    // extend west-ward
+            nw.lon() = lPos.lon();
+        else                                // else east-ward
+            se.lon() = lPos.lon();
+    }
+    // in all other cases we change the edge which requires least change:
+    else if (diffW <= 0.0 || diffE >= 0.0)
+    {
+        if (fabs(diffW) < fabs(diffE))
+            nw.lon() = lPos.lon();
+        else
+            se.lon() = lPos.lon();
+    }
+}
+
+// Center point of bounding box
+positionTy boundingBoxTy::center () const
+{
+    positionTy c;
+    c.lat() = (nw.lat() + se.lat()) / 2.0;
+    c.lon() = nw.lon() + HeadingDiff(nw.lon(), se.lon()) / 2.0;
+    c.alt_m() = (nw.alt_m() + se.alt_m()) / 2.0;
+    return c;
 }
 
 // standard string for any output purposes

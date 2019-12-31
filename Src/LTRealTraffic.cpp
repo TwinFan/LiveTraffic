@@ -695,7 +695,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     }
     
     // is position close enough to current pos?
-    if (posCamera.between(pos).dist > dataRefs.GetFdStdDistance_m())
+    if (posCamera.dist(pos) > dataRefs.GetFdStdDistance_m())
         return true;                // ignore silently, no error
     
     try {

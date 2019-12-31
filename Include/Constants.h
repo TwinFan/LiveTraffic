@@ -109,6 +109,14 @@ constexpr int COLOR_RED         = 0xFF0000;
 constexpr int COLOR_GREEN       = 0x00FF00;
 constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
+//MARK: Airports, Runways, Taxiways
+constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
+constexpr double ART_RWY_MAX_HEAD_DIFF = 10.0;  ///< [¡] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
+constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
+constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
+constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
+
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
 extern char LT_VERSION_FULL[];          // like "1.0.181231" with last digits being build date

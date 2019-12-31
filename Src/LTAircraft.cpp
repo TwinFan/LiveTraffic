@@ -1427,7 +1427,7 @@ bool LTAircraft::CalcPPos()
         // not on the ground
         // just lifted off? then recalc vsi
         if (phase == FPH_LIFT_OFF && dequal(vsi, 0)) {
-            vsi = ppos.between(to).vsi_ft();
+            vsi = ppos.vsi_ft(to);
         }
     }
     

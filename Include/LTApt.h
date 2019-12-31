@@ -24,6 +24,15 @@
 /// Start reading apt.dat file(s), build an index
 bool LTAptEnable ();
 
+/// Update the airport data with airports around current camera position
+void LTAptRefresh ();
+
+/// @brief Return the best possible runway to auto-land at
+/// @param _ac Aircraft in search for a landing spot. It's last go-to position and VSI as well as its model are of importance
+/// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway)
+/// @note Call from separate thread, like from CalcNextPos
+positionTy LTAptFindRwy (const LTAircraft& _ac);
+
 /// Cleanup
 void LTAptDisable ();
 

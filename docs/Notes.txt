@@ -1,30 +1,14 @@
 TODO
 ===
+Globally replace 'aircrafts'
 
-TEST DATA
+TEST
 ===
+Loading apt.dat currently uses just getline
+- Test on Windows
+- Test on Mac with Windows file
+- Test on Windows using Mac file
 
-Landing:
-EDDL 0427/103300, a/c 3C66B2=3.958.450 (A320 DLH6JW) in on final approach, no flight data on the ground, tests artifical touch-down and roll-out
-KLGA 0427/150100, a/c A4D65C=10.802.780 lands at 150100, lands, flight data late down the run-way, tests landing detection and touch-down insertion
-
-Take off:
-EDDF 0427/103100, a/c 4BA92F=4.958.511 takes off, first position is 500ft AGL
-
-KLGA 0427/150600, a/c   AB2362=11.215.714 takes off
-                        A4D65C=10.802.780 lands at 150100, lands, flight data late down the run-way, tests landing detection and touch-down insertion
-                        AC7419=11.301.913 lands at 150200, last flight data way down the runway (descend too short for touch-down insertion)
-    new
-                        AB7617=11.236.887 lands at 150700, seems to have last off-gnd-fd before touch-down and next on-gnd-fd already on the taxi way after turning off the runway. Maybe also just bad merging...
-                                                            verify if checking and retaining (un-merged)first on-gnd-pos makes sense
-    take-off (?)
-                        AB2362=11.215.714
-                        ACF0DA=11.333.850 take off at 151800
-
-
-much ground traffic     A4D65C=10.802.780 after landing
-                        A32FA7=10.694.567
-                        AA2BA5=11.152.293
 
 DOCUMENTATION
 ===========

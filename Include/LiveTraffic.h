@@ -159,7 +159,7 @@ std::string LTRemoveXPSystemPath (std::string path );
 // or 0 in case of errors
 int LTNumFilesInPath ( const std::string path );
 
-// read a text line no matter what line ending
+/// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);
 
 // MARK: URL/Help support

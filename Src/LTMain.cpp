@@ -91,39 +91,20 @@ int LTNumFilesInPath ( const std::string path )
     return iTotalFiles;
 }
 
-// read a text line no matter what line ending
-// https://stackoverflow.com/questions/6089231/getting-std-ifstream-to-handle-lf-cr-and-crlf
+/// Read a text line, handling both Windows (CRLF) and Unix (LF) ending
+/// Code makes use of the fact that in both cases LF is the terminal character.
+/// So we read from file until LF (_without_ widening!).
+/// In case of CRLF files there then is a trailing CR, which we just remove.
 std::istream& safeGetline(std::istream& is, std::string& t)
 {
-    t.clear();
+    // read a line until LF
+    std::getline(is, t, '\n');
     
-    // The characters in the stream are read one-by-one using a std::streambuf.
-    // That is faster than reading them one-by-one using the std::istream.
-    // Code that uses streambuf this way must be guarded by a sentry object.
-    // The sentry object performs various tasks,
-    // such as thread synchronization and updating the stream state.
+    // if last character is CR then remove it
+    if (t.back() == '\r')
+        t.pop_back();
     
-    std::istream::sentry se(is, true);
-    std::streambuf* sb = is.rdbuf();
-    
-    for(;;) {
-        int c = sb->sbumpc();
-        switch (c) {
-            case '\n':
-                return is;
-            case '\r':
-                if(sb->sgetc() == '\n')
-                    sb->sbumpc();
-                return is;
-            case std::streambuf::traits_type::eof():
-                // Also handle the case when the last line has no line ending
-                if(t.empty())
-                    is.setstate(std::ios::eofbit);
-                return is;
-            default:
-                t += (char)c;
-        }
-    }
+    return is;
 }
 
 //
@@ -301,6 +282,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
+            // Refresh airport data from apt.dat (in case camera moved far)
+            LTAptRefresh();
             // maintenance (add/remove)
             LTFlightDataAcMaintenance();
             // updates to menu item status

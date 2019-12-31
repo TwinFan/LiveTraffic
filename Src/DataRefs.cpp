@@ -1846,7 +1846,7 @@ void DataRefs::ChTsOffsetAdd (double aNetTS)
 // return the camera's position in world coordinates
 positionTy DataRefs::GetViewPos()
 {
-    XPLMCameraPosition_t camPos = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    XPLMCameraPosition_t camPos = {NAN, NAN, NAN, 0.0f, 0.0f, 0.0f, 0.0f};
     // get the dataref values for current view pos, which are in local coordinates
     XPLMReadCameraPosition(&camPos);
     // convert to world coordinates and return them

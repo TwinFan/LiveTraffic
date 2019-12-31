@@ -944,7 +944,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 std::prev(iBef)->between(refPos).vsi : // take the vsi between these two
                                 mdl.VSI_FINAL * Ms_per_FTm;            // no, assume reasonable vsi
                                 
-                                const double vsiDirectMain = refPos.between(mainPos).vsi;
+                                const double vsiDirectMain = refPos.vsi_m(mainPos);
                                 
                                 if (vsiBef < -(mdl.VSI_STABLE * Ms_per_FTm) && vsiBef < vsiDirectMain)
                                 {

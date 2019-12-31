@@ -485,6 +485,9 @@ PLUGIN_API int  XPluginEnable(void)
         eOneTimeState = ONCE_CB_ADD_DREFS;
         XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
         
+        // Start reading apt.dat
+        LTAptEnable();
+        
         // Enable showing aircrafts
         if (!LTMainEnable()) return 0;
 
@@ -548,8 +551,8 @@ PLUGIN_API void XPluginDisable(void) {
         // stop showing aircrafts
         LTMainDisable ();
 
-        // Meu item "Aircrafts displayed" no checkmark symbol (but room one later)
-        XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFTS],xplm_Menu_Unchecked);
+        // Stop reading apt.dat
+        LTAptDisable();
 
         LOG_MSG(logMSG, MSG_DISABLED);
 

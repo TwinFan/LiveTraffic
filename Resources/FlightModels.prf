@@ -15,7 +15,7 @@ GEAR_DEFLECTION        0.5  # [m] main gear deflection during touch-down
 FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
 VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
 ROTATE_TIME            3    # [s] to rotate before lift off
-VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
+VSI_FINAL           -800    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
 AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
@@ -68,6 +68,7 @@ EXT_CAMERA_VERT_OFS   30    # vertical...
 LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 
 [MediumProps:MediumJets]
+VSI_FINAL           -600    # [ft/min] assumed vsi for final if vector unavailable
 ROLL_RATE              6    # [°/s] roll rate in normal turns
 FLAPS_UP_SPEED       130    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     180    # [kt] above that: descend, below that: approach
@@ -89,7 +90,7 @@ EXT_CAMERA_VERT_OFS   10    # vertical...
 [GA:MediumJets]
 GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
 ROTATE_TIME            2    # [s] to rotate before lift off
-VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
+VSI_FINAL           -400    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       500    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB      75    # [kt] initial climb speed if take-off-vector not available
 AGL_GEAR_DOWN       1000    # [ft] height AGL at which to lower the gear during approach
