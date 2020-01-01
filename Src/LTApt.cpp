@@ -1,5 +1,8 @@
 /// @file       LTApt.cpp
 /// @brief      Access to X-Plane's `apt.dat` file(s) and data
+/// @details    Scans `apt.dat` file for airport, runway, and taxiway information.\n
+///             Finds potential runway for an auto-land flight.\n
+///             Finds center lines on runways and taxiways to snap positions to.
 /// @author     Birger Hoppe
 /// @copyright  (c) 2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -54,7 +57,7 @@ typedef std::list<RwyEnd> listRwyEndTy;
 class Apt {
 public:
     char id[8] = {0,0,0,0,0,0,0,0};     ///< ICAO code or other unique id
-    boundingBoxTy bounds;               ///< bounding box around airport
+    boundingBoxTy bounds;               ///< bounding box around airport, calculated from rwy and taxiway extensions
     
     listRwyEndTy listRwyEnd;            ///< List of runway ends
     void AddRwyEnd (RwyEnd&& re);       ///< adds the rwy end to list and enlarges the airport's bounds
@@ -66,6 +69,7 @@ public:
     /// Returns iterator to the opposite end of given runway
     listRwyEndTy::const_iterator GetOppositeRwyEnd(listRwyEndTy::const_iterator& iterRE) const;
     
+    /// Does apt have an id, indicates if it is valid and initialized
     bool HasId () const { return id[0] != '\0'; }
 };
 

@@ -87,6 +87,8 @@
 		258790AA23020C8C00129569 /* xplanemp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xplanemp.framework; path = Lib/xplanemp/xplanemp.framework; sourceTree = "<group>"; };
 		258790AB23020C8C00129569 /* libpng.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libpng.framework; path = Lib/libpng/libpng.framework; sourceTree = "<group>"; };
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
+		258B581723BBFFC300753C82 /* MainPage.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = MainPage.md; sourceTree = "<group>"; };
+		258B581823BBFFC300753C82 /* LiveTraffic.doxygen */ = {isa = PBXFileReference; lastKnownFileType = text; path = LiveTraffic.doxygen; sourceTree = "<group>"; };
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
 		2593063D22DB411500C82D4F /* LTAPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAPI.h; sourceTree = "<group>"; };
@@ -240,6 +242,8 @@
 		254EA46D20834D5E008A312F /* docs */ = {
 			isa = PBXGroup;
 			children = (
+				258B581823BBFFC300753C82 /* LiveTraffic.doxygen */,
+				258B581723BBFFC300753C82 /* MainPage.md */,
 				25AB477923B560C2007E7B15 /* XP-APT-1100-Spec_revised_04-11-2019.pdf */,
 				25606F8D21B362790017D1EE /* readme.html */,
 				2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */,
@@ -268,13 +272,13 @@
 		255857992095B78300816F65 /* Src */ = {
 			isa = PBXGroup;
 			children = (
-				25624BD923B014F600B899E1 /* LTApt.cpp */,
 				257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */,
 				2558579320950C6700816F65 /* CoordCalc.cpp */,
 				25C59459207A2B7500E52073 /* DataRefs.cpp */,
 				D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */,
 				2573631E22233CDA005210C5 /* LTADSBEx.cpp */,
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
+				25624BD923B014F600B899E1 /* LTApt.cpp */,
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
 				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,

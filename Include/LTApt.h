@@ -1,5 +1,8 @@
 /// @file       LTApt.h
 /// @brief      Access to X-Plane's `apt.dat` file(s) and data
+/// @details    Scans `apt.dat` file for airport, runway, and taxiway information.\n
+///             Finds potential runway for an auto-land flight.\n
+///             Finds center lines on runways and taxiways to snap positions to.
 /// @author     Birger Hoppe
 /// @copyright  (c) 2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
