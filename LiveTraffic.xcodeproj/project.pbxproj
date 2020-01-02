@@ -42,6 +42,7 @@
 
 /* Begin PBXFileReference section */
 		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
+		250C2B5923BD4BF70059AA14 /* scenery_packs.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = scenery_packs.ini; path = "../../../Applications/X-Plane 11/Custom Scenery/scenery_packs.ini"; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		25271352220F36340039D2A4 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 11/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
@@ -563,6 +564,7 @@
 		25A3889B209884B50015266E /* Links */ = {
 			isa = PBXGroup;
 			children = (
+				250C2B5923BD4BF70059AA14 /* scenery_packs.ini */,
 				25CDC7482236F034007F504B /* Log.txt */,
 				251531BE21B867F900B5968A /* Log.txt */,
 				253B6F2E2225EC14001F8B42 /* Commands.txt */,

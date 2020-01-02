@@ -25,10 +25,14 @@
 
 // File paths
 
-/// Path to the global airports file under Custom Scenery
-#define APTDAT_CUSTOM_GLOBAL "Custom Scenery/Global Airports/Earth nav data/apt.dat"
+/// Path to the `scenery_packs.ini` file, which defines order and activation status of scenery packs
+#define APTDAT_SCENERY_PACKS "Custom Scenery/scenery_packs.ini"
+/// How a line in `scenery_packs.ini` file needs to start in order to be processed by us
+#define APTDAT_SCENERY_LN_BEGIN "SCENERY_PACK "
+/// Path to add after the scenery pack location read from the ini file
+#define APTDAT_SCENERY_ADD_LOC "Earth nav data/apt.dat"
 /// Path to the global airports file under Resources / Default
-#define APTDAT_RESOURCES_DEFAULT "Resources/default scenery/default apt dat/Earth nav data/apt.dat"
+#define APTDAT_RESOURCES_DEFAULT "Resources/default scenery/default apt dat/"
 
 // Log output
 #define WARN_APTDAT_NOT_OPEN "Can't open '%s': %s"
@@ -55,83 +59,120 @@ typedef std::list<RwyEnd> listRwyEndTy;
 
 /// Represents an airport as read from apt.dat
 class Apt {
-public:
-    char id[8] = {0,0,0,0,0,0,0,0};     ///< ICAO code or other unique id
+protected:
+    std::string id;                     ///< ICAO code or other unique id
     boundingBoxTy bounds;               ///< bounding box around airport, calculated from rwy and taxiway extensions
-    
     listRwyEndTy listRwyEnd;            ///< List of runway ends
-    void AddRwyEnd (RwyEnd&& re);       ///< adds the rwy end to list and enlarges the airport's bounds
+    static XPLMProbeRef YProbe;         ///< Y Probe for terrain altitude computation
+
+public:
+    /// Constructor expects an id
+    Apt (const std::string& _id = "") : id(_id) {}
     
+    /// Id of the airport, typicall the ICAO code
+    std::string GetId () const { return id; }
+    
+    /// ID defined? (Used as an indicator for initialization or "is of interest")
+    bool HasId () const { return !id.empty(); }
+    
+    // --- Runway ends ---
+    
+    /// The list of runway ends
+    const listRwyEndTy& GetRwyEndsList () const { return listRwyEnd; }
+    
+    /// Any runways defined?
+    bool HasRwyEnds () const { return !listRwyEnd.empty(); }
+    
+    /// Adds the rwy end to list and enlarges the airport's bounds
+    void AddRwyEnd (RwyEnd&& re)
+    {
+        bounds.enlarge(re.pos);
+        listRwyEnd.emplace_back(std::move(re));
+    }
+
     /// Adds both rwy ends from apt.dat information fields
-    void AddRwyEnds (double lat1, double lon1, double displayed1, const std::string& id1,
-                     double lat2, double lon2, double displayed2, const std::string& id2);
+    void AddRwyEnds (double lat1, double lon1, double displaced1, const std::string& id1,
+                     double lat2, double lon2, double displaced2, const std::string& id2)
+    {
+        positionTy re1 (lat1,lon1,NAN,NAN,NAN,NAN,NAN,positionTy::GND_ON);
+        positionTy re2 (lat2,lon2,NAN,NAN,NAN,NAN,NAN,positionTy::GND_ON);
+        vectorTy vecRwy = re1.between(re2);
+        vecRwy.dist -= displaced1;
+        vecRwy.dist -= displaced2;
+
+        // move by displayed threshold
+        // and then by another 10% to determine actual touch-down point
+        re1 += vectorTy (vecRwy.angle,   displaced1 + vecRwy.dist * ART_RWY_TD_POINT_F );
+        re2 += vectorTy (vecRwy.angle, -(displaced2 + vecRwy.dist * ART_RWY_TD_POINT_F));
+        
+        // 1st rwy end
+        RwyEnd re;
+        STRCPY_S(re.id, id1.c_str());
+        re.pos = re1;
+        re.pos.heading() = vecRwy.angle;
+        re.len = vecRwy.dist;
+        AddRwyEnd(std::move(re));
+        
+        // 2nd rwy end
+        STRCPY_S(re.id, id2.c_str());
+        re.pos = re2;
+        re.pos.heading() = vecRwy.angle + 180;
+        if (re.pos.heading() >= 360.0) re.pos.heading() -= 360.0;
+        re.len = vecRwy.dist;
+        AddRwyEnd(std::move(re));
+    }
+
+    /// @brief Update rwy ends with proper altitude
+    /// @note Must be called from XP's main thread, otherwise Y probes won't work
+    void UpdateRwyAltitudes ()
+    {
+        for (RwyEnd& re: listRwyEnd)                // for all their rwys
+            if (std::isnan(re.pos.alt_m()))         // if altitude is missing
+                // determine the rwy end's altitude (this will auto-init the YProbe)
+                re.pos.alt_m() = YProbe_at_m(re.pos, YProbe);
+    }
     
-    /// Returns iterator to the opposite end of given runway
-    listRwyEndTy::const_iterator GetOppositeRwyEnd(listRwyEndTy::const_iterator& iterRE) const;
+    /// Destroy the YProbe
+    static void DestroyYProbe ()
+    {
+        if (YProbe) {
+            XPLMDestroyProbe(YProbe);
+            YProbe = NULL;
+        }
+    }
+
+    /// @brief Returns iterator to the opposite end of given runway
+    /// @details Rwy ends are added to `listRwyEnd` in pairs. So if we are given an even iterator we need to
+    ///          return the next iterator, otherwise the previous
+    listRwyEndTy::const_iterator GetOppositeRwyEnd(listRwyEndTy::const_iterator& iterRE) const
+    {
+        // even case
+        if (std::distance(listRwyEnd.cbegin(), iterRE) % 2 == 0)
+            return std::next(iterRE);
+        else
+            return std::prev(iterRE);
+    }
     
-    /// Does apt have an id, indicates if it is valid and initialized
-    bool HasId () const { return id[0] != '\0'; }
+    // --- Bounding box ---
+
+    /// Returns the bounding box of the airport as defined by all runways and taxiways
+    const boundingBoxTy& GetBounds () const { return bounds; }
+    
+    /// Does airport contain this point?
+    bool Contains (const positionTy& pos) const { return bounds.contains(pos); }
 };
 
-/// Vector of airports
-typedef std::vector<Apt> vecAptTy;
+// Y Probe for terrain altitude computation
+XPLMProbeRef Apt::YProbe = NULL;
 
-/// Global vector of airports
-static vecAptTy gvecApt;
+/// Map of airports, key is the id (typically: ICAO code)
+typedef std::map<std::string, Apt> mapAptTy;
 
-/// Lock to access global vector of airports
-static std::mutex mtxGVecApt;
+/// Global map of airports
+static mapAptTy gmapApt;
 
-// adds the rwy end to list and enlarges the airport's bounds
-void Apt::AddRwyEnd(RwyEnd&& re)
-{
-    bounds.enlarge(re.pos);
-    listRwyEnd.emplace_back(std::move(re));
-}
-
-// Adds both rwy ends from apt.dat information fields
-void Apt::AddRwyEnds (double lat1, double lon1, double displaced1, const std::string& id1,
-                      double lat2, double lon2, double displaced2, const std::string& id2)
-{
-    positionTy re1 (lat1,lon1,NAN,NAN,NAN,NAN,NAN,positionTy::GND_ON);
-    positionTy re2 (lat2,lon2,NAN,NAN,NAN,NAN,NAN,positionTy::GND_ON);
-    vectorTy vecRwy = re1.between(re2);
-    vecRwy.dist -= displaced1;
-    vecRwy.dist -= displaced2;
-
-    // move by displayed threshold
-    // and then by another 10% to determine actual touch-down point
-    re1 += vectorTy (vecRwy.angle,   displaced1 + vecRwy.dist * ART_RWY_TD_POINT_F );
-    re2 += vectorTy (vecRwy.angle, -(displaced2 + vecRwy.dist * ART_RWY_TD_POINT_F));
-    
-    // 1st rwy end
-    RwyEnd re;
-    STRCPY_S(re.id, id1.c_str());
-    re.pos = re1;
-    re.pos.heading() = vecRwy.angle;
-    re.len = vecRwy.dist;
-    AddRwyEnd(std::move(re));
-    
-    // 2nd rwy end
-    STRCPY_S(re.id, id2.c_str());
-    re.pos = re2;
-    re.pos.heading() = vecRwy.angle + 180;
-    if (re.pos.heading() >= 360.0) re.pos.heading() -= 360.0;
-    re.len = vecRwy.dist;
-    AddRwyEnd(std::move(re));
-}
-
-// Returns iterator to the opposite end of given runway
-/// Rwy ends are added to `listRwyEnd` in pairs. So if we are given an even iterator we need to
-/// return the next iterator, otherwise the previous
-listRwyEndTy::const_iterator Apt::GetOppositeRwyEnd(listRwyEndTy::const_iterator& iterRE) const
-{
-    // even case
-    if (std::distance(listRwyEnd.cbegin(), iterRE) % 2 == 0)
-        return std::next(iterRE);
-    else
-        return std::prev(iterRE);
-}
+/// Lock to access global map of airports
+static std::mutex mtxGMapApt;
 
 //
 // MARK: File Reading Thread
@@ -144,9 +185,10 @@ static void AddApt (Apt&& apt)
     // Fancy debug-level logging message, listing all runways
     if (dataRefs.GetLogLevel() == logDEBUG) {
         std::string apts;       // concatenate airport ids
-        if (!apt.listRwyEnd.empty()) {
+        const listRwyEndTy& listRwyEnd = apt.GetRwyEndsList();
+        if (!listRwyEnd.empty()) {
             bool bFirst = true;
-            for (const RwyEnd& re: apt.listRwyEnd) {
+            for (const RwyEnd& re: listRwyEnd) {
                 if (!apts.empty())
                     apts += bFirst ? " / " : "-";
                 bFirst ^= true;
@@ -154,55 +196,22 @@ static void AddApt (Apt&& apt)
             }
         }
         LOG_MSG(logDEBUG, "apt.dat: Added %s at %s with %d runways: %s",
-                apt.id, std::string(apt.bounds).c_str(),
-                (int)apt.listRwyEnd.size(), apts.c_str());
+                apt.GetId().c_str(),
+                std::string(apt.GetBounds()).c_str(),
+                (int)apt.GetRwyEndsList().size(), apts.c_str());
     }
 
     // Access to the list of airports is guarded by a lock
     {
-        std::lock_guard<std::mutex> lock(mtxGVecApt);
-        gvecApt.emplace_back(std::move(apt));
+        std::lock_guard<std::mutex> lock(mtxGMapApt);
+        std::string key = apt.GetId();          // make a copy of the key, as `apt` gets moved soon:
+        gmapApt.emplace(std::move(key), std::move(apt));
     }
 }
 
-/// @brief Read airports from apt.dat around a given center position
-/// @param ctr Center position
-/// @param radius Search radius around center position in meter
-void AsyncReadApt (positionTy ctr, double radius)
+/// Read airports in the one given `apt.dat` file
+static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
 {
-    // Try opening apt.dat files...first successful wins
-    std::ifstream fIn;
-    std::string sFileName;
-    for (const char* aszPath: {APTDAT_CUSTOM_GLOBAL,APTDAT_RESOURCES_DEFAULT})
-    {
-        sFileName = LTCalcFullPath(aszPath);
-        fIn.open(sFileName.c_str());
-        if (fIn.good() && fIn.is_open()) {
-            break;
-        }
-
-        // doesn't exist or any other problem:
-        char sErr[SERR_LEN];
-        strerror_s(sErr, sizeof(sErr), errno);
-        LOG_MSG(logWARN, WARN_APTDAT_NOT_OPEN,
-                sFileName.c_str(), sErr);
-    }
-    
-    // Not successful in opening ANY apt.dat file?
-    if (!fIn || !fIn.is_open()) {
-        SHOW_MSG(logWARN, WARN_APTDAT_FAILED);
-        return;
-    }
-    
-    // We opened a file and can continue
-    LOG_MSG(logDEBUG, "Reading apt.dat from %s", sFileName.c_str());
-    
-    // Preparation
-    // To avoid costly distance calculations we define a bounding box
-    // just by calculating lat/lon values north/east/south/west of given pos
-    // and include all airports with coordinates falling into it
-    boundingBoxTy box (ctr, radius);
-
     // Walk the file
     Apt apt;
     while (!bStopThread && fIn)
@@ -219,19 +228,23 @@ void AsyncReadApt (positionTy ctr, double radius)
             // found an airport's beginning
             
             // If the previous airport is valid add it to the list
-            if (apt.HasId() && !apt.listRwyEnd.empty())
+            if (apt.HasId() && apt.HasRwyEnds())
                 AddApt(std::move(apt));
+            // clear the airport object
+            apt = Apt();
             
-            apt = Apt();                    // clear the airport object
             // separate the line into its field values
             std::vector<std::string> fields = str_tokenize(lnBuf, " \t", true);
-            if (fields.size() >= 5) {
-                STRCPY_S(apt.id, fields[4].c_str());
+            if (fields.size() >= 5 &&           // line contains an airport id, and
+                gmapApt.count(fields[4]) == 0)  // airport is not yet defined in map
+            {
+                // re-init apt object, now with the proper id defined
+                apt = Apt(fields[4]);
             }
         }
         
         // test for a runway...just to find location info
-        else if (apt.HasId() &&             // an airport identified?
+        else if (apt.HasId() &&             // an airport identified and of interest?
             lnBuf.size() > 20 &&            // line long enough?
             lnBuf[0] == '1' &&              // starting with "100 "?
             lnBuf[1] == '0' &&
@@ -248,7 +261,7 @@ void AsyncReadApt (positionTy ctr, double radius)
                 {
                     // Have we accepted the airport already?
                     // Or - this being the first rwy - does the rwy lie in the bounding box?
-                    if (!apt.listRwyEnd.empty() ||
+                    if (apt.HasRwyEnds() ||
                         box.contains(positionTy(lat,lon)))
                     {
                         // add both runway ends to the airport
@@ -264,26 +277,107 @@ void AsyncReadApt (positionTy ctr, double radius)
                     // airport is outside bounding box -> mark it uninteresting
                     else
                     {
-                        apt.id[0] = '\0';       // by clearing its id
+                        // clear the airport object
+                        apt = Apt();
                     }
                 }   // if lat/lon in acceptable range
             }       // if line contains 26 field values
         }           // if a runway line startin with "100 "
     }               // for each line of the apt.dat file
     
-    // problem was not just eof?
-    if (!fIn && !fIn.eof()) {
-        char sErr[SERR_LEN];
-        strerror_s(sErr, sizeof(sErr), errno);
-        LOG_MSG(logERR, ERR_CFG_FILE_READ,
-                sFileName.c_str(), sErr);
+    // If the last airport read is valid don't forget to add it to the list
+    if (apt.HasId() && apt.HasRwyEnds())
+        AddApt(std::move(apt));
+}
+
+/// @brief Read airports from apt.dat files around a given center position
+/// @details This function first walks along the `scenery_packs.ini` file
+///          and reads all `apt.dat` files available in the scenery packs listed there in the given order.
+///          Lastly, it also reads the generic `apt.dat` file given in `APTDAT_RESOURCES_DEFAULT`.
+/// @see Understanding scener order: https://www.x-plane.com/kb/changing-custom-scenery-load-order-in-x-plane-10/
+/// @param ctr Center position
+/// @param radius Search radius around center position in meter
+void AsyncReadApt (positionTy ctr, double radius)
+{
+    static size_t lenSceneryLnBegin = strlen(APTDAT_SCENERY_LN_BEGIN);
+    
+    // To avoid costly distance calculations we define a bounding box
+    // just by calculating lat/lon values north/east/south/west of given pos
+    // and include all airports with coordinates falling into it
+    const boundingBoxTy box (ctr, radius);
+    
+    // Count the number of files we have accessed
+    int cntFiles = 0;
+
+    // Try opening scenery_packs.ini
+    std::ifstream fScenery (LTCalcFullPath(APTDAT_SCENERY_PACKS));
+    while (!bStopThread && fScenery.good() && fScenery.is_open())
+    {
+        // read a line from scenery_packs.ini
+        std::string lnScenery;
+        safeGetline(fScenery, lnScenery);
+        
+        // we only process lines starting with "SCENERY_PACK ",
+        // ie. we skip any header info and also lines with SCENERY_PACK_DISABLED
+        if (lnScenery.length() <= lenSceneryLnBegin ||
+            lnScenery.substr(0,lenSceneryLnBegin) != APTDAT_SCENERY_LN_BEGIN)
+            continue;
+        
+        // the remainder is a path into X-Plane's main folder
+        lnScenery.erase(0,lenSceneryLnBegin);
+        lnScenery = LTCalcFullPath(lnScenery);      // make it a full path
+        lnScenery += APTDAT_SCENERY_ADD_LOC;        // add the location to the actual `apt.dat` file
+        
+        // open that apt.dat
+        std::ifstream fIn (lnScenery);
+        if (fIn.good() && fIn.is_open()) {
+            LOG_MSG(logDEBUG, "Reading apt.dat from %s", lnScenery.c_str());
+            ReadOneAptFile(fIn, box);
+            cntFiles++;
+        }
+        
+        // problem was not just "not found" (which we ignore for scenery packs) or eof?
+        if (!fIn && errno != ENOENT && !fIn.eof()) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            LOG_MSG(logERR, ERR_CFG_FILE_READ,
+                    lnScenery.c_str(), sErr);
+        }
+        
+        fIn.close();
+
+    } // processing scenery_packs.ini
+    
+    // Last but not least we also process the global generic apt.dat file
+    if (!bStopThread)
+    {
+        const std::string sFileName = LTCalcFullPath(APTDAT_RESOURCES_DEFAULT APTDAT_SCENERY_ADD_LOC);
+        std::ifstream fIn (sFileName);
+        if (fIn.good() && fIn.is_open()) {
+            LOG_MSG(logDEBUG, "Reading apt.dat from %s", sFileName.c_str());
+            ReadOneAptFile(fIn, box);
+            cntFiles++;
+        }
+
+        // problem was not just eof?
+        if (!fIn && !fIn.eof()) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            LOG_MSG(logERR, ERR_CFG_FILE_READ,
+                    sFileName.c_str(), sErr);
+        }
+        
+        fIn.close();
     }
     
-    // close the file and exit
-    fIn.close();
+    // Not successful in opening ANY apt.dat file?
+    if (!cntFiles) {
+        SHOW_MSG(logWARN, WARN_APTDAT_FAILED);
+        return;
+    }
     
-    LOG_MSG(logDEBUG, "Done reading from apt.dat, have now %d airports",
-            (int)gvecApt.size());
+    LOG_MSG(logDEBUG, "Done reading from %d apt.dat files, have now %d airports",
+            cntFiles, (int)gmapApt.size());
 }
 
 
@@ -300,8 +394,6 @@ static positionTy lastCameraPos;
 
 /// New airports added, so that a call to LTAptUpdateRwyAltitude(9 is necessary?
 static bool bAptsAdded = false;
-/// Y Probe for terrain altitude computation
-static XPLMProbeRef aptYProbe = NULL;
         
 // Start reading apt.dat file(s)
 bool LTAptEnable ()
@@ -314,16 +406,13 @@ bool LTAptEnable ()
 void LTAptUpdateRwyAltitudes ()
 {
     // access is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGVecApt);
+    std::lock_guard<std::mutex> lock(mtxGMapApt);
 
     // loop all airports and their runways
-    for (Apt& apt: gvecApt) {                       // for all airports
-        for (RwyEnd& re: apt.listRwyEnd) {          // for all their rwys
-            if (std::isnan(re.pos.alt_m()))         // if altitude is missing
-                // determine the rwy end's altitude (this will auto-init the YProbe)
-                re.pos.alt_m() = YProbe_at_m(re.pos, aptYProbe);
-        }
-    }
+    for (mapAptTy::value_type& p: gmapApt)
+        p.second.UpdateRwyAltitudes();
+    
+    LOG_MSG(logDEBUG, "apt.dat: Finished updating ground altitudes");
 }
 
 // Update the airport data with airports around current camera position
@@ -384,7 +473,7 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     
     // --- Variables holding Best Match ---
     // this will point to the best matching apt
-    vecAptTy::const_iterator iterBestApt;
+    mapAptTy::const_iterator iterBestApt;
     // ...and this to the best matching runway end
     listRwyEndTy::const_iterator iterBestRwyEnd;
     // The heading diff of the best match to its runway
@@ -395,18 +484,18 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     
     // --- Iterate the airports ---
     // Access to the list of airports is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGVecApt);
+    std::lock_guard<std::mutex> lock(mtxGMapApt);
 
     // loop over airports
-    for (vecAptTy::const_iterator iterApt = gvecApt.cbegin();
-         iterApt != gvecApt.cend();
+    for (mapAptTy::const_iterator iterApt = gmapApt.cbegin();
+         iterApt != gmapApt.cend();
          ++iterApt)
     {
-        const Apt& apt = *iterApt;
+        const Apt& apt = iterApt->second;
         
         // loop over rwy ends of this airport
-        for (listRwyEndTy::const_iterator iterRE = apt.listRwyEnd.cbegin();
-             iterRE != apt.listRwyEnd.cend();
+        for (listRwyEndTy::const_iterator iterRE = apt.GetRwyEndsList().cbegin();
+             iterRE != apt.GetRwyEndsList().cend();
              ++iterRE)
         {
             // Test if runway is an option
@@ -449,7 +538,8 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     retPos.ts() = bestArrivalTS;                        // Arrival time
     retPos.flightPhase = LTAPIAircraft::FPH_TOUCH_DOWN; // This is a calculated touch-down point
     LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
-            iterBestApt->id, iterBestRwyEnd->id,
+            iterBestApt->second.GetId().c_str(),
+            iterBestRwyEnd->id,
             std::string(retPos).c_str(),
             std::string(_ac).c_str());
     return retPos;
@@ -466,8 +556,5 @@ void LTAptDisable ()
         futRefreshing.wait();
     
     // destroy the Y Probe
-    if (aptYProbe) {
-        XPLMDestroyProbe(aptYProbe);
-        aptYProbe = NULL;
-    }
+    Apt::DestroyYProbe();
 }

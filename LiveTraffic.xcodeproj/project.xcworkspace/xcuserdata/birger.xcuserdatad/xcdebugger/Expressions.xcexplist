@@ -269,10 +269,10 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "LTFlightDataCreateNewAc():LTFlightData.cpp">
+         contextName = "ThreadIndexApt():LTApt.cpp">
       </ContextState>
       <ContextState
-         contextName = "ThreadIndexApt():LTApt.cpp">
+         contextName = "LTFlightDataCreateNewAc():LTFlightData.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::IsPosOK(positionTy const&amp;, positionTy const&amp;) const:LTFlightData.cpp">
@@ -395,10 +395,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -515,6 +515,14 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "AsyncReadApt(positionTy, double):LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "errno">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "draw_objects_for_mode(one_obj*, int):XPMPMultiplayerObj8.cpp">
          <PersistentStrings>
             <PersistentString
@@ -585,10 +593,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -636,10 +644,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -650,10 +658,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
