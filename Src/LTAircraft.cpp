@@ -1599,7 +1599,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.bcnLights  = 1;
         surfaces.lights.strbLights = 0;
         surfaces.lights.navLights  = 1;
-        surfaces.lights.flashPattern = mdl.LIGHT_PATTERN;
+        surfaces.lights.flashPattern = (XPMPLightsPattern)mdl.LIGHT_PATTERN;
         
         gear.down();
         flaps.up();

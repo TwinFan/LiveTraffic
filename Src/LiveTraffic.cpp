@@ -441,6 +441,9 @@ PLUGIN_API int XPluginStart(
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
+        
+        // Tell the XPMP2 who we are
+        XPMPSetPluginName(LIVE_TRAFFIC);
 
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
@@ -581,11 +584,11 @@ PLUGIN_API void    XPluginStop(void)
 }
 
 #ifdef DEBUG
-// Error callback, called by X-Plane if we you bogus data in our API calls
+// Error callback, called by X-Plane if we use bogus data in our API calls
 void LTErrorCB (const char* msg)
 {
     char s[512];
-    snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s\n", LIVE_TRAFFIC, msg);
+    snprintf(s, sizeof(s), LIVE_TRAFFIC " FATAL ERROR CALLBACK: %s\n", msg);
     XPLMDebugString(s);
 }
 #endif

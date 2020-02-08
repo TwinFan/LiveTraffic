@@ -309,31 +309,18 @@ int   MPIntPrefsFunc   (const char* section, const char* key, int   iDefault)
         // debug XPMP's CSL model matching if requested
         if (!strcmp(key, "model_matching"))
             return dataRefs.GetDebugModelMatching();
-        // allow asynch loading of models
-        if (!strcmp(key, "allow_obj8_async_load"))
-            return 1;
+        // logging level to match ours
+        if (!strcmp(key, "log_level"))
+            return dataRefs.GetLogLevel();
     }
     else if (!strcmp(section,"planes"))
     {
-        // How many full a/c to draw at max?
-        if (!strcmp(key, "max_full_count"))
-            return dataRefs.GetMaxFullNumAc();
-        // also register the original libxplanemp dataRefs for CSL models?
-        if (!strcmp(key, "dr_libxplanemp"))
-            return dataRefs.GetDrLibXplaneMP();
+        // We always want clamping to ground
+        if (!strcmp(key, "clamp_all_to_ground")) return 1;
     }
     
     // dont' know/care about the option, return the default value
     return iDefault;
-}
-
-float MPFloatPrefsFunc (const char* section, const char* key, float fDefault)
-{
-    // Max distance for drawing full a/c (as opposed to 'lights only')?
-    if ( !strcmp(section,"planes") && !strcmp(key,"full_distance") )
-    { return (float)dataRefs.GetFullDistance_nm(); }
-
-    return fDefault;
 }
 
 // loops until the next enabled CSL path and verifies it is an existing path
@@ -406,7 +393,7 @@ bool LTMainInit ()
         pathLights.c_str(),
         pathDoc8643.c_str(),
         dataRefs.GetDefaultAcIcaoType().c_str(),
-        &MPIntPrefsFunc, &MPFloatPrefsFunc
+        &MPIntPrefsFunc, nullptr
     );
     // Init of multiplayer library failed. Cleanup as much as possible and bail out
     if ( cszResult[0] ) {
@@ -434,6 +421,17 @@ bool LTMainInit ()
         }
     }
     
+    // Initialize libxplanemp
+    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
+    cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
+                                     nullptr,
+                                     pathRes.c_str());
+    if ( cszResult[0] ) {
+        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
+        XPMPMultiplayerCleanup();
+        return false;
+    }
+    
     // register flight loop callback, but don't call yet (see enable later)
     XPLMRegisterFlightLoopCallback(LoopCBAircraftMaintenance, 0, NULL);
     
@@ -448,17 +446,6 @@ bool LTMainEnable ()
 {
     LOG_ASSERT(dataRefs.pluginState == STATE_INIT);
 
-    // Initialize libxplanemp
-    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
-    const char*cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
-                                                &MPFloatPrefsFunc,
-                                                pathRes.c_str());
-    if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
-        XPMPMultiplayerCleanup();
-        return false;
-    }
-    
     // Enable fetching flight data
     if (!LTFlightDataEnable()) return false;
 
@@ -562,9 +549,6 @@ void LTMainDisable ()
     
     // disable fetching flight data
     LTFlightDataDisable();
-    
-    // De-init libxplanemp
-    XPMPMultiplayerCleanup();
     
     // save config file
     dataRefs.SaveConfigFile();

@@ -6,6 +6,9 @@
          contextName = "LTAircraft::LTAircraft(LTFlightData&amp;):LTAircraft.cpp">
       </ContextState>
       <ContextState
+         contextName = "XPMP2::CSLModelByName(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;):CSLModels.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightDataConnection::ReceiveData(char const*, unsigned long, unsigned long, void*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
@@ -585,6 +588,17 @@
       </ContextState>
       <ContextState
          contextName = "str_tokenize(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, bool):LTMain.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "XPMP2::Aircraft::DoMove():Aircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "sv[3]">
+            </PersistentString>
+            <PersistentString
+               value = "sv">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "DataRefs::LTGetInt(void*):DataRefs.cpp">
