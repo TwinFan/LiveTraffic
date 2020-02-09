@@ -181,6 +181,7 @@
 		25AB477923B560C2007E7B15 /* XP-APT-1100-Spec_revised_04-11-2019.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "XP-APT-1100-Spec_revised_04-11-2019.pdf"; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
+		25B4427923EF674B0040F67A /* MapIcons.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MapIcons.png; sourceTree = "<group>"; };
 		25BBD2F921EA0F8300AEAA4B /* OpenSky_Routes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Routes.json; sourceTree = "<group>"; };
 		25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Metadata_Routes_combined.json; sourceTree = "<group>"; };
 		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
@@ -189,6 +190,13 @@
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
 		25CDC7482236F034007F504B /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 10/Log.txt"; sourceTree = "<group>"; };
+		25CFCBD723EF85CD008E8D56 /* DockerCommands.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = DockerCommands.txt; sourceTree = "<group>"; };
+		25CFCBD823EF85CD008E8D56 /* Dockerfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile; sourceTree = "<group>"; };
+		25CFCBD923EF85CD008E8D56 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		25CFCBDA23EF85CD008E8D56 /* Dockerfile_full */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile_full; sourceTree = "<group>"; };
+		25CFCBDB23EF85CD008E8D56 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		25CFCBDC23EF85CD008E8D56 /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
+		25CFCBDD23EF85CD008E8D56 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		25D09093222D69C400D52057 /* RTdev1.1.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.1.pdf; sourceTree = "<group>"; };
 		25D09094222D69C400D52057 /* OMDB_20190224_1915Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z_PE.txt; sourceTree = "<group>"; };
 		25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z.txt; sourceTree = "<group>"; };
@@ -199,7 +207,6 @@
 		25D6542B210C631B00E65D77 /* Deceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Deceleration.psd; sourceTree = "<group>"; };
 		25D712A821B72E1700B5802F /* Doc8643.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Doc8643.txt; sourceTree = "<group>"; };
 		25D712A921B72EF900B5802F /* related.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = related.txt; sourceTree = "<group>"; };
-		25D712AA21B72EF900B5802F /* lights.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lights.png; sourceTree = "<group>"; };
 		25DC1E2A21B72922008D0F8B /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = "<group>"; };
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
@@ -352,8 +359,8 @@
 		2577B6A0216A9397004B432D /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				25B4427923EF674B0040F67A /* MapIcons.png */,
 				25D59F4B23106A79002D81CF /* model_typecode.txt */,
-				25D712AA21B72EF900B5802F /* lights.png */,
 				25D712A921B72EF900B5802F /* related.txt */,
 				25D712A821B72E1700B5802F /* Doc8643.txt */,
 				2577B6A1216A93D1004B432D /* FlightModels.prf */,
@@ -596,22 +603,37 @@
 			path = NoGit;
 			sourceTree = "<group>";
 		};
+		25CFCBD623EF85CD008E8D56 /* docker */ = {
+			isa = PBXGroup;
+			children = (
+				25CFCBD723EF85CD008E8D56 /* DockerCommands.txt */,
+				25CFCBD823EF85CD008E8D56 /* Dockerfile */,
+				25CFCBD923EF85CD008E8D56 /* Makefile */,
+				25CFCBDA23EF85CD008E8D56 /* Dockerfile_full */,
+				25CFCBDB23EF85CD008E8D56 /* README.md */,
+				25CFCBDC23EF85CD008E8D56 /* build.sh */,
+				25CFCBDD23EF85CD008E8D56 /* .gitignore */,
+			);
+			path = docker;
+			sourceTree = "<group>";
+		};
 		D607B15F09A5563000699BC3 = {
 			isa = PBXGroup;
 			children = (
-				25A095BD2203B01300658AA8 /* Include */,
-				255857992095B78300816F65 /* Src */,
-				25A095CA2203B0C500658AA8 /* Lib */,
-				2577B6A0216A9397004B432D /* Resources */,
-				254EA46D20834D5E008A312F /* docs */,
-				255857972095B74300816F65 /* Data */,
-				25AACA30217B2FCA0035DC20 /* LICENSE */,
 				25364221221755B1000DC56F /* CMakeLists.txt */,
-				25AACA2F217A99ED0035DC20 /* README.md */,
-				25A4CB8F2196FF4A00F6A9E2 /* NoGit */,
-				25A3889B209884B50015266E /* Links */,
+				255857972095B74300816F65 /* Data */,
+				25CFCBD623EF85CD008E8D56 /* docker */,
+				254EA46D20834D5E008A312F /* docs */,
 				D6A7BDAD16A1DEA700D1426A /* Frameworks */,
+				25A095BD2203B01300658AA8 /* Include */,
+				25A095CA2203B0C500658AA8 /* Lib */,
+				25AACA30217B2FCA0035DC20 /* LICENSE */,
+				25A3889B209884B50015266E /* Links */,
+				25A4CB8F2196FF4A00F6A9E2 /* NoGit */,
 				D607B19A09A556E400699BC3 /* Products */,
+				25AACA2F217A99ED0035DC20 /* README.md */,
+				2577B6A0216A9397004B432D /* Resources */,
+				255857992095B78300816F65 /* Src */,
 			);
 			sourceTree = "<group>";
 		};
@@ -747,7 +769,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.22;
+				CURRENT_PROJECT_VERSION = 2.00;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
@@ -834,7 +856,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.22;
+				CURRENT_PROJECT_VERSION = 2.00;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";

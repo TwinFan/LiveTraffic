@@ -384,16 +384,17 @@ bool LTMainInit ()
     // communicated to the model via custom datarefs,
     // see XPMPMultiplayerObj8.cpp/obj_get_float)
     const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
-    const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG));
     const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
+    const std::string pathMapIcons(LTCalcFullPluginPath(PATH_MAPICONS_PNG));
     const char* cszResult = XPMPMultiplayerInitLegacyData
     (
         cslPath.c_str(),                // we pass in the first found CSL dir
         pathRelated.c_str(),
-        pathLights.c_str(),
+        nullptr,
         pathDoc8643.c_str(),
         dataRefs.GetDefaultAcIcaoType().c_str(),
-        &MPIntPrefsFunc, nullptr
+        &MPIntPrefsFunc, nullptr,
+        pathMapIcons.c_str()
     );
     // Init of multiplayer library failed. Cleanup as much as possible and bail out
     if ( cszResult[0] ) {

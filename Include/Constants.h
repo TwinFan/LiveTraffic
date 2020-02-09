@@ -29,8 +29,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.23f;
-constexpr bool VERSION_BETA = false;
+constexpr float VERSION_NR = 2.00f;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -218,6 +218,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define PATH_LIGHTS_PNG         "Resources/lights.png"
 #define PATH_DOC8643_TXT        "Resources/Doc8643.txt"
 #define PATH_MODEL_TYPECODE_TXT "Resources/model_typecode.txt"
+#define PATH_MAPICONS_PNG       "Resources/MapIcons.png"
 #define PATH_RESOURCES          "Resources"
 #define PATH_RESOURCES_CSL      "Resources/CSL"
 #define PATH_RESOURCES_SCSL     "Resources/ShippedCSL"
