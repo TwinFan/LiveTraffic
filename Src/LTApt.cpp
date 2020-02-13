@@ -504,11 +504,11 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
             if (std::isnan(re.pos.alt_m()))
                 continue;
             // 1. Heading of rwy as compared to heading of flight
-            if (fabs(HeadingDiff(from.heading(), re.pos.heading())) > ART_RWY_MAX_HEAD_DIFF)
+            if (std::abs(HeadingDiff(from.heading(), re.pos.heading())) > ART_RWY_MAX_HEAD_DIFF)
                 continue;
             // 2. Heading towards rwy, compared to current flight's heading
             const double bearing = from.angle(re.pos);
-            const double headingDiff = fabs(HeadingDiff(from.heading(), bearing));
+            const double headingDiff = std::abs(HeadingDiff(from.heading(), bearing));
             if (headingDiff > bestHeadingDiff)      // worse than best known match?
                 continue;
             // 3. Vertical speed, for which we need to know distance / flying time

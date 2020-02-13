@@ -64,7 +64,6 @@
 #include <utility>
 #include <string>
 #include <map>
-#include <unordered_map>
 #include <vector>
 #include <list>
 #include <deque>
@@ -89,14 +88,7 @@
 #include "XPStandardWidgets.h"
 
 // XP Multiplayer API
-#ifdef _MSC_VER                 // in Visual C++ suppress one warning (warning C4201: nonstandard extension used: nameless struct/union)
-#pragma warning (push)
-#pragma warning (disable: 4201)
-#endif
-#include "XPMP2/XPMPMultiplayer.h"
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
+#include "XPMPMultiplayer.h"
 
 // LTAPI Includes, this defines the bulk transfer structure
 #include "LTAPI.h"

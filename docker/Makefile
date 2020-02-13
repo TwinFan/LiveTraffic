@@ -1,9 +1,9 @@
 # platforms=win mac lin
-platforms=lin
+platforms=lin mac
 container=lt-cross-compile-env
 
 # all: mac lin win
-all: lin
+all: $(platforms)
 
 .image: Dockerfile build.sh
 	docker build . -t $(container)

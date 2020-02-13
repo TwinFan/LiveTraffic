@@ -99,8 +99,8 @@ public:
     std::string acLivery;               ///< Livery code of this plane
     
     /// @brief Holds position (in local coordinates!) and orientation (pitch, heading roll) of the aircraft.
-    /// @details This is where it will be placed in the next drawing cycle.
-    ///          When filling `y` directly (instead of using SetLocation()) remember to add
+    /// @details This is where it will be placed in this drawing cycle.\n
+    /// @note    When filling `y` directly (instead of using SetLocation()) remember to add
     ///          GetVertOfs() for accurate placement on the ground
     XPLMDrawInfo_t drawInfo;
     
@@ -115,6 +115,13 @@ public:
     
     /// How much of the vertical offset shall be applied? (This allows phasing out the vertical offset in higher altitudes.) [0..1]
     float       vertOfsRatio = 1.0f;
+    
+    /// @brief Shall this plane be clamped to ground (ie. never sink below ground)?
+    /// @note This involves Y-Testing, which is a bit expensive, see [SDK](https://developer.x-plane.com/sdk/XPLMScenery).
+    ///       If you know your plane is not close to the ground,
+    ///       you may want to avoid clamping by setting this to `false`.
+    /// @see configuration item `XPMP2_CFG_ITM_CLAMPALL`
+    bool        bClampToGround = false;
     
     /// Priority for display in one of the limited number of AI/multiplayer slots
     int         aiPrio      = 1;
@@ -144,6 +151,9 @@ protected:
     /// Distance to camera in meters (updated internally with every flightloop callback)
     float               distCamera = 0.0f;
     
+    /// Y Probe for terrain testing, neeed in ground clamping
+    XPLMProbeRef        hProbe = nullptr;
+    
     // Data used for drawing icons in X-Plane's map
     int                 mapIconRow = 0;     ///< map icon coordinates, row
     int                 mapIconCol = 0;     ///< map icon coordinates, column
@@ -170,8 +180,12 @@ public:
     int ChangeModel (const std::string& _icaoType,
                      const std::string& _icaoAirline,
                      const std::string& _livery);
+    /// Find a match again, using the existing parameters, eg. after more models have been loaded
+    int ReMatchModel () { return ChangeModel(acIcaoType,acIcaoAirline,acLivery); }
     /// Assigns the given model per name, returns if successful
     bool AssignModel (const std::string& _modelName);
+    /// return a pointer to the CSL model in use (Note: The CSLModel structure is not public.)
+    XPMP2::CSLModel* GetModel () const { return pCSLMdl; }
     /// return the name of the CSL model in use
     std::string GetModelName () const;
     /// quality of the match with the CSL model
@@ -186,8 +200,8 @@ public:
     /// Distance to camera [m]
     float GetDistToCamera () const { return distCamera; }
     
-    /// @brief Converts world coordinates to local coordinates, writes to `drawInfo`
-    /// @note Alternatively, the calling plugin can set local coordinates in `drawInfo`directly
+    /// @brief Converts world coordinates to local coordinates, writes to Aircraft::drawInfo
+    /// @note Alternatively, the calling plugin can set local coordinates in Aircraft::drawInfo directly
     /// @param lat Latitude in degress -90..90
     /// @param lon Longitude in degrees -180..180
     /// @param alt_ft Altitude in feet above MSL
@@ -220,6 +234,8 @@ protected:
     void DoMove ();
     /// Internal: Update the plane's distance from the camera location
     void UpdateDistCamera (const XPLMCameraPosition_t& posCam);
+    /// Clamp to ground: Make sure the plane is not below ground, corrects Aircraft::drawInfo if needed.
+    void ClampToGround ();
     /// Create the instances, return if successful
     bool CreateInstances ();
     /// Destroy all instances

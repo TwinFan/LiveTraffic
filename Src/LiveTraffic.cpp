@@ -442,9 +442,6 @@ PLUGIN_API int XPluginStart(
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
         
-        // Tell the XPMP2 who we are
-        XPMPSetPluginName(LIVE_TRAFFIC);
-
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
         

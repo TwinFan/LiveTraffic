@@ -315,8 +315,8 @@ int   MPIntPrefsFunc   (const char* section, const char* key, int   iDefault)
     }
     else if (!strcmp(section,"planes"))
     {
-        // We always want clamping to ground
-        if (!strcmp(key, "clamp_all_to_ground")) return 1;
+        // We don't want clamping to the ground, we take care of the ground ourselves
+        if (!strcmp(key, "clamp_all_to_ground")) return 0;
     }
     
     // dont' know/care about the option, return the default value
@@ -367,48 +367,36 @@ bool LTMainInit ()
 
     // Init fetching flight data
     if (!LTFlightDataInit()) return false;
+        
+    // init Multiplayer API
+    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
+    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
+    const std::string pathMapIcons(LTCalcFullPluginPath(PATH_MAPICONS_PNG));
+    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
+
+    const char* cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc, nullptr,
+                                                 pathRes.c_str(),
+                                                 LIVE_TRAFFIC,
+                                                 dataRefs.GetDefaultAcIcaoType().c_str(),
+                                                 pathMapIcons.c_str());
+    if ( cszResult[0] ) {
+        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
+        XPMPMultiplayerCleanup();
+        return false;
+    }
     
     // These are the paths configured for CSL packages
     const DataRefs::vecCSLPaths& vCSLPaths = dataRefs.GetCSLPaths();
     DataRefs::vecCSLPaths::const_iterator cslIter = vCSLPaths.cbegin();
     const DataRefs::vecCSLPaths::const_iterator cslEnd = vCSLPaths.cend();
-    std::string cslPath = NextValidCSLPath(cslIter, cslEnd);
-    // Error if no valid path found...we continue anyway
-    if (cslPath.empty())
-        SHOW_MSG(logERR,ERR_CFG_CSL_NONE);
-    
-    // init Multiplayer API
-    // apparently the legacy init is still necessary.
-    // Otherwise the XPMP datarefs wouldn't be registered and hence the
-    // planes' config would never change (states like flaps/gears are
-    // communicated to the model via custom datarefs,
-    // see XPMPMultiplayerObj8.cpp/obj_get_float)
-    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
-    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    const std::string pathMapIcons(LTCalcFullPluginPath(PATH_MAPICONS_PNG));
-    const char* cszResult = XPMPMultiplayerInitLegacyData
-    (
-        cslPath.c_str(),                // we pass in the first found CSL dir
-        pathRelated.c_str(),
-        nullptr,
-        pathDoc8643.c_str(),
-        dataRefs.GetDefaultAcIcaoType().c_str(),
-        &MPIntPrefsFunc, nullptr,
-        pathMapIcons.c_str()
-    );
-    // Init of multiplayer library failed. Cleanup as much as possible and bail out
-    if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
-        XPMPMultiplayerCleanup();
-        LTFlightDataStop();
-        return false;
-    }
-    
+
     // now register all other CSLs directories that we found earlier
-    for (cslPath = NextValidCSLPath(cslIter, cslEnd);
+    bool bAnyPathFound = false;
+    for (std::string cslPath = NextValidCSLPath(cslIter, cslEnd);
          !cslPath.empty();
          cslPath = NextValidCSLPath(cslIter, cslEnd))
     {
+        bAnyPathFound = true;
         cszResult = XPMPLoadCSLPackage
         (
          cslPath.c_str(),
@@ -422,17 +410,10 @@ bool LTMainInit ()
         }
     }
     
-    // Initialize libxplanemp
-    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
-    cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
-                                     nullptr,
-                                     pathRes.c_str());
-    if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
-        XPMPMultiplayerCleanup();
-        return false;
-    }
-    
+    // Error if no valid path found...we continue anyway
+    if (!bAnyPathFound)
+        SHOW_MSG(logERR,ERR_CFG_CSL_NONE);
+
     // register flight loop callback, but don't call yet (see enable later)
     XPLMRegisterFlightLoopCallback(LoopCBAircraftMaintenance, 0, NULL);
     

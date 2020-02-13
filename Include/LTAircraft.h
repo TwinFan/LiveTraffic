@@ -29,7 +29,7 @@
 
 #include <string>
 #include "XPLMScenery.h"
-#include "XPMP2/XPCAircraft.h"
+#include "XPCAircraft.h"
 #include "CoordCalc.h"
 #include "LTFlightData.h"
 

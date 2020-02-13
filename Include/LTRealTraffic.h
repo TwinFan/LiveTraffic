@@ -135,7 +135,7 @@ protected:
     volatile bool thrUdpRunning = false;
     double lastReceivedTime     = 0.0;  // copy of simTime
     // map of last received datagrams for duplicate detection
-    std::unordered_map<unsigned long,RTUDPDatagramTy> mapDatagrams;
+    std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     // weather, esp. current barometric pressure to correct altitude values
     double hPa = HPA_STANDARD;
     std::string lastWeather;            // for duplicate detection

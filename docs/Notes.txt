@@ -95,6 +95,12 @@ xplanemp - Created my own fork at https://github.com/TwinFan/libxplanemp, which 
 
     * Mac OS *
     
+    
+* Linux (via docker)
+# Check the resulting binary for missing symbols
+# It is expected that all X-Plane SDK functions are reported as unresolved.
+# But no other function should appear:
+ldd -r lin.xpl
 
 X-Plane API - Download latest version from https://developer.x-plane.com/sdk/plugin-sdk-downloads/
 

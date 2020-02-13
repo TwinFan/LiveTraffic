@@ -190,10 +190,8 @@
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
 		25CDC7482236F034007F504B /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 10/Log.txt"; sourceTree = "<group>"; };
-		25CFCBD723EF85CD008E8D56 /* DockerCommands.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = DockerCommands.txt; sourceTree = "<group>"; };
 		25CFCBD823EF85CD008E8D56 /* Dockerfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile; sourceTree = "<group>"; };
 		25CFCBD923EF85CD008E8D56 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
-		25CFCBDA23EF85CD008E8D56 /* Dockerfile_full */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile_full; sourceTree = "<group>"; };
 		25CFCBDB23EF85CD008E8D56 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		25CFCBDC23EF85CD008E8D56 /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
 		25CFCBDD23EF85CD008E8D56 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -606,10 +604,8 @@
 		25CFCBD623EF85CD008E8D56 /* docker */ = {
 			isa = PBXGroup;
 			children = (
-				25CFCBD723EF85CD008E8D56 /* DockerCommands.txt */,
 				25CFCBD823EF85CD008E8D56 /* Dockerfile */,
 				25CFCBD923EF85CD008E8D56 /* Makefile */,
-				25CFCBDA23EF85CD008E8D56 /* Dockerfile_full */,
 				25CFCBDB23EF85CD008E8D56 /* README.md */,
 				25CFCBDC23EF85CD008E8D56 /* build.sh */,
 				25CFCBDD23EF85CD008E8D56 /* .gitignore */,
@@ -814,6 +810,7 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
+					Lib/XPMP2/XPMP2.framework/Headers,
 					Lib/LTAPI,
 					"Lib/XPSDK301/CHeaders/**",
 					"$(HEADER_SEARCH_PATHS)",
@@ -898,6 +895,7 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
+					Lib/XPMP2/XPMP2.framework/Headers,
 					Lib/LTAPI,
 					"Lib/XPSDK301/CHeaders/**",
 					"$(HEADER_SEARCH_PATHS)",

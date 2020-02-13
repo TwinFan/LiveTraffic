@@ -872,12 +872,12 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         if (json_array_get_count(pCosList) % 4 == 0)    // trails should be made of quadrupels
                             // iterate trail data in form of quadrupels (lat,lon,timestamp,alt):
                             for (size_t i=0; i< json_array_get_count(pCosList); i += 4) {
-                                const positionTy& addedTrail =
                                 trails.emplace_back(json_array_get_number(pCosList, i),         // latitude
                                                     json_array_get_number(pCosList, i+1),       // longitude
                                                     json_array_get_number(pCosList, i+3) * M_per_FT,     // altitude (convert to meter)
                                                     json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
                                 // only keep new trail if it is a valid position
+                                const positionTy& addedTrail = trails.back();
                                 if ( !addedTrail.isNormal() ) {
                                     LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
                                     trails.pop_back();  // otherwise remove right away
@@ -897,7 +897,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         std::string dbgLast(lastTrail.dbgTxt());
 #endif
                         if (mainPos.hasSimilarTS(lastTrail) &&
-                            (abs(mainPos.alt_m() - lastTrail.alt_m()) < 500))
+                            (std::abs(mainPos.alt_m() - lastTrail.alt_m()) < 500))
                         {
                             // reason we check this is: altitude data in the trails
                             // seems to always be a multiple of 500ft, which would mean

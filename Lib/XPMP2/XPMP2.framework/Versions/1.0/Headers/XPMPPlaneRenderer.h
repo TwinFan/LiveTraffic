@@ -31,6 +31,6 @@
 void            XPMPInitDefaultPlaneRenderer(void);
 void            XPMPDefaultPlaneRenderer(int is_blend);
 void            XPMPDeinitDefaultPlaneRenderer(void);
-void            XPMPInitMultiplayerDataRefs(void);
+void            XPMPInitMultiplayerDataRefs(bool bDeactivateToZero = false);
 
 #endif

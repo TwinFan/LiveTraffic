@@ -49,7 +49,7 @@ void conv_color (int inCol, float outColor[4])
 //
 
 // global map, which stores the content of the doc8643 file
-std::unordered_map<std::string, Doc8643> mapDoc8643;
+std::map<std::string, Doc8643> mapDoc8643;
 const Doc8643 DOC8643_EMPTY;    // objet returned if Doc8643::get fails
 
 // constructor setting all elements
@@ -173,7 +173,7 @@ namespace ModelIcaoType
 {
     /// Map, which stores the content of the model_typecode.txt file:
     /// human-readable model text maps to ICAO type cide
-    std::unordered_map<std::string, std::string> mapModelIcaoType;
+    std::map<std::string, std::string> mapModelIcaoType;
     
     /// global empty string returned if nothing is found in map
     const std::string gEmptyString;

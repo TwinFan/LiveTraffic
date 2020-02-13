@@ -921,7 +921,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                       pAc->GetSpeed_m_s());                      // speed
                     
                     // insert touch-down point at beginning of posDeque
-                    positionTy& touchDownPos = posDeque.emplace_front(toPos_ac.destPos(vecTouch));
+                    posDeque.emplace_front(toPos_ac.destPos(vecTouch));
+                    positionTy& touchDownPos = posDeque.front();
                     touchDownPos.onGrnd = positionTy::GND_ON;
                     touchDownPos.flightPhase = LTAircraft::FPH_TOUCH_DOWN;
                     touchDownPos.alt_m() = NAN;          // will set correct terrain altitude during TryFetchNewPos
@@ -943,7 +944,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // i.e. as long as they point along the current track +/- 3°
                 while (posDeque.size() > 2 &&       // keep at least two positions
                        posDeque[1].IsOnGnd() &&
-                       abs(HeadingDiff(posDeque[1].heading(),pAc->GetTrack())) <= MDL_SAME_TRACK_DIFF)
+                       std::abs(HeadingDiff(posDeque[1].heading(),pAc->GetTrack())) <= MDL_SAME_TRACK_DIFF)
                 {
                     // remove the second element (first is the just inserted touch-down pos)
                     posDeque.erase(std::next(posDeque.begin()));
@@ -1043,7 +1044,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             if (*iter < takeOffPos) {
                                 // If this pos's heading is the same as for take off we just remove it.
                                 // Which allows the accelerate algorithm to accelerate all the distance to take-off point
-                                if (abs(HeadingDiff(iter->heading(), vec.angle)) <= MDL_SAME_TRACK_DIFF) {
+                                if (std::abs(HeadingDiff(iter->heading(), vec.angle)) <= MDL_SAME_TRACK_DIFF) {
                                     iter = posDeque.erase(iter);
                                     continue;               // start over loop with next element after the erased one
                                 }
@@ -1944,7 +1945,7 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
         
         // test for similarity
         if (pbSimilar) {
-            if (abs(d.ts-ts) < SIMILAR_TS_INTVL) {
+            if (std::abs(d.ts-ts) < SIMILAR_TS_INTVL) {
                 *pbSimilar = true;
                 pBefore = &d;
                 return;
@@ -2279,7 +2280,7 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
         
         // should be +/- 45° of bearing
         const vectorTy vecView = fdPair.second.pAc->GetVecView();
-        double hDiff = abs(HeadingDiff(bearing, vecView.angle));
+        double hDiff = std::abs(HeadingDiff(bearing, vecView.angle));
         if (hDiff > maxDiff)
             continue;
         

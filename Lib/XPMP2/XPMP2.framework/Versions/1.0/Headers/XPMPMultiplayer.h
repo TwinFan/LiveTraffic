@@ -81,7 +81,7 @@ struct XPMPPlanePosition_t {
     float   heading         = 0.0f;                     ///< heading [degrees]
     char    label[32]       = "";                       ///< label to show with the aircraft
     float   offsetScale     = 1.0f;                     ///< how much of the surface contact correction offset should be applied [0..1]
-    bool    clampToGround   = true;                     ///< enables ground-clamping for this aircraft
+    bool    clampToGround   = false;                    ///< enables ground-clamping for this aircraft (can be expensive, see Aircraft::bClampToGround)
     int     aiPrio          = 1;                        ///< Priority for AI/TCAS consideration, the lower the earlier
     float   label_color[4]  = {1.0f,1.0f,0.0f,1.0f};    ///< label base color (RGB)
     int     multiIdx        = 0;                        ///< OUT: set by xplanemp to inform application about multiplay index in use
@@ -265,74 +265,60 @@ void removeUserVertOffset(const char *inMtlCode);
 * MARK: INITIALIZATION
 ************************************************************************************/
 
-/*
- * XPMPMultiplayerInitLegacyData
- *
- * This routine initializes legacy portions of the multiplayer library.
- *
- * inPlaneList is a ptr to a fully qualified file name that is a text file of ICAO -> model
- * mappings.  The xsb_aircraft.txt file can be used as a template.  (Please note: other
- * XSB files are NOT necessary and are not necessarily available under open source license.)
- *
- * inDoc8643 is the path to the ICAO document 8643, available at
- * http://www.icao.int/anb/ais/TxtFiles/Doc8643.txt. This file lists all aircraft types
- * with their manufacturer, ICAO equipment code and aircraft category.
- *
- * The two prefs funcs each take an ini section and key and return a value and also take
- * a default.  The renderer uses them for configuration.  Currently the following keys are
- * needed:
- *
- * section  key                 type    default description
- * planes   full_distance       float   3.0
- * planes   max_full_count      int     50
- *
- * The return value is a string indicating any problem that may have gone wrong in a human-readable
- * form, or an empty string if initalizatoin was okay.
- *
- * Call this once from your XPluginStart routine.
- *
- * Depending on which plane packages are installed this can take between 30 seconds and 15 minutes.
- *
- * After transitioning to exclusively OBJ8-based packages, this function should no longer be required.
- * Instead, make separate calls to XPMPLoadCSLPackages and XPMPSetDefaultPlaneICAO.
- *
- */
+// Config section is defined for legacy reasons only
+#define XPMP_CFG_SEC_PLANES          "planes"               ///< Config section "planes"
+#define XPMP_CFG_SEC_DEBUG           "debug"                ///< Config section "debug"
+
+// Config key definitions
+#define XPMP_CFG_ITM_CLAMPALL        "clamp_all_to_ground"  ///< Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround
+#define XPMP_CFG_ITM_LOGLEVEL        "log_level"            ///< General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)
+#define XPMP_CFG_ITM_MODELMATCHING   "model_matching"       ///< Write information on model matching into Log.txt
+#define XPMP_CFG_ITM_
+
+/// @brief Definition for the type of configuration callback function
+/// @details The plugin using XPMP2 can provide such a callback function via XPMPMultiplayerInitLegacyData().
+///          It will be called max. every 2s to fetch each of the following configuraton values:\n
+/// `section | key                 | type | default | description`\n
+/// `------- | ------------------- | ---- | ------- | ---------------------`\n
+/// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround`\n
+/// `debug   | log_level           | int  |    2    | General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)`\n
+/// `debug   | model_matching      | int  |    0    | Write information on model matching into Log.txt`\n
+/// @note There is no immediate requirement to check the value of `_section` in your implementation.
+///       `_key` by itself is unique. Compare it with any of the `XPMP_CFG_ITM_*` values and return your value.
+/// @param _section Configuration section, ie. group of values.
+/// @param _key Any of the `XPMP_CFG_ITM_*` values to indicate which config value is to be returned.
+/// @param _default A default provided by XPMP. Have your callback return '_default' if you don't want to explicitely set a value or don't know the `_key`.
+/// @return Your callback shall return your config value for config item `_key'
+typedef int (*XPMPIntPrefsFuncTy)(const char* _section, const char* _key, int _default);
+
+/// @brief Deprecated legacy initialization of XPMP2.
+/// @details Effectively calls, in this order,
+///          XPMPMultiplayerInit() (with `resourceDir` being `nullptr`) and XPMPLoadCSLPackage().
+/// @see XPMPMultiplayerInit() and XPMPLoadCSLPackage() for details on the parameters.
+[[deprecated("Use XPMPMultiplayerInit and XPMPLoadCSLPackages")]]
 const char *    XPMPMultiplayerInitLegacyData(const char * inCSLFolder      = nullptr,
                                               const char * inRelatedPath    = nullptr,
                                               const char * inTexturePath    = nullptr,
                                               const char * inDoc8643        = nullptr,
                                               const char * inDefaultICAO    = nullptr,
-                                              int (* inIntPrefsFunc)(const char *, const char *, int)       = nullptr,
-                                              float (* inFloatPrefsFunc)(const char *, const char *, float) = nullptr,
+                                              XPMPIntPrefsFuncTy inIntPrefsFunc                   = nullptr,
+                                              float (*inUnsed)(const char *, const char *, float) = nullptr,
                                               const char * inMapIconFile    = nullptr);
 
-/*
- * XPMPMultiplayerInit
- *
- * The two prefs funcs each take an ini section and key and return a value and also take
- * a default.  The renderer uses them for configuration.  Currently the following keys are
- * needed:
- *
- * section  key                 type    default description
- * planes   full_distance       float   3.0     (unused in XPMP2)
- * planes   max_full_count      int     100     (unused in XPMP2)
- * planes   clamp_all_to_ground int     0
- * planes   dr_libxplanemp      int     1
- * debug    model_matching      int     0
- * debug    log_level           int     2       (new in XPMP2, 2 = Warning, see Utilities.h::logLevelTy)
- *
- * Additionally takes a string path to the resource directory of the calling plugin for storing the
- * user vertical offset config file.
- *
- * The return value is a string indicating any problem that may have gone wrong in a human-readable
- * form, or an empty string if initalizatoin was okay.
- *
- * Call this once, typically from your XPluginStart routine.
- *
- */
-const char *    XPMPMultiplayerInit(int (* inIntPrefsFunc)(const char *, const char *, int)         = nullptr,
-                                    float (* inFloatPrefsFunc)(const char *, const char *, float)   = nullptr,
-                                    const char * resourceDir = nullptr);
+/// @brief Initializes the XPMP2 library. This shall be your first call to the library.
+/// @param inIntPrefsFunc A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
+/// @param inUnused1 Used to be a callback function for providing float config values, but is not used in XPMP2.
+/// @param resourceDir A directory where XPMP2 can write the file `userVertOffsets.txt` with information on calculated and user vertical ofsets per model.
+/// @param inPluginName Your plugin's name, used only in output to `Log.txt`
+/// @param inDefaultICAO A fallback aircraft type if no type can be deduced otherwise for an aircraft.
+/// @param inMapIconFile Full path to a `MapIcons.png` file providing a matrix of icons used in the internal map.
+/// @return Empty string in case of success, otherwise a human-readable error message.
+const char *    XPMPMultiplayerInit(XPMPIntPrefsFuncTy inIntPrefsFunc                    = nullptr,
+                                    float (*inUnused1)(const char *, const char *, float) = nullptr,
+                                    const char* resourceDir     = nullptr,
+                                    const char* inPluginName    = nullptr,
+                                    const char* inDefaultICAO   = nullptr,
+                                    const char* inMapIconFile   = nullptr);
 
 /// @brief Overrides the plugin's name to be used in Log output
 /// @details The name in use defaults to the plugin's name as set in XPluginStart().
@@ -392,24 +378,12 @@ bool XPMPHasControlOfAIAircraft();
 * MARK: CSL Package Handling
 ************************************************************************************/
 
-/*
- * XPMPLoadCSLPackage
- *
- * Loads a collection of planes
- *
- * inPlaneList is a ptr to a fully qualified file name that is a text file of ICAO -> model
- * mappings.  The xsb_aircraft.txt file can be used as a template.  (Please note: other
- * XSB files are NOT necessary and are not necessarily available under open source license.)
- *
- * inDoc8643 is the path to the ICAO document 8643, available at
- * http://www.icao.int/anb/ais/TxtFiles/Doc8643.txt. This file lists all aircraft types
- * with their manufacturer, ICAO equipment code and aircraft category.
- *
- * This is fast if the planes are all OBJ8 (because the objects are loaded asynchronously,
- * on demand), otherwise it could take several seconds or minutes depending on the quantity
- * and fidelity of the planes.
- *
- */
+/// @brief Loads CSL packages from the given folder, searching up to 5 folder levels deep.
+/// @details This function mainly searches the given folder for packages and reads the structure.
+///          Actual loading of objects is done asynchronously when needed only.
+/// @param inCSLFolder Root folder to start the search.
+/// @param inRelatedPath Full path to a `related.txt` file, providing information of groups of similar-looking aircraft. Will be read only once.
+/// @param inDoc8643 Full path to a `doc8643.txt` file, providing information on official ICAO aircraft types. Will be read only once.
 const char *    XPMPLoadCSLPackage(const char * inCSLFolder,
                                    const char * inRelatedPath   = nullptr,
                                    const char * inDoc8643       = nullptr);
@@ -728,8 +702,12 @@ bool XPMPDrawingAircraftLabels();
 //       Enable or disable the drawing of icons on maps
 //
 
-/// Enable or disable the drawing of aircraft icons on X-Plane's map in a separate Layer names after the plugin
-void XPMPEnableMap (bool _bEnable);
+/// @brief Enable or disable the drawing of aircraft icons on X-Plane's map
+/// @param _bEnable Enable or disable entire map functionality
+/// @param _bLabels If map is enabled, shall also labels be drawn?
+/// @details XPMP2 creates a separate Map Layer named after the plugin for this purposes.
+///          By default, the map functionality is enabled including label writing.
+void XPMPEnableMap (bool _bEnable, bool _bLabels = true);
 
 #ifdef __cplusplus
 }
