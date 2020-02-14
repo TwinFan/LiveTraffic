@@ -1,5 +1,5 @@
 # platforms=win mac lin
-platforms=lin mac
+platforms=lin
 container=lt-cross-compile-env
 
 # all: mac lin win
