@@ -49,6 +49,7 @@ public:
                 const char* inAirline,
                 const char* inLivery,
                 const char* inModelName = nullptr);     // this new parameter is defaulted, so that old code should compile
+    virtual ~XPCAircraft () {}
     
     /// Legacy: Called before rendering to query plane's current position, overwrite to provide your implementation
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition) = 0;

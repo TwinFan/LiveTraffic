@@ -1,4 +1,5 @@
 # LiveTraffic - Set up to be used in the provided docker environment to build lin and mac
+#               mac does currently compile only, but fails linking.
 #               Set up to be used in a Visual Studio environment to build win (File > Open > Folder, then VS recognized the CMAKE configuration)
 
 cmake_minimum_required(VERSION 3.9)
@@ -11,7 +12,7 @@ endif ()
 
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_SOURCE_DIR}/Include")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Headers")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/Widgets")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/Wrappers")
@@ -68,9 +69,9 @@ set(Header_Files
     Include/TFWidgets.h
     Include/XPCompatibility.h
     Lib/LTAPI/LTAPI.h
-    Lib/XPMP2/XPMP2.framework/Headers/XPCAircraft.h
-    Lib/XPMP2/XPMP2.framework/Headers/XPMPMultiplayer.h
-    Lib/XPMP2/XPMP2.framework/Headers/XPMPPlaneRenderer.h
+    Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPCAircraft.h
+    Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPMultiplayer.h
+    Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPPlaneRenderer.h
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -109,10 +110,13 @@ add_library(LiveTraffic MODULE ${ALL_FILES})
 # Specify library search locations.
 if (APPLE)
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
-    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/libpng")
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPSDK301/Libraries/Mac")
-else ()
+elseif (UNIX)
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPSDK301/Libraries/Win")
+elseif (WIN32)
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPSDK301/Libraries/Win")
 endif ()
@@ -133,19 +137,15 @@ find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
 include_directories( ${OpenGL_INCLUDE_DIRS} )
 target_link_libraries( LiveTraffic OpenGL::GL )
 
-# ZLIB
-find_package(ZLIB REQUIRED)  # sudo apt-get install zlib1g-dev
-include_directories( ${ZLIB_INCLUDE_DIRS} )
-target_link_libraries( LiveTraffic ${ZLIB_LIBRARIES} )
-
-# PNG Library
-find_package(PNG REQUIRED)  # sudo apt-get install libpng-dev
-include_directories( ${PNG_INCLUDE_DIRS} )
-target_link_libraries( LiveTraffic ${PNG_LIBRARIES} )
-
 # CURL Library
-find_package(CURL REQUIRED)  # sudo apt-get install curl
-include_directories( ${CURL_INCLUDE_DIRS} )
+if (WIN32)
+    find_library(CURL_LIBRARIES NAMES libcurl.lib)
+    include_directories("${CMAKE_SOURCE_DIR}/Lib/CURL/libcurl.framework/Versions/Release-7.65.3/Headers")
+    add_definitions(-DCURL_STATICLIB)
+else()
+    find_package(CURL REQUIRED)  # sudo apt-get install curl
+    include_directories( ${CURL_INCLUDE_DIRS} )
+endif()
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
 
@@ -197,11 +197,8 @@ if (APPLE)
 endif ()
 
 if (WIN32)
-    # Unlike OS X and Linux we build standard libraries statically since X-Plane does not provide them.
-    # target_link_libraries(LiveTraffic -static-libgcc -static-libstdc++ opengl32)
-    # MSYS2 for some reason always links against winpthread, so we have to work around it by statically linking the
-    # entire plugin. This allows building the plugin nativaly on Windows.
-    # target_link_libraries(LiveTraffic -static)
+    # Link platform-specific libraries especially for networking
+    target_link_libraries(LiveTraffic ws2_32.lib wldap32.lib advapi32.lib crypt32.lib)
 elseif (APPLE)
     # X-Plane supports OS X 10.10+, so this should ensure FlyWithLua can run on
     # all supported versions.

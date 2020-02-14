@@ -1,0 +1,70 @@
+﻿{
+    "configurations": [
+        {
+            "name": "x64-Debug",
+            "generator": "Ninja",
+            "configurationType": "Debug",
+            "inheritEnvironments": [ "msvc_x64_x64" ],
+            "buildRoot": "${projectDir}\\build-win\\${name}",
+            "installRoot": "${projectDir}\\build-win\\install\\${name}",
+            "cmakeCommandArgs": "",
+            "buildCommandArgs": "-v",
+            "ctestCommandArgs": "",
+            "variables": [
+                {
+                    "name": "CMAKE_CXX_FLAGS",
+                    "value": "/DWIN32 /D_WINDOWS /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS /GS- /Gd /Gy- /Zc:wchar_t /Zc:forScope /Zc:inline /Zc:__cplusplus /W4 /EHsc /fp:precise /diagnostics:column",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_CXX_FLAGS_DEBUG",
+                    "value": "/MDd /Od /RTC1 /Zi /DDEBUG",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_MODULE_LINKER_FLAGS",
+                    "value": "/machine:x64",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_MODULE_LINKER_FLAGS_DEBUG",
+                    "value": "/debug /INCREMENTAL:NO",
+                    "type": "STRING"
+                }
+            ]
+        },
+        {
+            "name": "x64-Release",
+            "generator": "Ninja",
+            "configurationType": "RelWithDebInfo",
+            "buildRoot": "${projectDir}\\build-win\\${name}",
+            "installRoot": "${projectDir}\\build-win\\install\\${name}",
+            "cmakeCommandArgs": "",
+            "buildCommandArgs": "-v",
+            "ctestCommandArgs": "",
+            "inheritEnvironments": [ "msvc_x64_x64" ],
+            "variables": [
+                {
+                    "name": "CMAKE_CXX_FLAGS",
+                    "value": "/DWIN32 /D_WINDOWS /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS /GS- /Gd /Gy- /Zc:wchar_t /Zc:forScope /Zc:inline /Zc:__cplusplus /W4 /EHsc /fp:precise /diagnostics:column",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_CXX_FLAGS_RELWITHDEBINFO",
+                    "value": "/MD /Zi /GL /O2 /DNDEBUG",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_MODULE_LINKER_FLAGS",
+                    "value": "/machine:x64",
+                    "type": "STRING"
+                },
+                {
+                    "name": "CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO",
+                    "value": "/LTCG /debug /INCREMENTAL:NO",
+                    "type": "STRING"
+                }
+            ]
+        }
+    ]
+}
