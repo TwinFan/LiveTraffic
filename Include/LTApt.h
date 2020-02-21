@@ -30,11 +30,21 @@ bool LTAptEnable ();
 /// Update the airport data with airports around current camera position
 void LTAptRefresh ();
 
+/// @brief Update local coordinate system's values due to ref point change
+/// @param bForce `true` Recalculate all values, `false` calculate only missing values
+void LTAptLocalCoordsUpdate (bool bForce);
+
 /// @brief Return the best possible runway to auto-land at
 /// @param _ac Aircraft in search for a landing spot. It's last go-to position and VSI as well as its model are of importance
 /// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway)
 /// @note Call from separate thread, like from CalcNextPos
 positionTy LTAptFindRwy (const LTAircraft& _ac);
+
+/// @brief Snaps the passed-in position to the nearest rwy or taxiway if appropriate
+/// @param pos Reference to the position, which might get changed.
+/// @param bLogging Do logging via LOG_MSG?
+/// @return Changed the position?
+bool LTAptSnap (positionTy& pos, bool bLogging);
 
 /// Cleanup
 void LTAptDisable ();

@@ -297,6 +297,7 @@ public:
     // based on buffered positions calculate the next position to fly to in a separate thread
     void DataCleansing (bool& bChanged);
     void DataSmoothing (bool& bChanged);
+    void SnapToTaxiways (bool& bChanged);   ///< shift ground positions to taxiways, insert positions at taxiway nodes
     bool CalcNextPos ( double simTime );
     static void CalcNextPosMain ();
     void TriggerCalcNewPos ( double simTime );

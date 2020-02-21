@@ -243,19 +243,19 @@
 		254EA46D20834D5E008A312F /* docs */ = {
 			isa = PBXGroup;
 			children = (
-				258B581823BBFFC300753C82 /* LiveTraffic.doxygen */,
-				258B581723BBFFC300753C82 /* MainPage.md */,
-				25AB477923B560C2007E7B15 /* XP-APT-1100-Spec_revised_04-11-2019.pdf */,
-				25606F8D21B362790017D1EE /* readme.html */,
-				2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */,
 				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
-				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
-				25D6542B210C631B00E65D77 /* Deceleration.psd */,
 				25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */,
 				25D6542A210C630800E65D77 /* Calc.xlsx */,
-				25F5CBAA20813880004C232C /* Notes.txt */,
+				25D6542B210C631B00E65D77 /* Deceleration.psd */,
 				254EA4722083EA8B008A312F /* LICENSE_parson.txt */,
 				2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */,
+				258B581823BBFFC300753C82 /* LiveTraffic.doxygen */,
+				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
+				2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */,
+				258B581723BBFFC300753C82 /* MainPage.md */,
+				25F5CBAA20813880004C232C /* Notes.txt */,
+				25606F8D21B362790017D1EE /* readme.html */,
+				25AB477923B560C2007E7B15 /* XP-APT-1100-Spec_revised_04-11-2019.pdf */,
 			);
 			path = docs;
 			sourceTree = "<group>";

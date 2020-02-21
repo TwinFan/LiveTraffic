@@ -371,6 +371,14 @@ std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
     return std::string();
 }
 
+/// @details Called during a flight loop callback in case
+///          the local coordinate's reference point had changed
+void HandleRefPointChanged ()
+{
+    // Force recalculation of all local coordinates of the airport/taxi network
+    LTAptLocalCoordsUpdate(true);
+}
+
 //
 //MARK: Init/Destroy
 //

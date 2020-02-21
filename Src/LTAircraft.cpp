@@ -74,6 +74,10 @@ bool NextCycle (int newCycle)
     else
         XPMPDisableAircraftLabels();
     
+    // Check if the reference point of the local coordinate system had changed
+    if (dataRefs.DidLocalRefPointChange())
+        
+    
     // time should move forward (positive difference) and not too much either
     // If time moved to far between two calls then we better start over
     // (but no problem if no a/c yet displayed anyway)

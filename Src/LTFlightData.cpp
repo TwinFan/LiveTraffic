@@ -735,6 +735,34 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     bChanged = true;
 }
 
+// shift ground positions to taxiways, insert positions at taxiway nodes
+void LTFlightData::SnapToTaxiways (bool& bChanged)
+{
+    // Not enabled at all? (Or no positions at all?)
+    if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||
+        posDeque.empty())
+        return;
+    
+    // Loop over position in the deque
+    dequePositionTy::iterator iter = posDeque.begin();
+    while (iter != posDeque.end())
+    {
+        // Only act on positions on the ground,
+        // which have (not yet) been artificially added
+        positionTy& pos = *iter;
+        if (pos.IsOnGnd() && pos.flightPhase == 0)
+        {
+            // Try snapping to a rwy or taxiway
+            if (LTAptSnap(pos, dataRefs.GetDebugAcPos(key())))
+                bChanged = true;
+        } // non-artificial ground position
+        
+        // move on to next
+        ++iter;
+    } // while all posDeque positions
+}
+
+
 // based on buffered positions calculate the next position to fly to
 // (usually called in a separate thread via TriggerCalcNewPos,
 //  with 'simTime' slightly [~0.5s] into the future,
@@ -876,6 +904,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         // *** Data Cleansing ***
         DataCleansing(bChanged);
+        
+        // *** Snap to taxiways ***
+        SnapToTaxiways(bChanged);
 
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );

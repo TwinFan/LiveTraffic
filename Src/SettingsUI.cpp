@@ -140,6 +140,8 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_INT_FULL_DISTANCE,
     UI_ADVCD_CAP_FD_STD_DISTANCE,
     UI_ADVCD_INT_FD_STD_DISTANCE,
+    UI_ADVCD_CAP_FD_SNAP_TAXI_DIST,
+    UI_ADVCD_INT_FD_SNAP_TAXI_DIST,
     UI_ADVCD_CAP_FD_REFRESH_INTVL,
     UI_ADVCD_INT_FD_REFRESH_INTVL,
     UI_ADVCD_CAP_FD_BUF_PERIOD,
@@ -302,14 +304,16 @@ TFWidgetCreate_t SETTINGS_UI[] =
     { 230,  90,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,2, 0,0, 0,0} },
     {   5, 110, 225,  10, 1, "Search distance [nm]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 130, 225,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 130, 225,  10, 1, "Snap to taxiway [m]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 150, 225,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 150, 225,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 170, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 170, 225,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
-    {   5, 190, 225,  10, 1, "Network timeout [s]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    {   5, 190, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
     { 230, 190,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
+    {   5, 210, 225,  10, 1, "Network timeout [s]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
+    { 230, 210,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField,{xpProperty_MaxCharacters,3, 0,0, 0,0} },
     // "CSL" tab
     {  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow, {0,0,0,0,0,0} },
     {   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption, {0,0, 0,0, 0,0} },
@@ -517,6 +521,8 @@ void LTSettingsUI::Enable()
                           DATA_REFS_LT[DR_CFG_FULL_DISTANCE]);
         intFdStdDistance.setId(widgetIds[UI_ADVCD_INT_FD_STD_DISTANCE],
                           DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE]);
+        intFdSnapTaxiDist.setId(widgetIds[UI_ADVCD_INT_FD_SNAP_TAXI_DIST],
+                          DATA_REFS_LT[DR_CFG_FD_SNAP_TAXI_DIST]);
         intFdRefreshIntvl.setId(widgetIds[UI_ADVCD_INT_FD_REFRESH_INTVL],
                           DATA_REFS_LT[DR_CFG_FD_REFRESH_INTVL]);
         intFdBufPeriod.setId(widgetIds[UI_ADVCD_INT_FD_BUF_PERIOD],
