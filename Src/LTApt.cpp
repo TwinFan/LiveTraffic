@@ -449,19 +449,24 @@ public:
         const double old_lat = pos.lat(), old_lon = pos.lon();
         
         // Find the closest edge and right away move pos there
-        if (!FindClosestEdge(pos, pos, dataRefs.GetFdSnapTaxiDist_m()))
-            return false;
-
-        // found a match, say hurray
-        if (bLogging) {
-            LOG_MSG(logDEBUG, "Snapped to taxiway from (%7.4f, %7.4f) to (%7.4f, %7.4f)",
-                    old_lat, old_lon, pos.lat(), pos.lon());
+        const TaxiEdge* pEdge = FindClosestEdge(pos, pos, dataRefs.GetFdSnapTaxiDist_m());
+        if (pEdge) {
+            // found a match, say hurray
+            if (bLogging) {
+                LOG_MSG(logDEBUG, "Snapped to taxiway from (%7.4f, %7.4f) to (%7.4f, %7.4f)",
+                        old_lat, old_lon, pos.lat(), pos.lon());
+            }
+            
+            // this is now an artificially moved position, don't touch any further
+            // (we don't makr positions on a runway...it might hamper take off prediction and acceleration if we do,
+            //  downside is that we will pass in this position again and again...)
+            if (pEdge->GetType() != TaxiEdge::RUN_WAY)
+                pos.flightPhase = LTAPIAircraft::FPH_TAXI;
+            return true;
         }
         
-        // this is now an artificially moved position, don't touch any further
-        pos.flightPhase = LTAPIAircraft::FPH_TAXI;
-        
-        return true;
+        // nothing found
+        return false;
     }
     
     // --- MARK: Runways

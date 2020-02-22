@@ -359,7 +359,8 @@ void AccelParam::StartAccel(double _startSpeed, double _targetSpeed,
 //       would be higher on shorter vectors in case of uniform distribution.)
 void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
                                    double _deltaDist,
-                                   double _startTime, double _targetTime)
+                                   double _startTime, double _targetTime,
+                                   const LTAircraft* pAc)
 {
     LOG_ASSERT(_targetTime > currCycle.simTime);
     LOG_ASSERT(_startTime < _targetTime);
@@ -399,6 +400,14 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
     // no way of complying to input parameters under our conditions:
     // set constant speed and return
     else {
+        // output debug info on request
+        if (dataRefs.GetDebugAcPos(pAc->key())) {
+            LOG_MSG(logDEBUG,"CONSTANT SPEED due impossible speeds (start=%.1f,avg=%.1f=%.1fm/%.1fs,target=%.1f) for %s",
+                    _startSpeed,
+                    avgSpeed, _deltaDist, deltaTime,
+                    _targetSpeed,
+                    std::string(*pAc).c_str());
+        }
         SetSpeed(avgSpeed);
         return;
     }
@@ -421,6 +430,15 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
     startTime = _startTime;
     accelStartTime = std::max(tx, _startTime);
     targetTime = _targetTime;
+    if (dataRefs.GetDebugAcPos(pAc->key())) {
+        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
+                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
+                startSpeed,
+                accelStartTime - startTime,
+                acceleration,
+                targetSpeed,
+                std::string(*pAc).c_str());
+    }
 }
 
 // *** Acceleration formula ***
@@ -1306,12 +1324,17 @@ bool LTAircraft::CalcPPos()
             speed.StartSpeedControl(speed.m_s(),
                                     toSpeed,
                                     vec.dist,
-                                    from.ts(), to.ts());
+                                    from.ts(), to.ts(),
+                                    this);
             // don't need to calc speed again
             bNeedNextVec = false;
         }
         // else if no next attempt: just fly constant avg speed then
         else if (!bNeedNextVec) {
+            // output debug info on request
+            if (dataRefs.GetDebugAcPos(key())) {
+                LOG_MSG(logDEBUG,"CONSTANT SPEED due to no next vector available for %s",std::string(*this).c_str());
+            }
             speed.SetSpeed(vec.speed);
         }
     }
