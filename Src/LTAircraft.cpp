@@ -1,28 +1,27 @@
-//
-//  LTAircraft.cpp
-//  LiveTraffic
-
-/*
- * Copyright (c) 2018, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       LTAircraft.cpp
+/// @brief      LTAircraft represents an individual tracked aircraft drawn into X-Plane's sky
+/// @details    Implements helper classes MovingParam, AccelParam for flght parameters
+///             that change in a controlled way (like flaps, roll, speed).\n
+///             LTAircraft::FlightModel provides configuration values controlling flight modelling.\n
+///             LTAircraft calculates the current position and configuration of the aircraft
+///             in every flighloop cycle while being called from libxplanemp.
+/// @author     Birger Hoppe
+/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #include "LiveTraffic.h"
 
@@ -74,6 +73,10 @@ bool NextCycle (int newCycle)
         XPMPEnableAircraftLabels();
     else
         XPMPDisableAircraftLabels();
+    
+    // Check if the reference point of the local coordinate system had changed
+    if (dataRefs.DidLocalRefPointChange())
+        
     
     // time should move forward (positive difference) and not too much either
     // If time moved to far between two calls then we better start over
@@ -356,7 +359,8 @@ void AccelParam::StartAccel(double _startSpeed, double _targetSpeed,
 //       would be higher on shorter vectors in case of uniform distribution.)
 void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
                                    double _deltaDist,
-                                   double _startTime, double _targetTime)
+                                   double _startTime, double _targetTime,
+                                   const LTAircraft* pAc)
 {
     LOG_ASSERT(_targetTime > currCycle.simTime);
     LOG_ASSERT(_startTime < _targetTime);
@@ -396,6 +400,14 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
     // no way of complying to input parameters under our conditions:
     // set constant speed and return
     else {
+        // output debug info on request
+        if (dataRefs.GetDebugAcPos(pAc->key())) {
+            LOG_MSG(logDEBUG,"CONSTANT SPEED due impossible speeds (start=%.1f,avg=%.1f=%.1fm/%.1fs,target=%.1f) for %s",
+                    _startSpeed,
+                    avgSpeed, _deltaDist, deltaTime,
+                    _targetSpeed,
+                    std::string(*pAc).c_str());
+        }
         SetSpeed(avgSpeed);
         return;
     }
@@ -418,6 +430,15 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
     startTime = _startTime;
     accelStartTime = std::max(tx, _startTime);
     targetTime = _targetTime;
+    if (dataRefs.GetDebugAcPos(pAc->key())) {
+        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
+                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
+                startSpeed,
+                accelStartTime - startTime,
+                acceleration,
+                targetSpeed,
+                std::string(*pAc).c_str());
+    }
 }
 
 // *** Acceleration formula ***
@@ -1303,12 +1324,17 @@ bool LTAircraft::CalcPPos()
             speed.StartSpeedControl(speed.m_s(),
                                     toSpeed,
                                     vec.dist,
-                                    from.ts(), to.ts());
+                                    from.ts(), to.ts(),
+                                    this);
             // don't need to calc speed again
             bNeedNextVec = false;
         }
         // else if no next attempt: just fly constant avg speed then
         else if (!bNeedNextVec) {
+            // output debug info on request
+            if (dataRefs.GetDebugAcPos(key())) {
+                LOG_MSG(logDEBUG,"CONSTANT SPEED due to no next vector available for %s",std::string(*this).c_str());
+            }
             speed.SetSpeed(vec.speed);
         }
     }
@@ -1952,7 +1978,7 @@ bool LTAircraft::CalcVisible ()
 /// 3. All else
 /// If user is flying then airborne planes have in total higher prio than
 /// taxiing planes.
-/// @Warning Should only be called "every so often" but not every drawing frame
+/// @warning Should only be called "every so often" but not every drawing frame
 void LTAircraft::CalcAIPrio ()
 {
     // If this is the plane, which is currently in camera view,

@@ -1,28 +1,28 @@
-//
-//  DataRefs.cpp
-//  LiveTraffic
-
-/*
- * Copyright (c) 2018, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       DataRefs.cpp
+/// @brief      Access to global data like dataRefs, `doc8643` and `model_typecode` files.
+/// @details    Implements classes Doc8643, DataRefs, and read access to `model_typecode` file.\n
+///             There is exactly one instance of DataRefs, which is the global variable `dataRefs`,
+///             in which all globally relevant values are stored, beyond just XP's dataRefs:\n
+///             - LiveTraffic's configuration options including reading/writing of the config file\n
+///             - readable callbacks for other plugins' access to LiveTraffic's data
+///             - LTAPI interface
+/// @author     Birger Hoppe
+/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #include "LiveTraffic.h"
 
@@ -282,6 +282,8 @@ const char* DATA_REFS_XP[] = {
     "sim/time/local_date_days",
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
+    "sim/flightmodel/position/lat_ref",         // float    n    degrees    The latitude of the point 0,0,0 in OpenGL coordinates
+    "sim/flightmodel/position/lon_ref",         // float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates"
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
     "sim/weather/barometer_sealevel_inhg",      // float  y    29.92    +- ....        The barometric pressure at sea level.
@@ -401,6 +403,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/max_full_num_ac",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/full_distance",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/fd_snap_taxi_dist",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -457,6 +460,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_MAX_FULL_NUM_AC:        return &maxFullNumAc;
         case DR_CFG_FULL_DISTANCE:          return &fullDistance;
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
+        case DR_CFG_FD_SNAP_TAXI_DIST:      return &fdSnapTaxiDist;
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
@@ -748,6 +752,24 @@ bool DataRefs::RegisterCommands()
         { LOG_MSG(logERR,ERR_CREATE_COMMAND,CMD_REFS_LT[i].cmdName); bRet = false; }
     }
     return bRet;
+}
+
+// Did the reference point to the local coordinate system change since last call to this function?
+/// @note Will always return `true` on first call, intentionally.
+bool DataRefs::DidLocalRefPointChange ()
+{
+    const float nowLatRef = XPLMGetDataf(adrXP[DR_LAT_REF]);
+    const float nowLonRef = XPLMGetDataf(adrXP[DR_LON_REF]);
+    
+    // return value:
+    const bool ret = (std::isnan(lstLonRef) ||          // never asked before?
+                      (dequal(lstLatRef, nowLatRef) && dequal(lstLonRef, nowLonRef)));
+    
+    // Update our known value of lat/lon reference
+    lstLatRef = nowLatRef;
+    lstLonRef = nowLonRef;
+ 
+    return ret;
 }
 
 // return user's plane pos

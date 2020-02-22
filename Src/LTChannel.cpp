@@ -1,28 +1,25 @@
-//
-//  LTChannel.cpp
-//  LiveTraffic
-
-/*
- * Copyright (c) 2018, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       LTChannel.cpp
+/// @brief      Abstract base classes for any class reading tracking data from providers
+/// @details    Network error handling .\n
+///             Handles initializing and calling CURL library.\n
+///             Global functions controlling regular requests to tracking data providers.
+/// @author     Birger Hoppe
+/// @copyright  (c) 2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #include "LiveTraffic.h"
 
@@ -452,7 +449,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // hence we can use the simple blocking curl_easy_ call
     netDataPos = 0;                 // fill buffer from beginning
     netData[0] = 0;
-    LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
+    // LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
     DebugLogRaw(url.c_str());
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
@@ -480,17 +477,17 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     switch (httpResponse) {
         case HTTP_OK:
             // log number of bytes received
-            LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+            // LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
             break;
             
         case HTTP_NOT_FOUND:
             // not found is typically handled separately, so only debug-level
-            LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
+            LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());
             break;
             
         default:
             // all other responses are warnings
-            LOG_MSG(logWARN,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
+            LOG_MSG(logWARN,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());
     }
     
     // if requested log raw data received

@@ -1,28 +1,26 @@
-//
-//  LTFlightData.h
-//  LiveTraffic
-/*
- * Copyright (c) 2018, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
+/// @file       LTFlightData.h
+/// @brief      LTFlightData represents the tracking data of one aircraft, even before it is drawn
+/// @details    Keeps statis and dynamic tracking data.\n
+///             Dynamic tracking data is kept as a list.\n
+///             Various optimizations and cleansing applied to dynamic data in a separate thread.\n
+///             Provides fresh tracking data to LTAircraft upon request.
+/// @author     Birger Hoppe
+/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #ifndef LTFlightData_h
 #define LTFlightData_h
@@ -272,7 +270,7 @@ public:
     void SetInvalid();
     
     // KEY into the map
-    void SetKey    (const FDKeyTy& _key)  { acKey = _key; }
+    void SetKey    (const FDKeyTy& _key);
     void SetKey    (FDKeyType eType, unsigned long _num)                    { acKey.SetKey(eType, _num); }
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
     void SetKeyVal (FDKeyType eType, unsigned long _num)                    { acKey.SetVal(eType, _num); }
@@ -299,6 +297,7 @@ public:
     // based on buffered positions calculate the next position to fly to in a separate thread
     void DataCleansing (bool& bChanged);
     void DataSmoothing (bool& bChanged);
+    void SnapToTaxiways (bool& bChanged);   ///< shift ground positions to taxiways, insert positions at taxiway nodes
     bool CalcNextPos ( double simTime );
     static void CalcNextPosMain ();
     void TriggerCalcNewPos ( double simTime );

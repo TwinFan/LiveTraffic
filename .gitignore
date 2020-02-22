@@ -9,6 +9,9 @@ build-lin/
 build-win/
 build-mac/
 
+# Generated documentation
+docs/html/
+
 # XCode user specific files
 xcuserdata/
 *.xcworkspace/

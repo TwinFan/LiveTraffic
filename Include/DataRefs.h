@@ -1,28 +1,28 @@
-//
-//  DataRefs.h
-//  LiveTraffic
-
-/*
- * Copyright (c) 2018, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       DataRefs.h
+/// @brief      Access to global data like dataRefs, `doc8643` and `model_typecode` files.
+/// @details    Defines classes Doc8643, DataRefs, and read access to `model_typecode` file.\n
+///             There is exactly one instance of DataRefs, which is the global variable `dataRefs`,
+///             in which all globally relevant values are stored, beyond just XP's dataRefs:\n
+///             - LiveTraffic's configuration options including reading/writing of the config file\n
+///             - readable callbacks for other plugins' access to LiveTraffic's data
+///             - LTAPI interface
+/// @author     Birger Hoppe
+/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #ifndef DataRefs_h
 #define DataRefs_h
@@ -122,6 +122,8 @@ enum dataRefsXP {
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
+    DR_LAT_REF,                         // sim/flightmodel/position/lat_ref    float    n    degrees    The latitude of the point 0,0,0 in OpenGL coordinates
+    DR_LON_REF,                         // sim/flightmodel/position/lon_ref    float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates.
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
     DR_WEATHER_BARO_SEA,                // XP's weather
@@ -246,6 +248,7 @@ enum dataRefsLT {
     DR_CFG_MAX_FULL_NUM_AC,
     DR_CFG_FULL_DISTANCE,
     DR_CFG_FD_STD_DISTANCE,
+    DR_CFG_FD_SNAP_TAXI_DIST,
     DR_CFG_FD_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_AC_OUTDATED_INTVL,
@@ -466,6 +469,9 @@ protected:
     time_t tStartThisYear = 0, tStartPrevYear = 0;
     int lastCheckNewVer         = 0;    // when did we last check for updates? (hours since the epoch)
     
+    float lstLatRef = NAN;              ///< last lat_ref, ie. known local coordinate system's reference point
+    float lstLonRef = NAN;              ///< last lon_ref, ie. known local coordinate system's reference point
+    
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
     int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
@@ -478,6 +484,7 @@ protected:
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
     int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
+    int fdSnapTaxiDist  = 25;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
@@ -537,6 +544,7 @@ public:
     inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
     inline float GetZuluTimeSec() const         { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
+    bool DidLocalRefPointChange ();             ///< Did the reference point to the local coordinate system change since last call to this function?
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
     inline bool  IsVREnabled() const            { return
@@ -629,6 +637,7 @@ public:
     inline int GetFdStdDistance_nm() const { return fdStdDistance; }
     inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
     inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }
+    inline int GetFdSnapTaxiDist_m() const { return fdSnapTaxiDist; }
     inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }

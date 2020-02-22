@@ -1,28 +1,26 @@
-//
-//  LTFlightData.cpp
-//  LiveTraffic
-
-/*
- * Copyright (c) 2018, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       LTFlightData.cpp
+/// @brief      LTFlightData represents the tracking data of one aircraft, even before it is drawn
+/// @details    Keeps statis and dynamic tracking data.\n
+///             Dynamic tracking data is kept as a list.\n
+///             Various optimizations and cleansing applied to dynamic data in a separate thread.\n
+///             Provides fresh tracking data to LTAircraft upon request.
+/// @author     Birger Hoppe
+/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #include "LiveTraffic.h"
 
@@ -222,7 +220,8 @@ bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
 LTFlightData::LTFlightData () :
 rcvr(0),sig(0),
 rotateTS(NAN),
-youngestTS(0),
+// created "now"...if no positions are ever added then it will be removed after 2 x outdated interval
+youngestTS(dataRefs.GetSimTime() +  + dataRefs.GetAcOutdatedIntvl()),
 pAc(nullptr), probeRef(NULL),
 bValid(true)
 {}
@@ -238,6 +237,7 @@ LTFlightData::LTFlightData(const LTFlightData& fd)
 LTFlightData::~LTFlightData()
 {
     try {
+//        LOG_MSG(logDEBUG, "FD destroyed for %s", key().c_str());
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         // make sure aircraft is removed, too
@@ -285,6 +285,14 @@ void LTFlightData::SetInvalid()
     if (pAc)
         pAc->SetInvalid();
 }
+
+// Set the object's key, usually right after creation in fdMap
+void LTFlightData::SetKey (const FDKeyTy& _key)
+{
+    acKey = _key;
+//    LOG_MSG(logDEBUG, "FD crated for %s", key().c_str());
+}
+
 
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const
@@ -737,6 +745,34 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     bChanged = true;
 }
 
+// shift ground positions to taxiways, insert positions at taxiway nodes
+void LTFlightData::SnapToTaxiways (bool& bChanged)
+{
+    // Not enabled at all? (Or no positions at all?)
+    if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||
+        posDeque.empty())
+        return;
+    
+    // Loop over position in the deque
+    dequePositionTy::iterator iter = posDeque.begin();
+    while (iter != posDeque.end())
+    {
+        // Only act on positions on the ground,
+        // which have (not yet) been artificially added
+        positionTy& pos = *iter;
+        if (pos.IsOnGnd() && pos.flightPhase == 0)
+        {
+            // Try snapping to a rwy or taxiway
+            if (LTAptSnap(pos, dataRefs.GetDebugAcPos(key())))
+                bChanged = true;
+        } // non-artificial ground position
+        
+        // move on to next
+        ++iter;
+    } // while all posDeque positions
+}
+
+
 // based on buffered positions calculate the next position to fly to
 // (usually called in a separate thread via TriggerCalcNewPos,
 //  with 'simTime' slightly [~0.5s] into the future,
@@ -878,6 +914,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         // *** Data Cleansing ***
         DataCleansing(bChanged);
+        
+        // *** Snap to taxiways ***
+        SnapToTaxiways(bChanged);
 
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );

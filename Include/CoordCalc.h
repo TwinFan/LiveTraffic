@@ -1,22 +1,24 @@
-//
-//  CoordCalc.h
-//  LiveTraffic
-/*
- * Found on stackoverflow, code originally by iammilind, improved by 4566976
- * original: https://stackoverflow.com/questions/32096968
- * improved version: https://ideone.com/9yuONO
- *
- * I've adapted to my structures and coding style/naming
- * added a function (CoordVectorBetween) and this header file.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       CoordCalc.h
+/// @brief      Arithmetics with geographic coordinations and altitudes
+/// @details    Basic calculations like distance, angle between vectors, point plus vector.\n
+///             Definitions for classes positionTy, vectorTy, and boundingBoxTy.
+/// @author     Birger Hoppe
+/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #ifndef CoordCalc_h
 #define CoordCalc_h
@@ -27,6 +29,17 @@
 
 // positions and angles are in degrees
 // distances and altitude are in meters
+
+//
+// MARK: Mathematical helper functions
+//
+/// Square, ie. a^2
+template <class T>
+inline T sqr (T a) { return a*a; }
+
+/// Pythagoras square, ie. a^2 + b^2
+template <class T>
+inline T pyth2 (T a, T b) { return sqr(a) + sqr(b); }
 
 //
 //MARK: Degree/Radian conversion
@@ -49,6 +62,10 @@ inline double vsi2deg (const double speed, const double vsi)
 struct positionTy;
 struct vectorTy;
 
+/// angle between two locations given in plain lat/lon
+double CoordAngle (double lat1, double lon1, double lat2, double lon2);
+/// distance between two locations given in plain lat/lon [meter]
+double CoordDistance (double lat1, double lon1, double lat2, double lon2);
 // angle between two coordinates
 double CoordAngle (const positionTy& pos1, const positionTy& pos2 );
 //distance between two coordinates
@@ -57,6 +74,57 @@ double CoordDistance (const positionTy& pos1, const positionTy& pos2);
 vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to );
 // destination point given a starting point and a vetor
 positionTy CoordPlusVector (const positionTy& pos, const vectorTy& vec);
+
+/// @brief Simple square of distance just by Pythagoras
+inline double DistPythSqr (double x1, double y1,
+                           double x2, double y2)
+{ return pyth2(x2-x1, y2-y1); }
+
+/// Return structure for DistPointToLineSqr()
+struct distToLineTy {
+    double      dist2 = NAN;        ///< main result: square distance of point to the line
+    double      len2 = NAN;         ///< square of length of line between ln_x/y1 and ln_x/y2
+    double      leg1_len2 = NAN;    ///< square length of leg from point 1 to base (base is point on the line with shortest distance to point)
+    double      leg2_len2 = NAN;    ///< square length of leg from point 2 to base (base is point on the line with shortest distance to point)
+    /// Is the base outside the endpoints of the line?
+    bool IsBaseOutsideLine () const
+    { return leg1_len2 > len2 || leg2_len2 > len2; }
+    /// How much is the base outside the (nearer) endpoint? (squared)
+    double DistSqrOfBaseBeyondLine () const
+    { return std::max(leg1_len2,leg2_len2) - len2; }
+};
+
+/// @brief Square of distance between a location and a line defined by two points.
+/// @note Function makes no assuptions about the coordinate system,
+///       only that x and y are orthogonal. It uses good ole plain Pythagoras.
+///       Ie., if x/y are in local coordinates, result is in meter.
+///       if they are in geometric coordinates, result cannot be converted to an actual length,
+///       but can still be used in relative comparions.
+/// @note All results are square values. Functions avoids taking square roots for performance reasons.
+/// @param pt_x Point's x coordinate
+/// @param pt_y Point's y coordinate
+/// @param ln_x1 Line: First endpoint's x coordinate
+/// @param ln_y1 Line: First endpoint's y coordinate
+/// @param ln_x2 Line: Second endpoint's x coordinate
+/// @param ln_y2 Line: Second endpoint's y coordinate
+/// @param[out] outResults Structure holding the results, see ::distToLineTy
+void DistPointToLineSqr (double pt_x, double pt_y,
+                         double ln_x1, double ln_y1,
+                         double ln_x2, double ln_y2,
+                         distToLineTy& outResults);
+
+/// @brief Based on results from DistPointToLineSqr() computes locaton of base point on line
+/// @param ln_x1 Line: First endpoint's x coordinate (same as passed in to DistPointToLineSqr())
+/// @param ln_y1 Line: First endpoint's y coordinate (same as passed in to DistPointToLineSqr())
+/// @param ln_x2 Line: Second endpoint's x coordinate (same as passed in to DistPointToLineSqr())
+/// @param ln_y2 Line: Second endpoint's y coordinate (same as passed in to DistPointToLineSqr())
+/// @param res Result returned by DistPointToLineSqr()
+/// @param[out] x X coordinate of base point on the line
+/// @param[out] y Y coordinate of base point on the line
+void DistResultToBaseLoc (double ln_x1, double ln_y1,
+                          double ln_x2, double ln_y2,
+                          const distToLineTy& res,
+                          double &x, double &y);
 
 // returns terrain altitude at given position
 // returns NaN in case of failure
@@ -223,6 +291,9 @@ double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
 /// -180 <= HeadingDiff <= 180
 double HeadingDiff (double h1, double h2);
 
+/// Normaize a heading to the value range [0..360)
+double HeadingNormalize (double h);
+
 // a bounding box has a north/west and a south/east corner
 // we use positionTy for convenience...alt is usually not used here
 struct boundingBoxTy {
@@ -239,7 +310,9 @@ struct boundingBoxTy {
     boundingBoxTy (const positionTy& center, double width, double height = NAN );
     
     /// Enlarge the box by the given x/y values in meters on each side (`y` defaults to `x`)
-    void enlarge (double x, double y = NAN);
+    void enlarge_m (double x, double y = NAN);
+    /// Increases the bounding box to include the given position
+    void enlarge_pos (double lat, double lon);
     /// Increases the bounding box to include the given position
     void enlarge (const positionTy& lPos);
     /// Increases the bounding box to include the given position(s)
@@ -256,7 +329,12 @@ struct boundingBoxTy {
     
     // is position within bounding box?
     bool contains (const positionTy& pos ) const;
-    inline bool operator & (const positionTy& pos ) { return contains(pos); }
+    bool operator & (const positionTy& pos ) const { return contains(pos); }
+    
+    /// Do both boxes overlap?
+    bool overlap (const boundingBoxTy& o) const;
+    /// Do both boxes overlap?
+    bool operator & (const boundingBoxTy& o) const { return overlap(o); }
 };
 
 #endif /* CoordCalc_h */
