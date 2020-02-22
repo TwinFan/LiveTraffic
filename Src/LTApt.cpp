@@ -142,8 +142,9 @@ class TaxiEdge {
 public:
     /// Taxiway or runway?
     enum nodeTy {
-        RUN_WAY = 1,                    ///< node/edge is for runway
-        TAXI_WAY,                       ///< node/edge is for taxiway
+        UNKNOWN_WAY = 0,                ///< edge is of undefined type
+        RUN_WAY = 1,                    ///< edge is for runway
+        TAXI_WAY,                       ///< edge is for taxiway
     };
     
 protected:
@@ -193,6 +194,8 @@ public:
 
 /// Vector of taxi edges
 typedef std::vector<TaxiEdge> vecTaxiEdgeTy;
+/// List of const pointers to taxi edges (for search function results)
+typedef std::list<const TaxiEdge*> lstTaxiEdgeCPtrTy;
 
 /// Represents an airport as read from apt.dat
 class Apt {
@@ -287,6 +290,70 @@ public:
     }
     
     
+    /// @brief Returns a list of taxiways matching a given heading range
+    /// @param _headSearch The heading we search for and which the edge has to match
+    /// @param _angleTolerance Maximum difference between `_headSearch` and TaxiEdge::angle to be considered a match
+    /// @param[out] lst Matching egdes are added to this list,
+    /// @param _restrictType (Optional) Restrict returned edges to this type, or `UNKNOWN_WAY` to not restrict results
+    /// @return Anything found? Basically: `!vec.empty()`
+    bool FindEdgesForHeading (double _headSearch,
+                              double _angleTolerance,
+                              lstTaxiEdgeCPtrTy& lst,
+                              TaxiEdge::nodeTy _restrictType = TaxiEdge::UNKNOWN_WAY) const
+    {
+        // vecTaxiEdges is sorted by heading (see AddApt)
+        // and TaxiEdge::heading is normalized to [0..180).
+        // So we can more quickly find potential matches by
+        // looking in that range of edges only around our target heading pos.heading()
+        // "Normalize" search heading even further to [0..180)
+        bool bHeadInverted = false;
+        if (_headSearch >= 180.0) {
+            _headSearch -= 180.0;
+            bHeadInverted = true;
+        }
+        // We allow for some tolerance
+        const double headBegin = _headSearch - _angleTolerance;     // might now be < 0 !
+        const double headEnd   = _headSearch + _angleTolerance;     // might now be >= 180 !
+        
+        // We need one or two search ranges
+        std::vector< std::pair<double,double> > vecRanges;
+        // normal case: just one search range
+        if (0.0 <= headBegin && headEnd < 180.0) {
+            vecRanges.emplace_back(headBegin,   headEnd);
+        } else if (headBegin < 0.0) {
+            const double headBeginInv = headBegin + 180.0;              // inverse...if headBegin < 0 then this is the start point in the upper range close to 180°
+            vecRanges.emplace_back(0.0,         headEnd);
+            vecRanges.emplace_back(headBeginInv,180.0);
+        } else {        // headEnd >= 180.0
+            const double headEndInv   = headEnd   - 180.0;              // inverse...if headEnd >= 180 then this is the end point in the lower range close to 0°
+            vecRanges.emplace_back(0.0,         headEndInv);
+            vecRanges.emplace_back(headBegin,   180.0);
+        }
+        
+        // search all (up to 2) heading ranges now
+        for (const std::pair<double,double>& rngPair: vecRanges)
+        {
+            // within that heading range, add all matching edges
+            for (vecTaxiEdgeTy::const_iterator iter = std::lower_bound(vecTaxiEdges.cbegin(),
+                                                                       vecTaxiEdges.cend(),
+                                                                       TaxiEdge(rngPair.first),
+                                                                       TaxiEdge::CompHeadLess);
+                 iter != vecTaxiEdges.cend() && iter->angle <= rngPair.second;
+                 ++iter)
+            {
+                // Check for type limitation, then add to `vec`
+                const TaxiEdge& e = *iter;
+                if (_restrictType == TaxiEdge::UNKNOWN_WAY ||
+                    _restrictType == e.GetType())
+                    lst.push_back(&e);
+            }
+        }
+        
+        // Found anything?
+        return !lst.empty();
+    }
+    
+    
     /// @brief Find closest taxi edge matching the passed position including its heading
     /// @param pos Search position, only nearby nodes with a similar heading are considered
     /// @param[out] basePt Receives the coordinates of the base point in case of a match. Only lat and lon will be modified.
@@ -311,77 +378,49 @@ public:
         XPLMWorldToLocal(pos.lat(), pos.lon(), pos.alt_m(),
                          &pt_x, &pt_y, &pt_z);
         
-        // vecTaxiEdges is sorted by heading (see AddApt)
-        // and TaxiEdge::heading is normalized to [0..180).
-        // So we can more quickly find potential matches by
-        // looking in that range of edges only around our target heading pos.heading()
-        double headSearch = HeadingNormalize(pos.heading());
-        // "Normalize" search heading even further to [0..180)
-        bool bHeadInverted = false;
-        if (headSearch >= 180.0) {
-            headSearch -= 180.0;
-            bHeadInverted = true;
-        }
-        // We allow for some tolerance
-        const double headBegin = headSearch - _angleTolerance;      // might now be < 0 !
-        const double headEnd   = headSearch + _angleTolerance;      // might now be >= 180 !
-        const double headBeginInv = headBegin + 180.0;              // inverse...if headBegin < 0 then this is the start point in the upper range close to 180°
-        const double headEndInv   = headEnd   - 180.0;              // inverse...if headEnd >= 180 then this is the end point in the lower range close to 0°
+        // Get a list of edges matching pos.heading()
+        lstTaxiEdgeCPtrTy lstEdges;
+        const double headSearch = HeadingNormalize(pos.heading());
+        if (!FindEdgesForHeading(headSearch,
+                                 _angleTolerance,
+                                 lstEdges))
+            return nullptr;
         
-        // We need one or two search ranges
-        std::vector< std::pair<double,double> > vecRanges;
-        // normal case: just one search range
-        if (0.0 <= headBegin && headEnd < 180.0) {
-            vecRanges.emplace_back(headBegin,   headEnd);
-        } else if (headBegin < 0.0) {
-            vecRanges.emplace_back(0.0,         headEnd);
-            vecRanges.emplace_back(headBeginInv,180.0);
-        } else {        // headEnd >= 180.0
-            vecRanges.emplace_back(0.0,         headEndInv);
-            vecRanges.emplace_back(headBegin,   180.0);
-        }
-        
-        // search all (up to 2) heading ranges now
-        for (const std::pair<double,double>& rngPair: vecRanges)
-        {
-            // within that heading range, search all matching edges
-            for (vecTaxiEdgeTy::const_iterator iter = std::lower_bound(vecTaxiEdges.cbegin(),
-                                                                       vecTaxiEdges.cend(),
-                                                                       TaxiEdge(rngPair.first),
-                                                                       TaxiEdge::CompHeadLess);
-                 iter != vecTaxiEdges.cend() && iter->angle <= rngPair.second;
-                 ++iter)
-            {
-                // Fetch from/to nodes from the edge
-                const TaxiEdge& e = *iter;
-                const TaxiNode& from = bHeadInverted ? e.GetB(*this) : e.GetA(*this);
-                const TaxiNode& to   = bHeadInverted ? e.GetA(*this) : e.GetB(*this);
+        // Edges are normalized to angle of [0..180),
+        // do we fly the other way round?
+        const bool bHeadInverted = headSearch >= 180.0;
 
-                // Edges need to have local coordaintes for what comes next
-                if (!from.HasLocalCoords() || !to.HasLocalCoords())
-                    continue;                       // no match due to heading
-                
-                // Distance to this edge
-                distToLineTy dist;
-                DistPointToLineSqr(pt_x, pt_z,          // plane's position (x is southward, z is eastward)
-                                   from.x, from.z,      // edge's starting point
-                                   to.x, to.z,          // edge's end point
-                                   dist);
-                
-                // If distance is farther then best we know: skip
-                if (dist.dist2 >= bestDist.dist2)
-                    continue;
-                
-                // If base of shortest path to point is too far outside actual line
-                if (dist.DistSqrOfBaseBeyondLine() > maxDistBeyondLineEnd2)
-                    continue;
-                
-                // We have a new best match!
-                bestEdge = &e;
-                bestFrom = &from;
-                bestTo   = &to;
-                bestDist = dist;
-            }
+        // Analyze the edges to find the closest edge
+        for (const TaxiEdge* e: lstEdges)
+        {
+            // Fetch from/to nodes from the edge
+            const TaxiNode& from = bHeadInverted ? e->GetB(*this) : e->GetA(*this);
+            const TaxiNode& to   = bHeadInverted ? e->GetA(*this) : e->GetB(*this);
+
+            // Edges need to have local coordaintes for what comes next
+            if (!from.HasLocalCoords() || !to.HasLocalCoords())
+                continue;                       // no match due to heading
+            
+            // Distance to this edge
+            distToLineTy dist;
+            DistPointToLineSqr(pt_x, pt_z,          // plane's position (x is southward, z is eastward)
+                               from.x, from.z,      // edge's starting point
+                               to.x, to.z,          // edge's end point
+                               dist);
+            
+            // If distance is farther then best we know: skip
+            if (dist.dist2 >= bestDist.dist2)
+                continue;
+            
+            // If base of shortest path to point is too far outside actual line
+            if (dist.DistSqrOfBaseBeyondLine() > maxDistBeyondLineEnd2)
+                continue;
+            
+            // We have a new best match!
+            bestEdge = e;
+            bestFrom = &from;
+            bestTo   = &to;
+            bestDist = dist;
         }
         
         // Nothing found?
@@ -577,7 +616,7 @@ void Apt::AddApt (Apt&& apt)
             apt.GetRwyEndPtVec().size() / 2,
             apt.GetRwysString().c_str(),
             apt.GetTaxiNodesVec().size(),
-            apt.GetTaxiEdgeVec().size());
+            apt.GetTaxiEdgeVec().size() - apt.GetRwyEndPtVec().size()/2);
 
     // Access to the list of airports is guarded by a lock
     {
@@ -1003,42 +1042,43 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     {
         const Apt& apt = iterApt->second;
         
-        // loop over all runways of this airport
-        for (vecTaxiEdgeTy::const_iterator i = apt.FirstRwy();
-             i != apt.GetTaxiEdgeVec().cend();
-             i = apt.NextRwy(i))
+        // Find the runways matching the current plane's heading
+        lstTaxiEdgeCPtrTy lstRwys;
+        if (apt.FindEdgesForHeading(headSearch,
+                                    ART_RWY_MAX_HEAD_DIFF,
+                                    lstRwys,
+                                    TaxiEdge::RUN_WAY))
         {
-            // 1. Test if runway is an option in terms of rwy heading
-            const TaxiEdge& e = *i;
-            if (std::abs(e.angle - headSearch) > ART_RWY_MAX_HEAD_DIFF) // we can do this instead if HeadingDiff because both values are normalized to [0..180)
-                continue;
-            
-            // The rwy end point we are (potentially) aiming at
-            const RwyEndPt& rwyEP = bHeadInverted ? e.GetRwyEP_B(apt) : e.GetRwyEP_A(apt);
-            
-            // We need to know the runway's altitude for what comes next
-            if (std::isnan(rwyEP.alt_m))
-                continue;
+            // loop over found runways of this airport
+            for (const TaxiEdge* e: lstRwys)
+            {
+                // The rwy end point we are (potentially) aiming at
+                const RwyEndPt& rwyEP = bHeadInverted ? e->GetRwyEP_B(apt) : e->GetRwyEP_A(apt);
+                
+                // We need to know the runway's altitude for what comes next
+                if (std::isnan(rwyEP.alt_m))
+                    continue;
 
-            // 2. Heading towards rwy, compared to current flight's heading
-            //    (Find the rwy which requires least turn now.)
-            const double bearing = CoordAngle(from.lat(), from.lon(), rwyEP.lat, rwyEP.lon);
-            const double headingDiff = fabs(HeadingDiff(from.heading(), bearing));
-            if (headingDiff > bestHeadingDiff)      // worse than best known match?
-                continue;
-            
-            // 3. Vertical speed, for which we need to know distance / flying time
-            const double dist = CoordDistance(from.lat(), from.lon(), rwyEP.lat, rwyEP.lon);
-            const double d_ts = dist / speed_m_s;
-            const double vsi = (rwyEP.alt_m - from.alt_m()) / d_ts;
-            if (vsi < vsi_min || vsi > vsi_max)
-                continue;
-            
-            // We've got a match!
-            bestApt = &apt;
-            bestRwyEndPt = &rwyEP;
-            bestHeadingDiff = headingDiff;      // the heading diff (which would be a selection criterion on several rwys match)
-            bestArrivalTS = from.ts() + d_ts;   // the arrival timestamp
+                // Heading towards rwy, compared to current flight's heading
+                // (Find the rwy which requires least turn now.)
+                const double bearing = CoordAngle(from.lat(), from.lon(), rwyEP.lat, rwyEP.lon);
+                const double headingDiff = fabs(HeadingDiff(from.heading(), bearing));
+                if (headingDiff > bestHeadingDiff)      // worse than best known match?
+                    continue;
+                
+                // 3. Vertical speed, for which we need to know distance / flying time
+                const double dist = CoordDistance(from.lat(), from.lon(), rwyEP.lat, rwyEP.lon);
+                const double d_ts = dist / speed_m_s;
+                const double vsi = (rwyEP.alt_m - from.alt_m()) / d_ts;
+                if (vsi < vsi_min || vsi > vsi_max)
+                    continue;
+                
+                // We've got a match!
+                bestApt = &apt;
+                bestRwyEndPt = &rwyEP;
+                bestHeadingDiff = headingDiff;      // the heading diff (which would be a selection criterion on several rwys match)
+                bestArrivalTS = from.ts() + d_ts;   // the arrival timestamp
+            }
         }
     }
     
