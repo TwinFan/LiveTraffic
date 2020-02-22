@@ -220,7 +220,8 @@ bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
 LTFlightData::LTFlightData () :
 rcvr(0),sig(0),
 rotateTS(NAN),
-youngestTS(0),
+// created "now"...if no positions are ever added then it will be removed after 2 x outdated interval
+youngestTS(dataRefs.GetSimTime() +  + dataRefs.GetAcOutdatedIntvl()),
 pAc(nullptr), probeRef(NULL),
 bValid(true)
 {}
@@ -236,6 +237,7 @@ LTFlightData::LTFlightData(const LTFlightData& fd)
 LTFlightData::~LTFlightData()
 {
     try {
+//        LOG_MSG(logDEBUG, "FD destroyed for %s", key().c_str());
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         // make sure aircraft is removed, too
@@ -283,6 +285,14 @@ void LTFlightData::SetInvalid()
     if (pAc)
         pAc->SetInvalid();
 }
+
+// Set the object's key, usually right after creation in fdMap
+void LTFlightData::SetKey (const FDKeyTy& _key)
+{
+    acKey = _key;
+//    LOG_MSG(logDEBUG, "FD crated for %s", key().c_str());
+}
+
 
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const

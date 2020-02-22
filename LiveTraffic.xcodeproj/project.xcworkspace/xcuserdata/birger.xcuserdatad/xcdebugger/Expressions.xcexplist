@@ -241,6 +241,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "OpenSkyAcMasterdata::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;):LTOpenSky.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -410,10 +413,26 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "LTACMasterdataChannel::ClearMasterDataRequests():LTChannel.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "listAcStatUpdate">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "TFMainWindowWidget::MessageCloseButtonPushed():TFWidgets.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::AircraftMaintenance(double):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "posDeque">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTACMasterdataChannel::ClearMasterDataRequests()::$_0::operator()(acStatUpdateTy&amp;) const:LTChannel.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAircraft::CalcFlightModel(positionTy const&amp;, positionTy const&amp;):LTAircraft.cpp">
@@ -537,6 +556,9 @@
                value = "&amp;ln[700]">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "ADSBExchangeConnection::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;):LTADSBEx.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::LTGetInt(void*):DataRefs.cpp">

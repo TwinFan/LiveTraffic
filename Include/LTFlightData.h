@@ -270,7 +270,7 @@ public:
     void SetInvalid();
     
     // KEY into the map
-    void SetKey    (const FDKeyTy& _key)  { acKey = _key; }
+    void SetKey    (const FDKeyTy& _key);
     void SetKey    (FDKeyType eType, unsigned long _num)                    { acKey.SetKey(eType, _num); }
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
     void SetKeyVal (FDKeyType eType, unsigned long _num)                    { acKey.SetVal(eType, _num); }
