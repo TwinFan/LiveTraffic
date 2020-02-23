@@ -220,7 +220,8 @@ bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
 LTFlightData::LTFlightData () :
 rcvr(0),sig(0),
 rotateTS(NAN),
-youngestTS(0),
+// created "now"...if no positions are ever added then it will be removed after 2 x outdated interval
+youngestTS(dataRefs.GetSimTime() +  + dataRefs.GetAcOutdatedIntvl()),
 pAc(nullptr), probeRef(NULL),
 bValid(true)
 {}
@@ -236,6 +237,7 @@ LTFlightData::LTFlightData(const LTFlightData& fd)
 LTFlightData::~LTFlightData()
 {
     try {
+//        LOG_MSG(logDEBUG, "FD destroyed for %s", key().c_str());
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         // make sure aircraft is removed, too
@@ -283,6 +285,14 @@ void LTFlightData::SetInvalid()
     if (pAc)
         pAc->SetInvalid();
 }
+
+// Set the object's key, usually right after creation in fdMap
+void LTFlightData::SetKey (const FDKeyTy& _key)
+{
+    acKey = _key;
+//    LOG_MSG(logDEBUG, "FD crated for %s", key().c_str());
+}
+
 
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const
@@ -735,6 +745,34 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     bChanged = true;
 }
 
+// shift ground positions to taxiways, insert positions at taxiway nodes
+void LTFlightData::SnapToTaxiways (bool& bChanged)
+{
+    // Not enabled at all? (Or no positions at all?)
+    if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||
+        posDeque.empty())
+        return;
+    
+    // Loop over position in the deque
+    dequePositionTy::iterator iter = posDeque.begin();
+    while (iter != posDeque.end())
+    {
+        // Only act on positions on the ground,
+        // which have (not yet) been artificially added
+        positionTy& pos = *iter;
+        if (pos.IsOnGnd() && pos.flightPhase == 0)
+        {
+            // Try snapping to a rwy or taxiway
+            if (LTAptSnap(pos, dataRefs.GetDebugAcPos(key())))
+                bChanged = true;
+        } // non-artificial ground position
+        
+        // move on to next
+        ++iter;
+    } // while all posDeque positions
+}
+
+
 // based on buffered positions calculate the next position to fly to
 // (usually called in a separate thread via TriggerCalcNewPos,
 //  with 'simTime' slightly [~0.5s] into the future,
@@ -876,6 +914,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         // *** Data Cleansing ***
         DataCleansing(bChanged);
+        
+        // *** Snap to taxiways ***
+        SnapToTaxiways(bChanged);
 
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );

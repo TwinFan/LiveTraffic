@@ -33,28 +33,44 @@
 //MARK: Coordinate Calc
 //      (as per stackoverflow post, adapted)
 //
-double CoordAngle (const positionTy& p1, const positionTy& p2 )
+double CoordAngle (double lat1, double lon1, double lat2, double lon2)
 {
-    const positionTy pos1(p1.deg2rad()), pos2(p2.deg2rad());
-    const double longitudeDifference = pos2.lon() - pos1.lon();
+    lat1 *= PI; lat1 /= 180.0;              // in-place degree-to-rad conversion
+    lon1 *= PI; lon1 /= 180.0;
+    lat2 *= PI; lat2 /= 180.0;
+    lon2 *= PI; lon2 /= 180.0;
+    const double longitudeDifference = lon2 - lon1;
     
     using namespace std;
-    const double x = (cos(pos1.lat()) * sin(pos2.lat())) -
-                     (sin(pos1.lat()) * cos(pos2.lat()) * cos(longitudeDifference));
-    const double y = sin(longitudeDifference) * cos(pos2.lat());
+    const double x = (cos(lat1) * sin(lat2)) -
+                     (sin(lat1) * cos(lat2) * cos(longitudeDifference));
+    const double y = sin(longitudeDifference) * cos(lat2);
     
     const double degree = rad2deg(atan2(y, x));
     return (degree >= 0)? degree : (degree + 360);
 }
 
+double CoordDistance (double lat1, double lon1, double lat2, double lon2)
+{
+    lat1 *= PI; lat1 /= 180.0;              // in-place degree-to-rad conversion
+    lon1 *= PI; lon1 /= 180.0;
+    lat2 *= PI; lat2 /= 180.0;
+    lon2 *= PI; lon2 /= 180.0;
+
+    using namespace std;
+    const double x = sin((lat2 - lat1) / 2);
+    const double y = sin((lon2 - lon1) / 2);
+    return EARTH_D_M * asin(sqrt((x * x) + (cos(lat1) * cos(lat2) * y * y)));
+}
+
+double CoordAngle (const positionTy& p1, const positionTy& p2 )
+{
+    return CoordAngle (p1.lat(), p1.lon(), p2.lat(), p2.lon());
+}
+
 double CoordDistance (const positionTy& p1, const positionTy& p2)
 {
-    const positionTy pos1(p1.deg2rad()), pos2(p2.deg2rad());
-    
-    using namespace std;
-    const double x = sin((pos2.lat() - pos1.lat()) / 2);
-    const double y = sin((pos2.lon() - pos1.lon()) / 2);
-    return EARTH_D_M * asin(sqrt((x * x) + (cos(pos1.lat()) * cos(pos2.lat()) * y * y)));
+    return CoordDistance (p1.lat(), p1.lon(), p2.lat(), p2.lon());
 }
 
 vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to )
@@ -98,6 +114,47 @@ positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
     
     return ret.rad2deg();
 }
+
+// Square of distance between a location and a line defined by two points.
+void DistPointToLineSqr (double pt_x, double pt_y,
+                         double ln_x1, double ln_y1,
+                         double ln_x2, double ln_y2,
+                         distToLineTy& outResults)
+{
+    // known input:
+    const double A2 = DistPythSqr(pt_x, pt_y, ln_x2, ln_y2);    // distance point to second line end
+    const double B2 = DistPythSqr(pt_x, pt_y, ln_x1, ln_y1);    // distance point to first line end
+    outResults.len2 = DistPythSqr(ln_x1, ln_y1, ln_x2, ln_y2);  // line length
+#define C2 (outResults.len2)
+    
+    // output calculation
+    outResults.dist2 = A2 - (sqr(B2-C2-A2)/(4*C2));             // distance point to line's base
+#define Z2 (outResults.dist2)
+
+    outResults.leg1_len2 = B2 - Z2;                              // distance from first line endpoint to base
+    outResults.leg2_len2 = A2 - Z2;                              // distance from second line endpoint to base
+}
+
+// Based on results from DistPointToLineSqr() computes locaton of base point on line
+void DistResultToBaseLoc (double ln_x1, double ln_y1,
+                          double ln_x2, double ln_y2,
+                          const distToLineTy& res,
+                          double &x, double &y)
+{
+    // ratio where base is between pts 1 and 2
+    double r = std::sqrt(res.leg1_len2) / std::sqrt(res.len2);
+    
+    // If base point is outside line end points on point 1's side:
+    if (res.leg2_len2 > res.len2)
+        r *= -1.0;                          // make factor negative
+    
+    // compute actual coordinates as linear factors based on point 1:
+    const double dx = ln_x2 - ln_x1;        // delta of x coordinates
+    const double dy = ln_y2 - ln_y1;        // delta of y coordinates
+    x = ln_x1 + r * dx;
+    y = ln_y1 + r * dy;
+}
+
 
 // returns terrain altitude at given position
 // returns NaN in case of failure
@@ -466,6 +523,15 @@ double HeadingDiff (double head1, double head2)
     return head2 - head1;
 }
 
+// Normaize a heading to the value range [0..360)
+double HeadingNormalize (double h)
+{
+    // Rarely will ever more than one statement be executed:
+    while (h < 0.0)    h += 360.0;          // make sure it's non-negative
+    while (h >= 360.0) h -= 360.0;          // make sure it's less than 360
+    return h;
+}
+
 
 //
 //MARK: Bounding Box
@@ -476,11 +542,11 @@ boundingBoxTy::boundingBoxTy (const positionTy& center, double width, double hei
 nw(center), se(center)          // corners initialized with center position
 {
     // now enlarge in all directions
-    enlarge(width/2.0,height/2.0);
+    enlarge_m(width/2.0,height/2.0);
 }
     
 // Enlarge the box by the given width/height in meters (height defaults to width)
-void boundingBoxTy::enlarge (double x, double y)
+void boundingBoxTy::enlarge_m (double x, double y)
 {
     // height defaults to width
     if (std::isnan(y)) y = x;
@@ -495,6 +561,47 @@ void boundingBoxTy::enlarge (double x, double y)
 }
 
 // Increases the bounding box to include the given position
+void boundingBoxTy::enlarge_pos (double lat, double lon)
+{
+    // in the special case that the bounding box isn't initialized
+    // we make it the size of this point:
+    if (std::isnan(nw.lon())) {
+        nw = se = positionTy(lat,lon);
+        return;
+    }
+    
+    // Latitude is easy as it must be between -90 and 90 degrees
+    if (lat < se.lat())
+        se.lat() = lat;
+    else if (lat > nw.lat())
+        nw.lat() = lat;
+    
+    // Longitude is more complex, the bounding box can be enlarged
+    // both to the east or to the west to include lPos.
+    // Which way to go? We go the way with the shorter added angle
+    const double diffW = HeadingDiff(nw.lon(), lon);
+    const double diffE = HeadingDiff(se.lon(), lon);
+    
+    // There are 2 special cases:
+    // 1. The longitude is already included in the bounding box if diffW points east _and_ diffE points west,
+    // 2. The bounding box is a single point
+    if (dequal(diffW, diffE)) {
+        if (diffW < 0.0)                    // extend west-ward
+            nw.lon() = lon;
+        else                                // else east-ward
+            se.lon() = lon;
+    }
+    // in all other cases we change the edge which requires least change:
+    else if (diffW <= 0.0 || diffE >= 0.0)
+    {
+        if (fabs(diffW) < fabs(diffE))
+            nw.lon() = lon;
+        else
+            se.lon() = lon;
+    }
+}
+
+// Increases the bounding box to include the given position
 void boundingBoxTy::enlarge (const positionTy& lPos)
 {
     // in the special case that the bounding box isn't initialized
@@ -503,36 +610,8 @@ void boundingBoxTy::enlarge (const positionTy& lPos)
         nw = se = lPos;
         return;
     }
-    
-    // Latitude is easy as it must be between -90 and 90 degrees
-    if (lPos.lat() < se.lat())
-        se.lat() = lPos.lat();
-    else if (lPos.lat() > nw.lat())
-        nw.lat() = lPos.lat();
-    
-    // Longitude is more complex, the bounding box can be enlarged
-    // both to the east or to the west to include lPos.
-    // Which way to go? We go the way with the shorter added angle
-    const double diffW = HeadingDiff(nw.lon(), lPos.lon());
-    const double diffE = HeadingDiff(se.lon(), lPos.lon());
-    
-    // There are 2 special cases:
-    // 1. The longitude is already included in the bounding box if diffW points east _and_ diffE points west,
-    // 2. The bounding box is a single point
-    if (dequal(diffW, diffE)) {
-        if (diffW < 0.0)                    // extend west-ward
-            nw.lon() = lPos.lon();
-        else                                // else east-ward
-            se.lon() = lPos.lon();
-    }
-    // in all other cases we change the edge which requires least change:
-    else if (diffW <= 0.0 || diffE >= 0.0)
-    {
-        if (std::abs(diffW) < std::abs(diffE))
-            nw.lon() = lPos.lon();
-        else
-            se.lon() = lPos.lon();
-    }
+ 
+    enlarge_pos(lPos.lat(), lPos.lon());
 }
 
 // Center point of bounding box
@@ -597,4 +676,17 @@ bool boundingBoxTy::contains (const positionTy& pos ) const
 
         }
     }
+}
+
+// Do both boxes overlap?
+/// @details The idea is to test 4 points:\n
+///          Is our nw or se corner contained in o?\n
+///          Is ne or sw corner of o contained in us?
+bool boundingBoxTy::overlap (const boundingBoxTy& o) const
+{
+    // Easy cases first
+    return (o.contains(nw) ||
+            o.contains(se) ||
+            contains(positionTy(o.nw.lat(), o.se.lon())) ||
+            contains(positionTy(o.se.lat(), o.nw.lon())));
 }

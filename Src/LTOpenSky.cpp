@@ -207,7 +207,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     int maxNumRequ = int(dataRefs.GetFdRefreshIntvl() / OPSKY_WAIT_BETWEEN) - 2;
     
     for (int i = 0;
-         i < maxNumRequ && bChannelOK && !listAc.empty() && !bFDMainStop;
+         maxNumRequ > 0 && bChannelOK && !listAc.empty() && !bFDMainStop;
          i++)
     {
         // fetch request from front of list and remove
@@ -235,6 +235,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             currKey = info.acKey.icao;
             
             // make use of LTOnlineChannel's capability of reading online data
+            --maxNumRequ;                               // count down the number of requests in this period
             if (LTOnlineChannel::FetchAllData(pos)) {
                 switch (httpResponse) {
                     case HTTP_OK:                       // save response
@@ -282,7 +283,11 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             // set key (call sign) so that other functions (GetURL) can access it
             currKey = info.callSign;
             
+            // delay between 2 requests to not overload OpenSky
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
+            
             // make use of LTOnlineChannel's capability of reading online data
+            --maxNumRequ;                               // count down the number of requests in this period
             if (LTOnlineChannel::FetchAllData(pos)) {
                 switch (httpResponse) {
                     case HTTP_OK:                       // save response
@@ -333,7 +338,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             listAc.push_back(std::move(info));
         
         IncErrCnt();
-        return false;
+        return !listMd.empty();         // return `true` if there is data to process, otherwise we wouldn't process what had been received before the error
     }
     
     // success
@@ -352,7 +357,11 @@ std::string OpenSkyAcMasterdata::GetURL (const positionTy& pos)
 bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
 {
     // loop all previously collected master data records
-    for ( const std::string& ln: listMd) {
+    while (!listMd.empty()) {
+        // the current master data record, remove it from the list
+        std::string ln = std::move(listMd.front());
+        listMd.pop_front();
+        
         // here we collect the master data
         LTFlightData::FDStaticData statDat;
         
@@ -427,8 +436,7 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             UpdateStaticData(fdKey, statDat);
     }
     
-    // we've processed all data, clear it and return success
-    listMd.clear();
+    // we've processed all data, return success
     return true;
 }
 

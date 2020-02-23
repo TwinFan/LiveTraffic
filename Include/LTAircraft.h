@@ -123,7 +123,8 @@ public:
     // reach target Speed by targetTime after deltaDist
     void StartSpeedControl(double startSpeed, double targetSpeed,
                            double deltaDist,
-                           double startTime, double targetTime);
+                           double startTime, double targetTime,
+                           const LTAircraft* pAc);
     
     inline bool isChanging() const { return !std::isnan(acceleration); }
     

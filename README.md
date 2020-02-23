@@ -22,14 +22,52 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libpng](http://www.libpng.org/pub/png/libpng.html)
 - [libz/zlib](https://zlib.net)
 
-## To use cmake
-- CD to repo folder where you see .git
-- CD to Src
-- mkdir build
-- CD build
-- cmake ..
-- make VERBOSE=1
-  
-## To use docker
-- CD to repo folder where you see .git
-- (cd docker; make)
+## Build
+
+### Mac OS
+
+This is the primary development platform and tested best. Open `LiveTraffic.xcodeproject`
+with XCode. In the project's "Build Settings" you find one User-Defined setting at the very end,
+that will require changing: `XPLANE11_ROOT` defines the root path to your X-Plane installation. 
+The build process will install the plugin also into `$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)`,
+so that it is right away available in your installation after build.
+
+### Windows
+
+Windows cannot build in the Docker environment as mingw's libraries aren't up to C++ 17 standards.
+- Install Visual Studio](https://visualstudio.microsoft.com/vs/community/)
+- Open the solution `LifeTraffic.sln`
+- Build from within Visual Studi
+
+Results are in `build/x64`.
+
+### Linux (via Docker)
+
+I don't have a Linux build or test environment. The project does provide a Docker environment,
+though, with which I build the Linux binaries on a Mac OS machine. Theoretically,
+this should also work on a Windows machine, but I never tried. Feedback welcome.
+
+- Install [Docker Desktop](https://www.docker.com/products/docker-desktop) and start it.
+- `cd` to the project's `docker` folder
+- `make`
+
+In the first run only, it will create the necessary Docker image based on Ubuntu 18.04,
+which includes downloading lots of base images and packages and takes a couple
+of minutes. This is required once only.
+
+The actual build takes only a few seconds. Results are written to `build-lin`.
+
+### Doxygen Documentation
+
+Newer files come with Doxygen-style documentation. All file headers are updated already
+so that the file listing in the resulting Doxygen documentation should be appropriate.
+But many older, while having many explanatory comment, are yet missing
+proper Doygen-style format.
+
+To build the Doxygen documentation
+- install [Doxgen](http://www.doxygen.nl/download.html)
+- `cd` into the project's main directory
+- run `doxygen docs/LiveTraffic.doxygen`, e.g. on a Mac run
+`/Applications/Doxygen.app/Contents/Resources/doxygen docs/LiveTraffic.doxygen`
+
+The resulting documentation is written to `docs/html`, open `docs/html/index.html`.

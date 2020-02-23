@@ -109,6 +109,7 @@ constexpr int COLOR_GREEN       = 0x00FF00;
 constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Airports, Runways, Taxiways
+constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [¡] tolerance of searched heading to edge's angle to be considered a fit
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
 constexpr double ART_RWY_MAX_HEAD_DIFF = 10.0;  ///< [¡] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
@@ -248,7 +249,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_EASY_INIT      "Could not initialize easy CURL"
 #define ERR_CURL_PERFORM        "%s: Could not get network data: %d - %s"
 #define ERR_CURL_NOVERCHECK     "Could not browse X-Plane.org for version info: %d - %s"
-#define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld"
+#define ERR_CURL_HTTP_RESP      "%s: HTTP response is not OK but %ld for %s"
 #define ERR_CURL_REVOKE_MSG     {"revocation","80092012","80092013"}  // appear in error text if querying revocation list fails
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
 #define ERR_HTTP_NOT_OK         "HTTP response was not HTTP_OK"

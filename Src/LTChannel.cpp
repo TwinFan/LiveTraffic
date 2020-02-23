@@ -449,7 +449,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // hence we can use the simple blocking curl_easy_ call
     netDataPos = 0;                 // fill buffer from beginning
     netData[0] = 0;
-    LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
+    // LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
     DebugLogRaw(url.c_str());
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
@@ -477,17 +477,17 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     switch (httpResponse) {
         case HTTP_OK:
             // log number of bytes received
-            LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+            // LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
             break;
             
         case HTTP_NOT_FOUND:
             // not found is typically handled separately, so only debug-level
-            LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
+            LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());
             break;
             
         default:
             // all other responses are warnings
-            LOG_MSG(logWARN,ERR_CURL_HTTP_RESP,ChName(),httpResponse);
+            LOG_MSG(logWARN,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());
     }
     
     // if requested log raw data received

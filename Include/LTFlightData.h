@@ -270,7 +270,7 @@ public:
     void SetInvalid();
     
     // KEY into the map
-    void SetKey    (const FDKeyTy& _key)  { acKey = _key; }
+    void SetKey    (const FDKeyTy& _key);
     void SetKey    (FDKeyType eType, unsigned long _num)                    { acKey.SetKey(eType, _num); }
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
     void SetKeyVal (FDKeyType eType, unsigned long _num)                    { acKey.SetVal(eType, _num); }
@@ -297,6 +297,7 @@ public:
     // based on buffered positions calculate the next position to fly to in a separate thread
     void DataCleansing (bool& bChanged);
     void DataSmoothing (bool& bChanged);
+    void SnapToTaxiways (bool& bChanged);   ///< shift ground positions to taxiways, insert positions at taxiway nodes
     bool CalcNextPos ( double simTime );
     static void CalcNextPosMain ();
     void TriggerCalcNewPos ( double simTime );

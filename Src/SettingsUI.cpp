@@ -140,6 +140,8 @@ enum UI_WIDGET_IDX_T {
     UI_ADVCD_INT_FULL_DISTANCE,
     UI_ADVCD_CAP_FD_STD_DISTANCE,
     UI_ADVCD_INT_FD_STD_DISTANCE,
+    UI_ADVCD_CAP_FD_SNAP_TAXI_DIST,
+    UI_ADVCD_INT_FD_SNAP_TAXI_DIST,
     UI_ADVCD_CAP_FD_REFRESH_INTVL,
     UI_ADVCD_INT_FD_REFRESH_INTVL,
     UI_ADVCD_CAP_FD_BUF_PERIOD,
@@ -302,6 +304,8 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {{ 230,  90,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,2},{0,0},{0,0}} },
     {{   5, 110, 225,  10, 1, "Search distance [nm]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
     {{ 230, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
+    {{   5, 130, 225,  10, 1, "Snap to taxiway [m]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
+    {{ 230, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
     {{   5, 130, 225,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
     {{ 230, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
     {{   5, 150, 225,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
@@ -517,6 +521,8 @@ void LTSettingsUI::Enable()
                           DATA_REFS_LT[DR_CFG_FULL_DISTANCE]);
         intFdStdDistance.setId(widgetIds[UI_ADVCD_INT_FD_STD_DISTANCE],
                           DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE]);
+        intFdSnapTaxiDist.setId(widgetIds[UI_ADVCD_INT_FD_SNAP_TAXI_DIST],
+                          DATA_REFS_LT[DR_CFG_FD_SNAP_TAXI_DIST]);
         intFdRefreshIntvl.setId(widgetIds[UI_ADVCD_INT_FD_REFRESH_INTVL],
                           DATA_REFS_LT[DR_CFG_FD_REFRESH_INTVL]);
         intFdBufPeriod.setId(widgetIds[UI_ADVCD_INT_FD_BUF_PERIOD],

@@ -129,6 +129,7 @@ void LTMainStop ();
 
 void MenuUpdateAllItemStatus();
 void HandleNewVersionAvail ();
+void HandleRefPointChanged ();      ///< Handles that the local coordinate's reference point has changed
 
 #ifdef DEBUG
 void LTErrorCB (const char* msg);

@@ -85,7 +85,19 @@
     <h2>v1.20</h2>
     
     <h3>v1.23</h3>
+
+    <b>To update</b> coming from v1.22
     <ul>
+        <li>copy the 3 executables <code>LiveTraffic/64/*.xpl</code>.</li>
+        <li>copy the updated files <code>LiveTraffic/Resources/Doc8643.txt</code>
+            and <code>LiveTraffic/Resources/related.txt</code>.</li>
+    </ul>
+    
+    <p>Changes to LiveTraffic:</p>
+    
+    <ul>
+        <li>FIXED handling of OpenSky master data, avoiding duplicate requests.
+            Reduces likelihood of HTTP 503 error and improves handling of it.</li>
         <li>UPDATED <code>Doc8643.txt</code> and <code>related.txt</code> to
             include new ICAO aircraft type codes like B3XM (B737 MAX 10)
         </li>
@@ -97,17 +109,16 @@
             a crash in X-Plane startup after failed initalization of LiveTraffic
             (again), e.g. due to invalid configuration file.
         </li>
+        <li>ADDED some aspects of <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>,
+            snapping to taxiways, already. Few changes to aircraft behaviour
+            will be visible yet. But LiveTraffic already reads scenery
+            information to learn about runways and taxiways.
+            Auto-land aircraft will more often and more accuractely find
+            a runway. But the main part, avoiding cutting corners when
+            leaving the runway for a taxiway or turning tight corners, is not yet in.</li>
     </ul>
 
     <h3>v1.22 Fixits</h3>
-    
-    <b>To update</b> coming from v1.21
-    <ul>
-        <li>copy the 3 files <code>LiveTraffic/64/*.xpl</code>.</li>
-        <li>copy the new file <code>LiveTraffic/Resources/model_typecode.txt</code>.
-    </ul>
-    
-    <p>Changes to LiveTraffic:</p>
     
     <ul>
         <li>
@@ -135,9 +146,6 @@
     </ul>
         
     <h3>v1.21 Fixits</h3>
-    
-    <b>To update</b> coming from v1.20 just copy the 3 files
-    <code>LiveTraffic/64/*.xpl</code>.
     
     <ul>
         <li>
@@ -185,14 +193,6 @@
 
     <h3>v1.20.190718 CSL / AI / Multiplayer enhancements</h3>
 
-    <b>To update</b> copy <em>all</em> files from the ZIP archive over their existing
-    old versions under <code>&lt;X-Plane&gt;/Resources/plugins/LiveTraffic</code>.
-    Not only the executables changed, but also <code>Resources</code> files
-    like <code>Doc8643.txt</code>, <code>FlightModels.prf</code> and <code>related.txt</code>.
-    Also, the script <code>Resources/CSL2XSB.py</code> is now provided as a new file.
-    Keep the content of your <code>Resources/CSL</code> folder!
-    </p>
-    
     <ul>
         <li>
             CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/111">#111</a>
@@ -307,11 +307,6 @@
     
     <h3>v1.15.190428 ADSBEx with API Key</h3>
 
-    <p>
-    <b>To update</b> coming from v1.10 just copy the binaries in the <code>64</code>
-    directory.
-    </p>
-    
     <ul>
         <li>
             CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/132">#132</a>

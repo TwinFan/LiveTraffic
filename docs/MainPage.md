@@ -1,6 +1,13 @@
 LiveTraffic
 ========================
 
+Doxygen support has been added late to the LiveTraffic project.
+That means
+- all file headers are updated, so that the <a href=files.html>File List</a>
+should give an overview which file covers which functionality
+- only fairly recent <a href=hierarchy.html>classes</a> have full Doxygen-style documentation
+- certainly, all classes and structure are mentioned at least, as Doxgen does parse all source code files.
+
 Quick Links:
 --
 
