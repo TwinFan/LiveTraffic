@@ -1029,6 +1029,7 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     
     // --- Variables holding Best Match ---
     const Apt* bestApt = nullptr;               // best matching apt
+    const TaxiEdge* bestRwy = nullptr;          // best matching rwy
     const RwyEndPt* bestRwyEndPt = nullptr;     // best matching runway endpoint
     // The heading diff of the best match to its runway
     // (initialized to the max allowed value so that worse heading diffs aren't considered)
@@ -1080,6 +1081,7 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
                 
                 // We've got a match!
                 bestApt = &apt;
+                bestRwy = e;
                 bestRwyEndPt = &rwyEP;
                 bestHeadingDiff = headingDiff;      // the heading diff (which would be a selection criterion on several rwys match)
                 bestArrivalTS = from.ts() + d_ts;   // the arrival timestamp
@@ -1098,9 +1100,14 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     // Found a match!
     positionTy retPos = positionTy(bestRwyEndPt->lat,
                                    bestRwyEndPt->lon,
-                                   bestRwyEndPt->alt_m);
-    retPos.ts() = bestArrivalTS;                        // Arrival time
-    retPos.flightPhase = LTAPIAircraft::FPH_TOUCH_DOWN; // This is a calculated touch-down point
+                                   bestRwyEndPt->alt_m,
+                                   bestArrivalTS,
+                                   bestRwy->angle + (bHeadInverted ? 180.0 : 0.0),
+                                   _ac.mdl.PITCH_FLARE,
+                                   0.0,
+                                   positionTy::GND_ON,
+                                   positionTy::UNIT_WORLD, positionTy::UNIT_DEG,
+                                   LTAPIAircraft::FPH_TOUCH_DOWN);
     LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
             bestApt->GetId().c_str(),
             bestRwyEndPt->id.c_str(),

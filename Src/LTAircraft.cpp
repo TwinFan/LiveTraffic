@@ -76,7 +76,7 @@ bool NextCycle (int newCycle)
     
     // Check if the reference point of the local coordinate system had changed
     if (dataRefs.DidLocalRefPointChange())
-        
+        HandleRefPointChanged();
     
     // time should move forward (positive difference) and not too much either
     // If time moved to far between two calls then we better start over

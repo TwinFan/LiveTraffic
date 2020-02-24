@@ -763,7 +763,8 @@ bool DataRefs::DidLocalRefPointChange ()
     
     // return value:
     const bool ret = (std::isnan(lstLonRef) ||          // never asked before?
-                      (dequal(lstLatRef, nowLatRef) && dequal(lstLonRef, nowLonRef)));
+                      !dequal(lstLatRef, nowLatRef) ||  // changed compared to last call?
+                      !dequal(lstLonRef, nowLonRef));
     
     // Update our known value of lat/lon reference
     lstLatRef = nowLatRef;

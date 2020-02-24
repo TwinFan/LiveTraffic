@@ -841,8 +841,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         vectorTy vecRwy = acTo.between(posRwy);
 
                         // At most we travel as far as a refresh interval takes us
+                        // and never too close to the touch-down point...
+                        // we need room for the alignment point with the runway
                         const double d_ts = posRwy.ts() - simTime;
-                        if (d_ts > (double)dataRefs.GetFdRefreshIntvl())
+                        if (d_ts > (double)dataRefs.GetFdRefreshIntvl() &&
+                            vecRwy.dist > 3 * ART_RWY_ALIGN_DIST)
                         {
                             // shorten the distance so it only takes as long as a refresh interval
                             vecRwy.dist *= (double)dataRefs.GetFdRefreshIntvl() / d_ts;
@@ -868,6 +871,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             // Timestamp is now beyond posRwy.ts() as time always moves forward,
                             // but posBefore is _before_ posRwy:
                             posBefore.ts() -= 2 * (posBefore.ts() - posRwy.ts());
+                            posBefore.pitch() = 0.0;
                             posBefore.onGrnd = positionTy::GND_OFF;
                             posBefore.flightPhase = LTAircraft::FPH_FINAL;
                             
