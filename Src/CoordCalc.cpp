@@ -115,6 +115,15 @@ positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
     return ret.rad2deg();
 }
 
+//An estimated square of the distance between 2 points given by lat/lon
+double DistLatLonSqr (double lat1, double lon1,
+                      double lat2, double lon2)
+{
+    const double dx = (lon2-lon1) * LonDegInMtr((lat1+lat2)/2);
+    const double dz = (lat2-lat1) * LAT_DEG_IN_MTR;
+    return sqr(dx) + sqr(dz);
+}
+
 // Square of distance between a location and a line defined by two points.
 void DistPointToLineSqr (double pt_x, double pt_y,
                          double ln_x1, double ln_y1,

@@ -754,6 +754,7 @@ bool DataRefs::RegisterCommands()
     return bRet;
 }
 
+
 // Did the reference point to the local coordinate system change since last call to this function?
 /// @note Will always return `true` on first call, intentionally.
 bool DataRefs::DidLocalRefPointChange ()
@@ -761,16 +762,21 @@ bool DataRefs::DidLocalRefPointChange ()
     const float nowLatRef = XPLMGetDataf(adrXP[DR_LAT_REF]);
     const float nowLonRef = XPLMGetDataf(adrXP[DR_LON_REF]);
     
-    // return value:
-    const bool ret = (std::isnan(lstLonRef) ||          // never asked before?
-                      !dequal(lstLatRef, nowLatRef) ||  // changed compared to last call?
-                      !dequal(lstLonRef, nowLonRef));
-    
-    // Update our known value of lat/lon reference
-    lstLatRef = nowLatRef;
-    lstLonRef = nowLonRef;
+    // Is this a change compared to what we know?
+    if (std::isnan(lstLonRef) ||          // never asked before?
+        !dequal(lstLatRef, nowLatRef) ||  // changed compared to last call?
+        !dequal(lstLonRef, nowLonRef))
+    {
+        // Update our known value of lat/lon reference
+        lstLatRef = nowLatRef;
+        lstLonRef = nowLonRef;
+        
+        // ref point changed
+        return true;
+    }
  
-    return ret;
+    // no change
+    return false;
 }
 
 // return user's plane pos

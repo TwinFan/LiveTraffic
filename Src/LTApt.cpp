@@ -39,6 +39,11 @@
 #define WARN_APTDAT_FAILED   "Could not open ANY apt.dat file. No runway/taxiway info available to guide ground traffic."
 #define WARN_APTDAT_READ_FAIL "Could not completely read '%s'. Some runway/taxiway info will be missing to guide ground traffic: %s"
 
+/// Minimum length of one segment in a taxi way (shorter ones are grouped together)
+constexpr double APT_MIN_TAXI_SEGM_LEN_M    = 10.0;
+/// Square of Minimum length of one segment in a taxi way (shorter ones are grouped together)
+constexpr double APT_MIN_TAXI_SEGM_LEN_M2   = (APT_MIN_TAXI_SEGM_LEN_M * APT_MIN_TAXI_SEGM_LEN_M);
+
 /// This flag stops the file reading thread
 volatile bool bStopThread = false;
 
@@ -86,6 +91,10 @@ public:
                              _alt_m,
                              &x, &y, &z);
     }
+
+    /// Comparison function for equality based on lat/lon
+    static bool CompEqualLatLon (const TaxiNode& a, const TaxiNode& b)
+    { return dequal(a.lat, b.lat) && dequal(a.lon, b.lon); }
 };
 
 /// Vector of taxi nodes
@@ -218,7 +227,7 @@ public:
     bool HasId () const { return !id.empty(); }
     
     /// Valid airport definition requires an id and some taxiways / runways
-    bool IsValid () const { return HasId() && !vecTaxiEdges.empty(); }
+    bool IsValid () const { return HasId() && HasTaxiWays() && HasRwyEndpoints(); }
     
     /// Return a reasonable altitude...effectively one of the rwy ends' altitude
     double GetAlt_m () const { return alt_m; }
@@ -234,26 +243,17 @@ public:
     bool HasTaxiWays () const { return !vecTaxiEdges.empty(); }
     
     /// @brief Add a new taxi network node
-    void AddTaxiNode (double lat, double lon, size_t idx)
+    /// @return Index of node in Apt::vecTaxiNodes
+    size_t AddTaxiNode (double lat, double lon)
     {
-        // Potentially expands the airport's boundary
-        bounds.enlarge_pos(lat, lon);
-
-        // Expected case: Just the next index
-        if (idx == vecTaxiNodes.size())
-            vecTaxiNodes.emplace_back(lat, lon);
-        else {
-            // make sure the vector is large enough
-            if (idx > vecTaxiNodes.size())
-                vecTaxiNodes.resize(idx+1);
-            // then assign the value
-            vecTaxiNodes[idx] = TaxiNode(lat,lon);
-        }
+        bounds.enlarge_pos(lat, lon);           // Potentially expands the airport's boundary
+        vecTaxiNodes.emplace_back(lat, lon);    // Add the node to the back of the list
+        return vecTaxiNodes.size()-1;           // return the index
     }
     
     /// @brief Add a new taxi network edge, which must connect 2 existing nodes
     /// @return Successfully inserted, ie. found the 2 nodes?
-    bool AddTaxiEdge (size_t n1, size_t n2)
+    bool AddTaxiEdge (size_t n1, size_t n2, double _dist = NAN)
     {
         // Indexes must be valid
         if (n1 >= vecTaxiNodes.size() ||
@@ -273,9 +273,11 @@ public:
         }
         
         // Add the edge
+        if (std::isnan(_dist))
+            _dist = DistLatLon(a.lat, a.lon, b.lat, b.lon);
         vecTaxiEdges.emplace_back(TaxiEdge::TAXI_WAY, n1, n2,
                                   CoordAngle(a.lat, a.lon, b.lat, b.lon),
-                                  CoordDistance(a.lat, a.lon, b.lat, b.lon));
+                                  _dist);
         return true;
     }
     
@@ -655,21 +657,168 @@ const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 // This code runs in the thread for file reading operations
 //
 
+/// @brief Process one "120" section of an `apt.dat` file, which contains a taxi line definitions in the subsequent 111-116 lines
+/// @details Starts reading in the next line, expecting nodes in lines starting with 111-116.
+///          According to specs, such a section has to end with 113-116. But we don't rely on it,
+///          so we are more flexible in case of errorneous files. We read until we find a line _not_ starting
+///          with 111-116 and return that back to the caller to be processed again.\n
+///          We only process line segments with Line Type Codes 1, 7, 51, 57 (Taxiway centerlines).\n
+///          All nodes are temporarily stored in a local list. After reading some nodes are removed,
+///          as in actual files nodes can be very close together (up to being identical!).
+///          We store a minimum segment length of 10m (`APT_MIN_TAXI_SEGM_LEN_M`) only
+///          and thin out nodes that are closer together. Only after thinning, the remaining
+///          nodes and edges are added to the apt's taxiway network.
+/// @returns the next line read from the file, which is after the "120" section
+static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt)
+{
+    vecTaxiNodesTy vecNodes;            // temporarily stored nodes in order of appearance
+    std::string ln;
+    while (fIn)
+    {
+        // read a line from the input file
+        safeGetline(fIn, ln);
+
+        // ignore empty lines
+        if (ln.empty()) continue;
+        
+        // tokenize the line
+        std::vector<std::string> fields = str_tokenize(ln, " \t", true);
+        
+        // We need at minimum 3 fields (line id, latitude, longitude)
+        if (fields.size() < 3) break;
+        
+        // Check for any of "our" line codes (we treat them all equal)
+        const int lnCod = std::stoi(fields[0]);
+        if (111 <= lnCod && lnCod <= 116)
+        {
+            // Check for the Line Type Code to be Taxi Centerline
+            int lnTypeCode = 1;         // by default we add (also goes for lnCod 115,116!)
+            // In case of line codes 111, 113 the Line Type Code is in field 3
+            if (lnCod == 111 || lnCod == 113) {
+                if (fields.size() >= 4)
+                    lnTypeCode = std::stoi(fields[3]);
+            // In case of line codes 112, 114 the Line Type Code is in field 5
+            } else if (lnCod == 112 || lnCod == 114) {
+                if (fields.size() >= 6)
+                    lnTypeCode = std::stoi(fields[5]);
+            }
+            
+            // Taxi Centerline?
+            if (lnTypeCode ==  1 || lnTypeCode ==  7 ||
+                lnTypeCode == 51 || lnTypeCode == 57)
+            {
+                // add the node temporarily
+                vecNodes.emplace_back(std::stod(fields[1]),     // latitude
+                                      std::stod(fields[2]));    // longitude
+            } else {
+                // Not a Taxi Centerline, so we don't bother any longer, stop processing
+                break;
+            }
+        }
+        else            // not any of our codes -> stop processing
+            break;
+    }
+    
+    // Reading the section is done, now process the resulting nodes
+    if (vecNodes.size() >= 2)
+    {
+        // The first node is definitely used, add it already
+        apt.AddTaxiNode(vecNodes.front().lat,
+                        vecNodes.front().lon);
+        
+        // The very last node one will also be added later.
+        // Between these two:
+        // Remove nodes, which are closer together than 10m,
+        // add the remainder to the airport's taxi network
+        if (vecNodes.size() >= 3) {
+            for (vecTaxiNodesTy::const_iterator iter = vecNodes.cbegin();
+                 // end when iter points to 3rd-last element of vector
+                 std::next(iter,3) != vecNodes.cend();
+                 )
+            {
+                const TaxiNode& a = *iter;
+                const TaxiNode& b = *std::next(iter);
+                const double distEst = DistLatLonSqr(a.lat, a.lon, b.lat, b.lon);
+                if (distEst < APT_MIN_TAXI_SEGM_LEN_M2) {
+                    // too close, remove the next nodes
+                    vecNodes.erase(std::next(iter));
+                } else {
+                    // long enough an edge, so add it to the airport
+                    const size_t idx = apt.AddTaxiNode(b.lat, b.lon);
+                    apt.AddTaxiEdge(idx-1, idx, std::sqrt(distEst));
+                    // move on and test the next edge
+                    ++iter;
+                }
+            }
+        }
+        
+        // For last 3 nodes (a <-> b <-> c) decide if the middle node b is
+        // too close to either side; if so: remove and add one egde a<->c,
+        // else add two edges a<->b, b<->c
+        double distToLast = NAN;
+        if (vecNodes.size() >= 3) {
+            const TaxiNode& a = vecNodes[vecNodes.size()-3];
+            const TaxiNode& b = vecNodes[vecNodes.size()-2];
+            const TaxiNode& c = vecNodes.back();
+            const double AB = DistLatLonSqr(a.lat, a.lon, b.lat, b.lon);
+            const double BC = DistLatLonSqr(b.lat, b.lon, c.lat, c.lon);
+            if (AB < APT_MIN_TAXI_SEGM_LEN_M2 ||
+                BC < APT_MIN_TAXI_SEGM_LEN_M2)
+            {
+                // too close, remove b, but we know the final dist already
+                vecNodes.erase(std::prev(vecNodes.cend(),2));
+                distToLast = std::sqrt(AB) + std::sqrt(BC);
+            } else {
+                // OK, both edges needed, here add the a<->b edge:
+                const size_t idx = apt.AddTaxiNode(b.lat, b.lon);
+                apt.AddTaxiEdge(idx-1, idx, std::sqrt(AB));
+                // The last distance is now the one from b to c:
+                distToLast = std::sqrt(BC);
+            }
+        }
+        
+        // Add the final edge between the last two nodes
+        {
+            const TaxiNode& y = vecNodes[vecNodes.size()-2];
+            const TaxiNode& z = vecNodes.back();
+            if (std::isnan(distToLast))
+                distToLast = std::sqrt(DistLatLonSqr(y.lat, y.lon, z.lat, z.lon));
+            const size_t idx = apt.AddTaxiNode(z.lat, z.lon);
+            apt.AddTaxiEdge(idx-1, idx, distToLast);
+
+        }
+    }
+    
+    // return the last line so it can be processed again
+    return ln;
+}
+
 /// Read airports in the one given `apt.dat` file
 static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
 {
     // Walk the file
+    std::string ln;
+    bool bProcessGivenLn = false;       // process a line returned by a sub-routine?
     Apt apt;
-    while (!bStopThread && fIn)
+    while (!bStopThread && (bProcessGivenLn || fIn))
     {
-        // read a line
-        std::string lnBuf;
-        safeGetline(fIn, lnBuf);
-
+        // Either process a given line or fetch a new one
+        if (bProcessGivenLn) {
+            // the line is in `ln` already, just reset the flag
+            bProcessGivenLn = false;
+        } else {
+            // read a fresh line from the file
+            ln.clear();
+            safeGetline(fIn, ln);
+        }
+        
+        // ignore empty lines
+        if (ln.empty()) continue;
+        
         // test for beginning of an airport
-        if (lnBuf.size() > 10 &&
-            lnBuf[0] == '1' &&
-            (lnBuf[1] == ' ' || lnBuf[1] == '\t'))
+        if (ln.size() > 10 &&
+            ln[0] == '1' &&
+            (ln[1] == ' ' || ln[1] == '\t'))
         {
             // found an airport's beginning
             
@@ -681,7 +830,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                 apt = Apt();
             
             // separate the line into its field values
-            std::vector<std::string> fields = str_tokenize(lnBuf, " \t", true);
+            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
             if (fields.size() >= 5 &&           // line contains an airport id, and
                 gmapApt.count(fields[4]) == 0)  // airport is not yet defined in map
             {
@@ -692,17 +841,17 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
         
         // test for a runway...just to find location info
         else if (apt.HasId() &&             // an airport identified and of interest?
-            lnBuf.size() > 20 &&            // line long enough?
-            lnBuf[0] == '1' &&              // starting with "100 "?
-            lnBuf[1] == '0' &&
-            lnBuf[2] == '0' &&
-            (lnBuf[3] == ' ' || lnBuf[3] == '\t'))
+            ln.size() > 20 &&            // line long enough?
+            ln[0] == '1' &&              // starting with "100 "?
+            ln[1] == '0' &&
+            ln[2] == '0' &&
+            (ln[3] == ' ' || ln[3] == '\t'))
         {
             // separate the line into its field values
-            std::vector<std::string> fields = str_tokenize(lnBuf, " \t", true);
+            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
             if (fields.size() == 26) {      // runway description has to have 26 fields
-                const double lat = std::atof(fields[ 9].c_str());
-                const double lon = std::atof(fields[10].c_str());
+                const double lat = std::stod(fields[ 9]);
+                const double lon = std::stod(fields[10]);
                 if (-90.0 <= lat && lat <= 90.0 &&
                     -180.0 <= lon && lon < 180.0)
                 {
@@ -713,13 +862,13 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                     {
                         // add both runway ends to the airport
                         apt.AddRwyEnds(lat, lon,
-                                       std::atof(fields[11].c_str()),   // displayced
-                                       fields[ 8],                      // id
+                                       std::stod(fields[11]),       // displaced
+                                       fields[ 8],                  // id
                                        // other rwy end:
-                                       std::atof(fields[18].c_str()),   // lat
-                                       std::atof(fields[19].c_str()),   // lon
-                                       std::atof(fields[20].c_str()),   // displayced
-                                       fields[17]);                     // id
+                                       std::stod(fields[18]),       // lat
+                                       std::stod(fields[19]),       // lon
+                                       std::stod(fields[20]),       // displayced
+                                       fields[17]);                 // id
                     }
                     // airport is outside bounding box -> mark it uninteresting
                     else
@@ -731,23 +880,39 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
             }       // if line contains 26 field values
         }           // if a runway line startin with "100 "
         
+        // test for the start of a taxi line segment
+        else if (apt.HasRwyEndpoints() &&       // apt good enough, has already a runway? (BTW this excludes pure heliports)
+                 ((ln.size() == 3 &&            // just and only the "120" marker?
+                   ln == "120") ||
+                  (ln.size() >= 4 &&            // or starting with "120 "?
+                   ln[0] == '1' &&
+                   ln[1] == '2' &&
+                   ln[2] == '0' &&
+                   (ln[3] == ' ' || ln[3] == '\t'))))
+        {
+            // Read the entire line segment
+            ln = ReadOneTaxiLine(fIn, apt);
+            bProcessGivenLn = true;         // process the returned line read from the file
+        }
+
+/* TODO: Remove completely
         // test for a taxi network node
         else if (apt.HasId() &&
-                 lnBuf.size() >= 15 &&           // line long enough?
-                 lnBuf[0] == '1' &&              // starting with "1201 "?
-                 lnBuf[1] == '2' &&
-                 lnBuf[2] == '0' &&
-                 lnBuf[3] == '1' &&
-                 (lnBuf[4] == ' ' || lnBuf[4] == '\t'))
+                 ln.size() >= 15 &&           // line long enough?
+                 ln[0] == '1' &&              // starting with "1201 "?
+                 ln[1] == '2' &&
+                 ln[2] == '0' &&
+                 ln[3] == '1' &&
+                 (ln[4] == ' ' || ln[4] == '\t'))
         {
             // separate the line into its field values
-            std::vector<std::string> fields = str_tokenize(lnBuf, " \t", true);
+            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
             // We need fields 2, 3, the location, and 5, the index, only
             if (fields.size() >= 5) {
                 // Convert and briefly test the given location
-                const double lat = std::atof(fields[1].c_str());
-                const double lon = std::atof(fields[2].c_str());
-                const size_t idx = (size_t)std::atol(fields[4].c_str());
+                const double lat = std::stod(fields[1]);
+                const double lon = std::stod(fields[2]);
+                const size_t idx = (size_t)std::stoul(fields[4]);
                 if (-90.0 <= lat && lat <= 90.0 &&
                     -180.0 <= lon && lon < 180.0)
                 {
@@ -758,24 +923,24 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
 
         // test for a taxi network edge
         else if (apt.HasId() &&
-                 lnBuf.size() >= 8 &&            // line long enough?
-                 lnBuf[0] == '1' &&              // starting with "1201 "?
-                 lnBuf[1] == '2' &&
-                 lnBuf[2] == '0' &&
-                 lnBuf[3] == '2' &&
-                 (lnBuf[4] == ' ' || lnBuf[4] == '\t'))
+                 ln.size() >= 8 &&            // line long enough?
+                 ln[0] == '1' &&              // starting with "1201 "?
+                 ln[1] == '2' &&
+                 ln[2] == '0' &&
+                 ln[3] == '2' &&
+                 (ln[4] == ' ' || ln[4] == '\t'))
         {
             // separate the line into its field values
-            std::vector<std::string> fields = str_tokenize(lnBuf, " \t", true);
+            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
             // We need fields 2, 3 only, the node indexes
             if (fields.size() >= 3) {
                 // Convert indexes and try adding the node
-                const size_t n1 = (size_t)std::atol(fields[1].c_str());
-                const size_t n2 = (size_t)std::atol(fields[2].c_str());
+                const size_t n1 = (size_t)std::stoul(fields[1]);
+                const size_t n2 = (size_t)std::stoul(fields[2]);
                 apt.AddTaxiEdge(n1, n2);
             }       // enough fields in line?
         }           // if a taxi network edge ("1202 ")
-
+*/
     }               // for each line of the apt.dat file
     
     // If the last airport read is valid don't forget to add it to the list
