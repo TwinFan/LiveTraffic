@@ -25,10 +25,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -87,9 +87,6 @@
                value = "l">
             </PersistentString>
          </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "LTAptSnap(positionTy&amp;, bool):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAircraft::CalcFlightModel():LTAircraft.cpp">
@@ -176,10 +173,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -567,10 +564,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -694,10 +691,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -756,6 +753,9 @@
       </ContextState>
       <ContextState
          contextName = "LTAptFindRwy(LTAircraft const&amp;):LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::FindEdgesForHeading(double, double, std::__1::list&lt;TaxiEdge const*, std::__1::allocator&lt;TaxiEdge const*&gt; &gt;&amp;, TaxiEdge::nodeTy) const:LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "draw_objects_for_mode(one_obj*, int):XPMPMultiplayerObj8.cpp">

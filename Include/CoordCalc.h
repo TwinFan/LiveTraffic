@@ -45,10 +45,10 @@ inline T pyth2 (T a, T b) { return sqr(a) + sqr(b); }
 //MARK: Degree/Radian conversion
 //      (as per stackoverflow post, adapted)
 //
-inline double deg2rad (const double deg)
+constexpr inline double deg2rad (const double deg)
 { return (deg * PI / 180); }
 
-inline double rad2deg (const double rad)
+constexpr inline double rad2deg (const double rad)
 { return (rad * 180 / PI); }
 
 // angle flown, given speed and vsi (both in m/s)
@@ -83,12 +83,18 @@ double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
 // MARK: Estimated Functions on coordinates
 //
 
-/// @details Length of a degree latitude
+/// @brief Length of one degree latitude
 /// @see https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
 constexpr double LAT_DEG_IN_MTR = 111132.95;
-/// @details Length of a degree longitude
+
+/// @brief Length of a degree longitude
 /// @see https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
 inline double LonDegInMtr (double lat) { return LAT_DEG_IN_MTR * std::cos(deg2rad(lat)); }
+
+/// Convert vertical distance into degree latitude
+constexpr inline double Dist2Lat (double dist_m) { return dist_m / LAT_DEG_IN_MTR; }
+/// Convert vertical distance into degree latitude
+inline double Dist2Lon (double dist_m, double lat) { return dist_m / LonDegInMtr(lat); }
 
 /// @brief An _estimated_ **square** of the distance between 2 points given by lat/lon
 /// @details Makes use simple formulas to convert lat/lon differences into meters
