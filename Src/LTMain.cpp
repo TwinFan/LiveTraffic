@@ -238,6 +238,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
+            // Check for changed reference point of local coordinate system
+            HandleRefPointChanged();
             // handle new network data (that func has a short-cut exit if nothing to do)
             LTFlightData::AppendAllNewPos();
             
@@ -375,6 +377,10 @@ std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
 ///          the local coordinate's reference point had changed
 void HandleRefPointChanged ()
 {
+    // Check if the reference point of the local coordinate system had changed
+    if (!dataRefs.DidLocalRefPointChange())
+        return;
+    
     // Force recalculation of all local coordinates of the airport/taxi network
     LTAptLocalCoordsUpdate(true);
 }

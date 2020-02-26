@@ -75,6 +75,43 @@ vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to );
 // destination point given a starting point and a vetor
 positionTy CoordPlusVector (const positionTy& pos, const vectorTy& vec);
 
+// returns terrain altitude at given position
+// returns NaN in case of failure
+double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
+
+//
+// MARK: Estimated Functions on coordinates
+//
+
+/// @details Length of a degree latitude
+/// @see https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
+constexpr double LAT_DEG_IN_MTR = 111132.95;
+/// @details Length of a degree longitude
+/// @see https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
+inline double LonDegInMtr (double lat) { return LAT_DEG_IN_MTR * std::cos(deg2rad(lat)); }
+
+/// @brief An _estimated_ **square** of the distance between 2 points given by lat/lon
+/// @details Makes use simple formulas to convert lat/lon differences into meters
+///          So this is not exact but quick and good enough for many purposes.
+///          On short distances of less than 10m, difference to CoordDistance() is a few millimeters.
+/// @return Square of distance (estimated) in meter
+double DistLatLonSqr (double lat1, double lon1,
+                      double lat2, double lon2);
+
+/// @brief An _estimated_ distance between 2 points given by lat/lon
+/// @details Makes use simple formulas to convert lat/lon differences into meters
+///          So this is not exact but quick and good enough for many purposes.
+///          On short distances of less than 10m, difference to CoordDistance() is a few millimeters.
+/// @return Distance (estimated) in meter
+inline double DistLatLon (double lat1, double lon1,
+                          double lat2, double lon2)
+{ return std::sqrt(DistLatLonSqr(lat1,lon1,lat2,lon2)); }
+
+
+//
+// MARK: Functions on 2D points, typically in meters
+//
+
 /// @brief Simple square of distance just by Pythagoras
 inline double DistPythSqr (double x1, double y1,
                            double x2, double y2)
@@ -125,10 +162,6 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
                           double ln_x2, double ln_y2,
                           const distToLineTy& res,
                           double &x, double &y);
-
-// returns terrain altitude at given position
-// returns NaN in case of failure
-double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
 
 //
 //MARK: Data Structures
