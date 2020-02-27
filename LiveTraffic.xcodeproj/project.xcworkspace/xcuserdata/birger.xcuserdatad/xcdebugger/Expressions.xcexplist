@@ -25,10 +25,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -173,10 +173,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -522,6 +522,17 @@
          contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
       </ContextState>
       <ContextState
+         contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double, TaxiEdge const*) const:LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "to">
+            </PersistentString>
+            <PersistentString
+               value = "from">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "OpenSkyConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
          <PersistentStrings>
             <PersistentString
@@ -564,10 +575,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -691,10 +702,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

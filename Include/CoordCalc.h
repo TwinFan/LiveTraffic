@@ -93,8 +93,12 @@ inline double LonDegInMtr (double lat) { return LAT_DEG_IN_MTR * std::cos(deg2ra
 
 /// Convert vertical distance into degree latitude
 constexpr inline double Dist2Lat (double dist_m) { return dist_m / LAT_DEG_IN_MTR; }
-/// Convert vertical distance into degree latitude
+/// Convert vertical distance into degree longitude
 inline double Dist2Lon (double dist_m, double lat) { return dist_m / LonDegInMtr(lat); }
+/// Convert degree latitude into vertical distance
+constexpr inline double Lat2Dist (double latDiff) { return latDiff * LAT_DEG_IN_MTR; }
+/// Convert degree longitude into vertical distance
+inline double Lon2Dist (double lonDiff, double lat) { return lonDiff * LonDegInMtr(lat); }
 
 /// @brief An _estimated_ **square** of the distance between 2 points given by lat/lon
 /// @details Makes use simple formulas to convert lat/lon differences into meters

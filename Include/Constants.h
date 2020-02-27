@@ -116,6 +116,10 @@ constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum a
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
+constexpr double APT_MIN_TAXI_SEGM_LEN_M = 10.0;///< [m] Minimum length of one segment in a taxi way (shorter ones are grouped together)
+constexpr double APT_MIN_TAXI_SEGM_LEN_M2 = (APT_MIN_TAXI_SEGM_LEN_M * APT_MIN_TAXI_SEGM_LEN_M); ///< Square of Minimum length of one segment in a taxi way (shorter ones are grouped together)
+constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 3.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
+constexpr double APT_MAX_JOIN_DIST_M = 1.0;     ///< [m] Max distance for an open node to be joined with another edge
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"

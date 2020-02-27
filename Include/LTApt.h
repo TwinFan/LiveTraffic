@@ -30,10 +30,6 @@ bool LTAptEnable ();
 /// Update the airport data with airports around current camera position
 void LTAptRefresh ();
 
-/// @brief Update local coordinate system's values due to ref point change
-/// @param bForce `true` Recalculate all values, `false` calculate only missing values
-void LTAptLocalCoordsUpdate (bool bForce);
-
 /// @brief Return the best possible runway to auto-land at
 /// @param _ac Aircraft in search for a landing spot. It's last go-to position and VSI as well as its model are of importance
 /// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway)
