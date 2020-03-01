@@ -40,7 +40,7 @@ positionTy LTAptFindRwy (const LTAircraft& _ac);
 /// @param pos Reference to the position, which might get changed.
 /// @param bLogging Do logging via LOG_MSG?
 /// @return Changed the position?
-bool LTAptSnap (positionTy& pos, bool bLogging);
+bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter);
 
 /// Cleanup
 void LTAptDisable ();

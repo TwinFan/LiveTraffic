@@ -25,10 +25,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -49,6 +49,9 @@
       </ContextState>
       <ContextState
          contextName = "XPMP2::CSLModelByName(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;):CSLModels.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double, double, TaxiEdge const*, unsigned long*) const:LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::LTSetBool(void*, int):DataRefs.cpp">
@@ -81,6 +84,12 @@
          contextName = "DataRefs::LoadConfigFile():DataRefs.cpp">
       </ContextState>
       <ContextState
+         contextName = "Apt::ShortestPath(unsigned long, bool, unsigned long, double):LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::SnapToTaxiways(bool&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
          contextName = "DataRefs::GetZuluTimeDiff():DataRefs.cpp">
          <PersistentStrings>
             <PersistentString
@@ -107,6 +116,9 @@
       </ContextState>
       <ContextState
          contextName = "LTFlightData::AppendNewPos():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::JoinOpenTaxiEdges():LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "RealTrafficConnection::ProcessRecvedTrafficData(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;):LTRealTraffic.cpp">
@@ -173,10 +185,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -238,7 +250,13 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "TaxiEdge::SetEndNode(unsigned long, double, double):LTApt.cpp">
+      </ContextState>
+      <ContextState
          contextName = "OpenSkyAcMasterdata::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;):LTOpenSky.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::SnapToTaxiway(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 85l&gt;&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
@@ -429,6 +447,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "Apt::SplitEdge(unsigned long, unsigned long):LTApt.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTACMasterdataChannel::ClearMasterDataRequests()::$_0::operator()(acStatUpdateTy&amp;) const:LTChannel.cpp">
       </ContextState>
       <ContextState
@@ -519,9 +540,6 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
-      </ContextState>
-      <ContextState
          contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double, TaxiEdge const*) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
@@ -531,6 +549,12 @@
                value = "from">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAptSnap(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 85l&gt;&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "OpenSkyConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
@@ -575,10 +599,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -607,6 +631,9 @@
       </ContextState>
       <ContextState
          contextName = "LTOnlineChannel::FetchAllData(positionTy const&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ReadOneTaxiLine(std::__1::basic_ifstream&lt;char, std::__1::char_traits&lt;char&gt; &gt;&amp;, Apt&amp;, unsigned long&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAircraft::LTAircraft(char const*, char const*, char const*, char const*):LTAircraft.cpp">
@@ -640,6 +667,9 @@
       </ContextState>
       <ContextState
          contextName = "DataRefs::LTSetSimDateTime(void*, int):DataRefs.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ReadOneTaxiLine(std::__1::basic_ifstream&lt;char, std::__1::char_traits&lt;char&gt; &gt;&amp;, Apt&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightDataCreateNewAc():LTFlightData.cpp">
@@ -702,10 +732,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

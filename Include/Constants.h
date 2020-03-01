@@ -110,16 +110,14 @@ constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Airports, Runways, Taxiways
 constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [¡] tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [¡] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
 constexpr double ART_RWY_MAX_HEAD_DIFF = 10.0;  ///< [¡] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
-constexpr double APT_MIN_TAXI_SEGM_LEN_M = 10.0;///< [m] Minimum length of one segment in a taxi way (shorter ones are grouped together)
-constexpr double APT_MIN_TAXI_SEGM_LEN_M2 = (APT_MIN_TAXI_SEGM_LEN_M * APT_MIN_TAXI_SEGM_LEN_M); ///< Square of Minimum length of one segment in a taxi way (shorter ones are grouped together)
-constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 3.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
-constexpr double APT_MAX_JOIN_DIST_M = 1.0;     ///< [m] Max distance for an open node to be joined with another edge
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"

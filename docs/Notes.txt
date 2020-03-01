@@ -1,6 +1,19 @@
 TODO
 ===
 
+LTApt
+- Split runways (for auto-land detection) completely from
+  taxi node network
+- Debug shortest path finding...still doesn't work.
+- Allow computation of altitude as soon as an airport is available,
+  not only after all of them are read from apt.dat.
+  They are also _used_ as soon as available
+- Instead of wasting space with all nodes supporting Dijkstra,
+  consider a map holding Dijkstra info per visited node
+- Check Disable/Reenable regarding airport data...we might need to reload.
+- When setting Snap distance to zero we should also not read apt.dat,
+  but when setting Snap distance to >0 then we need to kick off reading
+
 TEST
 ===
 Loading apt.dat currently uses just getline

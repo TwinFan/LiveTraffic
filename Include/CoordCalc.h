@@ -196,6 +196,9 @@ struct vectorTy {
     inline double vsi_ft () const { return vsi / Ms_per_FTm; }
 };
 
+constexpr size_t EDGE_UNKNOWN = ULONG_MAX;      ///< position's taxiway edge is unknown, not even tried to find one
+constexpr size_t EDGE_UNAVAIL = EDGE_UNKNOWN-1; ///< tried finding a taxiway, but was unsuccessful
+
 // a position: latitude (Z), longitude (X), altitude (Y), timestamp
 struct positionTy {
     enum positionTyE { LAT=0, LON, ALT, TS, HEADING, PITCH, ROLL };
@@ -210,6 +213,9 @@ struct positionTy {
     // start of some special flight phase like rotate, take off, touch down?
     // (can't use LTAircraft::FlightPhase due to cyclic header inclusion)
     int flightPhase = 0;
+    
+    /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
+    size_t edgeIdx = EDGE_UNKNOWN;
 public:
     positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}, mergeCount(1),
                     onGrnd(GND_UNKNOWN), unitCoord(UNIT_WORLD), unitAngle(UNIT_DEG) {}
@@ -252,6 +258,8 @@ public:
     bool isNormal (bool bAllowNanAltIfGnd = false) const;
     // is fully valid? (isNormal + heading, pitch, roll)?
     bool isFullyValid() const;
+    /// Has a valid edge in the taxiway network of some airport?
+    bool HasTaxiEdge () const { return edgeIdx < EDGE_UNAVAIL; }
     
     // rad/deg conversion (only affects lat and lon)
     positionTy  deg2rad() const;

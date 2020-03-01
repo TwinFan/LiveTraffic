@@ -49,6 +49,7 @@ enum transpTy {
 
 class LTAircraft;
 struct LTFlightDataList;
+class Apt;
 
 class LTFlightData
 {
@@ -371,6 +372,9 @@ public:
     static void UpdateAllModels ();
     static const LTFlightData* FindFocusAc (const double bearing);
     friend LTFlightDataList;
+    
+    // LTApt inserts positions during the "snap-to-taxiway" precedure
+    friend Apt;
 };
 
 // global map of flight data, keyed by transpIcao

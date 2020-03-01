@@ -760,10 +760,10 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
         // Only act on positions on the ground,
         // which have (not yet) been artificially added
         positionTy& pos = *iter;
-        if (pos.IsOnGnd() && pos.flightPhase == 0)
+        if (pos.IsOnGnd() && pos.edgeIdx == EDGE_UNKNOWN)
         {
             // Try snapping to a rwy or taxiway
-            if (LTAptSnap(pos, dataRefs.GetDebugAcPos(key())))
+            if (LTAptSnap(*this, iter))
                 bChanged = true;
         } // non-artificial ground position
         
