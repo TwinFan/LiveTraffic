@@ -78,6 +78,18 @@ public:
 
     /// Is node valid in terms of geographic coordinates?
     bool HasGeoCoords () const { return !std::isnan(lat) && !std::isnan(lon); }
+
+    /// Compares to given lat/long
+    bool CompEqualLatLon (double _lat, double _lon) const
+    { return dequal(lat, _lat) && dequal(lon, _lon); }
+    
+    /// Comparison function for equality based on lat/lon
+    static bool CompEqualLatLon (const TaxiNode& a, const TaxiNode& b)
+    { return a.CompEqualLatLon(b.lat, b.lon); }
+
+    /// Equality is based solely on geographic position
+    bool operator == (const TaxiNode& o) const
+    { return CompEqualLatLon(o.lat, o.lon); }
 };
 
 /// Vector of taxi nodes
@@ -171,6 +183,18 @@ public:
     const RwyEndPt& GetRwyEP_B (const Apt& apt) const
     { return dynamic_cast<const RwyEndPt&>(GetB(apt)); }
     
+    /// Return the angle, adjust in a way that it points away from node n (which must be either TaxiEdge::a or TaxiEdge::b)
+    double GetAngleFrom (size_t n) const { return n == a ? angle : angle + 180.0; }
+    /// Returns the edge's angle, which is closest to the given heading
+    double GetAngleByHead (double heading) const
+    { return std::abs(HeadingDiff(heading, angle)) < 90.0 ? angle : angle + 180.0; }
+    /// Return the taxi node, that is the "start" when heading in the given direction
+    const TaxiNode& startByHeading (const Apt& apt, double heading) const
+    { return std::abs(HeadingDiff(heading, angle)) < 90.0 ? GetA(apt) : GetB(apt); }
+    /// Return the taxi node, that is the "end" when heading in the given direction
+    const TaxiNode& endByHeading (const Apt& apt, double heading) const
+    { return std::abs(HeadingDiff(heading, angle)) < 90.0 ? GetB(apt) : GetA(apt); }
+
     size_t startNode() const { return a; }      ///< index of start node
     size_t endNode()   const { return b; }      ///< index of end node
     size_t startByHeading (double heading) const  ///< Return the index of that node that is the edge's start if if looking in given direction
@@ -179,6 +203,15 @@ public:
     { return std::abs(HeadingDiff(heading, angle)) < 90.0 ? b : a; }
     
     size_t otherNode(size_t n) const { return n == a ? b : a; } ///< returns the "other" node (`n` should be TaxiEdge::a or TaxiEdge::b)
+
+    /// sets a new end node, usually when splitting edges
+    void SetEndNode (size_t _b, double _angle, double _dist_m)
+    {
+        b = _b;
+        angle = _angle;
+        dist_m = _dist_m;
+        Normalize();
+    }
 };
 
 /// Vector of taxi edges
@@ -221,8 +254,37 @@ public:
     /// Any taxiways/runways defined?
     bool HasTaxiWays () const { return !vecTaxiEdges.empty(); }
     
+    /// return taxi node with "close-by" location
+    vecTaxiNodesTy::const_iterator GetSimilarTaxiNode (double lat, double lon, size_t dontCombineWith) const
+    {
+        constexpr double latDiff = Dist2Lat(APT_MAX_SIMILAR_NODE_DIST_M);
+        const double lonDiff = Dist2Lon(APT_MAX_SIMILAR_NODE_DIST_M, lat);
+        const TaxiNode* pNotThis = (dontCombineWith == ULONG_MAX ? nullptr :
+                                    &vecTaxiNodes.at(dontCombineWith));
+        return std::find_if(vecTaxiNodes.cbegin(),
+                            vecTaxiNodes.cend(),
+                            [=](const TaxiNode& n)
+                            { return ((!pNotThis || pNotThis != &n) &&
+                                      std::abs(n.lat - lat) <= latDiff &&
+                                      std::abs(n.lon - lon) <= lonDiff); });
+    }
+    
     /// @brief Add a new taxi network node
-    void AddTaxiNode (double lat, double lon, size_t idx)
+    /// @return Index of node in Apt::vecTaxiNodes
+    size_t AddTaxiNode (double lat, double lon, size_t dontCombineWith = ULONG_MAX)
+    {
+        // Is there a similar close-by node already?
+        vecTaxiNodesTy::const_iterator cbIter = GetSimilarTaxiNode(lat, lon, dontCombineWith);
+        if (cbIter != vecTaxiNodes.cend())
+            return std::distance(vecTaxiNodes.cbegin(), cbIter);
+        
+        bounds.enlarge_pos(lat, lon);           // Potentially expands the airport's boundary
+        vecTaxiNodes.emplace_back(lat, lon);    // Add the node to the back of the list
+        return vecTaxiNodes.size()-1;           // return the index
+    }
+    
+    /// @brief Add a new taxi network node at a given index position
+    void AddTaxiNodeFixed (double lat, double lon, size_t idx)
     {
         // Potentially expands the airport's boundary
         bounds.enlarge_pos(lat, lon);
@@ -240,8 +302,8 @@ public:
     }
     
     /// @brief Add a new taxi network edge, which must connect 2 existing nodes
-    /// @return Successfully inserted, ie. found the 2 nodes?
-    bool AddTaxiEdge (size_t n1, size_t n2, double _dist = NAN)
+    /// @return Index into Apt::vecTaxiEdges, or ULONG_MAX if unsuccessful
+    size_t AddTaxiEdge (size_t n1, size_t n2, double _dist = NAN)
     {
         // Actual nodes must be valid, throws exception if not
         TaxiNode& a = vecTaxiNodes.at(n1);
@@ -249,7 +311,7 @@ public:
         if (!a.HasGeoCoords() || !b.HasGeoCoords())
         {
             LOG_MSG(logDEBUG, "apt.dat: Node %lu or &lu invalid! Edge not added.", n1, n2);
-            return false;
+            return ULONG_MAX;
         }
         
         // Add the edge
@@ -264,7 +326,50 @@ public:
         a.vecEdges.push_back(eIdx);
         b.vecEdges.push_back(eIdx);
         
-        return true;
+        return vecTaxiEdges.size()-1;
+    }
+    
+    /// Recalc heading and angle of a given edge
+    void RecalcTaxiEdge (TaxiEdge& e)
+    {
+        const TaxiNode& a = e.GetA(*this);
+        const TaxiNode& b = e.GetB(*this);
+        e.angle  = CoordAngle(a.lat, a.lon, b.lat, b.lon);
+        e.dist_m = DistLatLon(a.lat, a.lon, b.lat, b.lon);
+        
+        // Did this change the orientation? Then we need to swap a<->b
+        e.Normalize();
+    }
+    
+    /// Split an edge by inserting a given node
+    void SplitEdge (size_t eIdx, size_t insNode)
+    {
+        // 1. Remember the original target edge
+        TaxiEdge& e = vecTaxiEdges.at(eIdx);
+        if (insNode == e.startNode() || insNode == e.endNode())
+            return;
+        size_t joinOrigB = e.endNode();
+        TaxiNode& origB = vecTaxiNodes[joinOrigB];
+        
+        // 2. Short-cut existing node at new joint
+        const TaxiNode& a = e.GetA(*this);
+        TaxiNode& b = vecTaxiNodes.at(insNode);
+        e.SetEndNode(insNode,
+                     CoordAngle(a.lat, a.lon, b.lat, b.lon),
+                     DistLatLon(a.lat, a.lon, b.lat, b.lon));
+        // Node insNode/b now got one more edge connection, origB currently one less
+        b.vecEdges.push_back(eIdx);
+        for (auto iter = origB.vecEdges.begin();    // std::remove(_if) should have done the job...but it simply didn't
+             iter != origB.vecEdges.end();)
+        {
+            if (*iter == eIdx)
+                iter = origB.vecEdges.erase(iter);
+            else
+                ++iter;
+        }
+        
+        // 3. Add new edge between insNode and joinOrigB
+        AddTaxiEdge(insNode, joinOrigB);
     }
     
     /// @brief Fill the indirect vector, which sorts edges by heading
@@ -397,10 +502,6 @@ public:
                                  lstEdges))
             return nullptr;
         
-        // Edges are normalized to angle of [0..180),
-        // do we fly the other way round?
-        const bool bHeadInverted = headSearch >= 180.0;
-
         // Analyze the edges to find the closest edge
         for (size_t eIdx: lstEdges)
         {
@@ -409,9 +510,9 @@ public:
             if (pSkipEdge == &e) continue;
             
             // Fetch from/to nodes from the edge
-            const TaxiNode& from  = bHeadInverted ? e.GetB(*this) : e.GetA(*this);
-            const TaxiNode& to    = bHeadInverted ? e.GetA(*this) : e.GetB(*this);
-            const double edgeHead = bHeadInverted ? e.angle + 180.0 : e.angle;
+            const TaxiNode& from  = e.startByHeading(*this, headSearch);
+            const TaxiNode& to    = e.endByHeading(*this, headSearch);
+            const double edgeAngle = e.GetAngleByHead(headSearch);
 
             // Compute temporary "coordinates", relative to the search position
             const double from_x = Lon2Dist(from.lon - pos.lon(), pos.lat());      // x is eastward
@@ -432,7 +533,7 @@ public:
             
             // Distinguish between first prio angle match and second prio angle match
             double prioDist = dist.dist2;
-            if (std::abs(HeadingDiff(edgeHead, headSearch)) > _angleTolerance)
+            if (std::abs(HeadingDiff(edgeAngle, headSearch)) > _angleTolerance)
                 prioDist += SCND_PRIO_ADD;
             
             // If priorized distance is farther than best we know: skip
@@ -478,7 +579,70 @@ public:
             *pEdgeIdx = bestEdgeIdx;
         return bestEdge;
     }
+    
+    /// @brief Find open ends in taxiway network (nodes with just one connection) and try connecting them to some edge
+    /// @details This shall\n
+    ///          a) connect runways to taxiways
+    ///          b) taxiway joints (which don't happen to have a directly overlapping node)
+    void JoinOpenTaxiEdges ()
+    {
+        // Loop the nodes and find nodes which have just one edge
+        for (size_t i=0; i < vecTaxiNodes.size(); ++i)
+        {
+            // skip if there is 0 or 2+ connections
+            // (0 shouldn't actually happen...but we can't heal that here either)
+            TaxiNode& n = vecTaxiNodes[i];
+            if (n.vecEdges.size() != 1)
+                continue;
+            
+            // The edge we deal with - skip if runway
+            TaxiEdge& e = vecTaxiEdges[n.vecEdges.front()];
+            if (e.GetType() == TaxiEdge::RUN_WAY)
+                continue;
+            
+            // The angle of the taxi way segment (looking away from the single-ended node)
+            const double taxiAngle = e.GetAngleFrom(i);
 
+            // Try finding _another_ edge this one can connect to
+            size_t joinIdx = EDGE_UNKNOWN;
+            positionTy pos(n.lat, n.lon, 0.0, NAN, e.angle);
+            const TaxiEdge* pJoinE = FindClosestEdge(pos, pos,
+                                                     APT_JOIN_MAX_DIST_M,
+                                                     APT_JOIN_ANGLE_TOLERANCE,
+                                                     APT_JOIN_ANGLE_TOLERANCE_EXT,
+                                                     &e,
+                                                     &joinIdx);
+            if (!pJoinE)
+                continue;
+            
+            // Found an edge. Or a runwway, that is, which we handle differently
+            if (pJoinE->GetType() == TaxiEdge::RUN_WAY) {
+                // We just add this open node to the beginning edge
+                // of the runway. So...which end then?
+                RwyEndPt& rwyStart = dynamic_cast<RwyEndPt&>(const_cast<TaxiNode&>(pJoinE->startByHeading(*this, taxiAngle)));
+                rwyStart.vecTaxiNodes.push_back(i);
+            } else {
+                // We found just another taxi edge, which we combine:
+                // We'll now split that edge by inserting the
+                // open node, which we move to the base position,
+                // so that it is exactly on the edge we split:
+                
+                // Move the open node to the base location, ie. to the closes
+                // point on the pJoinE edge (which is at max APT_JOIN_MAX_DIST_M meters away)
+                n.lat = pos.lat();
+                n.lon = pos.lon();
+                // This has slightly changed the edge e, recalc distance and angle
+                RecalcTaxiEdge(e);
+                
+                // Split pJoinE at the base position, now n (whose index is i)
+                SplitEdge(joinIdx, i);
+                
+                // To ensure FindClosestEdge works we need to sort
+                SortTaxiEdges();
+            }
+        }
+        
+    }
     
     /// @brief Find shortest path in taxi network with a maximum length between 2 nodes
     /// @see https://en.wikipedia.org/wiki/Dijkstra's_algorithm
@@ -547,7 +711,7 @@ public:
             {
                 const TaxiEdge& e = vecTaxiEdges[eIdx];
                 size_t updNIdx    = e.otherNode(shortestNIdx);
-                TaxiNode updN     = vecTaxiNodes[updNIdx];
+                TaxiNode& updN    = vecTaxiNodes[updNIdx];
                 
                 // if aleady visited then no need to re-assess
                 if (updN.bVisited)
@@ -659,64 +823,80 @@ public:
         // We shouldn't need to go faster than 1.5 x model's taxi speed
         const LTAircraft::FlightModel& mdl = fd.pAc ? fd.pAc->mdl :
         LTAircraft::FlightModel::FindFlightModel(fd.statData.acTypeIcao);
-        double startTS = prevPos.ts();
-        double pathTime = pos.ts() - startTS;  // the time we have from start to end
-        const double maxLen = pathTime * mdl.MAX_TAXI_SPEED * 1.5;
+        const double maxLen = (pos.ts() - prevPos.ts()) * mdl.MAX_TAXI_SPEED * 1.5;
         
         // let's try finding a shortest path
         vecIdxTy vecPath = ShortestPath(prevErelN,
                                         prevE.GetType() == TaxiEdge::RUN_WAY,
                                         currEstartN,
                                         maxLen);
-        // length of total path as returned
-        const double pathLen = vecTaxiNodes[currEstartN].pathLen;
         
-        // In case we leave a rwy for a taxiway the first node in vecPath
-        // is the first taxiway node, which is potentially way down the runway.
-        // We need to allow for some time to reach the taxiway node
-        // from the position on the rwy
-        if (prevE.GetType() == TaxiEdge::RUN_WAY)
+        // Some path found?
+        if (vecPath.size() >= 2)
         {
-            // Assuming taxiing works with taxiing speed, how long would we need?
-            const double taxiTime = pathLen / mdl.MAX_TAXI_SPEED;
-            startTS = pos.ts() - taxiTime;
-            
-            // Is that startTS still after the rwy position?
-            if (startTS > prevPos.ts() + SIMILAR_TS_INTVL)
+            // length of total path as returned (this excludes the distance from prevPos to start, and from end to pos)
+            double pathLen = vecTaxiNodes[currEstartN].pathLen;
+            double startTS = NAN;
+            // Add the end leg, ie. from end of path to pos
             {
-                pathTime = taxiTime;        // OK, we use this taxiing time for the entire path
-            } else {
-                // NOK, we just assume something...we leave the rwy a few seconds after previous position:
-                startTS = prevPos.ts() + SIMILAR_TS_INTVL;
-                pathTime = pos.ts() - startTS;
+                const TaxiNode& n = vecTaxiNodes[vecPath.front()];  // end of path
+                pathLen += DistLatLon(n.lat, n.lon, pos.lat(), pos.lon());
             }
-        }
-        
-        // path is returned in reverse order, so work on it reversely
-        double distRolled = 0.0;
-        for (vecIdxTy::const_reverse_iterator iter = vecPath.crbegin();
-             iter != vecPath.crend();
-             ++iter)
-        {
-            // create a proper position and insert it into fd's posDeque
-            const TaxiNode& n = vecTaxiNodes[*iter];
-            positionTy insPos (n.lat, n.lon, NAN,   // lat, lon, altitude
-                               startTS + pathTime * distRolled / pathLen,
-                               NAN,                 // heading will be populated later
-                               0.0, 0.0,            // on the ground no pitch/roll
-                               positionTy::GND_ON,
-                               positionTy::UNIT_WORLD,
-                               positionTy::UNIT_DEG,
-                               LTAircraft::FPH_TAXI);
-            insPos.edgeIdx = EDGE_UNAVAIL;          // don't want to call SnapToTaxiway for this new pos!
             
-            // Insert before the position that was passed in
-            posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
-            ++posIter;                                      // posIter points to originally passed in element again
-        }
-        
-        if (dataRefs.GetDebugAcPos(fd.key())) {
-            LOG_MSG(logDEBUG, "Inserted %lu taxiway nodes", vecPath.size());
+            // Adjust the startTS (as prevPos is not equal to start of path,
+            // we need time to travel that short distance)
+
+            // In case we leave a rwy for a taxiway the first node in vecPath
+            // is the first taxiway node, which is potentially way down the runway.
+            // We need to allow for some time to reach the taxiway node
+            // from the position on the rwy
+            if (prevE.GetType() == TaxiEdge::RUN_WAY)
+            {
+                // Assuming taxiing works with taxiing speed, how long would we need?
+                const double taxiTime = pathLen / mdl.MAX_TAXI_SPEED;
+                startTS = pos.ts() - taxiTime;
+                
+                // If that startTS now is _before_ rwy position...
+                if (startTS < prevPos.ts() + SIMILAR_TS_INTVL)
+                    // NOK, we just assume something...we leave the rwy a few seconds after previous position:
+                    startTS = prevPos.ts() + SIMILAR_TS_INTVL;
+            } else {
+                // Otherwise we are on a taxiway node
+                const TaxiNode& n = vecTaxiNodes[vecPath.back()];       // start of path
+                const double prevToStartDist = DistLatLon(prevPos.lat(), prevPos.lon(), n.lat, n.lon);
+                const double speed = (prevToStartDist + pathLen) / (pos.ts() - prevPos.ts());
+                // Allow for some time to go from prevPos to start of path:
+                startTS = prevPos.ts() + prevToStartDist / speed;
+            }
+            
+            // the time we have from start of the path to pos
+            const double pathTime = pos.ts() - startTS;
+            
+            // path is returned in reverse order, so work on it reversely
+            for (vecIdxTy::const_reverse_iterator iter = vecPath.crbegin();
+                 iter != vecPath.crend();
+                 ++iter)
+            {
+                // create a proper position and insert it into fd's posDeque
+                const TaxiNode& n = vecTaxiNodes[*iter];
+                positionTy insPos (n.lat, n.lon, NAN,   // lat, lon, altitude
+                                   startTS + pathTime * n.pathLen / pathLen,
+                                   NAN,                 // heading will be populated later
+                                   0.0, 0.0,            // on the ground no pitch/roll
+                                   positionTy::GND_ON,
+                                   positionTy::UNIT_WORLD,
+                                   positionTy::UNIT_DEG,
+                                   LTAircraft::FPH_TAXI);
+                insPos.edgeIdx = EDGE_UNAVAIL;          // don't want to call SnapToTaxiway for this new pos!
+                
+                // Insert before the position that was passed in
+                posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
+                ++posIter;                                      // posIter points to originally passed in element again
+            }
+            
+            if (dataRefs.GetDebugAcPos(fd.key())) {
+                LOG_MSG(logDEBUG, "Inserted %lu taxiway nodes", vecPath.size());
+            }
         }
         
         // snapping successful
@@ -866,6 +1046,9 @@ void Apt::AddApt (Apt&& apt)
     // for faster finding of edges by heading
     apt.SortTaxiEdges();
     
+    // Now connect open ends, ie. try finding joints between a node and existing edges
+    apt.JoinOpenTaxiEdges();
+
     // Fancy debug-level logging message, listing all runways
     LOG_MSG(logDEBUG, "apt.dat: Added %s at %s with %lu runways (%s) and [%lu|%lu] taxi nodes|edges",
             apt.GetId().c_str(),
@@ -876,11 +1059,16 @@ void Apt::AddApt (Apt&& apt)
             apt.GetTaxiEdgeVec().size() - apt.GetRwyEndPtVec().size()/2);
 
     // Access to the list of airports is guarded by a lock
+    const std::string key = apt.GetId();          // make a copy of the key, as `apt` gets moved soon:
     {
         std::lock_guard<std::mutex> lock(mtxGMapApt);
-        std::string key = apt.GetId();          // make a copy of the key, as `apt` gets moved soon:
-        gmapApt.emplace(std::move(key), std::move(apt));
+        gmapApt.emplace(key, std::move(apt));
     }
+    
+#ifdef DEBUG
+    if (dataRefs.GetLogLevel() == logDEBUG)
+        LTAptDump(key);
+#endif
 }
 
 /// Return the a node, ie. the starting point of the edge
@@ -907,18 +1095,156 @@ const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 // This code runs in the thread for file reading operations
 //
 
-/// Read airports in the one given `apt.dat` file
+/// @brief Process one "120" section of an `apt.dat` file, which contains a taxi line definitions in the subsequent 111-116 lines
+/// @details Starts reading in the next line, expecting nodes in lines starting with 111-116.
+///          According to specs, such a section has to end with 113-116. But we don't rely on it,
+///          so we are more flexible in case of errorneous files. We read until we find a line _not_ starting
+///          with 111-116 and return that back to the caller to be processed again.\n
+///          We only process line segments with Line Type Codes 1, 7, 51, 57 (Taxiway centerlines).\n
+///          All nodes are temporarily stored in a local list. After reading some nodes are removed,
+///          as in actual files nodes can be very close together (up to being identical!).
+///          We combine nodes to longer egdes until the edge's angle turns more than 15° away
+///          from the orginal heading. Then only the next edge begins. This thins out nodes and egdes.
+///          The remaining nodes and edges are added to the apt's taxiway network.
+/// @returns the next line read from the file, which is after the "120" section
+static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long& lnNr)
+{
+    vecTaxiNodesTy vecNodes;            // temporarily stored nodes in order of appearance
+    std::string ln;
+    while (fIn)
+    {
+        // read a line from the input file
+        safeGetline(fIn, ln);
+        ++lnNr;
+
+        // ignore empty lines
+        if (ln.empty()) continue;
+        
+        // tokenize the line
+        std::vector<std::string> fields = str_tokenize(ln, " \t", true);
+        
+        // We need at minimum 3 fields (line id, latitude, longitude)
+        if (fields.size() < 3) break;
+        
+        // Check for any of "our" line codes (we treat them all equal)
+        const int lnCod = std::stoi(fields[0]);
+        if (111 <= lnCod && lnCod <= 116)
+        {
+            // Check for the Line Type Code to be Taxi Centerline
+            int lnTypeCode = 1;         // by default we add (also goes for lnCod 115,116!)
+            // In case of line codes 111, 113 the Line Type Code is in field 3
+            if (lnCod == 111 || lnCod == 113) {
+                if (fields.size() >= 4)
+                    lnTypeCode = std::stoi(fields[3]);
+            // In case of line codes 112, 114 the Line Type Code is in field 5
+            } else if (lnCod == 112 || lnCod == 114) {
+                if (fields.size() >= 6)
+                    lnTypeCode = std::stoi(fields[5]);
+            }
+            
+            // Taxi Centerline?
+            if (lnTypeCode ==  1 || lnTypeCode ==  7 ||
+                lnTypeCode == 51 || lnTypeCode == 57)
+            {
+                // add the node temporarily if it different from previous
+                // (there are quite a number of _exactly_ equal subsequent nodes
+                //  in actual apt.dat, which we filter out this way)
+                const double lat = std::stod(fields[1]);
+                const double lon = std::stod(fields[2]);
+                if (vecNodes.empty() || !vecNodes.back().CompEqualLatLon(lat,lon))
+                    vecNodes.emplace_back(lat, lon);
+            } else {
+                // Not a Taxi Centerline, so we don't bother any longer, stop processing
+                break;
+            }
+        }
+        else            // not any of our codes -> stop processing
+            break;
+    }
+    
+    // Reading the section is done, now process the resulting nodes
+    if (vecNodes.size() >= 2)
+    {
+        // The indexes to be used when adding the edge.
+        // idxA points to the (already added) first node,
+        // idxB to the just now added second node
+        size_t idxA=ULONG_MAX, idxB=ULONG_MAX;
+        
+        // The first node of the entire list is definitely used, add it already
+        const size_t idxA_First =
+        idxA = apt.AddTaxiNode(vecNodes.front().lat,
+                               vecNodes.front().lon);
+        
+        // The very last node will also be added later.
+        // Between these two:
+        // Combine adges til heading changes too much.
+        // add the remainder to the airport's taxi network
+        double firstAngle = NAN;
+        for (vecTaxiNodesTy::const_iterator iEnd   = vecNodes.cbegin();
+             iEnd != std::prev(vecNodes.cend());
+             ++iEnd)
+        {
+            const TaxiNode& a = apt.GetTaxiNodesVec()[idxA];    // last node already added to the network
+            const TaxiNode& b = *iEnd;              // last node that is confirmed to be part of the edge
+            const TaxiNode& c = *std::next(iEnd);   // next node, to be validated if still in the edge
+            double bcAngle = CoordAngle(b.lat, b.lon, c.lat, c.lon);
+            if (std::isnan(firstAngle))             // new edge has just start, this is our reference angle
+                firstAngle = bcAngle;
+            else if ((DistLatLonSqr(a.lat,a.lon,c.lat,c.lon) > APT_MAX_EDGE_LEN_M2) ||
+                     (std::abs(HeadingDiff(firstAngle, bcAngle)) > APT_MAX_TAXI_SEGM_TURN))
+            {
+                // The heading of the edge between b and c
+                // is more than 15° away from the first node
+                // -> We stop adding to the edge, ie. we now add first->b to the network
+                idxB = apt.AddTaxiNode(b.lat, b.lon);
+                if (idxA != idxB) {
+                    apt.AddTaxiEdge(idxA, idxB);
+                    idxA = idxB;
+                    firstAngle = NAN;
+                }
+            }
+        }
+        
+        // The last node of the list is also always to be added
+        idxB = apt.AddTaxiNode(vecNodes.back().lat,
+                               vecNodes.back().lon,
+                               idxA_First);     // never combine with very first node; this ensures that at least one edge will be added!
+        if (idxA != idxB) {
+            apt.AddTaxiEdge(idxA, idxB);
+        }
+    }
+    
+    // return the last line so it can be processed again
+    return ln;
+}
+
+/// @brief Read airports in the one given `apt.dat` file
+/// @details    The function process the following line types:\n
+///             1 - Airport header to start a new airport and learn its name/id\n
+///             100 - Runway definitions\n
+///             120 - Line segments (incl. subsequent 111-116 codes), or alternatively, if no 120 code is found:\n
+///             1201, 1202  - Taxi route netwirk
 static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
 {
     // Walk the file
+    std::string ln;
     unsigned long lnNr = 0;             // for debugging purposes we are interested to track the file's line number
+    bool bProcessGivenLn = false;       // process a line returned by a sub-routine?
+    // Are we reading 120 taxi centerlines or 1200 taxi route network?
+    enum netwTypeTy { NETW_UNKOWN=0, NETW_CENTERLINES, NETW_TAXIROUTES } netwType = NETW_UNKOWN;
     Apt apt;
-    while (!bStopThread && fIn)
+    while (!bStopThread && (bProcessGivenLn || fIn))
     {
-        // read a fresh line from the file
-        std::string ln;
-        safeGetline(fIn, ln);
-        ++lnNr;
+        // Either process a given line or fetch a new one
+        if (bProcessGivenLn) {
+            // the line is in `ln` already, just reset the flag
+            bProcessGivenLn = false;
+        } else {
+            // read a fresh line from the file
+            ln.clear();
+            safeGetline(fIn, ln);
+            ++lnNr;
+        }
         
         // ignore empty lines
         if (ln.empty()) continue;
@@ -988,50 +1314,52 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
             }       // if line contains 26 field values
         }           // if a runway line startin with "100 "
         
-        // test for a taxi network node
-        else if (apt.HasId() &&
-                 ln.size() >= 15 &&           // line long enough?
-                 ln[0] == '1' &&              // starting with "1201 "?
+        // test for the start of a taxi line segment
+        // This is valid for 120 as well as 120x:
+        else if (apt.HasRwyEndpoints() &&
+                 ln.size() >= 3 &&
+                 ln[0] == '1' &&
                  ln[1] == '2' &&
-                 ln[2] == '0' &&
-                 ln[3] == '1' &&
-                 (ln[4] == ' ' || ln[4] == '\t'))
+                 ln[2] == '0')
         {
-            // separate the line into its field values
-            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
-            // We need fields 2, 3, the location, and 5, the index, only
-            if (fields.size() >= 5) {
-                // Convert and briefly test the given location
-                const double lat = std::stod(fields[1]);
-                const double lon = std::stod(fields[2]);
-                const size_t idx = std::stoul(fields[4]);
-                if (-90.0 <= lat && lat <= 90.0 &&
-                    -180.0 <= lon && lon < 180.0)
-                {
-                    apt.AddTaxiNode(lat, lon, idx);
-                }   // has valid location
-            }       // enough fields in line?
-        }           // if a taxi network node ("1201 ")
-
-        // test for a taxi network edge
-        else if (apt.HasId() &&
-                 ln.size() >= 8 &&            // line long enough?
-                 ln[0] == '1' &&              // starting with "1201 "?
-                 ln[1] == '2' &&
-                 ln[2] == '0' &&
-                 ln[3] == '2' &&
-                 (ln[4] == ' ' || ln[4] == '\t'))
-        {
-            // separate the line into its field values
-            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
-            // We need fields 2, 3 only, the node indexes
-            if (fields.size() >= 3) {
-                // Convert indexes and try adding the node
-                const size_t n1 = std::stoul(fields[1]);
-                const size_t n2 = std::stoul(fields[2]);
-                apt.AddTaxiEdge(n1, n2);
-            }       // enough fields in line?
-        }           // if a taxi network edge ("1202 ")
+            // Standard Line segment, that could be a centerline?
+            if (netwType != NETW_TAXIROUTES &&                              // not yet decided for the other type of network?
+                (ln.size() == 3 ||                                          // was just the text "120"
+                 (ln.size() >= 4 && (ln[3] == ' ' || ln[3] == '\t'))))      // or "120 " plus more
+            {
+                // Read the entire line segment
+                ln = ReadOneTaxiLine(fIn, apt, lnNr);
+                bProcessGivenLn = true;         // process the returned line read from the file
+                if (apt.HasTaxiWays())          // did we (latest now) add taxi segments?
+                    netwType = NETW_CENTERLINES;
+            }
+            else if (netwType != NETW_CENTERLINES)
+            {
+                // separate the line into its field values
+                std::vector<std::string> fields = str_tokenize(ln, " \t", true);
+                int lnCode = std::stoi(fields[0]);
+                
+                // 1201 - Taxi route network node
+                if (lnCode == 1201 && fields.size() >= 5) {
+                    // Convert and briefly test the given location
+                    const double lat = std::stod(fields[1]);
+                    const double lon = std::stod(fields[2]);
+                    const size_t idx = std::stoul(fields[4]);
+                    if (-90.0 <= lat && lat <= 90.0 &&
+                        -180.0 <= lon && lon < 180.0)
+                    {
+                        netwType = NETW_TAXIROUTES;
+                        apt.AddTaxiNodeFixed(lat, lon, idx);
+                    }   // has valid location
+                }
+                else if (lnCode == 1202 && fields.size() >= 3) {
+                    // Convert indexes and try adding the node
+                    const size_t n1 = std::stoul(fields[1]);
+                    const size_t n2 = std::stoul(fields[2]);
+                    apt.AddTaxiEdge(n1, n2);
+                }
+            }       // not NETW_CENTERLINE
+        }           // "120"
     }               // for each line of the apt.dat file
     
     // If the last airport read is valid don't forget to add it to the list
@@ -1314,7 +1642,7 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
                 // Heading towards rwy, compared to current flight's heading
                 // (Find the rwy which requires least turn now.)
                 const double bearing = CoordAngle(from.lat(), from.lon(), rwyEP.lat, rwyEP.lon);
-                const double headingDiff = fabs(HeadingDiff(from.heading(), bearing));
+                const double headingDiff = std::abs(HeadingDiff(from.heading(), bearing));
                 if (headingDiff > bestHeadingDiff)      // worse than best known match?
                     continue;
                 
@@ -1396,3 +1724,68 @@ void LTAptDisable ()
     // destroy the Y Probe
     Apt::DestroyYProbe();
 }
+
+
+#ifdef DEBUG
+// Dumps the entire taxi network into a CSV file readable by GPS Visualizer
+/// @see For a suggestion of settings for display:
+/// https://www.gpsvisualizer.com/map_input?bg_map=google_openstreetmap&bg_opacity=70&form=leaflet&google_wpt_sym=diamond&trk_list=0&trk_opacity=100&trk_width=2&units=metric&width=1400&wpt_color=aqua
+void LTAptDump (const std::string& _aptId)
+{
+    // find the airport by id
+    if (gmapApt.count(_aptId) < 1) return;
+    const Apt& apt = gmapApt.at(_aptId);
+    
+    // open the output file
+    const std::string fileName (dataRefs.GetXPSystemPath() + _aptId + ".csv");
+    std::ofstream out (fileName, std::ios_base::out | std::ios_base::trunc);
+    // column headers
+    out << "type,BOT,symbol,latitude,longitude,time,speed,course,name,desc\n";
+    out.precision(8);               // precision is all digits, so we need something like 123.45678
+    // Dump all nodes as Waypoints
+    size_t i = 0;
+    for (const TaxiNode& n: apt.GetTaxiNodesVec())
+        out
+        << "W,,"                                    // type, BOT
+        << (n.vecEdges.size() == 0 ? "pin," :       // symbol
+            n.vecEdges.size() == 1 ? "circle," :
+            n.vecEdges.size() == 2 ? "square," :
+            n.vecEdges.size() == 3 ? "triangle," :
+            n.vecEdges.size() == 4 ? "diamond," : "star,")
+        << n.lat << ',' << n.lon << ','             // latitude,longitude
+        << ",,,"                                    // time,speed,course
+        << "Node " << (i++) << ','                  // name
+        << n.vecEdges.size() << " edges"            // desc
+        << "\n";
+    
+    // Dump all edges as Tracks
+    i = 0;
+    for (const TaxiEdge& e: apt.GetTaxiEdgeVec())
+    {
+        const TaxiNode& a = e.GetA(apt);
+        const TaxiNode& b = e.GetB(apt);
+        
+        out
+        << "T,1,,"                                  // type, BOT, symbol
+        << a.lat << ',' << a.lon << ','             // latitude,longitude
+        << ",,"                                     // time,speed
+        << e.angle << ','                           // course
+        << "Edge " << (i++) << ','                  // name
+        << "nodes " << e.startNode() << '-' << e.endNode() // desc
+        << "\n";
+
+        out
+        << "T,0,,"                                  // type, BOT, symbol
+        << b.lat << ',' << b.lon << ','             // latitude,longitude
+        << ",,"                                     // time,speed
+        << ','                                      // course
+        << ','                                      // name, desc
+        << "\n";
+
+    }
+        
+
+    // Close the file
+    out.close();
+}
+#endif

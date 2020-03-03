@@ -2,9 +2,16 @@ TODO
 ===
 
 LTApt
+- Two-pass read of 120 data...a bit like how 1200 is organized:
+  - Read in all nodes (keep the current duplicate filter)
+  - Mark joints, ie. nodes used in several edges
+  - Probably, they are to be added first without the edges,
+    and when adding the edges later we rely on the "find nearby node" function
+    to locate them again
+  - When optimizing edges always stop optimizing at a joint
 - Split runways (for auto-land detection) completely from
   taxi node network
-- Debug shortest path finding...still doesn't work.
+- Debug shortest path finding...or is it the routing network?
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
   They are also _used_ as soon as available
@@ -13,6 +20,14 @@ LTApt
 - Check Disable/Reenable regarding airport data...we might need to reload.
 - When setting Snap distance to zero we should also not read apt.dat,
   but when setting Snap distance to >0 then we need to kick off reading
+- Row codes 1300 in apt.dat define start up locations including heading
+  They don't need to be connected to the taxi routing network,
+  so we need to find the closest
+  
+- Late delivered a/c type info:
+  If it doesn't contain a type but human-readable info, then we should
+  try to match that.
+  
 
 TEST
 ===

@@ -270,8 +270,8 @@ positionTy::operator XPMPPlanePosition_t() const
 const char* positionTy::GrndE2String (onGrndE grnd)
 {
     switch (grnd) {
-        case GND_OFF:           return "GND_OFF    ";
-        case GND_ON:            return "GND_ON     ";
+        case GND_OFF:           return "GND_OFF";
+        case GND_ON:            return "GND_ON";
         default:                return "GND_UNKNOWN";
     }
 }
@@ -279,20 +279,20 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "(%7.4f, %7.4f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f] %s",
+    snprintf(buf, sizeof(buf), "(%7.5f, %7.5f) %5.0ff %8.8s %13.13s {h %3.0f, p %3.0f, r %3.0f} [%.1f]",
              lat(), lon(),
              alt_ft(),
              GrndE2String(onGrnd),
+             flightPhase ? (LTAircraft::FlightPhase2String(LTAircraft::FlightPhase(flightPhase))+"             ").c_str() : "             ",
              heading(), pitch(), roll(),
-             ts(),
-             flightPhase ? LTAircraft::FlightPhase2String(LTAircraft::FlightPhase(flightPhase)).c_str() : "");
+             ts());
     return std::string(buf);
 }
 
 positionTy::operator std::string () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "%7.4f %c / %7.4f %c",
+    snprintf(buf, sizeof(buf), "%7.5f %c / %7.5f %c",
              std::abs(lat()), lat() < 0 ? 'S' : 'N',
              std::abs(lon()), lon() < 0 ? 'W' : 'E');
     return std::string(buf);
