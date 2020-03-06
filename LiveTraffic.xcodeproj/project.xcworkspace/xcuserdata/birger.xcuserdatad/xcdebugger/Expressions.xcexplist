@@ -25,10 +25,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -193,10 +193,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -375,6 +375,17 @@
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
       </ContextState>
       <ContextState
+         contextName = "Apt::PostProcessPaths():LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "p.listPos[0]">
+            </PersistentString>
+            <PersistentString
+               value = "vecTaxiNodes[207]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "Apt::AddTaxiEdge(unsigned long, unsigned long):LTApt.cpp">
          <PersistentStrings>
             <PersistentString
@@ -476,6 +487,9 @@
                value = "surfaces.lights">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "Apt::GetSimilarTaxiTmpPos(double, double, bool):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAircraft::CameraCB(XPLMCameraPosition_t*, int, void*):LTAircraft.cpp">
@@ -607,10 +621,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -636,6 +650,11 @@
       </ContextState>
       <ContextState
          contextName = "ReadOneTaxiLine(std::__1::basic_ifstream&lt;char, std::__1::char_traits&lt;char&gt; &gt;&amp;, Apt&amp;, unsigned long&amp;):LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "listPaths">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "LTOnlineChannel::FetchAllData(positionTy const&amp;):LTFlightData.cpp">
@@ -740,10 +759,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -816,6 +835,9 @@
       </ContextState>
       <ContextState
          contextName = "ADSBExchangeConnection::FetchAllAircrafts(positionTy const&amp;, LTFlightDataMap&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::AddTaxiTmpPath(TaxiTmpPath&amp;&amp;):LTApt.cpp">
       </ContextState>
    </ContextStates>
 </VariablesViewState>

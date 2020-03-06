@@ -2,16 +2,20 @@ TODO
 ===
 
 LTApt
-- Two-pass read of 120 data...a bit like how 1200 is organized:
-  - Read in all nodes (keep the current duplicate filter)
-  - Mark joints, ie. nodes used in several edges
-  - Probably, they are to be added first without the edges,
-    and when adding the edges later we rely on the "find nearby node" function
-    to locate them again
-  - When optimizing edges always stop optimizing at a joint
+- Runway/Taxi connection to be reworked: If rwy can be left to both sides,
+  then these two lines merge on the rwy...and are then no longer a single
+  node to be merged with the rwy...it is not found when trying to leave a rwy.
+  Idea so far: All endpoints of path _as read from the file_ need to go
+  into a post-processing queue: They are tested if to be combined with a rwy.
+  Also consider adding the rwy as normal edge, then the previous merging
+  will actually interweave the rwy into the taxi network and all routing
+  works with the shortest path algorithm without the need for special
+  handling for exiting rwys.
+- Shortest path:
+  - Don't allow turns of more than 100°
+  - Reduce max speed to 1x mdl.TAXI_SPEED
 - Split runways (for auto-land detection) completely from
   taxi node network
-- Debug shortest path finding...or is it the routing network?
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
   They are also _used_ as soon as available
