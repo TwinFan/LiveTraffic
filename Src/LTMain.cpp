@@ -99,7 +99,7 @@ std::istream& safeGetline(std::istream& is, std::string& t)
     std::getline(is, t, '\n');
     
     // if last character is CR then remove it
-    if (t.back() == '\r')
+    if (!t.empty() && t.back() == '\r')
         t.pop_back();
     
     return is;

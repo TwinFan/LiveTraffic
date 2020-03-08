@@ -118,6 +118,10 @@ public:
     /// Equality is based solely on geographic position
     bool operator== (const TaxiNode& o) const
     { return CompEqualLatLon(o.lat, o.lon); }
+    
+    /// Proximity is based on a given max distance
+    bool IsCloseTo (const TaxiNode& o, double _maxDist)
+    { return DistLatLonSqr(lat, lon, o.lat, o.lon) <= (_maxDist*_maxDist); }
 };
 
 /// Vector of taxi nodes
@@ -230,6 +234,16 @@ public:
         dist_m = _dist_m;
         Normalize();
     }
+    
+    /// Replaces on node with the other (but does not recalc angle/dist!)
+    void ReplaceNode (size_t oldIdxN, size_t newIdxN)
+    {
+        if (a == oldIdxN)
+            a = newIdxN;
+        else if (b == oldIdxN)
+            b = newIdxN;
+    }
+    
 };
 
 /// Vector of taxi edges
@@ -334,6 +348,16 @@ public:
     
     /// Any taxiways/runways defined?
     bool HasTaxiWays () const { return !vecTaxiEdges.empty(); }
+    
+    /// Is given node connected to a rwy?
+    bool ConnectedToRwy (size_t idxN) const
+    {
+        const TaxiNode& n = vecTaxiNodes[idxN];
+        for (size_t idxE: n.vecEdges)
+            if (vecTaxiEdges[idxE].GetType() == TaxiEdge::RUN_WAY)
+                return true;
+        return false;
+    }
     
     /// return index of closest taxi node within a "close-by" distance (or ULONG_MAX if none close enough)
     size_t GetSimilarTaxiNode (double _lat, double _lon,
@@ -496,14 +520,40 @@ public:
         }
     }
     
+    /// @brief Replace one node with the other. Afterwards, oldN is unused
+    /// @details All edges connect to `old` are connected to `new` instead.
+    ///          This only changes the respective node of the attached edges.
+    void ReplaceNode (size_t oldIdxN, size_t newIdxN)
+    {
+        // All edges using oldN need to be changed to use newN instead
+        TaxiNode& oldN = vecTaxiNodes.at(oldIdxN);
+        TaxiNode& newN = vecTaxiNodes.at(newIdxN);
+        while (!oldN.vecEdges.empty())
+        {
+            // The edge to work on
+            const size_t idxE = oldN.vecEdges.back();
+            oldN.vecEdges.pop_back();
+            TaxiEdge& e = vecTaxiEdges[idxE];
+            
+            // Replace the node in the edge and recalculate the edge
+            e.ReplaceNode(oldIdxN, newIdxN);
+            RecalcTaxiEdge(idxE);
+            
+            // Add the edge to the new node
+            newN.vecEdges.push_back(idxE);
+        }
+    }
+    
     /// @brief Fill the indirect vector, which sorts edges by heading
     void SortTaxiEdges ()
     {
         // If the indirect array doesn't seem to have correct size
         // then we need to create that first
-        if (vecTaxiEdges.size() != vecTaxiEdgesIdxHead.size()) {
+        if (vecTaxiEdges.size() != vecTaxiEdgesIdxHead.size())
+        {
+            size_t i = vecTaxiEdgesIdxHead.size();
             vecTaxiEdgesIdxHead.resize(vecTaxiEdges.size());
-            for (size_t i = 0; i < vecTaxiEdgesIdxHead.size(); ++i)
+            for (; i < vecTaxiEdgesIdxHead.size(); ++i)
                 vecTaxiEdgesIdxHead[i] = i;
         }
         
@@ -791,8 +841,8 @@ public:
         // We had added entpoints to vecPathsEnds in a random order.
         // Let's reduce this list to a unique list of indexes
         std::sort(vecPathEnds.begin(), vecPathEnds.end());
-        auto last = std::unique(vecPathEnds.begin(), vecPathEnds.end());
-        vecPathEnds.erase(last,vecPathEnds.end());
+        auto lastPE = std::unique(vecPathEnds.begin(), vecPathEnds.end());
+        vecPathEnds.erase(lastPE,vecPathEnds.end());
         
         // Loop all path ends and see if they are in need of another connection
         for (size_t idxN: vecPathEnds)
@@ -800,6 +850,23 @@ public:
             // The node we deal with
             TaxiNode& n = vecTaxiNodes[idxN];
             
+            // The exclusion edge list: With these edges we don't want to join:
+            // 1. All our direct edges
+            vecIdxTy vecEdgeExclusions = n.vecEdges;
+            // 2. All edges connected to #1 edges
+            for (size_t idxE: n.vecEdges) {
+                const TaxiEdge& e = vecTaxiEdges[idxE];
+                const size_t idxOthN = e.otherNode(idxN);
+                const TaxiNode& othN = vecTaxiNodes[idxOthN];
+                std::copy_if (othN.vecEdges.cbegin(), othN.vecEdges.cend(),
+                              std::back_inserter(vecEdgeExclusions),
+                              [idxE](size_t _idxE){ return idxE != _idxE; });
+            }
+            // Let's reduce this exclusion list to a unique list of indexes
+            std::sort(vecEdgeExclusions.begin(), vecEdgeExclusions.end());
+            auto lastEExcl = std::unique(vecEdgeExclusions.begin(), vecEdgeExclusions.end());
+            vecEdgeExclusions.erase(lastEExcl,vecEdgeExclusions.end());
+
             // Might already have some edges. As finding closest edge is
             // optimized for heading: We walk all edges and try each heading.
             for (vecIdxTy::const_iterator iterIdxE = n.vecEdges.cbegin();
@@ -823,7 +890,7 @@ public:
                                                          APT_JOIN_ANGLE_TOLERANCE,
                                                          APT_JOIN_ANGLE_TOLERANCE_EXT,
                                                          joinIdxE,
-                                                         n.vecEdges);
+                                                         vecEdgeExclusions);
                 if (!pJoinE)
                     continue;
                 
@@ -841,19 +908,41 @@ public:
                 n.lat = pos.lat();
                 n.lon = pos.lon();
                 
-                // This has slightly changed all edges of n, recalc distance and angle
-                for (size_t idxEE: n.vecEdges)
-                    RecalcTaxiEdge(idxEE);
+                // Along this edge, there could be nodes which are more or less
+                // equal to our node n. Eg., this happens with taxiways,
+                // which leave runwas in opposite directions:
+                // Both taxiways (left/right) have an open end on the rwy,
+                // one to the left, one to the right of the rwy centerline.
+                // The algorithm will find one of them first and merge with
+                // the rwy. Once we find the other side we should combine that
+                // node now with the already merged node, so that both taxiways
+                // join with the rwy in one single joint node.
+                size_t nearIdxN = ULONG_MAX;
+                if (n.IsCloseTo(vecTaxiNodes[pJoinE->startNode()], APT_MAX_SIMILAR_NODE_DIST_M))
+                    nearIdxN = pJoinE->startNode();
+                else if (n.IsCloseTo(vecTaxiNodes[pJoinE->endNode()], APT_MAX_SIMILAR_NODE_DIST_M))
+                    nearIdxN = pJoinE->endNode();
                 
-                // Split pJoinE at the base position, now n (whose index is idxN)
-                SplitEdge(joinIdxE, idxN);
-#ifdef DEBUG
-                LOG_ASSERT(ValidateNodesEdges());
-#endif
+                // One of the edges is indeed nearby?
+                if (nearIdxN < ULONG_MAX) {
+                    ReplaceNode(idxN, nearIdxN);
+                }
+                // Not nearby:
+                else {
+                    // Moving n has slightly changed all edges of n, recalc distance and angle
+                    for (size_t idxEE: n.vecEdges)
+                        RecalcTaxiEdge(idxEE);
+                    // Split pJoinE at the base position, now n (whose index is idxN)
+                    SplitEdge(joinIdxE, idxN);
+                }
 
                 // To ensure FindClosestEdge works we need to sort
                 SortTaxiEdges();
                 
+#ifdef DEBUG
+                LOG_ASSERT(ValidateNodesEdges());
+#endif
+
                 // and here we break out: just one more linked path is enough of a success
                 break;
             }       // for all edges of the node
@@ -1120,8 +1209,9 @@ public:
     
 #ifdef DEBUG
     /// Validates if back references of edges to nodes are still OK
-    bool ValidateNodesEdges () const
+    bool ValidateNodesEdges (bool _bValidateIdxHead = true) const
     {
+        // Validate vecTaxiNodes and vecTaxiEdges
         for (size_t idxN = 0; idxN < vecTaxiNodes.size(); ++idxN)
         {
             const TaxiNode& n = vecTaxiNodes[idxN];
@@ -1140,6 +1230,28 @@ public:
                 return false;
             }
         }
+        
+        // Validate the index array sorted by heading
+        if (_bValidateIdxHead)
+        {
+            if (vecTaxiEdgesIdxHead.size() != vecTaxiEdges.size()) {
+                LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead.size() = %lu != %lu = vecTaxiEdges.size()",
+                        vecTaxiEdgesIdxHead.size(), vecTaxiEdges.size());
+                return false;
+            }
+            double prevAngle = -1.0;
+            for (size_t idxE: vecTaxiEdgesIdxHead)
+            {
+                if (idxE >= vecTaxiEdges.size() ||
+                    vecTaxiEdges[idxE].angle < prevAngle)
+                {
+                    LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead wrongly sorted, edge %lu (heading %.1f) at wrong place after heading %.1f",
+                            idxE, vecTaxiEdges[idxE].angle, prevAngle);
+                    return false;
+                }
+            }
+        }
+        
         return true;
     }
 #endif
@@ -1293,11 +1405,11 @@ void Apt::AddApt (Apt&& apt)
     if (apt.HasTempNodesEdges()) {
         apt.PostProcessPaths();         // add nodes and edges for taxways
 #ifdef DEBUG
-        LOG_ASSERT(apt.ValidateNodesEdges());
+        LOG_ASSERT(apt.ValidateNodesEdges(false));
 #endif
         apt.AddRwyEdges();              // add edges for each runway
 #ifdef DEBUG
-        LOG_ASSERT(apt.ValidateNodesEdges());
+        LOG_ASSERT(apt.ValidateNodesEdges(false));
 #endif
     }
     
@@ -1307,6 +1419,9 @@ void Apt::AddApt (Apt&& apt)
     
     // Now connect open ends, ie. try finding joints between a node and existing edges
     apt.JoinPathEnds();
+#ifdef DEBUG
+    LOG_ASSERT(apt.ValidateNodesEdges());
+#endif
 
     // Fancy debug-level logging message, listing all runways
     // (here already as `apt` gets moved soon and becomes reset)
@@ -1956,7 +2071,7 @@ void LTAptDump (const std::string& _aptId)
     
     // Dump all nodes as Waypoints
     size_t i = 0;
-    for (const TaxiNode& n: apt.GetTaxiNodesVec())
+    for (const TaxiNode& n: apt.GetTaxiNodesVec()) {
         out
         << "W,,"                                    // type, BOT
         << (n.vecEdges.size() == 0 ? "pin," :       // symbol
@@ -1964,13 +2079,16 @@ void LTAptDump (const std::string& _aptId)
             n.vecEdges.size() == 2 ? "square," :
             n.vecEdges.size() == 3 ? "triangle," :
             n.vecEdges.size() == 4 ? "diamond," : "star,")
-        << "aqua,"                                  // color
+        << (apt.ConnectedToRwy(i) ? "red," :        // color: red if rwy, blue if 2 edges, else auqa
+            n.vecEdges.size() == 2 ? "blue," : "aqua,")
         << "0,"                                     // rotation
         << n.lat << ',' << n.lon << ','             // latitude,longitude
         << ",,,"                                    // time,speed,course
-        << "Node " << (i++) << ','                  // name
+        << "Node " << i << ','                      // name
         << n.vecEdges.size() << " edges"            // desc
         << "\n";
+        i++;
+    }
     
     // Dump all edges as Tracks
     i = 0;
