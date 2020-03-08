@@ -25,10 +25,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -193,10 +193,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -259,6 +259,9 @@
       </ContextState>
       <ContextState
          contextName = "TaxiEdge::SetEndNode(unsigned long, double, double):LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double, double, unsigned long&amp;, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt; const&amp;) const:LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "OpenSkyAcMasterdata::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;):LTOpenSky.cpp">
@@ -376,14 +379,6 @@
       </ContextState>
       <ContextState
          contextName = "Apt::PostProcessPaths():LTApt.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "p.listPos[0]">
-            </PersistentString>
-            <PersistentString
-               value = "vecTaxiNodes[207]">
-            </PersistentString>
-         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "Apt::AddTaxiEdge(unsigned long, unsigned long):LTApt.cpp">
@@ -418,6 +413,9 @@
       </ContextState>
       <ContextState
          contextName = "UDPReceiver::UDPReceiver(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;, int, unsigned long, unsigned int):Network.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::RecalcTaxiEdge(unsigned long):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::FDStaticData::operator|=(LTFlightData::FDStaticData const&amp;):LTFlightData.cpp">
@@ -500,6 +498,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "Apt::AddApt(Apt&amp;&amp;):LTApt.cpp">
+      </ContextState>
+      <ContextState
          contextName = "MovingParam::moveTo(double):LTAircraft.cpp">
       </ContextState>
       <ContextState
@@ -579,6 +580,9 @@
          contextName = "LTAptSnap(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 85l&gt;&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
+         contextName = "Apt::JoinPathEnds():LTApt.cpp">
+      </ContextState>
+      <ContextState
          contextName = "OpenSkyConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">
          <PersistentStrings>
             <PersistentString
@@ -621,10 +625,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -759,15 +763,18 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "DistPointToLineSqr(double, double, double, double, double, double, distToLineTy&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::AddTaxiEdge(unsigned long, unsigned long, TaxiEdge::edgeTy):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "DistResultToBaseLoc(double, double, double, double, distToLineTy const&amp;, double&amp;, double&amp;):CoordCalc.cpp">

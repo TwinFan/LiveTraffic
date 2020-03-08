@@ -113,7 +113,7 @@ constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [¡] tolerance of searched h
 constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [¡] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
 constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
-constexpr double ART_RWY_MAX_HEAD_DIFF = 10.0;  ///< [¡] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [¡] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
@@ -122,7 +122,7 @@ constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [¡] Maximum turn rate (comp
 constexpr double APT_MAX_EDGE_LEN_M = 25.0;     ///< [m] Max length of one edge
 constexpr double APT_MAX_EDGE_LEN_M2 = APT_MAX_EDGE_LEN_M*APT_MAX_EDGE_LEN_M;
 constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 2.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
-constexpr int    APT_JOIN_MAX_DIST_M = 15;      ///< [m] Max distance for an open node to be joined with another edge
+constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an open node to be joined with another edge
 constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [¡] tolerance of angle for an open node to be joined with another edge
 constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [¡] extended (second prio) tolerance of angle for an open node to be joined with another edge
 

@@ -37,8 +37,8 @@ void LTAptRefresh ();
 positionTy LTAptFindRwy (const LTAircraft& _ac);
 
 /// @brief Snaps the passed-in position to the nearest rwy or taxiway if appropriate
-/// @param pos Reference to the position, which might get changed.
-/// @param bLogging Do logging via LOG_MSG?
+/// @param fd Flight data object to be analyzed
+/// @param[in,out] posIter Iterator into LTFlightData::posDeque, points to position to analyze, might change due to inserted taxi positions
 /// @return Changed the position?
 bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter);
 
