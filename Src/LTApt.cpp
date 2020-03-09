@@ -133,7 +133,6 @@ public:
     std::string id;                     ///< rwy identifier, like "23" or "05R"
     double      alt_m = NAN;            ///< ground altitude in meter
     double      heading = NAN;          ///< rwy heading
-    vecIdxTy    vecTaxiNodes;           ///< TODO: remove: nodes of taxiways leaving this direction of the rwy
 
 public:
     /// Default constructor leaves all empty
@@ -350,7 +349,7 @@ public:
     bool HasTaxiWays () const { return !vecTaxiEdges.empty(); }
     
     /// Is given node connected to a rwy?
-    bool ConnectedToRwy (size_t idxN) const
+    bool IsConnectedToRwy (size_t idxN) const
     {
         const TaxiNode& n = vecTaxiNodes[idxN];
         for (size_t idxE: n.vecEdges)
@@ -359,6 +358,18 @@ public:
         return false;
     }
     
+    /// Return the edge's idx, which connects the two given nodes, or `EDGE_UNAVAIL`
+    size_t GetEdgeBetweenNodes (size_t idxA, size_t idxB)
+    {
+        const TaxiNode& a = vecTaxiNodes.at(idxA);
+        for (size_t idxE: a.vecEdges) {
+            const TaxiEdge& e = vecTaxiEdges[idxE];
+            if (e.otherNode(idxA) == idxB)
+                return idxE;
+        }
+        return EDGE_UNAVAIL;
+    }
+
     /// return index of closest taxi node within a "close-by" distance (or ULONG_MAX if none close enough)
     size_t GetSimilarTaxiNode (double _lat, double _lon,
                                size_t dontCombineWith = ULONG_MAX) const
@@ -638,7 +649,7 @@ public:
     ///          before passed on to the DistPointToLineSqr() function.
     ///          The resulting base point is then converted back to geo world coords.
     /// @param _pos Search position, only nearby nodes with a similar heading are considered
-    /// @param[out] _basePt Receives the coordinates of the base point in case of a match. Only positionTy::lat, positionTy::lon, and positionTy::edgeIdx will be modified.
+    /// @param[out] _basePt Receives the coordinates of the base point and the edge's index in case of a match. Only positionTy::lat, positionTy::lon, and positionTy::edgeIdx will be modified.
     /// @param _maxDist_m Maximum distance in meters between `pos` and edge to be considered a match
     /// @param _angleTolerance Maximum difference between `pos.heading()` and TaxiEdge::angle to be considered a match
     /// @param _angleToleranceExt Second priority tolerance, considered only if such a node is more than 5m closer than one that better fits angle
@@ -650,7 +661,6 @@ public:
                                      double _maxDist_m,
                                      double _angleTolerance,
                                      double _angleToleranceExt,
-                                     size_t& _edgeIdx,
                                      const vecIdxTy& _vecSkipEIdx = vecIdxTy()) const
     {
         const TaxiEdge* bestEdge = nullptr;
@@ -667,6 +677,8 @@ public:
         // ...it is not exactly (dist+5m)^2 = dist^2 + 2 * 5 * dist + 5 ^ 2
         // ...but as close as we can get when we want to avoid sqrt for performance reasons
         constexpr double SCND_PRIO_ADD = 3 * ART_EDGE_ANGLE_EXT_DIST + ART_EDGE_ANGLE_EXT_DIST*ART_EDGE_ANGLE_EXT_DIST;
+        // Init as: Nothing found
+        _basePt.edgeIdx = EDGE_UNAVAIL;
         
         // Get a list of edges matching pos.heading()
         vecIdxTy lstEdges;
@@ -751,10 +763,42 @@ public:
         _basePt.edgeIdx = bestEdgeIdx;
         
         // return the found egde
-        _edgeIdx = bestEdgeIdx;
         return bestEdge;
     }
     
+    /// @brief Return the type of edge the given position is on
+    /// @param _pos Position to analyse
+    /// @param[out] _pIdxE Optionally receives the edge's index
+    TaxiEdge::edgeTy GetPosEdgeType (const positionTy& _pos, size_t* _pIdxE = nullptr) const
+    {
+        // Haven't yet analysed this position?
+        size_t idxE = _pos.edgeIdx;
+        if (idxE == EDGE_UNKNOWN) {
+            // Find the closest edge and update idxE
+            positionTy basePos = _pos;
+            FindClosestEdge(_pos, basePos,
+                            dataRefs.GetFdSnapTaxiDist_m(),
+                            ART_EDGE_ANGLE_TOLERANCE,
+                            ART_EDGE_ANGLE_TOLERANCE_EXT);
+            idxE = basePos.edgeIdx;
+        }
+        
+        // return the edge's index if requested
+        if (_pIdxE) *_pIdxE = idxE;
+        
+        // position is analyzed, but no edge found?
+        if (idxE == EDGE_UNAVAIL)
+            return TaxiEdge::UNKNOWN_WAY;
+        
+        // return the edge's type
+        return vecTaxiEdges.at(idxE).GetType();
+    }
+    
+    /// @brief Return the type of edge the given position is on
+    /// @param[in,out] _pos Position to analyse; will set positionTy.edgeIdx if yet unknown
+    TaxiEdge::edgeTy GetPosEdgeType (positionTy& _pos) const
+    { return GetPosEdgeType(_pos, &_pos.edgeIdx); }
+
     /// @brief Processes the temporary map/list of nodes/edges and transforms them to permanent ones,
     /// @details thereby keeping joints (positions where edges meet) but streamlining other nodes,
     ///          so we don't add all nodes
@@ -882,14 +926,12 @@ public:
                 const double taxiAngle = e.GetAngleFrom(idxN);
 
                 // Try finding _another_ edge this one can connect to
-                size_t joinIdxE = EDGE_UNKNOWN;
                 positionTy pos(n.lat, n.lon, 0.0, NAN, taxiAngle);
                 const TaxiEdge* pJoinE = FindClosestEdge(pos, pos,
                                                          // larger distance allowed if I'm a single node, smaller only if I already have connections
                                                          n.vecEdges.size() <= 1 ? APT_JOIN_MAX_DIST_M : APT_MAX_SIMILAR_NODE_DIST_M,
                                                          APT_JOIN_ANGLE_TOLERANCE,
                                                          APT_JOIN_ANGLE_TOLERANCE_EXT,
-                                                         joinIdxE,
                                                          vecEdgeExclusions);
                 if (!pJoinE)
                     continue;
@@ -901,8 +943,9 @@ public:
                 // We'll now split that found edge by inserting the
                 // open node, which we move to the base position,
                 // so that it is exactly on the edge that we split.
-                // The edge doesn't move.
-                
+                // The "join" edge doesn't move.
+                const size_t joinIdxE = pos.edgeIdx;
+
                 // Move the open node to the base location, ie. to the closes
                 // point on the pJoinE edge (which is at max APT_JOIN_MAX_DIST_M meters away)
                 n.lat = pos.lat();
@@ -955,10 +998,10 @@ public:
     /// @param bStartIsRwy Defines if _start denotes a standard taxiway node or a rwy endpoint
     /// @param _end End node in Apt::vecTaxiNodes (not a runway end!)
     /// @return List of node indexes _including_ `_end` and `_start` in _reverse_ order
-    vecIdxTy ShortestPath (size_t _startN, bool bStartIsRwy, size_t _endN, double _maxLen)
+    vecIdxTy ShortestPath (size_t _startN, size_t _endN, double _maxLen)
     {
         // Sanity check: _start and _end should differ
-        if (!bStartIsRwy && _startN == _endN)
+        if (_startN == _endN)
             return vecIdxTy();
         
         // Initialize the Dijkstra values in the nodes array
@@ -969,21 +1012,10 @@ public:
         // (have an initial distance, but aren't fully visited yet)
         vecIdxTy vecVisit;
 
-        // The start place(s) is either the given taxiway node, or
-        // all taxiway nodes connected to the given runway endpoint
-        if (bStartIsRwy) {
-            const RwyEndPt& startRwyEP = vecRwyEndPts.at(_startN);
-            for (size_t n: startRwyEP.vecTaxiNodes) {
-                vecTaxiNodes[n].pathLen = 0.0;
-                vecTaxiNodes[n].prevIdx = ULONG_MAX-1;  // we use "ULONG_MAX-1" for saying "is a start node"
-                vecVisit.push_back(n);
-            }
-        } else {
-            // start point is a taxiway node
-            vecTaxiNodes.at(_startN).pathLen = 0.0;
-            vecTaxiNodes.at(_startN).prevIdx = ULONG_MAX-1;  // we use "ULONG_MAX-1" for saying "is a start node"
-            vecVisit.push_back(_startN);
-        }
+        // The start place is the given taxiway node
+        vecTaxiNodes.at(_startN).pathLen = 0.0;
+        vecTaxiNodes.at(_startN).prevIdx = ULONG_MAX-1;  // we use "ULONG_MAX-1" for saying "is a start node"
+        vecVisit.push_back(_startN);
 
         // outer loop controls currently visited node and checks if end already found
         TaxiNode& endN = vecTaxiNodes[_endN];
@@ -1007,6 +1039,14 @@ public:
             const size_t shortestNIdx  = *shortestIter;
             TaxiNode& shortestN = vecTaxiNodes[shortestNIdx];
             
+            // To avoid to sharp corners we need to know the angle by which we reach this shortest node
+            const size_t idxEdgeToShortestN =
+            shortestN.prevIdx >= ULONG_MAX-1 ? EDGE_UNKNOWN :
+            GetEdgeBetweenNodes(shortestN.prevIdx, shortestNIdx);
+            const double angleToShortestN =
+            idxEdgeToShortestN == EDGE_UNKNOWN ? NAN :
+            vecTaxiEdges[idxEdgeToShortestN].GetAngleFrom(shortestN.prevIdx);
+            
             // This one is now already counted as "visited" so no more updates to its pathLen!
             shortestN.bVisited = true;
             vecVisit.erase(shortestIter);
@@ -1020,6 +1060,13 @@ public:
                 
                 // if aleady visited then no need to re-assess
                 if (updN.bVisited)
+                    continue;
+                
+                // Don't allow turns of more than 100°,
+                // ie. edge not valid if it would turn more than that
+                if (!std::isnan(angleToShortestN) &&
+                    std::abs(HeadingDiff(angleToShortestN,
+                                         e.GetAngleFrom(shortestNIdx))) > APT_MAX_PATH_TURN)
                     continue;
                 
                 // Calculate the yet known best distance to this node
@@ -1066,18 +1113,14 @@ public:
         const double old_lat = pos.lat(), old_lon = pos.lon();
         
         // Find the closest edge and right away move pos there
-        size_t eIdx = EDGE_UNKNOWN;
         const TaxiEdge* pEdge = FindClosestEdge(pos, pos,
                                                 dataRefs.GetFdSnapTaxiDist_m(),
                                                 ART_EDGE_ANGLE_TOLERANCE,
-                                                ART_EDGE_ANGLE_TOLERANCE_EXT,
-                                                eIdx);
+                                                ART_EDGE_ANGLE_TOLERANCE_EXT);
         
         // Nothing found?
-        if (!pEdge) {
-            posIter->edgeIdx = EDGE_UNAVAIL;
+        if (!pEdge)
             return false;
-        }
         
         // found a match, say hurray
         if (dataRefs.GetDebugAcPos(fd.key())) {
@@ -1089,10 +1132,6 @@ public:
         // (we don't mark positions on a runway yet...would be take off or rollout to be distinguished)
         if (pEdge->GetType() != TaxiEdge::RUN_WAY)
             pos.flightPhase = LTAPIAircraft::FPH_TAXI;
-        else
-            // Edge actually is on a runway. A runway edge cannot serve
-            // as a `end` position for path search, so we exit here
-            return true;
         
         // --- Insert shortest path along taxiways ---
         
@@ -1111,27 +1150,46 @@ public:
             return true;
 
         // That previous edge isn't by chance the same we just now found? Then the shortest path is to go straight...
-        if (eIdx == prevPos.edgeIdx)
+        if (pos.edgeIdx == prevPos.edgeIdx)
             return true;
         
-        // previous edge's relevant node (the end node of a taxi edge, but the start node of a rwy)
-        const TaxiEdge& prevE = vecTaxiEdges[prevPos.edgeIdx];
-        const size_t prevErelN =
-        prevE.GetType() == TaxiEdge::RUN_WAY ?      // TODO: rework! is a rwy?
-        prevE.startByHeading(prevPos.heading()) :   // use its starting node
-        prevE.endByHeading(prevPos.heading());      // otherwise use the edge's end node
-        // current edge's start node
-        const size_t currEstartN = pEdge->startByHeading(pos.heading());
+        // Also, we don't search for path between any two rwy nodes
+        if (TaxiEdge::RUN_WAY == GetPosEdgeType(pos) == GetPosEdgeType(prevPos))
+            return true;
         
+        // - relevant nodes: usually the ones away from (prev)pos,
+        //                   but if we are very close to a joint node,
+        //                   then we pick that joint node. This increased the
+        //                   number of possible paths. In case of two edges
+        //                   closeby it is well possible that `FindClosestEdge`
+        //                   picked the "wrong" one. Then this notion to use
+        //                   an adjacent joint will often rectify this error.
+        
+        // previous edge's relevant node
+        const TaxiEdge& prevE = vecTaxiEdges[prevPos.edgeIdx];
+        size_t prevErelN = prevE.endByHeading(prevPos.heading());
+        {
+            const TaxiNode& othN = vecTaxiNodes[prevE.otherNode(prevErelN)];
+            if (DistLatLonSqr(othN.lat, othN.lon, prevPos.lat(), prevPos.lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M))
+                prevErelN = prevE.otherNode(prevErelN);
+        }
+        
+        // current edge's relevant node
+        size_t currEstartN = pEdge->startByHeading(pos.heading());
+        {
+            const TaxiNode& othN = vecTaxiNodes[pEdge->otherNode(currEstartN)];
+            if (DistLatLonSqr(othN.lat, othN.lon, pos.lat(), pos.lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M))
+                currEstartN = pEdge->otherNode(currEstartN);
+        }
+
         // for the maximum allowed path length let's consider taxiing speed:
-        // We shouldn't need to go faster than 1.5 x model's taxi speed
+        // We shouldn't need to go faster than model's taxi speed
         const LTAircraft::FlightModel& mdl = fd.pAc ? fd.pAc->mdl :
         LTAircraft::FlightModel::FindFlightModel(fd.statData.acTypeIcao);
-        const double maxLen = (pos.ts() - prevPos.ts()) * mdl.MAX_TAXI_SPEED * 1.5;
+        const double maxLen = (pos.ts() - prevPos.ts()) * mdl.MAX_TAXI_SPEED;
         
         // let's try finding a shortest path
         vecIdxTy vecPath = ShortestPath(prevErelN,
-                                        prevE.GetType() == TaxiEdge::RUN_WAY,
                                         currEstartN,
                                         maxLen);
         
@@ -1139,44 +1197,24 @@ public:
         if (vecPath.size() >= 2)
         {
             // length of total path as returned (this excludes the distance from prevPos to start, and from end to pos)
-            double pathLen = vecTaxiNodes[currEstartN].pathLen;
-            double startTS = NAN;
             // Add the end leg, ie. from end of path to pos
-            {
-                const TaxiNode& n = vecTaxiNodes[vecPath.front()];  // end of path
-                pathLen += DistLatLon(n.lat, n.lon, pos.lat(), pos.lon());
-            }
+            const TaxiNode& endN = vecTaxiNodes[vecPath.front()];  // end of path
+            const double pathLen = vecTaxiNodes[currEstartN].pathLen
+                                 + DistLatLon(endN.lat, endN.lon, pos.lat(), pos.lon());
             
             // Adjust the startTS (as prevPos is not equal to start of path,
             // we need time to travel that short distance)
-
-            // In case we leave a rwy for a taxiway the first node in vecPath
-            // is the first taxiway node, which is potentially way down the runway.
-            // We need to allow for some time to reach the taxiway node
-            // from the position on the rwy
-            if (prevE.GetType() == TaxiEdge::RUN_WAY)
-            {
-                // Assuming taxiing works with taxiing speed, how long would we need?
-                const double taxiTime = pathLen / mdl.MAX_TAXI_SPEED;
-                startTS = pos.ts() - taxiTime;
-                
-                // If that startTS now is _before_ rwy position...
-                if (startTS < prevPos.ts() + SIMILAR_TS_INTVL)
-                    // NOK, we just assume something...we leave the rwy a few seconds after previous position:
-                    startTS = prevPos.ts() + SIMILAR_TS_INTVL;
-            } else {
-                // Otherwise we are on a taxiway node
-                const TaxiNode& n = vecTaxiNodes[vecPath.back()];       // start of path
-                const double prevToStartDist = DistLatLon(prevPos.lat(), prevPos.lon(), n.lat, n.lon);
-                const double speed = (prevToStartDist + pathLen) / (pos.ts() - prevPos.ts());
-                // Allow for some time to go from prevPos to start of path:
-                startTS = prevPos.ts() + prevToStartDist / speed;
-            }
+            const TaxiNode& startN = vecTaxiNodes[vecPath.back()];       // start of path
+            const double prevToStartDist = DistLatLon(prevPos.lat(), prevPos.lon(), startN.lat, startN.lon);
+            const double speed = (prevToStartDist + pathLen) / (pos.ts() - prevPos.ts());
+            // Allow for some time to go from prevPos to start of path:
+            const double startTS = prevPos.ts() + prevToStartDist / speed;
             
             // the time we have from start of the path to pos
             const double pathTime = pos.ts() - startTS;
             
             // path is returned in reverse order, so work on it reversely
+            size_t prevIdxN = ULONG_MAX;
             for (vecIdxTy::const_reverse_iterator iter = vecPath.crbegin();
                  iter != vecPath.crend();
                  ++iter)
@@ -1191,7 +1229,13 @@ public:
                                    positionTy::UNIT_WORLD,
                                    positionTy::UNIT_DEG,
                                    LTAircraft::FPH_TAXI);
-                insPos.edgeIdx = EDGE_UNAVAIL;          // don't want to call SnapToTaxiway for this new pos!
+                
+                // Which edge is this pos on? (Or, as it is a node: one of the edges it is connected to)
+                if (prevIdxN == ULONG_MAX)
+                    insPos.edgeIdx = pos.edgeIdx;
+                else
+                    insPos.edgeIdx = GetEdgeBetweenNodes(*iter, prevIdxN);
+                prevIdxN = *iter;
                 
                 // Insert before the position that was passed in
                 posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
@@ -2079,7 +2123,7 @@ void LTAptDump (const std::string& _aptId)
             n.vecEdges.size() == 2 ? "square," :
             n.vecEdges.size() == 3 ? "triangle," :
             n.vecEdges.size() == 4 ? "diamond," : "star,")
-        << (apt.ConnectedToRwy(i) ? "red," :        // color: red if rwy, blue if 2 edges, else auqa
+        << (apt.IsConnectedToRwy(i) ? "red," :        // color: red if rwy, blue if 2 edges, else auqa
             n.vecEdges.size() == 2 ? "blue," : "aqua,")
         << "0,"                                     // rotation
         << n.lat << ',' << n.lon << ','             // latitude,longitude

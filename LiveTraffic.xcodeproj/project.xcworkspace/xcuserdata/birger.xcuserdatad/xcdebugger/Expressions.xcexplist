@@ -268,6 +268,11 @@
       </ContextState>
       <ContextState
          contextName = "Apt::SnapToTaxiway(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 85l&gt;&amp;):LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "*pEdge">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "LTFlightData::UpdateData(LTFlightData::FDDynamicData const&amp;, positionTy const*):LTFlightData.cpp">
@@ -302,6 +307,9 @@
       </ContextState>
       <ContextState
          contextName = "ThreadIndexApt():LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "Apt::GetEdgeBetweenNodes(unsigned long, unsigned long):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double) const:LTApt.cpp">

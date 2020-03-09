@@ -2,15 +2,8 @@ TODO
 ===
 
 LTApt
-- JoinEdges:
-  - After moving one node (towards basis) it might _now_ be in the
-    vincinity of another node. Check that and replace.
-
-- Search for usage of RUN_WAY once again!
 - Shortest path:
-  - Don't do between two rwy nodes (we don't want to interfere with
-    deceleration), but do between rwy and taxiway
-  - Don't allow turns of more than 100°
+  - Don't allow turns of more than 60°
   - Reduce max speed to 1x mdl.TAXI_SPEED
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
