@@ -2,9 +2,11 @@ TODO
 ===
 
 LTApt
-- Shortest path:
-  - Don't allow turns of more than 60°
-  - Reduce max speed to 1x mdl.TAXI_SPEED
+
+LTFlightData::CalcHeading:
+- Prepare heading so that positions, which are closer together than
+  SIMILAR_POS_DIST copy the previous position's heading to avoid unintentional full turns
+
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
   They are also _used_ as soon as available
@@ -31,6 +33,8 @@ LTApt
 - Late delivered a/c type info:
   If it doesn't contain a type but human-readable info, then we should
   try to match that.
+  
+- #170 et al.: Remove a/c with no current data on the ground immediately.
   
 
 TEST

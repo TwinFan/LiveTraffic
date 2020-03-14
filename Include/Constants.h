@@ -124,6 +124,7 @@ constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an ope
 constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [¡] tolerance of angle for an open node to be joined with another edge
 constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [¡] extended (second prio) tolerance of angle for an open node to be joined with another edge
 constexpr double APT_MAX_PATH_TURN=100.0;       ///< [¡] Maximum turn allowed during shortest path calculation
+constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [¡] Tolerance when trying to devide for rectangular angle
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
@@ -280,7 +281,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_MALLOC              "Could not (re)allocate %ld bytes of memory"
 #define ERR_ASSERT              "ASSERT FAILED: %s"
 #define ERR_AC_NO_POS           "No positional data available when creating aircraft %s"
-#define ERR_AC_CALC_PPOS        "Could calculate position when creating aircraft %s"
+#define ERR_AC_CALC_PPOS        "Could not calculate position when creating aircraft %s"
 #define ERR_Y_PROBE             "Y Probe returned %d at %s"
 #define ERR_POS_UNNORMAL        "A/c %s reached invalid pos: %s"
 #define ERR_IGNORE_POS          "A/c %s: Ignoring data leading to sharp turn or invalid speed: %s"

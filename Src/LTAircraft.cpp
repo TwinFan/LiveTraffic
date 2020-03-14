@@ -426,15 +426,15 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
     startTime = _startTime;
     accelStartTime = std::max(tx, _startTime);
     targetTime = _targetTime;
-    if (dataRefs.GetDebugAcPos(pAc->key())) {
-        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
-                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
-                startSpeed,
-                accelStartTime - startTime,
-                acceleration,
-                targetSpeed,
-                std::string(*pAc).c_str());
-    }
+//    if (dataRefs.GetDebugAcPos(pAc->key())) {
+//        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
+//                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
+//                startSpeed,
+//                accelStartTime - startTime,
+//                acceleration,
+//                targetSpeed,
+//                std::string(*pAc).c_str());
+//    }
 }
 
 // *** Acceleration formula ***
@@ -1050,11 +1050,11 @@ void LTAircraft::LabelUpdate()
 // MARK: LTAircraft Calculate present position
 //
 
-// position heading to (usually posList[1], but ppos if ppos > posList[1])
+// position heading to (usually posList.back(), but ppos if ppos > posList.back())
 const positionTy& LTAircraft::GetToPos() const
 {
     if ( posList.size() >= 2 )
-        return ppos < posList[1] ? posList[1] : ppos;
+        return ppos < posList.back() ? posList.back() : ppos;
     else
         return ppos;
 }
@@ -1068,7 +1068,7 @@ bool LTAircraft::OutOfPositions() const
     return
     bArtificalPos ||
     (posList.size() < 2) ||
-    (currCycle.simTime >= std::prev(posList.cend())->ts());
+    (currCycle.simTime >= posList.back().ts());
 }
 
 
@@ -1327,10 +1327,10 @@ bool LTAircraft::CalcPPos()
         }
         // else if no next attempt: just fly constant avg speed then
         else if (!bNeedNextVec) {
-            // output debug info on request
-            if (dataRefs.GetDebugAcPos(key())) {
-                LOG_MSG(logDEBUG,"CONSTANT SPEED due to no next vector available for %s",std::string(*this).c_str());
-            }
+//            // output debug info on request
+//            if (dataRefs.GetDebugAcPos(key())) {
+//                LOG_MSG(logDEBUG,"CONSTANT SPEED due to no next vector available for %s",std::string(*this).c_str());
+//            }
             speed.SetSpeed(vec.speed);
         }
     }

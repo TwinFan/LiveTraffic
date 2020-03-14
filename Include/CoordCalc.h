@@ -133,12 +133,16 @@ struct distToLineTy {
     double      len2 = NAN;         ///< square of length of line between ln_x/y1 and ln_x/y2
     double      leg1_len2 = NAN;    ///< square length of leg from point 1 to base (base is point on the line with shortest distance to point)
     double      leg2_len2 = NAN;    ///< square length of leg from point 2 to base (base is point on the line with shortest distance to point)
+    
     /// Is the base outside the endpoints of the line?
     bool IsBaseOutsideLine () const
     { return leg1_len2 > len2 || leg2_len2 > len2; }
     /// How much is the base outside the (nearer) endpoint? (squared)
     double DistSqrOfBaseBeyondLine () const
     { return std::max(leg1_len2,leg2_len2) - len2; }
+    /// Resulting distance, considering also distance of base outside line as distance
+    double DistSqrPlusOuts () const
+    { return dist2 + (IsBaseOutsideLine() ? DistSqrOfBaseBeyondLine () : 0.0); }
 };
 
 /// @brief Square of distance between a location and a line defined by two points.

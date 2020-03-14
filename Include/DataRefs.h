@@ -484,7 +484,7 @@ protected:
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
     int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
-    int fdSnapTaxiDist  = 25;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
+    int fdSnapTaxiDist  = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'

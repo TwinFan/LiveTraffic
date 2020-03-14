@@ -499,12 +499,12 @@ void LTFlightData::DataCleansing (bool& bChanged)
                     if (IsPosOK(pos1, *next, &h2, &bChanged))
                     {
                         bFoundValidNext = true;
-                        if constexpr (VERSION_BETA) {
-                            LOG_MSG(logDEBUG, "%s:   Valid next pos: %s",
-                                    keyDbg().c_str(),
-                                    next->dbgTxt().c_str() );
-                            LOG_MSG(logDEBUG, Positions2String().c_str() );
-                        }
+//                        if constexpr (VERSION_BETA) {
+//                            LOG_MSG(logDEBUG, "%s:   Valid next pos: %s",
+//                                    keyDbg().c_str(),
+//                                    next->dbgTxt().c_str() );
+//                            LOG_MSG(logDEBUG, Positions2String().c_str() );
+//                        }
                         // that means we need to remove all positions from
                         // 'iter' to _before_ next.
                         // BUT because std::deque::erase can invalidate _all_ iterators
@@ -516,7 +516,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
                         {
                             // if current iter falls into the to-be-deleted range
                             if (rmTsFrom <= iter->ts() && iter->ts() < rmTsTo) {
-                                if constexpr (VERSION_BETA) {
+                                if (dataRefs.GetDebugAcPos(key())) {
                                     LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
                                             keyDbg().c_str(),
                                             iter->dbgTxt().c_str());
@@ -559,7 +559,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
                         //   to reappear)
                         if (posDeque.size() <= 1) {
                             // that's the only pos: remove it
-                            if constexpr (VERSION_BETA) {
+                            if (dataRefs.GetDebugAcPos(key())) {
                                 LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
                                         keyDbg().c_str(),
                                         iter->dbgTxt().c_str());
@@ -574,9 +574,9 @@ void LTFlightData::DataCleansing (bool& bChanged)
                             // -> remove the aircraft, will be recreated at
                             //    the new pos later automatically
                             pAc->SetInvalid();
-                            if constexpr (VERSION_BETA) {
-                                LOG_MSG(logDEBUG, Positions2String().c_str());
-                            }
+//                            if constexpr (VERSION_BETA) {
+//                                LOG_MSG(logDEBUG, Positions2String().c_str());
+//                            }
                             LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
                                     keyDbg().c_str());
                         }
@@ -585,9 +585,9 @@ void LTFlightData::DataCleansing (bool& bChanged)
                     // stop cleansing
                     break;
                 } // if not found any valid next position
-                else if constexpr (VERSION_BETA) {
-                    LOG_MSG(logDEBUG, Positions2String().c_str() );
-                }
+//                else if constexpr (VERSION_BETA) {
+//                    LOG_MSG(logDEBUG, Positions2String().c_str() );
+//                }
             } // if invalid pos
             else
             {
@@ -645,7 +645,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
                std::abs(iter->vsi_ft(prevPos)) <= mdl.VSI_STABLE) // and flying level
         {
             // remove that hovering position
-            if constexpr (VERSION_BETA) {
+            if (dataRefs.GetDebugAcPos(key())) {
                 LOG_MSG(logDEBUG, DBG_HOVER_POS_REMOVED,
                         keyDbg().c_str(),
                         iter->dbgTxt().c_str());
@@ -904,16 +904,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
             if (simTime < posDeque.front().ts())
                 return false;
             
-            // The first pos is in the past, good, make sure it's the only one
-            // [0] <= simTime < [1]
-            while (posDeque.size() >= 2 && posDeque[1].ts() <= simTime) {
-                posDeque.pop_front();
-                bChanged = true;
-            }
-            
-            // Unlikely, but theoretically there could now be just one (past) pos left
-            if (posDeque.size() < 2)
-                return false;
         }
         
         // *** Data Cleansing ***
@@ -1146,6 +1136,24 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 } // (take off case)
             } // loop over szenarios
         } // (has a/c and do landing / take-off detection)
+        
+        
+        // A lot might have changed now, even added.
+        // If there is no aircraft yet then we need to "normalize"
+        // to creation conditions: One pos in the past, the next in the future
+        if ( !pAc )
+        {
+            // The first pos is in the past, good, make sure it's the only one
+            // [0] <= simTime < [1]
+            while (posDeque.size() >= 2 && posDeque[1].ts() <= simTime) {
+                posDeque.pop_front();
+                bChanged = true;
+            }
+            
+            // Unlikely, but theoretically there could now be just one (past) pos left
+            if (posDeque.size() < 2)
+                return false;
+        }
         
         // if something changed
         if (bChanged) {
@@ -1652,25 +1660,28 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
         if (!pAc) {
             // there must be two positions, one in the past, one in the future!
             LOG_ASSERT_FD(*this, validForAcCreate());
-            // copy the first two positions, so that the a/c can start flying from/to
-            acPosList.emplace_back(posDeque[0]);
-            acPosList.emplace_back(posDeque[1]);
+            // move the first two positions to the a/c, so that the a/c can start flying from/to
+            acPosList.emplace_back(std::move(posDeque.front()));
+            posDeque.pop_front();
+            acPosList.emplace_back(std::move(posDeque.front()));
+            posDeque.pop_front();
         } else {
-            // there is an a/c...only copy stuff past current 'to'-pos
+            // there is an a/c...only use stuff past current 'to'-pos
             const positionTy& to = pAc->GetToPos();
             LOG_ASSERT_FD(*this, !std::isnan(to.ts()));
             
-            // find the first position beyond current 'to' (is usually right away the first one!)
-            dequePositionTy::const_iterator i =
-            std::find_if(posDeque.cbegin(), posDeque.cend(),
-                         [&to](const positionTy& p){return to < p;});
+            // Remove outdated positions from posDeque,
+            // ie. all positions before 'to'
+            while (!posDeque.empty() && posDeque.front() < to)
+                posDeque.pop_front();
             
-            // nothing???
-            if (i == posDeque.cend())
+            // nothing left???
+            if (posDeque.empty())
                 return TRY_NO_DATA;
             
-            // add that next position to the a/c
-            acPosList.emplace_back(*i);
+            // move that next position to the a/c
+            acPosList.emplace_back(std::move(posDeque.front()));
+            posDeque.pop_front();
         }
         
         // store rotate timestamp if there is one (never overwrite with NAN!)
