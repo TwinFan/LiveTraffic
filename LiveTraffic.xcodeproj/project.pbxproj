@@ -163,6 +163,7 @@
 		25A0960B2203B0C500658AA8 /* XPStandardWidgets.pas */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = XPStandardWidgets.pas; sourceTree = "<group>"; };
 		25A0960C2203B0C500658AA8 /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
 		25A0960D2203B0C500658AA8 /* license.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = license.txt; sourceTree = "<group>"; };
+		25A70295241D911200D2E7EE /* Apt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Apt.md; sourceTree = "<group>"; };
 		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
@@ -244,6 +245,7 @@
 		254EA46D20834D5E008A312F /* docs */ = {
 			isa = PBXGroup;
 			children = (
+				25A70295241D911200D2E7EE /* Apt.md */,
 				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
 				25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */,
 				25D6542A210C630800E65D77 /* Calc.xlsx */,

@@ -17,6 +17,8 @@ Quick Links:
 
 - <a href=files.html>File List</a>
 
+- Information on [reading airport scenery data](@ref apt_dat)
+
 Links to outside locations:
 --
 

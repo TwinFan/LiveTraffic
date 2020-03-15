@@ -1300,14 +1300,22 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     
     // is there a predecessor to "it"?
     if (it != posDeque.cbegin()) {
-        vecTo = std::prev(it)->between(*it);
-        if (vecTo.dist < SIMILAR_POS_DIST)      // clear the vector if too short
-            vecTo = vectorTy();
+        const positionTy& prePos = *std::prev(it);
+        vecTo = prePos.between(*it);
+        if (vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
+        {
+            it->heading() = prePos.heading();   // by default don't change heading for this short distance to avoid turning planes "on the spot"
+            vecTo = vectorTy();                 // clear the vector
+        }
     } else if (pAc) {
         // no predecessor in the queue...but there is an a/c, take that
-        vecTo = pAc->GetToPos().between(*it);
-        if (vecTo.dist < SIMILAR_POS_DIST)      // clear the vector if too short
-            vecTo = vectorTy();
+        const positionTy& prePos = pAc->GetToPos();
+        vecTo = prePos.between(*it);
+        if (vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
+        {
+            it->heading() = prePos.heading();   // by default don't change heading for this short distance to avoid turning planes "on the spot"
+            vecTo = vectorTy();                 // clear the vector
+        }
     }
     
     // is there a successor to it?

@@ -7,6 +7,7 @@
 ///             Node: A position, where edges connect, relates to a 111-116 line in `apt.dat`\n
 ///             Edge: The connection of two nodes, relates to two consecutive 111-116 lines in `apt.dat`\n
 ///             Path: A set of connecting edges, relates to a gorup of 111-116 lines in `apt.dat`, headed by a 120 line\n
+/// @see        More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
 /// @author     Birger Hoppe
 /// @copyright  (c) 2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -154,10 +155,10 @@ typedef std::vector<RwyEndPt> vecRwyEndPtTy;
 
 /// @brief An edge in the taxi / rwy network, connected two nodes
 /// @details TaxiEdge can only store _indexes_ into the vector of nodes,
-///          which is Apt::vecTaxiNodes. tt cannot directly store pointers or references,
+///          which is Apt::vecTaxiNodes. It cannot directly store pointers or references,
 ///          as the memory location might change when the vector reorganizes due to
 ///          additions.\n
-///          This also means that some functions otherwise better suites here are now
+///          This also means that some functions otherwise better suited here are now
 ///          moved to Apt as only Apt has access to all vectors.
 class TaxiEdge {
 public:
@@ -173,8 +174,8 @@ protected:
     size_t      a = 0;                  ///< from node (index into vecTaxiNodes)
     size_t      b = 0;                  ///< to node (index into vecTaxiNodes)
 public:
-    double angle;                       /// angle/heading from a to b
-    double dist_m;                      /// distance in meters between a and b
+    double angle;                       ///< angle/heading from a to b
+    double dist_m;                      ///< distance in meters between a and b
 public:
     /// Constructor
     TaxiEdge (edgeTy _t, size_t _a, size_t _b, double _angle, double _dist_m) :
@@ -287,7 +288,7 @@ public:
     /// @brief Find a similar position in Apt::mapPos
     /// @param _lat Latitude to search for
     /// @param _lon Longitude to search for
-    /// @param _bDocInc Shall the reference counter of the found object be incremented?
+    /// @param _bDoInc Shall the reference counter of the found object be incremented?
     /// @return Pointer to closest position, or `nullptr` if no position is deemed "similar"
     TaxiTmpPos* GetSimilarTaxiTmpPos (double _lat, double _lon, bool _bDoInc)
     {
@@ -507,7 +508,7 @@ public:
         else if (newDist > e.dist_m)
         {
             // then we connect them by inserting a completely new node after origB
-            AddTaxiEdge(joinOrigB, insNode);
+            AddTaxiEdge(joinOrigB, insNode, e.GetType());
         }
         else
         {
@@ -649,11 +650,10 @@ public:
     ///          before passed on to the DistPointToLineSqr() function.
     ///          The resulting base point is then converted back to geo world coords.
     /// @param _pos Search position, only nearby nodes with a similar heading are considered
-    /// @param[out] _basePt Receives the coordinates of the base point and the edge's index in case of a match. positionTy::lat, lon, heading, and edgeIdx will be modified.
+    /// @param[out] _basePt Receives the coordinates of the base point and the edge's index in case of a match. `positionTy::lat`, `lon`, `heading`, and `edgeIdx` will be modified.
     /// @param _maxDist_m Maximum distance in meters between `pos` and edge to be considered a match
     /// @param _angleTolerance Maximum difference between `pos.heading()` and TaxiEdge::angle to be considered a match
     /// @param _angleToleranceExt Second priority tolerance, considered only if such a node is more than 5m closer than one that better fits angle
-    /// @param[out] _edgeIdx receives index of found edge
     /// @param _vecSkipEIdx (optional) Do not return any of these edge
     /// @return Pointer to closest taxiway edge or `nullptr` if no match was found
     const TaxiEdge* FindClosestEdge (const positionTy& _pos,
@@ -998,6 +998,7 @@ public:
     /// @param _startN Start node in Apt::vecTaxiNodes
     /// @param _endN End node in Apt::vecTaxiNodes
     /// @param _maxLen Maximum path length, no longer paths will be pursued or returned
+    /// @param _generalHeading General heading the plane shall follow, typically heading from start to end node. Affects which turns are allowed along that returned path.
     /// @return List of node indexes _including_ `_end` and `_start` in _reverse_ order,
     ///         or an empty list if no path of suitable length was found
     vecIdxTy ShortestPath (size_t _startN, size_t _endN, double _maxLen,
@@ -1593,6 +1594,14 @@ const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 // MARK: File Reading Thread
 // This code runs in the thread for file reading operations
 //
+    
+/// @brief List of accepted Line Type Codes
+/// @see   More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
+static const std::array<int,8> APT_LINE_TYPES { 1, 7, 10, 11, 51, 57, 60, 61 };
+
+/// @brief List of accepted Line Type Codes for lights
+/// @see   More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
+static const std::array<int,8> APT_LIGHT_TYPES { 101, 105, 107, 108 };
 
 /// @brief Process one "120" section of an `apt.dat` file, which contains a taxi line definitions in the subsequent 111-116 lines
 /// @details Starts reading in the next line, expecting nodes in lines starting with 111-116.
@@ -1605,6 +1614,7 @@ const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 ///          We combine nodes to longer egdes until the edge's angle turns more than 15° away
 ///          from the orginal heading. Then only the next edge begins. This thins out nodes and egdes.
 ///          The remaining nodes and edges are added to the apt's taxiway network.
+/// @see     More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
 /// @returns the next line read from the file, which is after the "120" section
 static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long& lnNr)
 {
@@ -1634,19 +1644,26 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
         
         // Check for the Line Type Code to be Taxi Centerline
         int lnTypeCode = 1;         // by default we add (also goes for lnCod 115,116!)
+        int lightTyCode = 0;        // code for lights
         // In case of line codes 111, 113 the Line Type Code is in field 3
         if (lnCod == 111 || lnCod == 113) {
             if (fields.size() >= 4)
                 lnTypeCode = std::stoi(fields[3]);
+            if (fields.size() >= 5)
+                lightTyCode = std::stoi(fields[4]);
         // In case of line codes 112, 114 the Line Type Code is in field 5
         } else if (lnCod == 112 || lnCod == 114) {
             if (fields.size() >= 6)
                 lnTypeCode = std::stoi(fields[5]);
+            if (fields.size() >= 7)
+                lightTyCode = std::stoi(fields[6]);
         }
         
-        // Not a Taxi Centerline? -> stop
-        if (lnTypeCode !=  1 && lnTypeCode !=  7 &&
-            lnTypeCode != 51 && lnTypeCode != 57)
+        // Not a Taxi Centerline based on line/light type? -> stop
+        if (std::none_of(APT_LINE_TYPES.cbegin(),  APT_LINE_TYPES.cend(),
+                         [lnTypeCode](int c){return c == lnTypeCode;}) &&
+            std::none_of(APT_LIGHT_TYPES.cbegin(), APT_LIGHT_TYPES.cend(),
+                         [lightTyCode](int c){return c == lightTyCode;}))
             break;
             
         // If position is same as previous -> skip, but continue with next line
@@ -1678,6 +1695,7 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
 ///             100 - Runway definitions\n
 ///             120 - Line segments (incl. subsequent 111-116 codes), or alternatively, if no 120 code is found:\n
 ///             1201, 1202  - Taxi route netwirk
+/// @see        More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
 static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
 {
     // Walk the file
@@ -1810,7 +1828,10 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                     // Convert indexes and try adding the node
                     const size_t n1 = std::stoul(fields[1]);
                     const size_t n2 = std::stoul(fields[2]);
-                    apt.AddTaxiEdge(n1, n2);
+                    bool bRunway = (fields.size() >= 5 &&
+                                    fields[4] == "runway");
+                    apt.AddTaxiEdge(n1, n2,
+                                    bRunway ? TaxiEdge::RUN_WAY : TaxiEdge::TAXI_WAY);
                 }
             }       // not NETW_CENTERLINE
         }           // "120"
