@@ -70,10 +70,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -164,6 +164,17 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "Apt::SnapToTaxiway(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 85l&gt;&amp;):LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "prevA">
+            </PersistentString>
+            <PersistentString
+               value = "prevB">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "LTFlightDataCreateNewAc():LTFlightData.cpp">
       </ContextState>
       <ContextState
@@ -190,10 +201,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -402,10 +413,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -844,10 +855,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

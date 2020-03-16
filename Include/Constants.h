@@ -118,6 +118,7 @@ constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum a
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
+constexpr double ART_TAXI_SPEED_F  = 0.8;       ///< [-] ratio of MAX_TAXI_SPEED to use as taxi speed
 constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [¡] Maximum turn angle (compared to original edge's angle) for combining edges
 constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 2.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
 constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an open node to be joined with another edge

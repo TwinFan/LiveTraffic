@@ -1213,18 +1213,15 @@ public:
         // or the plane's `to` position
         const positionTy& prevPos = (posIter == fd.posDeque.begin() ?
                                      fd.pAc->GetToPos() : *(std::prev(posIter)));
+        
         // That pos must be on an edge, too
-        if (!prevPos.HasTaxiEdge())
+        if (!prevPos.HasTaxiEdge() ||
+            // That previous edge isn't by chance the same we just now found? Then the shortest path is to go straight...
+            (pos.edgeIdx == prevPos.edgeIdx) ||
+            // Also, we don't search for path between any two rwy nodes
+            (GetPosEdgeType(pos) == TaxiEdge::RUN_WAY && GetPosEdgeType(prevPos) == TaxiEdge::RUN_WAY))
             return true;
 
-        // That previous edge isn't by chance the same we just now found? Then the shortest path is to go straight...
-        if (pos.edgeIdx == prevPos.edgeIdx)
-            return true;
-        
-        // Also, we don't search for path between any two rwy nodes
-        if (TaxiEdge::RUN_WAY == GetPosEdgeType(pos) == GetPosEdgeType(prevPos))
-            return true;
-        
         // - relevant nodes: usually the ones away from (prev)pos,
         //                   but if we are very close to a joint node,
         //                   then we pick that joint node. This increased the
@@ -1255,7 +1252,7 @@ public:
                 bSkipEnd = true;      // this node is now _beyond_ pos, don't add that to the deque!
             }
         }
-
+        
         // for the maximum allowed path length let's consider taxiing speed:
         // We shouldn't need to go faster than model's taxi speed
         const LTAircraft::FlightModel& mdl = fd.pAc ? fd.pAc->mdl :
@@ -1267,7 +1264,7 @@ public:
                                         currEstartN,
                                         maxLen,
                                         prevPos.angle(pos));
-        
+
         // Some path found?
         if (vecPath.size() >= 2)
         {
@@ -1275,7 +1272,7 @@ public:
             // Add the end leg, ie. from end of path to pos
             const TaxiNode& endN = vecTaxiNodes[vecPath.front()];  // end of path
             const double pathLen = vecTaxiNodes[currEstartN].pathLen
-                                 + DistLatLon(endN.lat, endN.lon, pos.lat(), pos.lon());
+            + DistLatLon(endN.lat, endN.lon, pos.lat(), pos.lon());
             
             // Adjust the startTS (as prevPos is not equal to start of path,
             // we need time to travel that short distance)
@@ -1326,8 +1323,60 @@ public:
                 LOG_MSG(logDEBUG, "Inserted %lu taxiway nodes",
                         vecPath.size() - (size_t)bSkipStart - (size_t)bSkipEnd);
             }
+        } // if found a shortest path
+        // Not found a shortest path -> try finding edges' intersection
+        else
+        {
+            // Let's try finding the intersection point of the 2 edges we are on
+            const TaxiNode& currA = pEdge->GetA(*this);
+            const TaxiNode& currB = pEdge->GetB(*this);
+            const TaxiNode& prevA = prevE.GetA(*this);
+            const TaxiNode& prevB = prevE.GetB(*this);
+            positionTy intersec =
+            CoordIntersect({prevA.lon, prevA.lat}, {prevB.lon, prevB.lat},
+                           {currA.lon, currA.lat}, {currB.lon, currB.lat});
+            intersec.pitch() = 0.0;
+            intersec.roll()  = 0.0;
+            intersec.onGrnd  = positionTy::GND_ON;
+            intersec.flightPhase = LTAircraft::FPH_TAXI;
+            
+            // It is essential that the intersection is in front (rather than behind)
+            vectorTy vecPrevInters = prevPos.between(intersec);
+            if (std::abs(HeadingDiff(prevPos.heading(),vecPrevInters.angle)) < 90.0)
+            {
+                vectorTy vecIntersCurr = intersec.between(pos);
+                
+                // turning angle at intersection must not be too sharp
+                if (std::abs(HeadingDiff(vecPrevInters.angle, vecIntersCurr.angle)) <= APT_MAX_PATH_TURN)
+                {
+                    double avgSpeed = (vecPrevInters.dist + vecIntersCurr.dist) / (pos.ts() - prevPos.ts());
+                    
+                    // Distance needs to be manageable, which means:
+                    // On the ground max MAX_TAXI_SPEED,
+                    // when turning off a rwy then the taxi part is restricted to MAX_TAXI_SPEED
+                    if (prevE.GetType() == TaxiEdge::RUN_WAY &&
+                        avgSpeed > mdl.MAX_TAXI_SPEED)
+                    {
+                        intersec.ts() = pos.ts() - vecIntersCurr.dist/mdl.MAX_TAXI_SPEED;
+                        // intersection moves too close (in terms of time) to previous position?
+                        if (intersec.ts() < prevPos.ts() + SIMILAR_TS_INTVL)
+                            intersec.ts() = NAN;        // then we don't use it
+                    }
+                    else if (avgSpeed <= mdl.MAX_TAXI_SPEED)
+                        // define ts so that we run constant speed from prevPos via intersec to pos
+                        intersec.ts() = prevPos.ts() + (pos.ts()-prevPos.ts()) * vecPrevInters.dist / (vecPrevInters.dist+vecIntersCurr.dist);
+                    
+                    // Did we find a valid timestamp? -> Add the pos into posDeque
+                    if (!std::isnan(intersec.ts())) {
+                        posIter = fd.posDeque.insert(posIter, intersec);// posIter now points to inserted element
+                        ++posIter;                                      // posIter points to originally passed in element again
+                        if (dataRefs.GetDebugAcPos(fd.key()))
+                            LOG_MSG(logDEBUG, "Inserted artificial intersection node");
+                    }
+                }
+            }
         }
-        
+
         // snapping successful
         return true;
     }

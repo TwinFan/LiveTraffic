@@ -61,6 +61,7 @@ inline double vsi2deg (const double speed, const double vsi)
 
 struct positionTy;
 struct vectorTy;
+typedef std::pair<double,double> ptTy;
 
 /// angle between two locations given in plain lat/lon
 double CoordAngle (double lat1, double lon1, double lat2, double lon2);
@@ -177,6 +178,13 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
                           const distToLineTy& res,
                           double &x, double &y);
 
+/// @brief Intersection point of two lines through given points
+/// @see https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
+ptTy CoordIntersect (ptTy a, ptTy b, ptTy c, ptTy d,
+                     double* pT = nullptr,
+                     double* pU = nullptr);
+
+
 //
 //MARK: Data Structures
 //
@@ -234,6 +242,8 @@ public:
                     NAN, x.heading, x.pitch, x.roll) {}
     positionTy ( const XPLMProbeInfo_t& probe ) :
         positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { unitCoord=UNIT_LOCAL; }
+    positionTy ( const ptTy& _pt) :
+        positionTy ( _pt.second, _pt.first ) {}
     
     // merge with the given position
     positionTy& operator |= (const positionTy& pos);

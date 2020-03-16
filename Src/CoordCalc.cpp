@@ -165,6 +165,32 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
 }
 
 
+// Intersection point of two lines through given points
+/// @details `x` = `.first`, `y` = `.second`\n
+///          `1` = `a`...`4` = `d`
+ptTy CoordIntersect (ptTy a, ptTy b, ptTy c, ptTy d,
+                     double* pT, double* pU)
+{
+    const double divisor =
+    (a.first - b.first)*(c.second - d.second) - (a.second - b.second)*(c.first - d.first);
+    
+    // Are we to calculate t and u, too?
+    if (pT)
+        *pT = ((a.first - c.first)*(c.second - d.second) - (a.second - c.second)*(c.first - d.first))/divisor;
+    if (pU)
+        *pU = ((a.first - b.first)*(a.second - c.second) - (a.second - b.second)*(a.first - c.first))/divisor;
+    
+    // return the intersection point
+    const double f1 = (a.first*b.second - a.second*b.first);
+    const double f2 = (c.first*d.second - c.second*d.first);
+    return
+    {
+        (f1*(c.first  - d.first)  - (a.first  - b.first) *f2) / divisor,
+        (f1*(c.second - d.second) - (a.second - b.second)*f2) / divisor
+    };
+}
+
+
 // returns terrain altitude at given position
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
