@@ -1648,17 +1648,16 @@ const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 /// @see   More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
 static const std::array<int,8> APT_LINE_TYPES { 1, 7, 10, 11, 51, 57, 60, 61 };
 
-/// @brief List of accepted Line Type Codes for lights
-/// @see   More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
-static const std::array<int,8> APT_LIGHT_TYPES { 101, 105, 107, 108 };
-
 /// @brief Process one "120" section of an `apt.dat` file, which contains a taxi line definitions in the subsequent 111-116 lines
 /// @details Starts reading in the next line, expecting nodes in lines starting with 111-116.
 ///          According to specs, such a section has to end with 113-116. But we don't rely on it,
 ///          so we are more flexible in case of errorneous files. We read until we find a line _not_ starting
 ///          with 111-116 and return that back to the caller to be processed again.\n
-///          We only process line segments with Line Type Codes 1, 7, 51, 57 (Taxiway centerlines).\n
-///          All nodes are temporarily stored in a local list. After reading some nodes are removed,
+///          We only process line segments with Line Type Codes for taxiway centerlines.
+///          A segment ends on _any_ line with no or a non-matching line type code.
+///          Such a segment becomes a path in LiveTraffic. One 120-section of apt.dat
+///          can contain many such segments ending in lines with no line type code.\n
+///          All nodes are temporarily stored in a local list. After reading finished, some nodes are removed,
 ///          as in actual files nodes can be very close together (up to being identical!).
 ///          We combine nodes to longer egdes until the edge's angle turns more than 15° away
 ///          from the orginal heading. Then only the next edge begins. This thins out nodes and egdes.
@@ -1692,48 +1691,55 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
             break;
         
         // Check for the Line Type Code to be Taxi Centerline
-        int lnTypeCode = 1;         // by default we add (also goes for lnCod 115,116!)
-        int lightTyCode = 0;        // code for lights
+        int lnTypeCode = 0;
+
         // In case of line codes 111, 113 the Line Type Code is in field 3
         if (lnCod == 111 || lnCod == 113) {
             if (fields.size() >= 4)
                 lnTypeCode = std::stoi(fields[3]);
-            if (fields.size() >= 5)
-                lightTyCode = std::stoi(fields[4]);
         // In case of line codes 112, 114 the Line Type Code is in field 5
         } else if (lnCod == 112 || lnCod == 114) {
             if (fields.size() >= 6)
                 lnTypeCode = std::stoi(fields[5]);
-            if (fields.size() >= 7)
-                lightTyCode = std::stoi(fields[6]);
         }
         
-        // Not a Taxi Centerline based on line/light type? -> stop
-        if (std::none_of(APT_LINE_TYPES.cbegin(),  APT_LINE_TYPES.cend(),
-                         [lnTypeCode](int c){return c == lnTypeCode;}) &&
-            std::none_of(APT_LIGHT_TYPES.cbegin(), APT_LIGHT_TYPES.cend(),
-                         [lightTyCode](int c){return c == lightTyCode;}))
-            break;
-            
-        // If position is same as previous -> skip, but continue with next line
-        // (there are quite a number of _exactly_ equal subsequent nodes
-        //  in actual apt.dat, which we filter out this way)
+        // A Taxi Centerline based on line/light type? -> add node
         const double lat = std::stod(fields[1]);
         const double lon = std::stod(fields[2]);
-        if (dequal(lat, prevLat) && dequal(lon, prevLon))
-            continue;
-        prevLat = lat;
-        prevLon = lon;
-        
-        // Add this position to our backlog
-        apt.AddTaxiTmpPos(lat,lon);             // add the node
-        path.listPos.emplace_back(lat,lon);     // add the node position to the edge
+        if (std::any_of(APT_LINE_TYPES.cbegin(),  APT_LINE_TYPES.cend(),
+                        [lnTypeCode](int c){return c == lnTypeCode;}))
+        {
+            // If position is different from previous
+            // (there are quite a number of _exactly_ equal subsequent nodes
+            //  in actual apt.dat, which we filter out this way)
+            if (!dequal(lat, prevLat) || !dequal(lon, prevLon))
+            {
+                // Add this position to our backlog
+                apt.AddTaxiTmpPos(lat,lon);             // add the node to the airport's temporary list of nodes
+                path.listPos.emplace_back(lat,lon);     // add the node position to the path (temporary storage)
+                prevLat = lat;
+                prevLon = lon;
+            }
+        }
+        else
+        {
+            // Not marked as a Taxi Centerline?
+            // Then the current segement ends here...if there is a segment
+            if (!path.listPos.empty())
+            {
+                // Add this position to our backlog as the segment's final position
+                apt.AddTaxiTmpPos(lat,lon);             // add the node to the airport's temporary list of nodes
+                path.listPos.emplace_back(lat,lon);     // add the node position to the path (temporary storage)
+                apt.AddTaxiTmpPath(std::move(path));    // move the entire path to the temporary list of paths for post-processing
+                path.listPos.clear();
+            }
+
+            // Start a new path
+            prevLat = NAN;
+            prevLon = NAN;
+        }
     }
     
-    // Did we successfully read an edge? (which has at least 2 nodes)
-    if (path.listPos.size() >= 2)
-        apt.AddTaxiTmpPath(std::move(path));
-      
     // return the last line so it can be processed again
     return ln;
 }
@@ -1843,8 +1849,14 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                  ln[1] == '2' &&
                  ln[2] == '0')
         {
+            if (ln == "120 RM" || ln == "120 TB") {
+                // specifically ignore these sections, they draw markings
+                // for gate positions, taxiway borders etc.
+                // often using taxi centerline codes,
+                // but the markings aren't actually taxiways
+            }
             // Standard Line segment, that could be a centerline?
-            if (netwType != NETW_TAXIROUTES &&                              // not yet decided for the other type of network?
+            else if (netwType != NETW_TAXIROUTES &&                         // not yet decided for the other type of network?
                 (ln.size() == 3 ||                                          // was just the text "120"
                  (ln.size() >= 4 && (ln[3] == ' ' || ln[3] == '\t'))))      // or "120 " plus more
             {

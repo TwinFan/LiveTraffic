@@ -3,11 +3,6 @@ TODO
 
 LTApt
 
-- Last resort when turning off rwy: 90° to next pos off rwy
-- Just look at KEWR or KLGA...people are using taxi centerlines
-  for really awkward things!
-  Analyze the apt.dat...last resort: Stick to lines with lights
-
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
   They are also _used_ as soon as available
