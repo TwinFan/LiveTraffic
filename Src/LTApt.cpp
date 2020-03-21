@@ -57,14 +57,18 @@ class Apt;
 typedef std::vector<size_t> vecIdxTy;
 
 /// @brief A position as read from apt.dat, stored temporarily, before turned into a TaxiNode
-struct TaxiTmpPos {
-    double      lat = NAN;              ///< latitude
-    double      lon = NAN;              ///< longitude
+struct TaxiTmpPos : public ptTy {
     size_t      refCnt = 0;             ///< number of usages in paths
     
     /// Constructor
-    TaxiTmpPos (double _lat, double _lon) : lat(_lat), lon(_lon), refCnt(1) {}
+    TaxiTmpPos (double _lat, double _lon) : ptTy (_lon,_lat), refCnt(1) {}
     
+    // access to latitude/longitude
+    double& lat()       { return y; }         /// latitude (stored in `y`)
+    double  lat() const { return y; }         /// latitude (stored in `y`)
+    double& lon()       { return x; }         /// longitude (stored in `y`)
+    double  lon() const { return x; }         /// longitude (stored in `y`)
+
     /// Increase ref count
     size_t inc() { return ++refCnt; }
     /// Is a joint in the sense that 2 or more _paths_ (not egdes) connect?
@@ -92,9 +96,9 @@ public:
     double      lon;                    ///< longitude
     vecIdxTy    vecEdges;               ///< vector of edges connecting to this node, stored as indexes into Apt::vecTaxiEdges
     // attributes needed by Dijkstra's shortest path algorithm
-    double      pathLen;                ///< current best known path length to this node
-    size_t      prevIdx;                ///< previous node on shortest path
-    bool        bVisited;               ///< has node been fully analyzed
+    double      pathLen  = HUGE_VAL;    ///< current best known path length to this node
+    size_t      prevIdx  = ULONG_MAX;   ///< previous node on shortest path
+    bool        bVisited = false;       ///< has node been fully analyzed
 public:
     /// Default constructor leaves all empty
     TaxiNode () : lat(NAN), lon(NAN) {}
@@ -265,6 +269,11 @@ protected:
     static listTaxiTmpPathTy listPaths; ///< temporary storage for paths while reading apt.dat
     static vecIdxTy vecPathEnds;        ///< temporary storage for path endpoints (idx into Apt::vecTaxiNodes)
     static XPLMProbeRef YProbe;         ///< Y Probe for terrain altitude computation
+    
+#ifdef DEBUG
+public:
+    vecTaxiNodesTy vecBezierHandles;
+#endif
 
 public:
     /// Constructor expects an id
@@ -300,14 +309,14 @@ public:
         double bestDist2 = HUGE_VAL;
         mapTaxiTmpPosTy::iterator bestIter = mapPos.end();
         for (mapTaxiTmpPosTy::iterator lIter = mapPos.lower_bound(_lat - latDiff);
-             lIter != mapPos.end() && lIter->second.lat <= _lat + latDiff;
+             lIter != mapPos.end() && lIter->second.lat() <= _lat + latDiff;
              ++lIter)
         {
             // checking also for matching longitude range
-            if (std::abs(lIter->second.lat - _lat) < latDiff &&
-                std::abs(lIter->second.lon - _lon) < lonDiff) {
+            if (std::abs(lIter->second.lat() - _lat) < latDiff &&
+                std::abs(lIter->second.lon() - _lon) < lonDiff) {
                 // find shortest distance
-                const double dist2 = DistLatLonSqr(_lat, _lon, lIter->second.lat, lIter->second.lon);
+                const double dist2 = DistLatLonSqr(_lat, _lon, lIter->second.lat(), lIter->second.lon());
                 if (dist2 < bestDist2) {
                     bestDist2 = dist2;
                     bestIter = lIter;
@@ -630,9 +639,8 @@ public:
                  ++iter)
             {
                 // Check for type limitation, then add to `vec`
-                const TaxiEdge& e = vecTaxiEdges[*iter];
                 if (_restrictType == TaxiEdge::UNKNOWN_WAY ||
-                    _restrictType == e.GetType())
+                    _restrictType == vecTaxiEdges[*iter].GetType())
                     lst.push_back(*iter);
             }
         }
@@ -683,13 +691,17 @@ public:
         // Get a list of edges matching pos.heading()
         vecIdxTy lstEdges;
         const double headSearch = HeadingNormalize(_pos.heading());
-        if (!FindEdgesForHeading(headSearch,
-                                 std::max(_angleTolerance, _angleToleranceExt),
-                                 lstEdges))
-            return nullptr;
+        if (_angleToleranceExt < 90.0) {            // ...if there actually is a limiting heading tolerance
+            if (!FindEdgesForHeading(headSearch,
+                                     std::max(_angleTolerance, _angleToleranceExt),
+                                     lstEdges))
+                return nullptr;
+        }
         
         // Analyze the edges to find the closest edge
-        for (size_t eIdx: lstEdges)
+        // Either use the limited list of edges matching a heading or just all edges
+        const vecIdxTy& edgesToSearch = lstEdges.empty() ? vecTaxiEdgesIdxHead : lstEdges;
+        for (size_t eIdx: edgesToSearch)
         {
             // Skip edge if wanted so
             if (std::any_of(_vecSkipEIdx.cbegin(), _vecSkipEIdx.cend(),
@@ -707,6 +719,13 @@ public:
             const double from_y = Lat2Dist(from.lat - _pos.lat());                 // y is northward
             const double to_x   = Lon2Dist(to.lon   - _pos.lon(), _pos.lat());
             const double to_y   = Lat2Dist(to.lat   - _pos.lat());
+            
+            // As a quick check: (0|0) must be in the bounding box of [from-to] extended by _maxDist_m to all sides
+            if (std::min(from_x, to_x) - _maxDist_m > 0.0 ||    // left
+                std::max(from_y, to_y) + _maxDist_m < 0.0 ||    // top
+                std::max(from_x, to_x) + _maxDist_m < 0.0 ||    // right
+                std::min(from_y, to_y) - _maxDist_m > 0.0)      // bottom
+                continue;
 
             // Distance to this edge
             distToLineTy dist;
@@ -808,7 +827,7 @@ public:
         // -- 1. Identify joints and add them upfront to our network
         for (const auto& p: mapPos)
             if (p.second.isJoint())
-                AddTaxiNode(p.second.lat, p.second.lon, ULONG_MAX, false);
+                AddTaxiNode(p.second.lat(), p.second.lon(), ULONG_MAX, false);
         // all joints added, so up to here it is all full of joints:
         const size_t firstNonJoint = vecTaxiNodes.size();
 
@@ -822,51 +841,59 @@ public:
             
             // The first node of the entire list is definitely used, add it already
             const size_t idxA_First =
-            idxA = AddTaxiNode(p.listPos.front().lat,
-                               p.listPos.front().lon);
+            idxA = AddTaxiNode(p.listPos.front().lat(),
+                               p.listPos.front().lon());
             // Remember this node as one of the path's endpoint
             vecPathEnds.push_back(idxA);
             
             // The very last node will also be added later.
             // Between these two:
             // Combine adges til
-            // a) reaching a hoint, or
+            // a) reaching a joint, or
             // b) heading changes too much.
             // Add the remainder to the airport's taxi network
             double firstAngle = NAN;
+            int numSkipped = 0;                         // number of skipped nodes in a row
             for (auto iEnd = p.listPos.cbegin();
                  iEnd != std::prev(p.listPos.cend());
                  ++iEnd)
             {
                 const TaxiTmpPos& b = *iEnd;            // last node that is confirmed to be part of the edge
                 const TaxiTmpPos& c = *std::next(iEnd); // next node, to be validated if still in the edge
-                double bcAngle = CoordAngle(b.lat, b.lon, c.lat, c.lon);
-                if (std::isnan(firstAngle))             // new edge has just started, this is our reference angle
+                double bcAngle = CoordAngle(b.lat(), b.lon(), c.lat(), c.lon());
+                if (std::isnan(firstAngle)) {           // new edge has just started, this is our reference angle
                     firstAngle = bcAngle;
+                    numSkipped = 0;
+                }
                 else
                 {
                     // is b a joint?
-                    idxB = GetSimilarTaxiNode(b.lat, b.lon);
+                    idxB = GetSimilarTaxiNode(b.lat(), b.lon());
                     if (idxB < firstNonJoint ||
+                        // so many nodes...there's a reason for them, isn't it?
+                        numSkipped >= 4 ||
                         // or has heading changed too much?
                         std::abs(HeadingDiff(firstAngle, bcAngle)) > APT_MAX_TAXI_SEGM_TURN)
                     {
                         // Add the edge to this node
                         if (idxB == ULONG_MAX)
-                            idxB = AddTaxiNode(b.lat, b.lon, ULONG_MAX, false);
+                            idxB = AddTaxiNode(b.lat(), b.lon(), ULONG_MAX, false);
                         if (idxA != idxB) {
                             AddTaxiEdge(idxA, idxB);
                             // start a new edge, first segment will be b-c
                             idxA = idxB;
                             firstAngle = bcAngle;
+                            numSkipped = 0;
                         }
                     }
+                    else
+                        ++numSkipped;
                 }
             }
             
             // The last node of the list is also always to be added
-            idxB = AddTaxiNode(p.listPos.back().lat,
-                               p.listPos.back().lon,
+            idxB = AddTaxiNode(p.listPos.back().lat(),
+                               p.listPos.back().lon(),
                                idxA_First);     // never combine with very first node; this ensures that at least one edge will be added!
             if (idxA != idxB) {
                 AddTaxiEdge(idxA, idxB);
@@ -898,98 +925,71 @@ public:
             // The exclusion edge list: With these edges we don't want to join:
             // 1. All our direct edges
             vecIdxTy vecEdgeExclusions = n.vecEdges;
-            // 2. All edges connected to #1 edges
-            for (size_t idxE: n.vecEdges) {
-                const TaxiEdge& e = vecTaxiEdges[idxE];
-                const size_t idxOthN = e.otherNode(idxN);
-                const TaxiNode& othN = vecTaxiNodes[idxOthN];
-                std::copy_if (othN.vecEdges.cbegin(), othN.vecEdges.cend(),
-                              std::back_inserter(vecEdgeExclusions),
-                              [idxE](size_t _idxE){ return idxE != _idxE; });
-            }
             // Let's reduce this exclusion list to a unique list of indexes
             std::sort(vecEdgeExclusions.begin(), vecEdgeExclusions.end());
             auto lastEExcl = std::unique(vecEdgeExclusions.begin(), vecEdgeExclusions.end());
             vecEdgeExclusions.erase(lastEExcl,vecEdgeExclusions.end());
 
-            // Might already have some edges. As finding closest edge is
-            // optimized for heading: We walk all edges and try each heading.
-            for (vecIdxTy::const_iterator iterIdxE = n.vecEdges.cbegin();
-                 iterIdxE != n.vecEdges.cend();
-                 ++iterIdxE)
-            {
-                const size_t idxE = *iterIdxE;
-                TaxiEdge& e = vecTaxiEdges[idxE];
-                if (e.GetType() == TaxiEdge::RUN_WAY)
-                    continue;
+            // Try finding _another_ edge this one can connect to
+            positionTy pos(n.lat, n.lon, 0.0, NAN, vecTaxiEdges[n.vecEdges.front()].GetAngleFrom(idxN));
+            const TaxiEdge* pJoinE = FindClosestEdge(pos, pos,
+                                                     // larger distance allowed if I'm a single node, smaller only if I already have connections
+                                                     n.vecEdges.size() <= 1 ? APT_JOIN_MAX_DIST_M : APT_MAX_SIMILAR_NODE_DIST_M,
+                                                     APT_JOIN_ANGLE_TOLERANCE,
+                                                     90.0,      // don't limit by heading...search all edges!
+                                                     vecEdgeExclusions);
+            if (!pJoinE)
+                continue;
+            
+            if (std::isnan(pos.lat()) || std::isnan(pos.lon()))
+                continue;
+            
+            // We found just another taxi edge, which we combine:
+            // We'll now split that found edge by inserting the
+            // open node, which we move to the base position,
+            // so that it is exactly on the edge that we split.
+            // The "join" edge doesn't move.
+            const size_t joinIdxE = pos.edgeIdx;
 
-                // The angle of the taxi way segment (looking away from the single-ended node)
-                const double taxiAngle = e.GetAngleFrom(idxN);
+            // Move the open node to the base location, ie. to the closest
+            // point on the pJoinE edge (which is at max APT_JOIN_MAX_DIST_M meters away)
+            n.lat = pos.lat();
+            n.lon = pos.lon();
+            
+            // Along this edge, there could be nodes which are more or less
+            // equal to our node n. Eg., this happens with taxiways,
+            // which leave runwas in opposite directions:
+            // Both taxiways (left/right) have an open end on the rwy,
+            // one to the left, one to the right of the rwy centerline.
+            // The algorithm will find one of them first and merge with
+            // the rwy. Once we find the other side we should combine that
+            // node now with the already merged node, so that both taxiways
+            // join with the rwy in one single joint node.
+            size_t nearIdxN = ULONG_MAX;
+            if (n.IsCloseTo(vecTaxiNodes[pJoinE->startNode()], APT_MAX_SIMILAR_NODE_DIST_M))
+                nearIdxN = pJoinE->startNode();
+            else if (n.IsCloseTo(vecTaxiNodes[pJoinE->endNode()], APT_MAX_SIMILAR_NODE_DIST_M))
+                nearIdxN = pJoinE->endNode();
+            
+            // One of the nodes is indeed nearby?
+            if (nearIdxN < ULONG_MAX) {
+                ReplaceNode(idxN, nearIdxN);
+            }
+            // Not nearby:
+            else {
+                // Moving n has slightly changed all edges of n, recalc distance and angle
+                for (size_t idxEE: n.vecEdges)
+                    RecalcTaxiEdge(idxEE);
+                // Split pJoinE at the base position, now n (whose index is idxN)
+                SplitEdge(joinIdxE, idxN);
+            }
 
-                // Try finding _another_ edge this one can connect to
-                positionTy pos(n.lat, n.lon, 0.0, NAN, taxiAngle);
-                const TaxiEdge* pJoinE = FindClosestEdge(pos, pos,
-                                                         // larger distance allowed if I'm a single node, smaller only if I already have connections
-                                                         n.vecEdges.size() <= 1 ? APT_JOIN_MAX_DIST_M : APT_MAX_SIMILAR_NODE_DIST_M,
-                                                         APT_JOIN_ANGLE_TOLERANCE,
-                                                         APT_JOIN_ANGLE_TOLERANCE_EXT,
-                                                         vecEdgeExclusions);
-                if (!pJoinE)
-                    continue;
-                
-                if (std::isnan(pos.lat()) || std::isnan(pos.lon()))
-                    continue;
-                
-                // We found just another taxi edge, which we combine:
-                // We'll now split that found edge by inserting the
-                // open node, which we move to the base position,
-                // so that it is exactly on the edge that we split.
-                // The "join" edge doesn't move.
-                const size_t joinIdxE = pos.edgeIdx;
-
-                // Move the open node to the base location, ie. to the closes
-                // point on the pJoinE edge (which is at max APT_JOIN_MAX_DIST_M meters away)
-                n.lat = pos.lat();
-                n.lon = pos.lon();
-                
-                // Along this edge, there could be nodes which are more or less
-                // equal to our node n. Eg., this happens with taxiways,
-                // which leave runwas in opposite directions:
-                // Both taxiways (left/right) have an open end on the rwy,
-                // one to the left, one to the right of the rwy centerline.
-                // The algorithm will find one of them first and merge with
-                // the rwy. Once we find the other side we should combine that
-                // node now with the already merged node, so that both taxiways
-                // join with the rwy in one single joint node.
-                size_t nearIdxN = ULONG_MAX;
-                if (n.IsCloseTo(vecTaxiNodes[pJoinE->startNode()], APT_MAX_SIMILAR_NODE_DIST_M))
-                    nearIdxN = pJoinE->startNode();
-                else if (n.IsCloseTo(vecTaxiNodes[pJoinE->endNode()], APT_MAX_SIMILAR_NODE_DIST_M))
-                    nearIdxN = pJoinE->endNode();
-                
-                // One of the edges is indeed nearby?
-                if (nearIdxN < ULONG_MAX) {
-                    ReplaceNode(idxN, nearIdxN);
-                }
-                // Not nearby:
-                else {
-                    // Moving n has slightly changed all edges of n, recalc distance and angle
-                    for (size_t idxEE: n.vecEdges)
-                        RecalcTaxiEdge(idxEE);
-                    // Split pJoinE at the base position, now n (whose index is idxN)
-                    SplitEdge(joinIdxE, idxN);
-                }
-
-                // To ensure FindClosestEdge works we need to sort
-                SortTaxiEdges();
-                
+            // To ensure FindClosestEdge works we need to sort
+            SortTaxiEdges();
+            
 #ifdef DEBUG
-                LOG_ASSERT(ValidateNodesEdges());
+            LOG_ASSERT(ValidateNodesEdges());
 #endif
-
-                // and here we break out: just one more linked path is enough of a success
-                break;
-            }       // for all edges of the node
         }           // for all path ends (which are nodes)
     }
     
@@ -1667,8 +1667,7 @@ static const std::array<int,8> APT_LINE_TYPES { 1, 7, 10, 11, 51, 57, 60, 61 };
 static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long& lnNr)
 {
     TaxiTmpPath path;               // holds the path (centerline positions) we are reading now
-    double prevLat = NAN;
-    double prevLon = NAN;
+    ptTy prevBezPt;                 // previous bezier point
     std::string ln;
     while (fIn)
     {
@@ -1703,40 +1702,93 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
                 lnTypeCode = std::stoi(fields[5]);
         }
         
-        // A Taxi Centerline based on line/light type? -> add node
-        const double lat = std::stod(fields[1]);
-        const double lon = std::stod(fields[2]);
-        if (std::any_of(APT_LINE_TYPES.cbegin(),  APT_LINE_TYPES.cend(),
-                        [lnTypeCode](int c){return c == lnTypeCode;}))
+        // Is this a node starting/continuing a taxi centerline?
+        const bool bIsCenterline = std::any_of(APT_LINE_TYPES.cbegin(),  APT_LINE_TYPES.cend(),
+                                               [lnTypeCode](int c){return c == lnTypeCode;});
+        // If this node does not start/continue a centerline, does it at least end an already started one?
+        const bool bEndsCenterline = !bIsCenterline && !path.listPos.empty();
+
+        // Do we need to process this node?
+        if (bIsCenterline || bEndsCenterline)
         {
+            // Read location and Bezier control point
+            const ptTy pos (std::stod(fields[2]), std::stod(fields[1]));    // lon, lat
+            ptTy bezPt;
+            if ((lnCod == 112 || lnCod == 114 || lnCod == 116) &&
+                fields.size() >= 5)
+            {
+                // read Bezier control point
+                bezPt.x = std::stod(fields[4]);         // lon
+                bezPt.y = std::stod(fields[3]);         // lat
+#ifdef DEBUG
+                // remember Bezier handle for output to GPS Visualizer
+                TaxiNode& n = apt.vecBezierHandles.emplace_back(pos.y, pos.x);
+                n.prevIdx = lnNr;
+                n.bVisited = false;
+                apt.vecBezierHandles.emplace_back(bezPt.y, bezPt.x);
+                // if there is a previous pos (to which we will apply the control point, too, just mirrored)
+                // then also add the mirrored handle
+                if (!path.listPos.empty())
+                {
+                    TaxiNode& n2 = apt.vecBezierHandles.emplace_back(pos.y, pos.x);
+                    n2.prevIdx = lnNr;
+                    n2.bVisited = true;                 // indicates "mirrored"
+                    apt.vecBezierHandles.emplace_back(bezPt.mirrorAt(pos).y, bezPt.mirrorAt(pos).x);
+                }
+#endif
+            }
+            
             // If position is different from previous
             // (there are quite a number of _exactly_ equal subsequent nodes
             //  in actual apt.dat, which we filter out this way)
-            if (!dequal(lat, prevLat) || !dequal(lon, prevLon))
+            if (path.listPos.empty() || path.listPos.back() != pos)
             {
-                // Add this position to our backlog
-                apt.AddTaxiTmpPos(lat,lon);             // add the node to the airport's temporary list of nodes
-                path.listPos.emplace_back(lat,lon);     // add the node position to the path (temporary storage)
-                prevLat = lat;
-                prevLon = lon;
+                // If necessary add additional nodes along the Bezier curve
+                // from the previous node to the current
+                if (!path.listPos.empty() && (prevBezPt.isValid() || bezPt.isValid()))
+                {
+                    // the previous node, where the Bezier curve starts
+                    const TaxiTmpPos& prevPos = path.listPos.back();
+                    // length of the straight line from prevPos to pos
+                    const double eLen = DistLatLon(pos.y, pos.x, prevPos.lat(), prevPos.lon());
+                    if (eLen > APT_MAX_SIMILAR_NODE_DIST_M) {
+                        // the second Bezier control point needs to be mirrored at that pos
+                        const ptTy mbezPt = bezPt.mirrorAt(pos);
+                        // number of segments we will create, at least 2 (ie. at least split in half)
+                        const int numSegm = std::max (2, int(eLen / APT_JOIN_MAX_DIST_M / 2));
+                        for (int s = 1; s < numSegm; ++s)
+                        {
+                            // Calculate a point on the Bezier curve
+                            const ptTy p =
+                            prevBezPt.isValid() && mbezPt.isValid() ? Bezier(double(s)/numSegm, prevPos, prevBezPt, mbezPt, pos) :
+                            !mbezPt.isValid()                       ? Bezier(double(s)/numSegm, prevPos, prevBezPt,         pos) :
+                                                                      Bezier(double(s)/numSegm, prevPos,            mbezPt, pos);
+                            // Add the Bezier curve node to our backlog
+                            apt.AddTaxiTmpPos(p.y, p.x);            // add the node to the airport's temporary list of nodes
+                            path.listPos.emplace_back(p.y, p.x);    // add the node position to the path (temporary storage)
+                        }
+                    }
+                }
+                
+                // Add the actual node to our backlog
+                apt.AddTaxiTmpPos(pos.y, pos.x);            // add the node to the airport's temporary list of nodes
+                path.listPos.emplace_back(pos.y, pos.x);    // add the node position to the path (temporary storage)
             }
-        }
-        else
-        {
-            // Not marked as a Taxi Centerline?
-            // Then the current segement ends here...if there is a segment
-            if (!path.listPos.empty())
+        
+            // If this ends a path then we add it to our repository
+            if (bEndsCenterline)
             {
-                // Add this position to our backlog as the segment's final position
-                apt.AddTaxiTmpPos(lat,lon);             // add the node to the airport's temporary list of nodes
-                path.listPos.emplace_back(lat,lon);     // add the node position to the path (temporary storage)
                 apt.AddTaxiTmpPath(std::move(path));    // move the entire path to the temporary list of paths for post-processing
                 path.listPos.clear();
             }
-
-            // Start a new path
-            prevLat = NAN;
-            prevLon = NAN;
+            
+            // move on to next node
+            prevBezPt = bezPt;
+        } // is centerline or ends a centerline
+        else
+        {
+            // don't process this node, clear temp stuff
+            prevBezPt.clear();
         }
     }
     
@@ -2326,6 +2378,35 @@ void LTAptDump (const std::string& _aptId)
 
     }
         
+    // Dump all Bezier handles
+    for (auto iter = apt.vecBezierHandles.cbegin();
+         iter != apt.vecBezierHandles.cend();
+         ++iter)
+    {
+        const TaxiNode& a = *iter;
+        const TaxiNode& b = *(++iter);
+        
+        out
+        << "T,1,,"                                  // type, BOT, symbol
+        << (a.bVisited ? "orange," : "magenta,")    // color (mirrored control point or not?)
+        <<  ','                                     // rotation
+        << a.lat << ',' << a.lon << ','             // latitude,longitude
+        << ",,"                                     // time,speed
+        << ','                                      // course
+        << "Bezier Handle Ln " << a.prevIdx << ','  // name
+        << (a.bVisited ? "mirrored" : "")           // desc
+        << "\n";
+
+        out
+        << "T,0,,"                                  // type, BOT, symbol
+        << (a.bVisited ? "orange," : "magenta,")    // color (mirrored control point or not?)
+        <<  ','                                     // rotation
+        << b.lat << ',' << b.lon << ','             // latitude,longitude
+        << ",,"                                     // time,speed
+        << ','                                      // course
+        << ','                                      // name, desc
+        << "\n";
+    }
 
     // Close the file
     out.close();

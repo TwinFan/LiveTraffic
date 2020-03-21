@@ -29,8 +29,17 @@
 #include<iomanip>
 #include<cmath>
 
- //
-//MARK: Coordinate Calc
+//
+// MARK: ptTy
+//
+
+bool ptTy::operator== (const ptTy& _o) const
+{
+    return dequal(x, _o.x) && dequal(y, _o.y);
+}
+
+//
+// MARK: Coordinate Calc
 //      (as per stackoverflow post, adapted)
 //
 double CoordAngle (double lat1, double lon1, double lat2, double lon2)
@@ -166,28 +175,47 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
 
 
 // Intersection point of two lines through given points
-/// @details `x` = `.first`, `y` = `.second`\n
-///          `1` = `a`...`4` = `d`
-ptTy CoordIntersect (ptTy a, ptTy b, ptTy c, ptTy d,
+/// @details `1` = `a`...`4` = `d`
+ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
                      double* pT, double* pU)
 {
     const double divisor =
-    (a.first - b.first)*(c.second - d.second) - (a.second - b.second)*(c.first - d.first);
+    (a.x - b.x)*(c.y - d.y) - (a.y - b.y)*(c.x - d.x);
     
     // Are we to calculate t and u, too?
     if (pT)
-        *pT = ((a.first - c.first)*(c.second - d.second) - (a.second - c.second)*(c.first - d.first))/divisor;
+        *pT = ((a.x - c.x)*(c.y - d.y) - (a.y - c.y)*(c.x - d.x))/divisor;
     if (pU)
-        *pU = ((a.first - b.first)*(a.second - c.second) - (a.second - b.second)*(a.first - c.first))/divisor;
+        *pU = ((a.x - b.x)*(a.y - c.y) - (a.y - b.y)*(a.x - c.x))/divisor;
     
     // return the intersection point
-    const double f1 = (a.first*b.second - a.second*b.first);
-    const double f2 = (c.first*d.second - c.second*d.first);
+    const double f1 = (a.x*b.y - a.y*b.x);
+    const double f2 = (c.x*d.y - c.y*d.x);
+    return (f1 * (c - d) - f2 * (a - b)) / divisor;
+}
+
+
+// Calculate a point on a quadratic Bezier curve
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2)
+{
+    const double oneMt  = 1-t;
     return
-    {
-        (f1*(c.first  - d.first)  - (a.first  - b.first) *f2) / divisor,
-        (f1*(c.second - d.second) - (a.second - b.second)*f2) / divisor
-    };
+    (oneMt*oneMt)   * p0 +              // (1-t)^2 p0 +
+    (2 * oneMt * t) * p1 +              // 2(1+t)t p1 +
+    (t*t)           * p2;               // t^2     p2
+}
+
+// Calculate a point on a cubic Bezier curve
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3)
+{
+    const double oneMt  = 1-t;
+    const double oneMt2 = oneMt * oneMt;
+    const double t2     = t * t;
+    return
+    (oneMt2 * oneMt)  * p0 +            // (1-t)^3   p0 +
+    (3 * oneMt2 * t)  * p1 +            // 3(1-t)^2t p1 +
+    (3 * oneMt  * t2) * p2 +            // 3(1-t)t^2 p2 +
+    (t2 * t)          * p3;             // t^3       p3
 }
 
 

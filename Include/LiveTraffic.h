@@ -61,6 +61,7 @@
 #endif
 
 // C++
+#include <climits>
 #include <utility>
 #include <string>
 #include <array>

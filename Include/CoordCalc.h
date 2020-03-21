@@ -61,7 +61,23 @@ inline double vsi2deg (const double speed, const double vsi)
 
 struct positionTy;
 struct vectorTy;
-typedef std::pair<double,double> ptTy;
+
+/// A simple two-dimensional point
+struct ptTy {
+    double x, y;
+    ptTy () : x(NAN), y(NAN) {}
+    ptTy (double _x, double _y) : x(_x), y(_y) {}
+    ptTy operator + (const ptTy& _o) const { return ptTy ( x+_o.x, y+_o.y); }   ///< scalar sum
+    ptTy operator - (const ptTy& _o) const { return ptTy ( x-_o.x, y-_o.y); }   ///< scalar difference
+    bool operator== (const ptTy& _o) const;                                     ///< equality based on dequal() (ie. 'nearly' equal)
+    bool operator!= (const ptTy& _o) const { return !operator==(_o); }          ///< unequality bases on `not equal`
+    bool isValid() const { return !std::isnan(x) && !std::isnan(y); }           ///< valid if both `x` and `y` are not `NAN`
+    void clear() { x = y = NAN; }                                               ///< set both `x` and `y` to `NAN`
+    ptTy mirrorAt (const ptTy& _o) const                                        ///< return a point of `this` mirrored at `_o`
+    { return ptTy (2*_o.x - x, 2*_o.y - y); }
+};
+inline ptTy operator * (double d, ptTy pt) { return ptTy ( d * pt.x, d * pt.y); }   ///< scalar multiplication
+inline ptTy operator / (ptTy pt, double d) { return ptTy ( pt.x / d, pt.y / d); }   ///< scalar division
 
 /// angle between two locations given in plain lat/lon
 double CoordAngle (double lat1, double lon1, double lat2, double lon2);
@@ -180,9 +196,17 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
 
 /// @brief Intersection point of two lines through given points
 /// @see https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
-ptTy CoordIntersect (ptTy a, ptTy b, ptTy c, ptTy d,
+ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
                      double* pT = nullptr,
                      double* pU = nullptr);
+
+/// @brief Calculate a point on a quadratic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2);
+
+/// @brief Calculate a point on a cubic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3);
 
 
 //
@@ -243,11 +267,13 @@ public:
     positionTy ( const XPLMProbeInfo_t& probe ) :
         positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { unitCoord=UNIT_LOCAL; }
     positionTy ( const ptTy& _pt) :
-        positionTy ( _pt.second, _pt.first ) {}
+        positionTy ( _pt.y, _pt.x ) {}
     
     // merge with the given position
     positionTy& operator |= (const positionTy& pos);
     
+    // typecase to ptTy
+    operator ptTy() const { return ptTy(lon(),lat()); }
     // typecast to what XPMP API needs
     operator XPMPPlanePosition_t() const;
     // standard string for any output purposes
