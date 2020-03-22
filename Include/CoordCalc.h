@@ -181,7 +181,7 @@ void DistPointToLineSqr (double pt_x, double pt_y,
                          double ln_x2, double ln_y2,
                          distToLineTy& outResults);
 
-/// @brief Based on results from DistPointToLineSqr() computes locaton of base point on line
+/// @brief Based on results from DistPointToLineSqr() computes locaton of base point (projection) on line
 /// @param ln_x1 Line: First endpoint's x coordinate (same as passed in to DistPointToLineSqr())
 /// @param ln_y1 Line: First endpoint's y coordinate (same as passed in to DistPointToLineSqr())
 /// @param ln_x2 Line: Second endpoint's x coordinate (same as passed in to DistPointToLineSqr())

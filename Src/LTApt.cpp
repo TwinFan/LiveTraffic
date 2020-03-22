@@ -157,6 +157,24 @@ public:
 /// Vector of runway endpoints
 typedef std::vector<RwyEndPt> vecRwyEndPtTy;
 
+/// Startup location (row code 1300)
+class StartupLoc : public TaxiNode {
+public:
+    std::string id;                     ///< all text after the coordinates, mostly for internal id purposes
+    double  heading = NAN;              ///< heading the plane stands at this location
+    ptTy    viaPos;                     ///< position via which to leave startup location,
+
+public:
+    /// Default constructor leaves all empty
+    StartupLoc () : TaxiNode () {}
+    /// Typical constructor fills id and location
+    StartupLoc (const std::string& _id, double _lat, double _lon, double _heading) :
+    TaxiNode(_lat, _lon), id(_id), heading(_heading) {}
+};
+
+/// Vector of startup locations
+typedef std::vector<StartupLoc> vecStartupLocTy;
+
 /// @brief An edge in the taxi / rwy network, connected two nodes
 /// @details TaxiEdge can only store _indexes_ into the vector of nodes,
 ///          which is Apt::vecTaxiNodes. It cannot directly store pointers or references,
@@ -263,6 +281,7 @@ protected:
     vecRwyEndPtTy  vecRwyEndPts;        ///< vector of runway endpoints
     vecTaxiEdgeTy  vecTaxiEdges;        ///< vector of taxi network edges, each connecting any two nodes
     vecIdxTy       vecTaxiEdgesIdxHead; ///< vector of indexes into Apt::vecTaxiEdges, sorted by TaxiEdge::angle
+    vecStartupLocTy vecStartupLocs;     ///< vector of startup locations
     
     static vecTaxiNodesTy vecRwyNodes;  ///< temporary storage for rwy ends (to add egdes for the rwy later)
     static mapTaxiTmpPosTy mapPos;      ///< temporary storage for positions while reading apt.dat
@@ -1129,6 +1148,19 @@ public:
         positionTy& pos = *posIter;
         const double old_lat = pos.lat(), old_lon = pos.lon();
         
+        // 1. --- Try to match pos with a startup location
+        double distStartup = NAN;
+        const StartupLoc* pStartLoc = FindStartupLoc(pos,
+                                                     dataRefs.GetFdSnapTaxiDist_m(),
+                                                     &distStartup);
+        if (pStartLoc)
+        {
+            // pos is close to a startup location, so we definitely set
+            // the startup location's heading
+            pos.heading() = pStartLoc->heading;
+        }
+        
+        // 2. --- Find any edge ---
         // Find the closest edge and right away move pos there
         const TaxiEdge* pEdge = FindClosestEdge(pos, pos,
                                                 dataRefs.GetFdSnapTaxiDist_m(),
@@ -1137,6 +1169,17 @@ public:
         
         // Nothing found?
         if (!pEdge) {
+            
+            // No edge found, but a startup location?
+            if (pStartLoc)
+            {
+                // Then we should move onto the path leading away from the location
+                ProjectPosOnStartupPath(pos, *pStartLoc);
+                if (dataRefs.GetDebugAcPos(fd.key()))
+                    LOG_MSG(logDEBUG, "Snapped to startup location path from (%.5f, %.5f) to (%.5f, %.5f)",
+                            old_lat, old_lon, pos.lat(), pos.lon());
+                return true;
+            }
             
             // --- Test for Black Hole Horizon problem:
             //     When planes briefly wait on taxiways then it can happen
@@ -1523,6 +1566,103 @@ public:
                 s += i->id;
         }
         return s;
+    }
+    
+    // --- MARK: Startup locations
+
+    /// The vevtor of startup locations
+    const vecStartupLocTy& GetStartupLocVec() const { return vecStartupLocs; }
+    
+    /// Add a startup location
+    void AddStartupLoc (const std::string& _id,
+                        double _lat, double _lon,
+                        double _heading)
+    {
+        // Heading could be defined negative
+        while (_heading < 0.0)
+            _heading += 360.0;
+
+        // resonabilit check...then add to our list of startup locations
+        if ( -90.0 <= _lat && _lat <= 90.0 &&
+            -180.0 <= _lon && _lon < 180.0)
+        {
+            // The startup location seems to be aligned with the plane's tip
+            // while all CSL model's origin is at the center of the full.
+            // To (partly) make up for this we move out the startup location
+            // by about 10m. (`viaPos` is here just used as temp variable.)
+            const positionTy origPos (_lat, _lon);
+            vectorTy vec (std::fmod(_heading+180.0, 360.0),
+                          APT_STARTUP_MOVE_BACK);
+            const positionTy startPos = CoordPlusVector(origPos, vec);
+
+            // now add this moved out position to our list
+            vecStartupLocs.emplace_back(_id, startPos.lat(), startPos.lon(), _heading);
+            StartupLoc& loc = vecStartupLocs.back();
+            
+            // Add another position 50m out as the "via" pos: via which we roll to the startup location
+            vec.dist = APT_STARTUP_VIA_DIST;
+            loc.viaPos = CoordPlusVector(startPos, vec);
+        }
+    }
+    
+    /// @brief Find closest startup location, or `nullptr` if non close enough
+    /// @param pos Search near this position (only lat/lon are used(
+    /// @param _maxDist Search distance, only return a startup location maximum this far away
+    /// @param[out] _outDist Distance to returned startup location, `NAN` if none found.
+    const StartupLoc* FindStartupLoc (const positionTy& pos,
+                                      double _maxDist = APT_JOIN_MAX_DIST_M,
+                                      double* _outDist = nullptr) const
+    {
+        const StartupLoc* pRet = nullptr;
+        _maxDist *= _maxDist;                   // square, more performant for comparison
+        for (const StartupLoc& loc: vecStartupLocs)
+        {
+            const double dist = DistLatLonSqr(loc.lat, loc.lon,
+                                              pos.lat(), pos.lon());
+            if (dist < _maxDist)
+            {
+                _maxDist = dist;
+                pRet = &loc;
+            }
+        }
+        
+        // return results
+        if (_outDist)
+            *_outDist = pRet ? std::sqrt(_maxDist) : NAN;
+        return pRet;
+    }
+    
+    /// @brief Project pos onto the path leading away from the startup location
+    void ProjectPosOnStartupPath (positionTy& _pos, const StartupLoc& _startLoc)
+    {
+        // One thing is for sure: the heading must match startup location
+        _pos.heading() = _startLoc.heading;
+        // And the altitude needs re-comupting
+        _pos.alt_m() = NAN;
+        
+        // Compute temporary "coordinates" in meters, relative to the search position
+        distToLineTy dist;
+        const double start_x = Lon2Dist(_startLoc.lon      - _pos.lon(), _pos.lat());   // x is eastward
+        const double start_y = Lat2Dist(_startLoc.lat      - _pos.lat());               // y is northward
+        const double via_x   = Lon2Dist(_startLoc.viaPos.x - _pos.lon(), _pos.lat());
+        const double via_y   = Lat2Dist(_startLoc.viaPos.y - _pos.lat());
+        DistPointToLineSqr(0.0, 0.0, start_x, start_y, via_x, via_y, dist);
+        
+        // We don't want the plane to crash into the gate, so we stop the plane
+        // at the startup location
+        if (dist.leg2_len2 > dist.len2)             // is base beyond startup location?
+        {
+            _pos.lat() = _startLoc.lat;
+            _pos.lon() = _startLoc.lon;
+        } else {
+            // otherwise move to projection on the path to the startup location
+            double base_x = NAN, base_y = NAN;
+            DistResultToBaseLoc(start_x, start_y,
+                                via_x, via_y,
+                                dist, base_x, base_y);
+            _pos.lon() += Dist2Lon(base_x, _pos.lat());
+            _pos.lat() += Dist2Lat(base_y);
+        }
     }
     
     // --- MARK: Bounding box
@@ -1948,6 +2088,31 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                 }
             }       // not NETW_CENTERLINE
         }           // "120"
+        
+        // Startup locations, row code 1300
+        else if (apt.HasRwyEndpoints() &&
+                 ln.size() > 20 &&            // line long enough?
+                 ln[0] == '1' &&              // starting with "100 "?
+                 ln[1] == '3' &&
+                 ln[2] == '0' &&
+                 ln[3] == '0' &&
+                 (ln[4] == ' ' || ln[4] == '\t'))
+        {
+            // separate the line into its field values
+            std::vector<std::string> fields = str_tokenize(ln, " \t", true);
+            if (fields.size() >= 4)
+            {
+                const double lat  = std::stod(fields[1]);       // latitude
+                const double lon  = std::stod(fields[2]);       // longigtude
+                const double head = std::stod(fields[3]);       // heading
+                std::string id;                                 // all the rest makes up the id
+                for (size_t i = 4; i < fields.size(); ++i)
+                    id += fields[i] + ' ';
+                if (!id.empty()) id.pop_back();                 // remove the last separating space
+                apt.AddStartupLoc(id, lat, lon, head);
+            }
+        }
+
     }               // for each line of the apt.dat file
     
     // If the last airport read is valid don't forget to add it to the list
@@ -2326,6 +2491,45 @@ void LTAptDump (const std::string& _aptId)
         << re.id << ','                             // name
         << std::lround(re.heading) << "°,"          // desc
         << "\n";
+    
+    // Dump all startup locations as Waypoints
+    for (const StartupLoc& loc: apt.GetStartupLocVec())
+        out
+        << "W,,"                                    // type, BOT
+        << "wedge,"                                 // symbol
+        << "orange,"                                // color
+        << std::lround(loc.heading) << ','          // rotation
+        << loc.lat << ',' << loc.lon << ','         // latitude,longitude
+        << ",,,"                                    // time,speed,course
+        << loc.id << ','                            // name
+        << std::lround(loc.heading) << "°,"         // desc
+        << "\n";
+    
+    // Dump all startup paths as tracks
+    for (const StartupLoc& loc: apt.GetStartupLocVec())
+    {
+        out
+        << "T,1,,"                                  // type, BOT, symbol
+        << "orange,"                                // color
+        << std::lround(loc.heading) << ','          // rotation
+        << loc.lat << ',' << loc.lon << ','         // latitude,longitude
+        << ",,"                                     // time,speed
+        << std::lround(loc.heading) << ','          // course
+        << "Path leaving " << loc.id << ','         // name
+        << std::lround(loc.heading) << "°,"         // desc
+        << "\n";
+
+        out
+        << "T,0,,"                                  // type, BOT, symbol
+        << "orange,"                                // color
+        << std::lround(loc.heading) << ','          // rotation
+        << loc.viaPos.y << ',' << loc.viaPos.x << ','  // latitude,longitude
+        << ",,"                                     // time,speed
+        << std::lround(loc.heading) << ','          // course
+        << ','                                      // name, desc
+        << "\n";
+
+    }
     
     // Dump all nodes as Waypoints
     size_t i = 0;
