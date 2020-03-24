@@ -189,12 +189,13 @@ public:
         UNKNOWN_WAY = 0,                ///< edge is of undefined type
         RUN_WAY = 1,                    ///< edge is for runway
         TAXI_WAY,                       ///< edge is for taxiway
+        REMOVED_WAY,                    ///< edge has been removed during post-processing
     };
     
 protected:
-    edgeTy type;                        ///< type of node (runway, taxiway)
-    size_t      a = 0;                  ///< from node (index into vecTaxiNodes)
-    size_t      b = 0;                  ///< to node (index into vecTaxiNodes)
+    edgeTy type = UNKNOWN_WAY;          ///< type of node (runway, taxiway)
+    size_t      a = UINT_MAX;           ///< from node (index into vecTaxiNodes)
+    size_t      b = UINT_MAX;           ///< to node (index into vecTaxiNodes)
 public:
     double angle;                       ///< angle/heading from a to b
     double dist_m;                      ///< distance in meters between a and b
@@ -214,6 +215,9 @@ public:
             angle -= 180.0;
         }
     }
+    
+    /// a valid egde to be used?
+    bool isValid () const { return type == RUN_WAY || type == TAXI_WAY; }
     
     /// Return the node's type
     edgeTy GetType () const { return type; }
@@ -264,6 +268,12 @@ public:
             a = newIdxN;
         else if (b == oldIdxN)
             b = newIdxN;
+        // if this leads to both nodes being the same then we are removed
+        if (a == b) {
+            type = REMOVED_WAY;
+            angle = NAN;
+            dist_m = NAN;
+        }
     }
     
 };
@@ -577,10 +587,21 @@ public:
             
             // Replace the node in the edge and recalculate the edge
             e.ReplaceNode(oldIdxN, newIdxN);
-            RecalcTaxiEdge(idxE);
-            
-            // Add the edge to the new node
-            newN.vecEdges.push_back(idxE);
+            if (e.isValid()) {
+                RecalcTaxiEdge(idxE);
+                // Add the edge to the new node
+                newN.vecEdges.push_back(idxE);
+            } else {
+                // no longer a valid edge, remove it from the node
+                for (auto i = newN.vecEdges.begin();
+                     i != newN.vecEdges.end();)
+                {
+                    if (*i == idxE)
+                        i = newN.vecEdges.erase(i);
+                    else
+                        ++i;
+                }
+            }
         }
     }
     
@@ -727,8 +748,12 @@ public:
                             [eIdx](size_t _e){return eIdx == _e;}))
                 continue;
             
-            // Fetch from/to nodes from the edge
+            // Skip edge if invalid
             const TaxiEdge& e = vecTaxiEdges[eIdx];
+            if (!e.isValid())
+                continue;
+
+            // Fetch from/to nodes from the edge
             const TaxiNode& from  = e.startByHeading(*this, headSearch);
             const TaxiNode& to    = e.endByHeading(*this, headSearch);
             const double edgeAngle = e.GetAngleByHead(headSearch);
@@ -796,9 +821,10 @@ public:
 
         // Now only convert back from our local pos-based coordinate system
         // to geographic world coordinates
-        _basePt.lon() = _pos.lon() + Dist2Lon(base_x, _pos.lat());
-        _basePt.lat() = _pos.lat() + Dist2Lat(base_y);
+        _basePt.lon() = _pos.lon() + (std::isnan(base_x) ? 0.0 : Dist2Lon(base_x, _pos.lat()));
+        _basePt.lat() = _pos.lat() + (std::isnan(base_y) ? 0.0 : Dist2Lat(base_y));
         _basePt.heading() = bestEdge->GetAngleByHead(_pos.heading());
+        _basePt.f.specialPos = SPOS_TAXI;
         _basePt.edgeIdx = bestEdgeIdx;
         
         // return the found egde
@@ -1005,10 +1031,9 @@ public:
 
             // To ensure FindClosestEdge works we need to sort
             SortTaxiEdges();
-            
-#ifdef DEBUG
+    #ifdef DEBUG
             LOG_ASSERT(ValidateNodesEdges());
-#endif
+    #endif
         }           // for all path ends (which are nodes)
     }
     
@@ -1086,6 +1111,8 @@ public:
             for (size_t eIdx: shortestN.vecEdges)
             {
                 const TaxiEdge& e = vecTaxiEdges[eIdx];
+                if (!e.isValid()) continue;
+                
                 size_t updNIdx    = e.otherNode(shortestNIdx);
                 TaxiNode& updN    = vecTaxiNodes[updNIdx];
                 
@@ -1151,13 +1178,15 @@ public:
         // 1. --- Try to match pos with a startup location
         double distStartup = NAN;
         const StartupLoc* pStartLoc = FindStartupLoc(pos,
-                                                     dataRefs.GetFdSnapTaxiDist_m(),
+                                                     dataRefs.GetFdSnapTaxiDist_m() * 2,
                                                      &distStartup);
         if (pStartLoc)
         {
             // pos is close to a startup location, so we definitely set
-            // the startup location's heading
+            // and keep the startup location's heading
             pos.heading() = pStartLoc->heading;
+            pos.f.bHeadFixed = true;
+            pos.f.specialPos = SPOS_STARTUP;
         }
         
         // 2. --- Find any edge ---
@@ -1223,7 +1252,7 @@ public:
                 pos.alt_m()     = prevPos.alt_m();
                 pos.heading()   = ePrev.GetAngleByHead(prevPos.heading());
                 pos.edgeIdx     = prevPos.edgeIdx;
-                pos.flightPhase = prevPos.flightPhase;
+                pos.f           = prevPos.f;
                 if (dataRefs.GetDebugAcPos(fd.key()))
                     LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f) based on previously snapped position",
                             old_lat, old_lon, pos.lat(), pos.lon());
@@ -1242,7 +1271,7 @@ public:
         // this is now an artificially moved position, don't touch any further
         // (we don't mark positions on a runway yet...would be take off or rollout to be distinguished)
         if (pEdge->GetType() != TaxiEdge::RUN_WAY)
-            pos.flightPhase = LTAPIAircraft::FPH_TAXI;
+            pos.f.flightPhase = FPH_TAXI;
         
         // --- Insert shortest path along taxiways ---
         
@@ -1345,10 +1374,10 @@ public:
                                    startTS + pathTime * n.pathLen / pathLen,
                                    NAN,                 // heading will be populated later
                                    0.0, 0.0,            // on the ground no pitch/roll
-                                   positionTy::GND_ON,
-                                   positionTy::UNIT_WORLD,
-                                   positionTy::UNIT_DEG,
-                                   LTAircraft::FPH_TAXI);
+                                   GND_ON,
+                                   UNIT_WORLD,
+                                   UNIT_DEG,
+                                   FPH_TAXI);
                 
                 // Which edge is this pos on? (Or, as it is a node: one of the edges it is connected to)
                 if (prevIdxN == ULONG_MAX)
@@ -1356,6 +1385,11 @@ public:
                 else
                     insPos.edgeIdx = GetEdgeBetweenNodes(*iter, prevIdxN);
                 prevIdxN = *iter;
+                
+                // insPos is now either on a taxiway or a runway
+                insPos.f.specialPos =
+                vecTaxiEdges[insPos.edgeIdx].GetType() == TaxiEdge::RUN_WAY ?
+                SPOS_RWY : SPOS_TAXI;
                 
                 // Insert before the position that was passed in
                 posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
@@ -1380,8 +1414,9 @@ public:
                            {currA.lon, currA.lat}, {currB.lon, currB.lat});
             intersec.pitch() = 0.0;
             intersec.roll()  = 0.0;
-            intersec.onGrnd  = positionTy::GND_ON;
-            intersec.flightPhase = LTAircraft::FPH_TAXI;
+            intersec.f.onGrnd  = GND_ON;
+            intersec.f.flightPhase = FPH_TAXI;
+            intersec.f.bCutCorner = true;       // the corner of this position can be cut short
             
             // It is essential that the intersection is in front (rather than behind)
             vectorTy vecPrevInters = prevPos.between(intersec);
@@ -1428,6 +1463,8 @@ public:
     /// Validates if back references of edges to nodes are still OK
     bool ValidateNodesEdges (bool _bValidateIdxHead = true) const
     {
+        bool bRet = true;
+        
         // Validate vecTaxiNodes and vecTaxiEdges
         for (size_t idxN = 0; idxN < vecTaxiNodes.size(); ++idxN)
         {
@@ -1435,16 +1472,32 @@ public:
             for (size_t idxE: n.vecEdges)
             {
                 const TaxiEdge& e = vecTaxiEdges[idxE];
+                if (!e.isValid()) {
+                    LOG_MSG(logFATAL, "Node %lu includes edge %lu, which is invalid!",
+                            idxN, idxE, e.startNode(), e.endNode());
+                    bRet = false;
+                }
                 if (e.startNode() != idxN &&
                     e.endNode()   != idxN) {
                     LOG_MSG(logFATAL, "Node %lu includes edge %lu, which however goes %lu - %lu!",
                             idxN, idxE, e.startNode(), e.endNode());
-                    return false;
+                    bRet = false;
                 }
             }
             if (!n.HasGeoCoords()) {
                 LOG_MSG(logFATAL, "Node %lu has no geo coordinates!", idxN);
-                return false;
+                bRet = false;
+            }
+        }
+        
+        // Validate vecTaxiEdges
+        for (size_t idxE = 0; idxE < vecTaxiEdges.size(); ++idxE)
+        {
+            const TaxiEdge& e = vecTaxiEdges[idxE];
+            if (e.isValid() && e.startNode() == e.endNode()) {
+                LOG_MSG(logFATAL, "Valid edge %lu has a == b == %lu",
+                        idxE, e.startNode());
+                bRet = false;
             }
         }
         
@@ -1454,7 +1507,7 @@ public:
             if (vecTaxiEdgesIdxHead.size() != vecTaxiEdges.size()) {
                 LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead.size() = %lu != %lu = vecTaxiEdges.size()",
                         vecTaxiEdgesIdxHead.size(), vecTaxiEdges.size());
-                return false;
+                bRet = false;
             }
             double prevAngle = -1.0;
             for (size_t idxE: vecTaxiEdgesIdxHead)
@@ -1464,12 +1517,12 @@ public:
                 {
                     LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead wrongly sorted, edge %lu (heading %.1f) at wrong place after heading %.1f",
                             idxE, vecTaxiEdges[idxE].angle, prevAngle);
-                    return false;
+                    bRet = false;
                 }
             }
         }
         
-        return true;
+        return bRet;
     }
 #endif
     
@@ -1507,8 +1560,8 @@ public:
         vecRwyNodes.emplace_back(lat2, lon2);
 
         // Original position of outer end of runway
-        positionTy re1 (lat1,lon1,NAN,NAN,NAN,NAN,NAN,positionTy::GND_ON);
-        positionTy re2 (lat2,lon2,NAN,NAN,NAN,NAN,NAN,positionTy::GND_ON);
+        positionTy re1 (lat1,lon1,NAN,NAN,NAN,NAN,NAN,GND_ON);
+        positionTy re2 (lat2,lon2,NAN,NAN,NAN,NAN,NAN,GND_ON);
         vectorTy vecRwy = re1.between(re2);
         
         // move by displayed threshold
@@ -1637,6 +1690,8 @@ public:
     {
         // One thing is for sure: the heading must match startup location
         _pos.heading() = _startLoc.heading;
+        _pos.f.bHeadFixed = true;
+        _pos.f.specialPos = SPOS_STARTUP;
         // And the altitude needs re-comupting
         _pos.alt_m() = NAN;
         
@@ -2415,9 +2470,9 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
                                    bestRwyEndPt->heading,
                                    _ac.mdl.PITCH_FLARE,
                                    0.0,
-                                   positionTy::GND_ON,
-                                   positionTy::UNIT_WORLD, positionTy::UNIT_DEG,
-                                   LTAPIAircraft::FPH_TOUCH_DOWN);
+                                   GND_ON,
+                                   UNIT_WORLD, UNIT_DEG,
+                                   FPH_TOUCH_DOWN);
     LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
             bestApt->GetId().c_str(),
             bestRwyEndPt->id.c_str(),
@@ -2438,7 +2493,9 @@ bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter)
     std::lock_guard<std::mutex> lock(mtxGMapApt);
 
     // Which airport are we looking at?
-    Apt* pApt = LTAptFind(*posIter);
+    static Apt* pApt = nullptr;         // "cache" the last used airport
+    if (!pApt || !pApt->Contains(*posIter))
+        pApt = LTAptFind(*posIter);
     if (!pApt)                          // not a position in any airport's bounding box
         return false;
 

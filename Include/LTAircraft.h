@@ -197,27 +197,7 @@ public:
     };
     
 public:
-    /// @brief Flight phase
-    enum FlightPhase {
-        FPH_UNKNOWN     = 0,            ///< used for initializations
-        FPH_TAXI        = 10,           ///< Taxiing
-        FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
-        FPH_TO_ROLL,                    ///< Take-off roll
-        FPH_ROTATE,                     ///< Rotating
-        FPH_LIFT_OFF,                   ///< Lift-off, until "gear-up" height
-        FPH_INITIAL_CLIMB,              ///< Initial climb, until "flaps-up" height
-        FPH_CLIMB       = 30,           ///< Regular climbout
-        FPH_CRUISE      = 40,           ///< Cruising, no altitude change
-        FPH_DESCEND     = 50,           ///< Descend, more then 100ft/min descend
-        FPH_APPROACH    = 60,           ///< Approach, below "flaps-down" height
-        FPH_FINAL,                      ///< Final, below "gear-down" height
-        FPH_LANDING     = 70,           ///< Group of status for landing:
-        FPH_FLARE,                      ///< Flare, when reaching "flare		" height
-        FPH_TOUCH_DOWN,                 ///< The one cycle when plane touches down, don't rely on catching it...it's really one cycle only
-        FPH_ROLL_OUT,                   ///< Roll-out after touch-down until reaching taxi speed or stopping
-        FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
-    };
-    static std::string FlightPhase2String (FlightPhase phase);
+    static std::string FlightPhase2String (flightPhaseE phase);
 
 public:
     // reference to the defining flight data
@@ -246,7 +226,7 @@ protected:
     double              tsLastCalcRequested;
     
     // dynamic parameters of the plane
-    FlightPhase         phase;          // current flight phase
+    flightPhaseE         phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
     bool                bOnGrnd;        // are we touching ground?
@@ -264,9 +244,8 @@ protected:
     MovingParam         gearDeflection; ///< main gear deflection in meters during touch-down
     
     // Y-Probe
-    XPLMProbeRef        probeRef;
     double              probeNextTs;    // timestamp of NEXT probe
-    double              terrainAlt;     // in feet
+    double              terrainAlt_m;   ///< terrain altitude in meters
     
     // bearing/dist from viewpoint to a/c
     vectorTy            vecView;        // degrees/meters
@@ -306,7 +285,7 @@ public:
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     // current a/c configuration
-    inline FlightPhase GetFlightPhase() const { return phase; }
+    inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     inline bool IsOnGrnd() const { return bOnGrnd; }
     inline double GetHeading() const { return ppos.heading(); }
@@ -322,10 +301,10 @@ public:
     inline double GetRoll() const { return ppos.roll(); }
     inline double GetAlt_ft() const { return ppos.alt_ft(); }
     inline double GetAlt_m() const { return ppos.alt_m(); }
-    inline double GetTerrainAlt_ft() const { return terrainAlt; }           // ft
-    inline double GetTerrainAlt_m() const { return terrainAlt * M_per_FT; } // m
-    inline double GetPHeight_ft() const { return ppos.alt_ft() - terrainAlt; }
-    inline double GetPHeight_m() const { return GetPHeight_ft() * M_per_FT; }
+    inline double GetTerrainAlt_ft() const { return terrainAlt_m / M_per_FT; }  ///< terrain alt converted to ft
+    inline double GetTerrainAlt_m() const { return terrainAlt_m; }              ///< terrain alt in meter
+    inline double GetPHeight_m() const { return ppos.alt_m() - terrainAlt_m; }  ///< height above ground in meter
+    inline double GetPHeight_ft() const { return GetPHeight_m() / M_per_FT; }   ///< height above ground converted to ft
     inline vectorTy GetVec() const { return vec; }
     inline vectorTy GetVecView() const { return vecView; }
     std::string GetLightsStr() const;

@@ -19,12 +19,6 @@ LTApt
 - Check Disable/Reenable regarding airport data...we might need to reload.
 - When setting Snap distance to zero we should also not read apt.dat,
   but when setting Snap distance to >0 then we need to kick off reading
-- Row codes 1300 in apt.dat define start up locations including heading
-  They don't need to be connected to the taxi routing network,
-  so we need to find the closest
-  - Output during apt dump
-  - Try to align still-standing planes with startup locations
-    (should stop rotation of RealTraffic planes)
   
 - Late delivered a/c type info:
   If it doesn't contain a type but human-readable info, then we should

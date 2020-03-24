@@ -791,7 +791,7 @@ positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) co
      XPLMGetDataf(adrXP[DR_PLANE_HEADING]),
      XPLMGetDataf(adrXP[DR_PLANE_PITCH]),
      XPLMGetDataf(adrXP[DR_PLANE_ROLL]),
-     XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? positionTy::GND_ON : positionTy::GND_OFF
+     XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? GND_ON : GND_OFF
     );
     
     // make invalid pos invalid

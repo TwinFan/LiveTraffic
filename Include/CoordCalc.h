@@ -208,6 +208,67 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2);
 /// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
 ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3);
 
+//
+// MARK: Global enums
+//
+
+/// Flight phase
+enum flightPhaseE : unsigned char {
+    FPH_UNKNOWN     = 0,            ///< used for initializations
+    FPH_TAXI        = 10,           ///< Taxiing
+    FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
+    FPH_TO_ROLL,                    ///< Take-off roll
+    FPH_ROTATE,                     ///< Rotating
+    FPH_LIFT_OFF,                   ///< Lift-off, until "gear-up" height
+    FPH_INITIAL_CLIMB,              ///< Initial climb, until "flaps-up" height
+    FPH_CLIMB       = 30,           ///< Regular climbout
+    FPH_CRUISE      = 40,           ///< Cruising, no altitude change
+    FPH_DESCEND     = 50,           ///< Descend, more then 100ft/min descend
+    FPH_APPROACH    = 60,           ///< Approach, below "flaps-down" height
+    FPH_FINAL,                      ///< Final, below "gear-down" height
+    FPH_LANDING     = 70,           ///< Group of status for landing:
+    FPH_FLARE,                      ///< Flare, when reaching "flare        " height
+    FPH_TOUCH_DOWN,                 ///< The one cycle when plane touches down, don't rely on catching it...it's really one cycle only
+    FPH_ROLL_OUT,                   ///< Roll-out after touch-down until reaching taxi speed or stopping
+    FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
+};
+
+/// Ground status
+enum onGrndE    : unsigned char {
+    GND_UNKNOWN=0,                  ///< ground status yet unknown
+    GND_OFF,                        ///< off the ground, airborne
+    GND_ON                          ///< on the ground
+};
+
+/// Coordinates are in which kind of coordinate system?
+enum coordUnitE : unsigned char {
+    UNIT_WORLD=0,                   ///< world coordinates (latitude, longitude, altitude)
+    UNIT_LOCAL                      ///< local GL coordinates (x, y, z)
+};
+
+/// Angles are in degree or radians?
+enum angleUnitE : unsigned char {
+    UNIT_DEG=0,                     ///< angles are in degree
+    UNIT_RAD                        ///< angles are in radians
+};
+
+/// Position is on taxiway, runway, startup location?
+enum specialPosE : unsigned char {
+    SPOS_NONE=0,                    ///< no special position
+    SPOS_STARTUP,                   ///< at startup location (gate, ramp, tie-down...)
+    SPOS_TAXI,                      ///< snapped to taxiway
+    SPOS_RWY,                       ///< snapped to runway
+};
+
+/// Return a 3 char-string for the special position enums
+inline const char* SpecialPosE2String (specialPosE sp)
+{
+    return
+    sp == SPOS_STARTUP ? "SUP" :
+    sp == SPOS_TAXI    ? "TXI" :
+    sp == SPOS_RWY     ? "RWY" : "   ";
+}
+
 
 //
 //MARK: Data Structures
@@ -240,32 +301,35 @@ struct positionTy {
     enum positionTyE { LAT=0, LON, ALT, TS, HEADING, PITCH, ROLL };
     std::valarray<double> v;
     
-    int mergeCount;      // for posList use only: when merging positions this counts how many flight data objects made up this position
-    
-    enum onGrndE    { GND_UNKNOWN=0, GND_OFF, GND_ON } onGrnd;
-    enum coordUnitE { UNIT_WORLD, UNIT_LOCAL } unitCoord;
-    enum angleUnitE { UNIT_DEG, UNIT_RAD } unitAngle;
-    
-    // start of some special flight phase like rotate, take off, touch down?
-    // (can't use LTAircraft::FlightPhase due to cyclic header inclusion)
-    int flightPhase = 0;
+    int mergeCount = 1;      /// for posList use only: when merging positions this counts how many flight data objects made up this position
+        
+    /// collection of defining flags
+    struct posFlagsTy {
+        flightPhaseE flightPhase : 7;   ///< start of some special flight phase?
+        bool         bHeadFixed  : 1;   ///< heading fixed, not to be recalculated?
+        onGrndE      onGrnd      : 2;   ///< on ground or not or not known?
+        coordUnitE   unitCoord   : 1;   ///< world or local coordinates?
+        angleUnitE   unitAngle   : 1;   ///< heading in degree or radians?
+        specialPosE  specialPos  : 2;   ///< position is somehow special`
+        bool         bCutCorner  : 1;   ///< is this an (inserted) position, that can be cut short? (-> use quadratic Bezier instead of cubic)
+    } f;
     
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
     size_t edgeIdx = EDGE_UNKNOWN;
 public:
-    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}, mergeCount(1),
-                    onGrnd(GND_UNKNOWN), unitCoord(UNIT_WORLD), unitAngle(UNIT_DEG) {}
+    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}
+    { *(uint16_t*)&f = 0; }
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
-                int fPhase = 0) :
-        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll}, mergeCount(1),
-        onGrnd(grnd), unitCoord(uCoord), unitAngle(uAngle), flightPhase(fPhase) {}
+                flightPhaseE fPhase = FPH_UNKNOWN) :
+        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll}
+    { *(uint16_t*)&f = 0; f.onGrnd=grnd; f.unitCoord=uCoord; f.unitAngle=uAngle; f.flightPhase=fPhase; }
     positionTy(const XPMPPlanePosition_t& x) :
         positionTy (x.lat, x.lon, x.elevation * M_per_FT,
                     NAN, x.heading, x.pitch, x.roll) {}
     positionTy ( const XPLMProbeInfo_t& probe ) :
-        positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { unitCoord=UNIT_LOCAL; }
+        positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { f.unitCoord=UNIT_LOCAL; }
     positionTy ( const ptTy& _pt) :
         positionTy ( _pt.y, _pt.x ) {}
     
@@ -300,6 +364,11 @@ public:
     bool isFullyValid() const;
     /// Has a valid edge in the taxiway network of some airport?
     bool HasTaxiEdge () const { return edgeIdx < EDGE_UNAVAIL; }
+    /// Has position been post-processed by some optimization (like snap to taxiway)?
+    bool IsPostProcessed () const { return
+        f.bHeadFixed || f.bCutCorner || f.specialPos != SPOS_NONE ||
+        f.flightPhase != FPH_UNKNOWN || edgeIdx != EDGE_UNKNOWN;
+    }
     
     // rad/deg conversion (only affects lat and lon)
     positionTy  deg2rad() const;
@@ -317,7 +386,7 @@ public:
     inline double pitch()   const { return v[PITCH]; }
     inline double roll()    const { return v[ROLL]; }
 
-    inline bool   IsOnGnd() const { return onGrnd == GND_ON; }
+    inline bool   IsOnGnd() const { return f.onGrnd == GND_ON; }
 
     inline double& lat()        { return v[LAT]; }
     inline double& lon()        { return v[LON]; }

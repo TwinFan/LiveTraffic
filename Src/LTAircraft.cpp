@@ -863,7 +863,7 @@ const LTAircraft::FlightModel* LTAircraft::FlightModel::GetFlightModel
 //MARK: LTAircraft::FlightPhase
 //
 
-std::string LTAircraft::FlightPhase2String (FlightPhase phase)
+std::string LTAircraft::FlightPhase2String (flightPhaseE phase)
 {
     switch (phase) {
         case FPH_UNKNOWN:           return "Unknown";
@@ -921,7 +921,7 @@ reversers(MDL_REVERSERS_TIME),
 spoilers(MDL_SPOILERS_TIME),
 tireRpm(MDL_TIRE_SLOW_TIME, MDL_TIRE_MAX_RPM),
 gearDeflection(MDL_GEAR_DEFL_TIME, mdl.GEAR_DEFLECTION),
-probeRef(NULL), probeNextTs(0), terrainAlt(0),
+probeNextTs(0), terrainAlt_m(0.0),
 bValid(true)
 {
     // for some calcs we need correct timestamps _before_ first draw already
@@ -991,10 +991,6 @@ LTAircraft::~LTAircraft()
     if (IsInCameraView())
         ToggleCameraView();
     
-    // Release probe handle
-    if (probeRef)
-        XPLMDestroyProbe(probeRef);
-    
     // Decrease number of visible aircraft and log a message about that fact
     dataRefs.DecNumAc();
     LOG_MSG(logINFO,INFO_AC_REMOVED,labelInternal.c_str());
@@ -1016,9 +1012,9 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 LTAircraft::operator std::string() const
 {
     char buf[500];
-    snprintf(buf,sizeof(buf),"a/c %s ppos:\n%s Y: %.0ff %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s ppos:\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
              labelInternal.c_str(),
-             ppos.dbgTxt().c_str(), terrainAlt,
+             ppos.dbgTxt().c_str(), GetTerrainAlt_ft(),
              GetSpeed_kt(),
              GetVSI_ft(),
              phase, FlightPhase2String(phase).c_str());
@@ -1143,8 +1139,14 @@ bool LTAircraft::CalcPPos()
         // ppos we set posList[0] ('from') to ppos. Should be close anyway in normal
         // situations. (It's not if the simulation was halted while feeding live
         // data, then posList got completely outdated and ppos might jump beyond the entire list.)
-        if ( ppos < posList[1])
-            posList[0] = ppos;
+        if ( ppos < posList[1]) {
+            // Save some flags needed for later calculations
+            ppos.f.specialPos = posList.front().f.specialPos;
+            ppos.f.bCutCorner = posList.front().f.bCutCorner;
+            ppos.edgeIdx      = posList.front().edgeIdx;
+            // Then overwrite posList[0]
+            posList.front() = ppos;
+        }
         // flag: switched positions
         bPosSwitch = true;
     }
@@ -1188,7 +1190,7 @@ bool LTAircraft::CalcPPos()
         }
         
         // *** ground status starts with that one of 'from'
-        ppos.onGrnd = from.onGrnd;
+        ppos.f.onGrnd = from.f.onGrnd;
         
         // *** heading: make sure it is less than 360 (well...just normaize the entire positions)
         from.normalize();
@@ -1440,7 +1442,7 @@ bool LTAircraft::CalcPPos()
     {
         // safety measure:
         // on the ground we are...on the ground, not moving vertically
-        ppos.SetAltFt(terrainAlt);
+        ppos.alt_m() = terrainAlt_m;
         vsi = 0;
         // but tires are rotating
         tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
@@ -1471,7 +1473,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // previous status
     bool bOnGrndPrev = bOnGrnd;
-    FlightPhase bFPhPrev = phase;
+    flightPhaseE bFPhPrev = phase;
     
     // present height (AGL in ft)
     double PHeight = GetPHeight_ft();
@@ -1486,7 +1488,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // else: we could also be airborne,
         // so assume 'on the ground' if 'very' close to it, otherwise airborne
         bOnGrnd = PHeight <= MDL_CLOSE_TO_GND;
-        ppos.onGrnd = bOnGrnd ? positionTy::GND_ON : positionTy::GND_OFF;
+        ppos.f.onGrnd = bOnGrnd ? GND_ON : GND_OFF;
     }
     
     // Vertical Direction
@@ -1702,7 +1704,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     if (ENTERED(FPH_TOUCH_DOWN)) {
         gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
-        ppos.onGrnd = positionTy::GND_ON;
+        ppos.f.onGrnd = GND_ON;
         pitch.moveTo(0);
     }
     
@@ -1758,6 +1760,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // *** Log ***
     
+    ppos.f.flightPhase = phase;
+    
     // if requested log a phase change
     if ( bFPhPrev != phase && dataRefs.GetDebugAcPos(key()) )
         LOG_MSG(logDEBUG,DBG_AC_FLIGHT_PHASE,
@@ -1778,7 +1782,7 @@ bool LTAircraft::YProbe ()
         return true;
     
     // This is terrain altitude right beneath us in [ft]
-    terrainAlt = YProbe_at_m(ppos, probeRef) / M_per_FT;
+    terrainAlt_m = fd.YProbe_at_m(ppos);
     
     if (currCycle.simTime >= probeNextTs)
     {
@@ -1786,7 +1790,7 @@ bool LTAircraft::YProbe ()
         static_assert(sizeof(PROBE_HEIGHT_LIM) == sizeof(PROBE_DELAY));
         for ( size_t i=0; i < sizeof(PROBE_HEIGHT_LIM)/sizeof(PROBE_HEIGHT_LIM[0]); i++)
         {
-            if ( ppos.alt_ft() - terrainAlt >= PROBE_HEIGHT_LIM[i] ) {
+            if ( GetPHeight_ft() >= PROBE_HEIGHT_LIM[i] ) {
                 probeNextTs = currCycle.simTime + PROBE_DELAY[i];
                 break;
             }
