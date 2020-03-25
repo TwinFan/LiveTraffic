@@ -2493,9 +2493,7 @@ bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter)
     std::lock_guard<std::mutex> lock(mtxGMapApt);
 
     // Which airport are we looking at?
-    static Apt* pApt = nullptr;         // "cache" the last used airport
-    if (!pApt || !pApt->Contains(*posIter))
-        pApt = LTAptFind(*posIter);
+    Apt* pApt = LTAptFind(*posIter);
     if (!pApt)                          // not a position in any airport's bounding box
         return false;
 

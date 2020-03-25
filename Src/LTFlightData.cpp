@@ -74,11 +74,18 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
 {
     // copy filled, and only filled data over current data
     // do it field-by-field only for fields which are actually filled
+
+    // acTypeICAO: accept another value only if our current one is not helpful
+    if ((acTypeIcao.empty() ||
+         acTypeIcao == dataRefs.GetDefaultAcIcaoType() ||
+         acTypeIcao == dataRefs.GetDefaultCarIcaoType()) &&
+        !other.acTypeIcao.empty())
+        acTypeIcao = other.acTypeIcao;
     
     // a/c details
     if (!other.country.empty()) country = other.country;
     if (!other.man.empty()) man = other.man;
-    if (!other.mdl.empty()) mdl = other.mdl;
+    if (other.mdl.length() > mdl.length()) mdl = other.mdl;
     if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
@@ -2048,17 +2055,6 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
         // (a/c type, operator, registration)
         bool bMdlInfoChange = false;
         
-        // a/c type: is empty and new data has a type?
-        //       or: is currently just default and new one is something non-default?
-        if (!inStat.acTypeIcao.empty() &&
-            (statData.acTypeIcao.empty()  ||
-             (statData.acTypeIcao == dataRefs.GetDefaultAcIcaoType() &&
-              inStat.acTypeIcao   != dataRefs.GetDefaultAcIcaoType())))
-        {
-            statData.acTypeIcao = inStat.acTypeIcao;
-            bMdlInfoChange = true;
-        }
-        
         // operator ICAO: we only accept a change from nothing to something
         if (statData.opIcao.empty() && !inStat.opIcao.empty())
         {
@@ -2073,14 +2069,18 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
             bMdlInfoChange = true;
         }
         
-        // if model-defining fields changed then (potentially) change the CSL model
-        if (bMdlInfoChange && pAc) {
-            pAc->ChangeModel (statData);
-        }
+        // Re-determine a/c model (only if it was determined before:
+        // the first determination shall be made as late as possible
+        // in LTFlightData::CreateAircraft())
+        if (pAc && DetermineAcModel())
+            bMdlInfoChange = true;
         
-        // tell the aircraft to report new info data, e.g. to multiplayer clients
-        if (pAc)
+        // if model-defining fields changed then (potentially) change the CSL model
+        if (pAc) {
+            if (bMdlInfoChange)
+                pAc->ChangeModel (statData);
             pAc->SetSendNewInfoData();
+        }
         
         // update the static parts of the label
         UpdateStaticLabel();
@@ -2185,6 +2185,68 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
 }
 
 
+// try interpreting model text or check for ground vehicle
+bool LTFlightData::DetermineAcModel()
+{
+    // We don't change the a/c type if it is already something reasonable
+    const std::string prevType = statData.acTypeIcao;
+    if (!prevType.empty() &&
+        prevType != dataRefs.GetDefaultAcIcaoType() &&
+        prevType != dataRefs.GetDefaultCarIcaoType())
+        return false;
+    
+    // Try finding a CSL model by interpreting the human-readable model text
+    std::string mdl (statData.mdl);
+    str_toupper(trim(mdl));
+    statData.acTypeIcao = ModelIcaoType::getIcaoType(mdl);
+    if ( !statData.acTypeIcao.empty() )
+    {
+        // yea, found something by mdl!
+        if (prevType != statData.acTypeIcao) {
+            LOG_MSG(logWARN,ERR_NO_AC_TYPE_BUT_MDL,
+                    key().c_str(),
+                    statData.man.c_str(), statData.mdl.c_str(),
+                    statData.acTypeIcao.c_str());
+            return true;
+        }
+        return false;
+    }
+    
+    // Ground vehicle maybe? Shall be on the ground then
+    if ((
+         (pAc && pAc->IsOnGrnd() && pAc->GetSpeed_kt() < pAc->mdl.MAX_TAXI_SPEED) ||
+         (!posDeque.empty() && posDeque.front().IsOnGnd())
+        ) &&
+        // OpenSky only delivers "category description" and has a
+        // pretty clear indicator for a ground vehicle
+        (statData.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
+         // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
+         (statData.catDescr.find(OPSKY_MD_TEX_NO_CAT) != std::string::npos &&
+          statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
+        // ADSBEx doesn't send as clear an indicator, but data analysis
+        // suggests that EngType/Mount == 0 is a good indicator
+         (statData.engType == 0 && statData.engMount == 0) ||
+        // for RealTraffic it is even more difficult...we best identify RT-only data with no operator (opIcao is taken from call sign)
+         (statData.op.empty() && statData.reg.empty() && statData.destAp.empty()))
+        )
+    {
+        // assume surface vehicle
+        statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        return prevType != statData.acTypeIcao;
+    }
+
+    // we have no better idea than standard
+    statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
+    if (prevType != statData.acTypeIcao)
+    {
+        LOG_MSG(logWARN,ERR_NO_AC_TYPE,
+                key().c_str(),
+                statData.man.c_str(), statData.mdl.c_str(),
+                statData.acTypeIcao.c_str());
+        return true;
+    }
+    return false;
+}
 
 // create (at most one) aircraft from this flight data
 bool LTFlightData::CreateAircraft ( double simTime )
@@ -2220,56 +2282,8 @@ bool LTFlightData::CreateAircraft ( double simTime )
         if ( !validForAcCreate(simTime) )
             return false;
         
-        // If we still have no acTypeIcao we can try a lookup by model text
-        if ( statData.acTypeIcao.empty() )
-        {
-            std::string mdl (statData.mdl);
-            str_toupper(trim(mdl));
-            if ( !(statData.acTypeIcao = ModelIcaoType::getIcaoType(mdl)).empty() )
-            {
-                // yea, found something by mdl!
-                LOG_MSG(logWARN,ERR_NO_AC_TYPE_BUT_MDL,
-                        key().c_str(),
-                        statData.man.c_str(), statData.mdl.c_str(),
-                        statData.acTypeIcao.c_str());
-            }
-        }
-        
-        // a few last checks and decisions, e.g. now we definitely do need a plane type
-        if ( statData.acTypeIcao.empty() )
-        {
-            // this is gonna be the first 'from' position
-            LOG_ASSERT_FD(*this, !posDeque.empty())
-            const positionTy& firstPos = posDeque.front();
-
-            // Ground vehicle maybe? Shall be on the ground then
-            if (firstPos.IsOnGnd() &&
-                // OpenSky only delivers "category description" and has a
-                // pretty clear indicator for a ground vehicle
-                (statData.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
-                 // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-                 (statData.catDescr.find(OPSKY_MD_TEX_NO_CAT) != std::string::npos &&
-                  statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
-                // ADSBEx doesn't send as clear an indicator, but data analysis
-                // suggests that EngType/Mount == 0 is a good indicator
-                 (statData.engType == 0 && statData.engMount == 0) ||
-                // for RealTraffic it is even more difficult...we best identify RT-only data with no operator (opIcao is taken from call sign)
-                 (statData.op.empty() && statData.reg.empty() && statData.destAp.empty()))
-                )
-            {
-                // assume surface vehicle
-                statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-            }
-            else
-            {
-                // we have no better idea than standard
-                statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
-                LOG_MSG(logWARN,ERR_NO_AC_TYPE,
-                        key().c_str(),
-                        statData.man.c_str(), statData.mdl.c_str(),
-                        statData.acTypeIcao.c_str());
-            }
-        }
+        // Make sure we have a valid a/c model now
+        DetermineAcModel();
         
         // create the object (constructor will recursively re-access the lock)
         try {

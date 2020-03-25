@@ -364,6 +364,7 @@ public:
     
     // access/create/destroy aircraft
     bool AircraftMaintenance ( double simTime );    // returns: delete me?
+    bool DetermineAcModel ();                       ///< try interpreting model text or check for ground vehicle, last resort: default a/c type
     bool CreateAircraft ( double simTime );
     void DestroyAircraft ();
     LTAircraft* GetAircraft () const { return pAc; }
