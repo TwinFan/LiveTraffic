@@ -770,7 +770,7 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
         if (pos.IsOnGnd() && !pos.IsPostProcessed())
         {
             // Try snapping to a rwy or taxiway
-            if (LTAptSnap(*this, iter))
+            if (LTAptSnap(*this, iter, true))
                 bChanged = true;
         } // non-artificial ground position
         
@@ -979,13 +979,12 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     next.f.flightPhase = FPH_TOUCH_DOWN;
                 }
                     
-                // Remove positions down the runway.
+                // Remove positions down the runway until the last RWY position
                 // That allows for a better deceleration simulation.
-                // We remove all positions on the current track,
-                // i.e. as long as they point along the current track +/- 3°
                 while (posDeque.size() > 2 &&       // keep at least two positions
                        posDeque[1].IsOnGnd() &&
-                       abs(HeadingDiff(posDeque[1].heading(),pAc->GetTrack())) <= MDL_SAME_TRACK_DIFF)
+                       posDeque[1].f.specialPos == SPOS_RWY &&
+                       posDeque[2].f.specialPos == SPOS_RWY)
                 {
                     // remove the second element (first is the just inserted touch-down pos)
                     posDeque.erase(std::next(posDeque.begin()));
@@ -1029,7 +1028,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 positionTy& to_i          = posDeque[i];
                 const double to_i_ts      = to_i.ts();  // the reference might become invalid later once we start erasing, so we copy this timestamp that we need
                 
-                // we look up to 35s into the future
+                // we look up to 60s into the future
                 if (ppos_i.ts() > simTime + MDL_TO_LOOK_AHEAD)
                     break;
                 
@@ -1076,6 +1075,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         takeOffPos.ts() = takeOffTS;                // ts was computed forward...we need it backward
                         
                         // find insert position, remove on-runway positions along the way
+                        bool bDelRwyPos = false;
                         dequePositionTy::iterator toIter = posDeque.end();
                         for (dequePositionTy::iterator iter = posDeque.begin();
                              iter != posDeque.end();
@@ -1083,11 +1083,14 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         {
                             // before take off...
                             if (*iter < takeOffPos) {
-                                // If this pos's heading is the same as for take off we just remove it.
+                                // Keep the first RWY position, but remove and later RWY positions
                                 // Which allows the accelerate algorithm to accelerate all the distance to take-off point
-                                if (abs(HeadingDiff(iter->heading(), vec.angle)) <= MDL_SAME_TRACK_DIFF) {
-                                    iter = posDeque.erase(iter);
-                                    continue;               // start over loop with next element after the erased one
+                                if (iter->f.specialPos == SPOS_RWY) {
+                                    if (bDelRwyPos) {
+                                        iter = posDeque.erase(iter);
+                                        continue;               // start over loop with next element after the erased one
+                                    }
+                                    bDelRwyPos = true;          // any further RWY positions can be deleted
                                 }
                                 
                                 // before take off we stay on the ground
@@ -1096,7 +1099,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                     iter->alt_m() = NAN;            // TryFetchNewPos will calc terrain altitude
                                 }
                             } else {
-                                // found insert position!
+                                // found insert position! Insert and snap it to the rwy
                                 toIter = posDeque.insert(iter, takeOffPos);
                                 break;
                             }
@@ -1144,6 +1147,9 @@ bool LTFlightData::CalcNextPos ( double simTime )
             } // loop over szenarios
         } // (has a/c and do landing / take-off detection)
         
+        // *** Snap any newly inserted positions to taxiways ***
+        if (bChanged)
+            SnapToTaxiways(bChanged);
         
         // A lot might have changed now, even added.
         // If there is no aircraft yet then we need to "normalize"
@@ -1446,6 +1452,9 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         // (we shall not do Y probes but need accurate GND info...)
         posToAdd.emplace_back(pos);
         flagNoNewPosToAdd.clear();
+
+        if (dataRefs.GetDebugAcPos(key()))
+            LOG_MSG(logDEBUG,DBG_ADDED_NEW_POS,pos.dbgTxt().c_str());
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
     }
@@ -1758,24 +1767,23 @@ double LTFlightData::YProbe_at_m (const positionTy& pos)
 }
 
 // returns vector at timestamp (which has speed, direction and the like)
-LTFlightData::tryResult LTFlightData::TryGetVec (double ts, vectorTy& vec) const
+LTFlightData::tryResult LTFlightData::TryGetNextPos (double ts, positionTy& pos) const
 {
     try {
         std::unique_lock<std::recursive_mutex> lock (dataAccessMutex, std::try_to_lock );
         if ( lock )
         {
-            // find positions around timestamp
+            // find first posititon _after_ ts
             dequePositionTy::const_iterator i =
-            std::adjacent_find(posDeque.cbegin(),posDeque.cend(),
-                               [ts](const positionTy& a, const positionTy& b)
-                               {return a.ts() <= ts && ts <= b.ts();});
+            std::find_if(posDeque.cbegin(),posDeque.cend(),
+                         [ts](const positionTy& p){return p.ts() > ts;});
             
-            // no pair of positions found -> can't compute vector
+            // no positions found -> no data!
             if (i == posDeque.cend())
                 return TRY_NO_DATA;
             
-            // found a pair, return the vector between them
-            vec = i->between(*(std::next(i)));
+            // return the position
+            pos = *i;
             return TRY_SUCCESS;
         }
         else
@@ -2375,6 +2383,29 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
     // return what we thing is focus
     return ret;
 }
+
+#ifdef DEBUG
+// This helps focusing on one aircraft and debug through the position calculation code
+void LTFlightData::RemoveAllAcButSelected ()
+{
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
+    
+    // hard and directly remove all other aircraft without any further ado
+    for (mapLTFlightDataTy::iterator i = mapFd.begin();
+         i != mapFd.end();)
+    {
+        if (!i->second.bIsSelected)
+            i = mapFd.erase(i);
+        else
+            ++i;
+    }
+    
+    // reduce allow a/c to 1 so no new aircraft gets created
+    dataRefs.SetMaxNumAc(1);
+}
+#endif
+
 
 //
 // MARK: mapLTFlightDataTy

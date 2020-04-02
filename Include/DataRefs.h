@@ -632,6 +632,7 @@ public:
     inline int GetLabelColor() const { return labelColor; }
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
+    void SetMaxNumAc(int n) { maxNumAc = n; }
     inline int GetMaxFullNumAc() const { return maxFullNumAc; }
     inline int GetFullDistance_nm() const { return fullDistance; }
     inline int GetFdStdDistance_nm() const { return fdStdDistance; }

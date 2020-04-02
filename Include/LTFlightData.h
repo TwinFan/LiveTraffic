@@ -334,8 +334,11 @@ public:
     bool TryDeriveGrndStatus (positionTy& pos);
     // determine terrain alt at pos
     double YProbe_at_m (const positionTy& pos);
-    // returns vector at timestamp (which has speed, direction and the like)
-    tryResult TryGetVec (double ts, vectorTy& vec) const;
+    /// returns next position in posDeque with timestamp after ts
+    /// @param ts Need a position with a timestamp larger than this
+    /// @param[out] pos Receives the position if found
+    /// @return Indicates if the call was successful
+    tryResult TryGetNextPos (double ts, positionTy& pos) const;
     
     // stringify all position information - mainly for debugging purposes
     std::string Positions2String () const;
@@ -372,6 +375,9 @@ public:
     // actions on all flight data / treating mapFd as lists
     static void UpdateAllModels ();
     static const LTFlightData* FindFocusAc (const double bearing);
+#ifdef DEBUG
+    static void RemoveAllAcButSelected ();
+#endif
     friend LTFlightDataList;
     
     // LTApt inserts positions during the "snap-to-taxiway" precedure

@@ -1,7 +1,14 @@
 TODO
 ===
 
+- After creation of a Cubic Bezier we often have a bit a hickup in heading/roll.
+  Still need to smoothen things there...
+
 LTApt
+
+- When reaching SUP position we need to be harder in stopping the plane
+  - if a SUP position is the last one, then, hey, just _stick_ there!
+    Add another same position, just new timestamp, to make the plane stop moving.
 
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
@@ -20,12 +27,16 @@ LTApt
 - When setting Snap distance to zero we should also not read apt.dat,
   but when setting Snap distance to >0 then we need to kick off reading
   
-- Late delivered a/c type info:
-  If it doesn't contain a type but human-readable info, then we should
-  try to match that.
-  
 - #170 et al.: Remove a/c with no current data on the ground immediately.
+
+- Data Smoothing is currently off for all channels. Is that better for take off roll?
   
+
+1585778496, 33.64580, -84.44230
+1585778496, 33.64580, -84.44230
+1585778514, 33.64550, -84.44130
+1585778514, 33.64550, -84.44130
+
 
 TEST
 ===

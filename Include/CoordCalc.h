@@ -45,11 +45,18 @@ inline T pyth2 (T a, T b) { return sqr(a) + sqr(b); }
 //MARK: Degree/Radian conversion
 //      (as per stackoverflow post, adapted)
 //
-constexpr inline double deg2rad (const double deg)
-{ return (deg * PI / 180); }
 
+/// Converts degree [-180..+360] to radians [-π..+π]
+constexpr inline double deg2rad (const double deg)
+{ return ((deg <= 180.0 ? deg : deg-360.0) * PI / 180.0); }
+
+/// Converts radians [-π...+π] to degree [-180..180]
 constexpr inline double rad2deg (const double rad)
 { return (rad * 180 / PI); }
+
+/// Converts radians [-π...+2π] to degree [0..360]
+constexpr inline double rad2deg360 (const double rad)
+{ return ((rad >= 0.0 ? rad : rad+PI+PI) * 180.0 / PI); }
 
 // angle flown, given speed and vsi (both in m/s)
 inline double vsi2deg (const double speed, const double vsi)
@@ -75,9 +82,14 @@ struct ptTy {
     void clear() { x = y = NAN; }                                               ///< set both `x` and `y` to `NAN`
     ptTy mirrorAt (const ptTy& _o) const                                        ///< return a point of `this` mirrored at `_o`
     { return ptTy (2*_o.x - x, 2*_o.y - y); }
+    
+    std::string dbgTxt () const;                                                ///< returns a string "y, x" for the point/position
 };
 inline ptTy operator * (double d, ptTy pt) { return ptTy ( d * pt.x, d * pt.y); }   ///< scalar multiplication
 inline ptTy operator / (ptTy pt, double d) { return ptTy ( pt.x / d, pt.y / d); }   ///< scalar division
+
+/// Vector of points
+typedef std::vector<ptTy> vecPtTyT;
 
 /// angle between two locations given in plain lat/lon
 double CoordAngle (double lat1, double lon1, double lat2, double lon2);
@@ -202,11 +214,24 @@ ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
 
 /// @brief Calculate a point on a quadratic Bezier curve
 /// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2);
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p2
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 Control point of curve, usually not actually reached at any value of t
+/// @param p2 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
+             double* pAngle = nullptr);
 
 /// @brief Calculate a point on a cubic Bezier curve
 /// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3);
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p3
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 1st control point of curve, usually not actually reached at any value of t
+/// @param p2 2nd control point of curve, usually not actually reached at any value of t
+/// @param p3 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
+             double* pAngle = nullptr);
 
 //
 // MARK: Global enums
@@ -284,6 +309,9 @@ struct vectorTy {
     vectorTy () : angle(NAN), dist(NAN), vsi(NAN), speed(NAN) {}
     vectorTy ( double dAngle, double dDist, double dVsi=NAN, double dSpeed=NAN ) :
     angle(dAngle), dist(dDist), vsi(dVsi), speed(dSpeed) {}
+    
+    /// Valid vector, ie. at least angle and distance defined?
+    bool isValid () const { return !std::isnan(angle) && !std::isnan(dist); }
 
     // standard string for any output purposes
     operator std::string() const;

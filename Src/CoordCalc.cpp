@@ -38,6 +38,15 @@ bool ptTy::operator== (const ptTy& _o) const
     return dequal(x, _o.x) && dequal(y, _o.y);
 }
 
+
+std::string ptTy::dbgTxt () const
+{
+    char buf[100];
+    snprintf(buf, sizeof(buf), "%7.5f, %7.5f", y, x);
+    return std::string(buf);
+}
+
+
 //
 // MARK: Coordinate Calc
 //      (as per stackoverflow post, adapted)
@@ -55,8 +64,7 @@ double CoordAngle (double lat1, double lon1, double lat2, double lon2)
                      (sin(lat1) * cos(lat2) * cos(longitudeDifference));
     const double y = sin(longitudeDifference) * cos(lat2);
     
-    const double degree = rad2deg(atan2(y, x));
-    return (degree >= 0)? degree : (degree + 360);
+    return rad2deg360(atan2(y, x));
 }
 
 double CoordDistance (double lat1, double lon1, double lat2, double lon2)
@@ -196,9 +204,20 @@ ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
 
 
 // Calculate a point on a quadratic Bezier curve
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2)
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
+             double* pAngle)
 {
     const double oneMt  = 1-t;
+    
+    // Angle wanted?
+    if (pAngle) {
+        // B'(t) = 2(1-t)(p1-p0)+2t(p2-p1)
+        ptTy dtB = 2 * oneMt * (p1-p0) + 2 * t * (p2-p1);
+        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+    }
+    
+    // We calculate the value directly, ie. without De-Casteljau
+    // B(t) = (1-t)^2 p0 + 2(1+t)t p1 + t^2 p2
     return
     (oneMt*oneMt)   * p0 +              // (1-t)^2 p0 +
     (2 * oneMt * t) * p1 +              // 2(1+t)t p1 +
@@ -206,11 +225,22 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2)
 }
 
 // Calculate a point on a cubic Bezier curve
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3)
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
+             double* pAngle)
 {
     const double oneMt  = 1-t;
     const double oneMt2 = oneMt * oneMt;
     const double t2     = t * t;
+
+    // Angle wanted?
+    if (pAngle) {
+        // B'(t) = 3(1-t)^2 (p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2)
+        ptTy dtB = 3*oneMt2*(p1-p0) + 6*(oneMt)*t*(p2-p1) + 3*t2*(p3-p2);
+        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+    }
+    
+    // We calculate the value directly, ie. without De-Casteljau
+    // B(t) = (1-t)^3 p0 + 3(1-t)^2t p1 + 3(1-t)t^2 p2 + t^3 p3
     return
     (oneMt2 * oneMt)  * p0 +            // (1-t)^3   p0 +
     (3 * oneMt2 * t)  * p1 +            // 3(1-t)^2t p1 +
@@ -349,7 +379,7 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[120];
-    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %2.2s %13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
+    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %2.2s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
              ts(),
              lat(), lon(),
              alt_ft(),
@@ -368,7 +398,7 @@ std::string positionTy::dbgTxt () const
 positionTy::operator std::string () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "%7.5f %c / %7.5f %c",
+    snprintf(buf, sizeof(buf), "%6.4f %c / %6.4f %c",
              std::abs(lat()), lat() < 0 ? 'S' : 'N',
              std::abs(lon()), lon() < 0 ? 'W' : 'E');
     return std::string(buf);

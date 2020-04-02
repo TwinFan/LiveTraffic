@@ -79,6 +79,10 @@ constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
 constexpr double AC_HIDE_LON        =  -8.264134;
 constexpr double AC_HIDE_ALT        = 50;
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
+constexpr double BEZIER_CTRL_PT_F   = 0.20;     // Bezier control points are this part of the leg long
+constexpr double BEZIER_MAX_CTRL_PT_DIST_GND = 10.0;  // [m] Max length of Bezier control handle on the ground
+constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    // [¡] turns of less than this will not be modeled with Bezier curves
+constexpr double BEZIER_MAX_ROLL_ONE_CYCLE = 0.5; // [¡] max bank angle change in one drawing cycle
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -86,8 +90,7 @@ constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
-constexpr double MDL_SAME_TRACK_DIFF  =   3.0;  // [¡] max degree difference considered "same track"
-constexpr double MDL_TO_LOOK_AHEAD  =    35.0;  // [s] to look ahead for take off prediction
+constexpr double MDL_TO_LOOK_AHEAD  =    60.0;  // [s] to look ahead for take off prediction
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
@@ -208,6 +211,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_NEWVER             "New Version %01.2f available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
+#define MENU_REMOVE_ALL_BUT     "Remove all but selected a/c"
 #endif
 
 //MARK: Help URLs
@@ -341,6 +345,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"
 #define DBG_SKIP_NEW_POS        "DEBUG SKIPPED NEW POS: %s"
+#define DBG_ADDED_NEW_POS       "DEBUG ADDED   NEW POS: %s"
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"

@@ -58,6 +58,7 @@ enum menuItems {
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
+    MENU_ID_REMOVE_ALL_BUT,
 #endif
     CNT_MENU_ID                     // always last, number of elements
 };
@@ -111,6 +112,9 @@ void MenuHandler(void * /*mRef*/, void * iRef)
 #ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
                 XPLMReloadPlugins();
+                break;
+            case MENU_ID_REMOVE_ALL_BUT:
+                LTFlightData::RemoveAllAcButSelected();
                 break;
 #endif
         }
@@ -283,6 +287,10 @@ bool RegisterMenuItem ()
     // Reload Plugins
     aMenuItems[MENU_ID_RELOAD_PLUGINS] =
         XPLMAppendMenuItem(menuID, MENU_RELOAD_PLUGINS, (void *)MENU_ID_RELOAD_PLUGINS,1);
+
+    // Remove all a/c except for the currently selected one
+    aMenuItems[MENU_ID_REMOVE_ALL_BUT] =
+        XPLMAppendMenuItem(menuID, MENU_REMOVE_ALL_BUT, (void *)MENU_ID_REMOVE_ALL_BUT,1);
 #endif
     
     // check for errors

@@ -159,9 +159,9 @@ public:
     virtual void Close ();
     // SetValid also sets internal status
     virtual void SetValid (bool _valid, bool bMsg = true);
-    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
-    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
+//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
     // shall data of this channel be subject to hovering flight detection?
     virtual bool DoHoverDetection () const { return true; }
 

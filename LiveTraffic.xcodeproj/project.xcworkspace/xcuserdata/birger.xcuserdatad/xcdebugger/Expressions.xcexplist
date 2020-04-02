@@ -53,6 +53,20 @@
          contextName = "DataRefs::Init():DataRefs.cpp">
       </ContextState>
       <ContextState
+         contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "vecTaxiEdges[222]">
+            </PersistentString>
+            <PersistentString
+               value = "lst[1385]">
+            </PersistentString>
+            <PersistentString
+               value = "vecTaxiEdgesIdxHead[3321]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "NextCycle(int):LTAircraft.cpp">
       </ContextState>
       <ContextState
@@ -360,6 +374,12 @@
       <ContextState
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
+            <PersistentString
+               value = "to">
+            </PersistentString>
+            <PersistentString
+               value = "from">
+            </PersistentString>
             <PersistentString
                value = "ppos">
             </PersistentString>
@@ -696,6 +716,20 @@
          contextName = "ThreadIndexApt():LTApt.cpp">
       </ContextState>
       <ContextState
+         contextName = "BezierCurve::GetPos(positionTy&amp;, double, double, double, double):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "pos.v.__begin_[4] - angle">
+            </PersistentString>
+            <PersistentString
+               value = "ts - pos.v.__begin_[3]">
+            </PersistentString>
+            <PersistentString
+               value = "pos.v.__begin_[6]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
       </ContextState>
       <ContextState
@@ -780,13 +814,10 @@
          contextName = "Apt::JoinPathEnds():LTApt.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "e">
-            </PersistentString>
-            <PersistentString
                value = "*pJoinE">
             </PersistentString>
             <PersistentString
-               value = "vecTaxiNodes[952]">
+               value = "vecTaxiNodes[301]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -825,6 +856,9 @@
                value = "surfaces.lights">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "BezierCurve::GetPos(positionTy&amp;, double, double, double, double) const:LTAircraft.cpp">
       </ContextState>
       <ContextState
          contextName = "OpenSkyConnection::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTChannel.cpp">

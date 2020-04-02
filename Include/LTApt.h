@@ -39,8 +39,10 @@ positionTy LTAptFindRwy (const LTAircraft& _ac);
 /// @brief Snaps the passed-in position to the nearest rwy or taxiway if appropriate
 /// @param fd Flight data object to be analyzed
 /// @param[in,out] posIter Iterator into LTFlightData::posDeque, points to position to analyze, might change due to inserted taxi positions
+/// @param bInsertTaxiTurns Shall additional taxi turning points be added into LTFlightData::posDeque?
 /// @return Changed the position?
-bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter);
+bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
+                bool bInsertTaxiTurns);
 
 /// Cleanup
 void LTAptDisable ();

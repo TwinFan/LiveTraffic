@@ -608,15 +608,12 @@ public:
     /// @brief Fill the indirect vector, which sorts edges by heading
     void SortTaxiEdges ()
     {
-        // If the indirect array doesn't seem to have correct size
-        // then we need to create that first
-        if (vecTaxiEdges.size() != vecTaxiEdgesIdxHead.size())
-        {
-            size_t i = vecTaxiEdgesIdxHead.size();
-            vecTaxiEdgesIdxHead.resize(vecTaxiEdges.size());
-            for (; i < vecTaxiEdgesIdxHead.size(); ++i)
-                vecTaxiEdgesIdxHead[i] = i;
-        }
+        // We add all valid(!) edges to the sort array
+        vecTaxiEdgesIdxHead.clear();
+        vecTaxiEdgesIdxHead.reserve(vecTaxiEdges.size());
+        for (size_t eIdx = 0; eIdx < vecTaxiEdges.size(); ++eIdx)
+            if (vecTaxiEdges[eIdx].isValid())
+                vecTaxiEdgesIdxHead.push_back(eIdx);
         
         // Now sort the index array by the angle of the linked edge
         std::sort(vecTaxiEdgesIdxHead.begin(),
@@ -824,7 +821,8 @@ public:
         _basePt.lon() = _pos.lon() + (std::isnan(base_x) ? 0.0 : Dist2Lon(base_x, _pos.lat()));
         _basePt.lat() = _pos.lat() + (std::isnan(base_y) ? 0.0 : Dist2Lat(base_y));
         _basePt.heading() = bestEdge->GetAngleByHead(_pos.heading());
-        _basePt.f.specialPos = SPOS_TAXI;
+        _basePt.f.bHeadFixed = true;                    // We want the plane to head exactly as the line does!
+        _basePt.f.specialPos = bestEdge->GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI;
         _basePt.edgeIdx = bestEdgeIdx;
         
         // return the found egde
@@ -1168,7 +1166,8 @@ public:
     }
     
     /// @brief Find best matching taxi edge based on passed-in position/heading info
-    bool SnapToTaxiway (LTFlightData& fd, dequePositionTy::iterator& posIter)
+    bool SnapToTaxiway (LTFlightData& fd, dequePositionTy::iterator& posIter,
+                        bool bInsertTaxiTurns)
     {
         // The position we consider and that we potentially change
         // by snapping to a taxiway
@@ -1274,6 +1273,9 @@ public:
             pos.f.flightPhase = FPH_TAXI;
         
         // --- Insert shortest path along taxiways ---
+        // if wanted, that is
+        if (!bInsertTaxiTurns)
+            return true;
         
         // We either need an aircraft (with a current `to` position)
         // or a predecessor in the fd.posDeque to come up with a path
@@ -1504,8 +1506,8 @@ public:
         // Validate the index array sorted by heading
         if (_bValidateIdxHead)
         {
-            if (vecTaxiEdgesIdxHead.size() != vecTaxiEdges.size()) {
-                LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead.size() = %lu != %lu = vecTaxiEdges.size()",
+            if (vecTaxiEdgesIdxHead.size() > vecTaxiEdges.size()) {
+                LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead.size() = %lu > %lu = vecTaxiEdges.size()",
                         vecTaxiEdgesIdxHead.size(), vecTaxiEdges.size());
                 bRet = false;
             }
@@ -1513,6 +1515,7 @@ public:
             for (size_t idxE: vecTaxiEdgesIdxHead)
             {
                 if (idxE >= vecTaxiEdges.size() ||
+                    std::isnan(vecTaxiEdges[idxE].angle) ||
                     vecTaxiEdges[idxE].angle < prevAngle)
                 {
                     LOG_MSG(logFATAL, "vecTaxiEdgesIdxHead wrongly sorted, edge %lu (heading %.1f) at wrong place after heading %.1f",
@@ -1842,6 +1845,9 @@ const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 /// @brief List of accepted Line Type Codes
 /// @see   More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
 static const std::array<int,8> APT_LINE_TYPES { 1, 7, 10, 11, 51, 57, 60, 61 };
+/// @brief These row types terminate a path
+/// @see   More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
+static const std::array<int,4> APT_PATH_TERM_ROW_CODES { 113, 114, 115, 116 };
 
 /// @brief Process one "120" section of an `apt.dat` file, which contains a taxi line definitions in the subsequent 111-116 lines
 /// @details Starts reading in the next line, expecting nodes in lines starting with 111-116.
@@ -1880,7 +1886,7 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
         if (fields.size() < 3) break;
         
         // Not any of "our" line codes (we treat them all equal)? -> stop
-        const int lnCod = std::stoi(fields[0]);
+        int lnCod = std::stoi(fields[0]);
         if (lnCod < 111 || lnCod > 116)
             break;
         
@@ -1901,13 +1907,16 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
         const bool bIsCenterline = std::any_of(APT_LINE_TYPES.cbegin(),  APT_LINE_TYPES.cend(),
                                                [lnTypeCode](int c){return c == lnTypeCode;});
         // If this node does not start/continue a centerline, does it at least end an already started one?
-        const bool bEndsCenterline = !bIsCenterline && !path.listPos.empty();
+        const bool bEndsCenterline =
+        !path.listPos.empty() &&       // is there any path to terminate?
+        (!bIsCenterline || std::any_of(APT_PATH_TERM_ROW_CODES.cbegin(),  APT_PATH_TERM_ROW_CODES.cend(),
+                                       [lnCod](int c){return c == lnCod;}));
 
         // Do we need to process this node?
         if (bIsCenterline || bEndsCenterline)
         {
             // Read location and Bezier control point
-            const ptTy pos (std::stod(fields[2]), std::stod(fields[1]));    // lon, lat
+            ptTy pos (std::stod(fields[2]), std::stod(fields[1]));    // lon, lat
             ptTy bezPt;
             if ((lnCod == 112 || lnCod == 114 || lnCod == 116) &&
                 fields.size() >= 5)
@@ -1938,39 +1947,54 @@ static std::string ReadOneTaxiLine (std::ifstream& fIn, Apt& apt, unsigned long&
             //  in actual apt.dat, which we filter out this way)
             if (path.listPos.empty() || path.listPos.back() != pos)
             {
-                // If necessary add additional nodes along the Bezier curve
-                // from the previous node to the current
-                if (!path.listPos.empty() && (prevBezPt.isValid() || bezPt.isValid()))
-                {
-                    // the previous node, where the Bezier curve starts
-                    const TaxiTmpPos& prevPos = path.listPos.back();
-                    // length of the straight line from prevPos to pos
-                    const double eLen = DistLatLon(pos.y, pos.x, prevPos.lat(), prevPos.lon());
-                    if (eLen > APT_MAX_SIMILAR_NODE_DIST_M) {
-                        // the second Bezier control point needs to be mirrored at that pos
-                        const ptTy mbezPt = bezPt.mirrorAt(pos);
-                        // number of segments we will create, at least 2 (ie. at least split in half)
-                        const int numSegm = std::max (2, int(eLen / APT_JOIN_MAX_DIST_M / 2));
-                        for (int s = 1; s < numSegm; ++s)
-                        {
-                            // Calculate a point on the Bezier curve
-                            const ptTy p =
-                            prevBezPt.isValid() && mbezPt.isValid() ? Bezier(double(s)/numSegm, prevPos, prevBezPt, mbezPt, pos) :
-                            !mbezPt.isValid()                       ? Bezier(double(s)/numSegm, prevPos, prevBezPt,         pos) :
-                                                                      Bezier(double(s)/numSegm, prevPos,            mbezPt, pos);
-                            // Add the Bezier curve node to our backlog
-                            apt.AddTaxiTmpPos(p.y, p.x);            // add the node to the airport's temporary list of nodes
-                            path.listPos.emplace_back(p.y, p.x);    // add the node position to the path (temporary storage)
+                // We need a loop here as in case of row codes 113/114 we "close a loop", which requires to add to path segments
+                for(;;) {
+                    // If necessary add additional nodes along the Bezier curve
+                    // from the previous node to the current
+                    if (!path.listPos.empty() && (prevBezPt.isValid() || bezPt.isValid()))
+                    {
+                        // the previous node, where the Bezier curve starts
+                        const TaxiTmpPos& prevPos = path.listPos.back();
+                        // length of the straight line from prevPos to pos
+                        const double eLen = DistLatLon(pos.y, pos.x, prevPos.lat(), prevPos.lon());
+                        if (eLen > APT_MAX_SIMILAR_NODE_DIST_M) {
+                            // the second Bezier control point needs to be mirrored at that pos
+                            const ptTy mbezPt = bezPt.mirrorAt(pos);
+                            // number of segments we will create, at least 2 (ie. at least split in half)
+                            const int numSegm = std::max (2, int(eLen / APT_JOIN_MAX_DIST_M / 2));
+                            for (int s = 1; s < numSegm; ++s)
+                            {
+                                // Calculate a point on the Bezier curve
+                                const ptTy p =
+                                prevBezPt.isValid() && mbezPt.isValid() ? Bezier(double(s)/numSegm, prevPos, prevBezPt, mbezPt, pos) :
+                                !mbezPt.isValid()                       ? Bezier(double(s)/numSegm, prevPos, prevBezPt,         pos) :
+                                                                          Bezier(double(s)/numSegm, prevPos,            mbezPt, pos);
+                                // Add the Bezier curve node to our backlog
+                                apt.AddTaxiTmpPos(p.y, p.x);            // add the node to the airport's temporary list of nodes
+                                path.listPos.emplace_back(p.y, p.x);    // add the node position to the path (temporary storage)
+                            }
                         }
                     }
+                    
+                    // Add the actual node to our backlog
+                    apt.AddTaxiTmpPos(pos.y, pos.x);            // add the node to the airport's temporary list of nodes
+                    path.listPos.emplace_back(pos.y, pos.x);    // add the node position to the path (temporary storage)
+                    
+                    // Exit the loop if not row codes 113/114 (closing loop)
+                    if (lnCod != 113 && lnCod != 114)
+                        break;
+                    
+                    // As we are closing a loop we also need to add the segment
+                    // from this point back to the beginning, so we add the first point once again:
+                    pos.x = path.listPos.front().x;
+                    pos.y = path.listPos.front().y;
+                    prevBezPt = bezPt;
+                    bezPt.clear();
+                    lnCod += 2;         // this makes sure we break out of the loop next time
                 }
-                
-                // Add the actual node to our backlog
-                apt.AddTaxiTmpPos(pos.y, pos.x);            // add the node to the airport's temporary list of nodes
-                path.listPos.emplace_back(pos.y, pos.x);    // add the node position to the path (temporary storage)
             }
         
-            // If this ends a path then we add it to our repository
+            // If this ends a path then we add the entire path to our repository
             if (bEndsCenterline)
             {
                 apt.AddTaxiTmpPath(std::move(path));    // move the entire path to the temporary list of paths for post-processing
@@ -2473,6 +2497,8 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
                                    GND_ON,
                                    UNIT_WORLD, UNIT_DEG,
                                    FPH_TOUCH_DOWN);
+    retPos.f.bHeadFixed = true;
+    retPos.f.specialPos = SPOS_RWY;
     LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
             bestApt->GetId().c_str(),
             bestRwyEndPt->id.c_str(),
@@ -2483,7 +2509,8 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
 
 
 // Snaps the passed-in position to the nearest rwy or taxiway if appropriate
-bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter)
+bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
+                bool bInsertTaxiTurns)
 {
     // Configured off?
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0)
@@ -2498,7 +2525,7 @@ bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter)
         return false;
 
     // Let's snap!
-    return pApt->SnapToTaxiway(fd, posIter);
+    return pApt->SnapToTaxiway(fd, posIter, bInsertTaxiTurns);
 }
 
 

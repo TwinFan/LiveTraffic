@@ -64,10 +64,10 @@ Row Code | Meaning
 -------- | -------
 120 | Header of a group of "Linear Features", specifically painted surface markings and light strings on them
 111 | Node in such a group, plain
-112 | Node with Bezier control point (LiveTraffic currently ignores the fact that this is a Bezier curve and just used the node's location)
+112 | Node with Bezier control point
 113 | Node, which closes a loop
-114 | Node, which closes a loop, with Bezier control point (Bezier ignored)
-115 | Node, which terminates a line, should be last line of a group started with `120`, but LiveTraffic doesn't rely on this
+114 | Node, which closes a loop, with Bezier control point
+115 | Node, which terminates a line
 116 | Node, which terminates a line, with Bezier control point
 
 **Note:** Only nodes with the following Line Type Codes are used as taxiway centerlines,

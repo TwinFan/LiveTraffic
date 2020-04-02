@@ -1315,7 +1315,11 @@ bool DataRefs::SetCfgValue (void* p, int val)
     
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
+#ifdef DEBUG
+        maxNumAc        < 1                 || maxNumAc         > 100   ||
+#else
         maxNumAc        < 5                 || maxNumAc         > 100   ||
+#endif
         maxFullNumAc    < 5                 || maxFullNumAc     > 100   ||
         fullDistance    < 1                 || fullDistance     > 100   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
