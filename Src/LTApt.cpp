@@ -749,6 +749,11 @@ public:
             const TaxiEdge& e = vecTaxiEdges[eIdx];
             if (!e.isValid())
                 continue;
+            
+            // Skip edge if pos must be on a rwy but edge is not a rwy
+            if (isRwyPhase(_pos.f.flightPhase) &&
+                e.GetType() != TaxiEdge::RUN_WAY)
+                continue;
 
             // Fetch from/to nodes from the edge
             const TaxiNode& from  = e.startByHeading(*this, headSearch);
@@ -781,8 +786,15 @@ public:
                 continue;
             
             // Distinguish between first prio angle match and second prio angle match
-            if (std::abs(HeadingDiff(edgeAngle, headSearch)) > _angleTolerance)
+            if (std::abs(HeadingDiff(edgeAngle, headSearch)) > _angleTolerance) {
+                // So this is a second prio match in terms of angle to the edge
+                // For runways, we require first prio!
+                if (e.GetType() == TaxiEdge::RUN_WAY)
+                    continue;
+                
+                // For others, we consider this, but with higher calculated distance
                 prioDist += SCND_PRIO_ADD;
+            }
             
             // If priorized distance is farther than best we know: skip
             if (prioDist >= bestPrioDist)
@@ -1041,10 +1053,12 @@ public:
     /// @param _endN End node in Apt::vecTaxiNodes
     /// @param _maxLen Maximum path length, no longer paths will be pursued or returned
     /// @param _generalHeading General heading the plane shall follow, typically heading from start to end node. Affects which turns are allowed along that returned path.
+    /// @param _headingAtEnd The expected heading at the end node, affects how the final leg to the endN may be picked
     /// @return List of node indexes _including_ `_end` and `_start` in _reverse_ order,
     ///         or an empty list if no path of suitable length was found
     vecIdxTy ShortestPath (size_t _startN, size_t _endN, double _maxLen,
-                           double _generalHeading)
+                           double _generalHeading,
+                           double _headingAtEnd)
     {
         // Sanity check: _start and _end should differ
         if (_startN == _endN)
@@ -1130,6 +1144,13 @@ public:
                 if (std::abs(HeadingDiff(_headReverse, eAngle)) < ART_EDGE_ANGLE_TOLERANCE)
                     continue;
                 
+                // If the node being analyzed is the end node, then we also
+                // need to verify if the heading from end node to actual a/c position
+                // would not again cause too sharp a turn:
+                if (updNIdx == _endN && !std::isnan(_headingAtEnd) &&
+                    std::abs(HeadingDiff(_headingAtEnd, eAngle)) > APT_MAX_PATH_TURN)
+                    continue;
+                
                 // Calculate the yet known best distance to this node
                 const double lenToUpd = shortestDist + e.dist_m;
                 if (lenToUpd > _maxLen ||               // too far out?
@@ -1185,7 +1206,6 @@ public:
             // and keep the startup location's heading
             pos.heading() = pStartLoc->heading;
             pos.f.bHeadFixed = true;
-            pos.f.specialPos = SPOS_STARTUP;
         }
         
         // 2. --- Find any edge ---
@@ -1194,6 +1214,11 @@ public:
                                                 dataRefs.GetFdSnapTaxiDist_m(),
                                                 ART_EDGE_ANGLE_TOLERANCE,
                                                 ART_EDGE_ANGLE_TOLERANCE_EXT);
+        
+        // specialPos might have been set to SPOS_TAXI,
+        // but for startup positions we do want it to be:
+        if (pStartLoc)
+            pos.f.specialPos = SPOS_STARTUP;
         
         // Nothing found?
         if (!pEdge) {
@@ -1327,17 +1352,21 @@ public:
             }
         }
         
-        // for the maximum allowed path length let's consider taxiing speed:
-        // We shouldn't need to go faster than model's taxi speed
+        // for the maximum allowed path length let's consider taxiing speed,
+        // but allow 3x taxiing speed if beginning leg is still on a rwy
+        // (consider high-speed exits!).
         const LTAircraft::FlightModel& mdl = fd.pAc ? fd.pAc->mdl :
         LTAircraft::FlightModel::FindFlightModel(fd.statData.acTypeIcao);
-        const double maxLen = (pos.ts() - prevPos.ts()) * mdl.MAX_TAXI_SPEED;
+        double maxLen = (pos.ts() - prevPos.ts()) * mdl.MAX_TAXI_SPEED;
+        if (prevE.GetType() == TaxiEdge::RUN_WAY)
+            maxLen *= 3.0;
         
         // let's try finding a shortest path
         vecIdxTy vecPath = ShortestPath(prevErelN,
                                         currEstartN,
                                         maxLen,
-                                        prevPos.angle(pos));
+                                        prevPos.angle(pos),
+                                        pEdge->angle);
 
         // Some path found?
         if (vecPath.size() >= 2)
@@ -1654,6 +1683,7 @@ public:
             // now add this moved out position to our list
             vecStartupLocs.emplace_back(_id, startPos.lat(), startPos.lon(), _heading);
             StartupLoc& loc = vecStartupLocs.back();
+            bounds.enlarge_pos(loc.lat, loc.lon);       // make sure it becomes part of the airport boundary
             
             // Add another position 50m out as the "via" pos: via which we roll to the startup location
             vec.dist = APT_STARTUP_VIA_DIST;
@@ -2068,6 +2098,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
             {
                 // re-init apt object, now with the proper id defined
                 apt = Apt(fields[4]);
+                netwType = NETW_UNKOWN;
             }
         }
         
@@ -2411,19 +2442,19 @@ void LTAptRefresh ()
 }
 
 // Return the best possible runway to auto-land at
-positionTy LTAptFindRwy (const LTAircraft& _ac)
+positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
+                         const positionTy& _from,
+                         double _speed_m_s,
+                         const std::string& _logTxt)
 {
     // --- Preparation of aircraft-related data ---
     // allowed VSI range depends on aircraft model, converted to m/s
-    const double vsi_min = _ac.mdl.VSI_FINAL * ART_RWY_MAX_VSI_F * Ms_per_FTm;
-    const double vsi_max = _ac.mdl.VSI_FINAL / ART_RWY_MAX_VSI_F * Ms_per_FTm;
+    const double vsi_min = _mdl.VSI_FINAL * ART_RWY_MAX_VSI_F * Ms_per_FTm;
+    const double vsi_max = _mdl.VSI_FINAL / ART_RWY_MAX_VSI_F * Ms_per_FTm;
     
-    // last known go-to position of aircraft, serving as start of search
-    const positionTy& from = _ac.GetToPos();
-
-    // The speed to use, cut off at a reasonable approach speed:
-    const double speed_m_s = std::min (_ac.GetSpeed_m_s(),
-                                       _ac.mdl.FLAPS_DOWN_SPEED * ART_APPR_SPEED_F / KT_per_M_per_S);
+    // The speed to use: cut off at a reasonable approach speed:
+    if (_speed_m_s > _mdl.FLAPS_DOWN_SPEED * ART_APPR_SPEED_F / KT_per_M_per_S)
+        _speed_m_s = _mdl.FLAPS_DOWN_SPEED * ART_APPR_SPEED_F / KT_per_M_per_S;
     
     // --- Variables holding Best Match ---
     const Apt* bestApt = nullptr;               // best matching apt
@@ -2431,6 +2462,8 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
     // The heading diff of the best match to its runway
     // (initialized to the max allowed value so that worse heading diffs aren't considered)
     double bestHeadingDiff = ART_RWY_MAX_HEAD_DIFF;
+    // distance to best airport?
+    double bestDist = ART_RWY_MAX_DIST;
     // when would we arrive there?
     double bestArrivalTS = NAN;
     
@@ -2449,7 +2482,7 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
         for (const RwyEndPt& re: apt.GetRwyEndPtVec())
         {
             // skip if rwy heading differs too much from flight heading
-            if (std::abs(HeadingDiff(re.heading, from.heading())) > ART_RWY_MAX_HEAD_DIFF)
+            if (std::abs(HeadingDiff(re.heading, _from.heading())) > ART_RWY_MAX_HEAD_DIFF)
                 continue;
             
             // We need to know the runway's altitude for what comes next
@@ -2458,31 +2491,47 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
             
             // Heading towards rwy, compared to current flight's heading
             // (Find the rwy which requires least turn now.)
-            const double bearing = CoordAngle(from.lat(), from.lon(), re.lat, re.lon);
-            const double headingDiff = std::abs(HeadingDiff(from.heading(), bearing));
+            const double bearing = CoordAngle(_from.lat(), _from.lon(), re.lat, re.lon);
+            const double headingDiff = std::abs(HeadingDiff(_from.heading(), bearing));
             if (headingDiff > bestHeadingDiff)      // worse than best known match?
                 continue;
             
             // 3. Vertical speed, for which we need to know distance / flying time
-            const double dist = CoordDistance(from.lat(), from.lon(), re.lat, re.lon);
-            const double d_ts = dist / speed_m_s;
-            const double vsi = (re.alt_m - from.alt_m()) / d_ts;
-            if (vsi < vsi_min || vsi > vsi_max)
+            const double dist = CoordDistance(_from.lat(), _from.lon(), re.lat, re.lon);
+            if (dist > bestDist)                // too far out
                 continue;
+            const double d_ts = dist / _speed_m_s;
+            const double agl = _from.alt_m() - re.alt_m;
+            const double vsi = (-agl) / d_ts;
+            if (vsi < vsi_min)                  // would need too steep sinking?
+                continue;
+            
+            // flying more than 300ft/100m above ground?
+            if (agl > 100.0) {
+                // also consider max_vsi
+                if (vsi > vsi_max)              // would fly too flat? -> too far out?
+                    continue;
+            } else {
+                // pretty close too the ground, cut off at shorter distance
+                if (dist > 3000.0)              // 3000m is a runway length...we shouldn't look further that close to the ground
+                    continue;
+            }
             
             // We've got a match!
             bestApt = &apt;
             bestRwyEndPt = &re;
             bestHeadingDiff = headingDiff;      // the heading diff (which would be a selection criterion on several rwys match)
-            bestArrivalTS = from.ts() + d_ts;   // the arrival timestamp
+            bestDist = dist;
+            bestArrivalTS = _from.ts() + d_ts;   // the arrival timestamp
         }
     }
     
     // Didn't find a suitable runway?
     if (!bestRwyEndPt || !bestApt) {
-        LOG_MSG(logDEBUG, "Didn't find runway for %s with heading %.0f°",
-                std::string(_ac).c_str(),
-                from.heading());
+        if (!_logTxt.empty())
+            LOG_MSG(logDEBUG, "Didn't find runway for %s with heading %.0f°",
+                    _logTxt.c_str(),
+                    _from.heading());
         return positionTy();
     }
     
@@ -2492,18 +2541,19 @@ positionTy LTAptFindRwy (const LTAircraft& _ac)
                                    bestRwyEndPt->alt_m,
                                    bestArrivalTS,
                                    bestRwyEndPt->heading,
-                                   _ac.mdl.PITCH_FLARE,
+                                   _mdl.PITCH_FLARE,
                                    0.0,
                                    GND_ON,
                                    UNIT_WORLD, UNIT_DEG,
                                    FPH_TOUCH_DOWN);
     retPos.f.bHeadFixed = true;
     retPos.f.specialPos = SPOS_RWY;
-    LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
-            bestApt->GetId().c_str(),
-            bestRwyEndPt->id.c_str(),
-            std::string(retPos).c_str(),
-            std::string(_ac).c_str());
+    if (!_logTxt.empty())
+        LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
+                bestApt->GetId().c_str(),
+                bestRwyEndPt->id.c_str(),
+                std::string(retPos).c_str(),
+                _logTxt.c_str());
     return retPos;
 }
 
@@ -2649,7 +2699,7 @@ void LTAptDump (const std::string& _aptId)
         << ",,"                                     // time,speed
         << std::lround(e.angle) << ','              // course
         << "Edge " << (i++) << ','                  // name
-        << "nodes " << e.startNode() << '-' << e.endNode() // desc
+        << std::lround(e.angle) << "°, nodes " << e.startNode() << '-' << e.endNode() // desc
         << "\n";
 
         out

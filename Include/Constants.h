@@ -79,10 +79,10 @@ constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
 constexpr double AC_HIDE_LON        =  -8.264134;
 constexpr double AC_HIDE_ALT        = 50;
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
-constexpr double BEZIER_CTRL_PT_F   = 0.20;     // Bezier control points are this part of the leg long
-constexpr double BEZIER_MAX_CTRL_PT_DIST_GND = 10.0;  // [m] Max length of Bezier control handle on the ground
-constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    // [¡] turns of less than this will not be modeled with Bezier curves
-constexpr double BEZIER_MAX_ROLL_ONE_CYCLE = 0.5; // [¡] max bank angle change in one drawing cycle
+constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5¡ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5¡ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5¡), slope ratio for keeping a plane above the approach to a runway
+constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    ///< [¡] turns of less than this will not be modeled with Bezier curves
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -117,6 +117,7 @@ constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [¡] extended (second pr
 constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
 constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [¡] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
@@ -343,6 +344,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 #define DBG_FILTER_AC_REMOVED   "DEBUG Filtering for a/c REMOVED"
 #define DBG_MERGED_POS          "DEBUG MERGED POS %s into updated TS %.1f"
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
+#define DBG_KEEP_ABOVE          "DEBUG POS LIFTED TO 2.5deg GLIDESCOPE from %.0fft: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"
 #define DBG_SKIP_NEW_POS        "DEBUG SKIPPED NEW POS: %s"
 #define DBG_ADDED_NEW_POS       "DEBUG ADDED   NEW POS: %s"

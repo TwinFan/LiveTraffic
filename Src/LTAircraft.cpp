@@ -530,8 +530,8 @@ double AccelParam::getRatio (double deltaTS ) const
 ///          we allow the plane to turn at the speed defined by
 ///          LTAircraft::FlightModel::TAXI_TURN_TIME (on the ground) resp.
 ///          LTAircraft::FlightModel::FLIGHT_TURN_TIME (airborne).
-void BezierCurve::Define (double _initF,
-                          const positionTy& _curr,
+void BezierCurve::Define (double _nowF,
+                          const positionTy& _from,
                           double _angleFromMid,
                           const positionTy& _mid,
                           double _angleMidTo,
@@ -539,75 +539,119 @@ void BezierCurve::Define (double _initF,
                           double _fullTurnTime)
 {
     // pre-initialization of start and end, will be fine-tuned down the road
-    start = _curr;
+    start = _from;
     end = _mid;
-    Calibrate(_initF, 1.0, 0.0, 0.5);
-    fCalDiv = (1.0 - _initF)/0.5;
-    myF = NAN;
 
     // How much is the turn, how long shall (half) the turn take at most?
     const double halfTurnTime = std::abs(HeadingDiff(_angleFromMid,
                                                      _angleMidTo)) * _fullTurnTime/360.0 / 2;
     // Earliest, we start "now", but no sooner than necessary for turning
-    double legTime = _mid.ts() - _curr.ts();
-    double t = std::min (halfTurnTime, legTime);
+    double legTime = _mid.ts() - _from.ts();
+    double f = std::max (_nowF, 1 - halfTurnTime / legTime);
     // Apply an operation similar to "the factor" in CalcPPos()
     // so we can be quite sure we match up with the flying plane:
-    start.v = _curr.v *            t /legTime +
-              _mid.v  * (legTime - t)/legTime;
+    start.v = (1-f) * _from.v + f * _mid.v;
 
+    // calibrate so that from calculated start point to end of first leg
+    // means to do the first half of the turn:
+    Calibrate(f, 1.0, 0.0, 0.5);
+    
     // Now similar for the end position, here we allow at maximum to
     // turn until half the leg:
     legTime = _to.ts() - _mid.ts();
-    t = std::min (halfTurnTime, legTime/2);
-    end.v = _mid.v * (legTime - t)/legTime +
-            _to.v  *            t /legTime;
+    const double t = std::min (halfTurnTime, legTime/2);
+    f = t / legTime;
+    end.v = (1-f) * _mid.v + f * _to.v;;
     
     // Store the control point
-    ptsCtrl.clear();
-    ptsCtrl.push_back(ptTy(_mid));
+    ptCtrl = _mid;
     
 #ifdef DEBUG
     if (gSelAcCalc)
-        LOG_MSG(logDEBUG, "Quadratic Bezier defined:\n%s",
-                dbgTxt().c_str());
+        LOG_MSG(logDEBUG, "Quadratic cut-corner Bezier defined starting at %.1f:\n%s",
+                start.ts(), dbgTxt().c_str());
 #endif
 
     // Convert all coordinates to meter
     ConvertToMeter();
 }
 
-// Define a cubic Bezier curve, which computes 2 rreasonable control points itself
-void BezierCurve::Define (double _initF,
+// Define a quadratic Bezier curve, which computes 2 rreasonable control points itself
+bool BezierCurve::Define (double _initF,
                           const positionTy& _from,
                           const positionTy& _to,
-                          double _dist)
+                          const vectorTy& _vec)
 {
+    // The control point shall be where the lines through _from/_to,
+    // angle as per .heading(), meet. They only meet at a reasonable
+    // point between _from and _to, if the angles point to different sides
+    // of the direct line _from|_to.
+    // Then, the curve leaves to one side but then comes back, ie. turning
+    // the other way.
+    const double fromHDiff = HeadingDiff(_vec.angle, _from.heading());
+    const double toHDiff   = HeadingDiff(_vec.angle, _to.heading());
+    if (std::signbit(fromHDiff) == std::signbit(toHDiff))
+    {
+        // Same same...a quadrativ curve would look ugly, not created
+        #ifdef DEBUG
+            if (gSelAcCalc)
+                LOG_MSG(logDEBUG, "Bezier NOT defined as angles point to same side! %.1f <- %+.1f << %.1f >> %+.1f -> %.1f",
+                        _from.heading(), fromHDiff, _vec.angle, toHDiff, _to.heading());
+        #endif
+        return false;
+    }
+    
+    // Backup of an active cut-corner curve...in case we bail
+    BezierCurve backup = *this;
+
     // Start and end are given directly
     start = _from;
     end = _to;
     Calibrate(_initF, 1.0, 0.0, 1.0);
     myF = NAN;
-
-    // First control point is 0.25 of distance away from _from
-    double ctlHandleLen = _dist * BEZIER_CTRL_PT_F;
-    if ((_from.IsOnGnd() || _to.IsOnGnd()) &&       // on ground we enforce a max handle length to avoid lengthy bulging curves
-        ctlHandleLen > BEZIER_MAX_CTRL_PT_DIST_GND)
-        ctlHandleLen = BEZIER_MAX_CTRL_PT_DIST_GND;
-    
-    ptsCtrl.clear();
-    ptsCtrl.push_back(_from.destPos(vectorTy(_from.heading(), ctlHandleLen)));
-    // Second control point is 0.25 of distance away from _to
-    ptsCtrl.push_back(_to.destPos(vectorTy(_to.heading(), -ctlHandleLen)));
-
-#ifdef DEBUG
-    if (gSelAcCalc)
-        LOG_MSG(logDEBUG, "Cubic Bezier defined:\n%s",
-                dbgTxt().c_str());
-#endif
+    ptCtrl.clear();
 
     // Convert all coordinates to meter
     ConvertToMeter();
+
+    // The control point:
+    // There must be a cleaner approach...but all I have at the moment
+    // is a function that needs the lines defined by two existing points,
+    // so I calculate two more points, one pointing away from _from,
+    // one pointing away from _to:
+    {
+        ptTy _from2 = _from.destPos(vectorTy(_from.heading(),100.0));
+        ptTy _to2   =   _to.destPos(vectorTy(  _to.heading(),100.0));
+        ConvertToMeter(_from2);
+        ConvertToMeter(_to2);
+        ptCtrl = CoordIntersect({0.0,0.0}, _from2, end, _to2);
+    }
+    
+    // Double-check: The control point must be between (and not beyond)
+    //               start(0|0) and end and have a reasonable distance to look good
+    const double maxDist2 = 0.95 * pyth2(end.lat(), end.lon()); // 95% square distance of end from start (0|0)
+    const double minDist2 = maxDist2 / 0.95 * 0.05;             //  5% square distance of end from start (0|0)
+    const double ctlDist2 = pyth2(ptCtrl.y, ptCtrl.x);          // square distance of control point from start (0|0)
+    if (!between(ctlDist2, minDist2, maxDist2))
+    {
+        // control point is not in reasonable distance to end points
+        // Same same...a quadrativ curve would look ugly, not created
+        *this = backup;
+        #ifdef DEBUG
+        if (gSelAcCalc) {
+            LOG_MSG(logDEBUG, "Bezier NOT defined as control point too close!");
+        }
+        #endif
+        return false;
+    }
+    
+
+#ifdef DEBUG
+    if (gSelAcCalc)
+        LOG_MSG(logDEBUG, "Bezier defined:\n%s",
+                dbgTxt().c_str());
+#endif
+    return true;
 }
 
 // Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
@@ -618,7 +662,13 @@ void BezierCurve::ConvertToMeter ()
 {
     end.lat() = Lat2Dist(end.lat() - start.lat());
     end.lon() = Lon2Dist(end.lon() - start.lon(), start.lat());
-    for (ptTy& pt: ptsCtrl) {
+    ConvertToMeter(ptCtrl);
+}
+
+/// Convert the given geographic coordinates to meters
+void BezierCurve::ConvertToMeter (ptTy& pt) const
+{
+    if (pt.isValid()) {
         pt.y = Lat2Dist(pt.y - start.lat());
         pt.x = Lon2Dist(pt.x - start.lon(), start.lat());
     }
@@ -627,14 +677,18 @@ void BezierCurve::ConvertToMeter ()
 // Convert the given position back to geographic coordinates
 void BezierCurve::ConvertToGeographic (ptTy& pt) const
 {
-    pt.y = start.lat() + Dist2Lat(pt.y);
-    pt.x = start.lon() + Dist2Lon(pt.x, start.lat());
+    if (pt.isValid()) {
+        pt.y = start.lat() + Dist2Lat(pt.y);
+        pt.x = start.lon() + Dist2Lon(pt.x, start.lat());
+    }
 }
 
 // Calibrate the Bezier so that f = [inifF..maxF] maps to myF [myInit..myMax]
 void BezierCurve::Calibrate (double _initF, double _maxF,
                              double _myInit, double _myMax)
 {
+    startF = _initF;
+    endF = _maxF;
     fCalAdd = _myInit - _initF;
     fCalDiv = (_maxF - _initF) / (_myMax - _myInit);
 }
@@ -644,24 +698,24 @@ void BezierCurve::Clear ()
 {
     start.ts() = NAN;
     end.ts() = NAN;
-    ptsCtrl.clear();
+    ptCtrl.clear();
+    startF = NAN;
+    endF = NAN;
     fCalAdd = NAN;
     fCalDiv = NAN;
     myF = NAN;
 }
 
 // Return the position as per given timestamp, if the timestamp is between `start` and `end`
-bool BezierCurve::GetPos (positionTy& pos, double ts, double f,
-                          double _fullTurnTime, double _maxBank)
+bool BezierCurve::GetPos (positionTy& pos, double ts, double f)
 {
     // not defined or not in the time range of this curve?
-    if (!isActive(ts))
+    if (!isActive(f))
         return false;
     
     // Calibrate f between [0.0..1.0]
 #ifdef DEBUG
     bool bFirstTime = std::isnan(myF);
-    double prevRoll = pos.roll();
 #endif
     myF = (f + fCalAdd) / fCalDiv;
     if (myF < 0.0 || myF > 1.0)
@@ -669,46 +723,26 @@ bool BezierCurve::GetPos (positionTy& pos, double ts, double f,
     
     // The position to return
     double angle = NAN;
-    ptTy p = isCubic() ? Bezier(myF, {0.0,0.0}, ptsCtrl.front(), ptsCtrl.back(), end, &angle) :
-             isQuadratic() ? Bezier(myF, {0.0,0.0}, ptsCtrl.front(), end, &angle) : ptTy();
+    ptTy p = Bezier(myF, {0.0,0.0}, ptCtrl, end, &angle);
     LOG_ASSERT(p.isValid());
     
-    // For the roll we assume that max bank angle is applied for a 1 minute curve
-    // (ie. for a 360° turn in _half_ the fullTurnTime).
-    // If we are turning more slowly then we apply less bank angle.
-    
-    if (!pos.IsOnGnd()) {
-        const double partOfCircle = HeadingDiff(pos.heading(), angle) / 360.0;
-        const double diffTime = ts - pos.ts();
-        const double timeFullCircle = diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
-        const double newRoll = (std::isnan(timeFullCircle) ? pos.roll() :
-                                std::abs(timeFullCircle) < _fullTurnTime/2 ? std::copysign(_maxBank,timeFullCircle) :
-                                _maxBank * _fullTurnTime/2 / timeFullCircle);
-        // safeguard against to harsh roll rates:
-        if (std::abs(pos.roll()-newRoll) > BEZIER_MAX_ROLL_ONE_CYCLE) {
-            if (newRoll < pos.roll()) pos.roll() -= BEZIER_MAX_ROLL_ONE_CYCLE;
-            else                      pos.roll() += BEZIER_MAX_ROLL_ONE_CYCLE;
-        }
-        else
-            pos.roll() = newRoll;
-    } else
-        pos.roll() = 0.0;           // no roll on the ground
-    
-    // Update pos
+    // Convert the result back into geographic coordinated
     ConvertToGeographic(p);
 
 #ifdef DEBUG
     if (gSelAcCalc) {
-        if (bFirstTime)
+        if (bFirstTime) {
             LOG_MSG(logDEBUG, dbgTxt().c_str());
-        if (bFirstTime ||
-            std::abs(pos.heading()-angle) > 1.5 ||
-            std::abs(prevRoll - pos.roll()) > 1.5)
-            LOG_MSG(logDEBUG, "ts=%.1f, f=%.4f, myF=%.4f, p={%s}, head=%.1f -> %.1f, roll=%.1f -> %.1f",
-                    ts, f, myF, p.dbgTxt().c_str(), pos.heading(), angle, prevRoll, pos.roll());
+            LOG_MSG(logDEBUG, "Current pos: %s", pos.dbgTxt().c_str());
+        }
+//        if (bFirstTime ||
+//            std::abs(pos.heading()-angle) > 1.5)
+            LOG_MSG(logDEBUG, "ts=%.1f, f=%.4f, myF=%.4f, p={%s}, head=%.1f -> %.1f",
+                    ts, f, myF, p.dbgTxt().c_str(), pos.heading(), angle);
     }
 #endif
 
+    // Update pos
     pos.lat() = p.y;
     pos.lon() = p.x;
     pos.alt_m() = start.alt_m() * (1-myF) + end.alt_m() * myF;
@@ -723,34 +757,20 @@ bool BezierCurve::GetPos (positionTy& pos, double ts, double f,
 
 
 // Debug text output
-std::string BezierCurve::dbgTxt(const char* n) const
+std::string BezierCurve::dbgTxt() const
 {
-    std::string ret = n ? n : "";
-    if (n) ret += ": ";
     if (isDefined()) {
-        ret += '(';
-        ret += start;
-        ret += ") {(";                      // add all control points
-        for (const ptTy& pt: ptsCtrl) {
-            ret += pt.dbgTxt();
-            ret += "), (";
-        }
-        ret.pop_back();
-        ret.pop_back();
-        ret.pop_back();
-        ret += "} (";
-        ret += end;
-        
-        char s[50];
-        snprintf(s, sizeof(s), ") <%+.4f/%.4f, my=%.4f>",
+        char s[250];
+        snprintf(s, sizeof(s), "(%.5f %.5f) {%.5f %.5f} (%.5f %.5f) <startF=%.4f cal:%+.4f/%.4f, my=%.4f>",
+                 start.lat(), start.lon(),
+                 ptCtrl.y, ptCtrl.y,
+                 end.lat(), end.lon(),
+                 startF,
                  fCalAdd, fCalDiv, myF);
-        ret += s;
-        
+        return s;
     } else {
-        ret += "<undefined>";
+        return "<undefined>";
     }
-    
-    return ret;
 }
 
 
@@ -1399,6 +1419,8 @@ bool LTAircraft::CalcPPos()
     positionTy& from  = posList[0];
     positionTy& to    = posList[1];
     double duration = to.ts() - from.ts();
+    const double prevTs =   phase == FPH_UNKNOWN ? currCycle.simTime : ppos.ts();       // Timestamp of previous cylce
+    const double prevHead = phase == FPH_UNKNOWN ? from.heading()    : ppos.heading();  // previous heading (needed for roll calculation)
 #ifdef DEBUG
     std::string debFrom ( from.dbgTxt() );
     std::string debTo   ( to.dbgTxt() );
@@ -1426,9 +1448,6 @@ bool LTAircraft::CalcPPos()
             
             // avg of the current vector
             speed.SetSpeed(vec.speed);
-            
-            // point to some reasonable heading
-            ppos.heading() = from.heading();
         }
         
         // *** ground status starts with that one of 'from'
@@ -1450,11 +1469,8 @@ bool LTAircraft::CalcPPos()
         // nearly no drag, so try calculating the flight path angle and use
         // it also as pitch
         if ( vsi > mdl.VSI_STABLE ) {
-            toPitch = vsi2deg(vec.speed, vec.vsi);
-            if (toPitch < mdl.PITCH_MIN)
-                toPitch = mdl.PITCH_MIN;
-            if (toPitch > mdl.PITCH_MAX)
-                toPitch = mdl.PITCH_MAX;
+            toPitch = clamp(vsi2deg(vec.speed, vec.vsi),
+                            mdl.PITCH_MIN, mdl.PITCH_MAX);
         }
         
         // add some degrees in case flaps will be set
@@ -1471,15 +1487,14 @@ bool LTAircraft::CalcPPos()
         
         // *** speed/acceleration/decelaration
         
-        // A priori assumption: constant speed according to vector
-        speed.SetSpeed(vec.speed);
-        
         // Only skip acceleration control in case of short final, i.e. if currently off ground
         // but next pos is on the ground, because in that case the
         // next vector is the vector for roll-out on the ground
         // with significantly reduced speed due to breaking, that speed
         // is undesirable at touch-down; for short final we assume constant speed
         bNeedSpeed = from.IsOnGnd() || !to.IsOnGnd();
+        if (!bNeedSpeed)
+            speed.SetSpeed(vec.speed);
         
         // output debug info on request
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1489,15 +1504,15 @@ bool LTAircraft::CalcPPos()
     
     // Further computations make only sense if 'to' is still in the future
     // (there seem to be case when this is not the case, and if only because the user pauses or changes time)
-    if ((bNeedSpeed || bNeedQuBezier) && to.ts() < currCycle.simTime) {
+    if ((bNeedSpeed || bNeedCCBezier) && to.ts() < currCycle.simTime) {
         if (bNeedSpeed) speed.SetSpeed(vec.speed);
-        bNeedSpeed = bNeedQuBezier = false;
+        bNeedSpeed = bNeedCCBezier = false;
     }
     
     // Need next position for speed or Bezier determination?
     positionTy nextPos;
     vectorTy nextVec;
-    if (bNeedSpeed || bNeedQuBezier)
+    if (bNeedSpeed || bNeedCCBezier)
     {
         switch ( fd.TryGetNextPos(to.ts()+1.0, nextPos) ) {
             case LTFlightData::TRY_SUCCESS:
@@ -1511,7 +1526,7 @@ bool LTAircraft::CalcPPos()
             case LTFlightData::TRY_TECH_ERROR:
                 // no data or errors...well...then we just fly straight
                 if (bNeedSpeed) speed.SetSpeed(vec.speed);
-                bNeedSpeed = bNeedQuBezier = false;
+                bNeedSpeed = bNeedCCBezier = false;
                 break;
         }
     }
@@ -1550,11 +1565,15 @@ bool LTAircraft::CalcPPos()
     }
     
     // If we just switched positions then f starts over near 0.0.
-    // If we are at the same time running a quadratic Bezier,
+    // If we are at the same time running a Bezier across the -now- from point (cut-corner case),
     // then we need to re-calibrate its internal factor f against the new f:
-    if (bPosSwitch && turn.isQuadratic() && turn.isActive(currCycle.simTime)) {
-        // Re-calibrate the curve so that f calculation continuous seamlessly
-        turn.Calibrate(0.0, 0.5, 0.5, 1.0);
+    if (bPosSwitch) {
+        if (turn.isTsInbetween(currCycle.simTime))
+            // Re-calibrate the curve so that f calculation continuous seamlessly
+            turn.Calibrate(0.0, 0.5, 0.5, 1.0);
+        else
+            // Otherwise clear the turn, just for cleanup
+            turn.Clear();
     }
     
     // *** Artifical stop ***
@@ -1580,6 +1599,7 @@ bool LTAircraft::CalcPPos()
         posList.emplace_back(ppos);
         positionTy& stopPoint = posList.emplace_back(ppos.destPos(vecStop));
         stopPoint.ts() = speed.getTargetTime();
+        stopPoint.f.flightPhase = FPH_STOPPED_ON_RWY;
         bArtificalPos = true;                   // flag: we are working with an artifical position now
         turn.Clear();                           // (and certainly not with a Bezier curve)
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1588,9 +1608,7 @@ bool LTAircraft::CalcPPos()
     }
     
     // Try getting our current position from the Bezier curve
-    if (!turn.GetPos(ppos, currCycle.simTime, f,
-                     ppos.IsOnGnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME,
-                     mdl.ROLL_MAX_BANK))
+    if (!turn.GetPos(ppos, currCycle.simTime, f))
     {
         // No Bezier curve currently active:
         // Now we apply the factor so that with time we move from 'from' to 'to'.
@@ -1601,17 +1619,43 @@ bool LTAircraft::CalcPPos()
         ppos.v = from.v * (1-f) + to.v * f;
         // (this also computes standard values for heading, pitch, roll.)
         
-        // For heading, however, this doesn't work well if from/to are on
-        // different sides of 0°.
-        // (Think of turning from 1° to 359°: Instead of moving 2° left,
-        //  the above turns 358° right!)
-        // Override heading with a heading based on shortest turn:
-        ppos.heading() = from.heading() + f * HeadingDiff(from.heading(), to.heading());
+        // Heading: In first half turn towards vec.angle
+        //          (or, if vec is too short, to average between from and to-heading)
+        const double maxTurnInCycle = (currCycle.simTime-prevTs)*360.0/(IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME);
+        if (f < 0.5) {
+            const double targetHead = vec.dist >= SIMILAR_POS_DIST ? vec.angle : HeadingAvg(from.heading(), to.heading());
+            const double headDiff = HeadingDiff(prevHead, targetHead);
+            if (std::abs(headDiff) > maxTurnInCycle)
+                ppos.heading() = prevHead + std::copysign(maxTurnInCycle, headDiff);
+            else
+                ppos.heading() = targetHead;
+            
+        }
+        // in second half, close to the end, turn to final heading
+        // (if this will not be taken care of by a cut-corner curve
+        else {
+            ppos.heading() = prevHead;              // by default: don't change the heading
+            // If there is no turn upcoming
+            if (!turn.isActiveFuture(f)) {
+                const double headDiff = HeadingDiff(prevHead, to.heading());
+                const double tToTurn = std::abs(headDiff)/360.0 * (IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME);
+                // are we close enough to the end to start the turn?
+                if (currCycle.simTime + tToTurn + 0.1 >= to.ts()) {
+                    if (std::abs(headDiff) > maxTurnInCycle)
+                        ppos.heading() = prevHead + std::copysign(maxTurnInCycle, headDiff);
+                    else
+                        ppos.heading() = to.heading();
+                }
+            }
+        }
     }
     
     // calculate timestamp can be a bit off, especially when acceleration is in progress,
     // overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
+    
+    // Calculate roll based on heading change
+    CalcRoll(prevTs, prevHead);
 
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
     // catch that case...likely the a/c is to be removed due to outdated data
@@ -1636,31 +1680,31 @@ bool LTAircraft::CalcPPos()
         (std::abs(HeadingDiff(ppos.heading(), to.heading())) >= BEZIER_MIN_HEAD_DIFF || // begin-heading vs. end-heading
          std::abs(HeadingDiff(ppos.heading(), vec.angle))    >= BEZIER_MIN_HEAD_DIFF))  // begin-heading vs. track-heading
     {
-        // normal case, not cutting corners -> cubic Bezier
-        // (this might re-define a quadratic curve in progress, which is intentional)
-        turn.Define(f, ppos, to, vec.dist);
+        // normal case, not cutting corners
+        // (this might re-define a cut-corner curve in progress, which is intentional)
+        turn.Define(f, ppos, to, vec);
     }
     
-    // Quadratic Bezier (half-way down the leg)
-    if (bNeedQuBezier && nextVec.isValid())
+    // Quadratic Bezier due to cut-corner case (half-way down the leg)?
+    if (bNeedCCBezier && nextVec.isValid())
     {
         turn.Define(f,
-                    ppos, vec.angle,
+                    from, vec.angle,
                     to, nextVec.angle,
                     nextPos,
                     to.IsOnGnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME);
-        bNeedQuBezier = false;
+        bNeedCCBezier = false;
     }
     // half-way through prepare a quadratic curve to cut the corner...if needed
-    else if (to.f.bCutCorner &&                              // shall we cut the corner?
-             !bNeedQuBezier &&                               // flag not already set?
-             f >= 0.5 && f < 1.0 &&                          // half-way through
-             !turn.isActiveFuture(currCycle.simTime) &&      // Bezier not already defined?
-             vec.dist > SIMILAR_POS_DIST &&                  // reasonable leg distance and turn amount?
+    else if (to.f.bCutCorner &&                             // shall we cut the corner?
+             !bNeedCCBezier &&                              // flag not already set?
+             f >= 0.5 && f < 1.0 &&                         // half-way through
+             !turn.isTsBeforeEnd(currCycle.simTime) &&      // Bezier not already defined?
+             vec.dist > SIMILAR_POS_DIST &&                 // reasonable leg distance and turn amount?
              std::abs(HeadingDiff(ppos.heading(), to.heading())) >= BEZIER_MIN_HEAD_DIFF)
     {
-        // set the flag to fetch the next leg. All the rest is done there (see above)
-        bNeedQuBezier = true;
+        // set the flag to fetch the next leg. All the rest is done above
+        bNeedCCBezier = true;
     }
 
     // *** Attitude ***
@@ -2016,6 +2060,37 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
                 int(bFPhPrev),FlightPhase2String(bFPhPrev).c_str(),
                 int(phase),FlightPhase2String(phase).c_str()
                 );
+}
+
+
+// determine roll, based on a previous and a current heading
+/// @details We assume that max bank angle (`mdl.ROLL_MAX_BANK`) is applied for a 1 minute curve
+///          (ie. for a 360° turn in _half_ the `mdl.FLIGHT_TURN_TIME`).
+///          If we are turning more slowly then we apply less bank angle.
+void LTAircraft::CalcRoll (double _prevTs, double _prevHeading)
+{
+    // On the ground we should actually better be levelled...
+    if (IsOnGrnd()) {
+        ppos.roll() = 0.0;
+        return;
+    }
+    
+    // For the roll we assume that max bank angle is applied for a 1 minute curve
+    // (ie. for a 360° turn in _half_ the fullTurnTime).
+    // If we are turning more slowly then we apply less bank angle.
+    const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
+    const double diffTime = ppos.ts() - _prevTs;
+    const double timeFullCircle = diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
+    const double newRoll = (std::isnan(timeFullCircle) ? ppos.roll() :
+                            std::abs(timeFullCircle) < mdl.FLIGHT_TURN_TIME/2 ? std::copysign(mdl.ROLL_MAX_BANK,timeFullCircle) :
+                            mdl.ROLL_MAX_BANK * mdl.FLIGHT_TURN_TIME/2 / timeFullCircle);
+    // safeguard against to harsh roll rates:
+    if (std::abs(ppos.roll()-newRoll) > diffTime * mdl.ROLL_RATE) {
+        if (newRoll < ppos.roll()) ppos.roll() -= diffTime * mdl.ROLL_RATE;
+        else                       ppos.roll() += diffTime * mdl.ROLL_RATE;
+    }
+    else
+        ppos.roll() = newRoll;
 }
 
 

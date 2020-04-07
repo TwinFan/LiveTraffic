@@ -258,6 +258,11 @@ enum flightPhaseE : unsigned char {
     FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
 };
 
+/// Is this a flight phase requiring a runway?
+inline bool isRwyPhase (flightPhaseE fph)
+{ return fph == FPH_TAKE_OFF || fph == FPH_TO_ROLL || fph == FPH_ROTATE ||
+         fph == FPH_TOUCH_DOWN || fph == FPH_ROLL_OUT; }
+
 /// Ground status
 enum onGrndE    : unsigned char {
     GND_UNKNOWN=0,                  ///< ground status yet unknown

@@ -223,6 +223,7 @@ protected:
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
+    positionTy              posRwy;     ///< determined rwy (likely) to land on
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;

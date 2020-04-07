@@ -136,7 +136,10 @@ public:
     inline double getTargetDeltaDist() const    { return targetDeltaDist; }
 };
 
-/// @brief Handle a Bezier curve based on flight data positions
+/// @brief Handles a quadratic Bezier curve based on flight data positions
+/// @details Only using quadratic curves because in higher-level Bezier curves the parameter `t`
+///          does no longer correspond well to distance and planes would appear slowing down
+///          at beginning and end.
 /// @details The constructors take positions from flight data,
 ///          the necessary end and control points of a Bezier Curve
 ///          are computed from that input.
@@ -146,7 +149,9 @@ struct BezierCurve
 protected:
     positionTy start;           ///< start point of the actual Bezier curve
     positionTy end;             ///< end point of the actual Bezier curve
-    vecPtTyT ptsCtrl;           ///< Control points of the curve
+    ptTy ptCtrl;                ///< Control point of the curve
+    double startF = NAN;        ///< at which factor f (from LTAircraft::CalcPPos()) does Bezier execution begin?
+    double endF = NAN;          ///< at which factor f (from LTAircraft::CalcPPos()) does Bezier execution end?
     double fCalAdd = NAN;       ///< summand for `f` calibration
     double fCalDiv = NAN;       ///< divisor for `f` calibration
     double myF = NAN;           ///< last used `f` after calibration
@@ -154,35 +159,40 @@ public:
     BezierCurve () {}           ///< Standard constructor does nothing
     
     /// @brief Define a quadratic Bezier Curve based on the given flight data positions
-    /// @param _initF The initial `f` factor when starting this Bezier for internal calibration of seemless calculations
-    /// @param _curr Current position, on the leg towards _mid
+    /// @param _nowF Current factor f as earliest possible starting factor
+    /// @param _from From position on the leg towards _mid
     /// @param _mid Mid position, current leg's end and next leg's starting point, the turning point, used as Bezier control point, ie. will not be reached
     /// @param _to End position of next leg
     /// @param _angleFromMid Angle from `_from` to `_mid` to avoid recalculation of already known data
     /// @param _angleMidTo Angle from `_mid` to `_to` to avoid recalculation of already known data
     /// @param _fullTurnTime Seconds allowed for a 360° turn (taken from LTAircraft::FlightModel)
-    void Define (double _initF,
-                 const positionTy& _curr,
+    void Define (double _nowF,
+                 const positionTy& _from,
                  double _angleFromMid,
                  const positionTy& _mid,
                  double _angleMidTo,
                  const positionTy& _to,
                  double _fullTurnTime);
     
-    /// @brief Define a cubic Bezier Curve based on the given flight data positions
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions
     /// @param _initF The initial `f` factor when starting this Bezier for internal calibration of seemless calculations
     /// @param _from Start position of current leg
     /// @param _to End position of current leg
-    /// @param _dist [m] Distance from `_from` to `_to` to avoid recalculation of already known data
-    void Define (double _initF,
+    /// @param _vec Vector from `_from` to `_to` to avoid recalculation of already known data
+    /// @details The control point is computed as the point where the lines through _from and _to,
+    ///          having angle as defined by `.heading()`, meet. This can and cannot work out.
+    /// @return Has a valid Bezier curve been defined?
+    bool Define (double _initF,
                  const positionTy& _from,
                  const positionTy& _to,
-                 double _dist);
+                 const vectorTy& _vec);
     
     /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
     /// This is needed for accurate angle calculations
     void ConvertToMeter ();
-    
+    /// Convert the given geographic coordinates to meters
+    void ConvertToMeter (ptTy& pt) const;
+
     /// Convert the given position back to geographic coordinates
     void ConvertToGeographic (ptTy& pt) const;
     
@@ -193,31 +203,29 @@ public:
     /// Clear the definition, so that BezierCurve::isDefined() will return `false`
     void Clear ();
     /// Is a curve defined?
-    bool isDefined () const { return !ptsCtrl.empty(); }
+    bool isDefined () const { return ptCtrl.isValid(); }
     /// Is Bezier active for given timestamp?
-    bool isActive (double ts) const
-    { return isDefined() && start.ts() <= ts && ts <= end.ts(); }
-    /// Is or will Bezier be active for given timestamp?
-    bool isActiveFuture (double ts) const
-    { return isDefined() && ts <= end.ts(); }
+    bool isActive (double _f) const
+    { return isDefined() && startF <= _f && _f <= endF; }
+    /// Is or will Bezier be active for given factor f?
+    bool isActiveFuture (double _f) const
+    { return isDefined() && _f <= endF; }
+    /// is defined and the given timestamp between start's and end's timestamp?
+    bool isTsInbetween (double _ts) const
+    { return isDefined() && start.ts() <= _ts && _ts <= end.ts(); }
+    /// is defined and the given timestamp before end's timestamp?
+    bool isTsBeforeEnd (double _ts) const
+    { return isDefined() && _ts <= end.ts(); }
 
-    /// Is a quadratic curve?
-    bool isQuadratic () const { return ptsCtrl.size() == 1; }
-    /// Is a cubic curve?
-    bool isCubic () const { return ptsCtrl.size() == 2; }
-    
     /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
     /// @param[in,out] pos Current position, to be overwritten with new position
     /// @param ts Timestamp for the position we look for, only used for validation if Bezier is active
     /// @param f Factor in range [0..1]: This controls the returned value (might be controled by acceleration!)
-    /// @param _fullTurnTime Seconds allowed for a 360° turn (taken from LTAircraft::FlightModel)
-    /// @param _maxBank Max bank angle (taken from LTAircraft::FlightModel)
     /// @return if the position was adjusted
-    bool GetPos (positionTy& pos, double ts, double f,
-                 double _fullTurnTime, double _maxBank);
+    bool GetPos (positionTy& pos, double ts, double f);
 
     /// Debug text output
-    std::string dbgTxt(const char* n = nullptr) const;
+    std::string dbgTxt() const;
 };
 
 //
@@ -316,7 +324,7 @@ protected:
     bool                bOnGrnd;        // are we touching ground?
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     bool                bNeedSpeed = false;     ///< need speed calculation?
-    bool                bNeedQuBezier = false;  ///< need quadratic Bezier calculation?
+    bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
     AccelParam          speed;          // current speed [m/s] and acceleration control
     BezierCurve         turn;           ///< position, heading, roll while flying a turn
     MovingParam         gear;
@@ -416,6 +424,8 @@ protected:
     bool CalcPPos ();
     // determine other parameters like gear, flap, roll etc. based on flight model assumptions
     void CalcFlightModel (const positionTy& from, const positionTy& to);
+    /// determine roll, based on a previous and a current heading
+    void CalcRoll (double _prevTs, double _prevHeading);
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();

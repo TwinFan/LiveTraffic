@@ -231,6 +231,23 @@ bool begins_with(const TContainer& input, const TContainer& match)
     && std::equal(match.cbegin(), match.cend(), input.cbegin());
 }
 
+/// Clamps `v` between `lo` and `hi`: `lo` if `v` < `lo`, `hi` if `hi` < `v`, otherwise `v`
+/// @see C++17, https://en.cppreference.com/w/cpp/algorithm/clamp
+template<class T>
+constexpr const T& clamp( const T& v, const T& lo, const T& hi )
+{
+    assert( !(hi < lo) );
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
+
+template<class T>
+constexpr bool between( const T& v, const T& lo, const T& hi )
+{
+    assert( !(hi < lo) );
+    return (lo <= v) && (v <= hi);
+}
+
+
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 );
 

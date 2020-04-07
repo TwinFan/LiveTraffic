@@ -1,14 +1,412 @@
 TODO
 ===
 
-- After creation of a Cubic Bezier we often have a bit a hickup in heading/roll.
-  Still need to smoothen things there...
+
+Here comes a veeeeeeery slow Bezier curve...and at its end the position jumps along the taxiway.
+The end position calculation is obviously way off!
+
+
+LiveTraffic 1586298390.5 DEBUG LTFlightData.cpp:1771/TryFetchNewPos: DEBUG POS DATA: a/c AA7409 WN943 SimTime: 1586298390.5 - 2020-04-07 22:26:30
+a/c AA7409 (B737 WN943)
+<undefined>  <- turn
+1586298390.5: (33.64467, -84.42798)   994.0ft   GND_ON TXI    Taxi          2358 {h 234 , p   0, r   0} Y: 994.0ft 14kn 0ft/m Phase: 10 Taxi
+posList:
+1586298374.0: (33.64550, -84.42800)   992.5ft   GND_ON TXI    Taxi          2358 {h 153 , p   0, r   0} <h 179,    97m @  11kt,   -0ft/m>
+1586298391.0: (33.64463, -84.42798)   992.4ft   GND_ON TXI    Taxi          1811 {h 254*, p   0, r   0} <h 254,    11m @  15kt,    5ft/m>
+1586298392.5: (33.64460, -84.42809)   992.5ft   GND_ON     CT Taxi               {h 255 , p   0, r   0} <h 270,   176m @  15kt,    9ft/m>
+posDeque:
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+1586298427.8: (33.64460, -84.43116)   995.7ft   GND_ON     CT Taxi               {h 215 , p   0, r   0} <h 192,    44m @  16kt,    7ft/m>
+1586298433.0: (33.64421, -84.43127)   996.3ft   GND_ON TXI    Taxi          1821 {h 192*, p   0, r   0} <h 192,    14m @  12kt,   12ft/m>
+1586298435.2: (33.64409, -84.43130)   996.8ft   GND_ON TXI    Taxi          1821 {h 191 , p   0, r   0} <h 180,   110m @  18kt,   10ft/m>
+1586298447.0: (33.64310, -84.43130)   998.7ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0}
+posToAdd:
+<empty>
+LiveTraffic 1586298391.0 DEBUG LTAircraft.cpp:1501/CalcPPos: DEBUG A/C SWITCH POS: a/c AA7409 (B737 WN943)
+<undefined>  <- turn
+1586298391.0: (33.64463, -84.42798)   994.1ft   GND_ON TXI    Taxi          1811 {h 239 , p   0, r   0} Y: 994.1ft 15kn -66ft/m Phase: 10 Taxi
+posList:
+1586298391.0: (33.64463, -84.42798)   994.1ft   GND_ON TXI    Taxi          1811 {h 239 , p   0, r   0} <h 254,    11m @  15kt,  -66ft/m>
+1586298392.5: (33.64460, -84.42809)   992.5ft   GND_ON     CT Taxi               {h 255 , p   0, r   0} <h 270,   176m @  15kt,    9ft/m>
+LiveTraffic 1586298391.8 DEBUG LTAircraft.cpp:572/Define: Quadratic cut-corner Bezier defined starting at 1586298391.8:
+(33.64461 -84.42804) {33.64460 33.64460} (33.64460 -84.42818) <startF=0.5498 cal:-0.5498/0.9004, my=nan>
+LiveTraffic 1586298391.8 DEBUG LTAircraft.cpp:735/GetPos: (33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.5498 cal:-0.5498/0.9004, my=0.0337>
+LiveTraffic 1586298391.8 DEBUG LTAircraft.cpp:736/GetPos: Current pos: 1586298391.8: (33.64461, -84.42804)   994.1ft   GND_ON TXI    Taxi          1811 {h 245 , p   0, r   0}
+LiveTraffic 1586298391.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298391.8, f=0.5802, myF=0.0337, p={33.64461, -84.42804}, head=245.1 -> 254.4
+LiveTraffic 1586298391.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298391.9, f=0.6130, myF=0.0701, p={33.64461, -84.42805}, head=254.4 -> 255.3
+LiveTraffic 1586298391.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298391.9, f=0.6405, myF=0.1007, p={33.64461, -84.42805}, head=255.3 -> 256.0
+LiveTraffic 1586298392.0 DEBUG LTFlightData.cpp:1771/TryFetchNewPos: DEBUG POS DATA: a/c AA7409 WN943 SimTime: 1586298392.0 - 2020-04-07 22:26:31
+a/c AA7409 (B737 WN943)
+(33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.5498 cal:-0.5498/0.9004, my=0.1007>  <- turn
+1586298391.9: (33.64461, -84.42805)   994.1ft   GND_ON TXI    Taxi          1811 {h 256 , p   0, r   0} Y: 994.1ft 15kn 0ft/m Phase: 10 Taxi
+posList:
+1586298391.0: (33.64463, -84.42798)   994.1ft   GND_ON TXI    Taxi          1811 {h 239 , p   0, r   0} <h 254,    11m @  15kt,  -66ft/m>
+1586298392.5: (33.64460, -84.42809)   992.5ft   GND_ON     CT Taxi               {h 255 , p   0, r   0} <h 270,   176m @  15kt,    9ft/m>
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+posDeque:
+1586298427.8: (33.64460, -84.43116)   995.7ft   GND_ON     CT Taxi               {h 215 , p   0, r   0} <h 192,    44m @  16kt,    7ft/m>
+1586298433.0: (33.64421, -84.43127)   996.3ft   GND_ON TXI    Taxi          1821 {h 192*, p   0, r   0} <h 192,    14m @  12kt,   12ft/m>
+1586298435.2: (33.64409, -84.43130)   996.8ft   GND_ON TXI    Taxi          1821 {h 191 , p   0, r   0} <h 180,   110m @  18kt,   10ft/m>
+1586298447.0: (33.64310, -84.43130)   998.7ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0}
+posToAdd:
+<empty>
+LiveTraffic 1586298392.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.0, f=0.6674, myF=0.1306, p={33.64461, -84.42806}, head=256.0 -> 256.7
+LiveTraffic 1586298392.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.0, f=0.6963, myF=0.1627, p={33.64461, -84.42806}, head=256.7 -> 257.4
+LiveTraffic 1586298392.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.1, f=0.7259, myF=0.1955, p={33.64461, -84.42806}, head=257.4 -> 258.1
+LiveTraffic 1586298392.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.1, f=0.7544, myF=0.2272, p={33.64461, -84.42807}, head=258.1 -> 258.7
+LiveTraffic 1586298392.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.1, f=0.7830, myF=0.2590, p={33.64461, -84.42807}, head=258.7 -> 259.3
+LiveTraffic 1586298392.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.2, f=0.8106, myF=0.2896, p={33.64461, -84.42807}, head=259.3 -> 259.9
+LiveTraffic 1586298392.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.2, f=0.8387, myF=0.3209, p={33.64461, -84.42808}, head=259.9 -> 260.5
+LiveTraffic 1586298392.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.3, f=0.8677, myF=0.3531, p={33.64461, -84.42808}, head=260.5 -> 261.1
+LiveTraffic 1586298392.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.3, f=0.8969, myF=0.3855, p={33.64461, -84.42809}, head=261.1 -> 261.7
+LiveTraffic 1586298392.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.4, f=0.9245, myF=0.4161, p={33.64460, -84.42809}, head=261.7 -> 262.2
+LiveTraffic 1586298392.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.4, f=0.9529, myF=0.4477, p={33.64460, -84.42809}, head=262.2 -> 262.7
+LiveTraffic 1586298392.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.4, f=0.9796, myF=0.4773, p={33.64460, -84.42810}, head=262.7 -> 263.2
+LiveTraffic 1586298392.5 DEBUG LTAircraft.cpp:1501/CalcPPos: DEBUG A/C SWITCH POS: a/c AA7409 (B737 WN943)
+(33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.5498 cal:-0.5498/0.9004, my=0.4773>  <- turn
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} Y: 994.1ft 15kn 4ft/m Phase: 10 Taxi
+posList:
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} <h 270,   176m @  15kt,    4ft/m>
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+LiveTraffic 1586298392.5 DEBUG LTAircraft.cpp:411/StartSpeedControl: CONSTANT SPEED due impossible speeds (start=7.8,avg=7.8=176.0m/22.6s,target=8.2) for a/c AA7409 (B737 WN943)
+(33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.5498 cal:-0.5498/0.9004, my=0.4773>  <- turn
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} Y: 994.1ft 15kn 4ft/m Phase: 10 Taxi
+posList:
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} <h 270,   176m @  15kt,    4ft/m>
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+LiveTraffic 1586298392.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.5, f=0.0018, myF=0.5018, p={33.64460, -84.42810}, head=263.2 -> 263.6
+LiveTraffic 1586298392.5 DEBUG LTAircraft.cpp:642/Define: Bezier NOT defined as control point too close!
+LiveTraffic 1586298392.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.5, f=0.0037, myF=0.5037, p={33.64460, -84.42810}, head=263.6 -> 263.6
+LiveTraffic 1586298392.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.6, f=0.0057, myF=0.5057, p={33.64460, -84.42810}, head=263.6 -> 263.6
+LiveTraffic 1586298392.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.6, f=0.0076, myF=0.5076, p={33.64460, -84.42810}, head=263.6 -> 263.7
+LiveTraffic 1586298392.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.7, f=0.0097, myF=0.5097, p={33.64460, -84.42810}, head=263.7 -> 263.7
+LiveTraffic 1586298392.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.7, f=0.0117, myF=0.5117, p={33.64460, -84.42810}, head=263.7 -> 263.7
+LiveTraffic 1586298392.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.7, f=0.0137, myF=0.5137, p={33.64460, -84.42810}, head=263.7 -> 263.8
+LiveTraffic 1586298392.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.8, f=0.0156, myF=0.5156, p={33.64460, -84.42810}, head=263.8 -> 263.8
+LiveTraffic 1586298392.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.8, f=0.0175, myF=0.5175, p={33.64460, -84.42810}, head=263.8 -> 263.8
+LiveTraffic 1586298392.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.9, f=0.0193, myF=0.5193, p={33.64460, -84.42810}, head=263.8 -> 263.9
+LiveTraffic 1586298392.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298392.9, f=0.0212, myF=0.5212, p={33.64460, -84.42811}, head=263.9 -> 263.9
+LiveTraffic 1586298393.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.0, f=0.0230, myF=0.5230, p={33.64460, -84.42811}, head=263.9 -> 263.9
+LiveTraffic 1586298393.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.0, f=0.0247, myF=0.5247, p={33.64460, -84.42811}, head=263.9 -> 263.9
+LiveTraffic 1586298393.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.0, f=0.0267, myF=0.5267, p={33.64460, -84.42811}, head=263.9 -> 264.0
+LiveTraffic 1586298393.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.1, f=0.0288, myF=0.5288, p={33.64460, -84.42811}, head=264.0 -> 264.0
+LiveTraffic 1586298393.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.1, f=0.0306, myF=0.5306, p={33.64460, -84.42811}, head=264.0 -> 264.0
+LiveTraffic 1586298393.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.2, f=0.0327, myF=0.5327, p={33.64460, -84.42811}, head=264.0 -> 264.1
+LiveTraffic 1586298393.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.2, f=0.0346, myF=0.5346, p={33.64460, -84.42811}, head=264.1 -> 264.1
+LiveTraffic 1586298393.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.3, f=0.0367, myF=0.5367, p={33.64460, -84.42811}, head=264.1 -> 264.1
+LiveTraffic 1586298393.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.3, f=0.0386, myF=0.5386, p={33.64460, -84.42811}, head=264.1 -> 264.1
+LiveTraffic 1586298393.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.3, f=0.0404, myF=0.5404, p={33.64460, -84.42811}, head=264.1 -> 264.2
+LiveTraffic 1586298393.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.4, f=0.0423, myF=0.5423, p={33.64460, -84.42811}, head=264.2 -> 264.2
+LiveTraffic 1586298393.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.4, f=0.0442, myF=0.5442, p={33.64460, -84.42811}, head=264.2 -> 264.2
+LiveTraffic 1586298393.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.5, f=0.0462, myF=0.5462, p={33.64460, -84.42811}, head=264.2 -> 264.3
+LiveTraffic 1586298393.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.5, f=0.0481, myF=0.5481, p={33.64460, -84.42811}, head=264.3 -> 264.3
+LiveTraffic 1586298393.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.6, f=0.0501, myF=0.5501, p={33.64460, -84.42811}, head=264.3 -> 264.3
+LiveTraffic 1586298393.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.6, f=0.0520, myF=0.5520, p={33.64460, -84.42811}, head=264.3 -> 264.4
+LiveTraffic 1586298393.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.7, f=0.0539, myF=0.5539, p={33.64460, -84.42811}, head=264.4 -> 264.4
+LiveTraffic 1586298393.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.7, f=0.0559, myF=0.5559, p={33.64460, -84.42811}, head=264.4 -> 264.4
+LiveTraffic 1586298393.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.7, f=0.0578, myF=0.5578, p={33.64460, -84.42811}, head=264.4 -> 264.4
+LiveTraffic 1586298393.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.8, f=0.0597, myF=0.5597, p={33.64460, -84.42811}, head=264.4 -> 264.5
+LiveTraffic 1586298393.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.8, f=0.0617, myF=0.5617, p={33.64460, -84.42811}, head=264.5 -> 264.5
+LiveTraffic 1586298393.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.9, f=0.0636, myF=0.5636, p={33.64460, -84.42811}, head=264.5 -> 264.5
+LiveTraffic 1586298393.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.9, f=0.0653, myF=0.5653, p={33.64460, -84.42811}, head=264.5 -> 264.5
+LiveTraffic 1586298393.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298393.9, f=0.0670, myF=0.5670, p={33.64460, -84.42811}, head=264.5 -> 264.6
+LiveTraffic 1586298394.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.0, f=0.0690, myF=0.5690, p={33.64460, -84.42811}, head=264.6 -> 264.6
+LiveTraffic 1586298394.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.0, f=0.0711, myF=0.5711, p={33.64460, -84.42811}, head=264.6 -> 264.6
+LiveTraffic 1586298394.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.1, f=0.0732, myF=0.5732, p={33.64460, -84.42811}, head=264.6 -> 264.7
+LiveTraffic 1586298394.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.1, f=0.0752, myF=0.5752, p={33.64460, -84.42811}, head=264.7 -> 264.7
+LiveTraffic 1586298394.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.2, f=0.0773, myF=0.5773, p={33.64460, -84.42811}, head=264.7 -> 264.7
+LiveTraffic 1586298394.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.2, f=0.0791, myF=0.5791, p={33.64460, -84.42811}, head=264.7 -> 264.8
+LiveTraffic 1586298394.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.3, f=0.0809, myF=0.5809, p={33.64460, -84.42811}, head=264.8 -> 264.8
+LiveTraffic 1586298394.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.3, f=0.0827, myF=0.5827, p={33.64460, -84.42811}, head=264.8 -> 264.8
+LiveTraffic 1586298394.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.3, f=0.0844, myF=0.5844, p={33.64460, -84.42811}, head=264.8 -> 264.8
+LiveTraffic 1586298394.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.4, f=0.0862, myF=0.5862, p={33.64460, -84.42811}, head=264.8 -> 264.9
+LiveTraffic 1586298394.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.4, f=0.0880, myF=0.5880, p={33.64460, -84.42811}, head=264.9 -> 264.9
+LiveTraffic 1586298394.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.5, f=0.0900, myF=0.5900, p={33.64460, -84.42812}, head=264.9 -> 264.9
+LiveTraffic 1586298394.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.5, f=0.0919, myF=0.5919, p={33.64460, -84.42812}, head=264.9 -> 264.9
+LiveTraffic 1586298394.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.5, f=0.0937, myF=0.5937, p={33.64460, -84.42812}, head=264.9 -> 265.0
+LiveTraffic 1586298394.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.6, f=0.0955, myF=0.5955, p={33.64460, -84.42812}, head=265.0 -> 265.0
+LiveTraffic 1586298394.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.6, f=0.0973, myF=0.5973, p={33.64460, -84.42812}, head=265.0 -> 265.0
+LiveTraffic 1586298394.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.7, f=0.0992, myF=0.5992, p={33.64460, -84.42812}, head=265.0 -> 265.0
+LiveTraffic 1586298394.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.7, f=0.1010, myF=0.6010, p={33.64460, -84.42812}, head=265.0 -> 265.1
+LiveTraffic 1586298394.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.7, f=0.1026, myF=0.6026, p={33.64460, -84.42812}, head=265.1 -> 265.1
+LiveTraffic 1586298394.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.8, f=0.1042, myF=0.6042, p={33.64460, -84.42812}, head=265.1 -> 265.1
+LiveTraffic 1586298394.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.8, f=0.1057, myF=0.6057, p={33.64460, -84.42812}, head=265.1 -> 265.1
+LiveTraffic 1586298394.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.9, f=0.1075, myF=0.6075, p={33.64460, -84.42812}, head=265.1 -> 265.2
+LiveTraffic 1586298394.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.9, f=0.1095, myF=0.6095, p={33.64460, -84.42812}, head=265.2 -> 265.2
+LiveTraffic 1586298394.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298394.9, f=0.1111, myF=0.6111, p={33.64460, -84.42812}, head=265.2 -> 265.2
+LiveTraffic 1586298395.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.0, f=0.1129, myF=0.6129, p={33.64460, -84.42812}, head=265.2 -> 265.2
+LiveTraffic 1586298395.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.0, f=0.1149, myF=0.6149, p={33.64460, -84.42812}, head=265.2 -> 265.3
+LiveTraffic 1586298395.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.1, f=0.1169, myF=0.6169, p={33.64460, -84.42812}, head=265.3 -> 265.3
+LiveTraffic 1586298395.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.1, f=0.1189, myF=0.6189, p={33.64460, -84.42812}, head=265.3 -> 265.3
+LiveTraffic 1586298395.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.2, f=0.1207, myF=0.6207, p={33.64460, -84.42812}, head=265.3 -> 265.4
+LiveTraffic 1586298395.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.2, f=0.1224, myF=0.6224, p={33.64460, -84.42812}, head=265.4 -> 265.4
+LiveTraffic 1586298395.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.2, f=0.1241, myF=0.6241, p={33.64460, -84.42812}, head=265.4 -> 265.4
+LiveTraffic 1586298395.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.3, f=0.1258, myF=0.6258, p={33.64460, -84.42812}, head=265.4 -> 265.4
+LiveTraffic 1586298395.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.3, f=0.1275, myF=0.6275, p={33.64460, -84.42812}, head=265.4 -> 265.4
+LiveTraffic 1586298395.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.3, f=0.1292, myF=0.6292, p={33.64460, -84.42812}, head=265.4 -> 265.5
+LiveTraffic 1586298395.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.4, f=0.1310, myF=0.6310, p={33.64460, -84.42812}, head=265.5 -> 265.5
+LiveTraffic 1586298395.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.4, f=0.1328, myF=0.6328, p={33.64460, -84.42812}, head=265.5 -> 265.5
+LiveTraffic 1586298395.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.5, f=0.1347, myF=0.6347, p={33.64460, -84.42812}, head=265.5 -> 265.5
+LiveTraffic 1586298395.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.5, f=0.1366, myF=0.6366, p={33.64460, -84.42812}, head=265.5 -> 265.6
+LiveTraffic 1586298395.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.6, f=0.1384, myF=0.6384, p={33.64460, -84.42812}, head=265.6 -> 265.6
+LiveTraffic 1586298395.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.6, f=0.1403, myF=0.6403, p={33.64460, -84.42812}, head=265.6 -> 265.6
+LiveTraffic 1586298395.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.6, f=0.1422, myF=0.6422, p={33.64460, -84.42812}, head=265.6 -> 265.7
+LiveTraffic 1586298395.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.7, f=0.1441, myF=0.6441, p={33.64460, -84.42812}, head=265.7 -> 265.7
+LiveTraffic 1586298395.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.7, f=0.1458, myF=0.6458, p={33.64460, -84.42812}, head=265.7 -> 265.7
+LiveTraffic 1586298395.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.8, f=0.1474, myF=0.6474, p={33.64460, -84.42812}, head=265.7 -> 265.7
+LiveTraffic 1586298395.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.8, f=0.1491, myF=0.6491, p={33.64460, -84.42812}, head=265.7 -> 265.7
+LiveTraffic 1586298395.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.8, f=0.1509, myF=0.6509, p={33.64460, -84.42812}, head=265.7 -> 265.8
+LiveTraffic 1586298395.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.9, f=0.1525, myF=0.6525, p={33.64460, -84.42812}, head=265.8 -> 265.8
+LiveTraffic 1586298395.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298395.9, f=0.1544, myF=0.6544, p={33.64460, -84.42812}, head=265.8 -> 265.8
+LiveTraffic 1586298396.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.0, f=0.1564, myF=0.6564, p={33.64460, -84.42812}, head=265.8 -> 265.8
+LiveTraffic 1586298396.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.0, f=0.1584, myF=0.6584, p={33.64460, -84.42813}, head=265.8 -> 265.9
+LiveTraffic 1586298396.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.1, f=0.1604, myF=0.6604, p={33.64460, -84.42813}, head=265.9 -> 265.9
+LiveTraffic 1586298396.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.1, f=0.1625, myF=0.6625, p={33.64460, -84.42813}, head=265.9 -> 265.9
+LiveTraffic 1586298396.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.1, f=0.1644, myF=0.6644, p={33.64460, -84.42813}, head=265.9 -> 266.0
+LiveTraffic 1586298396.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.2, f=0.1662, myF=0.6662, p={33.64460, -84.42813}, head=266.0 -> 266.0
+LiveTraffic 1586298396.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.2, f=0.1680, myF=0.6680, p={33.64460, -84.42813}, head=266.0 -> 266.0
+LiveTraffic 1586298396.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.3, f=0.1697, myF=0.6697, p={33.64460, -84.42813}, head=266.0 -> 266.0
+LiveTraffic 1586298396.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.3, f=0.1716, myF=0.6716, p={33.64460, -84.42813}, head=266.0 -> 266.1
+LiveTraffic 1586298396.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.3, f=0.1735, myF=0.6735, p={33.64460, -84.42813}, head=266.1 -> 266.1
+LiveTraffic 1586298396.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.4, f=0.1755, myF=0.6755, p={33.64460, -84.42813}, head=266.1 -> 266.1
+LiveTraffic 1586298396.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.4, f=0.1776, myF=0.6776, p={33.64460, -84.42813}, head=266.1 -> 266.1
+LiveTraffic 1586298396.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.5, f=0.1795, myF=0.6795, p={33.64460, -84.42813}, head=266.1 -> 266.2
+LiveTraffic 1586298396.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.5, f=0.1814, myF=0.6814, p={33.64460, -84.42813}, head=266.2 -> 266.2
+LiveTraffic 1586298396.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.6, f=0.1833, myF=0.6833, p={33.64460, -84.42813}, head=266.2 -> 266.2
+LiveTraffic 1586298396.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.6, f=0.1852, myF=0.6852, p={33.64460, -84.42813}, head=266.2 -> 266.2
+LiveTraffic 1586298396.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.7, f=0.1869, myF=0.6869, p={33.64460, -84.42813}, head=266.2 -> 266.3
+LiveTraffic 1586298396.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.7, f=0.1888, myF=0.6888, p={33.64460, -84.42813}, head=266.3 -> 266.3
+LiveTraffic 1586298396.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.7, f=0.1906, myF=0.6906, p={33.64460, -84.42813}, head=266.3 -> 266.3
+LiveTraffic 1586298396.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.8, f=0.1924, myF=0.6924, p={33.64460, -84.42813}, head=266.3 -> 266.3
+LiveTraffic 1586298396.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.8, f=0.1943, myF=0.6943, p={33.64460, -84.42813}, head=266.3 -> 266.4
+LiveTraffic 1586298396.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.9, f=0.1960, myF=0.6960, p={33.64460, -84.42813}, head=266.4 -> 266.4
+LiveTraffic 1586298396.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.9, f=0.1977, myF=0.6977, p={33.64460, -84.42813}, head=266.4 -> 266.4
+LiveTraffic 1586298396.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298396.9, f=0.1997, myF=0.6997, p={33.64460, -84.42813}, head=266.4 -> 266.4
+LiveTraffic 1586298397.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.0, f=0.2017, myF=0.7017, p={33.64460, -84.42813}, head=266.4 -> 266.5
+LiveTraffic 1586298397.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.0, f=0.2038, myF=0.7038, p={33.64460, -84.42813}, head=266.5 -> 266.5
+LiveTraffic 1586298397.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.1, f=0.2058, myF=0.7058, p={33.64460, -84.42813}, head=266.5 -> 266.5
+LiveTraffic 1586298397.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.1, f=0.2075, myF=0.7075, p={33.64460, -84.42813}, head=266.5 -> 266.5
+LiveTraffic 1586298397.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.2, f=0.2093, myF=0.7093, p={33.64460, -84.42813}, head=266.5 -> 266.6
+LiveTraffic 1586298397.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.2, f=0.2111, myF=0.7111, p={33.64460, -84.42813}, head=266.6 -> 266.6
+LiveTraffic 1586298397.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.2, f=0.2133, myF=0.7133, p={33.64460, -84.42813}, head=266.6 -> 266.6
+LiveTraffic 1586298397.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.3, f=0.2153, myF=0.7153, p={33.64460, -84.42813}, head=266.6 -> 266.6
+LiveTraffic 1586298397.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.3, f=0.2171, myF=0.7171, p={33.64460, -84.42813}, head=266.6 -> 266.7
+LiveTraffic 1586298397.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.4, f=0.2190, myF=0.7190, p={33.64460, -84.42813}, head=266.7 -> 266.7
+LiveTraffic 1586298397.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.4, f=0.2207, myF=0.7207, p={33.64460, -84.42813}, head=266.7 -> 266.7
+LiveTraffic 1586298397.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.5, f=0.2228, myF=0.7228, p={33.64460, -84.42813}, head=266.7 -> 266.7
+LiveTraffic 1586298397.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.5, f=0.2249, myF=0.7249, p={33.64460, -84.42814}, head=266.7 -> 266.8
+LiveTraffic 1586298397.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.6, f=0.2270, myF=0.7270, p={33.64460, -84.42814}, head=266.8 -> 266.8
+LiveTraffic 1586298397.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.6, f=0.2289, myF=0.7289, p={33.64460, -84.42814}, head=266.8 -> 266.8
+LiveTraffic 1586298397.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.6, f=0.2307, myF=0.7307, p={33.64460, -84.42814}, head=266.8 -> 266.8
+LiveTraffic 1586298397.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.7, f=0.2326, myF=0.7326, p={33.64460, -84.42814}, head=266.8 -> 266.9
+LiveTraffic 1586298397.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.7, f=0.2344, myF=0.7344, p={33.64460, -84.42814}, head=266.9 -> 266.9
+LiveTraffic 1586298397.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.8, f=0.2362, myF=0.7362, p={33.64460, -84.42814}, head=266.9 -> 266.9
+LiveTraffic 1586298397.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.8, f=0.2382, myF=0.7382, p={33.64460, -84.42814}, head=266.9 -> 266.9
+LiveTraffic 1586298397.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.9, f=0.2404, myF=0.7404, p={33.64460, -84.42814}, head=266.9 -> 267.0
+LiveTraffic 1586298397.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.9, f=0.2421, myF=0.7421, p={33.64460, -84.42814}, head=267.0 -> 267.0
+LiveTraffic 1586298397.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298397.9, f=0.2442, myF=0.7442, p={33.64460, -84.42814}, head=267.0 -> 267.0
+LiveTraffic 1586298398.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.0, f=0.2462, myF=0.7462, p={33.64460, -84.42814}, head=267.0 -> 267.0
+LiveTraffic 1586298398.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.0, f=0.2484, myF=0.7484, p={33.64460, -84.42814}, head=267.0 -> 267.1
+LiveTraffic 1586298398.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.1, f=0.2502, myF=0.7502, p={33.64460, -84.42814}, head=267.1 -> 267.1
+LiveTraffic 1586298398.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.1, f=0.2521, myF=0.7521, p={33.64460, -84.42814}, head=267.1 -> 267.1
+LiveTraffic 1586298398.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.2, f=0.2540, myF=0.7540, p={33.64460, -84.42814}, head=267.1 -> 267.1
+LiveTraffic 1586298398.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.2, f=0.2558, myF=0.7558, p={33.64460, -84.42814}, head=267.1 -> 267.2
+LiveTraffic 1586298398.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.3, f=0.2578, myF=0.7578, p={33.64460, -84.42814}, head=267.2 -> 267.2
+LiveTraffic 1586298398.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.3, f=0.2596, myF=0.7596, p={33.64460, -84.42814}, head=267.2 -> 267.2
+LiveTraffic 1586298398.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.3, f=0.2616, myF=0.7616, p={33.64460, -84.42814}, head=267.2 -> 267.2
+LiveTraffic 1586298398.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.4, f=0.2635, myF=0.7635, p={33.64460, -84.42814}, head=267.2 -> 267.3
+LiveTraffic 1586298398.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.4, f=0.2655, myF=0.7655, p={33.64460, -84.42814}, head=267.3 -> 267.3
+LiveTraffic 1586298398.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.5, f=0.2676, myF=0.7676, p={33.64460, -84.42814}, head=267.3 -> 267.3
+LiveTraffic 1586298398.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.5, f=0.2697, myF=0.7697, p={33.64460, -84.42814}, head=267.3 -> 267.3
+LiveTraffic 1586298398.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.6, f=0.2716, myF=0.7716, p={33.64460, -84.42814}, head=267.3 -> 267.4
+LiveTraffic 1586298398.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.6, f=0.2734, myF=0.7734, p={33.64460, -84.42814}, head=267.4 -> 267.4
+LiveTraffic 1586298398.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.6, f=0.2752, myF=0.7752, p={33.64460, -84.42814}, head=267.4 -> 267.4
+LiveTraffic 1586298398.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.7, f=0.2771, myF=0.7771, p={33.64460, -84.42814}, head=267.4 -> 267.4
+LiveTraffic 1586298398.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.7, f=0.2790, myF=0.7790, p={33.64460, -84.42814}, head=267.4 -> 267.4
+LiveTraffic 1586298398.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.8, f=0.2810, myF=0.7810, p={33.64460, -84.42814}, head=267.4 -> 267.5
+LiveTraffic 1586298398.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.8, f=0.2833, myF=0.7833, p={33.64460, -84.42814}, head=267.5 -> 267.5
+LiveTraffic 1586298398.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.9, f=0.2852, myF=0.7852, p={33.64460, -84.42814}, head=267.5 -> 267.5
+LiveTraffic 1586298398.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298398.9, f=0.2870, myF=0.7870, p={33.64460, -84.42815}, head=267.5 -> 267.5
+LiveTraffic 1586298399.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.0, f=0.2889, myF=0.7889, p={33.64460, -84.42815}, head=267.5 -> 267.6
+LiveTraffic 1586298399.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.0, f=0.2908, myF=0.7908, p={33.64460, -84.42815}, head=267.6 -> 267.6
+LiveTraffic 1586298399.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.0, f=0.2928, myF=0.7928, p={33.64460, -84.42815}, head=267.6 -> 267.6
+LiveTraffic 1586298399.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.1, f=0.2946, myF=0.7946, p={33.64460, -84.42815}, head=267.6 -> 267.6
+LiveTraffic 1586298399.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.1, f=0.2965, myF=0.7965, p={33.64460, -84.42815}, head=267.6 -> 267.7
+LiveTraffic 1586298399.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.2, f=0.2982, myF=0.7982, p={33.64460, -84.42815}, head=267.7 -> 267.7
+LiveTraffic 1586298399.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.2, f=0.2999, myF=0.7999, p={33.64460, -84.42815}, head=267.7 -> 267.7
+LiveTraffic 1586298399.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.2, f=0.3018, myF=0.8018, p={33.64460, -84.42815}, head=267.7 -> 267.7
+LiveTraffic 1586298399.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.3, f=0.3038, myF=0.8038, p={33.64460, -84.42815}, head=267.7 -> 267.7
+LiveTraffic 1586298399.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.3, f=0.3058, myF=0.8058, p={33.64460, -84.42815}, head=267.7 -> 267.8
+LiveTraffic 1586298399.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.4, f=0.3076, myF=0.8076, p={33.64460, -84.42815}, head=267.8 -> 267.8
+LiveTraffic 1586298399.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.4, f=0.3096, myF=0.8096, p={33.64460, -84.42815}, head=267.8 -> 267.8
+LiveTraffic 1586298399.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.5, f=0.3116, myF=0.8116, p={33.64460, -84.42815}, head=267.8 -> 267.8
+LiveTraffic 1586298399.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.5, f=0.3138, myF=0.8138, p={33.64460, -84.42815}, head=267.8 -> 267.9
+LiveTraffic 1586298399.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.6, f=0.3156, myF=0.8156, p={33.64460, -84.42815}, head=267.9 -> 267.9
+LiveTraffic 1586298399.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.6, f=0.3175, myF=0.8175, p={33.64460, -84.42815}, head=267.9 -> 267.9
+LiveTraffic 1586298399.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.6, f=0.3194, myF=0.8194, p={33.64460, -84.42815}, head=267.9 -> 267.9
+LiveTraffic 1586298399.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.7, f=0.3212, myF=0.8212, p={33.64460, -84.42815}, head=267.9 -> 268.0
+LiveTraffic 1586298399.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.7, f=0.3230, myF=0.8230, p={33.64460, -84.42815}, head=268.0 -> 268.0
+LiveTraffic 1586298399.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.8, f=0.3248, myF=0.8248, p={33.64460, -84.42815}, head=268.0 -> 268.0
+LiveTraffic 1586298399.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.8, f=0.3266, myF=0.8266, p={33.64460, -84.42815}, head=268.0 -> 268.0
+LiveTraffic 1586298399.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.8, f=0.3284, myF=0.8284, p={33.64460, -84.42815}, head=268.0 -> 268.0
+LiveTraffic 1586298399.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.9, f=0.3303, myF=0.8303, p={33.64460, -84.42815}, head=268.0 -> 268.1
+LiveTraffic 1586298399.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298399.9, f=0.3321, myF=0.8321, p={33.64460, -84.42815}, head=268.1 -> 268.1
+LiveTraffic 1586298400.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.0, f=0.3340, myF=0.8340, p={33.64460, -84.42815}, head=268.1 -> 268.1
+LiveTraffic 1586298400.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.0, f=0.3361, myF=0.8361, p={33.64460, -84.42815}, head=268.1 -> 268.1
+LiveTraffic 1586298400.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.1, f=0.3379, myF=0.8379, p={33.64460, -84.42815}, head=268.1 -> 268.2
+LiveTraffic 1586298400.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.1, f=0.3398, myF=0.8398, p={33.64460, -84.42815}, head=268.2 -> 268.2
+LiveTraffic 1586298400.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.1, f=0.3416, myF=0.8416, p={33.64460, -84.42815}, head=268.2 -> 268.2
+LiveTraffic 1586298400.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.2, f=0.3434, myF=0.8434, p={33.64460, -84.42815}, head=268.2 -> 268.2
+LiveTraffic 1586298400.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.2, f=0.3451, myF=0.8451, p={33.64460, -84.42815}, head=268.2 -> 268.2
+LiveTraffic 1586298400.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.3, f=0.3470, myF=0.8470, p={33.64460, -84.42815}, head=268.2 -> 268.3
+LiveTraffic 1586298400.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.3, f=0.3489, myF=0.8489, p={33.64460, -84.42815}, head=268.3 -> 268.3
+LiveTraffic 1586298400.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.3, f=0.3507, myF=0.8507, p={33.64460, -84.42816}, head=268.3 -> 268.3
+LiveTraffic 1586298400.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.4, f=0.3526, myF=0.8526, p={33.64460, -84.42816}, head=268.3 -> 268.3
+LiveTraffic 1586298400.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.4, f=0.3545, myF=0.8545, p={33.64460, -84.42816}, head=268.3 -> 268.4
+LiveTraffic 1586298400.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.5, f=0.3564, myF=0.8564, p={33.64460, -84.42816}, head=268.4 -> 268.4
+LiveTraffic 1586298400.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.5, f=0.3584, myF=0.8584, p={33.64460, -84.42816}, head=268.4 -> 268.4
+LiveTraffic 1586298400.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.6, f=0.3603, myF=0.8603, p={33.64460, -84.42816}, head=268.4 -> 268.4
+LiveTraffic 1586298400.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.6, f=0.3621, myF=0.8621, p={33.64460, -84.42816}, head=268.4 -> 268.4
+LiveTraffic 1586298400.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.6, f=0.3639, myF=0.8639, p={33.64460, -84.42816}, head=268.4 -> 268.5
+LiveTraffic 1586298400.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.7, f=0.3657, myF=0.8657, p={33.64460, -84.42816}, head=268.5 -> 268.5
+LiveTraffic 1586298400.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.7, f=0.3676, myF=0.8676, p={33.64460, -84.42816}, head=268.5 -> 268.5
+LiveTraffic 1586298400.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.8, f=0.3694, myF=0.8694, p={33.64460, -84.42816}, head=268.5 -> 268.5
+LiveTraffic 1586298400.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.8, f=0.3713, myF=0.8713, p={33.64460, -84.42816}, head=268.5 -> 268.5
+LiveTraffic 1586298400.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.9, f=0.3733, myF=0.8733, p={33.64460, -84.42816}, head=268.5 -> 268.6
+LiveTraffic 1586298400.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.9, f=0.3751, myF=0.8751, p={33.64460, -84.42816}, head=268.6 -> 268.6
+LiveTraffic 1586298400.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298400.9, f=0.3770, myF=0.8770, p={33.64460, -84.42816}, head=268.6 -> 268.6
+LiveTraffic 1586298401.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.0, f=0.3789, myF=0.8789, p={33.64460, -84.42816}, head=268.6 -> 268.6
+LiveTraffic 1586298401.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.0, f=0.3809, myF=0.8809, p={33.64460, -84.42816}, head=268.6 -> 268.7
+LiveTraffic 1586298401.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.1, f=0.3829, myF=0.8829, p={33.64460, -84.42816}, head=268.7 -> 268.7
+LiveTraffic 1586298401.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.1, f=0.3850, myF=0.8850, p={33.64460, -84.42816}, head=268.7 -> 268.7
+LiveTraffic 1586298401.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.2, f=0.3870, myF=0.8870, p={33.64460, -84.42816}, head=268.7 -> 268.7
+LiveTraffic 1586298401.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.2, f=0.3890, myF=0.8890, p={33.64460, -84.42816}, head=268.7 -> 268.7
+LiveTraffic 1586298401.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.3, f=0.3909, myF=0.8909, p={33.64460, -84.42816}, head=268.7 -> 268.8
+LiveTraffic 1586298401.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.3, f=0.3929, myF=0.8929, p={33.64460, -84.42816}, head=268.8 -> 268.8
+LiveTraffic 1586298401.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.3, f=0.3948, myF=0.8948, p={33.64460, -84.42816}, head=268.8 -> 268.8
+LiveTraffic 1586298401.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.4, f=0.3964, myF=0.8964, p={33.64460, -84.42816}, head=268.8 -> 268.8
+LiveTraffic 1586298401.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.4, f=0.3984, myF=0.8984, p={33.64460, -84.42816}, head=268.8 -> 268.9
+LiveTraffic 1586298401.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.5, f=0.4006, myF=0.9006, p={33.64460, -84.42816}, head=268.9 -> 268.9
+LiveTraffic 1586298401.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.5, f=0.4028, myF=0.9028, p={33.64460, -84.42816}, head=268.9 -> 268.9
+LiveTraffic 1586298401.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.6, f=0.4046, myF=0.9046, p={33.64460, -84.42816}, head=268.9 -> 268.9
+LiveTraffic 1586298401.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.6, f=0.4064, myF=0.9064, p={33.64460, -84.42816}, head=268.9 -> 268.9
+LiveTraffic 1586298401.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.6, f=0.4082, myF=0.9082, p={33.64460, -84.42816}, head=268.9 -> 269.0
+LiveTraffic 1586298401.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.7, f=0.4103, myF=0.9103, p={33.64460, -84.42817}, head=269.0 -> 269.0
+LiveTraffic 1586298401.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.7, f=0.4122, myF=0.9122, p={33.64460, -84.42817}, head=269.0 -> 269.0
+LiveTraffic 1586298401.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.8, f=0.4140, myF=0.9140, p={33.64460, -84.42817}, head=269.0 -> 269.0
+LiveTraffic 1586298401.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.8, f=0.4162, myF=0.9162, p={33.64460, -84.42817}, head=269.0 -> 269.1
+LiveTraffic 1586298401.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.9, f=0.4181, myF=0.9181, p={33.64460, -84.42817}, head=269.1 -> 269.1
+LiveTraffic 1586298401.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298401.9, f=0.4201, myF=0.9201, p={33.64460, -84.42817}, head=269.1 -> 269.1
+LiveTraffic 1586298402.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.0, f=0.4222, myF=0.9222, p={33.64460, -84.42817}, head=269.1 -> 269.1
+LiveTraffic 1586298402.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.0, f=0.4243, myF=0.9243, p={33.64460, -84.42817}, head=269.1 -> 269.1
+LiveTraffic 1586298402.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.1, f=0.4263, myF=0.9263, p={33.64460, -84.42817}, head=269.1 -> 269.2
+LiveTraffic 1586298402.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.1, f=0.4281, myF=0.9281, p={33.64460, -84.42817}, head=269.2 -> 269.2
+LiveTraffic 1586298402.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.1, f=0.4300, myF=0.9300, p={33.64460, -84.42817}, head=269.2 -> 269.2
+LiveTraffic 1586298402.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.2, f=0.4318, myF=0.9318, p={33.64460, -84.42817}, head=269.2 -> 269.2
+LiveTraffic 1586298402.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.2, f=0.4336, myF=0.9336, p={33.64460, -84.42817}, head=269.2 -> 269.2
+LiveTraffic 1586298402.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.3, f=0.4356, myF=0.9356, p={33.64460, -84.42817}, head=269.2 -> 269.3
+LiveTraffic 1586298402.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.3, f=0.4376, myF=0.9376, p={33.64460, -84.42817}, head=269.3 -> 269.3
+LiveTraffic 1586298402.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.4, f=0.4395, myF=0.9395, p={33.64460, -84.42817}, head=269.3 -> 269.3
+LiveTraffic 1586298402.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.4, f=0.4415, myF=0.9415, p={33.64460, -84.42817}, head=269.3 -> 269.3
+LiveTraffic 1586298402.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.4, f=0.4435, myF=0.9435, p={33.64460, -84.42817}, head=269.3 -> 269.4
+LiveTraffic 1586298402.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.5, f=0.4456, myF=0.9456, p={33.64460, -84.42817}, head=269.4 -> 269.4
+LiveTraffic 1586298402.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.5, f=0.4477, myF=0.9477, p={33.64460, -84.42817}, head=269.4 -> 269.4
+LiveTraffic 1586298402.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.6, f=0.4495, myF=0.9495, p={33.64460, -84.42817}, head=269.4 -> 269.4
+LiveTraffic 1586298402.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.6, f=0.4515, myF=0.9515, p={33.64460, -84.42817}, head=269.4 -> 269.4
+LiveTraffic 1586298402.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.7, f=0.4534, myF=0.9534, p={33.64460, -84.42817}, head=269.4 -> 269.5
+LiveTraffic 1586298402.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.7, f=0.4553, myF=0.9553, p={33.64460, -84.42817}, head=269.5 -> 269.5
+LiveTraffic 1586298402.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.7, f=0.4570, myF=0.9570, p={33.64460, -84.42817}, head=269.5 -> 269.5
+LiveTraffic 1586298402.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.8, f=0.4589, myF=0.9589, p={33.64460, -84.42817}, head=269.5 -> 269.5
+LiveTraffic 1586298402.8 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.8, f=0.4609, myF=0.9609, p={33.64460, -84.42817}, head=269.5 -> 269.5
+LiveTraffic 1586298402.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.9, f=0.4628, myF=0.9628, p={33.64460, -84.42817}, head=269.5 -> 269.6
+LiveTraffic 1586298402.9 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298402.9, f=0.4645, myF=0.9645, p={33.64460, -84.42817}, head=269.6 -> 269.6
+LiveTraffic 1586298403.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.0, f=0.4664, myF=0.9664, p={33.64460, -84.42817}, head=269.6 -> 269.6
+LiveTraffic 1586298403.0 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.0, f=0.4684, myF=0.9684, p={33.64460, -84.42817}, head=269.6 -> 269.6
+LiveTraffic 1586298403.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.1, f=0.4706, myF=0.9706, p={33.64460, -84.42818}, head=269.6 -> 269.6
+LiveTraffic 1586298403.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.1, f=0.4725, myF=0.9725, p={33.64460, -84.42818}, head=269.6 -> 269.7
+LiveTraffic 1586298403.1 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.1, f=0.4743, myF=0.9743, p={33.64460, -84.42818}, head=269.7 -> 269.7
+LiveTraffic 1586298403.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.2, f=0.4761, myF=0.9761, p={33.64460, -84.42818}, head=269.7 -> 269.7
+LiveTraffic 1586298403.2 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.2, f=0.4778, myF=0.9778, p={33.64460, -84.42818}, head=269.7 -> 269.7
+LiveTraffic 1586298403.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.3, f=0.4796, myF=0.9796, p={33.64460, -84.42818}, head=269.7 -> 269.7
+LiveTraffic 1586298403.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.3, f=0.4815, myF=0.9815, p={33.64460, -84.42818}, head=269.7 -> 269.8
+LiveTraffic 1586298403.3 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.3, f=0.4834, myF=0.9834, p={33.64460, -84.42818}, head=269.8 -> 269.8
+LiveTraffic 1586298403.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.4, f=0.4852, myF=0.9852, p={33.64460, -84.42818}, head=269.8 -> 269.8
+LiveTraffic 1586298403.4 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.4, f=0.4870, myF=0.9870, p={33.64460, -84.42818}, head=269.8 -> 269.8
+LiveTraffic 1586298403.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.5, f=0.4890, myF=0.9890, p={33.64460, -84.42818}, head=269.8 -> 269.8
+LiveTraffic 1586298403.5 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.5, f=0.4911, myF=0.9911, p={33.64460, -84.42818}, head=269.8 -> 269.9
+LiveTraffic 1586298403.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.6, f=0.4931, myF=0.9931, p={33.64460, -84.42818}, head=269.9 -> 269.9
+LiveTraffic 1586298403.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.6, f=0.4950, myF=0.9950, p={33.64460, -84.42818}, head=269.9 -> 269.9
+LiveTraffic 1586298403.6 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.6, f=0.4968, myF=0.9968, p={33.64460, -84.42818}, head=269.9 -> 269.9
+LiveTraffic 1586298403.7 DEBUG LTAircraft.cpp:741/GetPos: ts=1586298403.7, f=0.4987, myF=0.9987, p={33.64460, -84.42818}, head=269.9 -> 269.9
+0:25:18.107 E/ATC: OH BOY! KATL SEEMS TO MAYBE HAVE A ONE-WAY PATH TO A DEAD-END!
+LiveTraffic 1586298406.7 DEBUG LTFlightData.cpp:1519/AddNewPos: DEBUG ADDED   NEW POS: 1586298470.0: (33.64130, -84.43130)     nanft   GND_ON                           {h nan , p nan, r nan}
+LiveTraffic 1586298406.8 DEBUG LTFlightData.cpp:1488/IsPosOK: A062EC DAL420: Invalid vector <h 316,  1509m @  96kt,  135ft/m> with headingDiff = -176
+LiveTraffic 1586298406.8 DEBUG LTFlightData.cpp:1488/IsPosOK: A3DC47 DL2515: Invalid vector <h 247,  2157m @ 175kt, -4997ft/m> with headingDiff = 0
+LiveTraffic 1586298406.8 DEBUG LTFlightData.cpp:1712/AppendNewPos: DEBUG POS DATA: a/c AA7409 WN943 SimTime: 1586298406.8 - 2020-04-07 22:26:46
+a/c AA7409 (B737 WN943)
+(33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.0000 cal:+0.5000/1.0000, my=0.9987>  <- turn
+1586298406.8: (33.64460, -84.42931)   996.0ft   GND_ON     CT Taxi               {h 270 , p   0, r   0} Y: 996.0ft 15kn 0ft/m Phase: 10 Taxi
+posList:
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} <h 270,   176m @  15kt,    4ft/m>
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+posDeque:
+1586298427.8: (33.64460, -84.43116)   995.7ft   GND_ON     CT Taxi               {h 215 , p   0, r   0} <h 192,    44m @  16kt,    7ft/m>
+1586298433.0: (33.64421, -84.43127)   996.3ft   GND_ON TXI    Taxi          1821 {h 192*, p   0, r   0} <h 192,    14m @  12kt,   12ft/m>
+1586298435.2: (33.64409, -84.43130)   996.8ft   GND_ON TXI    Taxi          1821 {h 191 , p   0, r   0} <h 180,   110m @  18kt,   10ft/m>
+1586298447.0: (33.64310, -84.43130)   998.7ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0} <h 180,   200m @  17kt,    1ft/m>
+1586298470.0: (33.64130, -84.43130)   999.0ft   GND_ON                           {h 180 , p   0, r   0}
+posToAdd:
+<empty>
+LiveTraffic 1586298406.8 DEBUG LTApt.cpp:1292/SnapToTaxiway: Snapped to taxiway from (33.64130, -84.43130) to (33.64130, -84.43130)
+LiveTraffic 1586298406.8 DEBUG LTFlightData.cpp:1243/CalcNextPos: DEBUG POS DATA: a/c AA7409 WN943 SimTime: 1586298406.8 - 2020-04-07 22:26:46
+a/c AA7409 (B737 WN943)
+(33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.0000 cal:+0.5000/1.0000, my=0.9987>  <- turn
+1586298406.8: (33.64460, -84.42931)   996.0ft   GND_ON     CT Taxi               {h 270 , p   0, r   0} Y: 996.0ft 15kn 0ft/m Phase: 10 Taxi
+posList:
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} <h 270,   176m @  15kt,    4ft/m>
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+posDeque:
+1586298427.8: (33.64460, -84.43116)   995.7ft   GND_ON     CT Taxi               {h 215 , p   0, r   0} <h 192,    44m @  16kt,    7ft/m>
+1586298433.0: (33.64421, -84.43127)   996.3ft   GND_ON TXI    Taxi          1821 {h 192*, p   0, r   0} <h 192,    14m @  12kt,   12ft/m>
+1586298435.2: (33.64409, -84.43130)   996.8ft   GND_ON TXI    Taxi          1821 {h 191 , p   0, r   0} <h 180,   110m @  18kt,   10ft/m>
+1586298447.0: (33.64310, -84.43130)   998.7ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0} <h 180,   200m @  17kt,    1ft/m>
+1586298470.0: (33.64130, -84.43130)   999.0ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0}
+posToAdd:
+<empty>
+LiveTraffic 1586298406.8 DEBUG LTFlightData.cpp:1488/IsPosOK: ADFD80 PAT320: Invalid vector <h 199,  1391m @ 300kt, 16518ft/m> with headingDiff = -1
+0:25:25.854 E/ATC: OH BOY! KATL SEEMS TO MAYBE HAVE A ONE-WAY PATH TO A DEAD-END!
+LiveTraffic 1586298414.5 DEBUG LTFlightData.cpp:1771/TryFetchNewPos: DEBUG POS DATA: a/c AA7409 WN943 SimTime: 1586298414.5 - 2020-04-07 22:26:54
+a/c AA7409 (B737 WN943)
+(33.64461 -84.42804) {-1.45515 -1.45515} (-1.46168 -12.93944) <startF=0.0000 cal:+0.5000/1.0000, my=0.9987>  <- turn
+1586298414.5: (33.64460, -84.42996)   997.3ft   GND_ON     CT Taxi               {h 270 , p   0, r   0} Y: 997.3ft 15kn 0ft/m Phase: 10 Taxi
+posList:
+1586298392.4: (33.64460, -84.42810)   994.1ft   GND_ON     CT Taxi               {h 263 , p   0, r   0} <h 270,   176m @  15kt,    4ft/m>
+1586298415.0: (33.64460, -84.43000)   995.7ft   GND_ON TXI    Taxi          2239 {h 270*, p   0, r   0} <h 270,   108m @  16kt,    0ft/m>
+1586298427.8: (33.64460, -84.43116)   995.7ft   GND_ON     CT Taxi               {h 215 , p   0, r   0} <h 192,    44m @  16kt,    7ft/m>
+posDeque:
+1586298433.0: (33.64421, -84.43127)   996.3ft   GND_ON TXI    Taxi          1821 {h 192*, p   0, r   0} <h 192,    14m @  12kt,   12ft/m>
+1586298435.2: (33.64409, -84.43130)   996.8ft   GND_ON TXI    Taxi          1821 {h 191 , p   0, r   0} <h 180,   110m @  18kt,   10ft/m>
+1586298447.0: (33.64310, -84.43130)   998.7ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0} <h 180,   200m @  17kt,    1ft/m>
+1586298470.0: (33.64130, -84.43130)   999.0ft   GND_ON TXI    Taxi          1753 {h 180*, p   0, r   0}
+posToAdd:
+
+
+Readme:
+<li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>,
+    snapping to taxiways to make aircraft stay on taxiways more often.
+    Also determines gate/ramp positions and turns aircraft the right way.
+</li>
+<li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>
+    soft Bezier-style curves for turning aircraft.
+</li>
+
+
 
 LTApt
 
 - When reaching SUP position we need to be harder in stopping the plane
-  - if a SUP position is the last one, then, hey, just _stick_ there!
-    Add another same position, just new timestamp, to make the plane stop moving.
+  - More generatically: If running out of positions on the ground:
+    Add the last position once again with new ts, should make a/c stop and stick there.
 
 - Allow computation of altitude as soon as an airport is available,
   not only after all of them are read from apt.dat.
@@ -31,11 +429,6 @@ LTApt
 
 - Data Smoothing is currently off for all channels. Is that better for take off roll?
   
-
-1585778496, 33.64580, -84.44230
-1585778496, 33.64580, -84.44230
-1585778514, 33.64550, -84.44130
-1585778514, 33.64550, -84.44130
 
 
 TEST
