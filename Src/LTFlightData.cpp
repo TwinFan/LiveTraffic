@@ -228,7 +228,7 @@ LTFlightData::LTFlightData () :
 rcvr(0),sig(0),
 rotateTS(NAN),
 // created "now"...if no positions are ever added then it will be removed after 2 x outdated interval
-youngestTS(dataRefs.GetSimTime() +  + dataRefs.GetAcOutdatedIntvl()),
+youngestTS(dataRefs.GetSimTime() + 2 * dataRefs.GetAcOutdatedIntvl()),
 pAc(nullptr), probeRef(NULL),
 bValid(true)
 {}
@@ -940,6 +940,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 else if (pAc->IsOnGrnd()) {
                     positionTy stopPos = pAc->GetToPos();
                     if (stopPos.IsOnGnd() &&
+                        stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
                         stopPos.f.flightPhase != FPH_STOPPED_ON_RWY)    // avoid adding several stops
                     {
                         stopPos.ts() += simTime + 10.0;                 // just assume _some_ time

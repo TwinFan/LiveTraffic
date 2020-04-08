@@ -115,7 +115,7 @@ public:
     // get current value
     double m_s() const { return currSpeed_m_s; }
     double kt() const { return currSpeed_kt; }
-    bool isZero() const { return currSpeed_m_s <= 0; }
+    bool isZero() const { return currSpeed_m_s <= 0.01; }
     
     // start an acceleration now
     void StartAccel(double startSpeed, double targetSpeed, double accel,
@@ -155,6 +155,7 @@ protected:
     double fCalAdd = NAN;       ///< summand for `f` calibration
     double fCalDiv = NAN;       ///< divisor for `f` calibration
     double myF = NAN;           ///< last used `f` after calibration
+    double mySecondMaxF = NAN;  ///< in case of a cut-corner curve: maximum f value on second half
 public:
     BezierCurve () {}           ///< Standard constructor does nothing
     
@@ -199,6 +200,8 @@ public:
     /// Calibrate the Bezier so that `f = [_inifF.._maxF]` maps to `myF = [_myInit.._myMax]`
     void Calibrate (double _initF, double _maxF,
                     double _myInit, double _myMax);
+    /// Re-Calibrate for the second half of a cut-corner curve
+    void ReCalibrate2ndHalf () { Calibrate(0.0, mySecondMaxF, 0.5, 1.0); }
     
     /// Clear the definition, so that BezierCurve::isDefined() will return `false`
     void Clear ();
@@ -380,6 +383,7 @@ public:
     inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     inline bool IsOnGrnd() const { return bOnGrnd; }
+    bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
     inline double GetHeading() const { return ppos.heading(); }
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }

@@ -490,7 +490,8 @@ PLUGIN_API int  XPluginEnable(void)
         XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
         
         // Start reading apt.dat
-        LTAptEnable();
+        if (dataRefs.GetFdSnapTaxiDist_m() > 0.0)
+            LTAptEnable();
         
         // Enable showing aircraft
         if (!LTMainEnable()) return 0;

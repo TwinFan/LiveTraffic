@@ -1308,6 +1308,9 @@ void DataRefs::LTSetCfgValue (void* p, int val)
 
 bool DataRefs::SetCfgValue (void* p, int val)
 {
+    // If fdSnapTaxiDist changes we might want to enable/disable airport reading
+    int oldFdSnapTaxiDist = fdSnapTaxiDist;
+    
     // we don't exactly know which parameter p points to...
     // ...we just set it, validate all of them, and reset in case validation fails
     int oldVal = *reinterpret_cast<int*>(p);
@@ -1326,6 +1329,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
         acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 15                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
@@ -1337,6 +1341,17 @@ bool DataRefs::SetCfgValue (void* p, int val)
         // undo change
         *reinterpret_cast<int*>(p) = oldVal;
         return false;
+    }
+    
+    // Special handling for fdSnapTaxiDist:
+    if (oldFdSnapTaxiDist != fdSnapTaxiDist)        // snap taxi dist did change
+    {
+        // switched from on to off?
+        if (oldFdSnapTaxiDist > 0 && fdSnapTaxiDist == 0)
+            LTAptDisable();
+        // switched from off to on?
+        else if (oldFdSnapTaxiDist == 0 && fdSnapTaxiDist > 0)
+            LTAptEnable();
     }
     
     // success

@@ -2401,6 +2401,10 @@ void LTAptUpdateRwyAltitudes ()
 // Update the airport data with airports around current camera position
 void LTAptRefresh ()
 {
+    // If not doing snapping, then not doing reading...
+    if (dataRefs.GetFdSnapTaxiDist_m() <= 0)
+        return;
+    
     // Safety check: Thread already running?
     // Future object is valid, i.e. initialized with an async operation?
     if (futRefreshing.valid() &&
@@ -2591,6 +2595,11 @@ void LTAptDisable ()
     
     // destroy the Y Probe
     Apt::DestroyYProbe();
+    
+    // remove all airport data
+    gmapApt.clear();
+    lastCameraPos = positionTy();
+    bAptsAdded = false;
 }
 
 

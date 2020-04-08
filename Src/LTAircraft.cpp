@@ -541,13 +541,15 @@ void BezierCurve::Define (double _nowF,
     // pre-initialization of start and end, will be fine-tuned down the road
     start = _from;
     end = _mid;
+    mySecondMaxF = myF = NAN;
+    ptCtrl.clear();
 
     // How much is the turn, how long shall (half) the turn take at most?
     const double halfTurnTime = std::abs(HeadingDiff(_angleFromMid,
                                                      _angleMidTo)) * _fullTurnTime/360.0 / 2;
     // Earliest, we start "now", but no sooner than necessary for turning
     double legTime = _mid.ts() - _from.ts();
-    double f = std::max (_nowF, 1 - halfTurnTime / legTime);
+    const double f = std::max (_nowF, 1 - halfTurnTime / legTime);
     // Apply an operation similar to "the factor" in CalcPPos()
     // so we can be quite sure we match up with the flying plane:
     start.v = (1-f) * _from.v + f * _mid.v;
@@ -560,8 +562,8 @@ void BezierCurve::Define (double _nowF,
     // turn until half the leg:
     legTime = _to.ts() - _mid.ts();
     const double t = std::min (halfTurnTime, legTime/2);
-    f = t / legTime;
-    end.v = (1-f) * _mid.v + f * _to.v;;
+    mySecondMaxF = t / legTime;
+    end.v = (1-mySecondMaxF) * _mid.v + mySecondMaxF * _to.v;;
     
     // Store the control point
     ptCtrl = _mid;
@@ -576,7 +578,7 @@ void BezierCurve::Define (double _nowF,
     ConvertToMeter();
 }
 
-// Define a quadratic Bezier curve, which computes 2 rreasonable control points itself
+// Define a quadratic Bezier curve, which computes a rreasonable control point itself
 bool BezierCurve::Define (double _initF,
                           const positionTy& _from,
                           const positionTy& _to,
@@ -608,7 +610,7 @@ bool BezierCurve::Define (double _initF,
     start = _from;
     end = _to;
     Calibrate(_initF, 1.0, 0.0, 1.0);
-    myF = NAN;
+    mySecondMaxF = myF = NAN;
     ptCtrl.clear();
 
     // Convert all coordinates to meter
@@ -704,6 +706,7 @@ void BezierCurve::Clear ()
     fCalAdd = NAN;
     fCalDiv = NAN;
     myF = NAN;
+    mySecondMaxF = NAN;
 }
 
 // Return the position as per given timestamp, if the timestamp is between `start` and `end`
@@ -735,8 +738,8 @@ bool BezierCurve::GetPos (positionTy& pos, double ts, double f)
             LOG_MSG(logDEBUG, dbgTxt().c_str());
             LOG_MSG(logDEBUG, "Current pos: %s", pos.dbgTxt().c_str());
         }
-//        if (bFirstTime ||
-//            std::abs(pos.heading()-angle) > 1.5)
+        if (bFirstTime ||
+            std::abs(pos.heading()-angle) > 1.5)
             LOG_MSG(logDEBUG, "ts=%.1f, f=%.4f, myF=%.4f, p={%s}, head=%.1f -> %.1f",
                     ts, f, myF, p.dbgTxt().c_str(), pos.heading(), angle);
     }
@@ -761,12 +764,13 @@ std::string BezierCurve::dbgTxt() const
 {
     if (isDefined()) {
         char s[250];
-        snprintf(s, sizeof(s), "(%.5f %.5f) {%.5f %.5f} (%.5f %.5f) <startF=%.4f cal:%+.4f/%.4f, my=%.4f>",
+        snprintf(s, sizeof(s), "(%.5f %.5f) {%.5f %.5f} (%.5f %.5f) <startF=%.4f cal:%+.4f/%.4f, my=%.4f, 2ndMax=%.4f>",
                  start.lat(), start.lon(),
                  ptCtrl.y, ptCtrl.y,
                  end.lat(), end.lon(),
                  startF,
-                 fCalAdd, fCalDiv, myF);
+                 fCalAdd, fCalDiv,
+                 myF, mySecondMaxF);
         return s;
     } else {
         return "<undefined>";
@@ -1328,6 +1332,16 @@ bool LTAircraft::OutOfPositions() const
 }
 
 
+// is the aircraft on a rwy (on ground and at least on pos on rwy)
+bool LTAircraft::IsOnRwy() const
+{
+    return IsOnGrnd() &&
+    posList.size() >= 2 &&
+    (posList.front().f.specialPos == SPOS_RWY ||
+     posList[1].f.specialPos == SPOS_RWY);
+}
+
+
 // The basic idea is: We are given a 'from'-position and a 'to'-position,
 // both including a timestamp. The 'from'-timestamp is in the past,
 // the 'to'-timestamp is in the future (as compared to simulated LT time,
@@ -1570,7 +1584,7 @@ bool LTAircraft::CalcPPos()
     if (bPosSwitch) {
         if (turn.isTsInbetween(currCycle.simTime))
             // Re-calibrate the curve so that f calculation continuous seamlessly
-            turn.Calibrate(0.0, 0.5, 0.5, 1.0);
+            turn.ReCalibrate2ndHalf();
         else
             // Otherwise clear the turn, just for cleanup
             turn.Clear();
@@ -1808,11 +1822,14 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
             phase = FPH_STOPPED_ON_RWY;
     }
     
-    // on the ground with high speed
-    if ( bOnGrnd && speed.kt() > mdl.MAX_TAXI_SPEED ) {
-        if ( bFPhPrev <= FPH_LIFT_OFF )
+    // on the ground with high speed or on a runway
+    if ( bOnGrnd && (speed.kt() > mdl.MAX_TAXI_SPEED || IsOnRwy()))
+    {
+        if ( bFPhPrev <= FPH_LIFT_OFF )     // before take off
             phase = FPH_TO_ROLL;
-        else
+        else if (speed.isZero())            // stopped on rwy
+            phase = FPH_STOPPED_ON_RWY;
+        else                                // else: rolling out
             phase = FPH_ROLL_OUT;
     }
     
