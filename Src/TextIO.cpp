@@ -102,6 +102,11 @@ float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log le
     {1.00f, 1.00f, 1.00f}               // MSG (white)
 };
 
+/// Values for "Seeing aircraft...showing..."
+int gNumSee = 0, gNumShow = 0, gBufTime = -1;
+
+inline bool needSeeingShowMsg () { return gBufTime >= 0; }
+
 //MARK: custom X-Plane message Window - Private Callbacks
 // Callbacks we will register when we create our window
 void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
@@ -125,10 +130,20 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     XPLMDrawTranslucentDarkBox(l, t, r, b);
     
     b = WIN_WIDTH;                          // word wrap width = window width
+    t -= WIN_ROW_HEIGHT;                    // move down to text's baseline
+
+    // "Seeing aircraft...showing..." message
+    if (needSeeingShowMsg())
+    {
+        char s[100];
+        snprintf(s, sizeof(s), MSG_BUF_FILL_COUNTDOWN, gNumSee, gNumShow, gBufTime);
+        XPLMDrawString(COL_LVL[logINFO], l, t, s, &b, xplmFont_Proportional);
+        fTimeRemove = NAN;
+        t -= 2*WIN_ROW_HEIGHT;
+    }
     
     // for each line of text to be displayed
     float currTime = dataRefs.GetTotalRunningTimeSec();
-    t -= WIN_ROW_HEIGHT;                    // move down to text's baseline
     for (auto iter = listTexts.cbegin();
          iter != listTexts.cend();
          t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
@@ -154,7 +169,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     
     // No texts left? Remove window in 1s
     if ((g_window == in_window_id) &&
-        listTexts.empty())
+        listTexts.empty() && !needSeeingShowMsg())
     {
         if (std::isnan(fTimeRemove))
             // set time when to remove
@@ -187,31 +202,32 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     if ( lvl < dataRefs.GetMsgAreaLevel())
         return g_window;
     
-    va_list args;
+    // put together the formatted message if given
+    if (szMsg) {
+        va_list args;
+        char aszMsgTxt[500];
+        va_start (args, szMsg);
+        vsnprintf(aszMsgTxt,
+                  sizeof(aszMsgTxt),
+                  szMsg,
+                  args);
+        va_end (args);
+    
+        // define the text to display:
+        dispTextTy dispTxt = {
+            // set the timer if a limit is given
+            fTimeToDisplay >= 0.0f ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
+            // log level to define the color
+            lvl,
+            // finally the text
+            aszMsgTxt
+        };
+        
+        // add to list of display texts
+        listTexts.emplace_back(std::move(dispTxt));
+    }
 
-    // save the text in a static buffer queried by the drawing callback
-    char aszMsgTxt[500];
-    va_start (args, szMsg);
-    vsnprintf(aszMsgTxt,
-              sizeof(aszMsgTxt),
-              szMsg,
-              args);
-    va_end (args);
-    
-    // define the text to display:
-    dispTextTy dispTxt = {
-        // set the timer if a limit is given
-        fTimeToDisplay >= 0.0f ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
-        // log level to define the color
-        lvl,
-        // finally the text
-        aszMsgTxt
-    };
-    
-    // add to list of display texts
-    listTexts.emplace_back(std::move(dispTxt));
-    
-    // Otherwise: Create the message window
+    // Create the message window
     XPLMCreateWindow_t params;
     params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
     params.visible = 1;
@@ -240,7 +256,8 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     params.top -= WIN_FROM_TOP;
     params.right -= WIN_FROM_RIGHT;
     params.left = params.right - WIN_WIDTH;
-    params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1));
+    params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1+
+                                                    (needSeeingShowMsg() ? 2 : 0)));
     
     // if the window still exists just resize it
     if (g_window) {
@@ -255,6 +272,16 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
     }
     
     return g_window;
+}
+
+
+// Show the special text "Seeing aircraft...showing..."
+XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime)
+{
+    gNumSee     = numSee;
+    gNumShow    = numShow;
+    gBufTime    = bufTime;
+    return needSeeingShowMsg() ? CreateMsgWindow(fTimeToDisplay, logINFO, nullptr) : nullptr;
 }
 
 
