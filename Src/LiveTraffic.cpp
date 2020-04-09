@@ -389,7 +389,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             
         case ONCE_CB_AUTOSTART:
             // Auto Start display of aircraft
-            if (dataRefs.GetAutoStart())
+            if (dataRefs.GetAutoStart() && !dataRefs.UsingModernDriver())
                 dataRefs.SetAircraftDisplayed(true);
             
             // check at X-Plane.org for version updates
