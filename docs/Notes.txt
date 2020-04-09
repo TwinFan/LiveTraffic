@@ -1,12 +1,15 @@
 TODO
 ===
 
-TEST
-===
-Loading apt.dat currently uses just getline
-- Test on Windows
-- Test on Mac with Windows file
-- Test on Windows using Mac file
+#13 ensure nearest a/c are shown
+
+Identify Vulkan/Metal and warn fatally:
+sim/graphics/view/using_modern_driver
+
+
+LTApt
+- Instead of wasting space with all nodes supporting Dijkstra,
+  consider a map holding Dijkstra info per visited node
 
 
 DOCUMENTATION

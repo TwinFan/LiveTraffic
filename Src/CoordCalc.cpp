@@ -29,8 +29,26 @@
 #include<iomanip>
 #include<cmath>
 
- //
-//MARK: Coordinate Calc
+//
+// MARK: ptTy
+//
+
+bool ptTy::operator== (const ptTy& _o) const
+{
+    return dequal(x, _o.x) && dequal(y, _o.y);
+}
+
+
+std::string ptTy::dbgTxt () const
+{
+    char buf[100];
+    snprintf(buf, sizeof(buf), "%7.5f, %7.5f", y, x);
+    return std::string(buf);
+}
+
+
+//
+// MARK: Coordinate Calc
 //      (as per stackoverflow post, adapted)
 //
 double CoordAngle (double lat1, double lon1, double lat2, double lon2)
@@ -46,8 +64,7 @@ double CoordAngle (double lat1, double lon1, double lat2, double lon2)
                      (sin(lat1) * cos(lat2) * cos(longitudeDifference));
     const double y = sin(longitudeDifference) * cos(lat2);
     
-    const double degree = rad2deg(atan2(y, x));
-    return (degree >= 0)? degree : (degree + 360);
+    return rad2deg360(atan2(y, x));
 }
 
 double CoordDistance (double lat1, double lon1, double lat2, double lon2)
@@ -165,6 +182,73 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
 }
 
 
+// Intersection point of two lines through given points
+/// @details `1` = `a`...`4` = `d`
+ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
+                     double* pT, double* pU)
+{
+    const double divisor =
+    (a.x - b.x)*(c.y - d.y) - (a.y - b.y)*(c.x - d.x);
+    
+    // Are we to calculate t and u, too?
+    if (pT)
+        *pT = ((a.x - c.x)*(c.y - d.y) - (a.y - c.y)*(c.x - d.x))/divisor;
+    if (pU)
+        *pU = ((a.x - b.x)*(a.y - c.y) - (a.y - b.y)*(a.x - c.x))/divisor;
+    
+    // return the intersection point
+    const double f1 = (a.x*b.y - a.y*b.x);
+    const double f2 = (c.x*d.y - c.y*d.x);
+    return (f1 * (c - d) - f2 * (a - b)) / divisor;
+}
+
+
+// Calculate a point on a quadratic Bezier curve
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
+             double* pAngle)
+{
+    const double oneMt  = 1-t;
+    
+    // Angle wanted?
+    if (pAngle) {
+        // B'(t) = 2(1-t)(p1-p0)+2t(p2-p1)
+        ptTy dtB = 2 * oneMt * (p1-p0) + 2 * t * (p2-p1);
+        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+    }
+    
+    // We calculate the value directly, ie. without De-Casteljau
+    // B(t) = (1-t)^2 p0 + 2(1+t)t p1 + t^2 p2
+    return
+    (oneMt*oneMt)   * p0 +              // (1-t)^2 p0 +
+    (2 * oneMt * t) * p1 +              // 2(1+t)t p1 +
+    (t*t)           * p2;               // t^2     p2
+}
+
+// Calculate a point on a cubic Bezier curve
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
+             double* pAngle)
+{
+    const double oneMt  = 1-t;
+    const double oneMt2 = oneMt * oneMt;
+    const double t2     = t * t;
+
+    // Angle wanted?
+    if (pAngle) {
+        // B'(t) = 3(1-t)^2 (p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2)
+        ptTy dtB = 3*oneMt2*(p1-p0) + 6*(oneMt)*t*(p2-p1) + 3*t2*(p3-p2);
+        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+    }
+    
+    // We calculate the value directly, ie. without De-Casteljau
+    // B(t) = (1-t)^3 p0 + 3(1-t)^2t p1 + 3(1-t)t^2 p2 + t^3 p3
+    return
+    (oneMt2 * oneMt)  * p0 +            // (1-t)^3   p0 +
+    (3 * oneMt2 * t)  * p1 +            // 3(1-t)^2t p1 +
+    (3 * oneMt  * t2) * p2 +            // 3(1-t)t^2 p2 +
+    (t2 * t)          * p3;             // t^3       p3
+}
+
+
 // returns terrain altitude at given position
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)
@@ -221,11 +305,16 @@ vectorTy::operator std::string() const
 // "merges" with the given position, i.e. creates kind of an "average" position
 positionTy& positionTy::operator |= (const positionTy& pos)
 {
-    LOG_ASSERT(unitCoord == pos.unitCoord && unitAngle == pos.unitAngle);
+    LOG_ASSERT(f.unitCoord == pos.f.unitCoord && f.unitAngle == pos.f.unitAngle);
     // heading needs special treatment
     // (also removes nan value if one of the headings is nan)
     const double h = HeadingAvg(heading(), pos.heading(), mergeCount, pos.mergeCount);
     // take into account how many other objects made up the current pos! ("* count")
+
+    // Special handling for possible NAN values: If NAN on either side then the other wins
+    double _alt = std::isnan(alt_m()) ? pos.alt_m() : alt_m();
+    double _ptc = std::isnan(pitch()) ? pos.pitch() : pitch();
+    double _rol = std::isnan(roll())  ? pos.roll()  : roll();
 
 	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
 	for (double &d : v) d *= mergeCount;						// (v * mergeCount           (VS doesn't compile v.apply with lambda function)
@@ -234,17 +323,28 @@ positionTy& positionTy::operator |= (const positionTy& pos)
 
     heading() = h;
     
+    // Handle NAN cases
+    if (std::isnan(alt_m())) alt_m() = _alt;
+    if (std::isnan(pitch())) pitch() = _ptc;
+    if (std::isnan(roll()))  roll()  = _rol;
+
     mergeCount++;               // one more position object making up this position
     
     // any special flight phase? shall survive
     // (if both pos have special flight phases then ours survives)
-    if (!flightPhase)
-        flightPhase = pos.flightPhase;
+    if (!f.flightPhase)
+        f.flightPhase = pos.f.flightPhase;
     
     // ground status: if different, then the new one is likely off ground,
     //                but we have it determined soon
-    if (onGrnd != pos.onGrnd)
-        onGrnd = GND_UNKNOWN;       // IsOnGnd() will return false for this!
+    if (f.onGrnd != pos.f.onGrnd)
+        f.onGrnd = GND_UNKNOWN;       // IsOnGnd() will return false for this!
+    
+    // Special Pos and other location flags need to be re-evaluated
+    f.bHeadFixed = false;
+    f.specialPos = SPOS_NONE;
+    f.bCutCorner = false;
+    edgeIdx      = EDGE_UNKNOWN;
     
     return normalize();
 }
@@ -270,29 +370,35 @@ positionTy::operator XPMPPlanePosition_t() const
 const char* positionTy::GrndE2String (onGrndE grnd)
 {
     switch (grnd) {
-        case GND_OFF:           return "GND_OFF    ";
-        case GND_ON:            return "GND_ON     ";
+        case GND_OFF:           return "GND_OFF";
+        case GND_ON:            return "GND_ON";
         default:                return "GND_UNKNOWN";
     }
 }
 
 std::string positionTy::dbgTxt () const
 {
-    char buf[100];
-    snprintf(buf, sizeof(buf), "(%7.4f, %7.4f) %5.0ff %s {h %3.0f, p %3.0f, r %3.0f} [%.1f] %s",
+    char buf[120];
+    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %2.2s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
+             ts(),
              lat(), lon(),
              alt_ft(),
-             GrndE2String(onGrnd),
-             heading(), pitch(), roll(),
-             ts(),
-             flightPhase ? LTAircraft::FlightPhase2String(LTAircraft::FlightPhase(flightPhase)).c_str() : "");
+             GrndE2String(f.onGrnd),
+             SpecialPosE2String(f.specialPos),
+             f.bCutCorner ? "CT" : "  ",
+             f.flightPhase ? (LTAircraft::FlightPhase2String(f.flightPhase)).c_str() : "",
+             HasTaxiEdge() ? 1 : 0,
+             HasTaxiEdge() ? edgeIdx : 0,
+             heading(),
+             (f.bHeadFixed ? '*' : ' '),
+             pitch(), roll());
     return std::string(buf);
 }
 
 positionTy::operator std::string () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "%7.4f %c / %7.4f %c",
+    snprintf(buf, sizeof(buf), "%6.4f %c / %6.4f %c",
              std::abs(lat()), lat() < 0 ? 'S' : 'N',
              std::abs(lon()), lon() < 0 ? 'W' : 'E');
     return std::string(buf);
@@ -301,7 +407,7 @@ positionTy::operator std::string () const
 // normalizes to -90/+90 lat, -180/+180 lon, 360° heading, return *this
 positionTy& positionTy::normalize()
 {
-    LOG_ASSERT(unitAngle==UNIT_DEG && unitCoord==UNIT_WORLD);
+    LOG_ASSERT(f.unitAngle==UNIT_DEG && f.unitCoord==UNIT_WORLD);
     
     // latitude: works for -180 <= lat <= 180
     LOG_ASSERT (lat() <= 180);
@@ -326,7 +432,7 @@ positionTy& positionTy::normalize()
 // is a good valid position?
 bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
 {
-    LOG_ASSERT(unitAngle==UNIT_DEG && unitCoord==UNIT_WORLD);
+    LOG_ASSERT(f.unitAngle==UNIT_DEG && f.unitCoord==UNIT_WORLD);
     return
         // should be actual numbers
         ( !std::isnan(lat()) && !std::isnan(lon()) && !std::isnan(ts())) &&
@@ -353,20 +459,20 @@ bool positionTy::isFullyValid() const
 positionTy positionTy::deg2rad() const
 {
     positionTy ret(*this);                  // copy position
-    if (unitAngle == UNIT_DEG) {            // if DEG convert to RAD
+    if (f.unitAngle == UNIT_DEG) {          // if DEG convert to RAD
         ret.lat() = ::deg2rad(lat());
         ret.lon() = ::deg2rad(lon());
-        ret.unitAngle = UNIT_RAD;
+        ret.f.unitAngle = UNIT_RAD;
     }
     return ret;
 }
 
 positionTy& positionTy::deg2rad()
 {
-    if (unitAngle == UNIT_DEG) {            // if DEG convert to RAD
+    if (f.unitAngle == UNIT_DEG) {          // if DEG convert to RAD
         lat() = ::deg2rad(lat());
         lon() = ::deg2rad(lon());
-        unitAngle = UNIT_RAD;
+        f.unitAngle = UNIT_RAD;
     }
     return *this;
 }
@@ -374,20 +480,20 @@ positionTy& positionTy::deg2rad()
 positionTy  positionTy::rad2deg() const
 {
     positionTy ret(*this);                  // copy position
-    if (unitAngle == UNIT_RAD) {            // if DEG convert to RAD
+    if (f.unitAngle == UNIT_RAD) {          // if DEG convert to RAD
         ret.lat() = ::rad2deg(lat());
         ret.lon() = ::rad2deg(lon());
-        ret.unitAngle = UNIT_DEG;
+        ret.f.unitAngle = UNIT_DEG;
     }
     return ret;
 }
 
 positionTy& positionTy::rad2deg()
 {
-    if (unitAngle == UNIT_RAD) {            // if DEG convert to RAD
+    if (f.unitAngle == UNIT_RAD) {          // if DEG convert to RAD
         lat() = ::rad2deg(lat());
         lon() = ::rad2deg(lon());
-        unitAngle = UNIT_DEG;
+        f.unitAngle = UNIT_DEG;
     }
     return *this;
 }
@@ -403,20 +509,20 @@ positionTy& positionTy::operator += (const vectorTy& vec )
 // convert between World and Local OpenGL coordinates
 positionTy& positionTy::LocalToWorld()
 {
-    if ( unitCoord == UNIT_LOCAL ) {
+    if (f.unitCoord == UNIT_LOCAL) {
         XPLMLocalToWorld(X(), Y(), Z(),
                          &lat(), &lon(), &alt_m());
-        unitCoord = UNIT_WORLD;
+        f.unitCoord = UNIT_WORLD;
     }
     return *this;
 }
 
 positionTy& positionTy::WorldToLocal()
 {
-    if ( unitCoord == UNIT_WORLD ) {
+    if (f.unitCoord == UNIT_WORLD) {
         XPLMWorldToLocal(lat(), lon(), alt_m(),
                          &X(), &Y(), &Z());
-        unitCoord = UNIT_LOCAL;
+        f.unitCoord = UNIT_LOCAL;
     }
     return *this;
 }

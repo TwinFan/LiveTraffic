@@ -30,23 +30,43 @@ bool LTAptEnable ();
 /// Update the airport data with airports around current camera position
 void LTAptRefresh ();
 
-/// @brief Update local coordinate system's values due to ref point change
-/// @param bForce `true` Recalculate all values, `false` calculate only missing values
-void LTAptLocalCoordsUpdate (bool bForce);
-
 /// @brief Return the best possible runway to auto-land at
+/// @param _mdl flight model definitions to use for calculations
+/// @param _from Start pos/heading for seach
+/// @param _speed_m_s Speed during approach
+/// @param _logTxt (optional) Shall decision be logged? If yes, with which id text?
+/// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway); positionTy() if nothing found
+/// @note Call from separate thread, like from CalcNextPos
+positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
+                         const positionTy& _from,
+                         double _speed_m_s,
+                         const std::string& _logTxt = "");
+
+/// @brief Return the best possible runway to auto-land at based on current pos/heading/speed of `_ac`
 /// @param _ac Aircraft in search for a landing spot. It's last go-to position and VSI as well as its model are of importance
 /// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway)
 /// @note Call from separate thread, like from CalcNextPos
-positionTy LTAptFindRwy (const LTAircraft& _ac);
+inline positionTy LTAptFindRwy (const LTAircraft& _ac, bool bDoLogging = false)
+{
+    return LTAptFindRwy (_ac.mdl, _ac.GetToPos(), _ac.GetSpeed_m_s(),
+                         bDoLogging ? std::string(_ac) : "");
+}
 
 /// @brief Snaps the passed-in position to the nearest rwy or taxiway if appropriate
-/// @param pos Reference to the position, which might get changed.
-/// @param bLogging Do logging via LOG_MSG?
+/// @param fd Flight data object to be analyzed
+/// @param[in,out] posIter Iterator into LTFlightData::posDeque, points to position to analyze, might change due to inserted taxi positions
+/// @param bInsertTaxiTurns Shall additional taxi turning points be added into LTFlightData::posDeque?
 /// @return Changed the position?
-bool LTAptSnap (positionTy& pos, bool bLogging);
+bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
+                bool bInsertTaxiTurns);
 
 /// Cleanup
 void LTAptDisable ();
+
+#ifdef DEBUG
+/// @brief Dumps the entire taxi network into a CSV file readable by GPS Visualizer
+/// @see https://www.gpsvisualizer.com/
+void LTAptDump (const std::string& _aptId);
+#endif
 
 #endif /* LTApt_h */

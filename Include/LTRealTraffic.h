@@ -39,6 +39,7 @@ constexpr size_t RT_NET_BUF_SIZE    = 512;
 
 constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
 constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
+constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
@@ -158,9 +159,9 @@ public:
     virtual void Close ();
     // SetValid also sets internal status
     virtual void SetValid (bool _valid, bool bMsg = true);
-    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
-    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
+//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
     // shall data of this channel be subject to hovering flight detection?
     virtual bool DoHoverDetection () const { return true; }
 

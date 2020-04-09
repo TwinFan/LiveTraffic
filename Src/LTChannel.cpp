@@ -770,13 +770,16 @@ void LTFlightDataAcMaintenance()
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(float(AC_MAINT_INTVL - .05), logINFO, MSG_BUF_FILL_COUNTDOWN,
-                        int(mapFd.size()),
-                        numAcAfter,
+        CreateMsgWindow(float(AC_MAINT_INTVL),
+                        int(mapFd.size()), numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));
         // buffer fill-up time's up
-        if (dataRefs.GetSimTime() >= initTimeBufFilled)
+        if (dataRefs.GetSimTime() >= initTimeBufFilled) {
             initTimeBufFilled = 0;
+            CreateMsgWindow(float(AC_MAINT_INTVL),
+                            int(mapFd.size()), numAcAfter,
+                            -1);            // clear the message
+        }
     } else {
         // tell the user a change from or to zero aircraft (actually showing)
         if ( !numAcBefore && (numAcAfter > 0))

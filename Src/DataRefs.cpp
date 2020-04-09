@@ -286,6 +286,7 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/lon_ref",         // float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates"
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
+    "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
     "sim/weather/barometer_sealevel_inhg",      // float  y    29.92    +- ....        The barometric pressure at sea level.
     "sim/weather/use_real_weather_bool",        // int    y    0,1    Whether a real weather file is in use."
     "sim/flightmodel/position/latitude",
@@ -633,7 +634,8 @@ bool DataRefs::Init ()
             // for XP10 compatibility we accept if we don't find a few,
             // all else stays an error
             if (i != DR_VR_ENABLED &&
-                i != DR_PILOTS_HEAD_ROLL) {
+                i != DR_PILOTS_HEAD_ROLL &&
+                i != DR_MODERN_DRIVER) {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
             }
@@ -791,7 +793,7 @@ positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) co
      XPLMGetDataf(adrXP[DR_PLANE_HEADING]),
      XPLMGetDataf(adrXP[DR_PLANE_PITCH]),
      XPLMGetDataf(adrXP[DR_PLANE_ROLL]),
-     XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? positionTy::GND_ON : positionTy::GND_OFF
+     XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? GND_ON : GND_OFF
     );
     
     // make invalid pos invalid
@@ -1308,6 +1310,9 @@ void DataRefs::LTSetCfgValue (void* p, int val)
 
 bool DataRefs::SetCfgValue (void* p, int val)
 {
+    // If fdSnapTaxiDist changes we might want to enable/disable airport reading
+    int oldFdSnapTaxiDist = fdSnapTaxiDist;
+    
     // we don't exactly know which parameter p points to...
     // ...we just set it, validate all of them, and reset in case validation fails
     int oldVal = *reinterpret_cast<int*>(p);
@@ -1315,13 +1320,18 @@ bool DataRefs::SetCfgValue (void* p, int val)
     
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
+#ifdef DEBUG
+        maxNumAc        < 1                 || maxNumAc         > 100   ||
+#else
         maxNumAc        < 5                 || maxNumAc         > 100   ||
+#endif
         maxFullNumAc    < 5                 || maxFullNumAc     > 100   ||
         fullDistance    < 1                 || fullDistance     > 100   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
         acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 15                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
@@ -1333,6 +1343,17 @@ bool DataRefs::SetCfgValue (void* p, int val)
         // undo change
         *reinterpret_cast<int*>(p) = oldVal;
         return false;
+    }
+    
+    // Special handling for fdSnapTaxiDist:
+    if (oldFdSnapTaxiDist != fdSnapTaxiDist)        // snap taxi dist did change
+    {
+        // switched from on to off?
+        if (oldFdSnapTaxiDist > 0 && fdSnapTaxiDist == 0)
+            LTAptDisable();
+        // switched from off to on?
+        else if (oldFdSnapTaxiDist == 0 && fdSnapTaxiDist > 0)
+            LTAptEnable();
     }
     
     // success

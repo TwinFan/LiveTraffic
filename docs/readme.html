@@ -82,13 +82,45 @@
 
     <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
 
+    <h2>v1.5</h2>
+    
+    <h3>v1.50</h3>
+
+    <p><b>To update</b> coming from v1.24: Copy the 3 executables
+    <code>LiveTraffic/64/*.xpl</code> and the updated
+    <code>Resources/Doc8643.txt</code> file.</p>
+    
+    <ul>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>:
+            Snapping to taxiways to make aircraft stay on taxiways more often.
+            Also determines gate/ramp positions and turns aircraft the right way.
+            Controlled by <i>Snap to Taxiways</i> setting in
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">
+                Advanced Settings</a>.<br>
+            <a href="https://twinfan.gitbook.io/livetraffic/reference/snapping-to-taxiways">See documentation</a>
+            for some background of how it works.
+        </li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>:
+            Soft Bezier-style curves for turning aircraft.
+        </li>
+        <li>ADDED safeguard to keep approaching aircraft above 2.5° glidescope
+            to avoid landing short of the runway.
+        </li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/13">#13</a>:
+            Ensure nearest aircraft are shown when reaching limit.
+        </li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/170">#170</a> (Windows only):
+            Multiplayer location info initialized with "far away" again instead of zeroes.
+        </li>
+        <li>ADDED message that LiveTraffic does not yet work under Vulkan/Metal.
+            Watch <a href="https://forums.x-plane.org/index.php?/forums/topic/207193-livetraffic-and-vulkanmetal/">this post</a> and await v2.0.
+        </li>
+    </ul>
+
     <h2>v1.2</h2>
     
     <h3>v1.24</h3>
 
-    <p><b>To update</b> coming from v1.23 copy the 3 executables
-    <code>LiveTraffic/64/*.xpl</code>.</p>
-    
     <ul>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/169">#169</a>
             auto-land.

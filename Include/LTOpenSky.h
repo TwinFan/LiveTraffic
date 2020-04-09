@@ -64,9 +64,9 @@ public:
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual const char* ChName() const { return OPSKY_NAME; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
-    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
+//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
 };
 
 //MARK: OpenSky Master Data Constats

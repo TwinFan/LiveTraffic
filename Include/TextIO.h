@@ -94,6 +94,9 @@ throw LTErrorFD(fdref,__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);
 // fTimeToDisplay == 0 -> no limit
 XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...);
 
+/// Show the special text "Seeing aircraft...showing..."
+XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime);
+
 // Destroys the windows (if still active)
 void DestroyWindow();
 
