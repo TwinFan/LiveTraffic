@@ -1,8 +1,10 @@
 TODO
 ===
 
-Readme:
+#13 ensure nearest a/c are shown
 
+Identify Vulkan/Metal and warn fatally:
+sim/graphics/view/using_modern_driver
 
 
 LTApt

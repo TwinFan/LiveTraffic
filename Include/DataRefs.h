@@ -126,6 +126,7 @@ enum dataRefsXP {
     DR_LON_REF,                         // sim/flightmodel/position/lon_ref    float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates.
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
+    DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
     DR_WEATHER_BARO_SEA,                // XP's weather
     DR_WEATHER_USE_REAL,
     DR_PLANE_LAT,                       // user's plane
@@ -547,6 +548,7 @@ public:
     bool DidLocalRefPointChange ();             ///< Did the reference point to the local coordinate system change since last call to this function?
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
+    inline bool UsingModernDriver () const      { return adrXP[DR_MODERN_DRIVER] ? XPLMGetDatai(adrXP[DR_MODERN_DRIVER]) != 0 : false; }
     inline bool  IsVREnabled() const            { return
 #ifdef DEBUG
         bSimVREntered ? true :                  // simulate some aspects of VR

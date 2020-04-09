@@ -497,7 +497,14 @@ PLUGIN_API int  XPluginEnable(void)
         if (!LTMainEnable()) return 0;
 
         // Create a message window and say hello
-        SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
+        if (dataRefs.UsingModernDriver()) {
+            // This version cannot run under Vulkan/Metal!
+            SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER, LT_VERSION_FULL);
+            SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER2);
+            dataRefs.SetAircraftDisplayed(false);
+        } else {
+            SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
+        }
         if constexpr (VERSION_BETA)
             SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
 #ifdef DEBUG

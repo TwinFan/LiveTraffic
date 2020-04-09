@@ -286,6 +286,7 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/lon_ref",         // float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates"
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
+    "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
     "sim/weather/barometer_sealevel_inhg",      // float  y    29.92    +- ....        The barometric pressure at sea level.
     "sim/weather/use_real_weather_bool",        // int    y    0,1    Whether a real weather file is in use."
     "sim/flightmodel/position/latitude",
@@ -633,7 +634,8 @@ bool DataRefs::Init ()
             // for XP10 compatibility we accept if we don't find a few,
             // all else stays an error
             if (i != DR_VR_ENABLED &&
-                i != DR_PILOTS_HEAD_ROLL) {
+                i != DR_PILOTS_HEAD_ROLL &&
+                i != DR_MODERN_DRIVER) {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
             }

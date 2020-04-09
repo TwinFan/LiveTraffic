@@ -2320,21 +2320,65 @@ bool LTFlightData::DetermineAcModel()
     return false;
 }
 
+// checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
+/// @warning Caller must own `mapFdMutex`!
+bool LTFlightData::AcSlotAvailable (double simTime)
+{
+    // time we had shown the "Too many a/c" warning last:
+    static double tTooManyAcMsgShown = 0.0;
+
+    // Haven't reach the limit in terms of number of a/c yet?
+    if (dataRefs.GetNumAc() < dataRefs.GetMaxNumAc())
+        return true;
+    
+    // Have no positions? (Need one to determine distance to camera)
+    if (posDeque.empty())
+        return false;
+    
+    // Now we need to see if we are closer to the camera than other a/c.
+    // If so remove the farest a/c to make room for us.
+    LTFlightData* pFarestAc = nullptr;
+
+    // NOTE: We can loop mapFd without lock only because we assume that
+    //       calling function owns mapFdMutex already!
+    // find the farest a/c...if it is further away than us:
+    double farestDist = CoordDistance(dataRefs.GetViewPos(), posDeque.front());
+    for (mapLTFlightDataTy::value_type& p: mapFd)
+    {
+        LTFlightData& fd = p.second;
+        if (fd.hasAc() && fd.pAc->GetVecView().dist > farestDist) {
+            farestDist = fd.pAc->GetVecView().dist;
+            pFarestAc = &fd;
+        }
+    }
+    
+    // So we definitely have too many aircraft!
+    if (tTooManyAcMsgShown + 180.0 < simTime) {     // Show message at most every 3 minutes
+        SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
+        tTooManyAcMsgShown = simTime;
+    }
+
+    // If we didn't find an active a/c farther away than us then bail with message
+    if (!pFarestAc) {
+        return false;
+    }
+    
+    // We found the a/c farest away...remove it!
+    pFarestAc->DestroyAircraft();
+    return true;
+}
+
+
+
 // create (at most one) aircraft from this flight data
 bool LTFlightData::CreateAircraft ( double simTime )
 {
-    static bool bTooManyAcMsgShown = false;
-    
     // short-cut if exists already
     if ( hasAc() ) return true;
     
-    // short-cut if too many aircraft created already
-    if ( dataRefs.GetNumAc() >= dataRefs.GetMaxNumAc() ) {
-        if ( !bTooManyAcMsgShown )              // show warning once only per session
-            SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
-        bTooManyAcMsgShown = true;
+    // exit if too many a/c shown and this one wouldn't be one of the nearest ones
+    if (!AcSlotAvailable(simTime))
         return false;
-    }
     
     try {
         // get the  mutex, not so much for protection,

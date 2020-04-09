@@ -30,7 +30,7 @@
 // MARK: Version Information (CHANGE VERSION HERE)
 //
 constexpr float VERSION_NR = 1.50f;
-constexpr bool VERSION_BETA = true;
+constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -155,6 +155,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
+#define MSG_NOT_MODERN_DRIVER   "LiveTraffic %s will NOT work under Vulkan/Metal!"
+#define MSG_NOT_MODERN_DRIVER2  "Until v2.0 is availble deactivate Vulkan/Metal in XP's Graphic setting!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
@@ -174,7 +176,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
 #define INFO_AC_SHOWN           "A/c %s visible"
 #define INFO_AC_SHOWN_AUTO      "A/c %s automatically visible"
-#define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will create new ones only after removing outdated ones."
+#define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will render nearest aircraft only."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
 #define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"
 #define MSG_MDL_NOT_FORCED      "Settings > Debug: Model matching no longer forced"
