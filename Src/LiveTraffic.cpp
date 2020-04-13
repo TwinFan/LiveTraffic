@@ -58,6 +58,7 @@ enum menuItems {
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
+    MENU_ID_REMOVE_ALL_BUT,
 #endif
     CNT_MENU_ID                     // always last, number of elements
 };
@@ -111,6 +112,9 @@ void MenuHandler(void * /*mRef*/, void * iRef)
 #ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
                 XPLMReloadPlugins();
+                break;
+            case MENU_ID_REMOVE_ALL_BUT:
+                LTFlightData::RemoveAllAcButSelected();
                 break;
 #endif
         }
@@ -283,6 +287,10 @@ bool RegisterMenuItem ()
     // Reload Plugins
     aMenuItems[MENU_ID_RELOAD_PLUGINS] =
         XPLMAppendMenuItem(menuID, MENU_RELOAD_PLUGINS, (void *)MENU_ID_RELOAD_PLUGINS,1);
+
+    // Remove all a/c except for the currently selected one
+    aMenuItems[MENU_ID_REMOVE_ALL_BUT] =
+        XPLMAppendMenuItem(menuID, MENU_REMOVE_ALL_BUT, (void *)MENU_ID_REMOVE_ALL_BUT,1);
 #endif
     
     // check for errors
@@ -381,7 +389,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             
         case ONCE_CB_AUTOSTART:
             // Auto Start display of aircraft
-            if (dataRefs.GetAutoStart())
+            if (dataRefs.GetAutoStart() && !dataRefs.UsingModernDriver())
                 dataRefs.SetAircraftDisplayed(true);
             
             // check at X-Plane.org for version updates
@@ -482,13 +490,21 @@ PLUGIN_API int  XPluginEnable(void)
         XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
         
         // Start reading apt.dat
-        LTAptEnable();
+        if (dataRefs.GetFdSnapTaxiDist_m() > 0.0)
+            LTAptEnable();
         
         // Enable showing aircraft
         if (!LTMainEnable()) return 0;
 
         // Create a message window and say hello
-        SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
+        if (dataRefs.UsingModernDriver()) {
+            // This version cannot run under Vulkan/Metal!
+            SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER, LT_VERSION_FULL);
+            SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER2);
+            dataRefs.SetAircraftDisplayed(false);
+        } else {
+            SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
+        }
         if constexpr (VERSION_BETA)
             SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
 #ifdef DEBUG

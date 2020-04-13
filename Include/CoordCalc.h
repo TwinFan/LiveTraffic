@@ -45,11 +45,18 @@ inline T pyth2 (T a, T b) { return sqr(a) + sqr(b); }
 //MARK: Degree/Radian conversion
 //      (as per stackoverflow post, adapted)
 //
-inline double deg2rad (const double deg)
-{ return (deg * PI / 180); }
 
-inline double rad2deg (const double rad)
+/// Converts degree [-180..+360] to radians [-π..+π]
+constexpr inline double deg2rad (const double deg)
+{ return ((deg <= 180.0 ? deg : deg-360.0) * PI / 180.0); }
+
+/// Converts radians [-π...+π] to degree [-180..180]
+constexpr inline double rad2deg (const double rad)
 { return (rad * 180 / PI); }
+
+/// Converts radians [-π...+2π] to degree [0..360]
+constexpr inline double rad2deg360 (const double rad)
+{ return ((rad >= 0.0 ? rad : rad+PI+PI) * 180.0 / PI); }
 
 // angle flown, given speed and vsi (both in m/s)
 inline double vsi2deg (const double speed, const double vsi)
@@ -61,6 +68,28 @@ inline double vsi2deg (const double speed, const double vsi)
 
 struct positionTy;
 struct vectorTy;
+
+/// A simple two-dimensional point
+struct ptTy {
+    double x, y;
+    ptTy () : x(NAN), y(NAN) {}
+    ptTy (double _x, double _y) : x(_x), y(_y) {}
+    ptTy operator + (const ptTy& _o) const { return ptTy ( x+_o.x, y+_o.y); }   ///< scalar sum
+    ptTy operator - (const ptTy& _o) const { return ptTy ( x-_o.x, y-_o.y); }   ///< scalar difference
+    bool operator== (const ptTy& _o) const;                                     ///< equality based on dequal() (ie. 'nearly' equal)
+    bool operator!= (const ptTy& _o) const { return !operator==(_o); }          ///< unequality bases on `not equal`
+    bool isValid() const { return !std::isnan(x) && !std::isnan(y); }           ///< valid if both `x` and `y` are not `NAN`
+    void clear() { x = y = NAN; }                                               ///< set both `x` and `y` to `NAN`
+    ptTy mirrorAt (const ptTy& _o) const                                        ///< return a point of `this` mirrored at `_o`
+    { return ptTy (2*_o.x - x, 2*_o.y - y); }
+    
+    std::string dbgTxt () const;                                                ///< returns a string "y, x" for the point/position
+};
+inline ptTy operator * (double d, ptTy pt) { return ptTy ( d * pt.x, d * pt.y); }   ///< scalar multiplication
+inline ptTy operator / (ptTy pt, double d) { return ptTy ( pt.x / d, pt.y / d); }   ///< scalar division
+
+/// Vector of points
+typedef std::vector<ptTy> vecPtTyT;
 
 /// angle between two locations given in plain lat/lon
 double CoordAngle (double lat1, double lon1, double lat2, double lon2);
@@ -75,6 +104,53 @@ vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to );
 // destination point given a starting point and a vetor
 positionTy CoordPlusVector (const positionTy& pos, const vectorTy& vec);
 
+// returns terrain altitude at given position
+// returns NaN in case of failure
+double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
+
+//
+// MARK: Estimated Functions on coordinates
+//
+
+/// @brief Length of one degree latitude
+/// @see https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
+constexpr double LAT_DEG_IN_MTR = 111132.95;
+
+/// @brief Length of a degree longitude
+/// @see https://en.wikipedia.org/wiki/Geographic_coordinate_system#Length_of_a_degree
+inline double LonDegInMtr (double lat) { return LAT_DEG_IN_MTR * std::cos(deg2rad(lat)); }
+
+/// Convert vertical distance into degree latitude
+constexpr inline double Dist2Lat (double dist_m) { return dist_m / LAT_DEG_IN_MTR; }
+/// Convert vertical distance into degree longitude
+inline double Dist2Lon (double dist_m, double lat) { return dist_m / LonDegInMtr(lat); }
+/// Convert degree latitude into vertical distance
+constexpr inline double Lat2Dist (double latDiff) { return latDiff * LAT_DEG_IN_MTR; }
+/// Convert degree longitude into vertical distance
+inline double Lon2Dist (double lonDiff, double lat) { return lonDiff * LonDegInMtr(lat); }
+
+/// @brief An _estimated_ **square** of the distance between 2 points given by lat/lon
+/// @details Makes use simple formulas to convert lat/lon differences into meters
+///          So this is not exact but quick and good enough for many purposes.
+///          On short distances of less than 10m, difference to CoordDistance() is a few millimeters.
+/// @return Square of distance (estimated) in meter
+double DistLatLonSqr (double lat1, double lon1,
+                      double lat2, double lon2);
+
+/// @brief An _estimated_ distance between 2 points given by lat/lon
+/// @details Makes use simple formulas to convert lat/lon differences into meters
+///          So this is not exact but quick and good enough for many purposes.
+///          On short distances of less than 10m, difference to CoordDistance() is a few millimeters.
+/// @return Distance (estimated) in meter
+inline double DistLatLon (double lat1, double lon1,
+                          double lat2, double lon2)
+{ return std::sqrt(DistLatLonSqr(lat1,lon1,lat2,lon2)); }
+
+
+//
+// MARK: Functions on 2D points, typically in meters
+//
+
 /// @brief Simple square of distance just by Pythagoras
 inline double DistPythSqr (double x1, double y1,
                            double x2, double y2)
@@ -86,12 +162,16 @@ struct distToLineTy {
     double      len2 = NAN;         ///< square of length of line between ln_x/y1 and ln_x/y2
     double      leg1_len2 = NAN;    ///< square length of leg from point 1 to base (base is point on the line with shortest distance to point)
     double      leg2_len2 = NAN;    ///< square length of leg from point 2 to base (base is point on the line with shortest distance to point)
+    
     /// Is the base outside the endpoints of the line?
     bool IsBaseOutsideLine () const
     { return leg1_len2 > len2 || leg2_len2 > len2; }
     /// How much is the base outside the (nearer) endpoint? (squared)
     double DistSqrOfBaseBeyondLine () const
     { return std::max(leg1_len2,leg2_len2) - len2; }
+    /// Resulting distance, considering also distance of base outside line as distance
+    double DistSqrPlusOuts () const
+    { return dist2 + (IsBaseOutsideLine() ? DistSqrOfBaseBeyondLine () : 0.0); }
 };
 
 /// @brief Square of distance between a location and a line defined by two points.
@@ -113,7 +193,7 @@ void DistPointToLineSqr (double pt_x, double pt_y,
                          double ln_x2, double ln_y2,
                          distToLineTy& outResults);
 
-/// @brief Based on results from DistPointToLineSqr() computes locaton of base point on line
+/// @brief Based on results from DistPointToLineSqr() computes locaton of base point (projection) on line
 /// @param ln_x1 Line: First endpoint's x coordinate (same as passed in to DistPointToLineSqr())
 /// @param ln_y1 Line: First endpoint's y coordinate (same as passed in to DistPointToLineSqr())
 /// @param ln_x2 Line: Second endpoint's x coordinate (same as passed in to DistPointToLineSqr())
@@ -126,9 +206,99 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
                           const distToLineTy& res,
                           double &x, double &y);
 
-// returns terrain altitude at given position
-// returns NaN in case of failure
-double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
+/// @brief Intersection point of two lines through given points
+/// @see https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
+ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
+                     double* pT = nullptr,
+                     double* pU = nullptr);
+
+/// @brief Calculate a point on a quadratic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p2
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 Control point of curve, usually not actually reached at any value of t
+/// @param p2 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
+             double* pAngle = nullptr);
+
+/// @brief Calculate a point on a cubic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p3
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 1st control point of curve, usually not actually reached at any value of t
+/// @param p2 2nd control point of curve, usually not actually reached at any value of t
+/// @param p3 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
+             double* pAngle = nullptr);
+
+//
+// MARK: Global enums
+//
+
+/// Flight phase
+enum flightPhaseE : unsigned char {
+    FPH_UNKNOWN     = 0,            ///< used for initializations
+    FPH_TAXI        = 10,           ///< Taxiing
+    FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
+    FPH_TO_ROLL,                    ///< Take-off roll
+    FPH_ROTATE,                     ///< Rotating
+    FPH_LIFT_OFF,                   ///< Lift-off, until "gear-up" height
+    FPH_INITIAL_CLIMB,              ///< Initial climb, until "flaps-up" height
+    FPH_CLIMB       = 30,           ///< Regular climbout
+    FPH_CRUISE      = 40,           ///< Cruising, no altitude change
+    FPH_DESCEND     = 50,           ///< Descend, more then 100ft/min descend
+    FPH_APPROACH    = 60,           ///< Approach, below "flaps-down" height
+    FPH_FINAL,                      ///< Final, below "gear-down" height
+    FPH_LANDING     = 70,           ///< Group of status for landing:
+    FPH_FLARE,                      ///< Flare, when reaching "flare        " height
+    FPH_TOUCH_DOWN,                 ///< The one cycle when plane touches down, don't rely on catching it...it's really one cycle only
+    FPH_ROLL_OUT,                   ///< Roll-out after touch-down until reaching taxi speed or stopping
+    FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
+};
+
+/// Is this a flight phase requiring a runway?
+inline bool isRwyPhase (flightPhaseE fph)
+{ return fph == FPH_TAKE_OFF || fph == FPH_TO_ROLL || fph == FPH_ROTATE ||
+         fph == FPH_TOUCH_DOWN || fph == FPH_ROLL_OUT; }
+
+/// Ground status
+enum onGrndE    : unsigned char {
+    GND_UNKNOWN=0,                  ///< ground status yet unknown
+    GND_OFF,                        ///< off the ground, airborne
+    GND_ON                          ///< on the ground
+};
+
+/// Coordinates are in which kind of coordinate system?
+enum coordUnitE : unsigned char {
+    UNIT_WORLD=0,                   ///< world coordinates (latitude, longitude, altitude)
+    UNIT_LOCAL                      ///< local GL coordinates (x, y, z)
+};
+
+/// Angles are in degree or radians?
+enum angleUnitE : unsigned char {
+    UNIT_DEG=0,                     ///< angles are in degree
+    UNIT_RAD                        ///< angles are in radians
+};
+
+/// Position is on taxiway, runway, startup location?
+enum specialPosE : unsigned char {
+    SPOS_NONE=0,                    ///< no special position
+    SPOS_STARTUP,                   ///< at startup location (gate, ramp, tie-down...)
+    SPOS_TAXI,                      ///< snapped to taxiway
+    SPOS_RWY,                       ///< snapped to runway
+};
+
+/// Return a 3 char-string for the special position enums
+inline const char* SpecialPosE2String (specialPosE sp)
+{
+    return
+    sp == SPOS_STARTUP ? "SUP" :
+    sp == SPOS_TAXI    ? "TXI" :
+    sp == SPOS_RWY     ? "RWY" : "   ";
+}
+
 
 //
 //MARK: Data Structures
@@ -144,6 +314,9 @@ struct vectorTy {
     vectorTy () : angle(NAN), dist(NAN), vsi(NAN), speed(NAN) {}
     vectorTy ( double dAngle, double dDist, double dVsi=NAN, double dSpeed=NAN ) :
     angle(dAngle), dist(dDist), vsi(dVsi), speed(dSpeed) {}
+    
+    /// Valid vector, ie. at least angle and distance defined?
+    bool isValid () const { return !std::isnan(angle) && !std::isnan(dist); }
 
     // standard string for any output purposes
     operator std::string() const;
@@ -153,38 +326,51 @@ struct vectorTy {
     inline double vsi_ft () const { return vsi / Ms_per_FTm; }
 };
 
+constexpr size_t EDGE_UNKNOWN = ULONG_MAX;      ///< position's taxiway edge is unknown, not even tried to find one
+constexpr size_t EDGE_UNAVAIL = EDGE_UNKNOWN-1; ///< tried finding a taxiway, but was unsuccessful
+
 // a position: latitude (Z), longitude (X), altitude (Y), timestamp
 struct positionTy {
     enum positionTyE { LAT=0, LON, ALT, TS, HEADING, PITCH, ROLL };
     std::valarray<double> v;
     
-    int mergeCount;      // for posList use only: when merging positions this counts how many flight data objects made up this position
+    int mergeCount = 1;      /// for posList use only: when merging positions this counts how many flight data objects made up this position
+        
+    /// collection of defining flags
+    struct posFlagsTy {
+        flightPhaseE flightPhase : 7;   ///< start of some special flight phase?
+        bool         bHeadFixed  : 1;   ///< heading fixed, not to be recalculated?
+        onGrndE      onGrnd      : 2;   ///< on ground or not or not known?
+        coordUnitE   unitCoord   : 1;   ///< world or local coordinates?
+        angleUnitE   unitAngle   : 1;   ///< heading in degree or radians?
+        specialPosE  specialPos  : 2;   ///< position is somehow special`
+        bool         bCutCorner  : 1;   ///< is this an (inserted) position, that can be cut short? (-> use quadratic Bezier instead of cubic)
+    } f;
     
-    enum onGrndE    { GND_UNKNOWN=0, GND_OFF, GND_ON } onGrnd;
-    enum coordUnitE { UNIT_WORLD, UNIT_LOCAL } unitCoord;
-    enum angleUnitE { UNIT_DEG, UNIT_RAD } unitAngle;
-    
-    // start of some special flight phase like rotate, take off, touch down?
-    // (can't use LTAircraft::FlightPhase due to cyclic header inclusion)
-    int flightPhase = 0;
+    /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
+    size_t edgeIdx = EDGE_UNKNOWN;
 public:
-    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}, mergeCount(1),
-                    onGrnd(GND_UNKNOWN), unitCoord(UNIT_WORLD), unitAngle(UNIT_DEG) {}
+    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}
+    { *(uint16_t*)&f = 0; }
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
-                int fPhase = 0) :
-        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll}, mergeCount(1),
-        onGrnd(grnd), unitCoord(uCoord), unitAngle(uAngle), flightPhase(fPhase) {}
+                flightPhaseE fPhase = FPH_UNKNOWN) :
+        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll}
+    { *(uint16_t*)&f = 0; f.onGrnd=grnd; f.unitCoord=uCoord; f.unitAngle=uAngle; f.flightPhase=fPhase; }
     positionTy(const XPMPPlanePosition_t& x) :
         positionTy (x.lat, x.lon, x.elevation * M_per_FT,
                     NAN, x.heading, x.pitch, x.roll) {}
     positionTy ( const XPLMProbeInfo_t& probe ) :
-        positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { unitCoord=UNIT_LOCAL; }
+        positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { f.unitCoord=UNIT_LOCAL; }
+    positionTy ( const ptTy& _pt) :
+        positionTy ( _pt.y, _pt.x ) {}
     
     // merge with the given position
     positionTy& operator |= (const positionTy& pos);
     
+    // typecase to ptTy
+    operator ptTy() const { return ptTy(lon(),lat()); }
     // typecast to what XPMP API needs
     operator XPMPPlanePosition_t() const;
     // standard string for any output purposes
@@ -209,6 +395,13 @@ public:
     bool isNormal (bool bAllowNanAltIfGnd = false) const;
     // is fully valid? (isNormal + heading, pitch, roll)?
     bool isFullyValid() const;
+    /// Has a valid edge in the taxiway network of some airport?
+    bool HasTaxiEdge () const { return edgeIdx < EDGE_UNAVAIL; }
+    /// Has position been post-processed by some optimization (like snap to taxiway)?
+    bool IsPostProcessed () const { return
+        f.bHeadFixed || f.bCutCorner || f.specialPos != SPOS_NONE ||
+        f.flightPhase != FPH_UNKNOWN || edgeIdx != EDGE_UNKNOWN;
+    }
     
     // rad/deg conversion (only affects lat and lon)
     positionTy  deg2rad() const;
@@ -226,7 +419,7 @@ public:
     inline double pitch()   const { return v[PITCH]; }
     inline double roll()    const { return v[ROLL]; }
 
-    inline bool   IsOnGnd() const { return onGrnd == GND_ON; }
+    inline bool   IsOnGnd() const { return f.onGrnd == GND_ON; }
 
     inline double& lat()        { return v[LAT]; }
     inline double& lon()        { return v[LON]; }

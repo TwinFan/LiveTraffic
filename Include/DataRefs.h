@@ -126,6 +126,7 @@ enum dataRefsXP {
     DR_LON_REF,                         // sim/flightmodel/position/lon_ref    float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates.
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
+    DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
     DR_WEATHER_BARO_SEA,                // XP's weather
     DR_WEATHER_USE_REAL,
     DR_PLANE_LAT,                       // user's plane
@@ -484,7 +485,7 @@ protected:
     int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
     int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
     int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
-    int fdSnapTaxiDist  = 25;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
+    int fdSnapTaxiDist  = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
     int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
@@ -547,6 +548,7 @@ public:
     bool DidLocalRefPointChange ();             ///< Did the reference point to the local coordinate system change since last call to this function?
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
+    inline bool UsingModernDriver () const      { return adrXP[DR_MODERN_DRIVER] ? XPLMGetDatai(adrXP[DR_MODERN_DRIVER]) != 0 : false; }
     inline bool  IsVREnabled() const            { return
 #ifdef DEBUG
         bSimVREntered ? true :                  // simulate some aspects of VR
@@ -632,6 +634,7 @@ public:
     inline int GetLabelColor() const { return labelColor; }
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
+    void SetMaxNumAc(int n) { maxNumAc = n; }
     inline int GetMaxFullNumAc() const { return maxFullNumAc; }
     inline int GetFullDistance_nm() const { return fullDistance; }
     inline int GetFdStdDistance_nm() const { return fdStdDistance; }

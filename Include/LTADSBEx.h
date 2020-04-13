@@ -126,9 +126,9 @@ public:
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual const char* ChName() const { return ADSBEX_NAME; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
-    { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
+//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
     
 protected:
     // need to add/cleanup API key

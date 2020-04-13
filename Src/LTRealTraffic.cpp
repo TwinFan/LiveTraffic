@@ -747,12 +747,20 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
             // Also, reported altitude never seems to become negative,
             // though this would be required in high pressure weather
             // at airports roughly at sea level.
-            // If "0" is reported we assume "on gnd" and bypass
+            // And altitude is rounded to 250ft which means that close
+            // to the ground it could be rounded down to 0!
+            //
+            // If "0" is reported we need to assume "on gnd" and bypass
             // the pressure correction.
-            // Otherwise we need to completely
-            // rely on our own altitude-to-ground detection.
+            // If at the same time VSI is reported significantly (> +/- 100)
+            // then we assume plane is already/still flying, but as we
+            // don't know exact altitude we just skip this record.
             if (tfc[RT_TFC_ALT]         == "0") {
-                pos.alt_m() = NAN;          // have proper gnd altitude calculated
+                // skip this dynamic record in case VSI is too large
+                if (std::abs(dyn.vsi) > RT_VSI_AIRBORNE)
+                    return true;
+                // have proper gnd altitude calculated
+                pos.alt_m() = NAN;
                 dyn.gnd = true;
             } else {
                 // probably not on gnd, so take care of altitude
@@ -763,7 +771,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
             }
             
             // don't forget gnd-flag in position
-            pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
+            pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
 
             // add dynamic data
             fd.AddDynData(dyn, 0, 0, &pos);
@@ -865,7 +873,7 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
         return true;            // ignore silently
     lastWeather = weather;
     
-    LOG_MSG(logDEBUG, "Received new Weather: %s", weather);
+    LOG_MSG(logDEBUG, "Received Weather: %s", weather);
     
     // interpret weather
     JSON_Value* pRoot = json_parse_string(weather);

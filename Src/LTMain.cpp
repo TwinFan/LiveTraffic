@@ -99,7 +99,7 @@ std::istream& safeGetline(std::istream& is, std::string& t)
     std::getline(is, t, '\n');
     
     // if last character is CR then remove it
-    if (t.back() == '\r')
+    if (!t.empty() && t.back() == '\r')
         t.pop_back();
     
     return is;
@@ -356,14 +356,6 @@ std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
     
     // didn't find anything
     return std::string();
-}
-
-/// @details Called during a flight loop callback in case
-///          the local coordinate's reference point had changed
-void HandleRefPointChanged ()
-{
-    // Force recalculation of all local coordinates of the airport/taxi network
-    LTAptLocalCoordsUpdate(true);
 }
 
 //

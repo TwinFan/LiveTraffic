@@ -49,6 +49,7 @@ enum transpTy {
 
 class LTAircraft;
 struct LTFlightDataList;
+class Apt;
 
 class LTFlightData
 {
@@ -222,6 +223,7 @@ protected:
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
+    positionTy              posRwy;     ///< determined rwy (likely) to land on
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
@@ -333,8 +335,11 @@ public:
     bool TryDeriveGrndStatus (positionTy& pos);
     // determine terrain alt at pos
     double YProbe_at_m (const positionTy& pos);
-    // returns vector at timestamp (which has speed, direction and the like)
-    tryResult TryGetVec (double ts, vectorTy& vec) const;
+    /// returns next position in posDeque with timestamp after ts
+    /// @param ts Need a position with a timestamp larger than this
+    /// @param[out] pos Receives the position if found
+    /// @return Indicates if the call was successful
+    tryResult TryGetNextPos (double ts, positionTy& pos) const;
     
     // stringify all position information - mainly for debugging purposes
     std::string Positions2String () const;
@@ -363,6 +368,8 @@ public:
     
     // access/create/destroy aircraft
     bool AircraftMaintenance ( double simTime );    // returns: delete me?
+    bool DetermineAcModel ();                       ///< try interpreting model text or check for ground vehicle, last resort: default a/c type
+    bool AcSlotAvailable (double simTime);          ///< checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
     bool CreateAircraft ( double simTime );
     void DestroyAircraft ();
     LTAircraft* GetAircraft () const { return pAc; }
@@ -370,7 +377,13 @@ public:
     // actions on all flight data / treating mapFd as lists
     static void UpdateAllModels ();
     static const LTFlightData* FindFocusAc (const double bearing);
+#ifdef DEBUG
+    static void RemoveAllAcButSelected ();
+#endif
     friend LTFlightDataList;
+    
+    // LTApt inserts positions during the "snap-to-taxiway" precedure
+    friend Apt;
 };
 
 // global map of flight data, keyed by transpIcao

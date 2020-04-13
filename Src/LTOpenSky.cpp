@@ -154,7 +154,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 jag_n_nan(pJAc, OPSKY_ELEVATION),
                                 posTime,
                                 dyn.heading);
-                pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
+                pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
                 
                 // position is rather important, we check for validity
                 // (we do allow alt=NAN if on ground as this is what OpenSky returns)
@@ -226,7 +226,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         std::string data("{");
         
         // *** Fetch Masterdata ***
-        pos.onGrnd = positionTy::GND_ON;            // flag for: master data
+        pos.f.onGrnd = GND_ON;                          // flag for: master data
         
         // skip icao of which we know they will come back invalid
         if ( std::find(invIcaos.cbegin(),invIcaos.cend(),info.acKey.icao) == invIcaos.cend() )
@@ -267,7 +267,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             break;
         
         // *** Fetch Flight Info ***
-        pos.onGrnd = positionTy::GND_OFF;           // flag for: route info
+        pos.f.onGrnd = GND_OFF;                         // flag for: route info
         
         // call sign shall be alphanumeric but nothing else
         str_toupper(info.callSign);

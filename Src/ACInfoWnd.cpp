@@ -768,7 +768,7 @@ void ACIWnd::UpdateDynValues()
         valRoll.SetDescriptor(pAc->GetRoll());
         valAlt.SetDescriptor(round(pos.alt_ft()));
         if (pos.IsOnGnd())
-            valAGL.SetDescriptor(positionTy::GrndE2String(positionTy::GND_ON));
+            valAGL.SetDescriptor("On Grnd");
         else
             valAGL.SetDescriptor(pAc->GetPHeight_ft());
         valSpeed.SetDescriptor(pAc->GetSpeed_kt());

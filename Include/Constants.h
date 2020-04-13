@@ -71,7 +71,7 @@ constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_AGL =       50;         // [ft] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
@@ -79,6 +79,10 @@ constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
 constexpr double AC_HIDE_LON        =  -8.264134;
 constexpr double AC_HIDE_ALT        = 50;
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
+constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5ï¿½ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5ï¿½ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5ï¿½), slope ratio for keeping a plane above the approach to a runway
+constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    ///< [ï¿½] turns of less than this will not be modeled with Bezier curves
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -86,12 +90,11 @@ constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
 constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
 constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
-constexpr double MDL_SAME_TRACK_DIFF  =   3.0;  // [¡] max degree difference considered "same track"
-constexpr double MDL_TO_LOOK_AHEAD  =    35.0;  // [s] to look ahead for take off prediction
+constexpr double MDL_TO_LOOK_AHEAD  =    60.0;  // [s] to look ahead for take off prediction
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
-constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
+constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [ï¿½] step turn with one command
 constexpr float  MDL_EXT_FAST_DEG =       5.0f;
 constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
 constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
@@ -109,13 +112,26 @@ constexpr int COLOR_GREEN       = 0x00FF00;
 constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Airports, Runways, Taxiways
-constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [¡] tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [ï¿½] tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [ï¿½] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
-constexpr double ART_RWY_MAX_HEAD_DIFF = 10.0;  ///< [¡] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [ï¿½] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
+constexpr double ART_TAXI_SPEED_F  = 0.8;       ///< [-] ratio of MAX_TAXI_SPEED to use as taxi speed
+constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [ï¿½] Maximum turn angle (compared to original edge's angle) for combining edges
+constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 2.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
+constexpr double APT_STARTUP_VIA_DIST = 50.0;   ///< [m] distance of StartupLoc::viaLoc from startup location
+constexpr double APT_STARTUP_MOVE_BACK = 10.0;  ///< [m] move back startup location so that it sits about in plane's center instead of at its head
+constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an open node to be joined with another edge
+constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [ï¿½] tolerance of angle for an open node to be joined with another edge
+constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [ï¿½] extended (second prio) tolerance of angle for an open node to be joined with another edge
+constexpr double APT_MAX_PATH_TURN=100.0;       ///< [ï¿½] Maximum turn allowed during shortest path calculation
+constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [ï¿½] Tolerance when trying to devide for rectangular angle
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
@@ -139,6 +155,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
+#define MSG_NOT_MODERN_DRIVER   "LiveTraffic %s will NOT work under Vulkan/Metal!"
+#define MSG_NOT_MODERN_DRIVER2  "Until v2.0 is availble deactivate Vulkan/Metal in XP's Graphic setting!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
@@ -146,7 +164,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircraft"
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
-#define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %d seconds to buffer"
+#define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
 #define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
@@ -158,7 +176,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
 #define INFO_AC_SHOWN           "A/c %s visible"
 #define INFO_AC_SHOWN_AUTO      "A/c %s automatically visible"
-#define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will create new ones only after removing outdated ones."
+#define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will render nearest aircraft only."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
 #define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"
 #define MSG_MDL_NOT_FORCED      "Settings > Debug: Model matching no longer forced"
@@ -196,6 +214,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_NEWVER             "New Version %01.2f available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
+#define MENU_REMOVE_ALL_BUT     "Remove all but selected a/c"
 #endif
 
 //MARK: Help URLs
@@ -273,7 +292,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_MALLOC              "Could not (re)allocate %ld bytes of memory"
 #define ERR_ASSERT              "ASSERT FAILED: %s"
 #define ERR_AC_NO_POS           "No positional data available when creating aircraft %s"
-#define ERR_AC_CALC_PPOS        "Could calculate position when creating aircraft %s"
+#define ERR_AC_CALC_PPOS        "Could not calculate position when creating aircraft %s"
 #define ERR_Y_PROBE             "Y Probe returned %d at %s"
 #define ERR_POS_UNNORMAL        "A/c %s reached invalid pos: %s"
 #define ERR_IGNORE_POS          "A/c %s: Ignoring data leading to sharp turn or invalid speed: %s"
@@ -328,8 +347,10 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 #define DBG_FILTER_AC_REMOVED   "DEBUG Filtering for a/c REMOVED"
 #define DBG_MERGED_POS          "DEBUG MERGED POS %s into updated TS %.1f"
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
+#define DBG_KEEP_ABOVE          "DEBUG POS LIFTED TO 2.5deg GLIDESCOPE from %.0fft: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"
 #define DBG_SKIP_NEW_POS        "DEBUG SKIPPED NEW POS: %s"
+#define DBG_ADDED_NEW_POS       "DEBUG ADDED   NEW POS: %s"
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"

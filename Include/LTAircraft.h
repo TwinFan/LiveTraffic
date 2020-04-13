@@ -115,7 +115,7 @@ public:
     // get current value
     double m_s() const { return currSpeed_m_s; }
     double kt() const { return currSpeed_kt; }
-    bool isZero() const { return currSpeed_m_s <= 0; }
+    bool isZero() const { return currSpeed_m_s <= 0.01; }
     
     // start an acceleration now
     void StartAccel(double startSpeed, double targetSpeed, double accel,
@@ -134,6 +134,101 @@ public:
     double getRatio ( double ts = NAN ) const;
     inline double getTargetTime() const         { return targetTime; }
     inline double getTargetDeltaDist() const    { return targetDeltaDist; }
+};
+
+/// @brief Handles a quadratic Bezier curve based on flight data positions
+/// @details Only using quadratic curves because in higher-level Bezier curves the parameter `t`
+///          does no longer correspond well to distance and planes would appear slowing down
+///          at beginning and end.
+/// @details The constructors take positions from flight data,
+///          the necessary end and control points of a Bezier Curve
+///          are computed from that input.
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Constructing_B%C3%A9zier_curves
+struct BezierCurve
+{
+protected:
+    positionTy start;           ///< start point of the actual Bezier curve
+    positionTy end;             ///< end point of the actual Bezier curve
+    ptTy ptCtrl;                ///< Control point of the curve
+    double startF = NAN;        ///< at which factor f (from LTAircraft::CalcPPos()) does Bezier execution begin?
+    double endF = NAN;          ///< at which factor f (from LTAircraft::CalcPPos()) does Bezier execution end?
+    double fCalAdd = NAN;       ///< summand for `f` calibration
+    double fCalDiv = NAN;       ///< divisor for `f` calibration
+    double myF = NAN;           ///< last used `f` after calibration
+    double mySecondMaxF = NAN;  ///< in case of a cut-corner curve: maximum f value on second half
+public:
+    BezierCurve () {}           ///< Standard constructor does nothing
+    
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions
+    /// @param _nowF Current factor f as earliest possible starting factor
+    /// @param _from From position on the leg towards _mid
+    /// @param _mid Mid position, current leg's end and next leg's starting point, the turning point, used as Bezier control point, ie. will not be reached
+    /// @param _to End position of next leg
+    /// @param _angleFromMid Angle from `_from` to `_mid` to avoid recalculation of already known data
+    /// @param _angleMidTo Angle from `_mid` to `_to` to avoid recalculation of already known data
+    /// @param _fullTurnTime Seconds allowed for a 360° turn (taken from LTAircraft::FlightModel)
+    void Define (double _nowF,
+                 const positionTy& _from,
+                 double _angleFromMid,
+                 const positionTy& _mid,
+                 double _angleMidTo,
+                 const positionTy& _to,
+                 double _fullTurnTime);
+    
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions
+    /// @param _initF The initial `f` factor when starting this Bezier for internal calibration of seemless calculations
+    /// @param _from Start position of current leg
+    /// @param _to End position of current leg
+    /// @param _vec Vector from `_from` to `_to` to avoid recalculation of already known data
+    /// @details The control point is computed as the point where the lines through _from and _to,
+    ///          having angle as defined by `.heading()`, meet. This can and cannot work out.
+    /// @return Has a valid Bezier curve been defined?
+    bool Define (double _initF,
+                 const positionTy& _from,
+                 const positionTy& _to,
+                 const vectorTy& _vec);
+    
+    /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
+    /// This is needed for accurate angle calculations
+    void ConvertToMeter ();
+    /// Convert the given geographic coordinates to meters
+    void ConvertToMeter (ptTy& pt) const;
+
+    /// Convert the given position back to geographic coordinates
+    void ConvertToGeographic (ptTy& pt) const;
+    
+    /// Calibrate the Bezier so that `f = [_inifF.._maxF]` maps to `myF = [_myInit.._myMax]`
+    void Calibrate (double _initF, double _maxF,
+                    double _myInit, double _myMax);
+    /// Re-Calibrate for the second half of a cut-corner curve
+    void ReCalibrate2ndHalf () { Calibrate(0.0, mySecondMaxF, 0.5, 1.0); }
+    
+    /// Clear the definition, so that BezierCurve::isDefined() will return `false`
+    void Clear ();
+    /// Is a curve defined?
+    bool isDefined () const { return ptCtrl.isValid(); }
+    /// Is Bezier active for given timestamp?
+    bool isActive (double _f) const
+    { return isDefined() && startF <= _f && _f <= endF; }
+    /// Is or will Bezier be active for given factor f?
+    bool isActiveFuture (double _f) const
+    { return isDefined() && _f <= endF; }
+    /// is defined and the given timestamp between start's and end's timestamp?
+    bool isTsInbetween (double _ts) const
+    { return isDefined() && start.ts() <= _ts && _ts <= end.ts(); }
+    /// is defined and the given timestamp before end's timestamp?
+    bool isTsBeforeEnd (double _ts) const
+    { return isDefined() && _ts <= end.ts(); }
+
+    /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
+    /// @param[in,out] pos Current position, to be overwritten with new position
+    /// @param ts Timestamp for the position we look for, only used for validation if Bezier is active
+    /// @param f Factor in range [0..1]: This controls the returned value (might be controled by acceleration!)
+    /// @return if the position was adjusted
+    bool GetPos (positionTy& pos, double ts, double f);
+
+    /// Debug text output
+    std::string dbgTxt() const;
 };
 
 //
@@ -197,27 +292,7 @@ public:
     };
     
 public:
-    /// @brief Flight phase
-    enum FlightPhase {
-        FPH_UNKNOWN     = 0,            ///< used for initializations
-        FPH_TAXI        = 10,           ///< Taxiing
-        FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
-        FPH_TO_ROLL,                    ///< Take-off roll
-        FPH_ROTATE,                     ///< Rotating
-        FPH_LIFT_OFF,                   ///< Lift-off, until "gear-up" height
-        FPH_INITIAL_CLIMB,              ///< Initial climb, until "flaps-up" height
-        FPH_CLIMB       = 30,           ///< Regular climbout
-        FPH_CRUISE      = 40,           ///< Cruising, no altitude change
-        FPH_DESCEND     = 50,           ///< Descend, more then 100ft/min descend
-        FPH_APPROACH    = 60,           ///< Approach, below "flaps-down" height
-        FPH_FINAL,                      ///< Final, below "gear-down" height
-        FPH_LANDING     = 70,           ///< Group of status for landing:
-        FPH_FLARE,                      ///< Flare, when reaching "flare		" height
-        FPH_TOUCH_DOWN,                 ///< The one cycle when plane touches down, don't rely on catching it...it's really one cycle only
-        FPH_ROLL_OUT,                   ///< Roll-out after touch-down until reaching taxi speed or stopping
-        FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
-    };
-    static std::string FlightPhase2String (FlightPhase phase);
+    static std::string FlightPhase2String (flightPhaseE phase);
 
 public:
     // reference to the defining flight data
@@ -246,17 +321,17 @@ protected:
     double              tsLastCalcRequested;
     
     // dynamic parameters of the plane
-    FlightPhase         phase;          // current flight phase
+    flightPhaseE         phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
     bool                bOnGrnd;        // are we touching ground?
     bool                bArtificalPos;  // running on artifical positions for roll-out?
-    bool                bNeedNextVec;   // in need of next vector after to-pos?
+    bool                bNeedSpeed = false;     ///< need speed calculation?
+    bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
     AccelParam          speed;          // current speed [m/s] and acceleration control
+    BezierCurve         turn;           ///< position, heading, roll while flying a turn
     MovingParam         gear;
     MovingParam         flaps;
-    MovingParam         heading;        // used when turning
-    MovingParam         roll;
     MovingParam         pitch;
     MovingParam         reversers;      ///< reverser open ratio
     MovingParam         spoilers;       ///< spoiler extension ratio
@@ -264,9 +339,8 @@ protected:
     MovingParam         gearDeflection; ///< main gear deflection in meters during touch-down
     
     // Y-Probe
-    XPLMProbeRef        probeRef;
     double              probeNextTs;    // timestamp of NEXT probe
-    double              terrainAlt;     // in feet
+    double              terrainAlt_m;   ///< terrain altitude in meters
     
     // bearing/dist from viewpoint to a/c
     vectorTy            vecView;        // degrees/meters
@@ -306,9 +380,10 @@ public:
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     // current a/c configuration
-    inline FlightPhase GetFlightPhase() const { return phase; }
+    inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     inline bool IsOnGrnd() const { return bOnGrnd; }
+    bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
     inline double GetHeading() const { return ppos.heading(); }
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
@@ -322,10 +397,10 @@ public:
     inline double GetRoll() const { return ppos.roll(); }
     inline double GetAlt_ft() const { return ppos.alt_ft(); }
     inline double GetAlt_m() const { return ppos.alt_m(); }
-    inline double GetTerrainAlt_ft() const { return terrainAlt; }           // ft
-    inline double GetTerrainAlt_m() const { return terrainAlt * M_per_FT; } // m
-    inline double GetPHeight_ft() const { return ppos.alt_ft() - terrainAlt; }
-    inline double GetPHeight_m() const { return GetPHeight_ft() * M_per_FT; }
+    inline double GetTerrainAlt_ft() const { return terrainAlt_m / M_per_FT; }  ///< terrain alt converted to ft
+    inline double GetTerrainAlt_m() const { return terrainAlt_m; }              ///< terrain alt in meter
+    inline double GetPHeight_m() const { return ppos.alt_m() - terrainAlt_m; }  ///< height above ground in meter
+    inline double GetPHeight_ft() const { return GetPHeight_m() / M_per_FT; }   ///< height above ground converted to ft
     inline vectorTy GetVec() const { return vec; }
     inline vectorTy GetVecView() const { return vecView; }
     std::string GetLightsStr() const;
@@ -353,6 +428,8 @@ protected:
     bool CalcPPos ();
     // determine other parameters like gear, flap, roll etc. based on flight model assumptions
     void CalcFlightModel (const positionTy& from, const positionTy& to);
+    /// determine roll, based on a previous and a current heading
+    void CalcRoll (double _prevTs, double _prevHeading);
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();

@@ -183,7 +183,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 alt_ft * M_per_FT,
                                 posTime,
                                 dyn.heading);
-                pos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
+                pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
                 
                 // position is rather important, we check for validity
                 if ( pos.isNormal(true) ) {
@@ -848,7 +848,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 {
                     // we need a good take on the ground status of mainPos
                     // for later landing detection
-                    mainPos.onGrnd = dyn.gnd ? positionTy::GND_ON : positionTy::GND_OFF;
+                    mainPos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
                     
                     // FIXME: Called from outside main thread,
                     //        can produce wrong terrain alt (2 cases here)
@@ -864,7 +864,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     // short-cut: if we are in the air then skip adding trails
                     // they might be good on the ground...in the air the
                     // positions can be too inaccurate causing jumps in speed, vsi, heading etc...
-                    if (mainPos.onGrnd == positionTy::GND_OFF)
+                    if (mainPos.f.onGrnd == GND_OFF)
                         pCosList = NULL;
                     
                     // found trails and there are at least 2 quadrupels, i.e. really a "trail" not just a single pos?
@@ -955,11 +955,11 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                     for(positionTy& posIter: trails) {
                                         // calc altitude based on vsiBef, as soon as we touch ground it will be normalized to terrain altitude
                                         posIter.alt_m() = refPos.alt_m() + vsiBef * (posIter.ts()-refPos.ts());
-                                        posIter.onGrnd = positionTy::GND_UNKNOWN;
+                                        posIter.f.onGrnd = GND_UNKNOWN;
                                         fd.TryDeriveGrndStatus(posIter);
                                         // only add pos if not off ground
                                         // (see above: airborne we don't want too many positions)
-                                        if (posIter.onGrnd != positionTy::GND_OFF)
+                                        if (posIter.f.onGrnd != GND_OFF)
                                             fd.AddNewPos(posIter);
                                     }
                                     
@@ -985,7 +985,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 if ( tsDiff > 0 ) {
                                     for(positionTy& posIter: trails) {
                                         posIter.alt_m() = refPos.alt_m() + altDiff * (posIter.ts()-refPos.ts()) / tsDiff;
-                                        posIter.onGrnd = positionTy::GND_UNKNOWN;
+                                        posIter.f.onGrnd = GND_UNKNOWN;
                                         fd.AddNewPos(posIter);
                                     }
                                     bAddedTrails = true;
