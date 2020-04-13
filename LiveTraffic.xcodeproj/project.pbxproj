@@ -35,7 +35,6 @@
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
-		D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
 /* End PBXBuildFile section */
 
@@ -237,7 +236,6 @@
 				2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */,
 				2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */,
 				258790A923020C5700129569 /* libcurl.framework in Frameworks */,
-				D6A7BDAA16A1DEA200D1426A /* OpenGL.framework in Frameworks */,
 				25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */,
 				25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */,
 				2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */,

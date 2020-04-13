@@ -28,7 +28,6 @@
 #include "XPLMMap.h"
 
 #include <string>
-#include <chrono>
 #include <array>
 #include <list>
 
@@ -140,17 +139,21 @@ protected:
     int                 matchQuality = -1;  ///< quality of the match with the CSL model
     
     // this is data from about a second ago to calculate cartesian velocities
-    double              prev_x = 0.0f, prev_y = 0.0f, prev_z = 0.0f;
-    std::chrono::steady_clock::time_point prev_ts;
+    float               prev_x = 0.0f, prev_y = 0.0f, prev_z = 0.0f;
+    float               prev_ts = 0.0f;     ///< last update of prev_x/y/z in XP's tota running time
     
     /// X-Plane instance handles for all objects making up the model
     std::list<XPLMInstanceRef> listInst;
     /// Which sim/multiplayer/plane-index used last?
     int                 multiIdx = -1;
 
-    /// Distance to camera in meters (updated internally with every flightloop callback)
-    float               distCamera = 0.0f;
-    
+    /// Timestamp of last update of camera dist/bearing
+    float               camTimLstUpd = 0.0f;
+    /// Distance to camera in meters (updated internally regularly)
+    float               camDist = 0.0f;
+    /// Bearing from camera in degrees (updated internally regularly)
+    float               camBearing = 0.0f;
+
     /// Y Probe for terrain testing, neeed in ground clamping
     XPLMProbeRef        hProbe = nullptr;
     
@@ -198,7 +201,9 @@ public:
     ///          `drawInfo`, the `v` array of dataRefs, `label`, and `infoTexts` with current values.
     virtual void UpdatePosition () = 0;
     /// Distance to camera [m]
-    float GetDistToCamera () const { return distCamera; }
+    float GetCameraDist () const { return camDist; }
+    /// Bearing from camera [°]
+    float GetCameraBearing () const { return camBearing; }
     
     /// @brief Converts world coordinates to local coordinates, writes to Aircraft::drawInfo
     /// @note Alternatively, the calling plugin can set local coordinates in Aircraft::drawInfo directly
@@ -232,8 +237,8 @@ protected:
     static float FlightLoopCB (float, float, int, void*);
     /// Internal: This puts the instance into XP's sky and makes it move
     void DoMove ();
-    /// Internal: Update the plane's distance from the camera location
-    void UpdateDistCamera (const XPLMCameraPosition_t& posCam);
+    /// Internal: Update the plane's distance/bearing from the camera location
+    void UpdateDistBearingCamera (const XPLMCameraPosition_t& posCam);
     /// Clamp to ground: Make sure the plane is not below ground, corrects Aircraft::drawInfo if needed.
     void ClampToGround ();
     /// Create the instances, return if successful

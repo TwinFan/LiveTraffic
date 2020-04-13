@@ -131,12 +131,6 @@ elseif (WIN32)
 endif ()
 target_link_libraries(LiveTraffic ${XPMP2_LIBRARY})
 
-# Link OpenGL
-set(OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
-include_directories( ${OpenGL_INCLUDE_DIRS} )
-target_link_libraries( LiveTraffic OpenGL::GL )
-
 # CURL Library
 if (WIN32)
     find_library(CURL_LIBRARIES NAMES libcurl.lib)
@@ -182,7 +176,6 @@ if (APPLE)
     find_library(SECURITY_LIBRARY Security)
     find_library(GSS_LIBRARY GSS)
     find_library(Kerberos5_LIBRARY libgssapi_krb5.tbd)
-    find_library(OpenGL_LIBRARY OpenGL)
     find_library(Cocoa_LIBRARY Cocoa)
 
     target_link_libraries(LiveTraffic
