@@ -158,7 +158,7 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Copying win.xpl into my X-Plane plugin path</Message>
@@ -203,7 +203,7 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
       <Message>Copying win.xpl into my X-Plane plugin path</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
