@@ -1,12 +1,6 @@
 TODO
 ===
 
-#13 ensure nearest a/c are shown
-
-Identify Vulkan/Metal and warn fatally:
-sim/graphics/view/using_modern_driver
-
-
 LTApt
 - Instead of wasting space with all nodes supporting Dijkstra,
   consider a map holding Dijkstra info per visited node

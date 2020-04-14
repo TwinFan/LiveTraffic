@@ -257,7 +257,6 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
-    DR_CFG_DR_LIBXPLANEMP,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -493,7 +492,6 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
-    int drLibXplaneMP   = 1;            // CSL models: register original 'libxplanemp' dataRefs?
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -649,9 +647,6 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
-
-    inline bool GetDrLibXplaneMP() const { return drLibXplaneMP != 0; }
-    inline void SetDrLibXplaneMP(int i) { drLibXplaneMP = i; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

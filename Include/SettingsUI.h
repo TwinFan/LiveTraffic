@@ -70,7 +70,6 @@ protected:
     // CSL tab
     enum { SETUI_CSL_PATHS=7, SETUI_CSL_ELEMS_PER_PATH=3 };
     static constexpr int SETUI_CSL_PATHS_NUM_ELEMS = SETUI_CSL_PATHS * SETUI_CSL_ELEMS_PER_PATH;
-    TFButtonDataRef btnRegLibXPlanempDR;
     TFTextFieldWidget txtCSLPaths[SETUI_CSL_PATHS];
     TFTextFieldWidget txtDefaultAcType, txtGroundVehicleType;
     
