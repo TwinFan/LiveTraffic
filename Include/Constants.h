@@ -234,11 +234,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 //MARK: File Paths
 // these are under the plugins directory
 #define PATH_FLIGHT_MODELS      "Resources/FlightModels.prf"
-#define PATH_RELATED_TXT        "Resources/related.txt"
-#define PATH_LIGHTS_PNG         "Resources/lights.png"
 #define PATH_DOC8643_TXT        "Resources/Doc8643.txt"
 #define PATH_MODEL_TYPECODE_TXT "Resources/model_typecode.txt"
-#define PATH_MAPICONS_PNG       "Resources/MapIcons.png"
 #define PATH_RESOURCES          "Resources"
 #define PATH_RESOURCES_CSL      "Resources/CSL"
 #define PATH_RESOURCES_SCSL     "Resources/ShippedCSL"

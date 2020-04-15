@@ -292,33 +292,28 @@ void removeUserVertOffset(const char *inMtlCode);
 typedef int (*XPMPIntPrefsFuncTy)(const char* _section, const char* _key, int _default);
 
 /// @brief Deprecated legacy initialization of XPMP2.
+/// @note Parameters changed compared to libxplanemp!
 /// @details Effectively calls, in this order,
 ///          XPMPMultiplayerInit() (with `resourceDir` being `nullptr`) and XPMPLoadCSLPackage().
 /// @see XPMPMultiplayerInit() and XPMPLoadCSLPackage() for details on the parameters.
 [[deprecated("Use XPMPMultiplayerInit and XPMPLoadCSLPackages")]]
-const char *    XPMPMultiplayerInitLegacyData(const char * inCSLFolder      = nullptr,
-                                              const char * inRelatedPath    = nullptr,
-                                              const char * inTexturePath    = nullptr,
-                                              const char * inDoc8643        = nullptr,
-                                              const char * inDefaultICAO    = nullptr,
-                                              XPMPIntPrefsFuncTy inIntPrefsFunc                   = nullptr,
-                                              float (*inUnsed)(const char *, const char *, float) = nullptr,
-                                              const char * inMapIconFile    = nullptr);
+const char *    XPMPMultiplayerInitLegacyData(const char* inCSLFolder,
+                                              const char* inPluginName,
+                                              const char* resourceDir,
+                                              XPMPIntPrefsFuncTy inIntPrefsFunc   = nullptr,
+                                              const char* inDefaultICAO           = nullptr);
 
 /// @brief Initializes the XPMP2 library. This shall be your first call to the library.
-/// @param inIntPrefsFunc A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
-/// @param inUnused1 Used to be a callback function for providing float config values, but is not used in XPMP2.
-/// @param resourceDir A directory where XPMP2 can write the file `userVertOffsets.txt` with information on calculated and user vertical ofsets per model.
+/// @note Parameters changed compared to libxplanemp!
 /// @param inPluginName Your plugin's name, used only in output to `Log.txt`
+/// @param resourceDir The directory where XPMP2 finds all required supplemental files (Doc8643.txt, MapIcons.png, NoPlane.acf...)
+/// @param inIntPrefsFunc A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
 /// @param inDefaultICAO A fallback aircraft type if no type can be deduced otherwise for an aircraft.
-/// @param inMapIconFile Full path to a `MapIcons.png` file providing a matrix of icons used in the internal map.
 /// @return Empty string in case of success, otherwise a human-readable error message.
-const char *    XPMPMultiplayerInit(XPMPIntPrefsFuncTy inIntPrefsFunc                    = nullptr,
-                                    float (*inUnused1)(const char *, const char *, float) = nullptr,
-                                    const char* resourceDir     = nullptr,
-                                    const char* inPluginName    = nullptr,
-                                    const char* inDefaultICAO   = nullptr,
-                                    const char* inMapIconFile   = nullptr);
+const char *    XPMPMultiplayerInit(const char* inPluginName,
+                                    const char* resourceDir,
+                                    XPMPIntPrefsFuncTy inIntPrefsFunc   = nullptr,
+                                    const char* inDefaultICAO           = nullptr);
 
 /// @brief Overrides the plugin's name to be used in Log output
 /// @details The name in use defaults to the plugin's name as set in XPluginStart().
@@ -382,11 +377,7 @@ bool XPMPHasControlOfAIAircraft();
 /// @details This function mainly searches the given folder for packages and reads the structure.
 ///          Actual loading of objects is done asynchronously when needed only.
 /// @param inCSLFolder Root folder to start the search.
-/// @param inRelatedPath Full path to a `related.txt` file, providing information of groups of similar-looking aircraft. Will be read only once.
-/// @param inDoc8643 Full path to a `doc8643.txt` file, providing information on official ICAO aircraft types. Will be read only once.
-const char *    XPMPLoadCSLPackage(const char * inCSLFolder,
-                                   const char * inRelatedPath   = nullptr,
-                                   const char * inDoc8643       = nullptr);
+const char *    XPMPLoadCSLPackage(const char * inCSLFolder);
 
 /*
  * XPMPLoadPlanesIfNecessary

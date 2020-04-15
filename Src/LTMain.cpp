@@ -369,16 +369,10 @@ bool LTMainInit ()
     if (!LTFlightDataInit()) return false;
         
     // init Multiplayer API
-    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
-    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    const std::string pathMapIcons(LTCalcFullPluginPath(PATH_MAPICONS_PNG));
-    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
-
-    const char* cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc, nullptr,
-                                                 pathRes.c_str(),
-                                                 LIVE_TRAFFIC,
-                                                 dataRefs.GetDefaultAcIcaoType().c_str(),
-                                                 pathMapIcons.c_str());
+    const char* cszResult = XPMPMultiplayerInit (LIVE_TRAFFIC,
+                                                 LTCalcFullPluginPath(PATH_RESOURCES).c_str(),
+                                                 &MPIntPrefsFunc,
+                                                 dataRefs.GetDefaultAcIcaoType().c_str());
     if ( cszResult[0] ) {
         LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
         XPMPMultiplayerCleanup();
@@ -397,12 +391,7 @@ bool LTMainInit ()
          cslPath = NextValidCSLPath(cslIter, cslEnd))
     {
         bAnyPathFound = true;
-        cszResult = XPMPLoadCSLPackage
-        (
-         cslPath.c_str(),
-         pathRelated.c_str(),
-         pathDoc8643.c_str()
-         );
+        cszResult = XPMPLoadCSLPackage (cslPath.c_str());
         // Addition of CSL package failed...that's not fatal as we did already
         // register one with the XPMPMultiplayerInitLegacyData call
         if ( cszResult[0] ) {

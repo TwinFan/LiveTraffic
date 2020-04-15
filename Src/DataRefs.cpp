@@ -1791,9 +1791,6 @@ void DataRefs::SaveCSLPath(int idx, const CSLPathCfgTy path)
 // Load a CSL package interactively
 bool DataRefs::LoadCSLPackage(int idx)
 {
-    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
-    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    
     if (size_t(idx) < vCSLPaths.size()) {
         // enabled, path could be relative to X-Plane
         const std::string path = LTCalcFullPath(vCSLPaths[idx].path);
@@ -1805,9 +1802,7 @@ bool DataRefs::LoadCSLPackage(int idx)
         else
         {
             // try loading the package
-            const char* cszResult = XPMPLoadCSLPackage(path.c_str(),
-                                                       pathRelated.c_str(),
-                                                       pathDoc8643.c_str());
+            const char* cszResult = XPMPLoadCSLPackage(path.c_str());
             
             // Addition of CSL package failed?
             if ( cszResult[0] ) {
