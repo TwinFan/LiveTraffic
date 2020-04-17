@@ -302,22 +302,20 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 }
 
 // Preferences functions for XPMP API
-int   MPIntPrefsFunc   (const char* section, const char* key, int   iDefault)
+int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
-    if (!strcmp(section,"debug"))
-    {
-        // debug XPMP's CSL model matching if requested
-        if (!strcmp(key, "model_matching"))
-            return dataRefs.GetDebugModelMatching();
-        // logging level to match ours
-        if (!strcmp(key, "log_level"))
-            return dataRefs.GetLogLevel();
-    }
-    else if (!strcmp(section,"planes"))
-    {
-        // We don't want clamping to the ground, we take care of the ground ourselves
-        if (!strcmp(key, "clamp_all_to_ground")) return 0;
-    }
+    // debug XPMP's CSL model matching if requested
+    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING))
+        return dataRefs.GetDebugModelMatching();
+    // logging level to match ours
+    if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL))
+        return dataRefs.GetLogLevel();
+    // We don't want clamping to the ground, we take care of the ground ourselves
+    if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    
+    // Backdoor to skip assigning the NoPlane.acf to AI planes
+    if (!strcmp(key, XPMP_CFG_ITM_SKIP_NOPLANE))
+        return dataRefs.ShallAISkipAssignNoPlane();
     
     // dont' know/care about the option, return the default value
     return iDefault;
