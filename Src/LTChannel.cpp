@@ -584,6 +584,10 @@ void LTFlightDataStop()
 // and it runs in a loop until LTFlightDataHideAircraft stops it
 void LTFlightDataSelectAc ()
 {
+#if IBM
+    // On Windows threads can be named
+    SetThreadDescription(GetCurrentThread(), L"LiveTraffic_Channels");
+#endif
     while ( !bFDMainStop )
     {
         // determine when to be called next
