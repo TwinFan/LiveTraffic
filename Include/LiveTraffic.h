@@ -289,4 +289,14 @@ inline int strerror_s( char *buf, size_t bufsz, int errnum )
 { strcpy_s(buf,bufsz,strerror(errnum)); return 0; }
 #endif
 
+// MARK: Thread names
+
+#if IBM
+#define SET_THREAD_NAME(sName) SetThreadDescription(GetCurrentThread(), L##sName)
+#elif APL
+#define SET_THREAD_NAME(sName) pthread_setname_np(sName)
+#elif LIN
+#define SET_THREAD_NAME(sName) pthread_setname_np(pthread_self(),sName)
+#endif
+
 #endif /* LiveTraffic_h */

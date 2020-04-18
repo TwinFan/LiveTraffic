@@ -105,10 +105,9 @@ bool ForeFlightSender::StopConnection ()
 // thread main function
 void ForeFlightSender::udpSend()
 {
-#if IBM
-    // On Windows threads can be named
-    SetThreadDescription(GetCurrentThread(), L"LiveTraffic_FF_Send");
-#endif
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_ForeFlight");
+
     //
     // *** open the UDP socket ***
     //

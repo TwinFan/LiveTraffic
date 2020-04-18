@@ -1271,10 +1271,9 @@ dequeKeyTimeTy dequeKeyPosCalc;
 // the CalcNextPos function on the respective flight data objects
 void LTFlightData::CalcNextPosMain ()
 {
-#if IBM
-    // On Windows threads can be named
-    SetThreadDescription(GetCurrentThread(), L"LiveTraffic_CalcPos");
-#endif
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_CalcPos");
+
     // loop till said to stop
     while ( !bFDMainStop ) {
         keyTimePairTy pair;

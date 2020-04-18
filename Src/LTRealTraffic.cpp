@@ -312,10 +312,8 @@ bool RealTrafficConnection::StopConnections()
 
 void RealTrafficConnection::tcpConnection ()
 {
-#if IBM
-    // On Windows threads can be named
-    SetThreadDescription(GetCurrentThread(), L"LiveTraffic_RT_TCP");
-#endif
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_RT_TCP");
 
     // sanity check: return in case of wrong status
     if (!IsConnecting()) {
@@ -433,10 +431,8 @@ void RealTrafficConnection::SendUsersPlanePos()
 // forwards that to the flight data
 void RealTrafficConnection::udpListen ()
 {
-#if IBM
-    // On Windows threads can be named
-    SetThreadDescription(GetCurrentThread(), L"LiveTraffic_RT_UDP");
-#endif
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_RT_UDP");
 
     // sanity check: return in case of wrong status
     if (!IsConnecting()) {
