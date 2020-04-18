@@ -312,6 +312,9 @@ bool RealTrafficConnection::StopConnections()
 
 void RealTrafficConnection::tcpConnection ()
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_RT_TCP");
+
     // sanity check: return in case of wrong status
     if (!IsConnecting()) {
         thrTcpRunning = false;
@@ -428,6 +431,9 @@ void RealTrafficConnection::SendUsersPlanePos()
 // forwards that to the flight data
 void RealTrafficConnection::udpListen ()
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_RT_UDP");
+
     // sanity check: return in case of wrong status
     if (!IsConnecting()) {
         thrUdpRunning = false;

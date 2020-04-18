@@ -38,6 +38,13 @@ time to start deceleration = tx    <-- looking for this value
 ⇔  tx =  2/∆v * (vi * ∆t + ∆v/2 * tt - d)
 
 
+Extract .dmp file from .rpt:
+----------------------------
+Open the .rpt file in a good editor. The .dmp file is stored as a huge binary-64-coded block in the tag "dmp_file".
+Copy just that huge text (even without the quotation marks!) to a separate file, say "crash.dmp.b64".
+On a Windows command line, the following command will decode it:
+ certutil.exe -decode crash.dmp.b64 crash.dmp
+
 LIBRARIES
 ========
 libz / zlib - https://zlib.net/zlib_license.html
