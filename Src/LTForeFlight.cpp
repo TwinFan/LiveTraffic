@@ -105,6 +105,9 @@ bool ForeFlightSender::StopConnection ()
 // thread main function
 void ForeFlightSender::udpSend()
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_ForeFlight");
+
     //
     // *** open the UDP socket ***
     //

@@ -966,9 +966,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // If there is no a/c yet then we need one past and
             // one or more future positions
             // If already the first pos is in the future then we aren't valid yet
-            if (simTime < posDeque.front().ts())
+            if (posDeque.size() < 2 || simTime < posDeque.front().ts())
                 return false;
-            
         }
         
         // *** Data Cleansing ***
@@ -1272,6 +1271,9 @@ dequeKeyTimeTy dequeKeyPosCalc;
 // the CalcNextPos function on the respective flight data objects
 void LTFlightData::CalcNextPosMain ()
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_CalcPos");
+
     // loop till said to stop
     while ( !bFDMainStop ) {
         keyTimePairTy pair;
@@ -2398,6 +2400,12 @@ bool LTFlightData::CreateAircraft ( double simTime )
         if ( !validForAcCreate(simTime) )
             return false;
         
+        // There are yet unsolved errors where the subsequent aircraft creation failes with an
+        // empty posDeque, though we just - while holding the dataAccessMutex - have verified
+        // that we are valid for creation. See Issue #174.
+        // Next time we see that bug we want to know what NOW is in posDeque:
+        const std::string sPosDeque = positionDeque2String(posDeque);
+        
         // Make sure we have a valid a/c model now
         DetermineAcModel();
         
@@ -2407,12 +2415,13 @@ bool LTFlightData::CreateAircraft ( double simTime )
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_EXCEPTION_AC_CREATE,
                     key().c_str(), statData.acTypeIcao.c_str(),
-                    e.what());
+                    e.what(), sPosDeque.c_str());
             pAc = nullptr;
         }
         catch(...) {
             LOG_MSG(logERR, ERR_UNKN_EXCP_AC_CREATE,
-                    key().c_str(), statData.acTypeIcao.c_str());
+                    key().c_str(), statData.acTypeIcao.c_str(),
+                    sPosDeque.c_str());
             pAc = nullptr;
         }
         if (!pAc)
