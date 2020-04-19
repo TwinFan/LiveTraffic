@@ -176,8 +176,12 @@ public:
     XPMPPlaneID GetPlaneID () const { return mPlane; }
     /// return the last used sim/multiplayer/plane-index
     int         GetMultiIdx () const { return multiIdx; }
+    /// Is this plane currently also being tracked by X-Plane's AI/multiplayer, ie. will appear on TCAS?
+    bool        IsCurrentlyShownAsAI () const { return multiIdx >= 0; }
     /// Will this plane show up on TCAS / in multiplayer views? (It will if transponder is not switched off)
     bool        ShowAsAIPlane () const { return IsVisible() && acRadar.mode != xpmpTransponderMode_Standby; }
+    /// Reset multiplayer slot index
+    void        ResetMultiIdx () { multiIdx = -1; }
     
     /// (Potentially) change the plane's model after doing a new match attempt
     int ChangeModel (const std::string& _icaoType,

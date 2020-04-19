@@ -466,7 +466,7 @@ bool LTMainTryGetAIAircraft ()
         return true;
     
     const char* cszResult = XPMPMultiplayerEnable();
-    if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
+    if ( cszResult[0] ) { SHOW_MSG(logWARN,ERR_XPMP_ENABLE, cszResult); return false; }
     
     // If we don't control AI aircraft we can't create TCAS blibs.
     if (!dataRefs.HaveAIUnderControl()) {
@@ -479,8 +479,54 @@ bool LTMainTryGetAIAircraft ()
 /// Disable Multiplayer place drawing, releasing multiuser planes
 void LTMainReleaseAIAircraft ()
 {
+    // short-cut if we aren't in control
+    if (!dataRefs.HaveAIUnderControl())
+        return;
+
     // just pass on to libxplanemp
     XPMPMultiplayerDisable ();
+}
+
+/// Callback, which toggles AI control
+static float CBToggleAI (float, float, int, void *)
+{
+    if (dataRefs.HaveAIUnderControl())
+        LTMainReleaseAIAircraft();
+    else
+        LTMainTryGetAIAircraft();
+    return 0.0f;
+}
+
+/// @brief Show message about delay, then set callback to trigger getting/release AI
+/// @details Getting and even more release AI means,
+///          that X-Plane needs to load a couple of aircraft models,
+///          which is done immediately and pauses the sim.
+///          We show a message, but need one cycle so that it can actually be drawn,
+///          then only must the actual change happen -> flight loop callback.
+void LTMainToggleAI (bool bGetControl)
+{
+    // Short cut if there is no change
+    if (bGetControl == dataRefs.HaveAIUnderControl())
+        return;
+    
+    // Show a message
+    CreateMsgWindow(1.0f, logMSG, MSG_AI_LOAD_ACF);
+    
+    // Create a flight loop callback to do the AI change
+    static XPLMFlightLoopID aiID = nullptr;
+    if (!aiID) {
+        XPLMCreateFlightLoop_t aiCall = {
+            sizeof(aiCall),
+            xplm_FlightLoop_Phase_BeforeFlightModel,
+            CBToggleAI,
+            nullptr
+        };
+        aiID = XPLMCreateFlightLoop(&aiCall);
+    }
+    if (aiID)
+        XPLMScheduleFlightLoop(aiID, 0.5f, 1);
+    else                    // safeguard if for some reason we couldn't create a callback
+        CBToggleAI(0.0f, 0.0f, 0, nullptr);
 }
 
 // Remove all aircraft

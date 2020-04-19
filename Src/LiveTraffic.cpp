@@ -91,12 +91,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 dataRefs.ToggleAircraftDisplayed();
                 break;
             case MENU_ID_HAVE_TCAS:
-                if (dataRefs.HaveAIUnderControl())
-                    LTMainReleaseAIAircraft();
-                else
-                    LTMainTryGetAIAircraft();
-                XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
-                                  dataRefs.HaveAIUnderControl() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+                LTMainToggleAI(!dataRefs.HaveAIUnderControl());
                 break;
             case MENU_ID_TOGGLE_LABELS:
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_LABELS],
