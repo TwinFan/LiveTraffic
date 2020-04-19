@@ -277,7 +277,7 @@ namespace ModelIcaoType
 
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[] = {
-    "sim/time/total_running_time_sec",
+    "sim/network/misc/network_time_sec",        // float	n	seconds	The current elapsed time synched across the network (used as timestamp in Log.txt)
     "sim/time/local_time_sec",
     "sim/time/local_date_days",
     "sim/time/use_system_time",

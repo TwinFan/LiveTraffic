@@ -143,7 +143,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     }
     
     // for each line of text to be displayed
-    float currTime = dataRefs.GetTotalRunningTimeSec();
+    float currTime = dataRefs.GetMiscNetwTime();
     for (auto iter = listTexts.cbegin();
          iter != listTexts.cend();
          t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
@@ -216,7 +216,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
         // define the text to display:
         dispTextTy dispTxt = {
             // set the timer if a limit is given
-            fTimeToDisplay >= 0.0f ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
+            fTimeToDisplay >= 0.0f ? dataRefs.GetMiscNetwTime() + fTimeToDisplay : 0,
             // log level to define the color
             lvl,
             // finally the text
@@ -308,7 +308,7 @@ const char* GetLogString (const char* szPath, int ln, const char* szFunc,
                           logLevelTy lvl, const char* szMsg, va_list args )
 {
     static char aszMsg[3072];
-    float runS = dataRefs.GetTotalRunningTimeSec();
+    float runS = dataRefs.GetMiscNetwTime();
     const unsigned runH = unsigned(runS / 3600.0f);
     runS -= runH * 3600.0f;
     const unsigned runM = unsigned(runS / 60.0f);
