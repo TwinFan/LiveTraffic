@@ -506,7 +506,7 @@ static float CBToggleAI (float, float, int, void *)
 void LTMainToggleAI (bool bGetControl)
 {
     // Short cut if there is no change
-    if (bGetControl == dataRefs.HaveAIUnderControl())
+    if (bGetControl == bool(dataRefs.HaveAIUnderControl()))
         return;
     
     // Show a message
