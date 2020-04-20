@@ -2347,7 +2347,7 @@ void AsyncReadApt (positionTy ctr, double radius)
         return;
     }
     
-    LOG_MSG(logDEBUG, "Done reading from %d apt.dat files, have now %d airports",
+    LOG_MSG(logINFO, "Done reading from %d apt.dat files, have now %d airports",
             cntFiles, (int)gmapApt.size());
 }
 
@@ -2436,7 +2436,7 @@ void LTAptRefresh ()
     // Start the thread to read apt.dat, using current camera position as center point
     // and _double_ plane search radius as search radius
     radius *= 2;
-    LOG_MSG(logDEBUG, "Starting thread to read apt.dat for airports %.1fnm around %s",
+    LOG_MSG(logINFO, "Starting thread to read apt.dat for airports %.1fnm around %s",
             radius / M_per_NM, std::string(lastCameraPos).c_str());
     bStopThread = false;
     futRefreshing = std::async(std::launch::async,
