@@ -282,13 +282,17 @@ inline int strerror_s( char *buf, size_t bufsz, int errnum )
 #endif
 
 // MARK: Thread names
-
+#ifdef DEBUG
+// This might not work on older Windows version, which is why we don't publish it in release builds
 #if IBM
 #define SET_THREAD_NAME(sName) SetThreadDescription(GetCurrentThread(), L##sName)
 #elif APL
 #define SET_THREAD_NAME(sName) pthread_setname_np(sName)
 #elif LIN
 #define SET_THREAD_NAME(sName) pthread_setname_np(pthread_self(),sName)
+#endif
+#else
+#define SET_THREAD_NAME(sName)
 #endif
 
 #endif /* LiveTraffic_h */
