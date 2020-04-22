@@ -84,6 +84,21 @@
     
     <h2>v2.0</h2>
     
+    <h3>v2.00.200422</h3>
+    
+    <p><strong>Changed file:</strong> <code>LiveTraffic.xpl</code> only</p>
+    <p><strong>New setup step:</strong> Copy <code>LiveTraffic/Resource/NoPlane.acf</code> to <code>&lt;X-Plane&gt;/Aircraft</code> folder!
+
+    <ul>
+        <li><code>NoPlane.acf</code> is now searched in <code>&lt;X-Plane&gt;/Aircraft</code> first.
+            This way X-Plane keeps recognizing AI Aircraft setup, even when calling Aircraft Configuration.<br>
+            Added warning to <code>Log.txt</code> if <code>NoPlane.acf</code> is not found in <code>Aircraft</code> folder.
+            It would still load from <code>LiveTraffic/Resource</code>, though.
+        <li>Map: Fixed helicopter icon (was errorneously ground truck, too)</li>
+        <li>Changed label position in 3D: Label should now appear above plane, no longer across.
+            Should especially help for far away planes, where previously the label obscured the plane.</li>
+    </ul>
+
     <h3>v2.00.200419</h3>
     
     <p><strong>Changed files:</strong> <code>LiveTraffic.xpl</code>, <code>MapIcon.png</code>, <code>NoPlane.acf</code></p>
