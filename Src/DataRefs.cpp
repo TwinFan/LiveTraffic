@@ -1388,12 +1388,6 @@ bool DataRefs::ShallAISkipAssignNoPlane() const
         return true;
     
     // Using defaults
-#if APL
-    // Due to bug XPD-10727:
-    // On Mac, under XP 11.5 with OpenGL we skip NoPlane.acf assignment by default:
-    if (XPC_GetXPlaneVer() >= 11500 && !UsingModernDriver())
-        return true;
-#endif
     return false;
 }
 

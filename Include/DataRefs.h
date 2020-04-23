@@ -476,7 +476,7 @@ protected:
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
     int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
-    int nAISkipAssignNoPlane    = -1;   ///< Workaround for XPD-10727: Skip assigning NoPlane.acf to AI planes (-1 = use defaults, 0 = force off, 1 = force on)
+    int nAISkipAssignNoPlane    = -1;   ///< Skip assigning NoPlane.acf to AI planes (-1 = use defaults, 0 = force off, 1 = force on)
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)

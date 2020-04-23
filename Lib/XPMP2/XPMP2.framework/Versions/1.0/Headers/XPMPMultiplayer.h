@@ -271,10 +271,10 @@ void removeUserVertOffset(const char *inMtlCode);
 
 // Config key definitions
 #define XPMP_CFG_ITM_CLAMPALL        "clamp_all_to_ground"  ///< Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround
-#define XPMP_CFG_ITM_SKIP_NOPLANE    "skip_assign_noplane"  ///< For faking TCAS, all AI/multiplayer planes are assigned the `NoPlane.acf` type when XPMP2 takes over control. In some 11.50 Beta versions, this crashed X-Plane on MacOS under OpenGL (only!), filed as bug XPD-10727. This option allows to skip assining `NoPlane.acf`...just in case.
+#define XPMP_CFG_ITM_SKIP_NOPLANE    "skip_assign_noplane"  ///< For faking TCAS, all AI/multiplayer planes are assigned the `NoPlane.acf` type when XPMP2 takes over control. This option allows to skip assining `NoPlane.acf`...just in case.
+#define XPMP_CFG_ITM_COPY_NOPLANE    "copy_noplane"         ///< On startup, shall `NoPlane.acf` be copied from the resource directory to `<X-Plane>/Aircraft/<plugin>`? This is highly recommended to reduce side-effects of using `NoPlane` as AI Aircraft model.
 #define XPMP_CFG_ITM_LOGLEVEL        "log_level"            ///< General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)
 #define XPMP_CFG_ITM_MODELMATCHING   "model_matching"       ///< Write information on model matching into Log.txt
-#define XPMP_CFG_ITM_
 
 /// @brief Definition for the type of configuration callback function
 /// @details The plugin using XPMP2 can provide such a callback function via XPMPMultiplayerInitLegacyData().
@@ -282,7 +282,8 @@ void removeUserVertOffset(const char *inMtlCode);
 /// `section | key                 | type | default | description`\n
 /// `------- | ------------------- | ---- | ------- | -------------------------------------------------------------------------`\n
 /// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround`\n
-/// `planes  | skip_assign_noplane | int  |    0    | If non-zero, then AI planes will not be assigned the NoPlane.acf type. (Workaround for bug XPD-10727.)`\n
+/// `planes  | skip_assign_noplane | int  |    0    | If non-zero, then AI planes will not be assigned the NoPlane.acf type.`\n
+/// `planes  | copy_noplane        | int  |    1    | Shall NoPlane.acf be copied to Aircraft folder if missing/newer? (Recommended!)`\n
 /// `debug   | log_level           | int  |    2    | General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)`\n
 /// `debug   | model_matching      | int  |    0    | Write information on model matching into Log.txt`\n
 /// @note There is no immediate requirement to check the value of `_section` in your implementation.
