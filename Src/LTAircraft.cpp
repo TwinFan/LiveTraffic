@@ -1385,20 +1385,23 @@ bool LTAircraft::CalcPPos()
     // check if we are running out of positions soon. If so we ask for more
     LOG_ASSERT_FD(fd, posList.size() >= 2);
 
+    // If we aren't just yet creating the object (in that case fd.pAc is not yet set), then:
     // 1s before reaching last know position we trigger pos calculation (max every 1,0s)
-    const positionTy& lastPos = posList.back();
-    if ((lastPos.ts() <= currCycle.simTime + 2*TIME_REQU_POS) &&
-        (tsLastCalcRequested + 2*TIME_REQU_POS <= currCycle.simTime))
-    {
-        fd.TriggerCalcNewPos(std::max(currCycle.simTime,lastPos.ts()));
-        tsLastCalcRequested=currCycle.simTime;
-    }
+    if (fd.hasAc()) {
+        const positionTy& lastPos = posList.back();
+        if ((lastPos.ts() <= currCycle.simTime + 2 * TIME_REQU_POS) &&
+            (tsLastCalcRequested + 2 * TIME_REQU_POS <= currCycle.simTime))
+        {
+            fd.TriggerCalcNewPos(std::max(currCycle.simTime, lastPos.ts()));
+            tsLastCalcRequested = currCycle.simTime;
+        }
 
-    // 0,5s before reaching last known position we try adding new positions
-    if ( lastPos.ts() <= currCycle.simTime + TIME_REQU_POS ) {
-        if ( fd.TryFetchNewPos(posList, rotateTs) == LTFlightData::TRY_SUCCESS) {
-            // we got new position(s)!
-            bArtificalPos = false;
+        // 0,5s before reaching last known position we try adding new positions
+        if (lastPos.ts() <= currCycle.simTime + TIME_REQU_POS) {
+            if (fd.TryFetchNewPos(posList, rotateTs) == LTFlightData::TRY_SUCCESS) {
+                // we got new position(s)!
+                bArtificalPos = false;
+            }
         }
     }
     

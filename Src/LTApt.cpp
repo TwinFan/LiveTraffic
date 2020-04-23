@@ -1052,11 +1052,13 @@ public:
     /// @param _startN Start node in Apt::vecTaxiNodes
     /// @param _endN End node in Apt::vecTaxiNodes
     /// @param _maxLen Maximum path length, no longer paths will be pursued or returned
+    /// @param _headingAtStart The current heading at the start node, affects how the start leg may be picked to avoid sharp turns
     /// @param _generalHeading General heading the plane shall follow, typically heading from start to end node. Affects which turns are allowed along that returned path.
     /// @param _headingAtEnd The expected heading at the end node, affects how the final leg to the endN may be picked
     /// @return List of node indexes _including_ `_end` and `_start` in _reverse_ order,
     ///         or an empty list if no path of suitable length was found
     vecIdxTy ShortestPath (size_t _startN, size_t _endN, double _maxLen,
+                           double _headingAtStart,
                            double _generalHeading,
                            double _headingAtEnd)
     {
@@ -1112,7 +1114,7 @@ public:
             GetEdgeBetweenNodes(shortestN.prevIdx, shortestNIdx);
             // start heading for when leaving first node, otherwise heading between previous and current node
             const double angleToShortestN =
-            idxEdgeToShortestN == EDGE_UNKNOWN ? _generalHeading :
+            idxEdgeToShortestN == EDGE_UNKNOWN ? _headingAtStart :
             vecTaxiEdges[idxEdgeToShortestN].GetAngleFrom(shortestN.prevIdx);
             
             // This one is now already counted as "visited" so no more updates to its pathLen!
@@ -1365,6 +1367,7 @@ public:
         vecIdxTy vecPath = ShortestPath(prevErelN,
                                         currEstartN,
                                         maxLen,
+                                        prevE.angle,
                                         prevPos.angle(pos),
                                         pEdge->angle);
 
@@ -2347,7 +2350,7 @@ void AsyncReadApt (positionTy ctr, double radius)
         return;
     }
     
-    LOG_MSG(logDEBUG, "Done reading from %d apt.dat files, have now %d airports",
+    LOG_MSG(logINFO, "Done reading from %d apt.dat files, have now %d airports",
             cntFiles, (int)gmapApt.size());
 }
 
@@ -2436,7 +2439,7 @@ void LTAptRefresh ()
     // Start the thread to read apt.dat, using current camera position as center point
     // and _double_ plane search radius as search radius
     radius *= 2;
-    LOG_MSG(logDEBUG, "Starting thread to read apt.dat for airports %.1fnm around %s",
+    LOG_MSG(logINFO, "Starting thread to read apt.dat for airports %.1fnm around %s",
             radius / M_per_NM, std::string(lastCameraPos).c_str());
     bStopThread = false;
     futRefreshing = std::async(std::launch::async,
