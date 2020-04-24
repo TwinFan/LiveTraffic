@@ -337,7 +337,7 @@ TFWidgetCreate_t SETTINGS_UI[] =
     {{ 220,  10,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,8},{0,0},{0,0}} },
     {{  10,  30,  10,  10, 1, "Log.txt: Set Log Level = \"Debug\"",     0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
     {{  10,  45,  10,  10, 1, "Log.txt: Log a/c positions",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  60,  10,  10, 1, "Log.txt: Log model matching (XPlaneMP)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
+    {{  10,  60,  10,  10, 1, "Log.txt: Log model matching (XPMP2)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
     {{  10,  80,  10,  10, 1, "LTRawFD.log: Log raw network flight data",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
     {{   5, 105,  -5,  10, 1, "Forced model matching parameters for next aircraft to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
     {{   5, 120, 215,  10, 1, "ICAO a/c type:",       0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
