@@ -247,8 +247,6 @@ enum dataRefsLT {
     DR_CFG_MSG_AREA_LEVEL,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
-    DR_CFG_MAX_FULL_NUM_AC,
-    DR_CFG_FULL_DISTANCE,
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_SNAP_TAXI_DIST,
     DR_CFG_FD_REFRESH_INTVL,
@@ -483,9 +481,7 @@ protected:
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW; // label color, by default yellow
     int maxNumAc        = 50;           // how many aircraft to create at most?
-    int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
-    int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
-    int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
+    int fdStdDistance   = 25;           // nm: miles to look for a/c around myself
     int fdSnapTaxiDist  = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
@@ -636,8 +632,6 @@ public:
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
     void SetMaxNumAc(int n) { maxNumAc = n; }
-    inline int GetMaxFullNumAc() const { return maxFullNumAc; }
-    inline int GetFullDistance_nm() const { return fullDistance; }
     inline int GetFdStdDistance_nm() const { return fdStdDistance; }
     inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
     inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }

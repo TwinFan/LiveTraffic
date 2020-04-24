@@ -62,7 +62,7 @@ protected:
     // Advanced tab
     TFButtonGroup logLevelGrp;          // radio buttons to select logging level
     TFButtonGroup msgAreaLevelGrp;      // radio buttons to select msg area level
-    TFIntFieldDataRef intMaxNumAc, intMaxFullNumAc, intFullDistance;
+    TFIntFieldDataRef intMaxNumAc;
     TFIntFieldDataRef intFdStdDistance, intFdSnapTaxiDist, intFdRefreshIntvl;
     TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
     TFIntFieldDataRef intNetwTimeout;

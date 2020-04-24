@@ -402,8 +402,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/msg_area_level",              DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, false },
     {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/max_full_num_ac",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/full_distance",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_snap_taxi_dist",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -459,8 +457,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_MSG_AREA_LEVEL:         return &iMsgAreaLevel;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
-        case DR_CFG_MAX_FULL_NUM_AC:        return &maxFullNumAc;
-        case DR_CFG_FULL_DISTANCE:          return &fullDistance;
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
         case DR_CFG_FD_SNAP_TAXI_DIST:      return &fdSnapTaxiDist;
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
@@ -1325,8 +1321,6 @@ bool DataRefs::SetCfgValue (void* p, int val)
 #else
         maxNumAc        < 5                 || maxNumAc         > 100   ||
 #endif
-        maxFullNumAc    < 5                 || maxFullNumAc     > 100   ||
-        fullDistance    < 1                 || fullDistance     > 100   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
@@ -1645,8 +1639,7 @@ bool DataRefs::LoadConfigFile()
                 switch (conv) {
                     case CFG_NO_CONV: break;
                     case CFG_KM_2_NM:           // distance values converted from km to nm
-                        if (*i == DATA_REFS_LT[DR_CFG_FULL_DISTANCE] ||
-                            *i == DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE])
+                        if (*i == DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE])
                         {
                             // distances are int values, so we have to convert, then round to int:
                             sVal = std::to_string(std::lround(std::stoi(sVal) *
