@@ -91,12 +91,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 dataRefs.ToggleAircraftDisplayed();
                 break;
             case MENU_ID_HAVE_TCAS:
-                if (dataRefs.HaveAIUnderControl())
-                    LTMainReleaseAIAircraft();
-                else
-                    LTMainTryGetAIAircraft();
-                XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
-                                  dataRefs.HaveAIUnderControl() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+                LTMainToggleAI(!dataRefs.HaveAIUnderControl());
                 break;
             case MENU_ID_TOGGLE_LABELS:
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_LABELS],
@@ -389,7 +384,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             
         case ONCE_CB_AUTOSTART:
             // Auto Start display of aircraft
-            if (dataRefs.GetAutoStart() && !dataRefs.UsingModernDriver())
+            if (dataRefs.GetAutoStart())
                 dataRefs.SetAircraftDisplayed(true);
             
             // check at X-Plane.org for version updates
@@ -449,7 +444,7 @@ PLUGIN_API int XPluginStart(
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
-
+        
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
         
@@ -497,14 +492,7 @@ PLUGIN_API int  XPluginEnable(void)
         if (!LTMainEnable()) return 0;
 
         // Create a message window and say hello
-        if (dataRefs.UsingModernDriver()) {
-            // This version cannot run under Vulkan/Metal!
-            SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER, LT_VERSION_FULL);
-            SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER2);
-            dataRefs.SetAircraftDisplayed(false);
-        } else {
-            SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
-        }
+        SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
         if constexpr (VERSION_BETA)
             SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
 #ifdef DEBUG
@@ -597,11 +585,11 @@ PLUGIN_API void    XPluginStop(void)
 }
 
 #ifdef DEBUG
-// Error callback, called by X-Plane if we you bogus data in our API calls
+// Error callback, called by X-Plane if we use bogus data in our API calls
 void LTErrorCB (const char* msg)
 {
     char s[512];
-    snprintf(s, sizeof(s), "%s FATAL ERROR CALLBACK: %s\n", LIVE_TRAFFIC, msg);
+    snprintf(s, sizeof(s), LIVE_TRAFFIC " FATAL ERROR CALLBACK: %s\n", msg);
     XPLMDebugString(s);
 }
 #endif

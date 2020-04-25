@@ -117,7 +117,7 @@ enum pluginStateTy {
 
 // XP standard Datarefs being accessed
 enum dataRefsXP {
-    DR_TOTAL_RUNNING_TIME_SEC = 0,
+    DR_MISC_NETW_TIME = 0,
     DR_LOCAL_TIME_SEC,
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
@@ -238,6 +238,7 @@ enum dataRefsLT {
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
     DR_CFG_AI_UNDER_CONTROL,
+    DR_CFG_AI_SKIP_NOPLANE,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_COL_DYN,
@@ -246,8 +247,6 @@ enum dataRefsLT {
     DR_CFG_MSG_AREA_LEVEL,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
-    DR_CFG_MAX_FULL_NUM_AC,
-    DR_CFG_FULL_DISTANCE,
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_SNAP_TAXI_DIST,
     DR_CFG_FD_REFRESH_INTVL,
@@ -257,7 +256,6 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
-    DR_CFG_DR_LIBXPLANEMP,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -476,15 +474,14 @@ protected:
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
     int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
+    int nAISkipAssignNoPlane    = -1;   ///< Skip assigning NoPlane.acf to AI planes (-1 = use defaults, 0 = force off, 1 = force on)
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW; // label color, by default yellow
     int maxNumAc        = 50;           // how many aircraft to create at most?
-    int maxFullNumAc    = 50;           // how many of these to draw in full (as opposed to 'lights only')?
-    int fullDistance    = 3;            // nm: Farther away a/c is drawn 'lights only'
-    int fdStdDistance   = 15;           // nm: miles to look for a/c around myself
+    int fdStdDistance   = 25;           // nm: miles to look for a/c around myself
     int fdSnapTaxiDist  = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = 20;           // how often to fetch new flight data
     int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
@@ -493,7 +490,6 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
-    int drLibXplaneMP   = 1;            // CSL models: register original 'libxplanemp' dataRefs?
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -540,7 +536,7 @@ protected:
 
 //MARK: DataRef access
 public:
-    inline float GetTotalRunningTimeSec() const { return XPLMGetDataf(adrXP[DR_TOTAL_RUNNING_TIME_SEC]); }
+    inline float GetMiscNetwTime() const        { return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]); }
     inline float GetLocalTimeSec() const        { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
     inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
@@ -627,6 +623,7 @@ public:
     // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
+    bool ShallAISkipAssignNoPlane() const;
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
@@ -635,8 +632,6 @@ public:
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
     void SetMaxNumAc(int n) { maxNumAc = n; }
-    inline int GetMaxFullNumAc() const { return maxFullNumAc; }
-    inline int GetFullDistance_nm() const { return fullDistance; }
     inline int GetFdStdDistance_nm() const { return fdStdDistance; }
     inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
     inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }
@@ -649,9 +644,6 @@ public:
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
     inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
-
-    inline bool GetDrLibXplaneMP() const { return drLibXplaneMP != 0; }
-    inline void SetDrLibXplaneMP(int i) { drLibXplaneMP = i; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

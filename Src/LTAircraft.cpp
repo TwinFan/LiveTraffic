@@ -179,9 +179,9 @@ void MovingParam::moveTo ( double tval, double _startTS )
         // full travel from defMin to defMax takes defDuration
         // So: How much time shall we use? = Which share of the full duration do we need?
         // And: When will we be done?
-        // timeTo = fabs(valDist/defDist) * defDuration + timeFrom;
+        // timeTo = std::abs(valDist/defDist) * defDuration + timeFrom;
         timeFrom = std::isnan(_startTS) ? currCycle.simTime : _startTS;
-        timeTo = fma(fabs(valDist/defDist), defDuration, timeFrom);
+        timeTo = fma(std::abs(valDist/defDist), defDuration, timeFrom);
     }
 }
 
@@ -233,7 +233,7 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
         
         // full travel from defMin to defMax takes defDuration
         // So: How much time shall we use? = Which share of the full duration do we need?
-        double timeDist = fabs(valDist/defDist * defDuration);
+        double timeDist = std::abs(valDist/defDist * defDuration);
         
         // Do we have that much time? If not...just be quicker than configured ;)
         LOG_ASSERT(_by_ts > _startTS);
@@ -262,7 +262,7 @@ void MovingParam::moveQuickestToBy (double _from, double _to,
         _from = val;
     
     // is the shorter way if we increase or decrease?
-    if ( !bWrapAround || fabs(_to-_from) <= defDist/2 ) {       // direct way is the only possible (no wrap-around) or it is the shorter way
+    if ( !bWrapAround || std::abs(_to-_from) <= defDist/2 ) {       // direct way is the only possible (no wrap-around) or it is the shorter way
         moveToBy (_from, _from <= _to, _to, _startTS, _by_ts, _startEarly);
     } else {                                    // wrap around
         moveToBy (_from, _to < _from, _to, _startTS, _by_ts, _startEarly);
@@ -1614,7 +1614,8 @@ bool LTAircraft::CalcPPos()
         // add ppos and the stop point (ppos + above vector) to the list of positions
         // (they will be activated with the next frame only)
         posList.emplace_back(ppos);
-        positionTy& stopPoint = posList.emplace_back(ppos.destPos(vecStop));
+        posList.emplace_back(ppos.destPos(vecStop));
+        positionTy& stopPoint = posList.back();
         stopPoint.ts() = speed.getTargetTime();
         stopPoint.f.flightPhase = FPH_STOPPED_ON_RWY;
         bArtificalPos = true;                   // flag: we are working with an artifical position now
@@ -1937,7 +1938,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.bcnLights  = 1;
         surfaces.lights.strbLights = 0;
         surfaces.lights.navLights  = 1;
-        surfaces.lights.flashPattern = mdl.LIGHT_PATTERN;
+        surfaces.lights.flashPattern = (XPMPLightsPattern)mdl.LIGHT_PATTERN;
         
         gear.down();
         flaps.up();
@@ -2337,7 +2338,7 @@ void LTAircraft::CalcAIPrio ()
     if (posUser.IsOnGnd())              // if on the ground
         userTrack = posUser.heading();      // heading is more reliable
     const double bearing = posUser.angle(ppos);
-    const double diff = abs(HeadingDiff(userTrack, bearing));
+    const double diff = std::abs(HeadingDiff(userTrack, bearing));
     
     // 1. Planes in the 30° sector in front of user's plane
     if (diff < 30)
@@ -2634,6 +2635,10 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
                 memmove(outPosition->label_color, mdl.LABEL_COLOR, sizeof(outPosition->label_color));
             else
                 dataRefs.GetLabelColor(outPosition->label_color);
+            
+            // We don't want ground clamping as we take care of the ground ourself
+            outPosition->clampToGround = false;
+            
             return xpmpData_NewData;
         }
 

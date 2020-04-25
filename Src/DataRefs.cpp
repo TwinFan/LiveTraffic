@@ -49,7 +49,7 @@ void conv_color (int inCol, float outColor[4])
 //
 
 // global map, which stores the content of the doc8643 file
-std::unordered_map<std::string, Doc8643> mapDoc8643;
+std::map<std::string, Doc8643> mapDoc8643;
 const Doc8643 DOC8643_EMPTY;    // objet returned if Doc8643::get fails
 
 // constructor setting all elements
@@ -173,7 +173,7 @@ namespace ModelIcaoType
 {
     /// Map, which stores the content of the model_typecode.txt file:
     /// human-readable model text maps to ICAO type cide
-    std::unordered_map<std::string, std::string> mapModelIcaoType;
+    std::map<std::string, std::string> mapModelIcaoType;
     
     /// global empty string returned if nothing is found in map
     const std::string gEmptyString;
@@ -277,7 +277,7 @@ namespace ModelIcaoType
 
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[] = {
-    "sim/time/total_running_time_sec",
+    "sim/network/misc/network_time_sec",        // float	n	seconds	The current elapsed time synched across the network (used as timestamp in Log.txt)
     "sim/time/local_time_sec",
     "sim/time/local_date_days",
     "sim/time/use_system_time",
@@ -393,6 +393,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
+    {"livetraffic/cfg/ai_skip_noplane",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -401,8 +402,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/msg_area_level",              DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, false },
     {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/max_full_num_ac",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/full_distance",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_snap_taxi_dist",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -412,7 +411,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/dr_libxplanemp",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -450,6 +448,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_AIRCRAFT_DISPLAYED:    return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
+        case DR_CFG_AI_SKIP_NOPLANE:        return &nAISkipAssignNoPlane;
         case DR_CFG_LABELS:                 return &labelCfg;
         case DR_CFG_LABEL_SHOWN:            return &labelShown;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
@@ -458,8 +457,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_MSG_AREA_LEVEL:         return &iMsgAreaLevel;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
-        case DR_CFG_MAX_FULL_NUM_AC:        return &maxFullNumAc;
-        case DR_CFG_FULL_DISTANCE:          return &fullDistance;
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
         case DR_CFG_FD_SNAP_TAXI_DIST:      return &fdSnapTaxiDist;
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
@@ -469,7 +466,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
-        case DR_CFG_DR_LIBXPLANEMP:         return &drLibXplaneMP;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options
@@ -1325,8 +1321,6 @@ bool DataRefs::SetCfgValue (void* p, int val)
 #else
         maxNumAc        < 5                 || maxNumAc         > 100   ||
 #endif
-        maxFullNumAc    < 5                 || maxFullNumAc     > 100   ||
-        fullDistance    < 1                 || fullDistance     > 100   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
@@ -1376,6 +1370,19 @@ float DataRefs::GetCfgFloat (dataRefsLT dr)
 {
     assert(0 <= dr && dr < CNT_DATAREFS_LT);
     return DATA_REFS_LT[dr].getDataf();
+}
+
+
+bool DataRefs::ShallAISkipAssignNoPlane() const
+{
+    // Forced a certain value?
+    if (nAISkipAssignNoPlane == 0)
+        return false;
+    if (nAISkipAssignNoPlane == 1)
+        return true;
+    
+    // Using defaults
+    return false;
 }
 
 
@@ -1632,8 +1639,7 @@ bool DataRefs::LoadConfigFile()
                 switch (conv) {
                     case CFG_NO_CONV: break;
                     case CFG_KM_2_NM:           // distance values converted from km to nm
-                        if (*i == DATA_REFS_LT[DR_CFG_FULL_DISTANCE] ||
-                            *i == DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE])
+                        if (*i == DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE])
                         {
                             // distances are int values, so we have to convert, then round to int:
                             sVal = std::to_string(std::lround(std::stoi(sVal) *
@@ -1793,9 +1799,6 @@ void DataRefs::SaveCSLPath(int idx, const CSLPathCfgTy path)
 // Load a CSL package interactively
 bool DataRefs::LoadCSLPackage(int idx)
 {
-    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
-    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    
     if (size_t(idx) < vCSLPaths.size()) {
         // enabled, path could be relative to X-Plane
         const std::string path = LTCalcFullPath(vCSLPaths[idx].path);
@@ -1807,9 +1810,7 @@ bool DataRefs::LoadCSLPackage(int idx)
         else
         {
             // try loading the package
-            const char* cszResult = XPMPLoadCSLPackage(path.c_str(),
-                                                       pathRelated.c_str(),
-                                                       pathDoc8643.c_str());
+            const char* cszResult = XPMPLoadCSLPackage(path.c_str());
             
             // Addition of CSL package failed?
             if ( cszResult[0] ) {

@@ -89,7 +89,7 @@ public:
         FDDynamicData& operator=(const FDDynamicData&) = default;
         FDDynamicData& operator=(FDDynamicData&&) = default;
         // purely timestamp-based comparison
-        inline bool similarTo (const FDDynamicData& d) const { return abs(ts-d.ts) < SIMILAR_TS_INTVL; }
+        inline bool similarTo (const FDDynamicData& d) const { return std::abs(ts-d.ts) < SIMILAR_TS_INTVL; }
         inline int cmp (const FDDynamicData& d)        const { return ts < d.ts ? -1 : (ts > d.ts ? 1 : 0); }
         inline bool operator< (const FDDynamicData& d) const { return ts < d.ts; }
         // purely timestamp-based comparion with positionTy

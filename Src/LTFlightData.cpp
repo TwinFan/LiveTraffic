@@ -2081,7 +2081,7 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
         
         // test for similarity
         if (pbSimilar) {
-            if (abs(d.ts-ts) < SIMILAR_TS_INTVL) {
+            if (std::abs(d.ts-ts) < SIMILAR_TS_INTVL) {
                 *pbSimilar = true;
                 pBefore = &d;
                 return;
@@ -2481,7 +2481,7 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
         
         // should be +/- 45° of bearing
         const vectorTy vecView = fdPair.second.pAc->GetVecView();
-        double hDiff = abs(HeadingDiff(bearing, vecView.angle));
+        double hDiff = std::abs(HeadingDiff(bearing, vecView.angle));
         if (hDiff > maxDiff)
             continue;
         

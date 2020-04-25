@@ -70,9 +70,9 @@
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>win</TargetName>
+    <TargetName>$(ProjectName)</TargetName>
     <TargetExt>.xpl</TargetExt>
-    <OutDir>build\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>build\$(Platform)\$(Configuration)\win_x64\</OutDir>
     <IntDir>build\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <LinkIncremental />
@@ -80,9 +80,9 @@
     </CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>win</TargetName>
+    <TargetName>$(ProjectName)</TargetName>
     <TargetExt>.xpl</TargetExt>
-    <OutDir>build\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>build\$(Platform)\$(Configuration)\win_x64\</OutDir>
     <IntDir>build\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <CustomBuildAfterTargets>
@@ -121,28 +121,29 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\LTAPI\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\xplanemp.framework\Versions\A\Headers;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;WIN32_LEAN_AND_MEAN;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>LiveTraffic.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)LiveTraffic.pch</PrecompiledHeaderOutputFile>
       <GenerateXMLDocumentationFiles>true</GenerateXMLDocumentationFiles>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:__cplusplus /wo4996 %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <UseFullPaths>false</UseFullPaths>
       <ShowIncludes>false</ShowIncludes>
+      <DisableSpecificWarnings>4634;4635;4127</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Lib/XPSDK301/Libraries/Win;Lib/zlib;Lib/xplanemp;Lib/libpng;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPWidgets_64.lib;libpng64.lib;zlib.lib;xplanemp.lib;libcurl.lib;ws2_32.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/XPSDK301/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPWidgets_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
@@ -158,7 +159,7 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Copying win.xpl into my X-Plane plugin path</Message>
@@ -166,18 +167,18 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\LTAPI\;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\xplanemp\xplanemp.framework\Versions\A\Headers;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;WIN32_LEAN_AND_MEAN;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>LiveTraffic.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)LiveTraffic.pch</PrecompiledHeaderOutputFile>
-      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:__cplusplus /wo4996 %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
@@ -186,10 +187,11 @@
       <UseFullPaths>false</UseFullPaths>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <DisableSpecificWarnings>4127</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Lib/XPSDK301/Libraries/Win;Lib/zlib;Lib/xplanemp;Lib/libpng;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPWidgets_64.lib;libpng64.lib;zlib.lib;xplanemp.lib;libcurl.lib;ws2_32.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/XPSDK301/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPWidgets_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <ShowProgress>
@@ -203,7 +205,7 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
       <Message>Copying win.xpl into my X-Plane plugin path</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>

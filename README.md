@@ -15,10 +15,10 @@ Available on [x-plane.org](https://forums.x-plane.org/index.php?/files/file/4974
 
 ## Credits
 LiveTraffic is based on a number of other great libraries and APIs, most notably:
-- [X-Plane APIs](https://developer.x-plane.com/sdk/plugin-sdk-documents/) to integrate with X-Plane
+- [X-Plane SDK](https://developer.x-plane.com/sdk/plugin-sdk-documents/) to integrate with X-Plane
+- [XPMP2](https://github.com/TwinFan/XPMP2) for CSL model processing
 - [CURL](https://curl.haxx.se/libcurl/) for network protocol support
 - [parson](https://github.com/kgabis/parson) as JSON parser
-- [libxplanemp](https://github.com/kuroneko/libxplanemp), which is also the basis for XSquawkBox, extended to process the VERT_OFFSET flag (will do Pull Request soon) 
 - [libpng](http://www.libpng.org/pub/png/libpng.html)
 - [libz/zlib](https://zlib.net)
 

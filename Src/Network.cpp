@@ -329,24 +329,25 @@ bool SocketNetworking::broadcast (const char* msg)
 // return a string for a IPv4 and IPv6 address
 std::string SocketNetworking::GetAddrString (const struct sockaddr* addr)
 {
-    std::string s (std::max(INET_ADDRSTRLEN,INET6_ADDRSTRLEN), '\0');
+    char s[INET6_ADDRSTRLEN];
     
     switch(addr->sa_family) {
         case AF_INET: {
             struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
-            inet_ntop(AF_INET, &(addr_in->sin_addr), s.data(), (socklen_t)s.length());
+            inet_ntop(AF_INET, &(addr_in->sin_addr), s, sizeof(s));
             break;
         }
         case AF_INET6: {
             struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)addr;
-            inet_ntop(AF_INET6, &(addr_in6->sin6_addr), s.data(), (socklen_t)s.length());
+            inet_ntop(AF_INET6, &(addr_in6->sin6_addr), s, sizeof(s));
             break;
         }
         default:
             break;
     }
     
-    return s;
+    std::string ret = s;
+    return ret;
 }
 
 //

@@ -143,7 +143,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     }
     
     // for each line of text to be displayed
-    float currTime = dataRefs.GetTotalRunningTimeSec();
+    float currTime = dataRefs.GetMiscNetwTime();
     for (auto iter = listTexts.cbegin();
          iter != listTexts.cend();
          t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
@@ -216,7 +216,7 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
         // define the text to display:
         dispTextTy dispTxt = {
             // set the timer if a limit is given
-            fTimeToDisplay >= 0.0f ? dataRefs.GetTotalRunningTimeSec() + fTimeToDisplay : 0,
+            fTimeToDisplay >= 0.0f ? dataRefs.GetMiscNetwTime() + fTimeToDisplay : 0,
             // log level to define the color
             lvl,
             // finally the text
@@ -307,20 +307,39 @@ const char* LOG_LEVEL[] = {
 const char* GetLogString (const char* szPath, int ln, const char* szFunc,
                           logLevelTy lvl, const char* szMsg, va_list args )
 {
-    static char aszMsg[2048];
-    const double simTime = dataRefs.GetSimTime();
+    static char aszMsg[3072];
+    float runS = dataRefs.GetMiscNetwTime();
+    const unsigned runH = unsigned(runS / 3600.0f);
+    runS -= runH * 3600.0f;
+    const unsigned runM = unsigned(runS / 60.0f);
+    runS -= runM * 60.0f;
 
     // prepare timestamp
-    if ( lvl < logMSG )                             // normal messages without, all other with location info
+    if (lvl < logMSG)                             // normal messages without, all other with location info
     {
-        const char* szFile = strrchr(szPath,'/');   // extract file from path
-        if ( !szFile ) szFile = szPath; else szFile++;
-        snprintf(aszMsg, sizeof(aszMsg), "%s %.1f %s %s:%d/%s: ",
-                LIVE_TRAFFIC, simTime, LOG_LEVEL[lvl],
-                szFile, ln, szFunc);
+        // prepare current simTime in string form
+        const double simTime = dataRefs.GetSimTime();
+        std::time_t t = std::time_t(simTime);
+        struct tm zulu;
+        gmtime_s(&zulu, &t);
+        char tZuluS[100];
+        std::strftime(tZuluS, sizeof(tZuluS), "%d-%b %T", &zulu);
+
+#if IBM
+        const char* szFile = strrchr(szPath, '\\');  // extract file from path
+#else
+        const char* szFile = strrchr(szPath, '/');   // extract file from path
+#endif
+        if (!szFile) szFile = szPath; else szFile++;
+        snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC " %s%5.4fZ %s %s:%d/%s: ",
+                 runH, runM, runS,                  // Running time stamp
+                 tZuluS, fmod(simTime, 1.0),        // simTime formated as "DD-MMM HH:MM:SS.SSS"
+                 LOG_LEVEL[lvl],                    // logging level
+                 szFile, ln, szFunc);               // source code location info
     }
     else
-        snprintf(aszMsg, sizeof(aszMsg), "%s: ", LIVE_TRAFFIC);
+        snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC ": ",
+                 runH, runM, runS);                 // Running time stamp
     
     // append given message
     if (args) {
