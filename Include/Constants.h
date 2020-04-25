@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.52f;
+constexpr float VERSION_NR = 1.53f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -150,7 +150,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LT_FM_VERSION           "1.1"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
-#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
+#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/61021-livetraffic-for-xp10/"
 #define LT_DOWNLOAD_CH          "X-Plane.org"
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
@@ -218,7 +218,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #endif
 
 //MARK: Help URLs
-#define HELP_URL                "https://twinfan.gitbook.io/livetraffic/"
+#define HELP_URL                "https://twinfan.gitbook.io/livetraffic/v/v1.50/"
 #define HELP_FAQ                "reference/faq"
 #define HELP_MENU_ITEMS         "using-lt/menu-items"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
