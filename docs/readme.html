@@ -30,12 +30,14 @@
         </ul>
     </P>
 
-    <h2>Essential Installation</h2>
+    <h2>Upgrade from v1.5 to v2.0</h2>
 
-    <P>
-        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">Step-by-step instructions</a>
-        are available.
+    <P>Please follow 
+        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
+        for upgrading an existing LiveTraffic installation to version 2.0.
     </P>
+    
+    <h2>Essential Installation</h2>
 
     <h3>LiveTraffic plugin</h3>
 
@@ -64,9 +66,9 @@
 
     <P>
         <code>LiveTraffic/</code><br>
-        <code>LiveTraffic/lin_64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/mac_75/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/win_64/LiveTraffic.xpl</code><br>
+        <code>LiveTraffic/lin_x64/LiveTraffic.xpl</code><br>
+        <code>LiveTraffic/mac_x64/LiveTraffic.xpl</code><br>
+        <code>LiveTraffic/win_x64/LiveTraffic.xpl</code><br>
         <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
         <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
         <code>LiveTraffic/Resources/CSL2XSB.py</code><br>
@@ -84,61 +86,21 @@
     
     <h2>v2.0</h2>
     
-    <h3>v2.00.200423</h3>
+    <h3>v2.00</h3>
     
-    <p><strong>Changed files:</strong> <code>LiveTraffic.xpl</code></p>
+    <P>Please follow 
+        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
+        for upgrading an existing LiveTraffic installation to version 2.0.
+    </P>
 
     <ul>
-        <li><code>NoPlane.acf</code> is now copied into <code>&lt;X-Plane&gt;/Aircraft/LiveTraffic</code> if missing or newer,
-            then used from there.</li>
-    </ul>
-
-    <h3>v2.00.200422</h3>
-    
-    <p><strong>Changed files:</strong> <code>LiveTraffic.xpl, Resources/NoPlane.acf</code></p>
-
-    <ul>
-        <li><code>NoPlane.acf</code> is now searched in <code>&lt;X-Plane&gt;/Aircraft</code> first.
-            This way X-Plane keeps recognizing AI Aircraft setup, even when calling Aircraft Configuration.<br>
-            Added warning to <code>Log.txt</code> if <code>NoPlane.acf</code> is not found in <code>Aircraft</code> folder.
-            It would still load from <code>LiveTraffic/Resource</code>, though.</li>
-        <li>Map: Fixed helicopter icon (was errorneously ground truck, too)</li>
-        <li>Changed label position in 3D: Label should now appear above plane, no longer across.
-            Should especially help for far away planes, where previously the label obscured the plane.</li>
-    </ul>
-
-    <h3>v2.00.200419</h3>
-    
-    <p><strong>Changed files:</strong> <code>LiveTraffic.xpl</code>, <code>MapIcon.png</code>, <code>NoPlane.acf</code></p>
-    
-    <ul>
-        <li>Map: Ground vehicles are now represented with a truck icon</li>
-        <li>Map: Aircraft, which are currently mapped to AI/multiplayer slots, ie. are available on TCAS, are marked with a label put into &gt;...&lt;</li>
-        <li>A message is shown when switching TCAS control to inform the user that aircraft model loading is happening.</li>
-    </ul>
-    
-    <h3>v2.00.200414</h3>
-    
-    <strong>Updating from LiveTraffic v1.5</strong>:
-    <ul>
-        <li>Replace all files with the new ones from the ZIP archive downloaded here.</li>
-        <li>Remove the no longer needed <code>64/</code> folder including its binaries.
-            New binaries are now in the <code>lin/mac/win_64/</code> folders.</li>
-        <li>Remove <code>Resources/lights.png</code>.</li>
-        <li>If you had run <code>CSL2XSB</code> before using the
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb#making-csl-packages-unique-to-livetraffic">Making CSL Packages unique</a>
-            option, then you <strong>must</strong> run <code>CSL2XSB</code> again,
-            now <i>without</i> selecting "make...unique".
-            If you forget this step then plane models will not
-            show any animations.</li>
-    </ul>
-    
-    Change log:
-    
-    <ul>
-        <li><strong>Supports X-Plane 11 only.</strong> No longer compatible with X-Plane 10.</li>
+        <li><strong>Supports X-Plane 11 only.</strong><br>
+            REMOVED compatibility with X-Plane 10.
+            A legacy version compatible with XP10 is
+            <a href="https://forums.x-plane.org/index.php?/files/file/61021-livetraffic-for-xp10/">provided separately</a>.
+        </li>
         <li>Now uses latest plugin directory structure: Binaries are in
-            <code>lin/mac/win_64/</code> subdirectories, each containing
+            <code>lin/mac/win_64</code> subdirectories, each containing
             one <code>LiveTraffic.xpl</code> file.
         <li>ADDED <strong>support for Vulkan/Metal</strong>, re-implemented the core library,
             now using <a href="https://github.com/TwinFan/XPMP2">XPMP2</a>.
@@ -146,23 +108,32 @@
             <ul>
                 <li>Reading CSL models.<br>
                     <strong>NOTE:</strong> Only OBJ8 models
-                    are now supported! See <code>Log.txt</code> for unaccepted
+                    are now supported! See your <code>Log.txt</code> for unaccepted
                     models.</li>
-                <li>Model matching.</li>
+                <li>Model matching, the new approach is explained in
+                    <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#matching">this FAQ</a></li>
+                <li>TCAS support had to take a
+                    <a href="https://twinfan.gitbook.io/livetraffic/introduction/features/tcas#how-it-works">completely new approach</a>, too</li>
                 <li>AI/multiplayer support.</li>
             </ul>
-            But also means a new feature:
+            <li>ADDED a
+            	<a href="https://twinfan.gitbook.io/livetraffic/introduction/features/display-of-aircraft#x-planes-map">map layer "LiveTraffic"</a>
+            	to X-Plane's internal map showing <i>all</i> aircraft under LiveTraffic's control.
+            </li>
+        <li>REMOVED the following settings:
             <ul>
-                <li>ADDED a map layer "LiveTraffic" to X-Plane's internal map
-                    showing <i>all</i> aircraft under LiveTraffic's control.<br>
-                    <strong>Known issue:</strong> XP crahses with "many" (>40?) aircraft to display.
-                    Reported to Laminar as crash report.</li>
+            	<li><i>Max number of full a/c to draw</i> and
+            	    <i>Max distance for drawing full a/c</i> in
+            	    <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">Advanced settings</a>.
+            	    v2.0 no longer distinguishes "full" from "lights only" drawing.
+            	    Aircraft are always drawn in full.
+            	</li>
+            	<li><i>Register original libxplanemp CSL dataRefs</i>
+        	    from <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-csl">CSL Settings</a>.
+            	<a href="https://twinfan.gitbook.io/livetraffic/v/v1.50/setup/installation/csl2xsb#making-csl-packages-unique-to-livetraffic">Making CSL Packages unique to LiveTraffic"</a>
+	            is neither support nor needed any longer.
+    	        The "Missing Gear" issue is history when using instancing.</li>
             </ul>
-        <li>REMOVED option <i>Register original libxplanemp CSL dataRefs</i>
-            from <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-csl">CSL Settings</a>.
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb#making-csl-packages-unique-to-livetraffic">Making CSL Packages unique to LiveTraffic"</a>
-            is neither support nor needed any longer.
-            The "Missing Gear" issue is history when using instancing.</li>
     </ul>
 
     <h2>v1.5</h2>
