@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D607B19809A556E400699BC3"
-               BuildableName = "mac.xpl"
-               BlueprintName = "mac"
+               BuildableName = "LiveTraffic.xpl"
+               BlueprintName = "LiveTraffic"
                ReferencedContainer = "container:LiveTraffic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -46,8 +46,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D607B19809A556E400699BC3"
-            BuildableName = "mac.xpl"
-            BlueprintName = "mac"
+            BuildableName = "LiveTraffic.xpl"
+            BlueprintName = "LiveTraffic"
             ReferencedContainer = "container:LiveTraffic.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -67,8 +67,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D607B19809A556E400699BC3"
-            BuildableName = "mac.xpl"
-            BlueprintName = "mac"
+            BuildableName = "LiveTraffic.xpl"
+            BlueprintName = "LiveTraffic"
             ReferencedContainer = "container:LiveTraffic.xcodeproj">
          </BuildableReference>
       </MacroExpansion>

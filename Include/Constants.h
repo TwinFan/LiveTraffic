@@ -29,8 +29,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 1.52f;
-constexpr bool VERSION_BETA = false;
+constexpr float VERSION_NR = 2.00f;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -79,10 +79,10 @@ constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
 constexpr double AC_HIDE_LON        =  -8.264134;
 constexpr double AC_HIDE_ALT        = 50;
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
-constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5¡ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
-constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5¡ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
-constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5¡), slope ratio for keeping a plane above the approach to a runway
-constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    ///< [¡] turns of less than this will not be modeled with Bezier curves
+constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5ï¿½ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5ï¿½ glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5ï¿½), slope ratio for keeping a plane above the approach to a runway
+constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    ///< [ï¿½] turns of less than this will not be modeled with Bezier curves
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -94,7 +94,7 @@ constexpr double MDL_TO_LOOK_AHEAD  =    60.0;  // [s] to look ahead for take of
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
-constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
+constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [ï¿½] step turn with one command
 constexpr float  MDL_EXT_FAST_DEG =       5.0f;
 constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
 constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
@@ -112,26 +112,26 @@ constexpr int COLOR_GREEN       = 0x00FF00;
 constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Airports, Runways, Taxiways
-constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [¡] tolerance of searched heading to edge's angle to be considered a fit
-constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [¡] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [ï¿½] tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [ï¿½] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
 constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
-constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [¡] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [ï¿½] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
 constexpr double ART_TAXI_SPEED_F  = 0.8;       ///< [-] ratio of MAX_TAXI_SPEED to use as taxi speed
-constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [¡] Maximum turn angle (compared to original edge's angle) for combining edges
+constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [ï¿½] Maximum turn angle (compared to original edge's angle) for combining edges
 constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 2.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
 constexpr double APT_STARTUP_VIA_DIST = 50.0;   ///< [m] distance of StartupLoc::viaLoc from startup location
 constexpr double APT_STARTUP_MOVE_BACK = 10.0;  ///< [m] move back startup location so that it sits about in plane's center instead of at its head
 constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an open node to be joined with another edge
-constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [¡] tolerance of angle for an open node to be joined with another edge
-constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [¡] extended (second prio) tolerance of angle for an open node to be joined with another edge
-constexpr double APT_MAX_PATH_TURN=100.0;       ///< [¡] Maximum turn allowed during shortest path calculation
-constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [¡] Tolerance when trying to devide for rectangular angle
+constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [ï¿½] tolerance of angle for an open node to be joined with another edge
+constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [ï¿½] extended (second prio) tolerance of angle for an open node to be joined with another edge
+constexpr double APT_MAX_PATH_TURN=100.0;       ///< [ï¿½] Maximum turn allowed during shortest path calculation
+constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [ï¿½] Tolerance when trying to devide for rectangular angle
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
@@ -155,11 +155,10 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
-#define MSG_NOT_MODERN_DRIVER   "LiveTraffic %s will NOT work under Vulkan/Metal!"
-#define MSG_NOT_MODERN_DRIVER2  "Until v2.0 is availble deactivate Vulkan/Metal in XP's Graphic setting!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
+#define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircraft"
@@ -234,8 +233,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 //MARK: File Paths
 // these are under the plugins directory
 #define PATH_FLIGHT_MODELS      "Resources/FlightModels.prf"
-#define PATH_RELATED_TXT        "Resources/related.txt"
-#define PATH_LIGHTS_PNG         "Resources/lights.png"
 #define PATH_DOC8643_TXT        "Resources/Doc8643.txt"
 #define PATH_MODEL_TYPECODE_TXT "Resources/model_typecode.txt"
 #define PATH_RESOURCES          "Resources"

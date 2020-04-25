@@ -605,13 +605,13 @@ double HeadingAvg (double head1, double head2, double f1, double f2)
     
     // if 0° North lies between head1 and head2 then simple
     // average doesn't work
-    if ( abs(head2-head1) > 180 ) {
+    if ( std::abs(head2-head1) > 180 ) {
         // add 360° to the lesser value...then average works
         if ( head1 < head2 )
             head1 += 360;
         else
             head2 += 360;
-        LOG_ASSERT ( abs(head2-head1) <= 180 );
+        LOG_ASSERT ( std::abs(head2-head1) <= 180 );
     }
     
     // return average of the two, normalized to 360°
@@ -626,13 +626,13 @@ double HeadingDiff (double head1, double head2)
     
     // if 0° North lies between head1 and head2 then simple
     // diff doesn't work
-    if ( abs(head2-head1) > 180 ) {
+    if ( std::abs(head2-head1) > 180 ) {
         // add 360° to the lesser value...then diff works
         if ( head1 < head2 )
             head1 += 360;
         else
             head2 += 360;
-        LOG_ASSERT ( abs(head2-head1) <= 180 );
+        LOG_ASSERT ( std::abs(head2-head1) <= 180 );
     }
     
     return head2 - head1;

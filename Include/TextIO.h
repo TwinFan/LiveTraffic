@@ -108,11 +108,12 @@ const char* GetLogString ( const char* szFile, int ln, const char* szFunc, logLe
 // Log Text to log file
 void LogMsg ( const char* szFile, int ln, const char* szFunc, logLevelTy lvl, const char* szMsg, ... );
 
-// Log a message if lvl is greater or equal currently defined log level
+// Log a message if this is a beta version, or
+//               if lvl is greater or equal currently defined log level
 // Note: First parameter after lvl must be the message text,
 //       which can be a format string with its parameters following like in sprintf
 #define LOG_MSG(lvl,...)  {                                         \
-    if (lvl >= dataRefs.GetLogLevel())                              \
+    if (VERSION_BETA || ((lvl) >= dataRefs.GetLogLevel()))          \
     {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}       \
 }
 

@@ -302,38 +302,27 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 }
 
 // Preferences functions for XPMP API
-int   MPIntPrefsFunc   (const char* section, const char* key, int   iDefault)
+int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
-    if (!strcmp(section,"debug"))
-    {
-        // debug XPMP's CSL model matching if requested
-        if (!strcmp(key, "model_matching"))
-            return dataRefs.GetDebugModelMatching();
-        // allow asynch loading of models
-        if (!strcmp(key, "allow_obj8_async_load"))
-            return 1;
+    // debug XPMP's CSL model matching if requested
+    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING))
+        return dataRefs.GetDebugModelMatching();
+    // logging level to match ours
+    if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL)) {
+        if constexpr (VERSION_BETA)         // force DEBUG-level logging in BETA versions
+            return logDEBUG;
+        else
+            return dataRefs.GetLogLevel();
     }
-    else if (!strcmp(section,"planes"))
-    {
-        // How many full a/c to draw at max?
-        if (!strcmp(key, "max_full_count"))
-            return dataRefs.GetMaxFullNumAc();
-        // also register the original libxplanemp dataRefs for CSL models?
-        if (!strcmp(key, "dr_libxplanemp"))
-            return dataRefs.GetDrLibXplaneMP();
-    }
+    // We don't want clamping to the ground, we take care of the ground ourselves
+    if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    
+    // Backdoor to skip assigning the NoPlane.acf to AI planes
+    if (!strcmp(key, XPMP_CFG_ITM_SKIP_NOPLANE))
+        return dataRefs.ShallAISkipAssignNoPlane();
     
     // dont' know/care about the option, return the default value
     return iDefault;
-}
-
-float MPFloatPrefsFunc (const char* section, const char* key, float fDefault)
-{
-    // Max distance for drawing full a/c (as opposed to 'lights only')?
-    if ( !strcmp(section,"planes") && !strcmp(key,"full_distance") )
-    { return (float)dataRefs.GetFullDistance_nm(); }
-
-    return fDefault;
 }
 
 // loops until the next enabled CSL path and verifies it is an existing path
@@ -380,53 +369,31 @@ bool LTMainInit ()
 
     // Init fetching flight data
     if (!LTFlightDataInit()) return false;
+        
+    // init Multiplayer API
+    const char* cszResult = XPMPMultiplayerInit (LIVE_TRAFFIC,
+                                                 LTCalcFullPluginPath(PATH_RESOURCES).c_str(),
+                                                 &MPIntPrefsFunc,
+                                                 dataRefs.GetDefaultAcIcaoType().c_str());
+    if ( cszResult[0] ) {
+        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
+        XPMPMultiplayerCleanup();
+        return false;
+    }
     
     // These are the paths configured for CSL packages
     const DataRefs::vecCSLPaths& vCSLPaths = dataRefs.GetCSLPaths();
     DataRefs::vecCSLPaths::const_iterator cslIter = vCSLPaths.cbegin();
     const DataRefs::vecCSLPaths::const_iterator cslEnd = vCSLPaths.cend();
-    std::string cslPath = NextValidCSLPath(cslIter, cslEnd);
-    // Error if no valid path found...we continue anyway
-    if (cslPath.empty())
-        SHOW_MSG(logERR,ERR_CFG_CSL_NONE);
-    
-    // init Multiplayer API
-    // apparently the legacy init is still necessary.
-    // Otherwise the XPMP datarefs wouldn't be registered and hence the
-    // planes' config would never change (states like flaps/gears are
-    // communicated to the model via custom datarefs,
-    // see XPMPMultiplayerObj8.cpp/obj_get_float)
-    const std::string pathRelated (LTCalcFullPluginPath(PATH_RELATED_TXT));
-    const std::string pathLights  (LTCalcFullPluginPath(PATH_LIGHTS_PNG));
-    const std::string pathDoc8643 (LTCalcFullPluginPath(PATH_DOC8643_TXT));
-    const char* cszResult = XPMPMultiplayerInitLegacyData
-    (
-        cslPath.c_str(),                // we pass in the first found CSL dir
-        pathRelated.c_str(),
-        pathLights.c_str(),
-        pathDoc8643.c_str(),
-        dataRefs.GetDefaultAcIcaoType().c_str(),
-        &MPIntPrefsFunc, &MPFloatPrefsFunc
-    );
-    // Init of multiplayer library failed. Cleanup as much as possible and bail out
-    if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
-        XPMPMultiplayerCleanup();
-        LTFlightDataStop();
-        return false;
-    }
-    
+
     // now register all other CSLs directories that we found earlier
-    for (cslPath = NextValidCSLPath(cslIter, cslEnd);
+    bool bAnyPathFound = false;
+    for (std::string cslPath = NextValidCSLPath(cslIter, cslEnd);
          !cslPath.empty();
          cslPath = NextValidCSLPath(cslIter, cslEnd))
     {
-        cszResult = XPMPLoadCSLPackage
-        (
-         cslPath.c_str(),
-         pathRelated.c_str(),
-         pathDoc8643.c_str()
-         );
+        bAnyPathFound = true;
+        cszResult = XPMPLoadCSLPackage (cslPath.c_str());
         // Addition of CSL package failed...that's not fatal as we did already
         // register one with the XPMPMultiplayerInitLegacyData call
         if ( cszResult[0] ) {
@@ -434,6 +401,10 @@ bool LTMainInit ()
         }
     }
     
+    // Error if no valid path found...we continue anyway
+    if (!bAnyPathFound)
+        SHOW_MSG(logERR,ERR_CFG_CSL_NONE);
+
     // register flight loop callback, but don't call yet (see enable later)
     XPLMRegisterFlightLoopCallback(LoopCBAircraftMaintenance, 0, NULL);
     
@@ -448,17 +419,6 @@ bool LTMainEnable ()
 {
     LOG_ASSERT(dataRefs.pluginState == STATE_INIT);
 
-    // Initialize libxplanemp
-    const std::string pathRes     (LTCalcFullPluginPath(PATH_RESOURCES) + dataRefs.GetDirSeparator());
-    const char*cszResult = XPMPMultiplayerInit (&MPIntPrefsFunc,
-                                                &MPFloatPrefsFunc,
-                                                pathRes.c_str());
-    if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
-        XPMPMultiplayerCleanup();
-        return false;
-    }
-    
     // Enable fetching flight data
     if (!LTFlightDataEnable()) return false;
 
@@ -510,7 +470,7 @@ bool LTMainTryGetAIAircraft ()
         return true;
     
     const char* cszResult = XPMPMultiplayerEnable();
-    if ( cszResult[0] ) { SHOW_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult); return false; }
+    if ( cszResult[0] ) { SHOW_MSG(logWARN,ERR_XPMP_ENABLE, cszResult); return false; }
     
     // If we don't control AI aircraft we can't create TCAS blibs.
     if (!dataRefs.HaveAIUnderControl()) {
@@ -523,8 +483,54 @@ bool LTMainTryGetAIAircraft ()
 /// Disable Multiplayer place drawing, releasing multiuser planes
 void LTMainReleaseAIAircraft ()
 {
+    // short-cut if we aren't in control
+    if (!dataRefs.HaveAIUnderControl())
+        return;
+
     // just pass on to libxplanemp
     XPMPMultiplayerDisable ();
+}
+
+/// Callback, which toggles AI control
+static float CBToggleAI (float, float, int, void *)
+{
+    if (dataRefs.HaveAIUnderControl())
+        LTMainReleaseAIAircraft();
+    else
+        LTMainTryGetAIAircraft();
+    return 0.0f;
+}
+
+/// @brief Show message about delay, then set callback to trigger getting/release AI
+/// @details Getting and even more release AI means,
+///          that X-Plane needs to load a couple of aircraft models,
+///          which is done immediately and pauses the sim.
+///          We show a message, but need one cycle so that it can actually be drawn,
+///          then only must the actual change happen -> flight loop callback.
+void LTMainToggleAI (bool bGetControl)
+{
+    // Short cut if there is no change
+    if (bGetControl == bool(dataRefs.HaveAIUnderControl()))
+        return;
+    
+    // Show a message
+    CreateMsgWindow(1.0f, logMSG, MSG_AI_LOAD_ACF);
+    
+    // Create a flight loop callback to do the AI change
+    static XPLMFlightLoopID aiID = nullptr;
+    if (!aiID) {
+        XPLMCreateFlightLoop_t aiCall = {
+            sizeof(aiCall),
+            xplm_FlightLoop_Phase_BeforeFlightModel,
+            CBToggleAI,
+            nullptr
+        };
+        aiID = XPLMCreateFlightLoop(&aiCall);
+    }
+    if (aiID)
+        XPLMScheduleFlightLoop(aiID, 0.5f, 1);
+    else                    // safeguard if for some reason we couldn't create a callback
+        CBToggleAI(0.0f, 0.0f, 0, nullptr);
 }
 
 // Remove all aircraft
@@ -562,9 +568,6 @@ void LTMainDisable ()
     
     // disable fetching flight data
     LTFlightDataDisable();
-    
-    // De-init libxplanemp
-    XPMPMultiplayerCleanup();
     
     // save config file
     dataRefs.SaveConfigFile();
