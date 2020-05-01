@@ -247,6 +247,12 @@ bool dequal ( const double d1, const double d2 );
 // gets latest version info from X-Plane.org
 bool FetchXPlaneOrgVersion ();
 
+/// LiveTraffic's version number as pure integer for returning in a dataRef, like 201 for v2.01
+int GetLTVerNum(void* = NULL);
+
+/// LiveTraffic's build date as pure integer for returning in a dataRef, like 20200430 for 30-APR-2020
+int GetLTVerDate(void* = NULL);
+
 // default window open mode depends on XP10/11 and VR
 TFWndMode GetDefaultWndOpenMode ();
 

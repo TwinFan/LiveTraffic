@@ -159,10 +159,13 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\win_x64)"
+copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"
+copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "G:\11\Resources\plugins\LiveTraffic\win_x64"
+copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "G:\BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Copying win.xpl into my X-Plane plugin path</Message>
+      <Message>Copying win.xpl into my X-Plane plugin paths</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -205,8 +208,11 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
-      <Message>Copying win.xpl into my X-Plane plugin path</Message>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane 11\Resources\plugins\LiveTraffic\win_x64)"
+copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "D:\X-Plane BETA\Resources\plugins\LiveTraffic\win_x64"
+copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "G:\11\Resources\plugins\LiveTraffic\win_x64"
+copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "G:\BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
+      <Message>Copying win.xpl into my X-Plane plugin paths</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
