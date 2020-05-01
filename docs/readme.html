@@ -93,11 +93,29 @@
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
     
-    <P>For updating coming from v2.00 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</p>
+    <P>For updating coming from v2.00 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
+    and <code>Resources/NoPlane.acf</code></p>
     
     <ul>
         <li>CSL Models: If <code>VERT_OFFSET</code> is not specified in <code>xsb_aircraft.txt</code>
-            then it is extracted from the model's <code>.obj</code> file.</li>
+            then it is extracted from the model's <code>.obj</code> file.
+            Will help some X-CSL models back onto the ground.</li>
+        <li>Removed residual jet smoke from under planes (by updating <code>NoPlane.acf</code>)
+        <li>For plugin developers:
+            <ul>
+                <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/7">XPMP2 #7</a>
+                    multiplayer slot indexes returned to plugin being off by 1,
+                    are now 1-based again</li>
+                <li>Y value published in <code>sim/multiplayer/plane...</code> datarefs
+                    is in line again with altitude reported via LTAPI,
+                    ie. <i>without</i> <code>VERT_OFFSET</code>.</li>
+                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/180">#180</a>:
+                    LiveTraffic's version number and date are provided via
+                    dataRefs <code>livetraffic/ver/nr</code> and <code>.../date</code>.</li>
+                <li><a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
+                    provides respective version number/date functions, too.</li>
+            </ul>
+        </li>
     </ul>
 
     

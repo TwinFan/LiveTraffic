@@ -174,8 +174,13 @@ public:
 
     /// return the XPMP2 plane id
     XPMPPlaneID GetPlaneID () const { return mPlane; }
-    /// return the last used sim/multiplayer/plane-index
+    /// @brief return the current multiplayer-index
+    /// @note This is a 0-based index into our internal tables!
+    ///       It is one less than the number used in sim/multiplayer/plane dataRefs,
+    ///       use Aircraft::GetAIPlaneIdx() for that purpose.
     int         GetMultiIdx () const { return multiIdx; }
+    /// @brief return the plane's index in XP's sim/multiplayer/plane dataRefs
+    int         GetAIPlaneIdx () const { return multiIdx >= 0 ? multiIdx+1 : -1; }
     /// Is this plane currently also being tracked by X-Plane's AI/multiplayer, ie. will appear on TCAS?
     bool        IsCurrentlyShownAsAI () const { return multiIdx >= 0; }
     /// Will this plane show up on TCAS / in multiplayer views? (It will if transponder is not switched off)
