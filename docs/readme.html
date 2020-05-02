@@ -86,12 +86,58 @@
     
     <h2>v2.0</h2>
     
+    <h3>v2.01</h3>
+    
+    <P>Please follow
+        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
+        for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
+    </P>
+    
+    <P>For updating coming from v2.00 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
+    and <code>Resources/NoPlane.acf</code></p>
+    
+    <ul>
+        <li>CSL Models: If <code>VERT_OFFSET</code> is not specified in <code>xsb_aircraft.txt</code>
+            then it is extracted from the model's <code>.obj</code> file.
+            Will help some X-CSL models back onto the ground.</li>
+        <li>CHANGE <a href="https://github.com/TwinFan/XPMP2/issues/8">XPMP2 #8</a>
+            Matching now prefers a matching <i>related</i> a/c type <i>plus</i> matching livery
+            over a model with matching <i>exact</i> a/c type but without livery.<br>
+            This will show correct livery more often at the price of
+            picking a <i>related</i> a/c type only if nothing better is available.
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/178">#178</a>
+            planes transforming to cars on touch-down.</li>
+        <li>CHANGED identification of cars: If no info about an object is available
+            at all (e.g. not maintained yet at OpenSky), then will decide for
+            default plane, not car.</li>
+        <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Aircraft Info Window</a>
+            reports <i>CSL Model</i> again with last segment
+            of path where model is taken from, allows to identify the package used
+            (like Bluebell vs. X-CSL).</li>
+        <li>Removed residual jet smoke from under planes (by updating <code>NoPlane.acf</code>).</li>
+        <li>For plugin developers:
+            <ul>
+                <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/7">XPMP2 #7</a>
+                    multiplayer slot indexes returned to plugin being off by 1,
+                    are now 1-based again</li>
+                <li>Y value published in <code>sim/multiplayer/plane...</code> datarefs
+                    is in line again with altitude reported via LTAPI,
+                    ie. <i>without</i> <code>VERT_OFFSET</code>.</li>
+                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/180">#180</a>:
+                    LiveTraffic's version number and date are provided via
+                    dataRefs <code>livetraffic/ver/nr</code> and <code>.../date</code>.</li>
+                <li><a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
+                    provides respective version number/date functions, too.</li>
+                <li><a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
+                    should also return last path segment together with model name
+                    in <code>cslModel</code>.</li>
+            </ul>
+        </li>
+    </ul>
+
+    
     <h3>v2.00</h3>
     
-    <P>Please follow 
-        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
-        for upgrading an existing LiveTraffic installation to version 2.0.
-    </P>
 
     <ul>
         <li><strong>Supports X-Plane 11 only.</strong><br>

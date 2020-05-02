@@ -5,6 +5,22 @@ LTApt
 - Instead of wasting space with all nodes supporting Dijkstra,
   consider a map holding Dijkstra info per visited node
 
+Download History
+==========
+Download counter when providing v2.00: 77.048
+Download counter when providing v1.52: 76.467
+Download counter when providing v1.51: 75.073
+Download counter when providing v1.50: 72.486
+Download counter when providing v1.24: 64.921
+Download counter when providing v1.23: 63.965
+Download counter when providing v1.22: 39.778
+Download counter when providing v1.21: 36.845
+Download counter when providing v1.20: 32.592
+Download counter when providing v1.16: 23.480
+Download counter when providing v1.15: 21.292
+Download counter when providing v1.10: 16.649
+Download counter when providing v1.00: 12.192
+Download counter when providing v0.94: 10.917
 
 DOCUMENTATION
 ===========

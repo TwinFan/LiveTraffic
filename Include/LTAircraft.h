@@ -236,7 +236,7 @@ public:
 //      Represents an aircraft as displayed in XP by use of the
 //      XP Multiplayer Lib
 //
-class LTAircraft : XPCAircraft
+class LTAircraft : public XPCAircraft
 {
 public:
     class FlightModel {
@@ -368,8 +368,6 @@ public:
     void LabelUpdate();
     // stringify e.g. for debugging info purposes
     operator std::string() const;
-    // the XPMP model used for displaying this aircraft
-    std::string GetModelName() const;
     // change the model (e.g. when model-defining static data changed)
     void ChangeModel (const LTFlightData::FDStaticData& statData);
     // current position

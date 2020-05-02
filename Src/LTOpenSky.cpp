@@ -245,6 +245,16 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         break;
                     case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
                         invIcaos.emplace_back(info.acKey.icao);
+
+                        // We add "model=[?], owner=[?]". By this way we don't trigger the car detection,
+                        // that means: If we don't know the transponder at all we'd rather decide on standard a/c but not car
+                        if (data.length() > 1)          // concatenate both JSON groups
+                            data += ", ";
+                        data += "\"" OPSKY_MD_GROUP "\": { \"" OPSKY_MD_TRANSP_ICAO "\": \"";
+                        data += currKey;
+                        data += "\", \"" OPSKY_MD_MDL "\": \"" OPSKY_MD_MDL_UNKNOWN "\", "
+                                    "\"" OPSKY_MD_OP  "\": \"" OPSKY_MD_MDL_UNKNOWN "\" }";
+
                         bChannelOK = true;              // but technically a valid response
                         break;
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again

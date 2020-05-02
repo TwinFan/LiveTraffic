@@ -2803,14 +2803,6 @@ XPMPPlaneCallbackResult LTAircraft::GetInfoTexts(XPMPInfoTexts_t* outInfo)
     return xpmpData_Unavailable;
 }
 
-// fetches and then returns the name of the aircraft model in use
-std::string LTAircraft::GetModelName() const
-{
-    char buf[256];
-    XPMPGetPlaneModelName(mPlane, buf, sizeof(buf));
-    return std::string(buf);
-}
-
 // change the model (e.g. when model-defining static data changed)
 void LTAircraft::ChangeModel (const LTFlightData::FDStaticData& statData)
 {
