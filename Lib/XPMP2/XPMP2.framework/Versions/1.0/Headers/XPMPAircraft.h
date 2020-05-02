@@ -199,7 +199,7 @@ public:
     /// return a pointer to the CSL model in use (Note: The CSLModel structure is not public.)
     XPMP2::CSLModel* GetModel () const { return pCSLMdl; }
     /// return the name of the CSL model in use
-    std::string GetModelName () const;
+    const std::string& GetModelName () const;
     /// quality of the match with the CSL model
     int         GetMatchQuality () const { return matchQuality; }
     /// Vertical offset, ie. the value that needs to be added to drawInfo.y to make the aircraft appear on the ground

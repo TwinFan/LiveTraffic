@@ -84,7 +84,8 @@ constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 
 #define OPSKY_MD_AC_TYPE_ICAO   "typecode"
 #define OPSKY_MD_CAT_DESCR      "categoryDescription"
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
-#define OPSKY_MD_TEX_NO_CAT        "No ADS-B Emitter Category Information"
+#define OPSKY_MD_TEXT_NO_CAT    "No  ADS-B Emitter Category Information"
+#define OPSKY_MD_MDL_UNKNOWN    "[?]"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
 #define OPSKY_ROUTE_GROUP       "ROUTE"         // made-up group of route information fields
