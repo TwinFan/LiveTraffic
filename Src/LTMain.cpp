@@ -444,12 +444,9 @@ bool LTMainShowAircraft ()
     //   and is the possible point of conflict with other plugins
     //   using xplanemp, so we push it out to as late as possible.
     
-    // Refresh set of aircraft loaded
-    XPMPLoadPlanesIfNecessary();
-    
     // Enable Multiplayer plane drawing, acquire multiuser planes
     if (!dataRefs.IsAIonRequest())      // but only if not only on request
-        LTMainTryGetAIAircraft();
+        LTMainToggleAI(true);
     
     // enable the flight loop callback to maintain aircraft
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,

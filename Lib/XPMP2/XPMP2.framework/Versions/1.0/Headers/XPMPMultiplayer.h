@@ -23,6 +23,12 @@
 /// @see        For more developer's information see
 ///             https://twinfan.github.io/XPMP2/
 ///
+/// @see        For a definition of ICAO aircraft type designators see
+///             https://www.icao.int/publications/DOC8643/Pages/Search.aspx
+///
+/// @see        For a list of ICAO airline/operator codes see
+///             https://en.wikipedia.org/wiki/List_of_airline_codes
+///
 /// @author     Ben Supnik and Chris Serio
 /// @copyright  Copyright (c) 2004, Ben Supnik and Chris Serio.
 /// @author     Birger Hoppe
@@ -46,6 +52,7 @@
 #ifndef _XPLMMultiplayer_h_
 #define _XPLMMultiplayer_h_
 
+#include <string>
 #include "XPLMDefs.h"
 
 #ifdef __cplusplus
@@ -100,7 +107,7 @@ typedef unsigned int XPMPLightsPattern;     ///< Light flash pattern (unused in 
 #pragma warning(push)
 #pragma warning(disable: 4202 4201)
 #endif
-/// Defines, which lights of the aircraft are on
+/// @brief Defines, which lights of the aircraft are on
 /// @note  This structure is only used with deprecated concepts
 ///        (class XPCAircraft and direct use of callback functions.)
 union xpmp_LightStatus {
@@ -188,7 +195,7 @@ struct XPMPPlaneRadar_t {
 struct XPMPInfoTexts_t {
     long size = sizeof(XPMPInfoTexts_t);
     char tailNum[10]       = {0};       ///< registration, tail number
-    char icaoAcType[5]     = {0};       ///< ICAO aircraft type, 3-4 chars
+    char icaoAcType[5]     = {0};       ///< ICAO aircraft type designator, 3-4 chars
     char manufacturer[40]  = {0};       ///< a/c manufacturer, human readable
     char model[40]         = {0};       ///< a/c model, human readable
     char icaoAirline[4]    = {0};       ///< ICAO airline code
@@ -350,30 +357,22 @@ bool XPMPHasControlOfAIAircraft();
 ///          still continue.)\n
 ///          The `xsb_aircraft.txt` is loaded and processed. Duplicate models
 ///          (by CSL model name, tag `OBJ8_AIRCRAFT`) are ignored.
-///          For others the existence of the `.obj` file is validated
-///          (but not the existence of files in turn needed by the `.obj`
-///          file, like textures.) and if successful the model is added to an
+///          For others the existence of the `.obj` file is validated,
+///          but not the existence of files in turn needed by the `.obj`
+///          file, like textures. If validated successfully the model is added to an
 ///          internal catalogue.\n
-///          Actual loading of objects is done later and asynchronously
-///          when needed only during aircraft creation.
+///          Actual loading of objects is done later and asynchronously only
+///          when needed during aircraft creation.
 /// @param inCSLFolder Root folder to start the search.
 const char *    XPMPLoadCSLPackage(const char * inCSLFolder);
 
-/*
- * XPMPLoadPlanesIfNecessary
- *
- * This routine checks what planes are loaded and loads any that we didn't get.
- * Call it after you oare enabled if it isn't the first time to set up models.
- *
- */
+
+/// @brief Legacy function only provided for backwards compatibility. Does not actually do anything.
+[[deprecated("No longer needed, does not do anything.")]]
 void            XPMPLoadPlanesIfNecessary();
 
-/*
- * XPMPGetNumberOfInstalledModels
- *
- * This routine returns the number of found models.
- *
- */
+
+/// @brief Returns the number of loaded CSL models
 int XPMPGetNumberOfInstalledModels();
 
 /*
@@ -385,29 +384,45 @@ int XPMPGetNumberOfInstalledModels();
  * Make sure the size of all char arrays is big enough.
  *
  */
+
+/// @brief Fetch information about a CSL model identified by an index
+/// @note Index numbers may change if more models are loaded, don't rely on them.
+///       Model name is unique.
+/// @deprecated Instead, use XPMPGetModelInfo2().\n
+///       This legacy function is defined with pointers to text arrays as
+///       return type. This is rather unsafe. XPMP2's internal maps and buffers
+///       may change if more models are loaded, hence pointers may become invalid.
+///       Don't rely on these pointers staying valid over an extended period of time.
+/// @param inIndex Number between `0` and `XPMPGetNumberOfInstalledModels()-1
+/// @param[out] outModelName Receives pointer to model name (id). Optional, can be nullptr.
+/// @param[out] outIcao Receives pointer to ICAO aircraft type designator. Optional, can be `nullptr`.
+/// @param[out] outAirline Receives pointer to ICAO airline code. Optional, can be `nullptr`.
+/// @param[out] outLivery Receives pointer to special livery string. Optional, can be `nullptr`.
+[[deprecated("Unsafe, use XPMPGetModelInfo2() instead.")]]
 void XPMPGetModelInfo(int inIndex, const char **outModelName, const char **outIcao, const char **outAirline, const char **outLivery);
 
-/*
- * XPMPModelMatchQuality
- *
- * This functions searches through our model list and returns the pass
- * upon which a match was found, and -1 if one was not.
- *
- * This can be used for assessing if it's worth using a partial update
- * to update the model vs previous efforts.
- */
-int         XPMPModelMatchQuality(
-                                  const char *              inICAO,
+/// @brief Fetch information about a CSL model identified by an index
+/// @note Index numbers may change if more models are loaded, don't rely on them.
+///       Model name is unique.
+/// @param inIndex Number between `0` and `XPMPGetNumberOfInstalledModels()-1
+/// @param[out] outModelName Receives model name (id)
+/// @param[out] outIcao Receives ICAO aircraft designator
+/// @param[out] outAirline Receives ICAO airline code
+/// @param[out] outLivery Receives special livery string
+void XPMPGetModelInfo2(int inIndex, std::string& outModelName,  std::string& outIcao, std::string& outAirline, std::string& outLivery);
+
+
+/// @brief Tests model match quality based on the given parameters.
+/// @param inICAO ICAO aircraft type designator, optional, can be `nullptr`
+/// @param inAirline ICAO airline code, optional, can be `nullptr`
+/// @param inLivery Special livery text, optional, can be `nullptr`
+/// @return Match quality, the lower the better
+int         XPMPModelMatchQuality(const char *              inICAO,
                                   const char *              inAirline,
                                   const char *              inLivery);
 
-/*
- * XPMPIsICAOValid
- *
- * This functions searches through our global vector of valid ICAO codes and returns true if there
- * was a match and false if there wasn't.
- *
- */
+
+/// @brief Is `inICAO` a valid ICAO aircraft type designator?
 bool            XPMPIsICAOValid(const char *                inICAO);
 
 
@@ -418,46 +433,56 @@ bool            XPMPIsICAOValid(const char *                inICAO);
 // TODO: Provide versions which return Aircraft*
 
 
-/*
- * XPMPPlaneData_f
- *
- * This is the aircraft data providing function.  It is called no more than once per sim
- * cycle per data type by the plug-in manager to get data about your plane.  The data passed
- * in is a pointer to one of the above structures.  The function specifies the datatype, and the
- * last data you provided is passed in.
- *
- */
-typedef XPMPPlaneCallbackResult (* XPMPPlaneData_f)(
-                                                    XPMPPlaneID         inPlane,
+/// @brief Callback function your plugin provides to return updates plane data
+/// @note  This type is only used with deprecated concepts
+///        (direct use of callback functions.)
+/// @details This functions is called by XPMP2 once per cycle per plane per data type.
+///          Your implementation returns the requested data,
+///          so that XPMP2 can move and update the associated aircraft instance.
+/// @param inPlane ID of the plane, for which data is requested
+/// @param inDataType The type of data that is requested, see ::XPMPPlaneDataType
+/// @param[out] ioData A pointer to a structure XPMP2 provides, for you to fill the data into.
+///                    For its type see ::XPMPPlaneDataType.
+/// @param inRefcon The refcon value you provided when creating the plane
+typedef XPMPPlaneCallbackResult (* XPMPPlaneData_f)(XPMPPlaneID         inPlane,
                                                     XPMPPlaneDataType   inDataType,
                                                     void *              ioData,
                                                     void *              inRefcon);
 
-/*
- * XPMPCreatePlane
- *
- * This function creates a new plane for a plug-in and returns it.  Pass in an ICAO aircraft ID code,
- * a livery string and a data function for fetching dynamic information.
- *
- */
+
+/// @brief Creates a new plane
+/// @deprecated Subclass XPMP2::Aircraft instead
+/// @details Effectively calls XPMPCreatePlaneWithModelName() with
+///          `inModelName = nullptr`
+/// @param inICAOCode ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+/// @param inAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+/// @param inLivery Special livery designator, can be an empty string
+/// @param inDataFunc Callback function called by XPMP2 to fetch updated data
+/// @param inRefcon A refcon value passed back to you in all calls to the `inDataFunc`
 [[deprecated("Subclass XPMP2::Aircraft instead")]]
-XPMPPlaneID XPMPCreatePlane(
-                            const char *            inICAOCode,
+XPMPPlaneID XPMPCreatePlane(const char *            inICAOCode,
                             const char *            inAirline,
                             const char *            inLivery,
                             XPMPPlaneData_f         inDataFunc,
                             void *                  inRefcon);
 
+/// @brief Creates a new plane, providing a specific CSL model name
+/// @deprecated Subclass XPMP2::Aircraft instead
+/// @param inModelName CSL Model name (id) to use, or `nullptr` if normal matching using the next 3 parameters shall be applied
+/// @param inICAOCode ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+/// @param inAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+/// @param inLivery Special livery designator, can be an empty string
+/// @param inDataFunc Callback function called by XPMP2 to fetch updated data
+/// @param inRefcon A refcon value passed back to you in all calls to the `inDataFunc`
 [[deprecated("Subclass XPMP2::Aircraft instead")]]
-XPMPPlaneID XPMPCreatePlaneWithModelName(
-                                         const char *           inModelName,
+XPMPPlaneID XPMPCreatePlaneWithModelName(const char *           inModelName,
                                          const char *           inICAOCode,
                                          const char *           inAirline,
                                          const char *           inLivery,
                                          XPMPPlaneData_f            inDataFunc,
                                          void *                  inRefcon);
 
-/// @brief [Deprecated] Deallocates a created aircraft.
+/// @brief [Deprecated] Removes a plane previously created with XPMPCreatePlane()
 /// @deprecated Delete subclassed XPMP2::Aircraft object instead.
 [[deprecated("Delete subclassed XPMP2::Aircraft object instead")]]
 void            XPMPDestroyPlane(XPMPPlaneID);
