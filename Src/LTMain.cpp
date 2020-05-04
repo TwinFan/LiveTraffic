@@ -495,6 +495,7 @@ static float CBToggleAI (float, float, int, void *)
         LTMainReleaseAIAircraft();
     else
         LTMainTryGetAIAircraft();
+    MenuUpdateAllItemStatus();
     return 0.0f;
 }
 
@@ -540,6 +541,9 @@ void LTMainHideAircraft ()
     
     // hide aircraft, disconnect internet streams
     LTFlightDataHideAircraft ();
+    
+    // Remove any message about seeing planes
+    CreateMsgWindow(float(AC_MAINT_INTVL), 0, 0, -1);
 
     // disable the flight loop callback
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
@@ -548,7 +552,9 @@ void LTMainHideAircraft ()
                                       NULL);
     
     // disable aircraft drawing, free up multiplayer planes
-    XPMPMultiplayerDisable();
+    // (the "soft way", which requires a few more drawing cycles,
+    //  this will _not_ work while being shut down)
+    LTMainToggleAI(false);
     
     // tell the user there are no more
     SHOW_MSG(logINFO, MSG_NUM_AC_ZERO);
@@ -562,6 +568,7 @@ void LTMainDisable ()
 
     // remove aircraft...just to be sure
     dataRefs.SetAircraftDisplayed(false);
+    LTMainReleaseAIAircraft();      // to be absolutely sure
     
     // disable fetching flight data
     LTFlightDataDisable();
