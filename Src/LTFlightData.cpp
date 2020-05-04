@@ -2149,10 +2149,11 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
         if (pAc && DetermineAcModel())
             bMdlInfoChange = true;
         
-        // if model-defining fields changed then (potentially) change the CSL model
         if (pAc) {
+            // if model-defining fields changed then (potentially) change the CSL model
             if (bMdlInfoChange)
-                pAc->ChangeModel (statData);
+                pAc->SetUpdateModel();
+            // Make Aircraft send updated info texts
             pAc->SetSendNewInfoData();
         }
         
@@ -2262,8 +2263,15 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
 // try interpreting model text or check for ground vehicle
 bool LTFlightData::DetermineAcModel()
 {
-    // We don't change the a/c type if it is already something reasonable
     const std::string prevType = statData.acTypeIcao;
+
+    // Debugging model matching: If the model is fixed, then it is what it is
+    if (!dataRefs.cslFixAcIcaoType.empty()) {
+        statData.acTypeIcao = dataRefs.cslFixAcIcaoType;
+        return statData.acTypeIcao != prevType;
+    }
+    
+    // We don't change the a/c type if it is already something reasonable
     if (!prevType.empty() &&
         prevType != dataRefs.GetDefaultAcIcaoType() &&
         prevType != dataRefs.GetDefaultCarIcaoType())
@@ -2465,7 +2473,7 @@ void LTFlightData::UpdateAllModels ()
             // if there is an aircraft update it's flight model
             LTAircraft* pAc = fdPair.second.GetAircraft();
             if (pAc)
-                pAc->ChangeModel(fdPair.second.GetUnsafeStat());
+                pAc->SetUpdateModel();
         }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
