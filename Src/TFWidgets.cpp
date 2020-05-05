@@ -218,7 +218,7 @@ std::string TFGetWidgetDescriptor (XPWidgetID me)
         return std::string();
 
     char* buf = new char[len+1];
-    XPGetWidgetDescriptor (me, buf, len);
+    XPGetWidgetDescriptor (me, buf, len+1);
     std::string ret = buf;
     delete[] buf;
     return ret;
