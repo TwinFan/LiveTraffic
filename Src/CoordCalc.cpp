@@ -378,7 +378,7 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 
 std::string positionTy::dbgTxt () const
 {
-    char buf[120];
+    char buf[200];
     snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %2.2s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
              ts(),
              lat(), lon(),
