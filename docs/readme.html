@@ -96,10 +96,17 @@
     <P>For updating coming from v2.01 or v2.02 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</p>
     
     <ul>
+        <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/9">XPMP2 #9</a>:
+            Allowing models with same name from different CSL packages.
+            Matching will pick randomly, also across packages.<br>
+            This removes many "Duplicate model" warnings from the log.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/183">#183</a>
             ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.</li>		
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
             garbage character read from Settings text fields.</li>
+        <li>In Beta versions like this, <i>Log Model Matching</i>
+            (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug Settings</a>)
+            is forced to be activated.</li>
 	</ul>
 	
     <h3>v2.01 and v2.02</h3>
@@ -196,6 +203,10 @@
 	            is neither support nor needed any longer.
     	        The "Missing Gear" issue is history when using instancing.</li>
             </ul>
+        </li>
+        <li>In Beta versions like this, <i>Log Level</i>
+            (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">Advanced Settings</a>)
+            is forced to be <i>Debug</i>.</li>
     </ul>
 
     <h2>v1.5</h2>

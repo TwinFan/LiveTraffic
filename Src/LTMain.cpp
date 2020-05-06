@@ -310,8 +310,12 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
     // debug XPMP's CSL model matching if requested
-    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING))
-        return dataRefs.GetDebugModelMatching();
+    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING)) {
+        if constexpr (VERSION_BETA)         // force logging of model-matching in BETA versions
+            return true;
+        else
+            return dataRefs.GetDebugModelMatching();
+    }
     // logging level to match ours
     if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL)) {
         if constexpr (VERSION_BETA)         // force DEBUG-level logging in BETA versions
