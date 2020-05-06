@@ -32,11 +32,11 @@
 
     <h2>Upgrade from v1.5 to v2.0</h2>
 
-    <P>Please follow 
+    <P>Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
         for upgrading an existing LiveTraffic installation to version 2.0.
     </P>
-    
+
     <h2>Essential Installation</h2>
 
     <h3>LiveTraffic plugin</h3>
@@ -83,42 +83,50 @@
     <h1>Release Notes</h1>
 
     <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
-    
+
     <h2>v2.0</h2>
-	
+
     <h3>v2.03</h3>
-	
+
     <P>Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
-	
-    <P>For updating coming from v2.01 or v2.02 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</p>
-    
+
+    <P>For updating coming from v2.01 or v2.02 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
+       and <code>Resources/CSL2XSB.py</code>.<br>
+       It is recommended to
+       <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+       on your CSL models again if you ever did so before.</p>
+
     <ul>
         <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/9">XPMP2 #9</a>:
             Allowing models with same name from different CSL packages.
             Matching will pick randomly, also across packages.<br>
             This removes many "Duplicate model" warnings from the log.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/183">#183</a>
-            ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.</li>		
+            ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
             garbage character read from Settings text fields.</li>
+        <li>REMOVED handling of <code>ICAO</code>/<code>AIRLINE</code> lines from
+            <code>CSL2XSB.py</code>, which previously was meant to define default models
+            per aircraft type and airline. With XPMP2's random pick mechanism this is no longer needed
+            and would even reduce the match quality of the models previously chosen as defaults.</li>
         <li>In Beta versions like this, <i>Log Model Matching</i>
             (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug Settings</a>)
             is forced to be activated.</li>
 	</ul>
-	
+
     <h3>v2.01 and v2.02</h3>
-    
+
     <P>The published Windows version of v2.01 had not included all fixes, so v2.02
     is published only to also provide the correct Windows binary.</P>
-       
+
     <P>For updating coming from v2.00 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
     and <code>Resources/NoPlane.acf</code>.</p>
-    
+
     <P>
-    
+
     <ul>
         <li>CSL Models: If <code>VERT_OFFSET</code> is not specified in <code>xsb_aircraft.txt</code>
             then it is extracted from the model's <code>.obj</code> file.
@@ -158,9 +166,9 @@
         </li>
     </ul>
 
-    
+
     <h3>v2.00</h3>
-    
+
 
     <ul>
         <li><strong>Supports X-Plane 11 only.</strong><br>
@@ -210,12 +218,12 @@
     </ul>
 
     <h2>v1.5</h2>
-    
+
     <h3>v1.52</h3>
-    
+
     <p><b>To update</b> coming from v1.50 or v1.51: Just copy the 3 executables
     <code>LiveTraffic/64/*.xpl</code>.</p>
-    
+
     <ul>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
             Aircraft sometimes failed to create when best available data was just half
@@ -227,25 +235,25 @@
             (<a href="https://forums.x-plane.org/index.php?/forums/topic/210083-live-traffic-151-not-loading-error-code-127-in-log-attached/">introduced with v1.51</a>)
         </li>
     </ul>
-    
+
     <h3>v1.51</h3>
-    
+
     <p><b>To update</b> coming from v1.50: Just copy the 3 executables
     <code>LiveTraffic/64/*.xpl</code>.</p>
-    
+
     <ul>
         <li>PARTICIALLY FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
             Should avoid crashing after a rare and yet unexplained event leading to missing
             data while trying to create a new aircraft.
         </li>
     </ul>
-    
+
     <h3>v1.50</h3>
 
     <p><b>To update</b> coming from v1.24: Copy the 3 executables
     <code>LiveTraffic/64/*.xpl</code> and the updated
     <code>Resources/Doc8643.txt</code> file.</p>
-    
+
     <ul>
         <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>:
             Snapping to taxiways to make aircraft stay on taxiways more often.
@@ -274,7 +282,7 @@
     </ul>
 
     <h2>v1.2</h2>
-    
+
     <h3>v1.24</h3>
 
     <ul>
@@ -291,9 +299,9 @@
         <li>copy the updated files <code>LiveTraffic/Resources/Doc8643.txt</code>
             and <code>LiveTraffic/Resources/related.txt</code>.</li>
     </ul>
-    
+
     <p>Changes to LiveTraffic:</p>
-    
+
     <ul>
         <li>FIXED handling of OpenSky master data, avoiding duplicate requests.
             Reduces likelihood of HTTP 503 error and improves handling of it.</li>
@@ -318,7 +326,7 @@
     </ul>
 
     <h3>v1.22 Fixits</h3>
-    
+
     <ul>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/44">#44</a>
@@ -343,9 +351,9 @@
             </ul>
         </li>
     </ul>
-        
+
     <h3>v1.21 Fixits</h3>
-    
+
     <ul>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/152">#152</a>
@@ -480,9 +488,9 @@
     <h2>v1.10</h2>
 
     <h3>v1.16.190507 ADSBEx with RapidAPI</h3>
-    
+
     <p>
-    
+
     <ul>
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/138">#138</a>
@@ -503,7 +511,7 @@
             using LiveTraffic even on outdated vesions like XP10.45 (untested).
         </li>
     </ul>
-    
+
     <h3>v1.15.190428 ADSBEx with API Key</h3>
 
     <ul>
@@ -524,7 +532,7 @@
             errorneous warning <code>valid OBJ8 part types are LIGHTS or SOLID. Got LIGHTS.</code>.
         </li>
     </ul>
-    
+
     <h3>v1.10.190406 RealTraffic, ForeFlight</h3>
 
     <ul>
