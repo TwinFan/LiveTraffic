@@ -108,6 +108,9 @@
             ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
             garbage character read from Settings text fields.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/184">#184</a>:
+            Aircraft on the ground, for which no updates are available any longer,
+            were not properly removed but could just sit there forever.</li>
         <li>REMOVED handling of <code>ICAO</code>/<code>AIRLINE</code> lines from
             <code>CSL2XSB.py</code>, which previously was meant to define default models
             per aircraft type and airline. With XPMP2's random pick mechanism this is no longer needed
