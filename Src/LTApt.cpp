@@ -1851,7 +1851,7 @@ void Apt::AddApt (Apt&& apt)
     listPaths.clear();
     vecPathEnds.clear();
     
-#ifdef DEBUG
+#ifdef APT_DUMP
     if (dataRefs.GetLogLevel() == logDEBUG)
         LTAptDump(key);
 #endif
@@ -2606,7 +2606,7 @@ void LTAptDisable ()
 }
 
 
-#ifdef DEBUG
+#ifdef APT_DUMP
 // Dumps the entire taxi network into a CSV file readable by GPS Visualizer
 /// @see For a suggestion of settings for display:
 /// https://www.gpsvisualizer.com/map_input?bg_map=google_openstreetmap&bg_opacity=70&form=leaflet&google_wpt_sym=diamond&trk_list=0&trk_opacity=100&trk_width=2&units=metric&width=1400&wpt_color=aqua
