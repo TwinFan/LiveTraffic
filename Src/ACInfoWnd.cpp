@@ -193,10 +193,11 @@ TFTextFieldWidget(_me)
 // - registration
 // - call sign
 // - flight number
-const LTFlightData* TFACSearchEditWidget::SearchFlightData (const std::string ac_key)
+const LTFlightData* TFACSearchEditWidget::SearchFlightData (std::string ac_key)
 {
     mapLTFlightDataTy::const_iterator fdIter = mapFd.cend();
     
+    trim(ac_key);
     if (!ac_key.empty()) {
         // is it a small integer number, i.e. used as index?
         if (ac_key.length() <= 3 &&

@@ -38,7 +38,7 @@ public:
     TFACSearchEditWidget (XPWidgetID _me = NULL, const char* szKey = NULL);
 
     // Find my aircraft
-    const LTFlightData* SearchFlightData (const std::string ac_key);
+    const LTFlightData* SearchFlightData (std::string ac_key);
     void SetAcKey (const LTFlightData::FDKeyTy& _key);
 
     // Get the found aircraft
