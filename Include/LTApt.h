@@ -63,7 +63,7 @@ bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
 /// Cleanup
 void LTAptDisable ();
 
-#ifdef DEBUG
+#ifdef APT_DUMP
 /// @brief Dumps the entire taxi network into a CSV file readable by GPS Visualizer
 /// @see https://www.gpsvisualizer.com/
 void LTAptDump (const std::string& _aptId);
