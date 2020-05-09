@@ -74,13 +74,20 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
 {
     // copy filled, and only filled data over current data
     // do it field-by-field only for fields which are actually filled
-
-    // acTypeICAO: accept another value only if our current one is not helpful
-    if ((acTypeIcao.empty() ||
-         acTypeIcao == dataRefs.GetDefaultAcIcaoType() ||
-         acTypeIcao == dataRefs.GetDefaultCarIcaoType()) &&
-        !other.acTypeIcao.empty())
-        acTypeIcao = other.acTypeIcao;
+    
+    // acTypeICAO
+    // We never overwrite with nothing, ie. the new value must be _something_
+    if (!other.acTypeIcao.empty())
+    {
+        // Accept anything if we are currently empty (unknown/default) or a car, can't be worse...
+        if (acTypeIcao.empty() ||
+            acTypeIcao == dataRefs.GetDefaultCarIcaoType())
+        {
+            acTypeIcao = other.acTypeIcao;
+        }
+        // else: we are non-empty, non-default -> no change, no matter what is delivered,
+        //       to avoid ping-ponging the a/c plane when different channels have different opinion
+    }
     
     // a/c details
     if (!other.country.empty()) country = other.country;
@@ -2273,7 +2280,6 @@ bool LTFlightData::DetermineAcModel()
     
     // We don't change the a/c type if it is already something reasonable
     if (!prevType.empty() &&
-        prevType != dataRefs.GetDefaultAcIcaoType() &&
         prevType != dataRefs.GetDefaultCarIcaoType())
         return false;
     
@@ -2294,47 +2300,28 @@ bool LTFlightData::DetermineAcModel()
         return false;
     }
     
-    // Ground vehicle maybe? Shall be on the ground then
-    if ((
-         (pAc && pAc->IsOnGrnd() && pAc->GetSpeed_kt() < pAc->mdl.MAX_TAXI_SPEED) ||
-         (!posDeque.empty() && posDeque.front().IsOnGnd())
-        ) &&
-        // OpenSky only delivers "category description" and has a
-        // pretty clear indicator for a ground vehicle
-        (statData.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
-         // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-         (statData.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
-          statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
-        // ADSBEx doesn't send as clear an indicator, but data analysis
-        // suggests that EngType/Mount == 0 is a good indicator
-         (statData.engType == 0 && statData.engMount == 0) ||
-        // for RealTraffic it is even more difficult...we best identify RT-only data with no operator (opIcao is taken from call sign)
-         (statData.op.empty() && statData.reg.empty() && statData.destAp.empty()))
-        )
+    // Ground vehicle maybe? Shall be on the ground then with reasonable speed
+    // (The info if this _could_ be a car is delivered by the channels via
+    //  the acTypeIcao, here we just validate if the dynamic situation
+    //  fits a car.)
+    if (prevType == dataRefs.GetDefaultCarIcaoType())
     {
-        // We would now decide for surface vehicle
-        // but we only do so if we had no other type before
-        // (ie. if we previously had decided for standard a/c then we keep that!)
-        if (prevType.empty()) {
+        if ((pAc &&                                 // plane exists?
+             pAc->IsOnGrnd() &&                     // must be on ground with reasonable speed
+             pAc->GetSpeed_kt() < pAc->mdl.MAX_TAXI_SPEED) ||
+            (!pAc &&                                // no plane yet:
+             !posDeque.empty() &&                   // analyse first posDeque data
+             posDeque.front().IsOnGnd()))
+        {
+            // We now decide for surface vehicle
             statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-            return true;
-        } else {
-            statData.acTypeIcao = std::move(prevType);
-            return false;
+            return statData.acTypeIcao != prevType;
         }
     }
-
-    // we have no better idea than standard
-    statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
-    if (prevType != statData.acTypeIcao)
-    {
-        LOG_MSG(logWARN,ERR_NO_AC_TYPE,
-                key().c_str(),
-                statData.man.c_str(), statData.mdl.c_str(),
-                statData.acTypeIcao.c_str());
-        return true;
-    }
-    return false;
+            
+    // we have no better idea than default
+    statData.acTypeIcao.clear();
+    return prevType != statData.acTypeIcao;
 }
 
 // checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
@@ -2423,7 +2410,13 @@ bool LTFlightData::CreateAircraft ( double simTime )
         
         // Make sure we have a valid a/c model now
         DetermineAcModel();
-        
+        if (statData.acTypeIcao.empty()) {          // we don't...
+            LOG_MSG(logWARN,ERR_NO_AC_TYPE,
+                    key().c_str(),
+                    statData.man.c_str(), statData.mdl.c_str(),
+                    dataRefs.GetDefaultAcIcaoType().c_str());
+        }
+
         // create the object (constructor will recursively re-access the lock)
         try {
             pAc = new LTAircraft(*this);
