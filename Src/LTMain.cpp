@@ -380,10 +380,11 @@ bool LTMainInit ()
     if (!LTFlightDataInit()) return false;
         
     // init Multiplayer API
-    const char* cszResult = XPMPMultiplayerInit (LIVE_TRAFFIC_XPMP2,
+    const char* cszResult = XPMPMultiplayerInit (LIVE_TRAFFIC,
                                                  LTCalcFullPluginPath(PATH_RESOURCES).c_str(),
                                                  &MPIntPrefsFunc,
-                                                 dataRefs.GetDefaultAcIcaoType().c_str());
+                                                 dataRefs.GetDefaultAcIcaoType().c_str(),
+                                                 LIVE_TRAFFIC_XPMP2);
     if ( cszResult[0] ) {
         LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
         XPMPMultiplayerCleanup();

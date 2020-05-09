@@ -281,25 +281,31 @@ const char *    XPMPMultiplayerInitLegacyData(const char* inCSLFolder,
                                               const char* inPluginName,
                                               const char* resourceDir,
                                               XPMPIntPrefsFuncTy inIntPrefsFunc   = nullptr,
-                                              const char* inDefaultICAO           = nullptr);
+                                              const char* inDefaultICAO           = nullptr,
+                                              const char* inPluginLogAcronym      = nullptr);
 
 /// @brief Initializes the XPMP2 library. This shall be your first call to the library.
 /// @note Parameters changed compared to libxplanemp!
-/// @param inPluginName Your plugin's name, used only in output to `Log.txt`
+/// @param inPluginName Your plugin's name, used as map layer name, and as folder name under `Aircraft`
 /// @param resourceDir The directory where XPMP2 finds all required supplemental files (`Doc8643.txt`, `MapIcons.png`, `NoPlane.acf`, `related.txt`)
-/// @param inIntPrefsFunc A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
-/// @param inDefaultICAO A fallback aircraft type if no type can be deduced otherwise for an aircraft.
+/// @param inIntPrefsFunc (optional) A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
+/// @param inDefaultICAO (optional) A fallback aircraft type if no type can be deduced otherwise for an aircraft.
+/// @param inPluginLogAcronym (optional) A short text to be used in log output. If not given then `inPluginName` is used also for this purpse.
 /// @return Empty string in case of success, otherwise a human-readable error message.
 const char *    XPMPMultiplayerInit(const char* inPluginName,
                                     const char* resourceDir,
                                     XPMPIntPrefsFuncTy inIntPrefsFunc   = nullptr,
-                                    const char* inDefaultICAO           = nullptr);
+                                    const char* inDefaultICAO           = nullptr,
+                                    const char* inPluginLogAcronym      = nullptr);
 
 /// @brief Overrides the plugin's name to be used in Log output
 /// @details The same as providing a plugin name with XPMPMultiplayerInit().
 ///          If no name is provided, it defaults to the plugin's name as set in XPluginStart().
 /// @note    Replaces the compile-time macro `XPMP_CLIENT_LONGNAME` needed in `libxplanemp`.
-void XPMPSetPluginName (const char* inPluginName);
+/// @param inPluginName Your plugin's name, used as map layer name, and as folder name under `Aircraft`
+/// @param inPluginLogAcronym (optional) A short text to be used in log output. If not given then `inPluginName` is used also for this purpse.
+void XPMPSetPluginName (const char* inPluginName,
+                        const char* inPluginLogAcronym      = nullptr);
 
 
 /// @brief Clean up the multiplayer library
@@ -492,20 +498,15 @@ void            XPMPDestroyPlane(XPMPPlaneID);
 void            XPMPSetPlaneVisibility(XPMPPlaneID _id, bool _bVisible);
 
 
-/*
- * XPMPChangePlaneModel
- *
- * This routine lets you change an aircraft's model.  This can be useful if a remote
- * player changes planes or new information comes over the network asynchronously.
- *
- * this function returns an integer which, abstractly, represents the match quality.
- *
- * lower numbers are better, 2 or lower indicates an exact match on model.
- * negative values indicate failure to match at all.
- *
- */
-int     XPMPChangePlaneModel(
-                             XPMPPlaneID                inPlaneID,
+/// @brief  Perform model matching again and change the CSL model to the resulting match
+/// @note   Effectively calls XPMP2::Aircraft::ChangeModel(),
+///         so if you have the aircraft object, prefer call that function directly.
+/// @param inPlaneID Which plane to change?
+/// @param inICAOCode ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+/// @param inAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+/// @param inLivery Special livery designator, can be an empty string
+/// @return Match quality, the lower the better
+int     XPMPChangePlaneModel(XPMPPlaneID            inPlaneID,
                              const char *           inICAOCode,
                              const char *           inAirline,
                              const char *           inLivery);
