@@ -44,11 +44,18 @@ public:
 
 public:
     
-    /// Legacy constructor creates a plane and puts it under control of XPlaneMP
-    XPCAircraft(const char* inICAOCode,
-                const char* inAirline,
-                const char* inLivery,
-                const char* inModelName = nullptr);     // this new parameter is defaulted, so that old code should compile
+    /// @brief Legacy constructor creates a plane and puts it under control of XPlaneMP
+    /// @exception XPMP2::XPMP2Error Mode S id invalid or duplicate, no model found during model matching
+    /// @param _icaoType ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+    /// @param _icaoAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+    /// @param _livery Special livery designator, can be an empty string
+    /// @param _modeS_id (optional) Unique identification of the plane [0x01..0xFFFFFF], e.g. the 24bit mode S transponder code. XPMP2 assigns an arbitrary unique number of not given
+    /// @param _modelId (optional) specific model id to be used (no folder/package name, just the id as defined in the `OBJ8_AIRCRAFT` line)
+    XPCAircraft(const char* _icaoType,
+                const char* _icaoAirline,
+                const char* _livery,
+                XPMPPlaneID _modeS_id = 0,              // new parameters are defaulted, so that old code should compile
+                const char* _modelId = nullptr);
     
     /// Legacy: Called before rendering to query plane's current position, overwrite to provide your implementation
     virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition) = 0;
@@ -61,7 +68,7 @@ public:
     {  return xpmpData_Unavailable; }
 
     /// Just calls all 4 previous `Get...` functions and copies the provided values into `drawInfo` and `v`
-    virtual void UpdatePosition ();
+    virtual void UpdatePosition (float _elapsedSinceLastCall, int _flCounter);
 
 };
 

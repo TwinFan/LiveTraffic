@@ -326,10 +326,6 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     // We don't want clamping to the ground, we take care of the ground ourselves
     if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
     
-    // Backdoor to skip assigning the NoPlane.acf to AI planes
-    if (!strcmp(key, XPMP_CFG_ITM_SKIP_NOPLANE))
-        return dataRefs.ShallAISkipAssignNoPlane();
-    
     // dont' know/care about the option, return the default value
     return iDefault;
 }

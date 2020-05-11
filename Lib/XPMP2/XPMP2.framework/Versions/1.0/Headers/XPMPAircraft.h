@@ -89,8 +89,11 @@ enum DR_VALS {
 class Aircraft {
     
 protected:
-    /// Legacy: The id of the represented plane (in XPMP2, this now is an arbitrary, ever increasing number)
-    XPMPPlaneID         mPlane = 0;
+    /// @brief A plane is uniquely identified by a 24bit number [0x01..0xFFFFFF]
+    /// @details This number is directly used as `modeS_id` n the new
+    ///          [TCAS override](https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/)
+    ///          approach.
+    XPMPPlaneID modeS_id = 0;
     
 public:
     std::string acIcaoType;             ///< ICAO aircraft type of this plane
@@ -144,8 +147,8 @@ protected:
     
     /// X-Plane instance handles for all objects making up the model
     std::list<XPLMInstanceRef> listInst;
-    /// Which sim/multiplayer/plane-index used last?
-    int                 multiIdx = -1;
+    /// Which sim/cockpit2/tcas/targets-index used last?
+    int                 tcasTargetIdx = -1;
 
     /// Timestamp of last update of camera dist/bearing
     float               camTimLstUpd = 0.0f;
@@ -164,29 +167,31 @@ protected:
     float               mapY = 0.0f;        ///< temporary: map coordinates (NAN = not to be drawn)
     
 public:
-    /// Constructor
+    /// Constructor creates a new aircraft object, which will be managed and displayed
+    /// @exception XPMP2::XPMP2Error Mode S id invalid or duplicate, no model found during model matching
+    /// @param _icaoType ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+    /// @param _icaoAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+    /// @param _livery Special livery designator, can be an empty string
+    /// @param _modeS_id (optional) Unique identification of the plane [0x01..0xFFFFFF], e.g. the 24bit mode S transponder code. XPMP2 assigns an arbitrary unique number of not given
+    /// @param _modelId (optional) specific model id to be used (no folder/package name, just the id as defined in the `OBJ8_AIRCRAFT` line)
     Aircraft (const std::string& _icaoType,
               const std::string& _icaoAirline,
               const std::string& _livery,
-              const std::string& _modelName = "");
+              XPMPPlaneID _modeS_id = 0,
+              const std::string& _modelId = "");
     /// Destructor cleans up all resources acquired
     virtual ~Aircraft();
 
     /// return the XPMP2 plane id
-    XPMPPlaneID GetPlaneID () const { return mPlane; }
-    /// @brief return the current multiplayer-index
-    /// @note This is a 0-based index into our internal tables!
-    ///       It is one less than the number used in sim/multiplayer/plane dataRefs,
-    ///       use Aircraft::GetAIPlaneIdx() for that purpose.
-    int         GetMultiIdx () const { return multiIdx; }
-    /// @brief return the plane's index in XP's sim/multiplayer/plane dataRefs
-    int         GetAIPlaneIdx () const { return multiIdx >= 0 ? multiIdx+1 : -1; }
+    XPMPPlaneID GetModeS_ID () const { return modeS_id; }
+    /// @brief return the current TCAS target index (into sim/cockpit2/tcas/targets), 1-based, -1 if not used
+    int         GetTcasTargetIdx () const { return tcasTargetIdx; }
     /// Is this plane currently also being tracked by X-Plane's AI/multiplayer, ie. will appear on TCAS?
-    bool        IsCurrentlyShownAsAI () const { return multiIdx >= 0; }
-    /// Will this plane show up on TCAS / in multiplayer views? (It will if transponder is not switched off)
+    bool        IsCurrentlyShownAsTcasTarget () const { return tcasTargetIdx >= 1; }
+    /// Is this plane to be drawn on TCAS? (It will if transponder is not switched off)
     bool        ShowAsAIPlane () const { return IsVisible() && acRadar.mode != xpmpTransponderMode_Standby; }
-    /// Reset multiplayer slot index
-    void        ResetMultiIdx () { multiIdx = -1; }
+    /// Reset TCAS target slot index
+    void        ResetTcasTargetIdx () { tcasTargetIdx = -1; }
     
     /// (Potentially) change the plane's model after doing a new match attempt
     int ChangeModel (const std::string& _icaoType,
@@ -208,7 +213,11 @@ public:
     /// @brief Called right before updating the aircraft's placement in the world
     /// @details Abstract virtual function. Override in derived classes and fill
     ///          `drawInfo`, the `v` array of dataRefs, `label`, and `infoTexts` with current values.
-    virtual void UpdatePosition () = 0;
+    /// @see See [XPLMFlightLoop_f](https://developer.x-plane.com/sdk/XPLMProcessing/#XPLMFlightLoop_f)
+    ///      for background on the two passed-on parameters:
+    /// @param _elapsedSinceLastCall The wall time since last call
+    /// @param _flCounter A monotonically increasing counter, bumped once per flight loop dispatch from the sim.
+    virtual void UpdatePosition (float _elapsedSinceLastCall, int _flCounter) = 0;
     /// Distance to camera [m]
     float GetCameraDist () const { return camDist; }
     /// Bearing from camera [°]
@@ -256,10 +265,8 @@ protected:
     void DestroyInstances ();
 
     // The following functions are implemented in AIMultiplayer.cpp:
-    /// AI/Multiplayer handling: Find next AI slot
-    int  AISlotReserve ();
-    /// AI/Multiplayer handling: Clear AI slot
-    void AISlotClear ();
+    /// Define the TCAS target index in use
+    void SetTcasTargetIdx (int _idx) { tcasTargetIdx = _idx; }
     // These functions are called from AIMultiUpdate()
     friend void AIMultiUpdate ();
 };
@@ -271,7 +278,7 @@ Aircraft* AcFindByID (XPMPPlaneID _id);
 // MARK: XPMP2 Exception class
 //
 
-/// XPMP2 Exception class, e.g. thrown if there are no CSL models when creating an Aircraft
+/// XPMP2 Exception class, e.g. thrown if there are no CSL models or duplicate modeS_ids when creating an Aircraft
 class XPMP2Error : public std::logic_error {
 protected:
     std::string fileName;           ///< filename of the line of code where exception occurred
