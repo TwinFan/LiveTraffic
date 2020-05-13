@@ -93,17 +93,44 @@
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
 
-    <P>For updating coming from v2.01 or v2.02 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
-       and <code>Resources/CSL2XSB.py</code>.<br>
-       It is recommended to
-       <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
-       on your CSL models again if you ever did so before.</p>
+    <P>For updating coming from v2.01 or v2.02
+       <ul>
+           <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code> and <code>Resources/CSL2XSB.py</code>,</li>
+           <li>remove <code>Resources/NoPlane.acf</code> as well as <code>&lt;X-Plane&gt;/Aircraft/LiveTraffic/</code>.
+           <li>It is recommended to
+               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+               on your CSL models again if you ever did so before,
+               no matter the settings you had used.</li>
+        </ul>
+    </p>
+       
+    <P>Change log:</P>
 
     <ul>
+        <li>CHANGED TCAS handling to new
+            <a href="https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/">TCAS override</a>
+            approach that was introduced with X-Plane 11.50 Beta 8.
+            <ul>
+                <li>TCAS functionality <strong>requires X-Plane 11.50b8</strong> or later.
+                    On earlier version TCAS can no longer be activated.</li>
+                <li>Up to 63 TCAS blibs will show on Laminar's instruments.</li>
+                <li>You <strong>no longer need to configure AI Aircraft</strong>
+                    in X-Plane's settings just for LiveTraffic's purposes.</li>
+                <li>Other plugins' TCAS implementations as well as 3rd party plugins
+                    currently accessing the classic up to 19 multiplayer
+                    dataRefs will first need to adapt to the new approach
+                    to benefit from the up to 63 planes.</li>
+                <li>For example, Little Navmap's connector v1.0.18 can currently
+                    crash the simluator when more than 20 aircraft show.
+                    (Author is informed.)</li>
+            </ul>
+        </li>
         <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/9">XPMP2 #9</a>:
             Allowing models with same name from different CSL packages.
             Matching will pick randomly, also across packages.<br>
-            This removes many "Duplicate model" warnings from the log.</li>
+            This removes many "Duplicate model" warnings from the log.
+            It remains a warning if the same name is reused within one
+            package.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/183">#183</a>
             ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
@@ -114,7 +141,9 @@
         <li>REMOVED handling of <code>ICAO</code>/<code>AIRLINE</code> lines from
             <code>CSL2XSB.py</code>, which previously was meant to define default models
             per aircraft type and airline. With XPMP2's random pick mechanism this is no longer needed
-            and would even reduce the match quality of the models previously chosen as defaults.</li>
+            and would even reduce the match quality of the models previously chosen as defaults.<br>
+            Execute <code>CSL2XSB.py</code> again on your models to benefit
+            from this change.</li>
         <li>In Beta versions like this, <i>Log Model Matching</i>
             (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug Settings</a>)
             is forced to be activated.</li>
