@@ -70,20 +70,26 @@ std::string LTFlightData::FDDynamicData::GetSquawk() const
     }
 }
 
-LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDStaticData& other)
+// Merges data, i.e. copy only filled fields from 'other'
+bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
 {
+    // Have matching-relevant fields changed?
+    bool bRet = false;
+    
     // copy filled, and only filled data over current data
     // do it field-by-field only for fields which are actually filled
     
     // acTypeICAO
     // We never overwrite with nothing, ie. the new value must be _something_
-    if (!other.acTypeIcao.empty())
+    if (!other.acTypeIcao.empty() &&
+        acTypeIcao != other.acTypeIcao)
     {
         // Accept anything if we are currently empty (unknown/default) or a car, can't be worse...
         if (acTypeIcao.empty() ||
             acTypeIcao == dataRefs.GetDefaultCarIcaoType())
         {
             acTypeIcao = other.acTypeIcao;
+            bRet = true;
         }
         // else: we are non-empty, non-default -> no change, no matter what is delivered,
         //       to avoid ping-ponging the a/c plane when different channels have different opinion
@@ -92,7 +98,10 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     // a/c details
     if (!other.country.empty()) country = other.country;
     if (!other.man.empty()) man = other.man;
-    if (other.mdl.length() > mdl.length()) mdl = other.mdl;
+    if (other.mdl.length() > mdl.length()) {
+        mdl = other.mdl;
+        bRet = true;
+    }
     if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
@@ -112,8 +121,18 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     
     // operator / Airline
     if (!other.op.empty()) op = other.op;
-    if (!other.opIcao.empty()) opIcao = other.opIcao;
+    // operator ICAO: we only accept a change from nothing to something
+    if (opIcao.empty() && !other.opIcao.empty()) {
+        opIcao = other.opIcao;
+        bRet = true;
+    }
     
+    // registration: we only accept a change from nothing to something
+    if (reg.empty() && !other.reg.empty()) {
+        reg = other.reg;
+        bRet = true;
+    }
+
     // now initialized
     bInit = true;
 
@@ -125,7 +144,7 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (mdl.empty())
         mdl = pDoc8643->model;
     
-    return *this;
+    return bRet;
 }
 
 // route (this is "originAp - destAp", but considers emoty txt)
@@ -2128,30 +2147,40 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
             LTACMasterdataChannel::RequestMasterData (key(), inStat.call);
         }
         
-        // merge inStat into our statData (copy only filled fields,
-        // which are not model-defining):
-        statData |= inStat;
-        
-        // *** take care of changes in model-defining fields ***
-        // (a/c type, operator, registration)
+        // If no a/c type is yet known try if the call sign / operator looks like a ground vehicle
         bool bMdlInfoChange = false;
-        
-        // operator ICAO: we only accept a change from nothing to something
-        if (statData.opIcao.empty() && !inStat.opIcao.empty())
+        if (statData.acTypeIcao.empty() && inStat.acTypeIcao.empty())
         {
-            statData.opIcao = inStat.opIcao;
-            bMdlInfoChange = true;
+            // Try operator first
+            if (!inStat.op.empty()) {
+                std::string op_u = inStat.op;
+                str_toupper(op_u);
+                if (op_u.find("AIRPORT") != std::string::npos) {
+                    statData.op = inStat.op;
+                    statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+                    LOG_MSG(logINFO, INFO_GND_VEHICLE_APT, key().c_str(), inStat.op.c_str());
+                    bMdlInfoChange = true;
+                }
+            }
+            
+            // Try callsign next
+            if (statData.acTypeIcao.empty() &&
+                !inStat.call.empty() && inStat.call != statData.call &&
+                LTAircraft::FlightModel::MatchesCar(inStat.call))
+            {
+                statData.call = inStat.call;
+                statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+                LOG_MSG(logINFO, INFO_GND_VEHICLE_CALL, key().c_str(), inStat.call.c_str());
+                bMdlInfoChange = true;
+            }
         }
         
-        // registration: we only accept a change from nothing to something
-        if (statData.reg.empty() && !inStat.reg.empty())
-        {
-            statData.reg = inStat.reg;
+        // merge inStat into our statData and save if matching-relevant stuff changed
+        if (statData.merge(inStat))
             bMdlInfoChange = true;
-        }
         
         // Re-determine a/c model (only if it was determined before:
-        // the first determination shall be made as late as possible
+        // the very first determination shall be made as late as possible
         // in LTFlightData::CreateAircraft())
         if (pAc && DetermineAcModel())
             bMdlInfoChange = true;

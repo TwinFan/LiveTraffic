@@ -95,8 +95,15 @@
 
     <P>For updating coming from v2.01 or v2.02
        <ul>
-           <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code> and <code>Resources/CSL2XSB.py</code>,</li>
-           <li>remove <code>Resources/NoPlane.acf</code> as well as <code>&lt;X-Plane&gt;/Aircraft/LiveTraffic/</code>.
+           <li>copy
+               <ul><li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                   <li><code>Resources/CSL2XSB.py</code>, and</li>
+                   <li><code>Resources/FlightModels.prf</code>.</li>
+               </ul>
+           </li>
+           <li>remove<ul><li><code>Resources/NoPlane.acf</code> as well as</li>
+                         <li><code>&lt;X-Plane&gt;/Aircraft/LiveTraffic/</code>.</li>
+                     </ul></li>
            <li>It is recommended to
                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
                on your CSL models again if you ever did so before,
@@ -120,11 +127,21 @@
                     currently accessing the classic up to 19 multiplayer
                     dataRefs will first need to adapt to the new approach
                     to benefit from the up to 63 planes.</li>
-                <li>For example, Little Navmap's connector v1.0.18 can currently
-                    crash the simluator when more than 20 aircraft show.
-                    (Author is informed.)</li>
+                <li><strong>Attention developers,</strong>
+                    if using LiveTraffic's AI multiplayer data:
+                    The previous slotting mechanism is removed, that means
+                    that planes can potentially change AI slots with every
+                    flight loop cycle. They are sorted by distance.
+                    This is because the new
+                    <a href="https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/">TCAS target mechanism</a>
+                    offers the <code>sim/cockpit2/tcas/targets/modeS_id[64]</code>
+                    dataRef array to keep track of an aircraft's identity.</li>
             </ul>
         </li>
+        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/186">#186</a>
+            identification of ground vehicles, takes operator and call sign
+            into consideration. Call sign matches configured in
+            <code>FlightModel.prf</code>.</li>
         <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/9">XPMP2 #9</a>:
             Allowing models with same name from different CSL packages.
             Matching will pick randomly, also across packages.<br>

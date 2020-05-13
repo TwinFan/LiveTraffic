@@ -165,6 +165,7 @@ protected:
     int                 mapIconCol = 0;     ///< map icon coordinates, column
     float               mapX = 0.0f;        ///< temporary: map coordinates (NAN = not to be drawn)
     float               mapY = 0.0f;        ///< temporary: map coordinates (NAN = not to be drawn)
+    std::string         mapLabel;           ///< label for map drawing
     
 public:
     /// Constructor creates a new aircraft object, which will be managed and displayed
@@ -186,8 +187,10 @@ public:
     XPMPPlaneID GetModeS_ID () const { return modeS_id; }
     /// @brief return the current TCAS target index (into sim/cockpit2/tcas/targets), 1-based, -1 if not used
     int         GetTcasTargetIdx () const { return tcasTargetIdx; }
-    /// Is this plane currently also being tracked by X-Plane's AI/multiplayer, ie. will appear on TCAS?
+    /// Is this plane currently also being tracked as a TCAS target, ie. will appear on TCAS?
     bool        IsCurrentlyShownAsTcasTarget () const { return tcasTargetIdx >= 1; }
+    /// Is this plane currently also being tracked by X-Plane's classic AI/multiplayer?
+    bool        IsCurrentlyShownAsAI () const { return 1 <= tcasTargetIdx && tcasTargetIdx <= 20; }
     /// Is this plane to be drawn on TCAS? (It will if transponder is not switched off)
     bool        ShowAsAIPlane () const { return IsVisible() && acRadar.mode != xpmpTransponderMode_Standby; }
     /// Reset TCAS target slot index
@@ -263,6 +266,9 @@ protected:
     bool CreateInstances ();
     /// Destroy all instances
     void DestroyInstances ();
+    
+    /// Put together the map label, depends on tcasTargetIdx
+    void ComputeMapLabel ();
 
     // The following functions are implemented in AIMultiplayer.cpp:
     /// Define the TCAS target index in use
