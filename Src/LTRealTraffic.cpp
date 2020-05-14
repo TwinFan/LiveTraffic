@@ -224,7 +224,7 @@ std::string RealTrafficConnection::GetStatusStr() const
 {
     switch (status) {
         case RT_STATUS_NONE:                return "";
-        case RT_STATUS_STARTING:            return "Starting...";
+        case RT_STATUS_STARTING:            return "Waiting for RealTraffic...";
         case RT_STATUS_CONNECTED_PASSIVELY: return "Connected passively";
         case RT_STATUS_CONNECTED_TO:        return "Connected, waiting...";
         case RT_STATUS_CONNECTED_FULL:      return "Fully connected";
