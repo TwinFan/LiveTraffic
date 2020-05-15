@@ -185,6 +185,8 @@ public:
 
     /// return the XPMP2 plane id
     XPMPPlaneID GetModeS_ID () const { return modeS_id; }
+    /// Is this object a ground vehicle?
+    bool        IsGroundVehicle() const;
     /// @brief return the current TCAS target index (into sim/cockpit2/tcas/targets), 1-based, -1 if not used
     int         GetTcasTargetIdx () const { return tcasTargetIdx; }
     /// Is this plane currently also being tracked as a TCAS target, ie. will appear on TCAS?
@@ -268,11 +270,11 @@ protected:
     void DestroyInstances ();
     
     /// Put together the map label, depends on tcasTargetIdx
-    void ComputeMapLabel ();
+    virtual void ComputeMapLabel ();
 
     // The following functions are implemented in AIMultiplayer.cpp:
     /// Define the TCAS target index in use
-    void SetTcasTargetIdx (int _idx) { tcasTargetIdx = _idx; }
+    virtual void SetTcasTargetIdx (int _idx) { tcasTargetIdx = _idx; }
     // These functions are called from AIMultiUpdate()
     friend void AIMultiUpdate ();
 };

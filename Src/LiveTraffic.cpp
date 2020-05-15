@@ -467,6 +467,9 @@ PLUGIN_API int XPluginStart(
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
+
+        // For nice logging, let XPMP2 know our names already
+        XPMPSetPluginName(LIVE_TRAFFIC, LIVE_TRAFFIC_XPMP2);
         
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }

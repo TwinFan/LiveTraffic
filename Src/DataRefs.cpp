@@ -1837,6 +1837,7 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
 {
     if (1 <= type.length() && type.length() <= 4) {
         sDefaultCarIcaoType = type;
+        XPMPSetDefaultPlaneICAO(nullptr, type.c_str());  // inform libxplanemp
         LOG_MSG(logINFO,CFG_DEFAULT_CAR_TYP_INFO,sDefaultCarIcaoType.c_str());
         return true;
     }

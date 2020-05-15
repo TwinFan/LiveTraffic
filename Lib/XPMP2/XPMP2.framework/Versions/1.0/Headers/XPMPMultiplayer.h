@@ -590,14 +590,11 @@ XPMPPlaneID XPMPGetNthPlane(
                             long                    index);
 
 
-/*
- * XPMPSetDefaultPlaneICAO
- *
- * This routine controls what ICAO is used as a backup search criteria for a not-found plane.
- *
- */
-void    XPMPSetDefaultPlaneICAO(
-                                const char *            inICAO);
+/// @brief Define default aircraft and ground vehicle ICAO types
+/// @param _acIcaoType Default ICAO aircraft type designator, used when matching returns nothing
+/// @param _carIcaoType Type used to identify ground vehicels (internally defaults to "ZZZC") 
+void    XPMPSetDefaultPlaneICAO(const char* _acIcaoType,
+                                const char* _carIcaoType = nullptr);
 
 /************************************************************************************
  * MARK: PLANE OBSERVATION API
