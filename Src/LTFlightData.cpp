@@ -189,6 +189,12 @@ std::string LTFlightData::FDStaticData::flightRoute() const
     return (flight + ": ") + r;
 }
 
+// is this a ground vehicle?
+bool LTFlightData::FDStaticData::isGrndVehicle() const
+{
+    return acTypeIcao == dataRefs.GetDefaultCarIcaoType();
+}
+
 // set the key value
 std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
 {
@@ -2337,10 +2343,11 @@ bool LTFlightData::DetermineAcModel()
     {
         if ((pAc &&                                 // plane exists?
              pAc->IsOnGrnd() &&                     // must be on ground with reasonable speed
-             pAc->GetSpeed_kt() < pAc->mdl.MAX_TAXI_SPEED) ||
+             pAc->GetSpeed_kt() <= MDL_CAR_MAX_TAXI) ||
             (!pAc &&                                // no plane yet:
-             !posDeque.empty() &&                   // analyse first posDeque data
-             posDeque.front().IsOnGnd()))
+             posDeque.size() >= 2 &&                // analyse ground status of and speed between first two positions
+             posDeque.front().IsOnGnd() && posDeque[1].IsOnGnd() &&
+             posDeque.front().speed_kt(posDeque[1]) <= MDL_CAR_MAX_TAXI))
         {
             // We now decide for surface vehicle
             statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();

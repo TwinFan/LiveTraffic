@@ -152,6 +152,8 @@ public:
         // best guess for an airline livery: opIcao if exists, otherwise first 3 digits of call sign
         inline std::string airlineCode() const
             { return opIcao.empty() ? call.substr(0,3) : opIcao; }
+        /// is this a ground vehicle?
+        bool isGrndVehicle() const;
         // has been initialized at least once?
         bool isInit() const { return bInit; }
     };
