@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.02f;
+constexpr float VERSION_NR = 2.03f;
 constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -105,6 +105,7 @@ constexpr double MDL_TIRE_SLOW_TIME = 5.0;  ///< [s] time till tires stop rotati
 constexpr double MDL_TIRE_MAX_RPM = 2000;   ///< [rpm] max tire rotation speed
 constexpr double MDL_TIRE_CF_M      = 3.2;  ///< [m] tire circumfence (3.2m for a 40-inch tire)
 constexpr double MDL_GEAR_DEFL_TIME = 0.5;  ///< [s] time for gear deflection (one direction...up down is twice this value)
+constexpr double MDL_CAR_MAX_TAXI = 80.0;   ///< [kn] Maximum allowed taxi speed for ground vehicles (before they turn into planes)
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
 constexpr int COLOR_RED         = 0xFF0000;
@@ -145,9 +146,10 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
+#define LIVE_TRAFFIC_XPMP2      "   LT"      ///< short form for logging by XPMP2, so that log entries are aligned
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
 #define LT_CFG_VERSION          "1.1"        // current version of config file format
-#define LT_FM_VERSION           "1.1"        // version of flight model file format
+#define LT_FM_VERSION           "2.0"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
@@ -158,6 +160,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
+#define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %sZ"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
@@ -168,6 +171,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
+#define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
+#define INFO_GND_VEHICLE_CALL   "Vehicle %s: Decided for ground vehicle based on call sign '%s'"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircraft"
 #define INFO_WND_AUTO_AC        "AUTO"
@@ -183,6 +188,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
 #define CSL_CAR_ICAO_TYPE       "ZZZC"      // fake code for a ground vehicle
 #define FM_MAP_SECTION          "Map"
+#define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
 #define CFG_DEFAULT_AC_TYPE     "DEFAULT_AC_TYPE"
@@ -273,7 +279,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
-#define ERR_NO_AC_TYPE          "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, will be rendered with standard a/c %s"
+#define ERR_NO_AC_TYPE          "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, can't derive type -> will be rendered with standard a/c %s"
 #define ERR_NO_AC_TYPE_BUT_MDL  "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, but derived %s from mdl text"
 #define ERR_DATAREF_FIND        "Could not find DataRef/CmdRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
@@ -318,7 +324,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_AC_DEFAULT      "A/c default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_CAR_DEFAULT     "Car default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_TYPE_INVALID    "%s, line %d: ICAO type designator '%s' unknown"
-#define ERR_FM_NOT_AFTER_MAP    "Remainder after [Map] section ignored"
+#define ERR_FM_NOT_AFTER_MAP    "Unknown section after [Map] section ignored"
 #define ERR_FM_NOT_BEFORE_SEC   "Lines before first section ignored"
 #define ERR_FM_UNKNOWN_NAME     "Unknown parameter in '%s', line %d: %s"
 #define ERR_FM_UNKNOWN_SECTION  "Referring to unknown model section in '%s', line %d: %s"

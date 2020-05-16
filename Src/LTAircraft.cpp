@@ -789,6 +789,9 @@ std::list<LTAircraft::FlightModel> listFlightModels;
 typedef std::pair<std::regex,const LTAircraft::FlightModel&> regexFM;
 std::list<regexFM> listFMRegex;
 
+/// List of regular expressions matching call signs of ground vehicles
+std::list<std::regex> listCarRegex;
+
 // global constant for a default model
 const LTAircraft::FlightModel MDL_DEFAULT;
 
@@ -934,6 +937,24 @@ bool fm_processMapLine (const char* fileName, int ln,
     return true;
 }
 
+/// Processes a line in the [GroundVehicles] section by just storing the regEx
+bool fm_processCarLine (const char* fileName, int ln,
+                        const std::string& text)
+{
+    // check for valid regular expression
+    std::regex carRe;
+    try {
+        carRe.assign (text);
+    } catch (const std::regex_error& e) {
+        LOG_MSG(logWARN, ERR_FM_REGEX, e.what(), fileName, ln, text.c_str());
+        return false;
+    }
+    
+    // add a list entry
+    listCarRegex.emplace_back(std::move(carRe));
+    return true;
+}
+
 
 // read and process the FlightNodel.prf file
 bool LTAircraft::FlightModel::ReadFlightModelFile ()
@@ -966,8 +987,14 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     }
     
     // then follow sections and their entries
-    // state signifies what kind of section we are currently reading
-    enum fmFileStateTy { FM_NO_SECTION, FM_MODEL_SECTION, FM_MAP } fmState = FM_NO_SECTION;
+    /// state signifies what kind of section we are currently reading
+    enum fmFileStateTy {
+        FM_NO_SECTION = 0,              ///< before the first flight model section
+        FM_MODEL_SECTION,               ///< processing a flight model section
+        FM_MAP,                         ///< Processing the [Map] section
+        FM_CAR,                         ///< Processing the [GroundVehicles] section
+        FM_IGNORE,                      ///< Found a section after [Map], which we just ignore
+    } fmState = FM_NO_SECTION;
     FlightModel fm;
     int errCnt = 0;
     for (int ln=1; fIn && errCnt <= ERR_CFG_FILE_MAXWARN; ln++) {
@@ -999,23 +1026,26 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
             text.erase(text.length()-1);
             
             // finish previous model section first
-            // (as [Map] has to be last this will safely be executed for all FlightModel sections)
+            // (as [Map] has to be after FlightModel sections
+            // this will safely be executed for all FlightModel sections)
             if (fm && fmState == FM_MODEL_SECTION) {
                 // i.e. add the defined model to the list
                 push_back_unique(listFlightModels, fm);
-            }
-            else if (fmState == FM_MAP) {
-                // there should be no section after [Map],
-                // ignore remainder of file
-                LOG_MSG(logWARN, ERR_CFG_FORMAT, sFileName.c_str(), ln,
-                        ERR_FM_NOT_AFTER_MAP);
-                errCnt++;
-                break;
             }
 
             // identify map section?
             if (text == FM_MAP_SECTION) {
                 fmState = FM_MAP;
+            // identify cars section?
+            } else if (text == FM_CAR_SECTION) {
+                fmState = FM_CAR;
+            // are we beyond all flightModel sections already?
+            } else if (fmState > FM_MODEL_SECTION) {
+                // There must not be unknown section any longer!
+                LOG_MSG(logWARN, ERR_CFG_FORMAT, sFileName.c_str(), ln,
+                        ERR_FM_NOT_AFTER_MAP);
+                errCnt++;
+                fmState = FM_IGNORE;
             } else {
                 // no, so it must be a new model section
                 fmState = FM_MODEL_SECTION;
@@ -1064,6 +1094,14 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
                 if (!fm_processMapLine(sFileName.c_str(), ln, text))
                     errCnt++;
                 break;
+                
+            case FM_CAR:
+                if (!fm_processCarLine(sFileName.c_str(), ln, text))
+                    errCnt++;
+                break;
+                
+            case FM_IGNORE:
+                break;
         }
         
     }
@@ -1093,14 +1131,14 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
 
 // based on an aircraft type find a matching flight model
 const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
-        (const std::string acTypeIcao)
+        (const std::string& acTypeIcao)
 {
     // 1. find aircraft type specification in the Doc8643
     const Doc8643& acType = Doc8643::get(acTypeIcao);
     const std::string acSpec (acType);      // the string to match
     
     // 2. walk through the Flight Model map list and try each regEx pattern
-    for (auto mapIt: listFMRegex) {
+    for (const auto& mapIt: listFMRegex) {
         std::smatch m;
         std::regex_search(acSpec, m, mapIt.first);
         if (m.size() > 0)                   // matches?
@@ -1116,7 +1154,7 @@ const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
 // return a ptr to a flight model based on its model or [section] name
 // returns nullptr if not found
 const LTAircraft::FlightModel* LTAircraft::FlightModel::GetFlightModel
-        (const std::string modelName)
+        (const std::string& modelName)
 {
     // search through list of flight models, match by modelName
     auto fmIt = std::find_if(listFlightModels.cbegin(),
@@ -1124,6 +1162,20 @@ const LTAircraft::FlightModel* LTAircraft::FlightModel::GetFlightModel
                              [&modelName](const LTAircraft::FlightModel& fm)
                              { return fm.modelName == modelName; });
     return fmIt == listFlightModels.cend() ? nullptr : &*fmIt;
+}
+
+// Tests if the given call sign matches typical call signs of ground vehicles
+bool LTAircraft::FlightModel::MatchesCar (const std::string& _callSign)
+{
+    // Walk the car regEx list and try each pattern
+    for (const std::regex& re: listCarRegex) {
+        std::smatch m;
+        std::regex_search(_callSign, m, re);
+        if (m.size() > 0)                   // matches?
+            return true;
+    }
+    // no match found
+    return false;
 }
 
 //
@@ -1168,7 +1220,8 @@ LTAircraft::LTAircraft(LTFlightData& inFd) :
 // Debug options to set fixed type/op/livery take precedence
 XPCAircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafeCopyStat().acTypeIcao}).c_str(),
             str_first_non_empty({dataRefs.cslFixOpIcao,     inFd.WaitForSafeCopyStat().airlineCode()}).c_str(),
-            str_first_non_empty({dataRefs.cslFixLivery,     inFd.WaitForSafeCopyStat().reg}).c_str()),
+            str_first_non_empty({dataRefs.cslFixLivery,     inFd.WaitForSafeCopyStat().reg}).c_str(),
+            (XPMPPlaneID)inFd.key().num),
 // class members
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
@@ -1906,6 +1959,14 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     if ( !bOnGrndPrev && bOnGrnd && bFPhPrev != FPH_UNKNOWN ) {
         phase = FPH_TOUCH_DOWN;
     }
+
+    // *** Cars will not actually fly, so we only allow for a limited set of status
+    if (fd.GetUnsafeStat().isGrndVehicle() &&
+        phase != FPH_TAXI &&
+        phase != FPH_STOPPED_ON_RWY)
+    {
+        phase = FPH_TAXI;
+    }
     
     // *** take action based on flight phase (change) ***
     
@@ -2612,6 +2673,10 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized
             CalcPPos())
         {
+            // If needed update the chosen CSL model
+            if (ShallUpdateModel())
+                ChangeModel();
+            
             // copy ppos (by type conversion)
             *outPosition = ppos;
             
@@ -2804,14 +2869,19 @@ XPMPPlaneCallbackResult LTAircraft::GetInfoTexts(XPMPInfoTexts_t* outInfo)
 }
 
 // change the model (e.g. when model-defining static data changed)
-void LTAircraft::ChangeModel (const LTFlightData::FDStaticData& statData)
+void LTAircraft::ChangeModel ()
 {
+    // Try to fetch the static data
+    LTFlightData::FDStaticData statData;
+    if (!fd.TryGetSafeCopy(statData))
+        return;
+    
+    // Save previous model name to identify an actual change
     const std::string oldModelName(GetModelName());
     CalcLabelInternal(statData);
-    XPMPChangePlaneModel(mPlane,
-                         statData.acTypeIcao.c_str(),
-                         statData.opIcao.c_str(),
-                         statData.reg.c_str());
+    XPMP2::Aircraft::ChangeModel(str_first_non_empty({dataRefs.cslFixAcIcaoType, statData.acTypeIcao}),
+                                 str_first_non_empty({dataRefs.cslFixOpIcao,     statData.airlineCode()}),
+                                 str_first_non_empty({dataRefs.cslFixLivery,     statData.reg}));
     
     // if there was an actual change inform the log
     if (oldModelName != GetModelName()) {
@@ -2820,4 +2890,7 @@ void LTAircraft::ChangeModel (const LTFlightData::FDStaticData& statData)
                 statData.opIcao.c_str(),
                 GetModelName().c_str());
     }
+    
+    // reset the flag that we needed to change the model
+    bChangeModel = false;
 }

@@ -140,8 +140,9 @@ public:
         FDStaticData(FDStaticData&&) = default;
         FDStaticData& operator=(const FDStaticData&) = default;
         FDStaticData& operator=(FDStaticData&&) = default;
-        // 'merge' data, i.e. copy only filled fields from 'other'
-        FDStaticData& operator |= (const FDStaticData& other);
+        /// @brief  Merges data, i.e. copy only filled fields from 'other'
+        /// @return Have matching-relevant fields now changed?
+        bool merge (const FDStaticData& other);
         // returns flight, call sign, registration, or provieded _default (e.g. transp hex code)
         std::string acId (const std::string _default) const;
         // route (this is "originAp-destAp", but considers empty txt)
@@ -151,6 +152,8 @@ public:
         // best guess for an airline livery: opIcao if exists, otherwise first 3 digits of call sign
         inline std::string airlineCode() const
             { return opIcao.empty() ? call.substr(0,3) : opIcao; }
+        /// is this a ground vehicle?
+        bool isGrndVehicle() const;
         // has been initialized at least once?
         bool isInit() const { return bInit; }
     };

@@ -233,8 +233,15 @@ enum XPMPPlaneCallbackResult {
 
 /// @brief Unique ID for an aircraft created by a plugin.
 /// @note In XPMP2 this value is no longer a pointer to an internal memory address,
-///       but just an ever increasing number. Don't use it as a pointer.
-typedef void *      XPMPPlaneID;
+///       but will directly be used as `modeS_id` in the new
+///       [TCAS override](https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/)
+///       approach.
+typedef unsigned XPMPPlaneID;
+
+/// Minimum allowed XPMPPlaneID / mode S id
+constexpr XPMPPlaneID MIN_MODE_S_ID = 0x00000001;
+/// Maximum allowed XPMPPlaneID / mode S id
+constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 
 
 /************************************************************************************
@@ -247,8 +254,6 @@ typedef void *      XPMPPlaneID;
 
 // Config key definitions
 #define XPMP_CFG_ITM_CLAMPALL        "clamp_all_to_ground"  ///< Config key: Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround
-#define XPMP_CFG_ITM_SKIP_NOPLANE    "skip_assign_noplane"  ///< Config key: For faking TCAS, all AI/multiplayer planes are assigned the `NoPlane.acf` type when XPMP2 takes over control. This option allows to skip assining `NoPlane.acf`...just in case.
-#define XPMP_CFG_ITM_COPY_NOPLANE    "copy_noplane"         ///< Config key: On startup, shall `NoPlane.acf` be copied from the resource directory to `<X-Plane>/Aircraft/<plugin>`? This is highly recommended to reduce side-effects of using `NoPlane` as AI Aircraft model.
 #define XPMP_CFG_ITM_LOGLEVEL        "log_level"            ///< Config key: General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)
 #define XPMP_CFG_ITM_MODELMATCHING   "model_matching"       ///< Config key: Write information on model matching into Log.txt
 
@@ -259,8 +264,6 @@ typedef void *      XPMPPlaneID;
 /// `section | key                 | type | default | description`\n
 /// `------- | ------------------- | ---- | ------- | -------------------------------------------------------------------------`\n
 /// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround`\n
-/// `planes  | skip_assign_noplane | int  |    0    | If non-zero, then AI planes will not be assigned the NoPlane.acf type.`\n
-/// `planes  | copy_noplane        | int  |    1    | Shall NoPlane.acf be copied to Aircraft folder if missing/newer? (Recommended!)`\n
 /// `debug   | log_level           | int  |    2    | General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)`\n
 /// `debug   | model_matching      | int  |    0    | Write information on model matching into Log.txt`\n
 /// @note There is no immediate requirement to check the value of `_section` in your implementation.
@@ -281,25 +284,31 @@ const char *    XPMPMultiplayerInitLegacyData(const char* inCSLFolder,
                                               const char* inPluginName,
                                               const char* resourceDir,
                                               XPMPIntPrefsFuncTy inIntPrefsFunc   = nullptr,
-                                              const char* inDefaultICAO           = nullptr);
+                                              const char* inDefaultICAO           = nullptr,
+                                              const char* inPluginLogAcronym      = nullptr);
 
 /// @brief Initializes the XPMP2 library. This shall be your first call to the library.
 /// @note Parameters changed compared to libxplanemp!
-/// @param inPluginName Your plugin's name, used only in output to `Log.txt`
-/// @param resourceDir The directory where XPMP2 finds all required supplemental files (`Doc8643.txt`, `MapIcons.png`, `NoPlane.acf`, `related.txt`)
-/// @param inIntPrefsFunc A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
-/// @param inDefaultICAO A fallback aircraft type if no type can be deduced otherwise for an aircraft.
+/// @param inPluginName Your plugin's name, used as map layer name, and as folder name under `Aircraft`
+/// @param resourceDir The directory where XPMP2 finds all required supplemental files (`Doc8643.txt`, `MapIcons.png`, `related.txt`)
+/// @param inIntPrefsFunc (optional) A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
+/// @param inDefaultICAO (optional) A fallback aircraft type if no type can be deduced otherwise for an aircraft.
+/// @param inPluginLogAcronym (optional) A short text to be used in log output. If not given then `inPluginName` is used also for this purpse.
 /// @return Empty string in case of success, otherwise a human-readable error message.
 const char *    XPMPMultiplayerInit(const char* inPluginName,
                                     const char* resourceDir,
                                     XPMPIntPrefsFuncTy inIntPrefsFunc   = nullptr,
-                                    const char* inDefaultICAO           = nullptr);
+                                    const char* inDefaultICAO           = nullptr,
+                                    const char* inPluginLogAcronym      = nullptr);
 
 /// @brief Overrides the plugin's name to be used in Log output
 /// @details The same as providing a plugin name with XPMPMultiplayerInit().
 ///          If no name is provided, it defaults to the plugin's name as set in XPluginStart().
 /// @note    Replaces the compile-time macro `XPMP_CLIENT_LONGNAME` needed in `libxplanemp`.
-void XPMPSetPluginName (const char* inPluginName);
+/// @param inPluginName Your plugin's name, used as map layer name, and as folder name under `Aircraft`
+/// @param inPluginLogAcronym (optional) A short text to be used in log output. If not given then `inPluginName` is used also for this purpse.
+void XPMPSetPluginName (const char* inPluginName,
+                        const char* inPluginLogAcronym      = nullptr);
 
 
 /// @brief Clean up the multiplayer library
@@ -459,12 +468,14 @@ typedef XPMPPlaneCallbackResult (* XPMPPlaneData_f)(XPMPPlaneID         inPlane,
 /// @param inLivery Special livery designator, can be an empty string
 /// @param inDataFunc Callback function called by XPMP2 to fetch updated data
 /// @param inRefcon A refcon value passed back to you in all calls to the `inDataFunc`
+/// @param inModeS_id (optional) Unique identification of the plane [0x01..0xFFFFFF], e.g. the 24bit mode S transponder code. XPMP2 assigns an arbitrary unique number of not given
 [[deprecated("Subclass XPMP2::Aircraft instead")]]
 XPMPPlaneID XPMPCreatePlane(const char *            inICAOCode,
                             const char *            inAirline,
                             const char *            inLivery,
                             XPMPPlaneData_f         inDataFunc,
-                            void *                  inRefcon);
+                            void *                  inRefcon,
+                            XPMPPlaneID             inModeS_id = 0);
 
 /// @brief Creates a new plane, providing a specific CSL model name
 /// @deprecated Subclass XPMP2::Aircraft instead
@@ -474,13 +485,15 @@ XPMPPlaneID XPMPCreatePlane(const char *            inICAOCode,
 /// @param inLivery Special livery designator, can be an empty string
 /// @param inDataFunc Callback function called by XPMP2 to fetch updated data
 /// @param inRefcon A refcon value passed back to you in all calls to the `inDataFunc`
+/// @param inModeS_id (optional) Unique identification of the plane [0x01..0xFFFFFF], e.g. the 24bit mode S transponder code. XPMP2 assigns an arbitrary unique number of not given
 [[deprecated("Subclass XPMP2::Aircraft instead")]]
 XPMPPlaneID XPMPCreatePlaneWithModelName(const char *           inModelName,
                                          const char *           inICAOCode,
                                          const char *           inAirline,
                                          const char *           inLivery,
-                                         XPMPPlaneData_f            inDataFunc,
-                                         void *                  inRefcon);
+                                         XPMPPlaneData_f        inDataFunc,
+                                         void *                 inRefcon,
+                                         XPMPPlaneID            inModeS_id = 0);
 
 /// @brief [Deprecated] Removes a plane previously created with XPMPCreatePlane()
 /// @deprecated Delete subclassed XPMP2::Aircraft object instead.
@@ -492,20 +505,15 @@ void            XPMPDestroyPlane(XPMPPlaneID);
 void            XPMPSetPlaneVisibility(XPMPPlaneID _id, bool _bVisible);
 
 
-/*
- * XPMPChangePlaneModel
- *
- * This routine lets you change an aircraft's model.  This can be useful if a remote
- * player changes planes or new information comes over the network asynchronously.
- *
- * this function returns an integer which, abstractly, represents the match quality.
- *
- * lower numbers are better, 2 or lower indicates an exact match on model.
- * negative values indicate failure to match at all.
- *
- */
-int     XPMPChangePlaneModel(
-                             XPMPPlaneID                inPlaneID,
+/// @brief  Perform model matching again and change the CSL model to the resulting match
+/// @note   Effectively calls XPMP2::Aircraft::ChangeModel(),
+///         so if you have the aircraft object, prefer call that function directly.
+/// @param inPlaneID Which plane to change?
+/// @param inICAOCode ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+/// @param inAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+/// @param inLivery Special livery designator, can be an empty string
+/// @return Match quality, the lower the better
+int     XPMPChangePlaneModel(XPMPPlaneID            inPlaneID,
                              const char *           inICAOCode,
                              const char *           inAirline,
                              const char *           inLivery);
@@ -582,14 +590,11 @@ XPMPPlaneID XPMPGetNthPlane(
                             long                    index);
 
 
-/*
- * XPMPSetDefaultPlaneICAO
- *
- * This routine controls what ICAO is used as a backup search criteria for a not-found plane.
- *
- */
-void    XPMPSetDefaultPlaneICAO(
-                                const char *            inICAO);
+/// @brief Define default aircraft and ground vehicle ICAO types
+/// @param _acIcaoType Default ICAO aircraft type designator, used when matching returns nothing
+/// @param _carIcaoType Type used to identify ground vehicels (internally defaults to "ZZZC") 
+void    XPMPSetDefaultPlaneICAO(const char* _acIcaoType,
+                                const char* _carIcaoType = nullptr);
 
 /************************************************************************************
  * MARK: PLANE OBSERVATION API

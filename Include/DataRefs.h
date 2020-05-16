@@ -241,7 +241,6 @@ enum dataRefsLT {
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
     DR_CFG_AI_UNDER_CONTROL,
-    DR_CFG_AI_SKIP_NOPLANE,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_COL_DYN,
@@ -477,7 +476,6 @@ protected:
     // generic config values
     int bAutoStart              = true; // shall display a/c right after startup?
     int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
-    int nAISkipAssignNoPlane    = -1;   ///< Skip assigning NoPlane.acf to AI planes (-1 = use defaults, 0 = force off, 1 = force on)
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
@@ -626,7 +624,6 @@ public:
     // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
-    bool ShallAISkipAssignNoPlane() const;
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }

@@ -28,6 +28,9 @@
 #include <shellapi.h>           // for ShellExecuteA
 #endif
 
+// Puts some timestamps into the log for analysis purposes
+void LogTimestamps ();
+
 //MARK: Path helpers
 
 // construct path: if passed-in base is a full path just take it
@@ -268,6 +271,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
                 dataRefs.SetUseHistData(dataRefs.GetUseHistData(), true);
                 // and reset the re-init flag
                 dataRefs.SetReInitAll(false);
+                // Log a new timestamp
+                LogTimestamps();
             }
         } catch (const std::exception& e) {
             // Exception during re-init...we give up and disable ourselves
@@ -305,8 +310,12 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
     // debug XPMP's CSL model matching if requested
-    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING))
-        return dataRefs.GetDebugModelMatching();
+    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING)) {
+        if constexpr (VERSION_BETA)         // force logging of model-matching in BETA versions
+            return true;
+        else
+            return dataRefs.GetDebugModelMatching();
+    }
     // logging level to match ours
     if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL)) {
         if constexpr (VERSION_BETA)         // force DEBUG-level logging in BETA versions
@@ -316,10 +325,6 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     }
     // We don't want clamping to the ground, we take care of the ground ourselves
     if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
-    
-    // Backdoor to skip assigning the NoPlane.acf to AI planes
-    if (!strcmp(key, XPMP_CFG_ITM_SKIP_NOPLANE))
-        return dataRefs.ShallAISkipAssignNoPlane();
     
     // dont' know/care about the option, return the default value
     return iDefault;
@@ -374,7 +379,8 @@ bool LTMainInit ()
     const char* cszResult = XPMPMultiplayerInit (LIVE_TRAFFIC,
                                                  LTCalcFullPluginPath(PATH_RESOURCES).c_str(),
                                                  &MPIntPrefsFunc,
-                                                 dataRefs.GetDefaultAcIcaoType().c_str());
+                                                 dataRefs.GetDefaultAcIcaoType().c_str(),
+                                                 LIVE_TRAFFIC_XPMP2);
     if ( cszResult[0] ) {
         LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
         XPMPMultiplayerCleanup();
@@ -495,6 +501,7 @@ static float CBToggleAI (float, float, int, void *)
         LTMainReleaseAIAircraft();
     else
         LTMainTryGetAIAircraft();
+    MenuUpdateAllItemStatus();
     return 0.0f;
 }
 
@@ -540,6 +547,9 @@ void LTMainHideAircraft ()
     
     // hide aircraft, disconnect internet streams
     LTFlightDataHideAircraft ();
+    
+    // Remove any message about seeing planes
+    CreateMsgWindow(float(AC_MAINT_INTVL), 0, 0, -1);
 
     // disable the flight loop callback
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
@@ -548,7 +558,9 @@ void LTMainHideAircraft ()
                                       NULL);
     
     // disable aircraft drawing, free up multiplayer planes
-    XPMPMultiplayerDisable();
+    // (the "soft way", which requires a few more drawing cycles,
+    //  this will _not_ work while being shut down)
+    LTMainToggleAI(false);
     
     // tell the user there are no more
     SHOW_MSG(logINFO, MSG_NUM_AC_ZERO);
@@ -562,6 +574,7 @@ void LTMainDisable ()
 
     // remove aircraft...just to be sure
     dataRefs.SetAircraftDisplayed(false);
+    LTMainReleaseAIAircraft();      // to be absolutely sure
     
     // disable fetching flight data
     LTFlightDataDisable();

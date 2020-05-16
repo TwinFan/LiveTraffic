@@ -245,16 +245,6 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         break;
                     case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
                         invIcaos.emplace_back(info.acKey.icao);
-
-                        // We add "model=[?], owner=[?]". By this way we don't trigger the car detection,
-                        // that means: If we don't know the transponder at all we'd rather decide on standard a/c but not car
-                        if (data.length() > 1)          // concatenate both JSON groups
-                            data += ", ";
-                        data += "\"" OPSKY_MD_GROUP "\": { \"" OPSKY_MD_TRANSP_ICAO "\": \"";
-                        data += currKey;
-                        data += "\", \"" OPSKY_MD_MDL "\": \"" OPSKY_MD_MDL_UNKNOWN "\", "
-                                    "\"" OPSKY_MD_OP  "\": \"" OPSKY_MD_MDL_UNKNOWN "\" }";
-
                         bChannelOK = true;              // but technically a valid response
                         break;
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
@@ -412,6 +402,21 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             statDat.catDescr    = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
             statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
             statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
+            
+            // -- Ground vehicle identification --
+            // OpenSky only delivers "category description" and has a
+            // pretty clear indicator for a ground vehicle
+            if (statDat.acTypeIcao.empty() &&           // don't know a/c type yet
+                (statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
+                 // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
+                 (statDat.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
+                  statDat.man.empty() &&
+                  statDat.mdl.empty() &&
+                  statDat.opIcao.empty())))
+            {
+                // we assume ground vehicle
+                statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+            }
         }
         
         // *** Route Information ***

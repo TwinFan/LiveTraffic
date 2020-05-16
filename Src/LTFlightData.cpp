@@ -70,22 +70,38 @@ std::string LTFlightData::FDDynamicData::GetSquawk() const
     }
 }
 
-LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDStaticData& other)
+// Merges data, i.e. copy only filled fields from 'other'
+bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
 {
+    // Have matching-relevant fields changed?
+    bool bRet = false;
+    
     // copy filled, and only filled data over current data
     // do it field-by-field only for fields which are actually filled
-
-    // acTypeICAO: accept another value only if our current one is not helpful
-    if ((acTypeIcao.empty() ||
-         acTypeIcao == dataRefs.GetDefaultAcIcaoType() ||
-         acTypeIcao == dataRefs.GetDefaultCarIcaoType()) &&
-        !other.acTypeIcao.empty())
-        acTypeIcao = other.acTypeIcao;
+    
+    // acTypeICAO
+    // We never overwrite with nothing, ie. the new value must be _something_
+    if (!other.acTypeIcao.empty() &&
+        acTypeIcao != other.acTypeIcao)
+    {
+        // Accept anything if we are currently empty (unknown/default) or a car, can't be worse...
+        if (acTypeIcao.empty() ||
+            acTypeIcao == dataRefs.GetDefaultCarIcaoType())
+        {
+            acTypeIcao = other.acTypeIcao;
+            bRet = true;
+        }
+        // else: we are non-empty, non-default -> no change, no matter what is delivered,
+        //       to avoid ping-ponging the a/c plane when different channels have different opinion
+    }
     
     // a/c details
     if (!other.country.empty()) country = other.country;
     if (!other.man.empty()) man = other.man;
-    if (other.mdl.length() > mdl.length()) mdl = other.mdl;
+    if (other.mdl.length() > mdl.length()) {
+        mdl = other.mdl;
+        bRet = true;
+    }
     if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
@@ -105,8 +121,18 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     
     // operator / Airline
     if (!other.op.empty()) op = other.op;
-    if (!other.opIcao.empty()) opIcao = other.opIcao;
+    // operator ICAO: we only accept a change from nothing to something
+    if (opIcao.empty() && !other.opIcao.empty()) {
+        opIcao = other.opIcao;
+        bRet = true;
+    }
     
+    // registration: we only accept a change from nothing to something
+    if (reg.empty() && !other.reg.empty()) {
+        reg = other.reg;
+        bRet = true;
+    }
+
     // now initialized
     bInit = true;
 
@@ -118,7 +144,7 @@ LTFlightData::FDStaticData& LTFlightData::FDStaticData::operator |= (const FDSta
     if (mdl.empty())
         mdl = pDoc8643->model;
     
-    return *this;
+    return bRet;
 }
 
 // route (this is "originAp - destAp", but considers emoty txt)
@@ -161,6 +187,12 @@ std::string LTFlightData::FDStaticData::flightRoute() const
     
     // we have both...put it together
     return (flight + ": ") + r;
+}
+
+// is this a ground vehicle?
+bool LTFlightData::FDStaticData::isGrndVehicle() const
+{
+    return acTypeIcao == dataRefs.GetDefaultCarIcaoType();
 }
 
 // set the key value
@@ -943,7 +975,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
                         stopPos.f.flightPhase != FPH_STOPPED_ON_RWY)    // avoid adding several stops
                     {
-                        stopPos.ts() += simTime + 10.0;                 // just assume _some_ time
+                        stopPos.ts() = simTime + 10.0;                  // just assume _some_ time
                         stopPos.f.flightPhase = FPH_STOPPED_ON_RWY;     // indicator for aritifical stop (not only on rwy now...)
                         if (dataRefs.GetDebugAcPos(key()))
                             LOG_MSG(logDEBUG, "%s: Added stop-position %s",
@@ -2121,38 +2153,49 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
             LTACMasterdataChannel::RequestMasterData (key(), inStat.call);
         }
         
-        // merge inStat into our statData (copy only filled fields,
-        // which are not model-defining):
-        statData |= inStat;
-        
-        // *** take care of changes in model-defining fields ***
-        // (a/c type, operator, registration)
+        // If no a/c type is yet known try if the call sign / operator looks like a ground vehicle
         bool bMdlInfoChange = false;
-        
-        // operator ICAO: we only accept a change from nothing to something
-        if (statData.opIcao.empty() && !inStat.opIcao.empty())
+        if (statData.acTypeIcao.empty() && inStat.acTypeIcao.empty())
         {
-            statData.opIcao = inStat.opIcao;
-            bMdlInfoChange = true;
+            // Try operator first
+            if (!inStat.op.empty()) {
+                std::string op_u = inStat.op;
+                str_toupper(op_u);
+                if (op_u.find("AIRPORT") != std::string::npos) {
+                    statData.op = inStat.op;
+                    statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+                    LOG_MSG(logINFO, INFO_GND_VEHICLE_APT, key().c_str(), inStat.op.c_str());
+                    bMdlInfoChange = true;
+                }
+            }
+            
+            // Try callsign next
+            if (statData.acTypeIcao.empty() &&
+                !inStat.call.empty() && inStat.call != statData.call &&
+                LTAircraft::FlightModel::MatchesCar(inStat.call))
+            {
+                statData.call = inStat.call;
+                statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+                LOG_MSG(logINFO, INFO_GND_VEHICLE_CALL, key().c_str(), inStat.call.c_str());
+                bMdlInfoChange = true;
+            }
         }
         
-        // registration: we only accept a change from nothing to something
-        if (statData.reg.empty() && !inStat.reg.empty())
-        {
-            statData.reg = inStat.reg;
+        // merge inStat into our statData and save if matching-relevant stuff changed
+        if (statData.merge(inStat))
             bMdlInfoChange = true;
-        }
         
         // Re-determine a/c model (only if it was determined before:
-        // the first determination shall be made as late as possible
+        // the very first determination shall be made as late as possible
         // in LTFlightData::CreateAircraft())
         if (pAc && DetermineAcModel())
             bMdlInfoChange = true;
         
-        // if model-defining fields changed then (potentially) change the CSL model
         if (pAc) {
+            // if model-defining fields changed then (potentially) change the CSL model
             if (bMdlInfoChange)
-                pAc->ChangeModel (statData);
+                pAc->SetUpdateModel();
+            // Make Aircraft send updated info texts
             pAc->SetSendNewInfoData();
         }
         
@@ -2262,10 +2305,16 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
 // try interpreting model text or check for ground vehicle
 bool LTFlightData::DetermineAcModel()
 {
-    // We don't change the a/c type if it is already something reasonable
     const std::string prevType = statData.acTypeIcao;
+
+    // Debugging model matching: If the model is fixed, then it is what it is
+    if (!dataRefs.cslFixAcIcaoType.empty()) {
+        statData.acTypeIcao = dataRefs.cslFixAcIcaoType;
+        return statData.acTypeIcao != prevType;
+    }
+    
+    // We don't change the a/c type if it is already something reasonable
     if (!prevType.empty() &&
-        prevType != dataRefs.GetDefaultAcIcaoType() &&
         prevType != dataRefs.GetDefaultCarIcaoType())
         return false;
     
@@ -2286,47 +2335,29 @@ bool LTFlightData::DetermineAcModel()
         return false;
     }
     
-    // Ground vehicle maybe? Shall be on the ground then
-    if ((
-         (pAc && pAc->IsOnGrnd() && pAc->GetSpeed_kt() < pAc->mdl.MAX_TAXI_SPEED) ||
-         (!posDeque.empty() && posDeque.front().IsOnGnd())
-        ) &&
-        // OpenSky only delivers "category description" and has a
-        // pretty clear indicator for a ground vehicle
-        (statData.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
-         // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-         (statData.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
-          statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
-        // ADSBEx doesn't send as clear an indicator, but data analysis
-        // suggests that EngType/Mount == 0 is a good indicator
-         (statData.engType == 0 && statData.engMount == 0) ||
-        // for RealTraffic it is even more difficult...we best identify RT-only data with no operator (opIcao is taken from call sign)
-         (statData.op.empty() && statData.reg.empty() && statData.destAp.empty()))
-        )
+    // Ground vehicle maybe? Shall be on the ground then with reasonable speed
+    // (The info if this _could_ be a car is delivered by the channels via
+    //  the acTypeIcao, here we just validate if the dynamic situation
+    //  fits a car.)
+    if (prevType == dataRefs.GetDefaultCarIcaoType())
     {
-        // We would now decide for surface vehicle
-        // but we only do so if we had no other type before
-        // (ie. if we previously had decided for standard a/c then we keep that!)
-        if (prevType.empty()) {
+        if ((pAc &&                                 // plane exists?
+             pAc->IsOnGrnd() &&                     // must be on ground with reasonable speed
+             pAc->GetSpeed_kt() <= MDL_CAR_MAX_TAXI) ||
+            (!pAc &&                                // no plane yet:
+             posDeque.size() >= 2 &&                // analyse ground status of and speed between first two positions
+             posDeque.front().IsOnGnd() && posDeque[1].IsOnGnd() &&
+             posDeque.front().speed_kt(posDeque[1]) <= MDL_CAR_MAX_TAXI))
+        {
+            // We now decide for surface vehicle
             statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-            return true;
-        } else {
-            statData.acTypeIcao = std::move(prevType);
-            return false;
+            return statData.acTypeIcao != prevType;
         }
     }
-
-    // we have no better idea than standard
-    statData.acTypeIcao = dataRefs.GetDefaultAcIcaoType();
-    if (prevType != statData.acTypeIcao)
-    {
-        LOG_MSG(logWARN,ERR_NO_AC_TYPE,
-                key().c_str(),
-                statData.man.c_str(), statData.mdl.c_str(),
-                statData.acTypeIcao.c_str());
-        return true;
-    }
-    return false;
+            
+    // we have no better idea than default
+    statData.acTypeIcao.clear();
+    return prevType != statData.acTypeIcao;
 }
 
 // checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
@@ -2415,7 +2446,13 @@ bool LTFlightData::CreateAircraft ( double simTime )
         
         // Make sure we have a valid a/c model now
         DetermineAcModel();
-        
+        if (statData.acTypeIcao.empty()) {          // we don't...
+            LOG_MSG(logWARN,ERR_NO_AC_TYPE,
+                    key().c_str(),
+                    statData.man.c_str(), statData.mdl.c_str(),
+                    dataRefs.GetDefaultAcIcaoType().c_str());
+        }
+
         // create the object (constructor will recursively re-access the lock)
         try {
             pAc = new LTAircraft(*this);
@@ -2465,7 +2502,7 @@ void LTFlightData::UpdateAllModels ()
             // if there is an aircraft update it's flight model
             LTAircraft* pAc = fdPair.second.GetAircraft();
             if (pAc)
-                pAc->ChangeModel(fdPair.second.GetUnsafeStat());
+                pAc->SetUpdateModel();
         }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

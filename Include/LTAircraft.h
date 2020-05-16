@@ -287,8 +287,10 @@ public:
 
     public:
         static bool ReadFlightModelFile ();
-        static const FlightModel& FindFlightModel (const std::string acTypeIcao);
-        static const FlightModel* GetFlightModel (const std::string modelName);
+        static const FlightModel& FindFlightModel (const std::string& acTypeIcao);
+        static const FlightModel* GetFlightModel (const std::string& modelName);
+        /// Tests if the given call sign matches typical call signs of ground vehicles
+        static bool MatchesCar (const std::string& _callSign);
     };
     
 public:
@@ -350,6 +352,7 @@ protected:
 #ifdef DEBUG
     bool                bIsSelected = false;    // is selected for logging/debugging?
 #endif
+    bool                bChangeModel = false;   ///< shall the model be updated at next chance?
     bool                bSendNewInfoData = false; ///< is there new static data to announce?
     // visibility
     bool                bVisible = true;        // is a/c visible?
@@ -368,8 +371,6 @@ public:
     void LabelUpdate();
     // stringify e.g. for debugging info purposes
     operator std::string() const;
-    // change the model (e.g. when model-defining static data changed)
-    void ChangeModel (const LTFlightData::FDStaticData& statData);
     // current position
     inline const positionTy& GetPPos() const { return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
@@ -407,6 +408,8 @@ public:
     // object valid? (set to false after exceptions)
     inline bool IsValid() const { return bValid; }
     void SetInvalid() { bValid = false; }
+    bool ShallUpdateModel () const { return bChangeModel; }
+    void SetUpdateModel () { bChangeModel = true; }
     inline bool ShallSendNewInfoData () const { return bSendNewInfoData; }
     inline void SetSendNewInfoData () { bSendNewInfoData = true; }
     // Visibility
@@ -434,6 +437,10 @@ protected:
     /// Determines AI priority based on bearing to user's plane and ground status
     void CalcAIPrio ();
     
+    /// @brief change the model (e.g. when model-defining static data changed)
+    /// @note Should be used in main thread only
+    void ChangeModel ();
+
 protected:
     // *** Camera view ***
     static LTAircraft*  pExtViewAc;             // the a/c to show in external view, NULL if none/stop ext view

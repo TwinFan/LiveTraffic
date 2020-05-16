@@ -317,23 +317,14 @@ const char* GetLogString (const char* szPath, int ln, const char* szFunc,
     // prepare timestamp
     if (lvl < logMSG)                             // normal messages without, all other with location info
     {
-        // prepare current simTime in string form
-        const double simTime = dataRefs.GetSimTime();
-        std::time_t t = std::time_t(simTime);
-        struct tm zulu;
-        gmtime_s(&zulu, &t);
-        char tZuluS[100];
-        std::strftime(tZuluS, sizeof(tZuluS), "%d-%b %T", &zulu);
-
 #if IBM
         const char* szFile = strrchr(szPath, '\\');  // extract file from path
 #else
         const char* szFile = strrchr(szPath, '/');   // extract file from path
 #endif
         if (!szFile) szFile = szPath; else szFile++;
-        snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC " %s%5.4fZ %s %s:%d/%s: ",
+        snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC " %s %s:%d/%s: ",
                  runH, runM, runS,                  // Running time stamp
-                 tZuluS, fmod(simTime, 1.0),        // simTime formated as "DD-MMM HH:MM:SS.SSS"
                  LOG_LEVEL[lvl],                    // logging level
                  szFile, ln, szFunc);               // source code location info
     }

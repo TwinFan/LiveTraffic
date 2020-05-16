@@ -342,6 +342,26 @@ bool RegisterCommandHandlers ()
 
 //MARK: One-Time Setup (Flight Loop Callback)
 
+/// Puts some timestamps into the log for analysis purposes
+void LogTimestamps ()
+{
+    // current Zulu time
+    char tZuluS[100];
+    struct tm zulu;
+    std::time_t t = std::time(nullptr);
+    gmtime_s(&zulu, &t);
+    std::strftime(tZuluS, sizeof(tZuluS), "%d-%b-%Y %T", &zulu);
+
+    // current simTime
+    char tSimZ[100];
+    t = std::time_t(dataRefs.GetSimTime());
+    gmtime_s(&zulu, &t);
+    std::strftime(tSimZ, sizeof(tSimZ), "%d-%b-%Y %T", &zulu);
+
+    // Log it
+    LOG_MSG(logMSG, MSG_TIMESTAMPS, tZuluS, tSimZ);
+}
+
 // For informing dataRe Editor and tool see
 // http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
 // https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp
@@ -383,6 +403,9 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             return 2;
             
         case ONCE_CB_AUTOSTART:
+            // Log a timestamp to synch timing for analysis purposes
+            LogTimestamps ();
+            
             // Auto Start display of aircraft
             if (dataRefs.GetAutoStart())
                 dataRefs.SetAircraftDisplayed(true);
@@ -444,6 +467,9 @@ PLUGIN_API int XPluginStart(
         // use native paths, i.e. Posix style (as opposed to HFS style)
         // https://developer.x-plane.com/2014/12/mac-plugin-developers-you-should-be-using-native-paths/
         XPLMEnableFeature("XPLM_USE_NATIVE_PATHS",1);
+
+        // For nice logging, let XPMP2 know our names already
+        XPMPSetPluginName(LIVE_TRAFFIC, LIVE_TRAFFIC_XPMP2);
         
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
