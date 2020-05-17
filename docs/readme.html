@@ -86,12 +86,37 @@
 
     <h2>v2.0</h2>
 
-    <h3>v2.03</h3>
+    <h3>v2.04</h3>
 
     <P>Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
+
+    <P>For updating coming from v2.03
+       <ul>
+           <li>copy
+               <ul><li><code>Resources/CSL2XSB.py</code>.</li>
+               </ul>
+           </li>
+           <li>It is recommended to
+               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+               on your CSL models again if you ever did so before,
+               no matter the settings you had used.</li>
+        </ul>
+    </p>
+       
+    <P>Change log:</P>
+
+    <ul>
+        <li><code>CSL2XSB.py</code> now comments out aircraft with old formats
+            and removes more unneded commands (HASGEAR, TEXTURE)
+            to reduce log warnings during LiveTraffic startup.<br>
+            Execute <code>CSL2XSB.py</code> again on your models to benefit
+            from this change.</li>
+    </ul>
+        
+    <h3>v2.03</h3>
 
     <P>For updating coming from v2.01 or v2.02
        <ul>
