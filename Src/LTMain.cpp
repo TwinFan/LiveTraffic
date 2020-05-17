@@ -527,6 +527,49 @@ void LTMainReleaseAIAircraft ()
     XPMPMultiplayerDisable ();
 }
 
+/// Callback, which toggles AI control
+static float CBToggleAI (float, float, int, void *)
+{
+    if (dataRefs.HaveAIUnderControl())
+        LTMainReleaseAIAircraft();
+    else
+        LTMainTryGetAIAircraft();
+    MenuUpdateAllItemStatus();
+    return 0.0f;
+}
+
+/// @brief Show message about delay, then set callback to trigger getting/release AI
+/// @details Getting and even more release AI means,
+///          that X-Plane needs to load a couple of aircraft models,
+///          which is done immediately and pauses the sim.
+///          We show a message, but need one cycle so that it can actually be drawn,
+///          then only must the actual change happen -> flight loop callback.
+void LTMainToggleAI (bool bGetControl)
+{
+    // Short cut if there is no change
+    if (bGetControl == bool(dataRefs.HaveAIUnderControl()))
+        return;
+    
+    // Show a message
+    CreateMsgWindow(1.0f, logMSG, MSG_AI_LOAD_ACF);
+    
+    // Create a flight loop callback to do the AI change
+    static XPLMFlightLoopID aiID = nullptr;
+    if (!aiID) {
+        XPLMCreateFlightLoop_t aiCall = {
+            sizeof(aiCall),
+            xplm_FlightLoop_Phase_BeforeFlightModel,
+            CBToggleAI,
+            nullptr
+        };
+        aiID = XPLMCreateFlightLoop(&aiCall);
+    }
+    if (aiID)
+        XPLMScheduleFlightLoop(aiID, 0.5f, 1);
+    else                    // safeguard if for some reason we couldn't create a callback
+        CBToggleAI(0.0f, 0.0f, 0, nullptr);
+}
+
 // Remove all aircraft
 void LTMainHideAircraft ()
 {
@@ -537,6 +580,9 @@ void LTMainHideAircraft ()
     
     // hide aircraft, disconnect internet streams
     LTFlightDataHideAircraft ();
+    
+    // Remove any message about seeing planes
+    CreateMsgWindow(float(AC_MAINT_INTVL), 0, 0, -1);
 
     // disable the flight loop callback
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
@@ -545,7 +591,9 @@ void LTMainHideAircraft ()
                                       NULL);
     
     // disable aircraft drawing, free up multiplayer planes
-    XPMPMultiplayerDisable();
+    // (the "soft way", which requires a few more drawing cycles,
+    //  this will _not_ work while being shut down)
+    LTMainToggleAI(false);
     
     // tell the user there are no more
     SHOW_MSG(logINFO, MSG_NUM_AC_ZERO);
@@ -559,6 +607,7 @@ void LTMainDisable ()
 
     // remove aircraft...just to be sure
     dataRefs.SetAircraftDisplayed(false);
+    LTMainReleaseAIAircraft();      // to be absolutely sure
     
     // disable fetching flight data
     LTFlightDataDisable();
