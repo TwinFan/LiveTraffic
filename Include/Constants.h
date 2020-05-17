@@ -147,7 +147,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
 #define LT_CFG_VERSION          "1.1"        // current version of config file format
-#define LT_FM_VERSION           "1.1"        // version of flight model file format
+#define LT_FM_VERSION           "2.0"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/61021-livetraffic-for-xp10/"
@@ -171,6 +171,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
+#define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
+#define INFO_GND_VEHICLE_CALL   "Vehicle %s: Decided for ground vehicle based on call sign '%s'"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircraft"
 #define INFO_WND_AUTO_AC        "AUTO"
@@ -186,6 +188,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
 #define CSL_CAR_ICAO_TYPE       "ZZZC"      // fake code for a ground vehicle
 #define FM_MAP_SECTION          "Map"
+#define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
 #define CFG_DEFAULT_AC_TYPE     "DEFAULT_AC_TYPE"
@@ -323,7 +326,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_AC_DEFAULT      "A/c default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_CAR_DEFAULT     "Car default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_TYPE_INVALID    "%s, line %d: ICAO type designator '%s' unknown"
-#define ERR_FM_NOT_AFTER_MAP    "Remainder after [Map] section ignored"
+#define ERR_FM_NOT_AFTER_MAP    "Unknown section after [Map] section ignored"
 #define ERR_FM_NOT_BEFORE_SEC   "Lines before first section ignored"
 #define ERR_FM_UNKNOWN_NAME     "Unknown parameter in '%s', line %d: %s"
 #define ERR_FM_UNKNOWN_SECTION  "Referring to unknown model section in '%s', line %d: %s"

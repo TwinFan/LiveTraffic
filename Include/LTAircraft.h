@@ -287,8 +287,10 @@ public:
 
     public:
         static bool ReadFlightModelFile ();
-        static const FlightModel& FindFlightModel (const std::string acTypeIcao);
-        static const FlightModel* GetFlightModel (const std::string modelName);
+        static const FlightModel& FindFlightModel (const std::string& acTypeIcao);
+        static const FlightModel* GetFlightModel (const std::string& modelName);
+        /// Tests if the given call sign matches typical call signs of ground vehicles
+        static bool MatchesCar (const std::string& _callSign);
     };
     
 public:
