@@ -117,7 +117,7 @@ enum pluginStateTy {
 
 // XP standard Datarefs being accessed
 enum dataRefsXP {
-    DR_TOTAL_RUNNING_TIME_SEC = 0,
+    DR_MISC_NETW_TIME = 0,
     DR_LOCAL_TIME_SEC,
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
@@ -543,7 +543,7 @@ protected:
 
 //MARK: DataRef access
 public:
-    inline float GetTotalRunningTimeSec() const { return XPLMGetDataf(adrXP[DR_TOTAL_RUNNING_TIME_SEC]); }
+    inline float GetMiscNetwTime() const        { return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]); }
     inline float GetLocalTimeSec() const        { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
     inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
     inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }

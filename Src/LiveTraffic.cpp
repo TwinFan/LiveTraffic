@@ -347,6 +347,26 @@ bool RegisterCommandHandlers ()
 
 //MARK: One-Time Setup (Flight Loop Callback)
 
+/// Puts some timestamps into the log for analysis purposes
+void LogTimestamps ()
+{
+    // current Zulu time
+    char tZuluS[100];
+    struct tm zulu;
+    std::time_t t = std::time(nullptr);
+    gmtime_s(&zulu, &t);
+    std::strftime(tZuluS, sizeof(tZuluS), "%d-%b-%Y %T", &zulu);
+
+    // current simTime
+    char tSimZ[100];
+    t = std::time_t(dataRefs.GetSimTime());
+    gmtime_s(&zulu, &t);
+    std::strftime(tSimZ, sizeof(tSimZ), "%d-%b-%Y %T", &zulu);
+
+    // Log it
+    LOG_MSG(logMSG, MSG_TIMESTAMPS, tZuluS, tSimZ);
+}
+
 // For informing dataRe Editor and tool see
 // http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
 // https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp
@@ -388,6 +408,9 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             return 2;
             
         case ONCE_CB_AUTOSTART:
+            // Log a timestamp to synch timing for analysis purposes
+            LogTimestamps ();
+            
             // Auto Start display of aircraft
             if (dataRefs.GetAutoStart() && !dataRefs.UsingModernDriver())
                 dataRefs.SetAircraftDisplayed(true);

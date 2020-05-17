@@ -28,6 +28,9 @@
 #include <shellapi.h>           // for ShellExecuteA
 #endif
 
+// Puts some timestamps into the log for analysis purposes
+void LogTimestamps ();
+
 //MARK: Path helpers
 
 // construct path: if passed-in base is a full path just take it
@@ -268,6 +271,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
                 dataRefs.SetUseHistData(dataRefs.GetUseHistData(), true);
                 // and reset the re-init flag
                 dataRefs.SetReInitAll(false);
+                // Log a new timestamp
+                LogTimestamps();
             }
         } catch (const std::exception& e) {
             // Exception during re-init...we give up and disable ourselves
