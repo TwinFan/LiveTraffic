@@ -2611,6 +2611,10 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
         if (!dataRefs.IsReInitAll() &&          // avoid any calc if to be re-initialized
             CalcPPos())
         {
+            // If needed update the chosen CSL model
+            if (ShallUpdateModel())
+                ChangeModel();
+            
             // copy ppos (by type conversion)
             *outPosition = ppos;
             
@@ -2807,8 +2811,14 @@ std::string LTAircraft::GetModelName() const
 }
 
 // change the model (e.g. when model-defining static data changed)
-void LTAircraft::ChangeModel (const LTFlightData::FDStaticData& statData)
+void LTAircraft::ChangeModel ()
 {
+    // Try to fetch the static data
+    LTFlightData::FDStaticData statData;
+    if (!fd.TryGetSafeCopy(statData))
+        return;
+    
+    // Save previous model name to identify an actual change
     const std::string oldModelName(GetModelName());
     CalcLabelInternal(statData);
     XPMPChangePlaneModel(mPlane,
@@ -2823,4 +2833,7 @@ void LTAircraft::ChangeModel (const LTFlightData::FDStaticData& statData)
                 statData.opIcao.c_str(),
                 GetModelName().c_str());
     }
+    
+    // reset the flag that we needed to change the model
+    bChangeModel = false;
 }
