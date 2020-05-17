@@ -27,6 +27,7 @@
 //
 char LT_VERSION[10] = "";
 char LT_VERSION_FULL[30] = "";
+int verBuildDate = 0;
 char HTTP_USER_AGENT[50] = "";
 
 // version availble on X-Plane.org
@@ -60,6 +61,8 @@ bool CalcBetaVerTimeLimit()
                 strcmp(buildDate,"Sep") == 0 ?  8 :
                 strcmp(buildDate,"Oct") == 0 ?  9 :
                 strcmp(buildDate,"Nov") == 0 ? 10 : 11;
+    // Save the build date in a form to be offered via dataRef, like 20200430 for 30-APR-2020
+    verBuildDate = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
     // Limit is: build date plus 30 days
     LT_BETA_VER_LIMIT = mktime(&tm) + 30 * SEC_per_D;
     localtime_s(&tm, &LT_BETA_VER_LIMIT);
@@ -127,6 +130,18 @@ bool InitFullVersion ()
     }
 
     return true;
+}
+
+// LiveTraffic's version number as pure integer for returning in a dataRef, like 201 for v2.01
+int GetLTVerNum(void*)
+{
+    return (int)std::lround(VERSION_NR * 100.0f);
+}
+
+/// LiveTraffic's build date as pure integer for returning in a dataRef, like 20200430 for 30-APR-2020
+int GetLTVerDate(void*)
+{
+    return verBuildDate;
 }
 
 //

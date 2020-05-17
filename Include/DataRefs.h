@@ -232,6 +232,9 @@ enum dataRefsLT {
     
     DR_SIM_DATE,
     DR_SIM_TIME,
+
+    DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
+    DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
     
     // configuration options
     DR_CFG_AIRCRAFT_DISPLAYED,
