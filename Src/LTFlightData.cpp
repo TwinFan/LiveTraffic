@@ -2295,7 +2295,7 @@ bool LTFlightData::DetermineAcModel()
         // pretty clear indicator for a ground vehicle
         (statData.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
          // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-         (statData.catDescr.find(OPSKY_MD_TEX_NO_CAT) != std::string::npos &&
+         (statData.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
           statData.man.empty() && statData.mdl.empty() && statData.opIcao.empty()) ||
         // ADSBEx doesn't send as clear an indicator, but data analysis
         // suggests that EngType/Mount == 0 is a good indicator
@@ -2304,9 +2304,16 @@ bool LTFlightData::DetermineAcModel()
          (statData.op.empty() && statData.reg.empty() && statData.destAp.empty()))
         )
     {
-        // assume surface vehicle
-        statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-        return prevType != statData.acTypeIcao;
+        // We would now decide for surface vehicle
+        // but we only do so if we had no other type before
+        // (ie. if we previously had decided for standard a/c then we keep that!)
+        if (prevType.empty()) {
+            statData.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+            return true;
+        } else {
+            statData.acTypeIcao = std::move(prevType);
+            return false;
+        }
     }
 
     // we have no better idea than standard

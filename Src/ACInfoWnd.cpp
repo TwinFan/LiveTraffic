@@ -694,7 +694,7 @@ void ACIWnd::UpdateStatValues()
                               stat.pDoc8643->classification.c_str() : "-");
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_MANU], strAtMost(stat.man,  25).c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_MODEL], strAtMost(stat.mdl, 25).c_str());
-        XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], strAtMost(stat.opIcao + " " + stat.op,25).c_str());
+        XPSetWidgetDescriptor(widgetIds[ACI_TXT_OP], strAtMost((stat.opIcao.empty() ? stat.op : stat.opIcao + ": " + stat.op),25).c_str());
 
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_CALLSIGN], stat.call.c_str());
         XPSetWidgetDescriptor(widgetIds[ACI_TXT_FLIGHT_ROUTE], stat.flightRoute().c_str());
