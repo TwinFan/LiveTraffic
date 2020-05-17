@@ -84,6 +84,7 @@
 #include "XPLMUtilities.h"
 #include "XPLMDataAccess.h"
 #include "XPLMMenus.h"
+#include "XPLMPlanes.h"
 #include "XPLMPlugin.h"
 #include "XPLMProcessing.h"
 #include "XPLMCamera.h"
@@ -135,6 +136,7 @@ bool LTMainEnable ();
 bool LTMainShowAircraft ();
 bool LTMainTryGetAIAircraft ();
 void LTMainReleaseAIAircraft ();
+void LTMainToggleAI (bool bGetControl);
 void LTMainHideAircraft ();
 void LTMainDisable ();
 void LTMainStop ();

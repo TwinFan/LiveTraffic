@@ -492,7 +492,7 @@ bool LTMainShowAircraft ()
     
     // Enable Multiplayer plane drawing, acquire multiuser planes
     if (!dataRefs.IsAIonRequest())      // but only if not only on request
-        LTMainTryGetAIAircraft();
+        LTMainToggleAI(true);
     
     // enable the flight loop callback to maintain aircraft
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
@@ -517,8 +517,15 @@ bool LTMainTryGetAIAircraft ()
     
     // If we don't control AI aircraft we can't create TCAS blibs.
     if (!dataRefs.HaveAIUnderControl()) {
-        // inform the use about this fact, but otherwise continue
-        SHOW_MSG(logWARN,ERR_NO_TCAS);
+        // Failed! Because of whom?
+        int total=0, active=0;
+        XPLMPluginID who=0;
+        char whoName[256];
+        XPLMCountAircraft(&total, &active, &who);
+        XPLMGetPluginInfo(who, whoName, nullptr, nullptr, nullptr);
+        
+        // inform the user about this fact, but otherwise continue
+        SHOW_MSG(logWARN,ERR_NO_TCAS,whoName);
     }
     return true;
 }
