@@ -719,69 +719,79 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         if ( fd.empty() )
             fd.SetKey(fdKey);
         
-        // fill static data
-        {
-            LTFlightData::FDStaticData stat;
-            
-            stat.acTypeIcao     = tfc[RT_TFC_TYPE];
-            stat.call           = tfc[RT_TFC_CS];
-            
-            if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
-                stat.reg            = tfc[RT_TFC_TAIL];
-                stat.originAp       = tfc[RT_TFC_FROM];
-                stat.destAp         = tfc[RT_TFC_TO];
-            }
+        // -- fill static data --
+        LTFlightData::FDStaticData stat;
+        
+        stat.acTypeIcao     = tfc[RT_TFC_TYPE];
+        stat.call           = tfc[RT_TFC_CS];
+        
+        if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
+            stat.reg            = tfc[RT_TFC_TAIL];
+            stat.originAp       = tfc[RT_TFC_FROM];
+            stat.destAp         = tfc[RT_TFC_TO];
+        }
 
-            fd.UpdateData(std::move(stat));
+        // -- dynamic data --
+        LTFlightData::FDDynamicData dyn;
+        
+        // non-positional dynamic data
+        dyn.gnd =               tfc[RT_TFC_AIRBORNE] == "0";
+        dyn.heading =           std::stoi(tfc[RT_TFC_HDG]);
+        dyn.spd =               std::stoi(tfc[RT_TFC_SPD]);
+        dyn.vsi =               std::stoi(tfc[RT_TFC_VS]);
+        dyn.ts =                posTime;
+        dyn.pChannel =          this;
+        
+        // *** gnd detection hack ***
+        // RealTraffic keeps the airborne flag always 1,
+        // even with traffic which definitely sits on the gnd.
+        // Also, reported altitude never seems to become negative,
+        // though this would be required in high pressure weather
+        // at airports roughly at sea level.
+        // And altitude is rounded to 250ft which means that close
+        // to the ground it could be rounded down to 0!
+        //
+        // If "0" is reported we need to assume "on gnd" and bypass
+        // the pressure correction.
+        // If at the same time VSI is reported significantly (> +/- 100)
+        // then we assume plane is already/still flying, but as we
+        // don't know exact altitude we just skip this record.
+        if (tfc[RT_TFC_ALT]         == "0") {
+            // skip this dynamic record in case VSI is too large
+            if (std::abs(dyn.vsi) > RT_VSI_AIRBORNE)
+                return true;
+            // have proper gnd altitude calculated
+            pos.alt_m() = NAN;
+            dyn.gnd = true;
+        } else {
+            // probably not on gnd, so take care of altitude
+            // altitude comes without local pressure applied
+            double alt_f = std::stod(tfc[RT_TFC_ALT]);
+            alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
+            pos.SetAltFt(alt_f);
         }
         
-        // dynamic data
-        {   // unconditional...block is only for limiting local variables
-            LTFlightData::FDDynamicData dyn;
-            
-            // non-positional dynamic data
-            dyn.gnd =               tfc[RT_TFC_AIRBORNE] == "0";
-            dyn.heading =           std::stoi(tfc[RT_TFC_HDG]);
-            dyn.spd =               std::stoi(tfc[RT_TFC_SPD]);
-            dyn.vsi =               std::stoi(tfc[RT_TFC_VS]);
-            dyn.ts =                posTime;
-            dyn.pChannel =          this;
-            
-            // *** gnd detection hack ***
-            // RealTraffic keeps the airborne flag always 1,
-            // even with traffic which definitely sits on the gnd.
-            // Also, reported altitude never seems to become negative,
-            // though this would be required in high pressure weather
-            // at airports roughly at sea level.
-            // And altitude is rounded to 250ft which means that close
-            // to the ground it could be rounded down to 0!
-            //
-            // If "0" is reported we need to assume "on gnd" and bypass
-            // the pressure correction.
-            // If at the same time VSI is reported significantly (> +/- 100)
-            // then we assume plane is already/still flying, but as we
-            // don't know exact altitude we just skip this record.
-            if (tfc[RT_TFC_ALT]         == "0") {
-                // skip this dynamic record in case VSI is too large
-                if (std::abs(dyn.vsi) > RT_VSI_AIRBORNE)
-                    return true;
-                // have proper gnd altitude calculated
-                pos.alt_m() = NAN;
-                dyn.gnd = true;
-            } else {
-                // probably not on gnd, so take care of altitude
-                // altitude comes without local pressure applied
-                double alt_f = std::stod(tfc[RT_TFC_ALT]);
-                alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
-                pos.SetAltFt(alt_f);
-            }
-            
-            // don't forget gnd-flag in position
-            pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
+        // don't forget gnd-flag in position
+        pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
 
-            // add dynamic data
-            fd.AddDynData(dyn, 0, 0, &pos);
+        // -- Ground vehicle identification --
+        // is really difficult with RealTraffic as we only have very few information:
+        if (stat.acTypeIcao.empty() &&      // don't know a/c type yet
+            dyn.gnd &&                      // on the ground
+            dyn.spd < 50.0 &&               // reasonable speed
+            stat.reg.empty() &&             // no tail number
+            stat.destAp.empty())            // no destination airport
+        {
+            // we assume ground vehicle
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
         }
+
+        // add the static data
+        fd.UpdateData(std::move(stat));
+
+        // add the dynamic data
+        fd.AddDynData(dyn, 0, 0, &pos);
+
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         return false;

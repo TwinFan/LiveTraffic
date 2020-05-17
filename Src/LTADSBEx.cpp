@@ -143,60 +143,70 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             if ( fd.empty() )
                 fd.SetKey(fdKey);
             
-            // fill static data
-            {
-                LTFlightData::FDStaticData stat;
-                stat.reg =        jog_s(pJAc, ADSBEX_REG);
-                stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
-                stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
-                stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
-                stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
-                stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
-                stat.call =       jog_s(pJAc, ADSBEX_CALL);
+            // -- fill static data --
+            LTFlightData::FDStaticData stat;
+            stat.reg =        jog_s(pJAc, ADSBEX_REG);
+            stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
+            stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
+            stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
+            stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
+            stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
+            stat.call =       jog_s(pJAc, ADSBEX_CALL);
 
-                // update the a/c's master data
-                fd.UpdateData(std::move(stat));
-            }
+            // -- dynamic data --
+            LTFlightData::FDDynamicData dyn;
             
-            // dynamic data
-            {   // unconditional...block is only for limiting local variables
-                LTFlightData::FDDynamicData dyn;
-                
-                // ADS-B returns Java tics, that is milliseconds, we use seconds
-                double posTime = jog_sn(pJAc, ADSBEX_POS_TIME) / 1000.0;
-                
-                // non-positional dynamic data
-                dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
-                dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
-                dyn.heading =           jog_sn_nan(pJAc, ADSBEX_HEADING);
-                dyn.spd =               jog_sn(pJAc, ADSBEX_SPD);
-                dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
-                dyn.ts =                posTime;
-                dyn.pChannel =          this;
-                
-                // altitude, if airborne; correct for baro pressure difference
-                const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
+            // ADS-B returns Java tics, that is milliseconds, we use seconds
+            double posTime = jog_sn(pJAc, ADSBEX_POS_TIME) / 1000.0;
+            
+            // non-positional dynamic data
+            dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
+            dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
+            dyn.heading =           jog_sn_nan(pJAc, ADSBEX_HEADING);
+            dyn.spd =               jog_sn(pJAc, ADSBEX_SPD);
+            dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
+            dyn.ts =                posTime;
+            dyn.pChannel =          this;
+            
+            // altitude, if airborne; correct for baro pressure difference
+            const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
 
-                // position and its ground status
-                positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
-                                jog_sn_nan(pJAc, ADSBEX_LON),
-                                alt_ft * M_per_FT,
-                                posTime,
-                                dyn.heading);
-                pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
-                
-                // position is rather important, we check for validity
-                if ( pos.isNormal(true) ) {
-                    // ADSBEx, especially the RAPID API version, returns
-                    // aircraft regardless of distance. To avoid planes
-                    // created and immediately removed due to distanced settings
-                    // we continue only if pos is within wanted range
-                    if ( pos.dist(viewPos) <= dataRefs.GetFdStdDistance_m() )
-                        fd.AddDynData(dyn, 0, 0, &pos);
-                }
-                else
-                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+            // position and its ground status
+            positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
+                            jog_sn_nan(pJAc, ADSBEX_LON),
+                            alt_ft * M_per_FT,
+                            posTime,
+                            dyn.heading);
+            pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
+            
+            // -- Ground vehicle identification --
+            // ADSBEx doesn't send a clear indicator, but data analysis
+            // suggests that EngType/Mount == 0 is a good indicator
+            if (stat.acTypeIcao.empty() &&      // don't know a/c type yet
+                dyn.gnd &&                      // on the ground
+                dyn.spd < 50.0 &&               // reasonable speed
+                stat.engType == 0 &&            // no engines
+                stat.engMount == 0)
+            {
+                // we assume ground vehicle
+                stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
             }
+
+            // update the a/c's master data
+            fd.UpdateData(std::move(stat));
+            
+            // position is rather important, we check for validity
+            if ( pos.isNormal(true) ) {
+                // ADSBEx, especially the RAPID API version, returns
+                // aircraft regardless of distance. To avoid planes
+                // created and immediately removed due to distanced settings
+                // we continue only if pos is within wanted range
+                if ( pos.dist(viewPos) <= dataRefs.GetFdStdDistance_m() )
+                    fd.AddDynData(dyn, 0, 0, &pos);
+            }
+            else
+                LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         }
