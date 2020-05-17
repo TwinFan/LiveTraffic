@@ -943,7 +943,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
                         stopPos.f.flightPhase != FPH_STOPPED_ON_RWY)    // avoid adding several stops
                     {
-                        stopPos.ts() += simTime + 10.0;                 // just assume _some_ time
+                        stopPos.ts() = simTime + 10.0;                  // just assume _some_ time
                         stopPos.f.flightPhase = FPH_STOPPED_ON_RWY;     // indicator for aritifical stop (not only on rwy now...)
                         if (dataRefs.GetDebugAcPos(key()))
                             LOG_MSG(logDEBUG, "%s: Added stop-position %s",
