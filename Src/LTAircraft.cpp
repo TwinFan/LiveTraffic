@@ -1957,6 +1957,14 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     if ( !bOnGrndPrev && bOnGrnd && bFPhPrev != FPH_UNKNOWN ) {
         phase = FPH_TOUCH_DOWN;
     }
+
+    // *** Cars will not actually fly, so we only allow for a limited set of status
+    if (fd.GetUnsafeStat().isGrndVehicle() &&
+        phase != FPH_TAXI &&
+        phase != FPH_STOPPED_ON_RWY)
+    {
+        phase = FPH_TAXI;
+    }
     
     // *** take action based on flight phase (change) ***
     

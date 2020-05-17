@@ -194,6 +194,9 @@ MediumJets     .*
 # to help identifying ground vehicles
 ^[[:alpha:]]{2}[[:digit:]]{1,2}$
 ^[[:alpha:]]{1}[[:digit:]]{1,3}$
+^DFS[[:digit:]]*$
+^FRA[[:digit:]]*$
+^LEOS[[:digit:]]*$
 ^TUG[[:digit:]]*$
 ^AIR[[:digit:]]*$
 ^AGL[[:digit:]]*$
