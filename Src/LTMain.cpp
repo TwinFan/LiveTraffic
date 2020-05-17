@@ -307,26 +307,24 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 }
 
 // Preferences functions for XPMP API
-int   MPIntPrefsFunc   (const char* section, const char* key, int   iDefault)
+int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
-    if (!strcmp(section,"debug"))
-    {
-        // debug XPMP's CSL model matching if requested
-        if (!strcmp(key, "model_matching"))
+    // debug XPMP's CSL model matching if requested
+    if (!strcmp(key, "model_matching")) {
+        if constexpr (VERSION_BETA)         // force logging of model-matching in BETA versions
+            return true;
+        else
             return dataRefs.GetDebugModelMatching();
-        // allow asynch loading of models
-        if (!strcmp(key, "allow_obj8_async_load"))
-            return 1;
     }
-    else if (!strcmp(section,"planes"))
-    {
-        // How many full a/c to draw at max?
-        if (!strcmp(key, "max_full_count"))
-            return dataRefs.GetMaxFullNumAc();
-        // also register the original libxplanemp dataRefs for CSL models?
-        if (!strcmp(key, "dr_libxplanemp"))
-            return dataRefs.GetDrLibXplaneMP();
-    }
+    // allow asynch loading of models
+    else if (!strcmp(key, "allow_obj8_async_load"))
+       return 1;    // logging level to match ours
+    // How many full a/c to draw at max?
+    else if (!strcmp(key, "max_full_count"))
+        return dataRefs.GetMaxFullNumAc();
+    // also register the original libxplanemp dataRefs for CSL models?
+    else if (!strcmp(key, "dr_libxplanemp"))
+        return dataRefs.GetDrLibXplaneMP();
     
     // dont' know/care about the option, return the default value
     return iDefault;

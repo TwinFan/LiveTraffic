@@ -112,7 +112,7 @@ void LogMsg ( const char* szFile, int ln, const char* szFunc, logLevelTy lvl, co
 // Note: First parameter after lvl must be the message text,
 //       which can be a format string with its parameters following like in sprintf
 #define LOG_MSG(lvl,...)  {                                         \
-    if (lvl >= dataRefs.GetLogLevel())                              \
+    if (VERSION_BETA || ((lvl) >= dataRefs.GetLogLevel()))          \
     {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}       \
 }
 
