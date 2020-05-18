@@ -369,6 +369,9 @@ public:
     // labels to pin to aircraft on the screes
     inline const std::string label() const { return szLabelAc; }
     void LabelUpdate();
+    /// @brief Return a value for dataRef .../tcas/target/flight_id
+    /// @returns "Any Id"
+    virtual std::string GetFlightId() const;
     // stringify e.g. for debugging info purposes
     operator std::string() const;
     // current position
