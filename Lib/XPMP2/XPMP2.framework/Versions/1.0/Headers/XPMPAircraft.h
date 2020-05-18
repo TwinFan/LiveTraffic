@@ -197,6 +197,10 @@ public:
     bool        ShowAsAIPlane () const { return IsVisible() && acRadar.mode != xpmpTransponderMode_Standby; }
     /// Reset TCAS target slot index
     void        ResetTcasTargetIdx () { tcasTargetIdx = -1; }
+
+    /// @brief Return a value for dataRef .../tcas/target/flight_id
+    /// @returns The first non-empty string out of: flight number, registration, departure/arrival airports
+    virtual std::string GetFlightId() const;
     
     /// (Potentially) change the plane's model after doing a new match attempt
     int ChangeModel (const std::string& _icaoType,

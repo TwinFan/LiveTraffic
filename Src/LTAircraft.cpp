@@ -1359,6 +1359,13 @@ void LTAircraft::LabelUpdate()
         strAtMost(fd.ComposeLabel(), sizeof(szLabelAc) - 1).c_str());
 }
 
+// Return a value for dataRef .../tcas/target/flight_id
+std::string LTAircraft::GetFlightId() const
+{
+    LTFlightData::FDStaticData stat = fd.WaitForSafeCopyStat();
+    return stat.acId(key());
+}
+
 //
 // MARK: LTAircraft Calculate present position
 //
@@ -1652,7 +1659,7 @@ bool LTAircraft::CalcPPos()
     // (this also applies to artificial roll-out phase)
     if (f > 1.0 &&
         (phase == FPH_TAXI || phase >= FPH_TOUCH_DOWN) &&
-        speed.m_s() > 0.0 &&
+        speed.m_s() > 0.5 &&
         !bArtificalPos)
     {
         // init deceleration down to zero
