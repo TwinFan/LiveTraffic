@@ -96,7 +96,9 @@
     <P>For updating coming from v2.03
        <ul>
            <li>copy
-               <ul><li><code>Resources/CSL2XSB.py</code>.</li>
+               <ul>
+                   <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                   <li><code>Resources/CSL2XSB.py</code>.</li>
                </ul>
            </li>
            <li>It is recommended to
@@ -109,11 +111,31 @@
     <P>Change log:</P>
 
     <ul>
+        <li>ENHANCED handling of acquiring TCAS control:
+            <ul>
+                <li>If LiveTraffic cannot immediately get TCAS/AI control,
+                    then the currently controlling plugin is named in the
+                    info message and LiveTraffic tries again automatically
+                    once TCAS control becomes available, ie. the other plugin
+                    releases it.</li>
+                <li>If another plugin requests TCAS control while LiveTraffic
+                    holds it, a message is displayed for the user to decide.
+                    As LiveTraffic shows real-world traffic it is not
+                    required to give up control immediately.</li>
+            </ul>
+        </li>
+        <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/10">XPMP2 #10</a>:
+            Multiple ICAO/AIRLINE/LIVERY/MATCHES lines supported in
+            <code>xsb_aircraft.txt</code>, ie. one model can match with different
+            criteria.</li>
         <li><code>CSL2XSB.py</code> now comments out aircraft with old formats
-            and removes more unneded commands (HASGEAR, TEXTURE)
+            and removes more unneeded commands (HASGEAR, TEXTURE)
             to reduce log warnings during LiveTraffic startup.<br>
             Execute <code>CSL2XSB.py</code> again on your models to benefit
             from this change.</li>
+        <li>Developers: Significant additions to documentation of
+            XPMP2 library, see its
+            <a href="https://twinfan.github.io/XPMP2/">GitHub pages</a>.</li>
     </ul>
         
     <h3>v2.03</h3>

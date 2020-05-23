@@ -474,8 +474,9 @@ protected:
     float lstLonRef = NAN;              ///< last lon_ref, ie. known local coordinate system's reference point
     
     // generic config values
-    int bAutoStart              = true; // shall display a/c right after startup?
-    int bAIonRequest            = false;// acquire multiplayer control for TCAS on request only, not automatically?
+    int bAutoStart          = true;     ///< shall display a/c right after startup?
+    int bAIonRequest        = false;    ///< acquire multiplayer control for TCAS on request only, not automatically?
+    bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
@@ -625,6 +626,8 @@ public:
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
+    bool AwaitingAIControl() const { return bAwaitingAIControl; }
+    void SetAwaitingAIControl (bool _b) { bAwaitingAIControl = _b; }
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
