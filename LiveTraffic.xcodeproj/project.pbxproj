@@ -780,7 +780,7 @@
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/XPSDK301/Libraries/Mac",
+					"$(PROJECT_DIR)/Lib/SDK/Libraries/Mac",
 					"$(PROJECT_DIR)/Lib/CURL",
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
@@ -795,6 +795,7 @@
 					"XPLM210=1",
 					"XPLM300=1",
 					"XPLM301=1",
+					"XPLM303=1",
 					CURL_STATICLIB,
 					"DEBUG=1",
 				);
@@ -814,9 +815,9 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
+					"Lib/SDK/CHeaders/**",
 					Lib/XPMP2/XPMP2.framework/Headers,
 					Lib/LTAPI,
-					"Lib/XPSDK301/CHeaders/**",
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = NO;
@@ -867,7 +868,7 @@
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/XPSDK301/Libraries/Mac",
+					"$(PROJECT_DIR)/Lib/SDK/Libraries/Mac",
 					"$(PROJECT_DIR)/Lib/CURL",
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
@@ -881,6 +882,7 @@
 					"XPLM210=1",
 					"XPLM300=1",
 					"XPLM301=1",
+					"XPLM303=1",
 					CURL_STATICLIB,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
@@ -899,9 +901,9 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
+					"Lib/SDK/CHeaders/**",
 					Lib/XPMP2/XPMP2.framework/Headers,
 					Lib/LTAPI,
-					"Lib/XPSDK301/CHeaders/**",
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = YES;
