@@ -232,6 +232,16 @@ public:
     /// Vertical offset, ie. the value that needs to be added to `drawInfo.y` to make the aircraft appear on the ground
     float       GetVertOfs () const;
     
+    /// Make the plane (in)visible
+    virtual void SetVisible (bool _bVisible);
+    /// Is the plane visible?
+    bool IsVisible () const { return bVisible; }
+    
+    /// Distance to camera [m]
+    float GetCameraDist () const { return camDist; }
+    /// Bearing from camera [°]
+    float GetCameraBearing () const { return camBearing; }
+
     /// @brief Called right before updating the aircraft's placement in the world
     /// @details Abstract virtual function. Override in derived classes and fill
     ///          `drawInfo`, the `v` array of dataRefs, `label`, and `infoTexts` with current values.
@@ -240,11 +250,9 @@ public:
     /// @param _elapsedSinceLastCall The wall time since last call
     /// @param _flCounter A monotonically increasing counter, bumped once per flight loop dispatch from the sim.
     virtual void UpdatePosition (float _elapsedSinceLastCall, int _flCounter) = 0;
-    /// Distance to camera [m]
-    float GetCameraDist () const { return camDist; }
-    /// Bearing from camera [°]
-    float GetCameraBearing () const { return camBearing; }
     
+    // --- Getters and Setters for the values in `drawInfo` ---
+
     /// @brief Converts world coordinates to local coordinates, writes to Aircraft::drawInfo
     /// @note Alternatively, the calling plugin can set local coordinates in Aircraft::drawInfo directly
     /// @param lat Latitude in degress -90..90
@@ -256,11 +264,88 @@ public:
     /// @warning This isn't exactly precice. If you need precise location keep it in your derived class yourself.
     void GetLocation (double& lat, double& lon, double& alt_ft) const;
     
-    /// Make the plane (in)visible
-    virtual void SetVisible (bool _bVisible);
-    /// Is the plane visible?
-    bool IsVisible () const { return bVisible; }
+    /// Sets location in local world coordinates
+    void SetLocalLoc (float _x, float _y, float _z) { drawInfo.x = _x; drawInfo.y = _y; drawInfo.z = _z; }
+    /// Gets all location info (including local coordinates)
+    const XPLMDrawInfo_t& GetLocation () const { return drawInfo; }
+
+    float GetPitch () const              { return drawInfo.pitch; }                     ///< pitch [degree]
+    void  SetPitch (float _deg)          { drawInfo.pitch = _deg; }                     ///< pitch [degree]
+    float GetHeading () const            { return drawInfo.heading; }                   ///< heading [degree]
+    void  SetHeading (float _deg)        { drawInfo.heading = _deg; }                   ///< heading [degree]
+    float GetRoll () const               { return drawInfo.roll; }                      ///< roll [degree]
+    void  SetRoll (float _deg)           { drawInfo.roll = _deg; }                      ///< roll [degree]
+
+    // --- Getters and Setters for the values in the `v` array ---
+    float GetGearRatio () const          { return v[V_CONTROLS_GEAR_RATIO]; }           ///< Gear deploy ratio
+    void  SetGearRatio (float _f)        { v[V_CONTROLS_GEAR_RATIO] = _f;   }           ///< Gear deploy ratio
+    float GetFlapRatio () const          { return v[V_CONTROLS_FLAP_RATIO]; }           ///< Flaps deploy ratio
+    void  SetFlapRatio (float _f)        { v[V_CONTROLS_FLAP_RATIO] = _f;   }           ///< Flaps deploy ratio
+    float GetSpoilerRatio () const       { return v[V_CONTROLS_SPOILER_RATIO]; }        ///< Spoilers deploy ratio
+    void  SetSpoilerRatio (float _f)     { v[V_CONTROLS_SPOILER_RATIO] = _f;   }        ///< Spoilers deploy ratio
+    float GetSpeedbrakeRatio () const    { return v[V_CONTROLS_SPEED_BRAKE_RATIO]; }    ///< Speedbrakes deploy ratio
+    void  SetSpeedbrakeRatio (float _f)  { v[V_CONTROLS_SPEED_BRAKE_RATIO] = _f;   }    ///< Speedbrakes deploy ratio
+    float GetSlatRatio () const          { return v[V_CONTROLS_SLAT_RATIO]; }           ///< Slats deploy ratio
+    void  SetSlatRatio (float _f)        { v[V_CONTROLS_SLAT_RATIO] = _f;   }           ///< Slats deploy ratio
+    float GetWingSweepRatio () const     { return v[V_CONTROLS_WING_SWEEP_RATIO]; }     ///< Wing sweep ratio
+    void  SetWingSweepRatio (float _f)   { v[V_CONTROLS_WING_SWEEP_RATIO] = _f;   }     ///< Wing sweep ratio
+    float GetThrustRatio () const        { return v[V_CONTROLS_THRUST_RATIO]; }         ///< Thrust ratio
+    void  SetThrustRatio (float _f)      { v[V_CONTROLS_THRUST_RATIO] = _f;   }         ///< Thrust ratio
+    float GetYokePitchRatio () const     { return v[V_CONTROLS_YOKE_PITCH_RATIO]; }     ///< Yoke pitch ratio
+    void  SetYokePitchRatio (float _f)   { v[V_CONTROLS_YOKE_PITCH_RATIO] = _f;   }     ///< Yoke pitch ratio
+    float GetYokeHeadingRatio () const   { return v[V_CONTROLS_YOKE_HEADING_RATIO]; }   ///< Yoke heading ratio
+    void  SetYokeHeadingRatio (float _f) { v[V_CONTROLS_YOKE_HEADING_RATIO] = _f;   }   ///< Yoke heading ratio
+    float GetYokeRollRatio () const      { return v[V_CONTROLS_YOKE_ROLL_RATIO]; }      ///< Yoke roll ratio
+    void  SetYokeRollRatio (float _f)    { v[V_CONTROLS_YOKE_ROLL_RATIO] = _f;   }      ///< Yoke roll ratio
+    float GetThrustReversRatio () const  { return v[V_CONTROLS_THRUST_REVERS]; }        ///< Thrust reversers ratio
+    void  SetThrustReversRatio (float _f){ v[V_CONTROLS_THRUST_REVERS] = _f;   }        ///< Thrust reversers ratio
+
+    bool  GetLightsTaxi () const         { return v[V_CONTROLS_TAXI_LITES_ON] > 0.5f; }     ///< Taxi lights
+    void  SetLightsTaxi (bool _b)        { v[V_CONTROLS_TAXI_LITES_ON] = float(_b);   }     ///< Taxi lights
+    bool  GetLightsLanding () const      { return v[V_CONTROLS_LANDING_LITES_ON] > 0.5f; }  ///< Landing lights
+    void  SetLightsLanding (bool _b)     { v[V_CONTROLS_LANDING_LITES_ON] = float(_b);   }  ///< Landing lights
+    bool  GetLightsBeacon () const       { return v[V_CONTROLS_BEACON_LITES_ON] > 0.5f; }   ///< Beacon lights
+    void  SetLightsBeacon (bool _b)      { v[V_CONTROLS_BEACON_LITES_ON] = float(_b);   }   ///< Beacon lights
+    bool  GetLightsStrobe () const       { return v[V_CONTROLS_STROBE_LITES_ON] > 0.5f; }   ///< Strobe lights
+    void  SetLightsStrobe (bool _b)      { v[V_CONTROLS_STROBE_LITES_ON] = float(_b);   }   ///< Strobe lights
+    bool  GetLightsNav () const          { return v[V_CONTROLS_NAV_LITES_ON] > 0.5f; }      ///< Navigation lights
+    void  SetLightsNav (bool _b)         { v[V_CONTROLS_NAV_LITES_ON] = float(_b);   }      ///< Navigation lights
+
+    float GetTireDeflection () const     { return v[V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR]; } ///< Vertical tire deflection [meter]
+    void  SetTireDeflection (float _mtr) { v[V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR] = _mtr; } ///< Vertical tire deflection [meter]
+    float GetTireRotAngle () const       { return v[V_GEAR_TIRE_ROTATION_ANGLE_DEG]; }      ///< Tire rotation angle [degree]
+    void  SetTireRotAngle (float _deg)   { v[V_GEAR_TIRE_ROTATION_ANGLE_DEG] = _deg; }      ///< Tire rotation angle [degree]
+    float GetTireRotRpm () const         { return v[V_GEAR_TIRE_ROTATION_SPEED_RPM]; }      ///< Tire rotation speed [rpm]
+    void  SetTireRotRpm (float _rpm)     { v[V_GEAR_TIRE_ROTATION_SPEED_RPM] = _rpm;        ///< Tire rotation speed [rpm], also sets [rad/s]
+                                           v[V_GEAR_TIRE_ROTATION_SPEED_RAD_SEC] = _rpm * RPM_to_RADs; }
+    float GetTireRotRad () const         { return v[V_GEAR_TIRE_ROTATION_SPEED_RAD_SEC]; }  ///< Tire rotation speed [rad/s]
+    void  SetTireRotRad (float _rad)     { v[V_GEAR_TIRE_ROTATION_SPEED_RAD_SEC] = _rad;    ///< Tire rotation speed [rad/s], also sets [rpm]
+                                           v[V_GEAR_TIRE_ROTATION_SPEED_RPM] = _rad / RPM_to_RADs; }
     
+    float GetEngineRotAngle () const     { return v[V_ENGINES_ENGINE_ROTATION_ANGLE_DEG]; }      ///< Engine rotation angle [degree]
+    void  SetEngineRotAngle (float _deg) { v[V_ENGINES_ENGINE_ROTATION_ANGLE_DEG] = _deg; }      ///< Engine rotation angle [degree]
+    float GetEngineRotRpm () const       { return v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM]; }      ///< Engine rotation speed [rpm]
+    void  SetEngineRotRpm (float _rpm)   { v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM] = _rpm;        ///< Engine rotation speed [rpm], also sets [rad/s]
+                                           v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC] = _rpm * RPM_to_RADs; }
+    float GetEngineRotRad () const       { return v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC]; }  ///< Engine rotation speed [rad/s]
+    void  SetEngineRotRad (float _rad)   { v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC] = _rad;    ///< Engine rotation speed [rad/s], also sets [rpm]
+                                           v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM] = _rad / RPM_to_RADs; }
+
+    float GetPropRotAngle () const       { return v[V_ENGINES_PROP_ROTATION_ANGLE_DEG]; }      ///< Propellor rotation angle [degree]
+    void  SetPropRotAngle (float _deg)   { v[V_ENGINES_PROP_ROTATION_ANGLE_DEG] = _deg; }      ///< Propellor rotation angle [degree]
+    float GetPropRotRpm () const         { return v[V_ENGINES_PROP_ROTATION_SPEED_RPM]; }      ///< Propellor rotation speed [rpm]
+    void  SetPropRotRpm (float _rpm)     { v[V_ENGINES_PROP_ROTATION_SPEED_RPM] = _rpm;        ///< Propellor rotation speed [rpm], also sets [rad/s]
+                                           v[V_ENGINES_PROP_ROTATION_SPEED_RAD_SEC] = _rpm * RPM_to_RADs; }
+    float GetPropRotRad () const         { return v[V_ENGINES_PROP_ROTATION_SPEED_RAD_SEC]; }  ///< Propellor rotation speed [rad/s]
+    void  SetPropRotRad (float _rad)     { v[V_ENGINES_PROP_ROTATION_SPEED_RAD_SEC] = _rad;    ///< Propellor rotation speed [rad/s], also sets [rpm]
+                                           v[V_ENGINES_PROP_ROTATION_SPEED_RPM] = _rad / RPM_to_RADs; }
+
+    float GetReversDeployRatio () const  { return v[V_ENGINES_THRUST_REVERSER_DEPLOY_RATIO]; }  ///< Thrust reversers deploy ratio
+    void  SetReversDeployRatio (float _f){ v[V_ENGINES_THRUST_REVERSER_DEPLOY_RATIO] = _f;   }  ///< Thrust reversers deploy ratio
+
+    bool  GetTouchDown () const          { return v[V_MISC_TOUCH_DOWN] > 0.5f; }                ///< Moment of touch down
+    void  SetTouchDown (bool _b)         { v[V_MISC_TOUCH_DOWN] = float(_b);   }                ///< Moment of touch down
+
     // The following is implemented in Map.cpp:
     /// Determine which map icon to use for this aircraft
     void MapFindIcon ();

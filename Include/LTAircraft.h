@@ -355,7 +355,6 @@ protected:
     bool                bChangeModel = false;   ///< shall the model be updated at next chance?
     bool                bSendNewInfoData = false; ///< is there new static data to announce?
     // visibility
-    bool                bVisible = true;        // is a/c visible?
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
     int                 aiPrio = 0;     ///< prio for AI slotting (libxplanemp)
@@ -416,9 +415,8 @@ public:
     inline bool ShallSendNewInfoData () const { return bSendNewInfoData; }
     inline void SetSendNewInfoData () { bSendNewInfoData = true; }
     // Visibility
-    inline bool IsVisible() const { return bVisible; }
     inline bool IsAutoVisible() const { return bAutoVisible; }
-    void SetVisible (bool b);           // define visibility, overrides auto
+    virtual void SetVisible (bool _bVisible);   // define visibility, overrides auto
     bool SetAutoVisible (bool b);       // returns bVisible after auto setting
     // external camera view
     void ToggleCameraView();             // start an external view on this a/c
