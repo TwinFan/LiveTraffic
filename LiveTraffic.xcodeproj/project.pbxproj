@@ -827,7 +827,7 @@
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
-				XPLANE11_ROOT = "/Users/birger/Applications/X-Plane 11";
+				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane 11";
 			};
 			name = Debug;
 		};
@@ -912,7 +912,7 @@
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
-				XPLANE11_ROOT = "/Users/birger/Applications/X-Plane 11";
+				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane 11";
 			};
 			name = Release;
 		};
