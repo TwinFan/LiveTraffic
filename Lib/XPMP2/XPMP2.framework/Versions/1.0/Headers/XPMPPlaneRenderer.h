@@ -2,6 +2,8 @@
 /// @brief      Rendering functions.
 /// @note       This file bases on and is compatible to the header
 ///             provided with the original libxplanemp.
+/// @deprecated None of these functions are supported any longer,
+///             their definitions are only provided for backward compatibility.
 /// @author     Birger Hoppe
 /// @copyright  Copyright (c) 2005, Ben Supnik and Chris Serio.
 /// @copyright  (c) 2020 Birger Hoppe
@@ -28,8 +30,19 @@
 // function (although in practice this isn't real useful.
 // These functions do "the drawing" once per frame.
 
+/// @brief Was an internal libxplanemp functions
+/// @deprecated No longer supported.
+[[deprecated("Internal function no longer supported")]]
 void            XPMPInitDefaultPlaneRenderer(void);
+
+/// @brief Was an internal libxplanemp functions
+/// @deprecated No longer supported.
+[[deprecated("Internal function no longer supported")]]
 void            XPMPDefaultPlaneRenderer(int is_blend);
+
+/// @brief Was an internal libxplanemp functions
+/// @deprecated No longer supported.
+[[deprecated("Internal function no longer supported")]]
 void            XPMPDeinitDefaultPlaneRenderer(void);
 
 #endif

@@ -1359,6 +1359,13 @@ void LTAircraft::LabelUpdate()
         strAtMost(fd.ComposeLabel(), sizeof(szLabelAc) - 1).c_str());
 }
 
+// Return a value for dataRef .../tcas/target/flight_id
+std::string LTAircraft::GetFlightId() const
+{
+    LTFlightData::FDStaticData stat = fd.WaitForSafeCopyStat();
+    return stat.acId(key());
+}
+
 //
 // MARK: LTAircraft Calculate present position
 //
@@ -1652,7 +1659,7 @@ bool LTAircraft::CalcPPos()
     // (this also applies to artificial roll-out phase)
     if (f > 1.0 &&
         (phase == FPH_TAXI || phase >= FPH_TOUCH_DOWN) &&
-        speed.m_s() > 0.0 &&
+        speed.m_s() > 0.5 &&
         !bArtificalPos)
     {
         // init deceleration down to zero
@@ -2332,10 +2339,10 @@ void LTAircraft::SetVisible (bool b)
 {
     bAutoVisible = false;
     bSetVisible = b;
-    if (b != bVisible)                  // is new visibility a change?
+    if (b != IsVisible())       // is new visibility a change?
     {
-        bVisible = b;
-        LOG_MSG(logINFO, bVisible ? INFO_AC_SHOWN : INFO_AC_HIDDEN,
+        XPMP2::Aircraft::SetVisible(b);
+        LOG_MSG(logINFO, IsVisible() ? INFO_AC_SHOWN : INFO_AC_HIDDEN,
                 labelInternal.c_str());
     }
 }
@@ -2351,30 +2358,30 @@ bool LTAircraft::SetAutoVisible (bool b)
 bool LTAircraft::CalcVisible ()
 {
     // possible change...save old value for comparison
-    bool bPrevVisible = bVisible;
+    bool bPrevVisible = IsVisible();
     
     // automatic is off -> take over manually given state
     if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
-        bVisible = bSetVisible;
+        XPMP2::Aircraft::SetVisible(bSetVisible);
     // hide while taxiing...and we are taxiing?
     else if (dataRefs.GetHideTaxiing() &&
         (phase == FPH_TAXI || phase == FPH_STOPPED_ON_RWY))
-        bVisible = false;
+        XPMP2::Aircraft::SetVisible(false);
     // hide below certain height...and we are below that?
     else if (dataRefs.GetHideBelowAGL() > 0 &&
              GetPHeight_ft() < dataRefs.GetHideBelowAGL())
-        bVisible = false;
+        XPMP2::Aircraft::SetVisible(false);
     else
         // otherwise we are visible
-        bVisible = true;
+        XPMP2::Aircraft::SetVisible(true);
     
     // inform about a change
-    if (bPrevVisible != bVisible)
-        LOG_MSG(logINFO, bVisible ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
+    if (bPrevVisible != IsVisible())
+        LOG_MSG(logINFO, IsVisible() ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
                 labelInternal.c_str());
 
     // return new visibility
-    return bVisible;
+    return IsVisible();
 }
 
 /// Determines AI priority based on bearing to user's plane and ground status
@@ -2680,18 +2687,10 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             // copy ppos (by type conversion)
             *outPosition = ppos;
             
-            if (IsVisible()) {
-                outPosition->aiPrio = aiPrio;       // AI slotting priority
-                // alter altitude by main gear deflection, so plane moves down
-                if (IsOnGrnd())
-                    outPosition->elevation -= gearDeflection.is() / M_per_FT;
-            } else {
-                // if invisible move a/c to unreachable position
-                outPosition->lat = AC_HIDE_LAT;
-                outPosition->lon = AC_HIDE_LON;
-                outPosition->elevation = AC_HIDE_ALT;
-                outPosition->aiPrio = 100;
-            }
+            outPosition->aiPrio = aiPrio;       // AI slotting priority
+            // alter altitude by main gear deflection, so plane moves down
+            if (IsOnGrnd())
+                outPosition->elevation -= gearDeflection.is() / M_per_FT;
             
             // add the label
             memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));

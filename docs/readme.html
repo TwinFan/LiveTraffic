@@ -86,12 +86,62 @@
 
     <h2>v2.0</h2>
 
-    <h3>v2.03</h3>
+    <h3>v2.04</h3>
 
     <P>Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
+
+    <P>For updating coming from v2.03
+       <ul>
+           <li>copy
+               <ul>
+                   <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                   <li><code>Resources/CSL2XSB.py</code>,</li>
+                   <li><code>Resources/Doc8643.txt</code>.</li>
+               </ul>
+           </li>
+           <li>It is recommended to
+               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+               on your CSL models again if you ever did so before,
+               no matter the settings you had used.</li>
+        </ul>
+    </p>
+       
+    <P>Change log:</P>
+
+    <ul>
+        <li>REACTIVATED LiveTraffic's map layer as XPD-10825 is fixed in XP11.50
+            Beta 10. Make sure you have updated to Beta 10!</li>
+        <li>ENHANCED handling of acquiring TCAS control:
+            <ul>
+                <li>If LiveTraffic cannot immediately get TCAS/AI control,
+                    then the currently controlling plugin is named in the
+                    info message and LiveTraffic tries again automatically
+                    once TCAS control becomes available, ie. the other plugin
+                    releases it.</li>
+                <li>If another plugin requests TCAS control while LiveTraffic
+                    holds it, a message is displayed for the user to decide.
+                    As LiveTraffic shows real-world traffic it is not
+                    required to give up control immediately.</li>
+            </ul>
+        </li>
+        <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/10">XPMP2 #10</a>:
+            Multiple ICAO/AIRLINE/LIVERY/MATCHES lines supported in
+            <code>xsb_aircraft.txt</code>, ie. one model can match with different
+            criteria.</li>
+        <li><code>CSL2XSB.py</code> now comments out aircraft with old formats
+            and removes more unneeded commands (HASGEAR, TEXTURE)
+            to reduce log warnings during LiveTraffic startup.<br>
+            Execute <code>CSL2XSB.py</code> again on your models to benefit
+            from this change.</li>
+        <li>Developers: Significant additions to documentation of
+            XPMP2 library, see its
+            <a href="https://twinfan.github.io/XPMP2/">GitHub pages</a>.</li>
+    </ul>
+        
+    <h3>v2.03</h3>
 
     <P>For updating coming from v2.01 or v2.02
        <ul>

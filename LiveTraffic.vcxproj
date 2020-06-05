@@ -121,13 +121,13 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\SDK\CHeaders\Widgets\;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;WIN32_LEAN_AND_MEAN;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;WIN32_LEAN_AND_MEAN;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;XPLM303;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>LiveTraffic.h</PrecompiledHeaderFile>
@@ -142,7 +142,7 @@
       <DisableSpecificWarnings>4634;4635;4127</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/XPSDK301/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPWidgets_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>
@@ -168,13 +168,13 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\XPSDK301\CHeaders\XPLM\;Lib\XPSDK301\CHeaders\Widgets\;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\SDK\CHeaders\Widgets\;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;WIN32_LEAN_AND_MEAN;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDLL;WIN32;IBM;WIN32_LEAN_AND_MEAN;CURL_STATICLIB;XPLM210;XPLM200;XPLM300;XPLM301;XPLM303;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>LiveTraffic.h</PrecompiledHeaderFile>
@@ -191,7 +191,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
       <DisableSpecificWarnings>4127</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/XPSDK301/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPWidgets_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>

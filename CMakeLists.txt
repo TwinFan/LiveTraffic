@@ -14,12 +14,11 @@ endif ()
 include_directories("${CMAKE_SOURCE_DIR}/Include")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/Widgets")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/Wrappers")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/XPSDK301/CHeaders/XPLM")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/Widgets")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 
-# Enable all X-Plane SDK APIs up to the newest version.
-add_definitions(-DXPLM200=1 -DXPLM210=1 -DXPLM300=1 -DXPLM301=1)
+# Enable all necessary X-Plane SDK APIs
+add_definitions(-DXPLM200=1 -DXPLM210=1 -DXPLM300=1 -DXPLM301=1 -DXPLM303=1)
 
 # Define platform macros.
 add_definitions(-DAPL=$<BOOL:${APPLE}> -DIBM=$<BOOL:${WIN32}> -DLIN=$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>)
@@ -111,14 +110,13 @@ add_library(LiveTraffic MODULE ${ALL_FILES})
 if (APPLE)
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
-    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPSDK301/Libraries/Mac")
+    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Mac")
 elseif (UNIX)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPSDK301/Libraries/Win")
 elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPSDK301/Libraries/Win")
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
 
 # Find the XPMP2 library

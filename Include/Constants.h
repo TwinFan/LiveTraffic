@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.03f;
+constexpr float VERSION_NR = 2.04f;
 constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -75,9 +75,6 @@ constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between posit
 constexpr double FD_GND_AGL =       50;         // [ft] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
-constexpr double AC_HIDE_LAT        = -70.645077;       // Neumayer-Station III
-constexpr double AC_HIDE_LON        =  -8.264134;
-constexpr double AC_HIDE_ALT        = 50;
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
 constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5� glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5� glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
@@ -175,6 +172,9 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define INFO_GND_VEHICLE_CALL   "Vehicle %s: Decided for ground vehicle based on call sign '%s'"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircraft"
+#define INFO_REQU_AI_RELEASE    "%s requested us to release TCAS / AI control. Switch off '" MENU_HAVE_TCAS "' if you want so."
+#define INFO_GOT_AI_CONTROL     LIVE_TRAFFIC " has TCAS / AI control now"
+#define INFO_RETRY_GET_AI       "Another plugin released AI control, will try again to get control..."
 #define INFO_WND_AUTO_AC        "AUTO"
 #define INFO_AC_HIDDEN          "A/c %s hidden"
 #define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
@@ -208,6 +208,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_TOGGLE_AIRCRAFT    "Aircraft displayed"
 #define MENU_TOGGLE_AC_NUM      "Aircraft displayed (%d shown)"
 #define MENU_HAVE_TCAS          "TCAS controlled"
+#define MENU_HAVE_TCAS_REQUSTD  "TCAS controlled (requested)"
 #define MENU_TOGGLE_LABELS      "Labels shown"
 #define MENU_SETTINGS_UI        "Settings..."
 #define MENU_HELP               "Help"
@@ -259,10 +260,8 @@ constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
-#define ERR_INIT_XPMP           "Could not initialize XPMPMultiplayer: %s"
+#define ERR_INIT_XPMP           "Could not initialize XPMP2: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
-#define ERR_XPMP_ENABLE         "Could not enable XPMPMultiplayer: %s"
-#define ERR_NO_TCAS             "LiveTraffic does not control AI planes and can therefore not create TCAS blibs!"
 #define ERR_XPMP_ADD_CSL        "Could not add additional CSL package: %s"
 #define ERR_APPEND_MENU_ITEM    "Could not append a menu item"
 #define ERR_CREATE_MENU         "Could not create menu %s"

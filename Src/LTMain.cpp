@@ -382,7 +382,7 @@ bool LTMainInit ()
                                                  dataRefs.GetDefaultAcIcaoType().c_str(),
                                                  LIVE_TRAFFIC_XPMP2);
     if ( cszResult[0] ) {
-        LOG_MSG(logFATAL,ERR_XPMP_ENABLE, cszResult);
+        LOG_MSG(logFATAL,ERR_INIT_XPMP, cszResult);
         XPMPMultiplayerCleanup();
         return false;
     }
@@ -465,6 +465,18 @@ bool LTMainShowAircraft ()
     return true;
 }
 
+/// Callback for when some other plugin released AI control
+void CBRetryGetAI (void*)
+{
+    // We just try it again if we are still waiting
+    if (dataRefs.AwaitingAIControl() &&
+        !dataRefs.HaveAIUnderControl())
+    {
+        SHOW_MSG(logINFO, INFO_RETRY_GET_AI);
+        LTMainToggleAI(true);
+    }
+}
+
 // Enable Multiplayer plane drawing, acquire multiuser planes
 bool LTMainTryGetAIAircraft ()
 {
@@ -472,18 +484,22 @@ bool LTMainTryGetAIAircraft ()
     if (dataRefs.HaveAIUnderControl())
         return true;
     
-    const char* cszResult = XPMPMultiplayerEnable();
-    if ( cszResult[0] ) { SHOW_MSG(logWARN,ERR_XPMP_ENABLE, cszResult); return false; }
-    
-    // If we don't control AI aircraft we can't create TCAS blibs.
-    if (!dataRefs.HaveAIUnderControl()) {
-        // inform the use about this fact, but otherwise continue
-        SHOW_MSG(logWARN,ERR_NO_TCAS);
-    }
-    return true;
+    // Try getting AI control, pass callback for the case we couldn't get it
+    const char* cszResult = XPMPMultiplayerEnable(CBRetryGetAI);
+    if ( cszResult[0] ) {
+        SHOW_MSG(logWARN, cszResult);
+        dataRefs.SetAwaitingAIControl(true);
+        return false;
+    } else if (dataRefs.HaveAIUnderControl()) {
+        SHOW_MSG(logINFO, INFO_GOT_AI_CONTROL);
+        dataRefs.SetAwaitingAIControl(false);
+        return true;
+    } else
+        // Not expected to get here!
+        return false;
 }
 
-/// Disable Multiplayer place drawing, releasing multiuser planes
+/// Releasing AI/multiuser planes
 void LTMainReleaseAIAircraft ()
 {
     // short-cut if we aren't in control
@@ -515,7 +531,14 @@ void LTMainToggleAI (bool bGetControl)
 {
     // Short cut if there is no change
     if (bGetControl == bool(dataRefs.HaveAIUnderControl()))
+    {
+        // Don't have control...and don't want -> even cancel waiting
+        if (!bGetControl) {
+            dataRefs.SetAwaitingAIControl(false);
+            MenuUpdateAllItemStatus();
+        }
         return;
+    }
     
     // Show a message
     CreateMsgWindow(1.0f, logMSG, MSG_AI_LOAD_ACF);

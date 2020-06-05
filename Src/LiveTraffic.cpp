@@ -91,7 +91,8 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 dataRefs.ToggleAircraftDisplayed();
                 break;
             case MENU_ID_HAVE_TCAS:
-                LTMainToggleAI(!dataRefs.HaveAIUnderControl());
+                LTMainToggleAI(!dataRefs.HaveAIUnderControl() &&
+                               !dataRefs.AwaitingAIControl());
                 break;
             case MENU_ID_TOGGLE_LABELS:
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_LABELS],
@@ -167,10 +168,15 @@ void MenuUpdateAllItemStatus()
     // a/c displayed?
     MenuCheckAircraftDisplayed (dataRefs.AreAircraftDisplayed(),
                                  dataRefs.GetNumAc() );
+    
+    // "TCAS controlled" is three-fold:
     // checkmark the menu item if TCAS under control
     XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
                       dataRefs.HaveAIUnderControl() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
-    
+    // Set menu item's name depending if AI control was requested (but not yet granted)
+    XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
+                        dataRefs.AwaitingAIControl() ? MENU_HAVE_TCAS_REQUSTD : MENU_HAVE_TCAS,
+                        0);
 }
 
 void HandleNewVersionAvail ()
@@ -538,7 +544,18 @@ PLUGIN_API int  XPluginEnable(void)
 
 PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * /*inParam*/)
 {
-    // we only process msgs from X-Plane
+    // *** Some other plugin asks for AI release,
+    //     but as we are showing live planes we won't give up automatically,
+    //     but we tell our user
+    if (inMsg == XPLM_MSG_RELEASE_PLANES)
+    {
+        char who[256] = "?";
+        XPLMGetPluginInfo(inFrom, who, NULL, NULL, NULL);
+        SHOW_MSG(logINFO, INFO_REQU_AI_RELEASE, who);
+        return;
+    }
+
+    // Otherwise, we only process msgs from X-Plane
     if (inFrom != XPLM_PLUGIN_XPLANE)
         return;
     
