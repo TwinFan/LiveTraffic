@@ -25,6 +25,15 @@
 
 #include <stdexcept>
 
+/// @brief To apply printf-style warnings to our functions.
+/// @see Taken from imgui.h's definition of IM_FMTARGS
+#if defined(__clang__) || defined(__GNUC__)
+#define LT_FMTARGS(FMT)  __attribute__((format(printf, FMT, FMT+1)))
+#else
+#define LT_FMTARGS(FMT)
+#endif
+
+
 class LTFlightData;     // see LTFlightData.h
 
 // MARK: Log Level:
@@ -52,7 +61,7 @@ protected:
     std::string msg;
 public:
     LTError (const char* szFile, int ln, const char* szFunc, logLevelTy lvl,
-             const char* szMsg, ...);
+             const char* szMsg, ...) LT_FMTARGS(6);
 protected:
     LTError (const char* szFile, int ln, const char* szFunc, logLevelTy lvl);
 public:
@@ -74,7 +83,7 @@ public:
 public:
     LTErrorFD (LTFlightData& _fd,
                const char* szFile, int ln, const char* szFunc, logLevelTy lvl,
-               const char* szMsg, ...);
+               const char* szMsg, ...) LT_FMTARGS(7);
 
 public:
     // copy/move constructor/assignment as per default
@@ -92,7 +101,7 @@ throw LTErrorFD(fdref,__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);
 
 // Creates a window and displays the given szMsg for fTimeToDisplay seconds
 // fTimeToDisplay == 0 -> no limit
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...);
+XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...) LT_FMTARGS(3);
 
 /// Show the special text "Seeing aircraft...showing..."
 XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime);
@@ -106,7 +115,7 @@ void DestroyWindow();
 const char* GetLogString ( const char* szFile, int ln, const char* szFunc, logLevelTy lvl, const char* szMsg, va_list args );
              
 // Log Text to log file
-void LogMsg ( const char* szFile, int ln, const char* szFunc, logLevelTy lvl, const char* szMsg, ... );
+void LogMsg ( const char* szFile, int ln, const char* szFunc, logLevelTy lvl, const char* szMsg, ... ) LT_FMTARGS(5);
 
 // Log a message if this is a beta version, or
 //               if lvl is greater or equal currently defined log level

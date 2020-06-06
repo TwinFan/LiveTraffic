@@ -1507,7 +1507,7 @@ public:
             {
                 const TaxiEdge& e = vecTaxiEdges[idxE];
                 if (!e.isValid()) {
-                    LOG_MSG(logFATAL, "Node %lu includes edge %lu, which is invalid!",
+                    LOG_MSG(logFATAL, "Node %lu includes edge %lu, which is invalid (%lu/%lu)!",
                             idxN, idxE, e.startNode(), e.endNode());
                     bRet = false;
                 }

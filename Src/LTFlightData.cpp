@@ -2465,7 +2465,7 @@ bool LTFlightData::CreateAircraft ( double simTime )
         catch(...) {
             LOG_MSG(logERR, ERR_UNKN_EXCP_AC_CREATE,
                     key().c_str(), statData.acTypeIcao.c_str(),
-                    sPosDeque.c_str());
+                    "<?>", sPosDeque.c_str());
             pAc = nullptr;
         }
         if (!pAc)

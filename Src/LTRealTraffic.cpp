@@ -919,7 +919,7 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
         hPa = newQNH;
         return true;
     } else {
-        LOG_MSG(logWARN, ERR_RT_WEATHER_QNH, metarIcao.c_str(), newQNH);
+        LOG_MSG(logWARN, ERR_RT_WEATHER_QNH, metarIcao.c_str(), std::lround(newQNH));
         return false;
     }
 }

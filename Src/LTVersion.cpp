@@ -242,7 +242,7 @@ bool FetchXPlaneOrgVersion ()
         
         // not HTTP_OK?
         if (httpResponse != HTTP_OK)
-            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, httpResponse, ERR_HTTP_NOT_OK)
+            LOG_MSG(logERR, ERR_CURL_NOVERCHECK, (int)httpResponse, ERR_HTTP_NOT_OK)
         else if (std::isnan(verXPlaneOrg))
             // all OK but still no version number?
             LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, ERR_FOUND_NO_VER_INFO)
