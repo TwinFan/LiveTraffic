@@ -291,7 +291,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_JSON_PARSE          "Parsing flight data as JSON failed"
 #define ERR_JSON_MAIN_OBJECT    "JSON: Getting main object failed"
 #define ERR_JSON_ACLIST         "JSON: List of aircraft (%s) not found"
-#define ERR_JSON_AC             "JSON: Could not get %d. aircraft in '%s'"
+#define ERR_JSON_AC             "JSON: Could not get %lu. aircraft in '%s'"
 #define ERR_NEW_OBJECT          "Could not create new object (memory?): %s"
 #define ERR_LOCK_ERROR          "Could not acquire lock for '%s': %s"
 #define ERR_MALLOC              "Could not (re)allocate %ld bytes of memory"

@@ -735,7 +735,7 @@ bool BezierCurve::GetPos (positionTy& pos, double ts, double f)
 #ifdef DEBUG
     if (gSelAcCalc) {
         if (bFirstTime) {
-            LOG_MSG(logDEBUG, dbgTxt().c_str());
+            LOG_MSG(logDEBUG, "%s", dbgTxt().c_str());
             LOG_MSG(logDEBUG, "Current pos: %s", pos.dbgTxt().c_str());
         }
         if (bFirstTime ||

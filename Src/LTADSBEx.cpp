@@ -452,7 +452,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                 break;
 
             default:
-                SHOW_MSG(logERR, ERR_ADSBEX_KEY_TECH, httpResponse, ERR_HTTP_NOT_OK);
+                SHOW_MSG(logERR, ERR_ADSBEX_KEY_TECH, (int)httpResponse, ERR_HTTP_NOT_OK);
         }
     }
     
