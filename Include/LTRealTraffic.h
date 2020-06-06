@@ -46,7 +46,7 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define MSG_RT_LAST_RCVD        " | last: %lds ago"
 
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
-#define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %d - ignored"
+#define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %ld - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
 
 // Traffic data format and fields

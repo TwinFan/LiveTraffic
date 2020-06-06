@@ -487,7 +487,7 @@ bool LTMainTryGetAIAircraft ()
     // Try getting AI control, pass callback for the case we couldn't get it
     const char* cszResult = XPMPMultiplayerEnable(CBRetryGetAI);
     if ( cszResult[0] ) {
-        SHOW_MSG(logWARN, cszResult);
+        SHOW_MSG(logWARN, "%s", cszResult);
         dataRefs.SetAwaitingAIControl(true);
         return false;
     } else if (dataRefs.HaveAIUnderControl()) {
