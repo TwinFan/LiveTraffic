@@ -361,3 +361,14 @@ void LogMsg ( const char* szPath, int ln, const char* szFunc, logLevelTy lvl, co
     XPLMDebugString ( GetLogString(szPath, ln, szFunc, lvl, szMsg, args) );
     va_end (args);
 }
+
+// Might be used in macros of other packages like ImGui
+void LogFatalMsg ( const char* szPath, int ln, const char* szFunc, const char* szMsg, ... )
+{
+    va_list args;
+
+    va_start (args, szMsg);
+    // write to log (flushed immediately -> expensive!)
+    XPLMDebugString ( GetLogString(szPath, ln, szFunc, logFATAL, szMsg, args) );
+    va_end (args);
+}
