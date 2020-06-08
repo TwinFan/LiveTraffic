@@ -1239,8 +1239,7 @@ reversers(MDL_REVERSERS_TIME),
 spoilers(MDL_SPOILERS_TIME),
 tireRpm(MDL_TIRE_SLOW_TIME, MDL_TIRE_MAX_RPM),
 gearDeflection(MDL_GEAR_DEFL_TIME, mdl.GEAR_DEFLECTION),
-probeNextTs(0), terrainAlt_m(0.0),
-bValid(true)
+probeNextTs(0), terrainAlt_m(0.0)
 {
     // for some calcs we need correct timestamps _before_ first draw already
     // so make sure the currCycle struct is up-to-date
