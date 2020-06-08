@@ -347,8 +347,6 @@ protected:
     // bearing/dist from viewpoint to a/c
     vectorTy            vecView;        // degrees/meters
     
-    // object valid? (set to false after exceptions)
-    bool                bValid;
 #ifdef DEBUG
     bool                bIsSelected = false;    // is selected for logging/debugging?
 #endif
@@ -407,9 +405,6 @@ public:
     std::string GetLightsStr() const;
     void CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut, size_t size) const;       ///< copies a/c info into bulk structure
     void CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut, size_t size) const;  ///< copies a/c text info into bulk structure
-    // object valid? (set to false after exceptions)
-    inline bool IsValid() const { return bValid; }
-    void SetInvalid() { bValid = false; }
     bool ShallUpdateModel () const { return bChangeModel; }
     void SetUpdateModel () { bChangeModel = true; }
     inline bool ShallSendNewInfoData () const { return bSendNewInfoData; }

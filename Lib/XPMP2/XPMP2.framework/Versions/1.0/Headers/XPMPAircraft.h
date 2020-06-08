@@ -142,6 +142,7 @@ public:
     XPMPInfoTexts_t acInfoTexts;
     
 protected:
+    bool bValid                 = true;     ///< is this object valid? (Will be reset in case of exceptions)
     bool bVisible               = true;     ///< Shall this plane be drawn at the moment?
     
     XPMP2::CSLModel*    pCSLMdl = nullptr;  ///< the CSL model in use
@@ -231,11 +232,16 @@ public:
     int         GetMatchQuality () const { return matchQuality; }
     /// Vertical offset, ie. the value that needs to be added to `drawInfo.y` to make the aircraft appear on the ground
     float       GetVertOfs () const;
-    
+
+    /// Is the a/c object valid?
+    bool IsValid() const { return bValid; }
+    /// Mark the plane invalid, e.g. after exceptions occured on the data
+    virtual void SetInvalid();
+
     /// Make the plane (in)visible
     virtual void SetVisible (bool _bVisible);
     /// Is the plane visible?
-    bool IsVisible () const { return bVisible; }
+    bool IsVisible () const { return bVisible && bValid; }
     
     /// Distance to camera [m]
     float GetCameraDist () const { return camDist; }
