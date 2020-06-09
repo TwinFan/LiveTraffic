@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.05f;
+constexpr float VERSION_NR = 2.06f;
 constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -175,7 +175,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define INFO_REQU_AI_RELEASE    "%s requested us to release TCAS / AI control. Switch off '" MENU_HAVE_TCAS "' if you want so."
 #define INFO_GOT_AI_CONTROL     LIVE_TRAFFIC " has TCAS / AI control now"
 #define INFO_RETRY_GET_AI       "Another plugin released AI control, will try again to get control..."
-#define INFO_WND_AUTO_AC        "AUTO"
 #define INFO_AC_HIDDEN          "A/c %s hidden"
 #define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
 #define INFO_AC_SHOWN           "A/c %s visible"

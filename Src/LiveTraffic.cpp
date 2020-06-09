@@ -75,10 +75,10 @@ void MenuHandler(void * /*mRef*/, void * iRef)
         // act based on menu id
         switch (reinterpret_cast<unsigned long long>(iRef)) {
             case MENU_ID_AC_INFO_WND:
-                ACIWnd::OpenNewWnd(GetDefaultWndOpenMode());
+                ACIWnd::OpenNewWnd();
                 break;
             case MENU_ID_AC_INFO_WND_POPOUT:
-                ACIWnd::OpenNewWnd(TF_MODE_POPOUT);
+                ACIWnd::OpenNewWnd("", WND_MODE_POPOUT);
                 break;
             case MENU_ID_AC_INFO_WND_SHOWN:
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_AC_INFO_WND_SHOWN],
@@ -492,6 +492,9 @@ PLUGIN_API int XPluginStart(
         // create menu
         if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
         
+        // Setup ImGui window stuff
+        if (!LTImgWindowInit()) { DestroyWindow(); return 0; }
+        
 #if IBM
         // Windows: Recommended before calling ShellExecuteA
         // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
@@ -585,18 +588,20 @@ PLUGIN_API void XPluginDisable(void) {
         // unregister the one-time callback, just in case
         XPLMUnregisterFlightLoopCallback(LoopCBOneTimeSetup, NULL);
 
-        // if there still is a message window remove it
-        DestroyWindow();
-        
-        // deregister Settings UI
-        settingsUI.Disable();
-        
         // stop showing aircraft
         LTMainDisable ();
 
         // Stop reading apt.dat
         LTAptDisable();
 
+        // if there still is a message window remove it
+        DestroyWindow();
+        
+        // deregister Settings UI, close all windows, cleanup ImGui stuff
+        settingsUI.Disable();
+        ACIWnd::CloseAll();
+        LTImgWindowCleanup();
+        
         LOG_MSG(logMSG, MSG_DISABLED);
 
     } catch (const std::exception& e) {

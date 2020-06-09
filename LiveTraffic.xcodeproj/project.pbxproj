@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
+		2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */; };
+		2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41F248D022B00F18B76 /* LTImgWindow.cpp */; };
 		2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2536421C2215FE81000DC56F /* XPCompatibility.cpp */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
@@ -61,6 +63,10 @@
 		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
 		250C2B5923BD4BF70059AA14 /* scenery_packs.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = scenery_packs.ini; path = "../../../Applications/X-Plane 11/Custom Scenery/scenery_packs.ini"; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
+		2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui_stdlib.h; sourceTree = "<group>"; };
+		2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_stdlib.cpp; sourceTree = "<group>"; };
+		2515F41E248CF59C00F18B76 /* LTImgWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTImgWindow.h; sourceTree = "<group>"; };
+		2515F41F248D022B00F18B76 /* LTImgWindow.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTImgWindow.cpp; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		25271352220F36340039D2A4 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 11/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
 		2536421C2215FE81000DC56F /* XPCompatibility.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCompatibility.cpp; sourceTree = "<group>"; };
@@ -256,6 +262,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2515F418248CF4CB00F18B76 /* misc */ = {
+			isa = PBXGroup;
+			children = (
+				2515F419248CF4CB00F18B76 /* cpp */,
+			);
+			path = misc;
+			sourceTree = "<group>";
+		};
+		2515F419248CF4CB00F18B76 /* cpp */ = {
+			isa = PBXGroup;
+			children = (
+				2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */,
+				2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */,
+			);
+			path = cpp;
+			sourceTree = "<group>";
+		};
 		2540F51720D5AAD900DCCF45 /* OpenSky */ = {
 			isa = PBXGroup;
 			children = (
@@ -305,6 +328,7 @@
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
 				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
+				2515F41F248D022B00F18B76 /* LTImgWindow.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
 				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
 				2573631922233008005210C5 /* LTRealTraffic.cpp */,
@@ -361,6 +385,7 @@
 		256CA1BB248C458D009F4AAE /* ImGui */ = {
 			isa = PBXGroup;
 			children = (
+				2515F418248CF4CB00F18B76 /* misc */,
 				256CA1BC248C458D009F4AAE /* imgui.h */,
 				256CA1BD248C458D009F4AAE /* imconfig.h */,
 				256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */,
@@ -444,6 +469,7 @@
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
 				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
+				2515F41E248CF59C00F18B76 /* LTImgWindow.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
 				257363182222C8E2005210C5 /* Network.h */,
@@ -758,12 +784,14 @@
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
 				2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */,
 				2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */,
+				2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */,
 				257363172222C879005210C5 /* Network.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
 				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */,
+				2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
 				25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */,

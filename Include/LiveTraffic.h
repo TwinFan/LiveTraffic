@@ -89,6 +89,12 @@
 #include "XPWidgetUtils.h"
 #include "XPStandardWidgets.h"
 
+// ImGui / ImgWindow
+#include "imgui.h"
+#include "imgui_stdlib.h"
+#include "ImgWindow.h"
+#include "ImgFontAtlas.h"
+
 // XP Multiplayer API
 #include "XPMPMultiplayer.h"
 
@@ -98,10 +104,15 @@
 // LiveTraffic Includes
 #include "Constants.h"
 #include "DataRefs.h"
+
+// Global DataRef object, which also includes 'global' variables
+extern DataRefs dataRefs;
+
 #include "CoordCalc.h"
 #include "TextIO.h"
 #include "LTAircraft.h"
 #include "LTFlightData.h"
+#include "LTImgWindow.h"
 #include "TFWidgets.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
@@ -115,10 +126,6 @@
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
-
-// MARK: Global variables
-// Global DataRef object, which also includes 'global' variables
-extern DataRefs dataRefs;
 
 //MARK: Global Control functions
 bool LTMainInit ();

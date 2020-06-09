@@ -1,4 +1,5 @@
 # LiveTraffic
+
 LiveTraffic is a plugin for the flight simulator [X-Plane](https://www.x-plane.com) to show real life traffic, based on publicly available live flight data, as additional planes within X-Plane.
 
 It came into being when I was looking at plugins simulating additional traffic in X-Plane and thinking at that time: Why do they try to simulate traffic and invent flight models when there is flight data available online which brings yet another piece of reality into the simulation? Why can't one just read the data and display the aircraft?
@@ -13,14 +14,23 @@ Available on [x-plane.org](https://forums.x-plane.org/index.php?/files/file/4974
 ## License
 [MIT License](https://github.com/TwinFan/LiveTraffic/blob/master/LICENSE), essentially freeware.
 
+For license information on included code and libraries see `docs/LICENSE_*.txt` files.
+
 ## Credits
 LiveTraffic is based on a number of other great libraries and APIs, most notably:
 - [X-Plane SDK](https://developer.x-plane.com/sdk/plugin-sdk-documents/) to integrate with X-Plane
 - [XPMP2](https://github.com/TwinFan/XPMP2) for CSL model processing
 - [CURL](https://curl.haxx.se/libcurl/) for network protocol support
 - [parson](https://github.com/kgabis/parson) as JSON parser
-- [libpng](http://www.libpng.org/pub/png/libpng.html)
-- [libz/zlib](https://zlib.net)
+- [libz/zlib](https://zlib.net) as compression library (used by CURL)
+- [ImGui](https://github.com/ocornut/imgui) for user interfaces
+- [ImgWindow](https://github.com/xsquawkbox/xsb_public) for integrating ImGui into X-Plane windows
+
+Thanks go to
+- Sparker for providing [imgui4xp](https://github.com/sparker256/imgui4xp)
+  as a testbed for ImGui integration and for accepting my additions to it.
+- Dimitri van Heesch for [Doxygen](https://www.doxygen.nl/), with which more and more
+  parts of LiveTraffic's (and all of XPMP2's) code documentation have been created. 
 
 ## Build
 

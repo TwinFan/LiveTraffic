@@ -944,3 +944,147 @@ void LTSettingsUI::SaveCSLPath(int idx)
     // save
     dataRefs.SaveCSLPath(idx, newPath);
 }
+
+
+//
+// MARK: TFACSearchEditWidget
+//
+
+#define INFO_WND_AUTO_AC "AUTO"
+
+TFACSearchEditWidget::TFACSearchEditWidget (XPWidgetID _me,
+                                            const char* szKey) :
+TFTextFieldWidget(_me)
+{
+    // force upper case
+    tfFormat = TFF_UPPER_CASE;
+    
+    // if there is something to search for...do so
+    if (szKey)
+        SearchFlightData(szKey);
+}
+
+// Use the provided key to seach the list of aircraft if something matches:
+// - icao transponder code
+// - registration
+// - call sign
+// - flight number
+const LTFlightData* TFACSearchEditWidget::SearchFlightData (std::string ac_key)
+{
+    mapLTFlightDataTy::const_iterator fdIter = mapFd.cend();
+    
+    trim(ac_key);
+    if (!ac_key.empty()) {
+        // is it a small integer number, i.e. used as index?
+        if (ac_key.length() <= 3 &&
+            ac_key.find_first_not_of("0123456789") == std::string::npos)
+        {
+            int i = std::stoi(ac_key);
+            // let's find the i-th aircraft by looping over all flight data
+            // and count those objects, which have an a/c
+            if (i > 0) for (fdIter = mapFd.cbegin();
+                 fdIter != mapFd.cend();
+                 ++fdIter)
+            {
+                if (fdIter->second.hasAc())         // has an a/c
+                    if ( --i == 0 )                 // and it's the i-th!
+                        break;
+            }
+        }
+        else
+        {
+            // search the map of flight data by text key
+            fdIter =
+            std::find_if(mapFd.cbegin(), mapFd.cend(),
+                         [&ac_key](const mapLTFlightDataTy::value_type& mfd)
+                         { return mfd.second.IsMatch(ac_key); }
+                         );
+        }
+    }
+    
+    // found?
+    if (fdIter != mapFd.cend()) {
+        SetAcKey(fdIter->second.key());
+        // return the result
+        return &fdIter->second;
+    }
+    
+    // not found
+    acKey.clear();
+    return nullptr;
+}
+
+void TFACSearchEditWidget::SetAcKey (const LTFlightData::FDKeyTy& _key)
+{
+    // remember key
+    acKey = _key;
+    // replace my own content with the new key (hex code)
+    SetDescriptor(oldDescriptor = acKey);
+}
+
+// Get my defined aircraft
+// As aircraft can be removed any frame this needs to be called
+// over and over again.
+// Note: Deleting aircraft happens in a flight loop callback,
+//       which is the same thread as this here is running in.
+//       So we can safely assume the returned pointer is valid until
+//       we return. But not any longer.
+LTFlightData* TFACSearchEditWidget::GetFlightData () const
+{
+    // short-cut if there's no key
+    if (acKey.empty())
+        return nullptr;
+    
+    // find the flight data by key
+    mapLTFlightDataTy::iterator fdIter = mapFd.find(acKey);
+    // return flight data if found
+    return fdIter != mapFd.end() ? &fdIter->second : nullptr;
+
+}
+
+// even if FlightData exists, a/c might still be NULL if not yet created!
+LTAircraft* TFACSearchEditWidget::GetAircraft () const
+{
+    LTFlightData* pFD = GetFlightData();
+    return pFD ? pFD->GetAircraft() : nullptr;
+}
+
+// capture entry into myself -> trigger search for aircraft
+bool TFACSearchEditWidget::MsgTextFieldChanged (XPWidgetID textWidget,
+                                                std::string text)
+{
+    // if this is not about me then don't handle...ask the class hierarchy
+    if (textWidget != *this)
+        return TFTextFieldWidget::MsgTextFieldChanged(textWidget, text);
+    
+    // it was me...so start a search with what is in my edit field
+    if (text == INFO_WND_AUTO_AC)
+        acKey.clear();              // AUTO -> handled by main window
+    else
+        SearchFlightData(text);     // otherwise search for the a/c
+    
+    // return 'false' on purpose: message also needs to be sent to main window
+    return false;
+}
+
+// if we lost focus due to the key:
+// regain focus if we don't have a valid a/c,
+// so that user can try again
+bool TFACSearchEditWidget::MsgKeyPress (XPKeyState_t& key)
+{
+    // what's currently entered?
+    const std::string descr(GetDescriptor());
+    // normal handling
+    bool b = TFTextFieldWidget::MsgKeyPress(key);
+    // hit Enter, no focus any longer, but also no a/c and no AUTO mode?
+    if ((key.flags & xplm_DownFlag) &&      // 'key down' flag
+        (key.key == XPLM_KEY_RETURN) &&     // key is 'return'
+        !HaveKeyboardFocus() && !GetFlightData() &&
+        descr != INFO_WND_AUTO_AC) {
+        // regain focus and give user another chance
+        SetKeyboardFocus();
+        SelectAll();
+        return true;
+    }
+    return b;
+}

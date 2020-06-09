@@ -62,6 +62,7 @@ set(Header_Files
     Include/LTChannel.h
     Include/LTFlightData.h
     Include/LTForeFlight.h
+    Include/LTImgWindow.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/Network.h
@@ -98,6 +99,7 @@ set(Source_Files
     Src/LTChannel.cpp
     Src/LTFlightData.cpp
     Src/LTForeFlight.cpp
+    Src/LTImgWindow.cpp
     Src/LTMain.cpp
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp

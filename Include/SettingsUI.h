@@ -21,7 +21,36 @@
 #ifndef SettingsUI_h
 #define SettingsUI_h
 
-#include "ACInfoWnd.h"
+//
+// Text Edit field searching for a/c
+//
+
+// Seach for a/c with text provided by user
+// Replace by icao transp hex code
+// Provide LTFlighData/LTAircraft object on request
+class TFACSearchEditWidget : public TFTextFieldWidget
+{
+protected:
+    LTFlightData::FDKeyTy acKey;            // key to the a/c to display
+public:
+    TFACSearchEditWidget (XPWidgetID _me = NULL, const char* szKey = NULL);
+
+    // Find my aircraft
+    const LTFlightData* SearchFlightData (std::string ac_key);
+    void SetAcKey (const LTFlightData::FDKeyTy& _key);
+
+    // Get the found aircraft
+    bool HasAcKey () const { return !acKey.empty(); }
+    const std::string GetAcKey () const { return acKey; }
+    unsigned int GetAcKeyNum () const { return (unsigned)strtoul (acKey.c_str(), NULL, 16); }
+    LTFlightData* GetFlightData () const;
+    LTAircraft* GetAircraft () const;
+    
+protected:
+    // capture entry into the key field
+    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
+    virtual bool MsgKeyPress (XPKeyState_t& key);
+};
 
 //
 // Settings UI Main window
