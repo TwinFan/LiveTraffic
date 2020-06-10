@@ -105,6 +105,9 @@
     <ClCompile Include="Src\parson.c">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="Src\LTImgWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ACInfoWnd.h">
@@ -168,6 +171,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Include\LTApt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\LTImgWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
