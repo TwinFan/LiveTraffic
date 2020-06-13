@@ -31,6 +31,29 @@
 constexpr int WND_FONT_SIZE = 13;
 
 //
+// MARK: ImGui extensions
+//
+
+namespace ImGui {
+
+/// @brief Helper for creating unique IDs
+/// @details Required when creating many widgets in a loop, e.g. in a table
+IMGUI_API void PushID_formatted(const char* format, ...)    IM_FMTARGS(1);
+
+/// @brief Button with on-hover popup helper text
+/// @param label Text on Button
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param colFg Foreground/text color (optional, otherwise no change)
+/// @param colBg Background color (optional, otherwise no change)
+/// @param size button size, 0 for either axis means: auto size
+IMGUI_API bool ButtonTooltip(const char* label,
+                             const char* tip = nullptr,
+                             ImU32 colFg = IM_COL32(1,1,1,0),
+                             ImU32 colBg = IM_COL32(1,1,1,0),
+                             const ImVec2& size = ImVec2(0,0));
+};
+
+//
 // MARK: Screen coordinate helpers
 //
 
@@ -80,6 +103,8 @@ enum WndMode {
     WND_MODE_FLOAT_OR_VR,   ///< VR if in VR-mode, otherwise float (initialization use only)
     WND_MODE_FLOAT_CENTERED,///< will be shown centered on main screen
     WND_MODE_FLOAT_CNT_VR,  ///< VR if in VR-mode, centered otherwise
+    // temporary mode for closing the window
+    WND_MODE_CLOSE,         ///< close the window
 };
 
 /// Determine position mode based on mode
@@ -138,7 +163,7 @@ protected:
     /// Note to myself that a change of window mode is requested
     WndMode nextWinMode = WND_MODE_NONE;
     // Our flight loop callback in case we need one for mode changes
-    XPLMFlightLoopID flId = nullptr;
+    XPLMFlightLoopID flChangeWndMode = nullptr;
     // Last known in-sim position before moving out
     WndRect rectFloat;
     
@@ -161,8 +186,25 @@ public:
     bool ReturnKeyboardFocus ();
     
 protected:
-    /// flight loop callback for stuff we cannot do during drawing callback
-    static float cbFlightLoop(
+    /// Schedule the callback for window mode changes
+    void ScheduleWndModeChange () { XPLMScheduleFlightLoop(flChangeWndMode, -1.0, 1); }
+
+    /// Paints close button, title, decorative lines, and window buttons
+    void buildTitleBar (const std::string& _title,
+                        bool bCloseBtn = true,
+                        bool bWndBtns = true);
+    /// Paints close button
+    void buildCloseButton ();
+    /// Paints resizing buttons as needed as per current window status
+    void buildWndButtons ();
+    
+protected:
+    /// width of an icon button
+    static float widthIconBtn;
+    /// Get width of an icon button (calculate on first use)
+    static float GetWidthIconBtn ();
+    /// flight loop callback for changing the window's mode
+    static float cbChangeWndMode(
         float                inElapsedSinceLastCall,
         float                inElapsedTimeSinceLastFlightLoop,
         int                  inCounter,

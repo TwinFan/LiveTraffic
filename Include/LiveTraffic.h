@@ -94,8 +94,9 @@
 #include "imgui_stdlib.h"
 #include "ImgWindow.h"
 #include "ImgFontAtlas.h"
+#include "IconsFontAwesome5.h"
 
-// XP Multiplayer API
+// XP Multiplayer API (XPMP2)
 #include "XPMPMultiplayer.h"
 
 // LTAPI Includes, this defines the bulk transfer structure

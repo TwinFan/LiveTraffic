@@ -25,12 +25,15 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libz/zlib](https://zlib.net) as compression library (used by CURL)
 - [ImGui](https://github.com/ocornut/imgui) for user interfaces
 - [ImgWindow](https://github.com/xsquawkbox/xsb_public) for integrating ImGui into X-Plane windows
+- [IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders) for header files for the included icon font
 
 Thanks go to
 - Sparker for providing [imgui4xp](https://github.com/sparker256/imgui4xp)
   as a testbed for ImGui integration and for accepting my additions to it.
 - Dimitri van Heesch for [Doxygen](https://www.doxygen.nl/), with which more and more
   parts of LiveTraffic's (and all of XPMP2's) code documentation have been created. 
+- [FontAwesome](https://fontawesome.com/icons?d=gallery&s=solid&m=free)
+  for the icon font `fa-solid-900.ttf`
 
 ## Build
 

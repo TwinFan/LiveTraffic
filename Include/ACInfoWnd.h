@@ -21,6 +21,8 @@
 #ifndef ACInfoWnd_h
 #define ACInfoWnd_h
 
+/// Standard window title (if yet empty)
+#define ACI_WND_TITLE   "A/C Info"
 
 //
 // A/C Info Main Window
@@ -31,6 +33,9 @@ protected:
     // What's currently valid?
     LTFlightData::FDKeyTy   acKey;  ///< key of a/c to be displayed
     bool bAuto = false;             ///< currently in AUTO mode?
+    // Last static and dynamic data
+    LTFlightData::FDStaticData stat;
+    LTFlightData::FDDynamicData dyn;
     
     // Temporary user input
     std::string keyEntry;           ///< what user is currently entering
@@ -57,6 +62,8 @@ public:
     bool IsAuto () const { return bAuto; }
     /// Set AUTO mode
     void SetAuto (bool _b);
+    /// Return the text to be used as window title
+    std::string GetWndTitle () const;
 
 protected:
     /// Taking user's temporary input `keyEntry` searches for a valid a/c, sets acKey on success

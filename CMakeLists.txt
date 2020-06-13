@@ -19,6 +19,7 @@ include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImgWindow")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/Font")
 
 # Enable all necessary X-Plane SDK APIs
 add_definitions(-DXPLM200=1 -DXPLM210=1 -DXPLM300=1 -DXPLM301=1 -DXPLM303=1)
@@ -82,6 +83,8 @@ set(Header_Files
     Lib/ImgWindow/ImgFontAtlas.h
     Lib/ImgWindow/ImgWindow.h
     Lib/ImgWindow/SystemGL.h
+    Lib/Font/IconsFontAwesome5.h
+    Lib/Font/fa-solid-900.inc
     Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPCAircraft.h
     Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPMultiplayer.h
     Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPPlaneRenderer.h
@@ -167,6 +170,7 @@ endif()
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
 # Link OpenGL and OpenAL related libraries.
+set (OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
 if ( OpenGL_FOUND )
     include_directories( ${OpenGL_INCLUDE_DIRS} )
@@ -189,7 +193,7 @@ endif ()
 
 # Link OS X core system libraries.
 if (APPLE)
-    find_library(IOKIT_LIBRARY IOKit)
+    find_library(APPLICATION_SERVICES ApplicationServices)
     find_library(CORE_FOUNDATION_LIBRARY CoreFoundation)
     find_library(SECURITY_LIBRARY Security)
     find_library(GSS_LIBRARY GSS)
@@ -197,7 +201,7 @@ if (APPLE)
     find_library(Cocoa_LIBRARY Cocoa)
 
     target_link_libraries(LiveTraffic
-        ${IOKIT_LIBRARY}
+        ${APPLICATION_SERVICES}
         ${CORE_FOUNDATION_LIBRARY}
         ${SECURITY_LIBRARY}
         ${GSS_LIBRARY}

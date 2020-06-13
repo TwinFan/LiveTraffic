@@ -199,7 +199,7 @@ public:
     /// Is this plane currently also being tracked as a TCAS target, ie. will appear on TCAS?
     bool        IsCurrentlyShownAsTcasTarget () const { return tcasTargetIdx >= 1; }
     /// Is this plane currently also being tracked by X-Plane's classic AI/multiplayer?
-    bool        IsCurrentlyShownAsAI () const { return 1 <= tcasTargetIdx && tcasTargetIdx <= 20; }
+    bool        IsCurrentlyShownAsAI () const;
     /// Is this plane to be drawn on TCAS? (It will if transponder is not switched off)
     bool        ShowAsAIPlane () const { return IsVisible() && acRadar.mode != xpmpTransponderMode_Standby; }
     /// Reset TCAS target slot index to `-1`
@@ -384,8 +384,10 @@ protected:
     // The following functions are implemented in AIMultiplayer.cpp:
     /// Define the TCAS target index in use
     virtual void SetTcasTargetIdx (int _idx) { tcasTargetIdx = _idx; }
-    // These functions are called from AIMultiUpdate()
+    // These functions perform the TCAS target / multiplayer data updates
     friend void AIMultiUpdate ();
+    friend size_t AIUpdateTCASTargets ();
+    friend size_t AIUpdateMultiplayerDataRefs ();
 };
 
 /// Find aircraft by its plane ID, can return nullptr

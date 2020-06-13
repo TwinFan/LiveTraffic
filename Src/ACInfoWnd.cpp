@@ -24,16 +24,17 @@
 // MARK: ACIWnd Implementation
 //
 
-/// Standard window title (if yet empty)
-#define ACI_WND_TITLE   "A/c Info"
 /// Initial size of an A/c Info Window
 const WndRect ACI_INIT_SIZE = WndRect(0, 0, 270, 365);
 /// Resizing limits (minimum and maximum sizes)
 const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 400, 600);
 /// How often to check for AUTO a/c change? [s]
 constexpr float ACI_AUTO_CHECK_PERIOD = 1.0f;
-/// Distance of values from left border
-constexpr float ACI_LABEL_SIZE = 75.0f;
+
+/// Width of first column, which displays static labels
+constexpr float ACI_LABEL_SIZE = 100.0f;
+/// Width of AUTO checkbox
+constexpr float ACI_AUTO_CB_SIZE = 60.0f;
 
 // Constructor shows a window for the given a/c key
 ACIWnd::ACIWnd(const std::string& _acKey, WndMode _mode) :
@@ -42,7 +43,7 @@ bAuto(_acKey.empty()),              // if _acKey empty -> AUTO mode
 keyEntry(_acKey)                    // the passed-in input is taken as the user's entry
 {
     // Set up window basics
-    SetWindowTitle(ACI_WND_TITLE);
+    SetWindowTitle(GetWndTitle());
     SetWindowResizingLimits(ACI_RESIZE_LIMITS.tl.x, ACI_RESIZE_LIMITS.tl.y,
                             ACI_RESIZE_LIMITS.br.x, ACI_RESIZE_LIMITS.br.y);
     SetVisible(true);
@@ -67,16 +68,17 @@ ACIWnd::~ACIWnd()
 // Set the a/c key - no validation, if invalid window will clear
 void ACIWnd::SetAcKey (const LTFlightData::FDKeyTy& _key)
 {
-    acKey = _key;               // remember the key
-    SetWindowTitle(_key);       // set the window's title
-    ReturnKeyboardFocus();      // give up keyboard focus in case we had it
+    keyEntry = (acKey = _key);      // remember the key
+    SetWindowTitle(GetWndTitle());  // set the window's title
+    ReturnKeyboardFocus();          // give up keyboard focus in case we had it
 }
 
 // Clear the a/c key, ie. display no data
 void ACIWnd::ClearAcKey ()
 {
     acKey.clear();
-    SetWindowTitle(ACI_WND_TITLE);
+    keyEntry.clear();
+    SetWindowTitle(GetWndTitle());
 }
 
 // Set AUTO mode
@@ -87,6 +89,14 @@ void ACIWnd::SetAuto (bool _b)
         lastAutoCheck = 0.0f;
     else
         UpdateFocusAc();
+}
+
+// Return the text to be used as window title
+std::string ACIWnd::GetWndTitle () const
+{
+    return
+    (acKey.empty() ? std::string(ACI_WND_TITLE) : std::string(acKey)) +
+    (bAuto ? " (AUTO)" : "");
 }
 
 // Taking user's temporary input `keyEntry` searches for a valid a/c, sets acKey on success
@@ -125,7 +135,6 @@ bool ACIWnd::SearchAndSetFlightData ()
     
     // found?
     if (fdIter != mapFd.cend()) {
-        keyEntry = fdIter->second.key();        // overwrite entry with official a/c id
         SetAcKey(fdIter->second.key());         // save the a/c key so we can start rendering its info
         return true;
     }
@@ -188,10 +197,67 @@ void ACIWnd::buildInterface()
     // (maybe) update the focus a/c
     UpdateFocusAc();
     
-    // --- Identification ---
-    ImGui::TextUnformatted("A/C key");
-    ImGui::SameLine(ACI_LABEL_SIZE);
-    ImGui::TextUnformatted(acKey.c_str());
+    // --- Title Bar ---
+    buildTitleBar(GetWndTitle());
+    
+    // --- Start the table, which will hold our values
+    if (ImGui::BeginTable("ACInfo", 2,
+                          ImGuiTableFlags_ScrollY |
+                          ImGuiTableFlags_ScrollFreezeLeftColumn))
+    {
+        // The data we will deal with, can be NULL!
+        const LTFlightData* pFD = GetFlightData();
+        const LTAircraft* pAc = pFD ? pFD->GetAircraft() : nullptr;
+        
+        // Try fetching fresh static / dynamic data
+        if (pFD) {
+            pFD->TryGetSafeCopy(stat);
+            pFD->TryGetSafeCopy(dyn);
+        }
+        
+        // Set up the columns of the table
+        ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, ACI_LABEL_SIZE);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
+    
+        // --- Identification ---
+        ImGui::TableNextRow();
+        const bool bIdOpen = ImGui::TreeNodeEx("A/C key", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth);
+        ImGui::TableNextCell();
+        if (ImGui::BeginTable("KeyOrAUTO", 2))
+        {
+            ImGui::TableSetupColumn("Edit", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
+            ImGui::TableSetupColumn("Auto", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort, ACI_AUTO_CB_SIZE);
+            ImGui::TableNextRow();
+            if (ImGui::InputText("##NewKey", &keyEntry,
+                                 ImGuiInputTextFlags_CharsUppercase |
+                                 ImGuiInputTextFlags_CharsNoBlank |
+                                 ImGuiInputTextFlags_EnterReturnsTrue))
+            {
+                // Enter pressed in key entry field
+                bAuto = false;
+                SearchAndSetFlightData();
+            }
+            ImGui::TableNextCell();
+            if (ImGui::Checkbox("AUTO", &bAuto))
+                lastAutoCheck = 0.0f;       // enforce search for a/c next frame
+            
+            ImGui::EndTable();
+        }
+        
+        if (bIdOpen) {
+            // registration / tail number
+            ImGui::TableNextRow();
+            ImGui::TextUnformatted("Registration");
+            ImGui::TableNextCell();
+            if (pFD) ImGui::TextUnformatted(stat.reg.c_str());
+            
+            // end of the tree
+            ImGui::TreePop();
+        }
+        
+        // --- End of the table
+        ImGui::EndTable();
+    }
 }
 
 

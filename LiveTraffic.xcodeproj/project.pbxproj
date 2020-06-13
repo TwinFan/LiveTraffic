@@ -41,6 +41,7 @@
 		25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59461207AB4D800E52073 /* LTAircraft.cpp */; };
 		25C59465207ABDC700E52073 /* LTMain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59464207ABDC700E52073 /* LTMain.cpp */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
+		25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25EFC76D24959662005DB0A6 /* ApplicationServices.framework */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
@@ -226,6 +227,9 @@
 		25DC1E2A21B72922008D0F8B /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = "<group>"; };
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
+		25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IconsFontAwesome5.h; sourceTree = "<group>"; };
+		25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = "fa-solid-900.inc"; sourceTree = "<group>"; };
+		25EFC76D24959662005DB0A6 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
 		25FC893B222F269700F5D57C /* KLAS_20190305_2055Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2055Z_PE.txt; sourceTree = "<group>"; };
 		25FC893C222F269700F5D57C /* KJFK_20190305_2028Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KJFK_20190305_2028Z_METAR.json; sourceTree = "<group>"; };
@@ -247,6 +251,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				25850BF723F7605500905D9F /* libz.tbd in Frameworks */,
+				25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */,
 				D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */,
 				2564042621AAC914001E2F2A /* Security.framework in Frameworks */,
 				256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */,
@@ -485,6 +490,7 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				25EFC76A249567BF005DB0A6 /* Font */,
 				256CA1C8248C5094009F4AAE /* ImgWindow */,
 				256CA1BB248C458D009F4AAE /* ImGui */,
 				2593063C22DB411500C82D4F /* LTAPI */,
@@ -672,6 +678,15 @@
 			path = docker;
 			sourceTree = "<group>";
 		};
+		25EFC76A249567BF005DB0A6 /* Font */ = {
+			isa = PBXGroup;
+			children = (
+				25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */,
+				25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */,
+			);
+			path = Font;
+			sourceTree = "<group>";
+		};
 		D607B15F09A5563000699BC3 = {
 			isa = PBXGroup;
 			children = (
@@ -704,6 +719,7 @@
 		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				25EFC76D24959662005DB0A6 /* ApplicationServices.framework */,
 				25850BF623F7605500905D9F /* libz.tbd */,
 				2575F44823ECC2C000747524 /* XPMP2.framework */,
 				258790AB23020C8C00129569 /* libpng.framework */,
@@ -884,6 +900,7 @@
 					Lib/LTAPI,
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
+					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = NO;
@@ -972,6 +989,7 @@
 					Lib/LTAPI,
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
+					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = YES;
