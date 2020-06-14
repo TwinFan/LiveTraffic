@@ -121,7 +121,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\SDK\CHeaders\Widgets\;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\SDK\CHeaders\Widgets\;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -168,7 +168,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\SDK\CHeaders\Widgets\;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\SDK\CHeaders\Widgets\;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL\libcurl.framework\Versions\Release-7.65.3\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
