@@ -73,11 +73,31 @@ protected:
     /// switch to another focus a/c?
     bool UpdateFocusAc ();
     
+    /// Some setup before UI building starts, here text size calculations
+    ImGuiWindowFlags_ beforeBegin() override;
     /// Main function to render the window's interface
     void buildInterface() override;
+    /// Add a label to the list of a/c info
+    void buildRowLabel (const std::string& label);
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   const std::string& val,
+                   bool bShowVal);
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   int iVal, bool bShowVal,
+                   const char* szFormat = "%d");
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   double fVal, bool bShowVal,
+                   const char* szFormat = "%.1f");
 
     // A set of static functions to create/administer the windows
 protected:
+    /// Font scaling factor for ACI Windows
+    static float fFontScale;
+    /// Transparency level for ACI Windows
+    static float fTransparency;
     /// are the ACI windows displayed or hidden?
     static bool bAreShown;
     /// list of all ACI windows currently displayed

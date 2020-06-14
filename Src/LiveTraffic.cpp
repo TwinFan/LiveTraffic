@@ -351,21 +351,10 @@ bool RegisterCommandHandlers ()
 /// Puts some timestamps into the log for analysis purposes
 void LogTimestamps ()
 {
-    // current Zulu time
-    char tZuluS[100];
-    struct tm zulu;
-    std::time_t t = std::time(nullptr);
-    gmtime_s(&zulu, &t);
-    std::strftime(tZuluS, sizeof(tZuluS), "%d-%b-%Y %T", &zulu);
-
-    // current simTime
-    char tSimZ[100];
-    t = std::time_t(dataRefs.GetSimTime());
-    gmtime_s(&zulu, &t);
-    std::strftime(tSimZ, sizeof(tSimZ), "%d-%b-%Y %T", &zulu);
-
-    // Log it
-    LOG_MSG(logMSG, MSG_TIMESTAMPS, tZuluS, tSimZ);
+    // Log current timestamp and sim-time-stamp
+    LOG_MSG(logMSG, MSG_TIMESTAMPS,
+            ts2string(std::time(nullptr)).c_str(),
+            dataRefs.GetSimTimeString().c_str());
 }
 
 // For informing dataRe Editor and tool see

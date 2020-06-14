@@ -72,6 +72,24 @@ IMGUI_API bool ButtonTooltip(const char* label,
     return b;
 }
 
+// Same as SliderFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
+IMGUI_API bool SliderPercent(const char* label, float* v, float v_min, float v_max, const char* format, float power)
+{
+    float f = *v * 100.0f;              // "convert" to percent
+    bool bRet = SliderFloat(label, &f, v_min*100.0f, v_max*100.0f, format, power);
+    *v = f/100.0f;
+    return bRet;
+}
+
+// Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
+IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, float power)
+{
+    float f = *v * 100.0f;              // "convert" to percent
+    bool bRet = DragFloat(label, &f, v_speed*100.0f, v_min*100.0f, v_max*100.0f, format, power);
+    *v = f/100.0f;
+    return bRet;
+}
+
 }
 
 //
@@ -227,12 +245,13 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
     float x_end = ImGui::GetWindowContentRegionWidth();
     if (bWndBtns)
         x_end -= 2 * GetWidthIconBtn();     // space for window buttons
-    for (int i = 0; i < 3; i++) {
-        draw_list->AddLine(pos_start, {x_end, pos_start.y},
-                           ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive),
-                           1.0f);
-        pos_start.y += 5;
-    }
+    if (x_end > pos_start.x)                // any (positive) line to draw?
+        for (int i = 0; i < 3; i++) {       // draw 3 lines
+            draw_list->AddLine(pos_start, {x_end, pos_start.y},
+                               ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive),
+                               1.0f);
+            pos_start.y += 5;
+        }
     
     // Window buttons
     if (bWndBtns)
@@ -307,6 +326,8 @@ void LTImgWindow::buildWndButtons ()
         // Window mode should be set outside drawing calls to avoid crashes
         if (nextWinMode > WND_MODE_NONE)
             ScheduleWndModeChange();
+    } else {
+        ImGui::NewLine();
     }
 
 }

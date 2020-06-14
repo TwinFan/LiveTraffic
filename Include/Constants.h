@@ -157,7 +157,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
-#define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %sZ"
+#define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."

@@ -24,17 +24,18 @@
 // MARK: ACIWnd Implementation
 //
 
-/// Initial size of an A/c Info Window
-const WndRect ACI_INIT_SIZE = WndRect(0, 0, 270, 365);
+/// Initial size of an A/c Info Window (XP coordinates: l,t;r,b with t > b)
+const WndRect ACI_INIT_SIZE = WndRect(0, 500, 320, 0);
 /// Resizing limits (minimum and maximum sizes)
-const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 400, 600);
-/// How often to check for AUTO a/c change? [s]
-constexpr float ACI_AUTO_CHECK_PERIOD = 1.0f;
+const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 640, 9999);
 
-/// Width of first column, which displays static labels
-constexpr float ACI_LABEL_SIZE = 100.0f;
-/// Width of AUTO checkbox
-constexpr float ACI_AUTO_CB_SIZE = 60.0f;
+constexpr float ACI_AUTO_CHECK_PERIOD = 1.00f;  ///< How often to check for AUTO a/c change? [s]
+constexpr float ACI_TREE_V_SEP        =10.00f;  ///< Separation between tree sections
+constexpr float ACI_STD_FONT_SCALE    = 0.85f;  ///< Standard font scaling
+constexpr float ACI_STD_TRANSPARENCY  = 0.30f;  ///< Standard background transparency
+
+static float ACI_LABEL_SIZE = NAN;              ///< Width of first column, which displays static labels
+static float ACI_AUTO_CB_SIZE = NAN;            ///< Width of AUTO checkbox
 
 // Constructor shows a window for the given a/c key
 ACIWnd::ACIWnd(const std::string& _acKey, WndMode _mode) :
@@ -191,11 +192,32 @@ bool ACIWnd::UpdateFocusAc ()
     return false;
 }
 
+// Some setup before UI building starts, here text size calculations
+ImGuiWindowFlags_ ACIWnd::beforeBegin()
+{
+    // If not yet donw calculate some common widths
+    if (std::isnan(ACI_LABEL_SIZE)) {
+        /// Size of longest text plus some room for tree indenttion, rounded up to the next 10
+        ImGui::SetWindowFontScale(1.0f);
+        ACI_LABEL_SIZE   = std::ceil(ImGui::CalcTextSize("___Call Sign | Squawk_").x / 10.0f) * 10.0f;
+        ACI_AUTO_CB_SIZE = std::ceil(ImGui::CalcTextSize("_____AUTO").x / 10.0f) * 10.0f;
+    }
+    
+    // Set background transparency
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.Colors[ImGuiCol_WindowBg] = ImColor(0.0f, 0.0f, 0.0f, fTransparency);
+    
+    return ImGuiWindowFlags_None;
+}
+
 // Main function to render the window's interface
 void ACIWnd::buildInterface()
 {
     // (maybe) update the focus a/c
     UpdateFocusAc();
+    
+    // Scale the font for this window
+    ImGui::SetWindowFontScale(fFontScale);
     
     // --- Title Bar ---
     buildTitleBar(GetWndTitle());
@@ -206,27 +228,29 @@ void ACIWnd::buildInterface()
                           ImGuiTableFlags_ScrollFreezeLeftColumn))
     {
         // The data we will deal with, can be NULL!
+        const double ts = dataRefs.GetSimTime();
         const LTFlightData* pFD = GetFlightData();
-        const LTAircraft* pAc = pFD ? pFD->GetAircraft() : nullptr;
-        
+        const LTAircraft* pAc   = pFD ? pFD->GetAircraft() : nullptr;
         // Try fetching fresh static / dynamic data
         if (pFD) {
             pFD->TryGetSafeCopy(stat);
             pFD->TryGetSafeCopy(dyn);
         }
-        
+        const Doc8643* pDoc8643 = pFD ? stat.pDoc8643 : nullptr;
+        const LTChannel* pChannel = pFD ? dyn.pChannel : nullptr;
+
         // Set up the columns of the table
-        ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, ACI_LABEL_SIZE);
+        ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, ACI_LABEL_SIZE * fFontScale);
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
     
         // --- Identification ---
         ImGui::TableNextRow();
-        const bool bIdOpen = ImGui::TreeNodeEx("A/C key", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth);
+        bool bOpen = ImGui::TreeNodeEx("A/C key", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth);
         ImGui::TableNextCell();
         if (ImGui::BeginTable("KeyOrAUTO", 2))
         {
             ImGui::TableSetupColumn("Edit", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
-            ImGui::TableSetupColumn("Auto", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort, ACI_AUTO_CB_SIZE);
+            ImGui::TableSetupColumn("Auto", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort, ACI_AUTO_CB_SIZE * fFontScale);
             ImGui::TableNextRow();
             if (ImGui::InputText("##NewKey", &keyEntry,
                                  ImGuiInputTextFlags_CharsUppercase |
@@ -244,29 +268,143 @@ void ACIWnd::buildInterface()
             ImGui::EndTable();
         }
         
-        if (bIdOpen) {
-            // registration / tail number
-            ImGui::TableNextRow();
-            ImGui::TextUnformatted("Registration");
-            ImGui::TableNextCell();
-            if (pFD) ImGui::TextUnformatted(stat.reg.c_str());
-            
+        if (bOpen) {
+            buildRow("Registration",    stat.reg,           pFD);
+            buildRow("ICAO Type",       stat.acTypeIcao,    pFD);
+            buildRow("ICAO Class",      pDoc8643 ? pDoc8643->classification : "-", pDoc8643);
+            buildRow("Manufacturer",    stat.man,           pFD);
+            buildRow("Model",           stat.mdl,           pFD);
+            buildRow("Operator",
+                     stat.opIcao.empty() ? stat.op : stat.opIcao + ": " + stat.op,
+                     pFD);
+
             // end of the tree
             ImGui::TreePop();
         }
         
+        // --- Flight Info / Tracking data ---
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::TableNextRow();
+        if (ImGui::TreeNodeEx("Call Sign | Squawk",
+                              ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+        {
+            // Node is open, add individual lines per value
+            if (pFD) {
+                std::string s (stat.call);
+                s += " | ";
+                s += dyn.GetSquawk();
+                ImGui::TableNextCell();
+                ImGui::TextUnformatted(s.c_str());
+            }
+            
+            buildRow("Flight: Route",  stat.flightRoute(), pFD);
+            buildRow("Simulated Time", dataRefs.GetSimTimeString().c_str(), true);
+            
+            // last received tracking data
+            const double lstDat = pFD ? (pFD->GetYoungestTS() - ts) : -99999.9;
+            if (-10000 <= lstDat && lstDat <= 10000)
+                buildRow("Last Data [s]", lstDat, pFD, "%+.1f");
+            else
+                buildRow("Last Data [s]", "~", pFD);
+            buildRow("Channel", pChannel ? pChannel->ChName() : "?", pChannel);
+            
+            // end of the tree
+            ImGui::TreePop();
+        } else {
+            // Node is closed: Combine call sign, squawk, flight no into one cell
+            if (pFD) {
+                std::string s (stat.call);
+                s += " | ";
+                s += dyn.GetSquawk();
+                if (!stat.flight.empty()) {
+                    s += " | ";
+                    s += stat.flight;
+                }
+                ImGui::TableNextCell();
+                ImGui::TextUnformatted(s.c_str());
+            }
+        }
+        
+        // --- Global Window configuration ---
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::TableNextRow();
+        if (ImGui::TreeNodeEx("Settings", ImGuiTreeNodeFlags_SpanFullWidth))
+        {
+            ImGui::TableNextCell();
+            ImGui::TextUnformatted("Drag controls with mouse:");
+            
+            buildRowLabel("Font Scaling");
+            ImGui::DragPercent("##FontScaling", &fFontScale, 0.01f, 0.2f, 2.0f);
+            
+            buildRowLabel("Transparency");
+            ImGui::DragPercent("##Transparency", &fTransparency);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextCell();
+            if (ImGui::Button("Reset to defaults")) {
+                fFontScale      = ACI_STD_FONT_SCALE;
+                fTransparency   = ACI_STD_TRANSPARENCY;
+            }
+
+            ImGui::TreePop();
+        }
+
         // --- End of the table
         ImGui::EndTable();
     }
+    
+    // Reset font scaling
+    ImGui::SetWindowFontScale(1.0f);
 }
+
+// Add a label to the list of a/c info
+void ACIWnd::buildRowLabel (const std::string& label)
+{
+    ImGui::TableNextRow();
+    ImGui::TextUnformatted(label.c_str());
+    ImGui::TableNextCell();
+}
+
+// Add a label and a value to the list of a/c info
+void ACIWnd::buildRow (const std::string& label,
+                       const std::string& val,
+                       bool bShowVal)
+{
+    buildRowLabel(label);
+    if (bShowVal)
+        ImGui::TextUnformatted(val.c_str());
+}
+
+// Add a label and a value to the list of a/c info
+void ACIWnd::buildRow (const std::string& label,
+                       int iVal, bool bShowVal,
+                       const char* szFormat)
+{
+    buildRowLabel(label);
+    if (bShowVal)
+        ImGui::Text(szFormat, iVal);
+
+}
+
+// Add a label and a value to the list of a/c info
+void ACIWnd::buildRow (const std::string& label,
+                       double fVal, bool bShowVal,
+                       const char* szFormat)
+{
+    buildRowLabel(label);
+    if (bShowVal)
+        ImGui::Text(szFormat, fVal);
+}
+
 
 
 //
 // MARK: Static ACIWnd functions
 //
 
-// Are the ACI windows displayed or hidden?
-bool ACIWnd::bAreShown = true;
+float ACIWnd::fFontScale    = ACI_STD_FONT_SCALE;   // Font scaling factor for ACI Windows
+float ACIWnd::fTransparency = ACI_STD_TRANSPARENCY; // Transparency level for ACI Windows
+bool  ACIWnd::bAreShown     = true;                 // Are the ACI windows currently displayed or hidden?
 
 // we keep a list of all created windows
 std::list<ACIWnd*> ACIWnd::listACIWnd;

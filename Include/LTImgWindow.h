@@ -28,7 +28,7 @@
 /// The standard font to use
 #define WND_STANDARD_FONT "Resources/fonts/Roboto-Light.ttf"
 /// The font's standard size
-constexpr int WND_FONT_SIZE = 13;
+constexpr int WND_FONT_SIZE = 18;
 
 //
 // MARK: ImGui extensions
@@ -51,6 +51,14 @@ IMGUI_API bool ButtonTooltip(const char* label,
                              ImU32 colFg = IM_COL32(1,1,1,0),
                              ImU32 colBg = IM_COL32(1,1,1,0),
                              const ImVec2& size = ImVec2(0,0));
+
+/// @brief Same as SliderFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
+IMGUI_API bool SliderPercent(const char* label, float* v, float v_min=0.0f, float v_max=1.0f, const char* format = "%.0f%%", float power = 1.0f);
+
+/// @brief Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
+IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, float v_min = 0.0f, float v_max = 1.0f, const char* format = "%.0f%%", float power = 1.0f);
+
+
 };
 
 //

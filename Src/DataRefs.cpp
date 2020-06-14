@@ -1124,10 +1124,16 @@ double DataRefs::GetSimTime() const
     
 }
 
-// current sim time as human readable string
+// current sim time as human readable string,
+// including 10th of seconds
 std::string DataRefs::GetSimTimeString() const
 {
-    return ts2string(time_t(GetSimTime()));
+    const double simTime = dataRefs.GetSimTime();
+    char s[100];
+    snprintf(s, sizeof(s), "%s.%dZ",
+             ts2string(time_t(simTime)).c_str(),
+             int(std::fmod(simTime, 1.0f)*10.0f) );
+    return std::string(s);
 }
 
 // livetraffic/sim/date and .../time
