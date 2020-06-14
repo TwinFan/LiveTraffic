@@ -489,6 +489,9 @@ double HeadingDiff (double h1, double h2);
 /// Normaize a heading to the value range [0..360)
 double HeadingNormalize (double h);
 
+/// Return an abbreviation for a heading, like N, SW
+std::string HeadingText (double h);
+
 // a bounding box has a north/west and a south/east corner
 // we use positionTy for convenience...alt is usually not used here
 struct boundingBoxTy {

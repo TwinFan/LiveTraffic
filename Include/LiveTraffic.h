@@ -85,6 +85,7 @@
 #include "XPLMPlugin.h"
 #include "XPLMProcessing.h"
 #include "XPLMCamera.h"
+#include "XPLMNavigation.h"
 #include "XPWidgets.h"
 #include "XPWidgetUtils.h"
 #include "XPStandardWidgets.h"

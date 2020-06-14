@@ -30,6 +30,7 @@ const WndRect ACI_INIT_SIZE = WndRect(0, 500, 320, 0);
 const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 640, 9999);
 
 constexpr float ACI_AUTO_CHECK_PERIOD = 1.00f;  ///< How often to check for AUTO a/c change? [s]
+constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
 constexpr float ACI_TREE_V_SEP        =10.00f;  ///< Separation between tree sections
 constexpr float ACI_STD_FONT_SCALE    = 0.85f;  ///< Standard font scaling
 constexpr float ACI_STD_TRANSPARENCY  = 0.30f;  ///< Standard background transparency
@@ -69,9 +70,11 @@ ACIWnd::~ACIWnd()
 // Set the a/c key - no validation, if invalid window will clear
 void ACIWnd::SetAcKey (const LTFlightData::FDKeyTy& _key)
 {
+    ClearAcKey();                   // clear a lot of data
     keyEntry = (acKey = _key);      // remember the key
     SetWindowTitle(GetWndTitle());  // set the window's title
     ReturnKeyboardFocus();          // give up keyboard focus in case we had it
+    
 }
 
 // Clear the a/c key, ie. display no data
@@ -79,6 +82,12 @@ void ACIWnd::ClearAcKey ()
 {
     acKey.clear();
     keyEntry.clear();
+    lastAutoCheck = 0.0f;
+    
+    nearestAirport.clear();
+    nearestAirportPos = positionTy();
+    lastNearestAirportCheck = 0.0f;
+    
     SetWindowTitle(GetWndTitle());
 }
 
@@ -192,6 +201,45 @@ bool ACIWnd::UpdateFocusAc ()
     return false;
 }
 
+/// Finds a near airport and outputs a human-readable position like "3.1nm N of EDDL"
+std::string ACIWnd::RelativePositionText (const positionTy& pos)
+{
+    // find/update the nearest airport when needed or
+    if (std::isnan(nearestAirportPos.lat()) ||
+        dataRefs.GetMiscNetwTime() >= lastNearestAirportCheck + ACI_NEAR_AIRPRT_PERIOD)
+    {
+        lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
+    
+        // Find the nearest airport
+        float lat = (float)pos.lat();
+        float lon = (float)pos.lon();
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
+                                           &lat, &lon, nullptr,
+                                           xplm_Nav_Airport);
+        if (!navRef)
+            return std::string(pos);
+    
+        // Where is that airport and what's its name?
+        char airportId[32];
+        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
+                          airportId, nullptr, nullptr);
+        
+        // Save the data
+        nearestAirport = airportId;
+        nearestAirportPos.lat() = lat;
+        nearestAirportPos.lon() = lon;
+    }
+    
+    // determine bearing from airport to position
+    vectorTy vec = nearestAirportPos.between(pos);
+    
+    // put together a nice string
+    char out[100];
+    snprintf(out, sizeof(out), "%.1fnm %s of %s",
+             vec.dist / M_per_NM, HeadingText(vec.angle).c_str(), nearestAirport.c_str());
+    return std::string(out);
+}
+
 // Some setup before UI building starts, here text size calculations
 ImGuiWindowFlags_ ACIWnd::beforeBegin()
 {
@@ -199,7 +247,7 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
     if (std::isnan(ACI_LABEL_SIZE)) {
         /// Size of longest text plus some room for tree indenttion, rounded up to the next 10
         ImGui::SetWindowFontScale(1.0f);
-        ACI_LABEL_SIZE   = std::ceil(ImGui::CalcTextSize("___Call Sign | Squawk_").x / 10.0f) * 10.0f;
+        ACI_LABEL_SIZE   = std::ceil(ImGui::CalcTextSize("___Heading | Pitch | Roll_").x / 10.0f) * 10.0f;
         ACI_AUTO_CB_SIZE = std::ceil(ImGui::CalcTextSize("_____AUTO").x / 10.0f) * 10.0f;
     }
     
@@ -224,7 +272,7 @@ void ACIWnd::buildInterface()
     
     // --- Start the table, which will hold our values
     if (ImGui::BeginTable("ACInfo", 2,
-                          ImGuiTableFlags_ScrollY |
+                          ImGuiTableFlags_Scroll |
                           ImGuiTableFlags_ScrollFreezeLeftColumn))
     {
         // The data we will deal with, can be NULL!
@@ -269,9 +317,11 @@ void ACIWnd::buildInterface()
         }
         
         if (bOpen) {
-            buildRow("Registration",    stat.reg,           pFD);
-            buildRow("ICAO Type",       stat.acTypeIcao,    pFD);
-            buildRow("ICAO Class",      pDoc8643 ? pDoc8643->classification : "-", pDoc8643);
+            buildRow("Registration",        stat.reg,           pFD);
+            buildRow("ICAO Type (Class)", pFD,
+                     "%s (%s)",
+                     stat.acTypeIcao.c_str(),
+                     pDoc8643 ? pDoc8643->classification.c_str() : "?");
             buildRow("Manufacturer",    stat.man,           pFD);
             buildRow("Model",           stat.mdl,           pFD);
             buildRow("Operator",
@@ -289,13 +339,9 @@ void ACIWnd::buildInterface()
                               ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
             // Node is open, add individual lines per value
-            if (pFD) {
-                std::string s (stat.call);
-                s += " | ";
-                s += dyn.GetSquawk();
-                ImGui::TableNextCell();
-                ImGui::TextUnformatted(s.c_str());
-            }
+            ImGui::TableNextCell();
+            if (pFD)
+                ImGui::Text("%s | %s", stat.call.c_str(), dyn.GetSquawk().c_str());
             
             buildRow("Flight: Route",  stat.flightRoute(), pFD);
             buildRow("Simulated Time", dataRefs.GetSimTimeString().c_str(), true);
@@ -303,15 +349,16 @@ void ACIWnd::buildInterface()
             // last received tracking data
             const double lstDat = pFD ? (pFD->GetYoungestTS() - ts) : -99999.9;
             if (-10000 <= lstDat && lstDat <= 10000)
-                buildRow("Last Data [s]", lstDat, pFD, "%+.1f");
+                buildRow("Tracking Data", pFD, "%+.1fs, %s",
+                         lstDat, pChannel ? pChannel->ChName() : "?");
             else
-                buildRow("Last Data [s]", "~", pFD);
-            buildRow("Channel", pChannel ? pChannel->ChName() : "?", pChannel);
+                buildRow("Tracking Data", pChannel ? pChannel->ChName() : "?", pFD);
             
             // end of the tree
             ImGui::TreePop();
         } else {
             // Node is closed: Combine call sign, squawk, flight no into one cell
+            ImGui::TableNextCell();
             if (pFD) {
                 std::string s (stat.call);
                 s += " | ";
@@ -320,9 +367,32 @@ void ACIWnd::buildInterface()
                     s += " | ";
                     s += stat.flight;
                 }
-                ImGui::TableNextCell();
                 ImGui::TextUnformatted(s.c_str());
             }
+        }
+        
+        // --- Position ---
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::TableNextRow();
+        bOpen =ImGui::TreeNodeEx("Position",
+                                 ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth);
+        ImGui::TableNextCell();
+        if (pAc)
+            ImGui::TextUnformatted(RelativePositionText(pAc->GetPPos()).c_str());
+        if (bOpen)
+        {
+            // Node is open
+            buildRow("Coordinates", pAc ? std::string(pAc->GetPPos()).c_str() : "", pAc);
+            buildRow("Heading | Pitch | Roll", pAc, "%03.0f°   | %4.1f° | %5.1f°",
+                     pAc ? pAc->GetHeading()        : 0.0f,
+                     pAc ? pAc->GetPitch()          : 0.0f,
+                     pAc ? pAc->GetRoll()           : 0.0f);
+            buildRow("Bearing | Dist.", pAc, "%03.0f° | %.1fnm",
+                     pAc ? pAc->GetCameraBearing()  : 0.0f,
+                     pAc ? pAc->GetCameraDist() / M_per_NM : 0.0f);
+            
+            // end of the tree
+            ImGui::TreePop();
         }
         
         // --- Global Window configuration ---
@@ -373,6 +443,24 @@ void ACIWnd::buildRow (const std::string& label,
     buildRowLabel(label);
     if (bShowVal)
         ImGui::TextUnformatted(val.c_str());
+    else
+        ImGui::NewLine();
+}
+
+/// Add a label and a value to the list of a/c info
+void ACIWnd::buildRow (const std::string& label,
+                       bool bShowVal,
+                       const char* szFormat, ...)
+{
+    buildRowLabel(label);
+    if (bShowVal) {
+        va_list args;
+        va_start (args, szFormat);
+        ImGui::TextV(szFormat, args);
+        va_end (args);
+    }
+    else
+        ImGui::NewLine();
 }
 
 // Add a label and a value to the list of a/c info
@@ -383,7 +471,8 @@ void ACIWnd::buildRow (const std::string& label,
     buildRowLabel(label);
     if (bShowVal)
         ImGui::Text(szFormat, iVal);
-
+    else
+        ImGui::NewLine();
 }
 
 // Add a label and a value to the list of a/c info
@@ -394,6 +483,8 @@ void ACIWnd::buildRow (const std::string& label,
     buildRowLabel(label);
     if (bShowVal)
         ImGui::Text(szFormat, fVal);
+    else
+        ImGui::NewLine();
 }
 
 

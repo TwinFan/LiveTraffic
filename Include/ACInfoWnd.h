@@ -43,6 +43,11 @@ protected:
     /// When did we check for an update of the AUTO a/c last? (in XP network time)
     float lastAutoCheck = 0.0f;
     
+    /// Nearest airport
+    std::string nearestAirport;
+    positionTy  nearestAirportPos;
+    float       lastNearestAirportCheck = 0.0f;
+
 public:
     /// Constructor shows a window for the given a/c key
     /// @param _acKey (optional) specifies a search text to find an a/c, if empty -> AUTO mode
@@ -72,6 +77,8 @@ protected:
     LTFlightData* GetFlightData () const;
     /// switch to another focus a/c?
     bool UpdateFocusAc ();
+    /// periodically find the nearest airport and return a nice position string relative to it
+    std::string RelativePositionText (const positionTy& pos);
     
     /// Some setup before UI building starts, here text size calculations
     ImGuiWindowFlags_ beforeBegin() override;
@@ -83,6 +90,10 @@ protected:
     void buildRow (const std::string& label,
                    const std::string& val,
                    bool bShowVal);
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   bool bShowVal,
+                   const char* szFormat, ...) LT_FMTARGS(4);
     /// Add a label and a value to the list of a/c info
     void buildRow (const std::string& label,
                    int iVal, bool bShowVal,
