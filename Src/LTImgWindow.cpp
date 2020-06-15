@@ -96,6 +96,8 @@ IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_m
 // MARK: LTImgWindow implementation
 //
 
+/// Text color of button symbols
+constexpr ImU32 LTIM_BTN_COL = IM_COL32(0xB0, 0xB0, 0xB0, 0xFF);
 
 // Constructor
 LTImgWindow::LTImgWindow (WndMode _mode, WndStyle _style, WndRect _initPos) :
@@ -224,8 +226,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
         float x_end = pos_start.x + btnWidth;   // length of lines
         for (int i = 0; i < 3; i++) {
             draw_list->AddLine(pos_start, {x_end, pos_start.y},
-                               ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive),
-                               1.0f);
+                               LTIM_BTN_COL, 1.0f);
             pos_start.y += 5;
         }
         
@@ -248,8 +249,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
     if (x_end > pos_start.x)                // any (positive) line to draw?
         for (int i = 0; i < 3; i++) {       // draw 3 lines
             draw_list->AddLine(pos_start, {x_end, pos_start.y},
-                               ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive),
-                               1.0f);
+                               LTIM_BTN_COL, 1.0f);
             pos_start.y += 5;
         }
     
@@ -262,9 +262,9 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
 void LTImgWindow::buildCloseButton ()
 {
     // Setup colors for window sizing buttons
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive)); // dark gray
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                           // transparent
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrab)); // lighter gray
+    ImGui::PushStyleColor(ImGuiCol_Text, LTIM_BTN_COL);                                         // very light gray
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                               // transparent
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
 
     if (ImGui::ButtonTooltip(ICON_FA_WINDOW_CLOSE, "Close the window"))
         nextWinMode = WND_MODE_CLOSE;
@@ -283,6 +283,7 @@ void LTImgWindow::buildWndButtons ()
     // Button with fixed width 30 and standard height
     // to pop out the window in an OS window
     const float btnWidth = GetWidthIconBtn();
+    const bool bBtnHelp = szHelpURL != nullptr;
     const bool bBtnPopOut = !IsPoppedOut();
 #ifdef APL
     // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
@@ -291,13 +292,20 @@ void LTImgWindow::buildWndButtons ()
     const bool bBtnPopIn  = IsPoppedOut() || IsInVR();
 #endif
     const bool bBtnVR     = dataRefs.IsVREnabled() && !IsInVR();
-    int numBtn = bBtnPopOut + bBtnPopIn + bBtnVR;
+    int numBtn = bBtnHelp + bBtnPopOut + bBtnPopIn + bBtnVR;
     if (numBtn > 0) {
         // Setup colors for window sizing buttons
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive)); // dark gray
-        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                           // transparent
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrab)); // lighter gray
+        ImGui::PushStyleColor(ImGuiCol_Text, LTIM_BTN_COL);                                         // very light gray
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                               // transparent
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
 
+        if (bBtnHelp) {
+            // Same line, but right-alinged
+            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
+            if (ImGui::ButtonTooltip(ICON_FA_QUESTION_CIRCLE, "Open Help in Browser"))
+                LTOpenHelp(szHelpURL);
+            --numBtn;
+        }
         if (bBtnVR) {
             // Same line, but right-alinged
             ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
@@ -397,6 +405,7 @@ bool LTImgWindowInit ()
     // Add all icons that are actually used (they concatenate into one string)
     builder.AddText(ICON_FA_TRASH_ALT ICON_FA_SEARCH
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
+                    ICON_FA_QUESTION_CIRCLE
                     ICON_FA_WINDOW_MAXIMIZE ICON_FA_WINDOW_MINIMIZE
                     ICON_FA_WINDOW_RESTORE ICON_FA_WINDOW_CLOSE);
     builder.BuildRanges(&icon_ranges);

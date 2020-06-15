@@ -25,15 +25,15 @@
 //
 
 /// Initial size of an A/c Info Window (XP coordinates: l,t;r,b with t > b)
-const WndRect ACI_INIT_SIZE = WndRect(0, 500, 320, 0);
+const WndRect ACI_INIT_SIZE = WndRect(0, 480, 320, 0);
 /// Resizing limits (minimum and maximum sizes)
 const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 640, 9999);
 
 constexpr float ACI_AUTO_CHECK_PERIOD = 1.00f;  ///< How often to check for AUTO a/c change? [s]
 constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
-constexpr float ACI_TREE_V_SEP        =10.00f;  ///< Separation between tree sections
-constexpr float ACI_STD_FONT_SCALE    = 0.85f;  ///< Standard font scaling
-constexpr float ACI_STD_TRANSPARENCY  = 0.30f;  ///< Standard background transparency
+constexpr float ACI_TREE_V_SEP        = 5.00f;  ///< Separation between tree sections
+constexpr float ACI_STD_FONT_SCALE    = 0.80f;  ///< Standard font scaling
+constexpr float ACI_STD_TRANSPARENCY  = 0.25f;  ///< Standard background transparency
 
 static float ACI_LABEL_SIZE = NAN;              ///< Width of first column, which displays static labels
 static float ACI_AUTO_CB_SIZE = NAN;            ///< Width of AUTO checkbox
@@ -49,6 +49,9 @@ keyEntry(_acKey)                    // the passed-in input is taken as the user'
     SetWindowResizingLimits(ACI_RESIZE_LIMITS.tl.x, ACI_RESIZE_LIMITS.tl.y,
                             ACI_RESIZE_LIMITS.br.x, ACI_RESIZE_LIMITS.br.y);
     SetVisible(true);
+    
+    // Define Help URL to open for Help (?) button
+    szHelpURL = HELP_AC_INFO_WND;
     
     // Add myself to the list of ACI windows
     listACIWnd.push_back(this);
@@ -271,9 +274,12 @@ void ACIWnd::buildInterface()
     buildTitleBar(GetWndTitle());
     
     // --- Start the table, which will hold our values
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg,    IM_COL32(0,0,0,0x00));
+    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, IM_COL32(0,0,0,0x08));
     if (ImGui::BeginTable("ACInfo", 2,
                           ImGuiTableFlags_Scroll |
-                          ImGuiTableFlags_ScrollFreezeLeftColumn))
+                          ImGuiTableFlags_ScrollFreezeLeftColumn |
+                          ImGuiTableFlags_RowBg))
     {
         // The data we will deal with, can be NULL!
         const double ts = dataRefs.GetSimTime();
@@ -344,16 +350,7 @@ void ACIWnd::buildInterface()
                 ImGui::Text("%s | %s", stat.call.c_str(), dyn.GetSquawk().c_str());
             
             buildRow("Flight: Route",  stat.flightRoute(), pFD);
-            buildRow("Simulated Time", dataRefs.GetSimTimeString().c_str(), true);
-            
-            // last received tracking data
-            const double lstDat = pFD ? (pFD->GetYoungestTS() - ts) : -99999.9;
-            if (-10000 <= lstDat && lstDat <= 10000)
-                buildRow("Tracking Data", pFD, "%+.1fs, %s",
-                         lstDat, pChannel ? pChannel->ChName() : "?");
-            else
-                buildRow("Tracking Data", pChannel ? pChannel->ChName() : "?", pFD);
-            
+                        
             // end of the tree
             ImGui::TreePop();
         } else {
@@ -383,17 +380,85 @@ void ACIWnd::buildInterface()
         {
             // Node is open
             buildRow("Coordinates", pAc ? std::string(pAc->GetPPos()).c_str() : "", pAc);
-            buildRow("Heading | Pitch | Roll", pAc, "%03.0f°   | %4.1f° | %5.1f°",
-                     pAc ? pAc->GetHeading()        : 0.0f,
-                     pAc ? pAc->GetPitch()          : 0.0f,
-                     pAc ? pAc->GetRoll()           : 0.0f);
-            buildRow("Bearing | Dist.", pAc, "%03.0f° | %.1fnm",
-                     pAc ? pAc->GetCameraBearing()  : 0.0f,
-                     pAc ? pAc->GetCameraDist() / M_per_NM : 0.0f);
+            buildRowLabel("Altitude | AGL");
+            if (pAc && ImGui::BeginTable("##AltAGL", 2)) {
+                ImGui::TableNextRow();
+                ImGui::Text("%.f ft", pAc->GetAlt_ft());
+                ImGui::TableNextCell();
+                if (pAc->IsOnGrnd())
+                    ImGui::TextUnformatted("On Grnd");
+                else
+                    ImGui::Text("%+.f ft", pAc->GetPHeight_ft());
+                ImGui::EndTable();
+            }
+            buildRowLabel("Speed | VSI");
+            if (pAc && ImGui::BeginTable("##SpeedVSI", 2)) {
+                ImGui::TableNextRow();
+                ImGui::Text("%.f kn", pAc->GetSpeed_kt());
+                ImGui::TableNextCell();
+                ImGui::Text("%+.f ft/min", pAc->GetVSI_ft());
+                ImGui::EndTable();
+            }
+            buildRowLabel("Heading | Pitch | Roll");
+            if (pAc && ImGui::BeginTable("##HdgPitchRll", 3)) {
+                ImGui::TableNextRow();
+                ImGui::Text("%03.0f°", pAc->GetHeading());
+                ImGui::TableNextCell();
+                ImGui::Text("%.1f°", pAc->GetPitch());
+                ImGui::TableNextCell();
+                ImGui::Text("%.1f°", pAc->GetRoll());
+                ImGui::EndTable();
+            }
+            buildRowLabel("Bearing | Dist.");
+            if (pAc && ImGui::BeginTable("##Bearing", 2)) {
+                ImGui::TableNextRow();
+                ImGui::Text("%03.0f°", pAc->GetCameraBearing());
+                ImGui::TableNextCell();
+                ImGui::Text("%.1fnm", pAc->GetCameraDist() / M_per_NM);
+                ImGui::EndTable();
+            }
+            else
+                ImGui::NewLine();
             
             // end of the tree
             ImGui::TreePop();
         }
+        
+        // --- Simulation ---
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::TableNextRow();
+        bOpen =ImGui::TreeNodeEx("CSL Model",
+                                 ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth);
+        ImGui::TableNextCell();
+        if (pAc)
+            ImGui::TextUnformatted(pAc->GetModelName().c_str());
+        if (bOpen)
+        {
+            buildRow("Simulated Time", dataRefs.GetSimTimeString().c_str(), true);
+
+            // last received tracking data
+            const double lstDat = pFD ? (pFD->GetYoungestTS() - ts) : -99999.9;
+            if (-10000 <= lstDat && lstDat <= 10000)
+                buildRow("Tracking Data", pFD, "%+.1fs, %s",
+                         lstDat, pChannel ? pChannel->ChName() : "?");
+            else
+                buildRow("Tracking Data", pChannel ? pChannel->ChName() : "?", pFD);
+
+            buildRow("Flight Phase", pAc ? pAc->GetFlightPhaseString() : "", pAc);
+            buildRowLabel("Gear | Flaps");
+            if (pAc && ImGui::BeginTable("##GearFlpas", 2)) {
+                ImGui::TableNextRow();
+                ImGui::Text("%.f%%", pAc->GetGearPos() * 100.0);
+                ImGui::TableNextCell();
+                ImGui::Text("%.f%%", pAc->GetFlapsPos() * 100.0);
+                ImGui::EndTable();
+            }
+            buildRow("Lights", pAc ? pAc->GetLightsStr() : "", pAc);
+
+            // end of the tree
+            ImGui::TreePop();
+        }
+
         
         // --- Global Window configuration ---
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
@@ -422,6 +487,7 @@ void ACIWnd::buildInterface()
         // --- End of the table
         ImGui::EndTable();
     }
+    ImGui::PopStyleColor(2);
     
     // Reset font scaling
     ImGui::SetWindowFontScale(1.0f);

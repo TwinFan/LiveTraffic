@@ -163,7 +163,8 @@ class LTImgWindow : public ImgWindow
 public:
     /// The style this window operates in
     const WndStyle wndStyle;
-    
+    /// Which Help-URL to open?
+    const char* szHelpURL = nullptr;
 protected:
     // Helpers for window mode changes, which should not happen during drawing,
     // so we delay them to a flight loop callback
