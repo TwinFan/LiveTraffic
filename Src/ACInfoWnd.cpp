@@ -25,7 +25,7 @@
 //
 
 /// Initial size of an A/c Info Window (XP coordinates: l,t;r,b with t > b)
-const WndRect ACI_INIT_SIZE = WndRect(0, 480, 320, 0);
+const WndRect ACI_INIT_SIZE = WndRect(0, 510, 320, 0);
 /// Resizing limits (minimum and maximum sizes)
 const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 640, 9999);
 
@@ -77,12 +77,19 @@ void ACIWnd::SetAcKey (const LTFlightData::FDKeyTy& _key)
     keyEntry = (acKey = _key);      // remember the key
     SetWindowTitle(GetWndTitle());  // set the window's title
     ReturnKeyboardFocus();          // give up keyboard focus in case we had it
-    
+
+    // set as 'selected' aircraft for debug output
+    dataRefs.LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)),
+                        (int)acKey.num);
 }
 
 // Clear the a/c key, ie. display no data
 void ACIWnd::ClearAcKey ()
 {
+    // if this was the 'selected' aircraft then it is no longer
+    if (acKey == dataRefs.GetSelectedAcKey())
+        dataRefs.LTSetAcKey(reinterpret_cast<void*>(long(DR_AC_KEY)), 0);
+    
     acKey.clear();
     keyEntry.clear();
     lastAutoCheck = 0.0f;
@@ -270,29 +277,39 @@ void ACIWnd::buildInterface()
     // Scale the font for this window
     ImGui::SetWindowFontScale(fFontScale);
     
+    // The data we will deal with, can be NULL!
+    const double ts = dataRefs.GetSimTime();
+    const LTFlightData* pFD = GetFlightData();
+    LTAircraft* pAc   = pFD ? pFD->GetAircraft() : nullptr;
+    // Try fetching fresh static / dynamic data
+    if (pFD) {
+        pFD->TryGetSafeCopy(stat);
+        pFD->TryGetSafeCopy(dyn);
+    }
+    const Doc8643* pDoc8643 = pFD ? stat.pDoc8643 : nullptr;
+    const LTChannel* pChannel = pFD ? dyn.pChannel : nullptr;
+    
     // --- Title Bar ---
-    buildTitleBar(GetWndTitle());
+    buildTitleBar(GetWndTitle(),
+                  // no close button if in VR with camera view on this A/C
+                  !(dataRefs.IsVREnabled() && pAc && pAc->IsInCameraView()));
     
     // --- Start the table, which will hold our values
+    
+    // We need some room under the table for the action buttons
+    ImVec2 tblSize = ImGui::GetContentRegionAvail();
+    tblSize.x = 0;                      // let table use default width
+    tblSize.y -= ImGui::GetTextLineHeightWithSpacing() + 5;
+    
     ImGui::PushStyleColor(ImGuiCol_TableRowBg,    IM_COL32(0,0,0,0x00));
     ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, IM_COL32(0,0,0,0x08));
-    if (ImGui::BeginTable("ACInfo", 2,
+    if (tblSize.y >= ImGui::GetTextLineHeight() &&
+        ImGui::BeginTable("ACInfo", 2,
                           ImGuiTableFlags_Scroll |
                           ImGuiTableFlags_ScrollFreezeLeftColumn |
-                          ImGuiTableFlags_RowBg))
+                          ImGuiTableFlags_RowBg,
+                          tblSize))
     {
-        // The data we will deal with, can be NULL!
-        const double ts = dataRefs.GetSimTime();
-        const LTFlightData* pFD = GetFlightData();
-        const LTAircraft* pAc   = pFD ? pFD->GetAircraft() : nullptr;
-        // Try fetching fresh static / dynamic data
-        if (pFD) {
-            pFD->TryGetSafeCopy(stat);
-            pFD->TryGetSafeCopy(dyn);
-        }
-        const Doc8643* pDoc8643 = pFD ? stat.pDoc8643 : nullptr;
-        const LTChannel* pChannel = pFD ? dyn.pChannel : nullptr;
-
         // Set up the columns of the table
         ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, ACI_LABEL_SIZE * fFontScale);
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
@@ -488,6 +505,34 @@ void ACIWnd::buildInterface()
         ImGui::EndTable();
     }
     ImGui::PopStyleColor(2);
+    
+    // --- Actions ---
+    ImGui::Separator();
+    const ImVec2 selSize = ImVec2(ImGui::CalcTextSize("__Auto Visible__").x, 0.0f);
+    
+    bool bVisible       = pAc ? pAc->IsVisible()        : false;
+    bool bAutoVisible   = pAc ? pAc->IsAutoVisible()    : false;
+
+    if (ImGui::Selectable(ICON_FA_CAMERA " Camera",
+                          pAc ? pAc->IsInCameraView() : false,
+                          pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
+                          selSize))
+        pAc->ToggleCameraView();
+
+    ImGui::SameLine();
+    if (ImGui::Selectable(ICON_FA_EYE " Visible", &bVisible,
+                          pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
+                          selSize))
+        pAc->SetVisible(bVisible);
+
+    // "Auto Visible" only if some auto-hiding option is on
+    if (dataRefs.IsAutoHidingActive()) {
+        ImGui::SameLine();
+        if (ImGui::Selectable("Auto Visible", &bAutoVisible,
+                              pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
+                              selSize))
+            pAc->SetAutoVisible(bAutoVisible);
+    }
     
     // Reset font scaling
     ImGui::SetWindowFontScale(1.0f);

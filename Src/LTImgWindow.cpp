@@ -403,11 +403,16 @@ bool LTImgWindowInit ()
     static ImVector<ImWchar> icon_ranges;
     ImFontGlyphRangesBuilder builder;
     // Add all icons that are actually used (they concatenate into one string)
-    builder.AddText(ICON_FA_TRASH_ALT ICON_FA_SEARCH
+    builder.AddText(ICON_FA_CAMERA
+                    ICON_FA_EYE
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
                     ICON_FA_QUESTION_CIRCLE
-                    ICON_FA_WINDOW_MAXIMIZE ICON_FA_WINDOW_MINIMIZE
-                    ICON_FA_WINDOW_RESTORE ICON_FA_WINDOW_CLOSE);
+                    ICON_FA_SEARCH
+                    ICON_FA_TRASH_ALT
+                    ICON_FA_WINDOW_CLOSE
+                    ICON_FA_WINDOW_MAXIMIZE
+                    ICON_FA_WINDOW_MINIMIZE
+                    ICON_FA_WINDOW_RESTORE);
     builder.BuildRanges(&icon_ranges);
 
     // Merge the icon font with the text font
