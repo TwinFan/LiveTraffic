@@ -2469,8 +2469,6 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
     // The heading diff of the best match to its runway
     // (initialized to the max allowed value so that worse heading diffs aren't considered)
     double bestHeadingDiff = ART_RWY_MAX_HEAD_DIFF;
-    // distance to best airport?
-    double bestDist = ART_RWY_MAX_DIST;
     // when would we arrive there?
     double bestArrivalTS = NAN;
     
@@ -2505,7 +2503,7 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
             
             // 3. Vertical speed, for which we need to know distance / flying time
             const double dist = CoordDistance(_from.lat(), _from.lon(), re.lat, re.lon);
-            if (dist > bestDist)                // too far out
+            if (dist > ART_RWY_MAX_DIST)        // too far out
                 continue;
             const double d_ts = dist / _speed_m_s;
             const double agl = _from.alt_m() - re.alt_m;
@@ -2528,7 +2526,6 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
             bestApt = &apt;
             bestRwyEndPt = &re;
             bestHeadingDiff = headingDiff;      // the heading diff (which would be a selection criterion on several rwys match)
-            bestDist = dist;
             bestArrivalTS = _from.ts() + d_ts;   // the arrival timestamp
         }
     }
