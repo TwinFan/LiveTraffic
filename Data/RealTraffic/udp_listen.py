@@ -22,4 +22,5 @@ except socket.error:
 while 1:
     data, addr = connexion.recvfrom(1024)
 #    print "messages : ",addr , data
-    print (time.time(), ":", data)
+#    print (time.time(), ":", data)
+    print data
