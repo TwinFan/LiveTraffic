@@ -31,6 +31,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import os
 import sys
 import socket
 import time
@@ -64,7 +65,7 @@ def compWaitTS(ts_s: str) -> str:
     return str(ts)
 
 """ === Handle traffic data ==="""
-def sendTrafficData(ln: str) -> int:
+def sendTrafficData(ln: str, doSend: int) -> int:
     # split into its fields
     fields = ln.split(',')
 
@@ -79,17 +80,18 @@ def sendTrafficData(ln: str) -> int:
         fields[14] = compWaitTS(fields[14])
 
         # Send the data
-        datagram = ','.join(fields)
-        sock.sendto(datagram.encode('ascii'), (args.host, args.port))
-
-        if args.verbose:
-            print (datagram)
+        if doSend:
+            datagram = ','.join(fields)
+            sock.sendto(datagram.encode('ascii'), (args.host, args.port))
+            if args.verbose:
+                print (datagram)
     return 1
 
 """ === Handle weather data ==="""
 def sendWeatherData(ln: str) -> int:
+    sock.sendto(ln.encode('ascii'), (args.host, args.weatherPort))
     if args.verbose:
-        print (line)
+        print (ln)
     return 1
 
 """ === MAIN === """
@@ -100,6 +102,7 @@ parser.add_argument('inFile', help='Tracking data file: records in CSV format ho
 parser.add_argument('-a', '--aircraft', metavar='HEX_LIST', help='List of aircraft to read, others skipped. Add one or several transponder hex id codes, separate by comma.')
 parser.add_argument('-d', '--aircraftDecimal', metavar='NUM_LIST', help='Same as -a, but specify decimal values (as used in the CSV file).')
 parser.add_argument('-b', '--bufPeriod', metavar='NUM', help='Buffering period: Number of seconds the first record is pushed into the past so that LiveTraffic\'s buffer fills more quickly. Recommended to be slightly less than LiveTraffic\'s buffering period.', type=int, default=0)
+parser.add_argument('-l', '--loop', help='Endless loop: restart from the beginning when reaching end of file. Will only work if data contains loop with last position(s) being roughly equal to first position(s).', action='store_true')
 parser.add_argument('--host', metavar='NAME_OR_IP', help='UDP target host or ip to send the data to, defaults to \'localhost\'', default='localhost')
 parser.add_argument('--port', metavar='NUM', help='UDP port to send traffic data to, defaults to 49003', type=int, default=49003)
 parser.add_argument('--weatherPort', metavar='NUM', help='UDP port to send weather data to, defaults to 49004', type=int, default=49004)
@@ -125,17 +128,27 @@ if _ac and args.verbose:
 # --- open the UDP socket ---
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-# --- open and loop the input file ---
-_ts = 0
-for line in args.inFile:
-    # remove any whitespace at both ends
-    line = line.strip()
+# Outer loop helps with endless looping
+_sendLn = 1
+while 1:
+    _tsDiff = 0
+    # --- open and loop the input file ---
+    for line in args.inFile:
+        # remove any whitespace at both ends
+        line = line.strip()
 
-    # Can be traffic or weather data
-    if line.startswith('AITFC'):
-        sendTrafficData(line)
-    else:
-        sendWeatherData(line)
+        # Can be traffic or weather data
+        if line.startswith('AITFC'):
+            sendTrafficData(line, _sendLn)
+            _sendLn = 1                 # send all following lines
+        else:
+            sendWeatherData(line)
+
+    # Endless loop?
+    if (not args.loop): break           # no, end replay
+    _sendLn = 0                         # don't send first position again
+    args.bufPeriod = 0                  # no buffering as we keep sending continuously
+    args.inFile.seek(0, os.SEEK_SET)    # restart file from beginning
 
 # --- Cleanup ---
 args.inFile.close;
