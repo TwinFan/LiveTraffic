@@ -34,17 +34,21 @@
 // previous and current cycle info
 struct cycleInfo {
     int     num;                // cycle numer (which is kind of an id)
-    float   elapsedTime;        // X-Plane's elapsed time
     double  simTime;            // simulated time when the cycle started
     double  diffTime;           // the simulated time difference to previous cycle
 };
 
-cycleInfo prevCycle = { -1, -1, -1, 0 };
-cycleInfo currCycle = { -1, -1, -1, 0 };
+cycleInfo prevCycle = { -1, -1, 0 };
+cycleInfo currCycle = { -1, -1, 0 };
 
 #ifdef DEBUG
 /// Is the selected aircraft currently being calculated by a callback to LTAircraft::GetPlanePosition?
 static bool gSelAcCalc = false;
+
+/// Here we keep track of last 20 frame lengths to be able to compute an average
+typedef std::array<double,20> FrameLenArrTy;
+static FrameLenArrTy gFrameLen;
+static FrameLenArrTy::iterator gFrameLenIter;
 #endif
 
 // cycle the cycle...that is move the old current values to previous
@@ -57,11 +61,14 @@ bool NextCycle (int newCycle)
     else
     {
         prevCycle.num = newCycle-1;
-        prevCycle.elapsedTime = XPLMGetElapsedTime() - 0.1f;
         prevCycle.simTime  = dataRefs.GetSimTime() - 0.1;
+#ifdef DEBUG
+        // initialize frame lengths with 30 FPS
+        gFrameLen.fill(1/30.0);
+        gFrameLenIter = gFrameLen.begin();
+#endif
     }
     currCycle.num = newCycle;
-    currCycle.elapsedTime = XPLMGetElapsedTime();
     currCycle.simTime  = dataRefs.GetSimTime();
     
     // the time that has passed since the last cycle
@@ -76,6 +83,36 @@ bool NextCycle (int newCycle)
     else
         XPMPDisableAircraftLabels();
     
+#ifdef DEBUG
+    // When debugging we want to step through the data and don't mind if
+    // we de-synch with reality, so if we notice too long a wait between
+    // frames we assume some debugging delay and instead increase buffering time
+    if (dataRefs.GetNumAc() > 0)
+    {
+        if (currCycle.diffTime < 0) {
+            // jumped backward...that has nothing to do with debugging
+            dataRefs.SetReInitAll(true);
+            SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
+            return false;
+        }
+        // test for forward movement of time, which here we assume is due to debugging
+        else if (currCycle.diffTime > 1.0) {
+            const double avgFrameLen = std::accumulate(gFrameLen.cbegin(), gFrameLen.cend(), 0.0) / gFrameLen.size();
+            dataRefs.fdBufDebug += currCycle.diffTime;      // increase buffering period by wait time
+            dataRefs.fdBufDebug -= avgFrameLen;             // minus an average frame length
+            
+            // And fix this cycle
+            currCycle.simTime  = dataRefs.GetSimTime();                 // recalc simTime based on fdBufDebug
+            currCycle.diffTime = currCycle.simTime - prevCycle.simTime; // should be about avgFrameLen now
+        }
+        // otherwise all good, store our frame time
+        else {
+            *gFrameLenIter = currCycle.diffTime;
+            if ((++gFrameLenIter) == gFrameLen.end())
+                gFrameLenIter = gFrameLen.begin();
+        }
+    }
+#else
     // time should move forward (positive difference) and not too much either
     // If time moved to far between two calls then we better start over
     // (but no problem if no a/c yet displayed anyway)
@@ -86,6 +123,7 @@ bool NextCycle (int newCycle)
         SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
         return false;
     }
+#endif
     
     return true;
 }

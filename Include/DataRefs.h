@@ -439,6 +439,7 @@ public:
     pluginStateTy pluginState = STATE_STOPPED;
 #ifdef DEBUG
     bool bSimVREntered = false;                 // for me to simulate some aspects of VR
+    double fdBufDebug  = 0.0;                   // Due to debugging, the buffering period might extend a lot...
 #endif
     
 //MARK: DataRefs

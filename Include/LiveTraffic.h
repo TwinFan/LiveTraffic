@@ -72,6 +72,7 @@
 #include <thread>
 #include <future>
 #include <algorithm>
+#include <numeric>
 #include <atomic>
 #include <chrono>
 #include <regex>
