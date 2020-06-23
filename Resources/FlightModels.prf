@@ -14,7 +14,7 @@ GEAR_DURATION         10    # [s] time for gear up/down
 GEAR_DEFLECTION        0.5  # [m] main gear deflection during touch-down
 FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
 VSI_STABLE           100    # [ft/min] less than this VSI is considered 'stable'
-ROTATE_TIME            3    # [s] to rotate before lift off
+ROTATE_TIME            4    # [s] to rotate, half before lift off, half after
 VSI_FINAL           -800    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
@@ -37,7 +37,7 @@ PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         4    # [°] to add if flaps extended
 PITCH_FLARE           10    # [°] pitch during flare
-PITCH_RATE             5    # [°/s] pitch rate of change
+PITCH_RATE             3    # [°/s] pitch rate of change
 LIGHT_PATTERN          0    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 LIGHT_LL_ALT       10000    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
 EXT_CAMERA_LON_OFS   -45    # longitudinal external camera offset
@@ -52,13 +52,13 @@ LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultip
 [HugeJets:MediumJets]
 GEAR_DEFLECTION        0.75 # [m] main gear deflection during touch-down
 FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
-ROTATE_TIME            4    # [s] to rotate before lift off
+ROTATE_TIME            6    # [s] to rotate, half before lift off, half after
 VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available
 AGL_FLARE             30    # [ft] height AGL to start flare
 ROLL_RATE              3    # [°/s] roll rate in normal turns
 PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
-PITCH_RATE             2.5  # [°/s] pitch rate of change
+PITCH_RATE             2    # [°/s] pitch rate of change
 LABEL_COLOR       FF0000    # red label for huge jets
 EXT_CAMERA_LON_OFS   -70    # longitudinal external camera offset
 EXT_CAMERA_LAT_OFS     0    # lateral...
@@ -89,13 +89,13 @@ EXT_CAMERA_VERT_OFS   10    # vertical...
 
 [GA:MediumJets]
 GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
-ROTATE_TIME            2    # [s] to rotate before lift off
+ROTATE_TIME            3    # [s] to rotate, half before lift off, half after
 VSI_FINAL           -400    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       500    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB      75    # [kt] initial climb speed if take-off-vector not available
 AGL_GEAR_DOWN       1000    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
-AGL_FLARE             10    # [ft] height AGL to start flare
+AGL_FLARE             15    # [ft] height AGL to start flare
 MAX_TAXI_SPEED        25    # [kt] below that: taxi, above that: take-off/roll-out
 TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
 ROLL_RATE              8    # [°/s] roll rate in normal turns
@@ -108,7 +108,7 @@ PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         2    # [°] to add if flaps extended
 PITCH_FLARE            5    # [°] pitch during flare
-PITCH_RATE             5    # [°/s] pitch rate of change
+PITCH_RATE             3    # [°/s] pitch rate of change
 LIGHT_PATTERN          2    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
 LABEL_COLOR       00FF00    # green labels for GA and smaller

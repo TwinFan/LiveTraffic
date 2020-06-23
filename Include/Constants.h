@@ -71,15 +71,15 @@ constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between positions less than this then favor heading from flight data over vector between positions
-constexpr double FD_GND_AGL =       50;         // [ft] consider pos 'ON GRND' if this close to YProbe
+constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
-constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5� glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
-constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5� glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
-constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5�), slope ratio for keeping a plane above the approach to a runway
-constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    ///< [�] turns of less than this will not be modeled with Bezier curves
+constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), slope ratio for keeping a plane above the approach to a runway
+constexpr double BEZIER_MIN_HEAD_DIFF = 5.0;    ///< [°] turns of less than this will not be modeled with Bezier curves
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -91,7 +91,7 @@ constexpr double MDL_TO_LOOK_AHEAD  =    60.0;  // [s] to look ahead for take of
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
-constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [�] step turn with one command
+constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
 constexpr float  MDL_EXT_FAST_DEG =       5.0f;
 constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
 constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
@@ -110,26 +110,27 @@ constexpr int COLOR_GREEN       = 0x00FF00;
 constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Airports, Runways, Taxiways
-constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [�] tolerance of searched heading to edge's angle to be considered a fit
-constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [�] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [°] tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [°] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
 constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
-constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [�] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [°] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
 constexpr double ART_TAXI_SPEED_F  = 0.8;       ///< [-] ratio of MAX_TAXI_SPEED to use as taxi speed
-constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [�] Maximum turn angle (compared to original edge's angle) for combining edges
+constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [°] Maximum turn angle (compared to original edge's angle) for combining edges
 constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 2.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
 constexpr double APT_STARTUP_VIA_DIST = 50.0;   ///< [m] distance of StartupLoc::viaLoc from startup location
 constexpr double APT_STARTUP_MOVE_BACK = 10.0;  ///< [m] move back startup location so that it sits about in plane's center instead of at its head
 constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an open node to be joined with another edge
-constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [�] tolerance of angle for an open node to be joined with another edge
-constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [�] extended (second prio) tolerance of angle for an open node to be joined with another edge
-constexpr double APT_MAX_PATH_TURN=100.0;       ///< [�] Maximum turn allowed during shortest path calculation
-constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [�] Tolerance when trying to devide for rectangular angle
+constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [°] tolerance of angle for an open node to be joined with another edge
+constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [°] extended (second prio) tolerance of angle for an open node to be joined with another edge
+constexpr double APT_MAX_PATH_TURN=100.0;       ///< [°] Maximum turn allowed during shortest path calculation
+constexpr double APT_PATH_MIN_SEGM_LEN=SIMILAR_POS_DIST*2;      ///< [m] Minimum segment length when taking over a shortest path. Shorter taxi segments are joined into one to avoid too many positions in the fd deque
+constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [°] Tolerance when trying to decide for rectangular angle
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
@@ -354,6 +355,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
+#define DBG_REUSING_TO_POS      "DEBUG RE-USED POS FOR TAKE-OFF: %s"
 #define DBG_INV_POS_REMOVED     "DEBUG %s: Removed an invalid position: %s"
 #define DBG_INV_POS_AC_REMOVED  "DEBUG %s: Removed a/c due to invalid positions"
 #define DBG_HOVER_POS_REMOVED   "DEBUG %s: Removed a hovering position: %s"

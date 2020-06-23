@@ -45,13 +45,13 @@
          contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "vecTaxiEdges[222]">
-            </PersistentString>
-            <PersistentString
                value = "lst[1385]">
             </PersistentString>
             <PersistentString
                value = "vecTaxiEdgesIdxHead[3321]">
+            </PersistentString>
+            <PersistentString
+               value = "vecTaxiEdges[222]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -84,10 +84,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -127,12 +127,6 @@
          <PersistentStrings>
             <PersistentString
                value = "pAc">
-            </PersistentString>
-            <PersistentString
-               value = "pos1">
-            </PersistentString>
-            <PersistentString
-               value = "takeOffTS">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -215,10 +209,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -391,19 +385,19 @@
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "from">
-            </PersistentString>
-            <PersistentString
-               value = "ppos.v[6]">
+               value = "turn">
             </PersistentString>
             <PersistentString
                value = "to">
             </PersistentString>
             <PersistentString
+               value = "vec">
+            </PersistentString>
+            <PersistentString
                value = "ppos">
             </PersistentString>
             <PersistentString
-               value = "turn">
+               value = "from">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -481,6 +475,14 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "LTAircraft::CalcRoll(double):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ppos">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "CoordDistance(positionTy const&amp;, positionTy const&amp;):CoordCalc.cpp">
       </ContextState>
       <ContextState
@@ -493,10 +495,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -510,10 +512,10 @@
          contextName = "LTFlightData::AircraftMaintenance(double):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque[0].v[3]">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "posDeque[0].v[3]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -767,6 +769,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "BezierCurve::Define(positionTy const&amp;, positionTy const&amp;, positionTy const&amp;, double):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
          contextName = "ADSBExchangeHistorical::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
@@ -851,6 +856,14 @@
       </ContextState>
       <ContextState
          contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double) const:LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "BezierCurve::Define(positionTy const&amp;, positionTy const&amp;, positionTy const&amp;):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "_end">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
@@ -979,10 +992,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

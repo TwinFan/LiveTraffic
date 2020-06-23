@@ -1018,7 +1018,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         if ( pAc && !posDeque.empty() ) {
             // clear outdated rotate timestamp
-            if (!std::isnan(rotateTS) && (rotateTS + 2 * mdl.ROTATE_TIME < simTime) )
+            if (!std::isnan(rotateTS) && (rotateTS + 10 * mdl.ROTATE_TIME < simTime) )
                 rotateTS = NAN;
             
             // *** Landing ***
@@ -1149,10 +1149,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     const double takeOffTS = to_i.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
                     
                     // Continue only for timestamps in the future,
-                    // i.e. if take off is calculated to be after current to-position
-                    if (pAc->GetToPos().ts() < takeOffTS)
+                    // i.e. if take off is calculated to be after currently analyzed position
+                    if (ppos_i.ts() + SIMILAR_TS_INTVL < takeOffTS)
                     {
-                        rotateTS = takeOffTS - mdl.ROTATE_TIME;         // timestamp when to rotate
+                        rotateTS = takeOffTS - mdl.ROTATE_TIME/2.0; // timestamp when to rotate
 
                         // find the TO position by applying a reverse vector to the pointer _after_ take off
                         vectorTy vecTO(fmod(vec.angle + 180, 360),  // angle (reverse!)
@@ -1236,6 +1236,17 @@ bool LTFlightData::CalcNextPos ( double simTime )
 
                         // leave loop of szenarios
                         break;
+                    }
+                    // take off would start before ppos_i, we don't do that,
+                    // so ppos_i is going to be lift-off
+                    else {
+                        // if ppos_i is still in the deque we can change it:
+                        if (i > 0)
+                            posDeque[i-1].f.flightPhase = FPH_LIFT_OFF;
+                        rotateTS = ppos_i.ts() - mdl.ROTATE_TIME/2.0;
+                        if (dataRefs.GetDebugAcPos(key())) {
+                            LOG_MSG(logDEBUG,DBG_REUSING_TO_POS,ppos_i.dbgTxt().c_str());
+                        }
                     }
                 } // (take off case)
             } // loop over szenarios
@@ -1835,7 +1846,7 @@ bool LTFlightData::TryDeriveGrndStatus (positionTy& pos)
             // If position already says itself: I'm on the ground, then keep it like that
             // Otherwise decide based on altitude _if_ it's on the ground
             if (!pos.IsOnGnd() &&
-                // say it's on the ground if below terrain+50ft
+                // say it's on the ground if below terrain+10m
                 pos.alt_m() < terrainAlt + FD_GND_AGL)
                 pos.f.onGrnd = GND_ON;
 

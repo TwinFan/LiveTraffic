@@ -1,9 +1,16 @@
 TODO
 ===
 
-LTApt
-- Instead of wasting space with all nodes supporting Dijkstra,
-  consider a map holding Dijkstra info per visited node
+Auto-Land:
+    Test deceleration
+
+Add Nose-wheel steering angle
+
+ImGui
+- Convert Settings UI
+- Implement a generic searchable plane list
+- Add plane selection to A/C Info
+- Add new status window
 
 Download History
 ==========
