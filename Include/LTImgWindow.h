@@ -26,15 +26,18 @@
 //
 
 /// The standard font to use
-#define WND_STANDARD_FONT "Resources/fonts/Roboto-Light.ttf"
+#define WND_STANDARD_FONT "Resources/fonts/DejaVuSans.ttf"
 /// The font's standard size
-constexpr int WND_FONT_SIZE = 18;
+constexpr int WND_FONT_SIZE = 15;
 
 //
 // MARK: ImGui extensions
 //
 
 namespace ImGui {
+
+/// Get width of an icon button (calculate on first use)
+IMGUI_API float GetWidthIconBtn ();
 
 /// @brief Helper for creating unique IDs
 /// @details Required when creating many widgets in a loop, e.g. in a table
@@ -52,11 +55,53 @@ IMGUI_API bool ButtonTooltip(const char* label,
                              ImU32 colBg = IM_COL32(1,1,1,0),
                              const ImVec2& size = ImVec2(0,0));
 
-/// @brief Same as SliderFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
+/// @brief Draws a button with an icon
+/// @param icon The icon to draw, expected to be a single char from an icon font
+/// @param tooltip Tooltip text when hovering over the button
+/// @param rightAligned Align button to the right of the content region?
+/// @return Button pressed?
+IMGUI_API bool ButtonIcon(const char* icon, const char* tooltip = nullptr, bool rightAligned = true);
+
+/// @brief Same as ImGui::SliderFloat(), but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool SliderPercent(const char* label, float* v, float v_min=0.0f, float v_max=1.0f, const char* format = "%.0f%%", float power = 1.0f);
 
 /// @brief Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, float v_min = 0.0f, float v_max = 1.0f, const char* format = "%.0f%%", float power = 1.0f);
+
+/// @brief Draws a tree node in the current and a Help icon in the last table cell
+/// @details All rendering is skipped and `true` returned if `filter` is non-empty.
+///          Cursor is at beginning of (next) row afterwards, just continue drawing.
+/// @param label to be written into first cell
+/// @param helpURL URL opened when the help icon button is clicked
+/// @param helpPopup (optional) Tooltip text when hovering over help icon button
+/// @param nCol Number of columns of the table (needed to know where the help icon button goes)
+/// @param filter (optional) Filter string: Node will only show if `filter` is `nullptr` or empty string
+/// @param nOpCl (optional) `-1` force node close, `0` open/close unchanged, `+1` force node open
+/// @param flags (optional) Tree node flags, see ImGui::ImGuiTreeNodeFlags_
+/// @return Continue drawing in the node? (Tree node open, or a `filter` defined)
+IMGUI_API bool TreeNodeHelp(const char* label, const char* helpURL, const char* helpPopup,
+                            int nCol, const char* filter = nullptr, int nOpCl = 0,
+                            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth);
+
+/// @brief Extension to ImGui::TreeNodeHelp(): Shows a button opening an URL in the 2nd cell
+IMGUI_API bool TreeNodeLinkHelp(const char* label,
+                                const char* linkLabel, const char* linkURL, const char* linkPopup,
+                                const char* helpURL, const char* helpPopup,
+                                int nCol, const char* filter = nullptr, int nOpCl = 0,
+                                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth);
+
+/// @brief Show this label only if text matches filter string
+/// @return Shown?
+IMGUI_API bool FilteredLabel(const char* label, const char* filter, bool bEnabled = true);
+
+/// @brief Filter label plus checkbox linked to boolean(integer) dataRef
+/// @return Value just changed?
+IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx);
+
+/// @brief Filter label plus integer slider linked to dataRef
+/// @return Value just changed?
+IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefsLT idx,
+                                 int v_min, int v_max, int v_step = 1, const char* format = "%d");
 
 
 };
@@ -208,10 +253,6 @@ protected:
     void buildWndButtons ();
     
 protected:
-    /// width of an icon button
-    static float widthIconBtn;
-    /// Get width of an icon button (calculate on first use)
-    static float GetWidthIconBtn ();
     /// flight loop callback for changing the window's mode
     static float cbChangeWndMode(
         float                inElapsedSinceLastCall,

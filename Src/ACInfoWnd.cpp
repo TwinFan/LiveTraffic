@@ -32,8 +32,8 @@ const WndRect ACI_RESIZE_LIMITS = WndRect(200, 200, 640, 9999);
 constexpr float ACI_AUTO_CHECK_PERIOD = 1.00f;  ///< How often to check for AUTO a/c change? [s]
 constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
 constexpr float ACI_TREE_V_SEP        = 5.00f;  ///< Separation between tree sections
-constexpr float ACI_STD_FONT_SCALE    = 0.80f;  ///< Standard font scaling
-constexpr float ACI_STD_TRANSPARENCY  = 0.25f;  ///< Standard background transparency
+constexpr float ACI_STD_FONT_SCALE    = 1.00f;  ///< Standard font scaling
+constexpr float ACI_STD_OPACITY       = 0.25f;  ///< Standard background opacity
 
 static float ACI_LABEL_SIZE = NAN;              ///< Width of first column, which displays static labels
 static float ACI_AUTO_CB_SIZE = NAN;            ///< Width of AUTO checkbox
@@ -48,7 +48,6 @@ keyEntry(_acKey)                    // the passed-in input is taken as the user'
     SetWindowTitle(GetWndTitle());
     SetWindowResizingLimits(ACI_RESIZE_LIMITS.tl.x, ACI_RESIZE_LIMITS.tl.y,
                             ACI_RESIZE_LIMITS.br.x, ACI_RESIZE_LIMITS.br.y);
-    SetVisible(true);
     
     // Define Help URL to open for Help (?) button
     szHelpURL = HELP_AC_INFO_WND;
@@ -122,36 +121,11 @@ std::string ACIWnd::GetWndTitle () const
 // Taking user's temporary input `keyEntry` searches for a valid a/c, sets acKey on success
 bool ACIWnd::SearchAndSetFlightData ()
 {
-    mapLTFlightDataTy::const_iterator fdIter = mapFd.cend();
+    mapLTFlightDataTy::iterator fdIter = mapFd.end();
     
     trim(keyEntry);
-    if (!keyEntry.empty()) {
-        // is it a small integer number, i.e. used as index?
-        if (keyEntry.length() <= 3 &&
-            keyEntry.find_first_not_of("0123456789") == std::string::npos)
-        {
-            int i = std::stoi(keyEntry);
-            // let's find the i-th aircraft by looping over all flight data
-            // and count those objects, which have an a/c
-            if (i > 0) for (fdIter = mapFd.cbegin();
-                 fdIter != mapFd.cend();
-                 ++fdIter)
-            {
-                if (fdIter->second.hasAc())         // has an a/c
-                    if ( --i == 0 )                 // and it's the i-th!
-                        break;
-            }
-        }
-        else
-        {
-            // search the map of flight data by text key
-            fdIter =
-            std::find_if(mapFd.cbegin(), mapFd.cend(),
-                         [&](const mapLTFlightDataTy::value_type& mfd)
-                         { return mfd.second.IsMatch(keyEntry); }
-                         );
-        }
-    }
+    if (!keyEntry.empty())
+        mapFdSearchAc(keyEntry);
     
     // found?
     if (fdIter != mapFd.cend()) {
@@ -261,9 +235,9 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
         ACI_AUTO_CB_SIZE = std::ceil(ImGui::CalcTextSize("_____AUTO").x / 10.0f) * 10.0f;
     }
     
-    // Set background transparency
+    // Set background opacity
     ImGuiStyle& style = ImGui::GetStyle();
-    style.Colors[ImGuiCol_WindowBg] = ImColor(0.0f, 0.0f, 0.0f, fTransparency);
+    style.Colors[ImGuiCol_WindowBg] = ImColor(0.0f, 0.0f, 0.0f, fOpacity);
     
     return ImGuiWindowFlags_None;
 }
@@ -488,14 +462,14 @@ void ACIWnd::buildInterface()
             buildRowLabel("Font Scaling");
             ImGui::DragPercent("##FontScaling", &fFontScale, 0.01f, 0.2f, 2.0f);
             
-            buildRowLabel("Transparency");
-            ImGui::DragPercent("##Transparency", &fTransparency);
+            buildRowLabel("Opacity");
+            ImGui::DragPercent("##Opacity", &fOpacity);
 
             ImGui::TableNextRow();
             ImGui::TableNextCell();
             if (ImGui::Button("Reset to defaults")) {
-                fFontScale      = ACI_STD_FONT_SCALE;
-                fTransparency   = ACI_STD_TRANSPARENCY;
+                fFontScale  = ACI_STD_FONT_SCALE;
+                fOpacity    = ACI_STD_OPACITY;
             }
 
             ImGui::TreePop();
@@ -605,7 +579,7 @@ void ACIWnd::buildRow (const std::string& label,
 //
 
 float ACIWnd::fFontScale    = ACI_STD_FONT_SCALE;   // Font scaling factor for ACI Windows
-float ACIWnd::fTransparency = ACI_STD_TRANSPARENCY; // Transparency level for ACI Windows
+float ACIWnd::fOpacity      = ACI_STD_OPACITY;      // Opacity level for ACI Windows
 bool  ACIWnd::bAreShown     = true;                 // Are the ACI windows currently displayed or hidden?
 
 // we keep a list of all created windows

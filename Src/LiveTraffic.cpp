@@ -35,9 +35,6 @@ extern bool InitFullVersion ();
 // access to data refs
 DataRefs dataRefs(logWARN);
 
-// Settings Dialog
-LTSettingsUI settingsUI;
-
 //MARK: Plugin Menu
 enum menuItems {
     MENU_ID_LIVETRAFFIC = 0,
@@ -99,8 +96,8 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                                   dataRefs.ToggleLabelDraw() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_SETTINGS_UI:
-                settingsUI.Show();
-                settingsUI.Center();
+                XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
+                                  LTSettingsUI::ToggleDisplay() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_NEWVER:
                 LTOpenURL(LT_DOWNLOAD_URL);
@@ -177,6 +174,10 @@ void MenuUpdateAllItemStatus()
     XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
                         dataRefs.AwaitingAIControl() ? MENU_HAVE_TCAS_REQUSTD : MENU_HAVE_TCAS,
                         0);
+
+    // Is Settings window open?
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
+                      LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 }
 
 void HandleNewVersionAvail ()
@@ -268,7 +269,9 @@ bool RegisterMenuItem ()
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
-    
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
+                      LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+
     // --- Help submenu ---
     aMenuItems[MENU_ID_HELP] =
     XPLMAppendMenuItem(menuID, MENU_HELP, NULL, 1);
@@ -587,7 +590,7 @@ PLUGIN_API void XPluginDisable(void) {
         DestroyWindow();
         
         // deregister Settings UI, close all windows, cleanup ImGui stuff
-        settingsUI.Disable();
+        LTSettingsUI::ToggleDisplay(-1);
         ACIWnd::CloseAll();
         LTImgWindowCleanup();
         

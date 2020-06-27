@@ -44,6 +44,7 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
 
 /// @brief Return the best possible runway to auto-land at based on current pos/heading/speed of `_ac`
 /// @param _ac Aircraft in search for a landing spot. It's last go-to position and VSI as well as its model are of importance
+/// @param bDoLogging (optional) Shall decision be logged?
 /// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway)
 /// @note Call from separate thread, like from CalcNextPos
 inline positionTy LTAptFindRwy (const LTAircraft& _ac, bool bDoLogging = false)

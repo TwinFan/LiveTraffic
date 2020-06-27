@@ -2602,6 +2602,24 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx)
     return mapFd.end();
 }
 
+// Find a/c by text input
+mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
+{
+    // is it a small integer number, i.e. used as index?
+    if (_s.length() <= 3 &&
+        _s.find_first_not_of("0123456789") == std::string::npos)
+    {
+        return mapFdAcByIdx(std::stoi(_s));
+    }
+    else
+    {
+        // search the map of flight data by text key
+        return std::find_if(mapFd.begin(), mapFd.end(),
+                            [&](const mapLTFlightDataTy::value_type& mfd)
+                            { return mfd.second.IsMatch(_s); } );
+    }
+}
+
 //
 // MARK: LTFlightDataList
 //

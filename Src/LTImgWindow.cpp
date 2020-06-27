@@ -24,10 +24,47 @@
 #define WARN_NOT_LOADED_ICON_FONT "Could not load icon font, icons will not be displayed properly"
 
 //
+// MARK: LiveTraffic Configuration dataRef access
+//
+
+/// dataRef handles for the configuration dataRefs, will be filled lazily when needed
+static XPLMDataRef gDR[CNT_DATAREFS_LT];
+
+/// Lazily fetches the dataRef handle, then returns its current value
+static int cfgGet (dataRefsLT idx)
+{
+    if (!gDR[idx])
+        gDR[idx] = XPLMFindDataRef(DATA_REFS_LT[idx]);
+    return gDR[idx] ? XPLMGetDatai(gDR[idx]) : 0;
+}
+
+/// Lazily fetches the dataRef handle, then sets integer value
+static void cfgSet (dataRefsLT idx, int v)
+{
+    if (!gDR[idx])
+        gDR[idx] = XPLMFindDataRef(DATA_REFS_LT[idx]);
+    if (gDR[idx]) XPLMSetDatai(gDR[idx], v);
+}
+
+//
 // MARK: ImGui extensions
 //
 
+/// Text color of button symbols
+constexpr ImU32 LTIM_BTN_COL = IM_COL32(0xB0, 0xB0, 0xB0, 0xFF);
+
 namespace ImGui {
+
+/// width of a single-icon button
+static float gWidthIconBtn = NAN;
+
+// Get width of an icon button (calculate on first use)
+IMGUI_API float GetWidthIconBtn ()
+{
+    if (std::isnan(gWidthIconBtn))
+        gWidthIconBtn = CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x + 5;
+    return gWidthIconBtn;
+}
 
 // Helper for creating unique IDs
 IMGUI_API void PushID_formatted(const char* format, ...)
@@ -51,24 +88,42 @@ IMGUI_API bool ButtonTooltip(const char* label,
 {
     // Setup colors
     if (colFg != IM_COL32(1,1,1,0))
-        ImGui::PushStyleColor(ImGuiCol_Text, colFg);
+        PushStyleColor(ImGuiCol_Text, colFg);
     if (colBg != IM_COL32(1,1,1,0))
-        ImGui::PushStyleColor(ImGuiCol_Button, colBg);
+        PushStyleColor(ImGuiCol_Button, colBg);
 
     // do the button
-    bool b = ImGui::Button(label, size);
+    bool b = Button(label, size);
     
     // restore previous colors
     if (colBg != IM_COL32(1,1,1,0))
-        ImGui::PopStyleColor();
+        PopStyleColor();
     if (colFg != IM_COL32(1,1,1,0))
-        ImGui::PopStyleColor();
+        PopStyleColor();
 
     // do the tooltip
-    if (tip && ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", tip);
+    if (tip && IsItemHovered())
+        SetTooltip("%s", tip);
     
     // return if button pressed
+    return b;
+}
+
+IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAligned)
+{
+    // Setup colors for window sizing buttons
+    PushStyleColor(ImGuiCol_Text, LTIM_BTN_COL);                                         // very light gray
+    PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                               // transparent
+    PushStyleColor(ImGuiCol_ButtonHovered, GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
+
+    if (rightAligned)
+        SetCursorPosX(GetContentRegionMax().x - GetWidthIconBtn());
+
+    bool b = ButtonTooltip(label, tooltip);
+
+    // Restore colors
+    PopStyleColor(3);
+    
     return b;
 }
 
@@ -90,14 +145,135 @@ IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_m
     return bRet;
 }
 
+// Draws a tree node in the current and a Help icon in the last table cell
+IMGUI_API bool TreeNodeHelp(const char* label,
+                            const char* helpURL, const char* helpPopup,
+                            int nCol, const char* filter, int nOpCl,
+                            ImGuiTreeNodeFlags flags)
+{
+    return TreeNodeLinkHelp (label,
+                             nullptr, nullptr, nullptr,
+                             helpURL, helpPopup,
+                             nCol, filter, nOpCl,
+                             flags);
 }
+
+
+// Extension to ImGui::TreeNodeHelp(): Shows a button opening an URL in the 2nd cell
+IMGUI_API bool TreeNodeLinkHelp(const char* label,
+                                const char* linkLabel, const char* linkURL, const char* linkPopup,
+                                const char* helpURL, const char* helpPopup,
+                                int nCol, const char* filter, int nOpCl,
+                                ImGuiTreeNodeFlags flags)
+{
+    if (filter && *filter) return true;                     // is a filter defined? Then we don't show tree nodes
+    
+    if (TableGetColumnIndex() > 0)                          // make sure we start on a row's beginning
+        TableNextRow();
+
+    // Set special background color for tree nodes
+    const unsigned COL_TBL_BG = IM_COL32(0x14,0x20,0x30,0xFF);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg, COL_TBL_BG);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, COL_TBL_BG);
+
+    PushID(label);                                          // makes sure the always similar help buttons are recongized as different
+    if (nOpCl)                                              // if requested...
+        SetNextItemOpen(nOpCl > 0);                         // ...force open/close
+    const bool b = TreeNodeEx(label, flags);                // draw tree node
+    
+    // add a button with a link action to the 2nd cell
+    if (linkLabel && linkURL) {
+        TableNextCell();
+        if (ButtonTooltip(linkLabel, linkPopup))
+            LTOpenURL(linkURL);
+        SameLine();
+    }
+    
+    if (TableGetColumnIndex() < nCol-1)                     // move to last column
+        TableSetColumnIndex(nCol-1);
+    if (ButtonIcon(ICON_FA_QUESTION_CIRCLE, helpPopup))
+        LTOpenHelp(helpURL);                                // Help button handling
+    
+    PopID();
+    TableNextRow();                                         // move to next row
+    ImGui::PopStyleColor(2);                                // Restore row color
+
+    return b;
+}
+
+
+// Show this label only if text matches filter string
+IMGUI_API bool FilteredLabel(const char* label, const char* filter,
+                             bool bEnabled)
+{
+    if (filter && *filter)  {           // any filter defined?
+        std::string labelUpper(label);
+        if (str_toupper(labelUpper).find(filter) == std::string::npos)
+            return false;
+    }
+    
+    // Draw the label
+    if (bEnabled)
+        TextUnformatted(label);
+    else
+        TextDisabled("%s", label);
+    return true;
+}
+
+// Filter label plus checkbox linked to boolean(integer) dataRef
+IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx)
+{
+    // Draw label first
+    if (!FilteredLabel(label, filter))
+        return false;
+    
+    // Next cell: Draw the checkbox with a value linked to the dataRef
+    TableNextCell();
+    bool bV = cfgGet(idx);
+    char idLabel[25] = "##";
+    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-2);
+    if (Checkbox(idLabel, &bV)) {        // if checkbox changed value
+        cfgSet(idx, bV);                        // set dataRef value
+        TableNextCell();
+        return true;
+    }
+    TableNextCell();
+    return false;
+}
+
+// Filter label plus integer slider linked to dataRef
+IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefsLT idx,
+                                 int v_min, int v_max, int v_step, const char* format)
+{
+    // Draw label first
+    if (!FilteredLabel(label, filter))
+        return false;
+    
+    // Next cell: Draw the checkbox with a value linked to the dataRef
+    TableNextCell();
+    int iV = cfgGet(idx);
+    char idLabel[25] = "##";
+    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-2);
+    SetNextItemWidth(GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
+    if (SliderInt(idLabel, &iV, v_min, v_max, format)) {    // if slider changed value
+        if (v_step > 1)
+            iV = (iV+(v_step/2))/v_step * v_step;           // rounding to full steps
+        
+        // When entering manually [Ctrl+Click], values aren't clamped, so we take care of it
+        cfgSet(idx, clamp(iV, v_min, v_max));               // set dataRef value
+        TableNextCell();
+        return true;
+    }
+    TableNextCell();
+    return false;
+}
+
+
+}   // namespace ImGui
 
 //
 // MARK: LTImgWindow implementation
 //
-
-/// Text color of button symbols
-constexpr ImU32 LTIM_BTN_COL = IM_COL32(0xB0, 0xB0, 0xB0, 0xFF);
 
 // Constructor
 LTImgWindow::LTImgWindow (WndMode _mode, WndStyle _style, WndRect _initPos) :
@@ -107,11 +283,15 @@ ImgWindow (_initPos.left(), _initPos.top(),
 wndStyle(_style),
 rectFloat(_initPos)
 {
-    // Create a flight loop id, but don't schedule it yet
+    // Disable reading/writing of "imgui.ini"
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+
+    // Create a flight loop id
     XPLMCreateFlightLoop_t flDef = {
         sizeof(flDef),                              // structSize
         xplm_FlightLoop_Phase_BeforeFlightModel,    // phase
-        cbChangeWndMode,                               // callbackFunc
+        cbChangeWndMode,                            // callbackFunc
         (void*)this,                                // refcon
     };
     flChangeWndMode = XPLMCreateFlightLoop(&flDef);
@@ -128,6 +308,9 @@ rectFloat(_initPos)
     // Set the positioning mode
     SetMode(_mode);
     
+    // Show myself and monitor that we stay visible
+    SetVisible(true);
+    XPLMScheduleFlightLoop(flChangeWndMode, 1.0, 1);
 }
 
 // Desctrucotr
@@ -211,7 +394,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
                                  bool bCloseBtn,
                                  bool bWndBtns)
 {
-    const float btnWidth = GetWidthIconBtn();
+    const float btnWidth = ImGui::GetWidthIconBtn();
     const ImGuiStyle& style = ImGui::GetStyle();
     
     // Close button
@@ -245,7 +428,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
     pos_start.y += 3;
     float x_end = ImGui::GetWindowContentRegionWidth();
     if (bWndBtns)
-        x_end -= 2 * GetWidthIconBtn();     // space for window buttons
+        x_end -= 2 * btnWidth;              // space for window buttons
     if (x_end > pos_start.x)                // any (positive) line to draw?
         for (int i = 0; i < 3; i++) {       // draw 3 lines
             draw_list->AddLine(pos_start, {x_end, pos_start.y},
@@ -261,20 +444,11 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
 // Paints close button
 void LTImgWindow::buildCloseButton ()
 {
-    // Setup colors for window sizing buttons
-    ImGui::PushStyleColor(ImGuiCol_Text, LTIM_BTN_COL);                                         // very light gray
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                               // transparent
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
-
-    if (ImGui::ButtonTooltip(ICON_FA_WINDOW_CLOSE, "Close the window"))
+    if (ImGui::ButtonIcon(ICON_FA_WINDOW_CLOSE, "Close the window", false)) {
         nextWinMode = WND_MODE_CLOSE;
-
-    // Restore colors
-    ImGui::PopStyleColor(3);
-
-    // Window mode should be set outside drawing calls to avoid crashes
-    if (nextWinMode > WND_MODE_NONE)
+        // Window mode should be set outside drawing calls to avoid crashes
         ScheduleWndModeChange();
+    }
 }
 
 /// Paints resizing buttons as needed as per current window status
@@ -282,7 +456,7 @@ void LTImgWindow::buildWndButtons ()
 {
     // Button with fixed width 30 and standard height
     // to pop out the window in an OS window
-    const float btnWidth = GetWidthIconBtn();
+    const float btnWidth = ImGui::GetWidthIconBtn();
     const bool bBtnHelp = szHelpURL != nullptr;
     const bool bBtnPopOut = !IsPoppedOut();
 #ifdef APL
@@ -348,17 +522,6 @@ void LTImgWindow::buildWndButtons ()
 // Include font 'fa-solid-900' into the binary
 #include "fa-solid-900.inc"
 
-// width of an icon button
-float LTImgWindow::widthIconBtn = NAN;
-
-// Get width of an icon button (calculate on first use)
-float LTImgWindow::GetWidthIconBtn ()
-{
-    if (std::isnan(widthIconBtn))
-        widthIconBtn = ImGui::CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x + 5;
-    return widthIconBtn;
-}
-
 // flight loop callback for stuff we cannot do during drawing callback
 // Outside all rendering we can change things like window mode
 float LTImgWindow::cbChangeWndMode(float, float, int, void* inRefcon)
@@ -367,15 +530,17 @@ float LTImgWindow::cbChangeWndMode(float, float, int, void* inRefcon)
     LTImgWindow& wnd = *reinterpret_cast<LTImgWindow*>(inRefcon);
     
     // Has user requested to close the window?
-    if (wnd.nextWinMode == WND_MODE_CLOSE)
-        delete &wnd;
+    // or are we already no longer visible?
+    if (wnd.nextWinMode == WND_MODE_CLOSE ||
+        !wnd.GetVisible())
+        delete &wnd;                // -> delete the window
 
     // Has user requested a change in window mode?
     else if (wnd.nextWinMode > WND_MODE_NONE)
         wnd.SetMode(wnd.nextWinMode);
     
-    // don't call me again
-    return 0.0f;
+    // regularly check for window's visibility
+    return 1.0f;
 }
 
 // One-time initializations for all ImGui windows
@@ -403,12 +568,20 @@ bool LTImgWindowInit ()
     static ImVector<ImWchar> icon_ranges;
     ImFontGlyphRangesBuilder builder;
     // Add all icons that are actually used (they concatenate into one string)
-    builder.AddText(ICON_FA_CAMERA
+    builder.AddText(ICON_FA_ANGLE_DOUBLE_DOWN
+                    ICON_FA_ANGLE_DOUBLE_UP
+                    ICON_FA_CAMERA
+                    ICON_FA_CHECK
+                    ICON_FA_CHECK_CIRCLE
+                    ICON_FA_EXCLAMATION_TRIANGLE
                     ICON_FA_EYE
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_SEARCH
+                    ICON_FA_SPINNER
+                    ICON_FA_TIMES
                     ICON_FA_TRASH_ALT
+                    ICON_FA_UNDO
                     ICON_FA_WINDOW_CLOSE
                     ICON_FA_WINDOW_MAXIMIZE
                     ICON_FA_WINDOW_MINIMIZE

@@ -108,7 +108,7 @@ protected:
     /// Font scaling factor for ACI Windows
     static float fFontScale;
     /// Transparency level for ACI Windows
-    static float fTransparency;
+    static float fOpacity;
     /// are the ACI windows displayed or hidden?
     static bool bAreShown;
     /// list of all ACI windows currently displayed

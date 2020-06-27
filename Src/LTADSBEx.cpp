@@ -233,6 +233,10 @@ bool ADSBExchangeConnection::InitCurl ()
         return false;
     }
     
+    // Reset any RAPID API request count if talking to ADSBEx directly
+    if (keyTy != ADSBEX_KEY_RAPIDAPI)
+        dataRefs.ADSBExRLimit = dataRefs.ADSBExRRemain = 0;
+    
     // let's do the standard CURL init first
     if (!LTOnlineChannel::InitCurl())
         return false;
@@ -437,6 +441,10 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                     // looks like a valid response containing a/c info
                     bResult = true;
                     dataRefs.SetADSBExAPIKey(newKey);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, true);
+                    // Reset any RAPID API request count if talking to ADSBEx directly
+                    if (testKeyTy != ADSBEX_KEY_RAPIDAPI)
+                        dataRefs.ADSBExRLimit = dataRefs.ADSBExRRemain = 0;
                     SHOW_MSG(logMSG, MSG_ADSBEX_KEY_SUCCESS);
                 }
                 else

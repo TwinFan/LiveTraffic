@@ -166,7 +166,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
-#define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
@@ -229,13 +228,16 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_MENU_ITEMS         "using-lt/menu-items"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
-#define HELP_SETTINGS_PATHS {                       \
-    "setup/configuration/settings-basics",          \
-    "setup/configuration/settings-a-c-labels",      \
-    "setup/configuration/settings-advanced",        \
-    "setup/configuration/settings-csl",             \
-    "setup/configuration/settings-debug",           \
-}
+#define HELP_SET_BASICS         "setup/configuration/settings-basics"
+#warning Need final help URLs!
+#define HELP_SET_CHANNELS       "setup/configuration/settings-basics#flight-data-channels"
+#define HELP_SET_CH_OPENSKY     "setup/configuration/settings-basics#flight-data-channels"
+#define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
+#define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
+#define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"
+#define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
+#define HELP_SET_CSL            "setup/configuration/settings-csl"
+#define HELP_SET_DEBUG         "setup/configuration/settings-debug"
 
 //MARK: File Paths
 // these are under the plugins directory

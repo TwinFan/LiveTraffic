@@ -1,6 +1,13 @@
 TODO
 ===
 
+KLAX, file KLAX_20200624_2220Z.csv
+    A4462E / DAL839
+    Deceleration bad
+    Turning off rwy OK
+    Crossing rwy ok
+    Tiny jump just before taxi way crossing
+
 Auto-Land:
     Test deceleration
 
@@ -8,6 +15,12 @@ Add Nose-wheel steering angle
 
 ImGui
 - Convert Settings UI
+  - LTImgWindow: Instead of killing a hidden window call a virtual function and let that decide what to do
+  - ACInfoWnd will then kill itself
+  - Settings window will just save data
+  - Test reopen of settings window after hiding
+  - Test proper deletion during shutdown
+- Remove TFWidget files and from CMakeList
 - Implement a generic searchable plane list
 - Add plane selection to A/C Info
 - Add new status window
@@ -121,8 +134,8 @@ xplanemp - Created my own fork at https://github.com/TwinFan/libxplanemp, which 
         'x64-Release':  build\x64-Release\xplanemp.lib
 
     * Mac OS *
-    
-    
+
+
 * Linux (via docker)
 # Check the resulting binary for missing symbols
 # It is expected that all X-Plane SDK functions are reported as unresolved.

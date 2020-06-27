@@ -411,6 +411,9 @@ inline mapLTFlightDataTy::iterator mapFdNextWithAc (mapLTFlightDataTy::iterator 
 /// @param idx Index of aircraft to find, 1-based: pass in 1 to find the first
 mapLTFlightDataTy::iterator mapFdAcByIdx (int idx);
 
+/// Find a/c by text, compares with key, call sigh, registration etc., passes pure numbers to mapFdAcByIdx()
+mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s);
+
 //
 // MARK: Ordered lists of flight data
 //       Note that included objects aren't valid for long!

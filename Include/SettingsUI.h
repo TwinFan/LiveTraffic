@@ -22,126 +22,55 @@
 #define SettingsUI_h
 
 //
-// Text Edit field searching for a/c
-//
-
-// Seach for a/c with text provided by user
-// Replace by icao transp hex code
-// Provide LTFlighData/LTAircraft object on request
-class TFACSearchEditWidget : public TFTextFieldWidget
-{
-protected:
-    LTFlightData::FDKeyTy acKey;            // key to the a/c to display
-public:
-    TFACSearchEditWidget (XPWidgetID _me = NULL, const char* szKey = NULL);
-
-    // Find my aircraft
-    const LTFlightData* SearchFlightData (std::string ac_key);
-    void SetAcKey (const LTFlightData::FDKeyTy& _key);
-
-    // Get the found aircraft
-    bool HasAcKey () const { return !acKey.empty(); }
-    const std::string GetAcKey () const { return acKey; }
-    unsigned int GetAcKeyNum () const { return (unsigned)strtoul (acKey.c_str(), NULL, 16); }
-    LTFlightData* GetFlightData () const;
-    LTAircraft* GetAircraft () const;
-    
-protected:
-    // capture entry into the key field
-    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
-    virtual bool MsgKeyPress (XPKeyState_t& key);
-};
-
-//
 // Settings UI Main window
 //
-class LTSettingsUI : public TFMainWindowWidget
+
+/// Settings dialog
+class LTSettingsUI : public LTImgWindow
 {
 protected:
-    XPWidgetID* widgetIds;              // all widget ids in the dialog
-    TFButtonGroup tabGrp;               // button group to switch 'tabs'
-    // sub-windows ('tabs')
-    TFWidget subBasicsLive, subBasicsRight, subAcLabel, subAdvcd, subCSL, subDebug;
-    
-    // Basics tab
-    TFButtonDataRef btnBasicsEnable,    // enable display of aircraft
-                    btnBasicsAutoStart;
-    // enable/disable flight data channels
-    TFButtonDataRef btnOpenSkyLive, btnOpenSkyMasterdata, btnADSBLive;
-    TFTextFieldWidget txtADSBAPIKey;
-    TFWidget capADSBOutput;
-    TFButtonDataRef btnRealTraffic;
-    TFWidget capRealTrafficStatus, capRealTrafficMetar;
-    TFButtonDataRef btnForeFlight;
-    TFIntFieldDataRef intFFTrfcIntvl;
-    TFButtonDataRef btnFFUsersPlane, btnFFTraffic;
-    // right hand side
-    TFButtonDataRef btnLndLightsTaxi;
-    TFIntFieldDataRef intHideBelowAGL;
-    TFButtonDataRef btnHideTaxiing;
-    TFButtonDataRef btnAIonRequest;
-
-    // A/C Labels tab
-    TFDataRefLink drCfgLabels;          // links to dataRef livetraffic/cfg/labels
-    TFDataRefLink drCfgLabelShow;       // links to dataRef livetraffic/cfg/label_show
-    TFButtonGroup btnGrpLabelColorDyn;
-    TFDataRefLink drLabelColDyn;
-    TFIntFieldDataRef intLabelColor;
-
-    // Advanced tab
-    TFButtonGroup logLevelGrp;          // radio buttons to select logging level
-    TFButtonGroup msgAreaLevelGrp;      // radio buttons to select msg area level
-    TFIntFieldDataRef intMaxNumAc;
-    TFIntFieldDataRef intFdStdDistance, intFdSnapTaxiDist, intFdRefreshIntvl;
-    TFIntFieldDataRef intFdBufPeriod, intAcOutdatedIntvl;
-    TFIntFieldDataRef intNetwTimeout;
-
-    // CSL tab
-    enum { SETUI_CSL_PATHS=7, SETUI_CSL_ELEMS_PER_PATH=3 };
-    static constexpr int SETUI_CSL_PATHS_NUM_ELEMS = SETUI_CSL_PATHS * SETUI_CSL_ELEMS_PER_PATH;
-    TFTextFieldWidget txtCSLPaths[SETUI_CSL_PATHS];
-    TFTextFieldWidget txtDefaultAcType, txtGroundVehicleType;
-    
-    // Debug tab
-    TFACSearchEditWidget txtDebugFilter;
-    TFButtonWidget btnDebugLogLevelDebug;
-    TFButtonDataRef btnDebugLogACPos, btnDebugLogModelMatch, btnDebugLogRawFd;
-    TFTextFieldWidget txtFixAcType, txtFixOp, txtFixLivery;
-
+    /// Search filter
+    char sFilter[50] = {0};
+    /// Is ADSBEx key displayed clear text?
+    bool bADSBExKeyClearText = false;
+    enum {
+        ADSBX_KEY_NO_ACTION = 0,    ///< no key test currently happening
+        ADSBX_KEY_TESTING,          ///< key test underway
+        ADSBX_KEY_FAILED,           ///< key test ended with failure
+        ADSBX_KEY_SUCCESS,          ///< key test succeeded
+    } eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
+    std::string sADSBExKeyEntry;
 public:
+    /// Constructor creates and displays the window
     LTSettingsUI();
-    ~LTSettingsUI();
-    
-    // (de)register widgets (not in constructor to be able to use global variable)
-    void Enable();
-    void Disable();
-    bool isEnabled () const { return widgetIds && *widgetIds; }
-    
-    // first creates the structure, then shows the window
-    virtual void Show (bool bShow = true);
+    /// Destructor completely removes the window
+    ~LTSettingsUI() override;
 
 protected:
-    // capture entry into 'filter for transponder hex code' field
-    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
-    // writes current values out into config file
-    virtual bool MsgHidden (XPWidgetID hiddenWidget);
+    /// Some setup before UI building starts, here text size calculations
+    ImGuiWindowFlags_ beforeBegin() override;
+    /// Main function to render the window's interface
+    void buildInterface() override;
 
-    // update state of log-level buttons from dataRef
-    virtual bool TfwMsgMain1sTime ();
-
-    // handles show/hide of 'tabs'
-    virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);
-    virtual bool MsgPushButtonPressed (XPWidgetID buttonWidget);
-    
-    // Handle checkboxes for a/c labels
-    void LabelBtnInit();
+    /*
+    /// Set CSL label configuration
     void LabelBtnSave();
     
     // Handle RealTraffic status
     void UpdateRealTraffic();
     
     // Save CSL path / Load a CSL package
-    void SaveCSLPath(int idx);
+    void SaveCSLPath(int idx);*/
+    
+public:
+    /// @brief Creates/opens/displays/hides/closes the settings window
+    /// @param _force 0 - toggle, <0 force close, >0 force open
+    /// @return Is displayed now?
+    static bool ToggleDisplay (int _force = 0);
+    /// Is the settings window currently displayed?
+    static bool IsDisplayed ();
 };
+
+/// Shows the settings dialog
 
 #endif /* SettingsUI_h */
