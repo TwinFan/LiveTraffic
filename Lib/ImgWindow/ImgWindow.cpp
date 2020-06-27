@@ -252,7 +252,9 @@ ImgWindow::RenderImGui(ImDrawData *draw_data)
 {
 	// Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
 	ImGuiIO& io = ImGui::GetIO();
-	draw_data->ScaleClipRects(io.DisplayFramebufferScale);
+    if (io.DisplayFramebufferScale.x != 1.0 ||
+        io.DisplayFramebufferScale.y != 1.0)
+        draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
 	updateMatrices();
 
@@ -541,10 +543,11 @@ ImgWindow::HandleKeyFuncCB(
 		io.KeyAlt = (inFlags & xplm_OptionAltFlag) == xplm_OptionAltFlag;
 		io.KeyCtrl = (inFlags & xplm_ControlFlag) == xplm_ControlFlag;
 
-		if ((inFlags & xplm_DownFlag) == xplm_DownFlag
-			&& !io.KeyCtrl
-			&& !io.KeyAlt
-			&& isprint(inKey)) {
+        // inKey will only includes printable characters,
+        // but also those created with key combinations like @ or {}
+		if ((inFlags & xplm_DownFlag) == xplm_DownFlag &&
+            inKey > '\0')
+        {
 			char smallStr[2] = { inKey, 0 };
 			io.AddInputCharactersUTF8(smallStr);
 		}
