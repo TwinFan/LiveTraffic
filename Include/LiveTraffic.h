@@ -87,9 +87,6 @@
 #include "XPLMProcessing.h"
 #include "XPLMCamera.h"
 #include "XPLMNavigation.h"
-#include "XPWidgets.h"
-#include "XPWidgetUtils.h"
-#include "XPStandardWidgets.h"
 
 // ImGui / ImgWindow
 #include "imgui.h"
@@ -116,7 +113,6 @@ extern DataRefs dataRefs;
 #include "LTAircraft.h"
 #include "LTFlightData.h"
 #include "LTImgWindow.h"
-#include "TFWidgets.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
 #include "XPCompatibility.h"
@@ -262,9 +258,6 @@ int GetLTVerNum(void* = NULL);
 
 /// LiveTraffic's build date as pure integer for returning in a dataRef, like 20200430 for 30-APR-2020
 int GetLTVerDate(void* = NULL);
-
-// default window open mode depends on XP10/11 and VR
-TFWndMode GetDefaultWndOpenMode ();
 
 // MARK: Compiler differences
 

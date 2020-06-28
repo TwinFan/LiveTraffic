@@ -14,7 +14,6 @@ endif ()
 include_directories("${CMAKE_SOURCE_DIR}/Include")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/Widgets")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui/misc/cpp")
@@ -70,7 +69,6 @@ set(Header_Files
     Include/parson.h
     Include/SettingsUI.h
     Include/TextIO.h
-    Include/TFWidgets.h
     Include/XPCompatibility.h
     Lib/LTAPI/LTAPI.h
     Lib/ImGui/imconfig.h
@@ -111,7 +109,6 @@ set(Source_Files
     Src/parson.c
     Src/SettingsUI.cpp
     Src/TextIO.cpp
-    Src/TFWidgets.cpp
     Src/XPCompatibility.cpp
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
@@ -180,8 +177,7 @@ endif( OpenGL_FOUND )
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
 if (WIN32 OR APPLE)
     find_library(XPLM_LIBRARY NAMES XPLM XPLM_64.lib)
-	find_library(XPWIDGETS_LIBRARY NAMES XPWidgets XPWidgets_64.lib)
-    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} ${XPWIDGETS_LIBRARY})
+    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} )
 endif ()
 
 

@@ -304,7 +304,6 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"
 #define ERR_EXCEPTION_AC_CREATE "Exception occured while creating a/c %s of type %s: %s\nPosDeque before was:\n%s"
 #define ERR_UNKN_EXCP_AC_CREATE "Unknown " ERR_EXCEPTION_AC_CREATE
-#define ERR_WIDGET_CREATE       "Could not create widget required for settings UI"
 #define ERR_CFG_FILE_OPEN_OUT   "Could not create config file '%s': %s"
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
 #define ERR_CFG_FILE_OPEN_IN    "Could not open '%s': %s"

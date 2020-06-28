@@ -48,8 +48,6 @@ constexpr size_t XPLMCreateWindow_s_210 = offsetof(XPLMCreateWindow_t,decorateAs
 void XPC_SetWindowPositioningMode(XPLMWindowID              inWindowID,
                                   XPLMWindowPositioningMode inPositioningMode,
                                   int                       inMonitorIndex);
-// XP10: return 0
-XPLMWindowID XPC_GetWidgetUnderlyingWindow(XPWidgetID       inWidget);
 // XP10: fails, use LT_GetScreenSize
 void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBoundsCallback,
                                    void *               inRefcon);

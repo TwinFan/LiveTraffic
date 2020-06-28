@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
 		2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */; };
 		2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41F248D022B00F18B76 /* LTImgWindow.cpp */; };
 		2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2536421C2215FE81000DC56F /* XPCompatibility.cpp */; };
@@ -33,7 +32,6 @@
 		258790A923020C5700129569 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 258790A823020C5700129569 /* libcurl.framework */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F52203B0C500658AA8 /* XPLM.framework */; };
-		25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F42203B0C500658AA8 /* XPWidgets.framework */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
 		25C59458207A296500E52073 /* TextIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59456207A296500E52073 /* TextIO.cpp */; };
@@ -61,7 +59,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
 		250C2B5923BD4BF70059AA14 /* scenery_packs.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = scenery_packs.ini; path = "../../../Applications/X-Plane 11/Custom Scenery/scenery_packs.ini"; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
 		2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui_stdlib.h; sourceTree = "<group>"; };
@@ -135,7 +132,6 @@
 		25A095C12203B01300658AA8 /* parson.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
 		25A095C22203B01300658AA8 /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
 		25A095C32203B01300658AA8 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
-		25A095C42203B01300658AA8 /* TFWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TFWidgets.h; sourceTree = "<group>"; };
 		25A095C52203B01300658AA8 /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
 		25A095C62203B01300658AA8 /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
 		25A095C72203B01300658AA8 /* DataRefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DataRefs.h; sourceTree = "<group>"; };
@@ -259,7 +255,6 @@
 				2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */,
 				258790A923020C5700129569 /* libcurl.framework in Frameworks */,
 				25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */,
-				25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */,
 				2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -342,7 +337,6 @@
 				254EA46F2083E403008A312F /* parson.c */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
-				25067F6A213F17FE004A861F /* TFWidgets.cpp */,
 				2536421C2215FE81000DC56F /* XPCompatibility.cpp */,
 			);
 			path = Src;
@@ -481,7 +475,6 @@
 				25A095C12203B01300658AA8 /* parson.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
 				25A095BE2203B01300658AA8 /* TextIO.h */,
-				25A095C42203B01300658AA8 /* TFWidgets.h */,
 				2536421E2215FEBB000DC56F /* XPCompatibility.h */,
 			);
 			path = Include;
@@ -803,7 +796,6 @@
 				2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */,
 				257363172222C879005210C5 /* Network.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
-				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
 				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */,
