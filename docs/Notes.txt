@@ -20,7 +20,6 @@ ImGui
   - Settings window will just save data
   - Test reopen of settings window after hiding
   - Test proper deletion during shutdown
-- Remove TFWidget files and from CMakeList
 - Implement a generic searchable plane list
 - Add plane selection to A/C Info
 - Add new status window

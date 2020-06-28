@@ -57,48 +57,105 @@ IMGUI_API bool ButtonTooltip(const char* label,
 
 /// @brief Draws a button with an icon
 /// @param icon The icon to draw, expected to be a single char from an icon font
-/// @param tooltip Tooltip text when hovering over the button
-/// @param rightAligned Align button to the right of the content region?
+/// @param tooltip (optional) Tooltip text when hovering over the button
+/// @param rightAligned (optional) Align button to the right of the content region?
 /// @return Button pressed?
-IMGUI_API bool ButtonIcon(const char* icon, const char* tooltip = nullptr, bool rightAligned = true);
+IMGUI_API bool ButtonIcon(const char* icon, const char* tooltip = nullptr, bool rightAligned = false);
+
+/// @brief A checkbox toggling a defined integer dataRef
+/// @param label Checkbox's label
+/// @param idx Index into `DATA_REFS_LT`, defining the integer dataRef to toggle between 0 and 1
+/// @param tooltip (optional) Tooltip text shown when hovering over the checkbox
+/// @return if just toggled
+IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip = nullptr);
 
 /// @brief Same as ImGui::SliderFloat(), but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool SliderPercent(const char* label, float* v, float v_min=0.0f, float v_max=1.0f, const char* format = "%.0f%%", float power = 1.0f);
 
+/// @brief Integer Slider, which reads from/writes to a defined dataRef
+/// @param label Checkbox's label
+/// @param idx Index into `DATA_REFS_LT`, defining the integer dataRef to read/write
+/// @param v_min Minimum allowed value
+/// @param v_max Maximum allowed value
+/// @param v_step Step value / rounding applied (only after mouse up)
+/// @param format Integer number is displayed like this
+/// @return Value just changed?
+IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
+                        int v_min, int v_max, int v_step = 1,
+                        const char* format = "%d");
+
 /// @brief Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, float v_min = 0.0f, float v_max = 1.0f, const char* format = "%.0f%%", float power = 1.0f);
 
-/// @brief Draws a tree node in the current and a Help icon in the last table cell
+/// --- Combined controls, meant to be used in a configuraton table,
+///     these functions move across table cells ---
+
+/// @brief Draws a tree node, a checkbox + an URL button, and a help icon button
 /// @details All rendering is skipped and `true` returned if `filter` is non-empty.
 ///          Cursor is at beginning of (next) row afterwards, just continue drawing.
 /// @param label to be written into first cell
-/// @param helpURL URL opened when the help icon button is clicked
+/// @param idxCbx (optional) dataRef index (passed on to ImGui::CheckboxDr()), `CNT_DATAREFS_LT` for no checkbox
+/// @param cbxPopup (optional) Tooltip text when hovering over checkbox, or `nullptr`
+/// @param linkLabel (optional) Label for a URL-opening button / or just plain text if `!helpURL`
+/// @param helpURL (optional) URL opened when the help icon button is clicked, or `nullptr`
 /// @param helpPopup (optional) Tooltip text when hovering over help icon button
 /// @param nCol Number of columns of the table (needed to know where the help icon button goes)
 /// @param filter (optional) Filter string: Node will only show if `filter` is `nullptr` or empty string
 /// @param nOpCl (optional) `-1` force node close, `0` open/close unchanged, `+1` force node open
 /// @param flags (optional) Tree node flags, see ImGui::ImGuiTreeNodeFlags_
 /// @return Continue drawing in the node? (Tree node open, or a `filter` defined)
-IMGUI_API bool TreeNodeHelp(const char* label, const char* helpURL, const char* helpPopup,
-                            int nCol, const char* filter = nullptr, int nOpCl = 0,
-                            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth);
+IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
+                                   dataRefsLT idxCbx = CNT_DATAREFS_LT, const char* cbxPopup = nullptr,
+                                   const char* linkLabel = nullptr, const char* linkURL = nullptr, const char* linkPopup = nullptr,
+                                   const char* helpURL = nullptr, const char* helpPopup = nullptr,
+                                   const char* filter = nullptr, int nOpCl = 0,
+                                   ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth);
 
-/// @brief Extension to ImGui::TreeNodeHelp(): Shows a button opening an URL in the 2nd cell
-IMGUI_API bool TreeNodeLinkHelp(const char* label,
-                                const char* linkLabel, const char* linkURL, const char* linkPopup,
-                                const char* helpURL, const char* helpPopup,
-                                int nCol, const char* filter = nullptr, int nOpCl = 0,
-                                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth);
+/// @brief Draws a tree node in the current and a Help icon in the last table cell
+/// @see ImGui::TreeNodeCbxLinkHelp()
+inline bool TreeNodeHelp(const char* label, int nCol,
+                         const char* helpURL, const char* helpPopup,
+                         const char* filter = nullptr, int nOpCl = 0,
+                         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth)
+{
+    return TreeNodeCbxLinkHelp(label, nCol,
+                               CNT_DATAREFS_LT, nullptr, nullptr, nullptr, nullptr,
+                               helpURL, helpPopup,
+                               filter, nOpCl, flags);
+}
+
+/// @brief Draws a tree node, a URL button, and a help icon button
+/// @see ImGui::TreeNodeCbxLinkHelp()
+inline bool TreeNodeLinkHelp(const char* label, int nCol,
+                             const char* linkLabel, const char* linkURL, const char* linkPopup,
+                             const char* helpURL, const char* helpPopup,
+                             const char* filter = nullptr, int nOpCl = 0,
+                             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth)
+{
+    return TreeNodeCbxLinkHelp(label, nCol,
+                               CNT_DATAREFS_LT, nullptr,
+                               linkLabel, linkURL, linkPopup,
+                               helpURL, helpPopup,
+                               filter, nOpCl, flags);
+}
+
 
 /// @brief Show this label only if text matches filter string
+/// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
+///          Otherwise, cursor is at beginning of (next) cell afterwards.
 /// @return Shown?
 IMGUI_API bool FilteredLabel(const char* label, const char* filter, bool bEnabled = true);
 
 /// @brief Filter label plus checkbox linked to boolean(integer) dataRef
+/// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
+///          Otherwise, cursor is at beginning of (next) cell afterwards.
 /// @return Value just changed?
-IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx);
+IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx,
+                                   const char* tooltip = nullptr);
 
 /// @brief Filter label plus integer slider linked to dataRef
+/// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
+///          Otherwise, cursor is at beginning of (next) cell afterwards.
 /// @return Value just changed?
 IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefsLT idx,
                                  int v_min, int v_max, int v_step = 1, const char* format = "%d");

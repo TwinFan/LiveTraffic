@@ -1333,11 +1333,11 @@ bool DataRefs::SetCfgValue (void* p, int val)
         maxNumAc        < 5                 || maxNumAc         > 100   ||
 #endif
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
-        fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
-        fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
-        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
+        fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 180   ||
+        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 180   ||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
-        netwTimeout     < 15                ||
+        netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||

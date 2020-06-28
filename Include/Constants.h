@@ -230,10 +230,12 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
 #warning Need final help URLs!
-#define HELP_SET_CHANNELS       "setup/configuration/settings-basics#flight-data-channels"
+#define HELP_SET_INPUT_CH       "setup/configuration/settings-basics#flight-data-channels"
 #define HELP_SET_CH_OPENSKY     "setup/configuration/settings-basics#flight-data-channels"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
+#define HELP_SET_OUTPUT_CH      "setup/configuration/settings-basics#output-channels"
+#define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
 #define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"
 #define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
 #define HELP_SET_CSL            "setup/configuration/settings-csl"

@@ -51,7 +51,7 @@ static void cfgSet (dataRefsLT idx, int v)
 //
 
 /// Text color of button symbols
-constexpr ImU32 LTIM_BTN_COL = IM_COL32(0xB0, 0xB0, 0xB0, 0xFF);
+constexpr ImU32 LTIM_BTN_COL = IM_COL32(0xB0, 0xB0, 0xB0, 0xFF);    ///< medium gray for regular icon buttons
 
 namespace ImGui {
 
@@ -127,6 +127,27 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     return b;
 }
 
+// @brief A checkbox toggling a defined integer dataRef
+IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip)
+{
+    // Show the checkbox
+    bool bV = cfgGet(idx);
+    const bool bRet = Checkbox(label, &bV);
+    
+    // do the tooltip
+    if (tooltip && IsItemHovered())
+        SetTooltip("%s", tooltip);
+    
+    // Process a changed value
+    if (bRet) {
+        cfgSet(idx, bV);                // set dataRef value
+        return true;
+    } else
+        return false;
+    
+
+}
+
 // Same as SliderFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool SliderPercent(const char* label, float* v, float v_min, float v_max, const char* format, float power)
 {
@@ -135,6 +156,26 @@ IMGUI_API bool SliderPercent(const char* label, float* v, float v_min, float v_m
     *v = f/100.0f;
     return bRet;
 }
+
+// Integer Slider, which reads from/writes to a defined dataRef
+IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
+                        int v_min, int v_max, int v_step,
+                        const char* format)
+{
+    int iV = cfgGet(idx);
+    SetNextItemWidth(GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
+    if (SliderInt(label, &iV, v_min, v_max, format)) {      // if slider changed value
+        // rounding to full steps
+        if (v_step > 1)
+            iV = (iV+(v_step/2))/v_step * v_step;
+        // When entering manually [Ctrl+Click], values aren't clamped, so we take care of it
+        cfgSet(idx, clamp(iV, v_min, v_max));               // set dataRef value
+        return true;
+    }
+    else
+        return false;
+}
+
 
 // Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, float power)
@@ -145,26 +186,15 @@ IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_m
     return bRet;
 }
 
-// Draws a tree node in the current and a Help icon in the last table cell
-IMGUI_API bool TreeNodeHelp(const char* label,
-                            const char* helpURL, const char* helpPopup,
-                            int nCol, const char* filter, int nOpCl,
-                            ImGuiTreeNodeFlags flags)
-{
-    return TreeNodeLinkHelp (label,
-                             nullptr, nullptr, nullptr,
-                             helpURL, helpPopup,
-                             nCol, filter, nOpCl,
-                             flags);
-}
+// MARK: Complex functions across table cells
 
-
-// Extension to ImGui::TreeNodeHelp(): Shows a button opening an URL in the 2nd cell
-IMGUI_API bool TreeNodeLinkHelp(const char* label,
-                                const char* linkLabel, const char* linkURL, const char* linkPopup,
-                                const char* helpURL, const char* helpPopup,
-                                int nCol, const char* filter, int nOpCl,
-                                ImGuiTreeNodeFlags flags)
+// Draws a tree node, a checkbox + an URL button, and a help icon button
+IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
+                                   dataRefsLT idxCbx, const char* cbxPopup,
+                                   const char* linkLabel, const char* linkURL, const char* linkPopup,
+                                   const char* helpURL, const char* helpPopup,
+                                   const char* filter, int nOpCl,
+                                   ImGuiTreeNodeFlags flags)
 {
     if (filter && *filter) return true;                     // is a filter defined? Then we don't show tree nodes
     
@@ -176,23 +206,42 @@ IMGUI_API bool TreeNodeLinkHelp(const char* label,
     ImGui::PushStyleColor(ImGuiCol_TableRowBg, COL_TBL_BG);
     ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, COL_TBL_BG);
 
-    PushID(label);                                          // makes sure the always similar help buttons are recongized as different
+    // makes sure that all buttons here are recongized as different
+    PushID(label);
+    
+    // Tree node
     if (nOpCl)                                              // if requested...
         SetNextItemOpen(nOpCl > 0);                         // ...force open/close
     const bool b = TreeNodeEx(label, flags);                // draw tree node
     
+    // add a checkbox
+    TableNextCell();
+    if (idxCbx < CNT_DATAREFS_LT) {
+        CheckboxDr("##CheckboxDr", idxCbx, cbxPopup);
+        SameLine();
+    }
+    
     // add a button with a link action to the 2nd cell
     if (linkLabel && linkURL) {
-        TableNextCell();
         if (ButtonTooltip(linkLabel, linkPopup))
             LTOpenURL(linkURL);
         SameLine();
     }
+    // Not a button, but mayby just plain text?
+    else if (linkLabel && !linkURL) {
+        TextUnformatted(linkLabel);
+        if (linkPopup && IsItemHovered())
+            SetTooltip("%s", linkPopup);
+        SameLine();
+    }
     
-    if (TableGetColumnIndex() < nCol-1)                     // move to last column
-        TableSetColumnIndex(nCol-1);
-    if (ButtonIcon(ICON_FA_QUESTION_CIRCLE, helpPopup))
-        LTOpenHelp(helpURL);                                // Help button handling
+    // add a help icon button
+    if (helpURL) {
+        if (TableGetColumnIndex() < nCol-1)                 // move to last column
+            TableSetColumnIndex(nCol-1);
+        if (ButtonIcon(ICON_FA_QUESTION_CIRCLE, helpPopup, true))
+            LTOpenHelp(helpURL);                            // Help button handling
+    }
     
     PopID();
     TableNextRow();                                         // move to next row
@@ -217,28 +266,24 @@ IMGUI_API bool FilteredLabel(const char* label, const char* filter,
         TextUnformatted(label);
     else
         TextDisabled("%s", label);
+    TableNextCell();
     return true;
 }
 
 // Filter label plus checkbox linked to boolean(integer) dataRef
-IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx)
+IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx,
+                                   const char* tooltip)
 {
     // Draw label first
     if (!FilteredLabel(label, filter))
         return false;
-    
+
     // Next cell: Draw the checkbox with a value linked to the dataRef
+    PushID(label);
+    const bool bRet = CheckboxDr("", idx, tooltip);
+    PopID();
     TableNextCell();
-    bool bV = cfgGet(idx);
-    char idLabel[25] = "##";
-    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-3);
-    if (Checkbox(idLabel, &bV)) {        // if checkbox changed value
-        cfgSet(idx, bV);                        // set dataRef value
-        TableNextCell();
-        return true;
-    }
-    TableNextCell();
-    return false;
+    return bRet;
 }
 
 // Filter label plus integer slider linked to dataRef
@@ -248,24 +293,13 @@ IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefs
     // Draw label first
     if (!FilteredLabel(label, filter))
         return false;
-    
+
     // Next cell: Draw the checkbox with a value linked to the dataRef
+    PushID(label);
+    const bool bRet = SliderDr("", idx, v_min, v_max, v_step, format);
+    PopID();
     TableNextCell();
-    int iV = cfgGet(idx);
-    char idLabel[25] = "##";
-    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-3);
-    SetNextItemWidth(GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
-    if (SliderInt(idLabel, &iV, v_min, v_max, format)) {    // if slider changed value
-        if (v_step > 1)
-            iV = (iV+(v_step/2))/v_step * v_step;           // rounding to full steps
-        
-        // When entering manually [Ctrl+Click], values aren't clamped, so we take care of it
-        cfgSet(idx, clamp(iV, v_min, v_max));               // set dataRef value
-        TableNextCell();
-        return true;
-    }
-    TableNextCell();
-    return false;
+    return bRet;
 }
 
 
@@ -490,14 +524,14 @@ void LTImgWindow::buildWndButtons ()
         if (bBtnPopIn) {
             // Same line, but right-alinged
             ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
-            if (ImGui::ButtonTooltip(ICON_FA_WINDOW_RESTORE, "Move back into X-Plane"))
+            if (ImGui::ButtonTooltip(ICON_FA_WINDOW_MAXIMIZE, "Move back into X-Plane"))
                 nextWinMode = WND_MODE_FLOAT;
             --numBtn;
         }
         if (bBtnPopOut) {
             // Same line, but right-alinged
             ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
-            if (ImGui::ButtonTooltip(ICON_FA_WINDOW_MAXIMIZE, "Pop out into separate window"))
+            if (ImGui::ButtonTooltip(ICON_FA_WINDOW_RESTORE, "Pop out into separate window"))
                 nextWinMode = WND_MODE_POPOUT;
             --numBtn;
         }
@@ -584,7 +618,6 @@ bool LTImgWindowInit ()
                     ICON_FA_UNDO
                     ICON_FA_WINDOW_CLOSE
                     ICON_FA_WINDOW_MAXIMIZE
-                    ICON_FA_WINDOW_MINIMIZE
                     ICON_FA_WINDOW_RESTORE);
     builder.BuildRanges(&icon_ranges);
 
