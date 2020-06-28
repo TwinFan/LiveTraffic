@@ -231,7 +231,7 @@ IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRe
     TableNextCell();
     bool bV = cfgGet(idx);
     char idLabel[25] = "##";
-    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-2);
+    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-3);
     if (Checkbox(idLabel, &bV)) {        // if checkbox changed value
         cfgSet(idx, bV);                        // set dataRef value
         TableNextCell();
@@ -253,7 +253,7 @@ IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefs
     TableNextCell();
     int iV = cfgGet(idx);
     char idLabel[25] = "##";
-    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-2);
+    strncpy_s(idLabel+2, sizeof(idLabel)-2, label, sizeof(idLabel)-3);
     SetNextItemWidth(GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
     if (SliderInt(idLabel, &iV, v_min, v_max, format)) {    // if slider changed value
         if (v_step > 1)
