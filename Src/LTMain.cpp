@@ -592,9 +592,6 @@ void LTMainDisable ()
     // disable fetching flight data
     LTFlightDataDisable();
     
-    // save config file
-    dataRefs.SaveConfigFile();
-    
     // success
     dataRefs.pluginState = STATE_INIT;
 }

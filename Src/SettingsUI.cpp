@@ -24,11 +24,14 @@
 // MARK: LTSettingsUI
 //
 
+// Defined in LTImgWindow.cpp:
+void cfgSet (dataRefsLT idx, int v);
+
 // Global static pointer to the one settings object
 static LTSettingsUI* gpSettings = nullptr;
 
-/// Initial size of Settings Window (XP coordinates: l,t;r,b with t > b)
-const WndRect SUI_INIT_SIZE = WndRect(0, 500, 690, 0);
+/// Window's title
+constexpr const char* SUI_WND_TITLE = LIVE_TRAFFIC " Settings";
 /// Resizing limits (minimum and maximum sizes)
 const WndRect SUI_RESIZE_LIMITS = WndRect(300, 300, 99999, 99999);
 
@@ -37,10 +40,12 @@ static float SUI_VALUE_SIZE = NAN;              ///< Ideal Width of 2nd column f
 
 // Constructor creates and displays the window
 LTSettingsUI::LTSettingsUI () :
-LTImgWindow(WND_MODE_FLOAT_CNT_VR, WND_STYLE_SOLID, SUI_INIT_SIZE)
+LTImgWindow(WND_MODE_FLOAT_CNT_VR,
+            dataRefs.SUItransp ? WND_STYLE_HUD : WND_STYLE_SOLID,
+            WndRect(0, dataRefs.SUIheight, dataRefs.SUIwidth, 0))
 {
     // Set up window basics
-    SetWindowTitle( LIVE_TRAFFIC " Settings");
+    SetWindowTitle(SUI_WND_TITLE);
     SetWindowResizingLimits(SUI_RESIZE_LIMITS.tl.x, SUI_RESIZE_LIMITS.tl.y,
                             SUI_RESIZE_LIMITS.br.x, SUI_RESIZE_LIMITS.br.y);
     SetVisible(true);
@@ -74,14 +79,34 @@ ImGuiWindowFlags_ LTSettingsUI::beforeBegin()
         SUI_LABEL_SIZE = std::ceil(ImGui::CalcTextSize("_____OpenSky Network Master Data_").x / 10.0f) * 10.0f;
         SUI_VALUE_SIZE =
         ImGui::GetWidthIconBtn() +
-        std::ceil(ImGui::CalcTextSize("_01234567890abcdefghijklmnopq"/*rstuvwxyz01234567890ab"*/).x / 10.0f) * 10.0f;
+        std::ceil(ImGui::CalcTextSize("_01234567890abcdefghijklmnopq").x / 10.0f) * 10.0f;
     }
+    
+    // Save latest screen size to configuration (if not popped out)
+    if (!IsPoppedOut()) {
+        const WndRect r = GetCurrentWindowGeometry();
+        dataRefs.SUIwidth   = r.width();
+        dataRefs.SUIheight  = r.height();
+    }
+    
+    // Set background opacity / color
+    ImGuiStyle& style = ImGui::GetStyle();
+    if ((wndStyle == WND_STYLE_HUD) && !IsPoppedOut())
+        style.Colors[ImGuiCol_WindowBg] = ImColor(0.0f, 0.0f, 0.0f, float(dataRefs.UIopacity)/100.0f);
+    else
+        style.Colors[ImGuiCol_WindowBg] = ImColor(DEF_WND_BG_COL);
+    
     return ImGuiWindowFlags_None;
 }
 
 // Main function to render the window's interface
 void LTSettingsUI::buildInterface()
 {
+    // --- Title Bar (only if created HUD-style) ---
+    const bool bSelfDeco = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
+    if (bSelfDeco)
+        buildTitleBar(SUI_WND_TITLE);
+    
     // "Open all" and "Close all" buttons
     int nOpCl = 0;          // 3 states: -1 close, 0 do nothing, 1 open
     if (ImGui::ButtonTooltip(ICON_FA_ANGLE_DOUBLE_DOWN, "Open all sections"))
@@ -102,9 +127,11 @@ void LTSettingsUI::buildInterface()
             sFilter[0]=0;
     }
 
-    // Help and Maximize etc. buttons
-    ImGui::SameLine();
-    buildWndButtons();
+    // Help and some occasional window buttons, if they aren't already in the self-decorated title bar
+    if (!bSelfDeco) {
+        ImGui::SameLine();
+        buildWndButtons();
+    }
     
     // --- Start the table, which will hold our values
     const unsigned COL_TBL_BG = IM_COL32(0x1E,0x2A,0x3A,0xFF);
@@ -163,7 +190,7 @@ void LTSettingsUI::buildInterface()
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " OpenSky Exporer",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " OpenSky Explorer",
                                            "https://opensky-network.org/network/explorer",
                                            "Check OpenSky's coverage",
                                            HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
@@ -194,7 +221,7 @@ void LTSettingsUI::buildInterface()
                 }
                 
                 // ADS-B Exchange's API key
-                if (ImGui::FilteredLabel("ADSBEx API Key", sFilter)) {
+                if (ImGui::FilteredLabel("API Key", sFilter)) {
                     // "Eye" button changes password flag
                     ImGui::Selectable(ICON_FA_EYE "##ADSBExKeyVisible", &bADSBExKeyClearText,
                                       ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
@@ -333,6 +360,37 @@ void LTSettingsUI::buildInterface()
             ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
             ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
             ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
+            
+            if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
+                ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
+                                     bool(dataRefs.SUItransp) != (wndStyle == WND_STYLE_HUD) ?
+                                     "Reopen Settings window to take effect##TranspSettings" :
+                                     "##TranspSettings",
+                                     (unsigned*)&dataRefs.SUItransp, 1);
+                ImGui::TableNextCell();
+            }
+            
+            if (ImGui::FilteredLabel("Opacity", sFilter)) {
+                ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
+                ImGui::TableNextCell();
+            }
+            
+            if (!*sFilter) {
+                ImGui::TableNextCell();
+                if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
+                    cfgSet(DR_CFG_MAX_NUM_AC,           DEF_MAX_NUM_AC);
+                    cfgSet(DR_CFG_FD_STD_DISTANCE,      DEF_FD_STD_DISTANCE);
+                    cfgSet(DR_CFG_FD_SNAP_TAXI_DIST,    DEF_FD_SNAP_TAXI_DIST);
+                    cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);
+                    cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);
+                    cfgSet(DR_CFG_AC_OUTDATED_INTVL,    DEF_AC_OUTDATED_INTVL);
+                    cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
+                    cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
+                    cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
+                    dataRefs.UIopacity      = DEF_UI_OPACITY;
+                }
+                ImGui::TableNextCell();
+            }
 
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Advanced ---
@@ -371,19 +429,6 @@ void LTSettingsUI::LabelBtnSave()
     show.bInternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,NULL);
     show.bVR          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,NULL);
     drCfgLabelShow.Set(show.GetInt());
-}
-
-void LTSettingsUI::UpdateRealTraffic()
-{
-    if (dataRefs.pRTConn) {
-        capRealTrafficStatus.SetDescriptor(dataRefs.pRTConn->GetStatusWithTimeStr());
-        capRealTrafficMetar.SetDescriptor(dataRefs.pRTConn->IsConnected() ?
-                                          std::to_string(std::lround(dataRefs.pRTConn->GetHPA())) +
-                                          " hPa @ " + dataRefs.pRTConn->GetMetarIcao() : "");
-    } else {
-        capRealTrafficStatus.SetDescriptor("");
-        capRealTrafficMetar.SetDescriptor("");
-    }
 }
 
 void LTSettingsUI::SaveCSLPath(int idx)

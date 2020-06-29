@@ -29,6 +29,8 @@
 #define WND_STANDARD_FONT "Resources/fonts/DejaVuSans.ttf"
 /// The font's standard size
 constexpr int WND_FONT_SIZE = 15;
+/// Standard solid window background color
+constexpr ImU32 DEF_WND_BG_COL = IM_COL32(15,15,15,240);
 
 //
 // MARK: ImGui extensions
@@ -196,6 +198,9 @@ struct WndRect {
     int&    right ()        { return br.x; }    ///< writing right
     int     bottom () const { return br.y; }    ///< reading bottom
     int&    bottom ()       { return br.y; }    ///< writing bottom
+    
+    int     width () const  { return right() - left(); }    ///< width
+    int     height () const { return top() - bottom(); }    ///< height
     
     // Clear all to zero
     void    clear () { tl.x = tl.y = br.x = br.y = 0; }

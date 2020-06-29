@@ -592,7 +592,6 @@ PLUGIN_API void XPluginDisable(void) {
         // deregister Settings UI, close all windows, cleanup ImGui stuff
         LTSettingsUI::ToggleDisplay(-1);
         ACIWnd::CloseAll();
-        LTImgWindowCleanup();
         
         LOG_MSG(logMSG, MSG_DISABLED);
 
@@ -608,11 +607,14 @@ PLUGIN_API void    XPluginStop(void)
         // Cleanup aircraft handling (including XPMP library)
         LTMainStop();
         
-        // Cleanup dataRef registration
+        // Cleanup dataRef registration, save config file
         dataRefs.Stop();
         
         // last chance to remove the message area window
         DestroyWindow();
+
+        // cleanup ImGui stuff
+        LTImgWindowCleanup();
 
 #if IBM
         // Windows: Balance CoInitializeEx

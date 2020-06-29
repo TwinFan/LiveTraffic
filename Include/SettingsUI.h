@@ -56,9 +56,6 @@ protected:
     /// Set CSL label configuration
     void LabelBtnSave();
     
-    // Handle RealTraffic status
-    void UpdateRealTraffic();
-    
     // Save CSL path / Load a CSL package
     void SaveCSLPath(int idx);*/
     

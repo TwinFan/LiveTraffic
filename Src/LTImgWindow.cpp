@@ -31,7 +31,7 @@
 static XPLMDataRef gDR[CNT_DATAREFS_LT];
 
 /// Lazily fetches the dataRef handle, then returns its current value
-static int cfgGet (dataRefsLT idx)
+int cfgGet (dataRefsLT idx)
 {
     if (!gDR[idx])
         gDR[idx] = XPLMFindDataRef(DATA_REFS_LT[idx]);
@@ -39,7 +39,7 @@ static int cfgGet (dataRefsLT idx)
 }
 
 /// Lazily fetches the dataRef handle, then sets integer value
-static void cfgSet (dataRefsLT idx, int v)
+void cfgSet (dataRefsLT idx, int v)
 {
     if (!gDR[idx])
         gDR[idx] = XPLMFindDataRef(DATA_REFS_LT[idx]);
@@ -202,9 +202,8 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
         TableNextRow();
 
     // Set special background color for tree nodes
-    const unsigned COL_TBL_BG = IM_COL32(0x14,0x20,0x30,0xFF);
-    ImGui::PushStyleColor(ImGuiCol_TableRowBg, COL_TBL_BG);
-    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, COL_TBL_BG);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg, ImGui::GetColorU32(ImGuiCol_Button, 0.4f));
+    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
 
     // makes sure that all buttons here are recongized as different
     PushID(label);
@@ -492,13 +491,8 @@ void LTImgWindow::buildWndButtons ()
     // to pop out the window in an OS window
     const float btnWidth = ImGui::GetWidthIconBtn();
     const bool bBtnHelp = szHelpURL != nullptr;
-    const bool bBtnPopOut = !IsPoppedOut();
-#ifdef APL
-    // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
-    const bool bBtnPopIn  = !dataRefs.UsingModernDriver() && (IsPoppedOut() || IsInVR());
-#else
+    const bool bBtnPopOut = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
     const bool bBtnPopIn  = IsPoppedOut() || IsInVR();
-#endif
     const bool bBtnVR     = dataRefs.IsVREnabled() && !IsInVR();
     int numBtn = bBtnHelp + bBtnPopOut + bBtnPopIn + bBtnVR;
     if (numBtn > 0) {
@@ -572,6 +566,11 @@ float LTImgWindow::cbChangeWndMode(float, float, int, void* inRefcon)
     // Has user requested a change in window mode?
     else if (wnd.nextWinMode > WND_MODE_NONE)
         wnd.SetMode(wnd.nextWinMode);
+    
+    // If we happen to be in float mode save the current position
+    // (we might need it when returning from popped out state)
+    if (wnd.nextWinMode != WND_MODE_FLOAT_CENTERED && wnd.IsInsideSim())
+        wnd.rectFloat = wnd.GetCurrentWindowGeometry();
     
     // regularly check for window's visibility
     return 1.0f;

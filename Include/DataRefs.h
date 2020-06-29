@@ -34,6 +34,22 @@
 class RealTrafficConnection;
 
 //
+// MARK: Defaults
+//
+
+const int DEF_MAX_NUM_AC        = 50;           ///< how many aircraft to create at most?
+const int DEF_FD_STD_DISTANCE   = 25;           ///< nm: miles to look for a/c around myself
+const int DEF_FD_SNAP_TAXI_DIST = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
+const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flight data
+const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
+const int DEF_AC_OUTDATED_INTVL = 50;           ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
+
+
+constexpr int DEF_UI_FONT_SCALE = 100;  ///< [%] Default font scaling
+constexpr int DEF_UI_OPACITY    =  25;  ///< [%] Default background opacity
+
+//
 // MARK: Doc8643
 //
 class Doc8643 {
@@ -235,6 +251,16 @@ enum dataRefsLT {
 
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
+    
+    // UI information
+    DR_UI_OPACITY,
+    DR_UI_SETTINGS_WIDTH,
+    DR_UI_SETTINGS_HEIGHT,
+    DR_UI_SETTINGS_TRANSP,
+    DR_UI_ACI_WIDTH,
+    DR_UI_ACI_HEIGHT,
+    DR_UI_ACI_COLLAPSED,
+    DR_UI_ACI_FONT_SCALE,
     
     // configuration options
     DR_CFG_AIRCRAFT_DISPLAYED,
@@ -482,13 +508,13 @@ protected:
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
-    int labelColor      = COLOR_YELLOW; // label color, by default yellow
-    int maxNumAc        = 50;           // how many aircraft to create at most?
-    int fdStdDistance   = 25;           // nm: miles to look for a/c around myself
-    int fdSnapTaxiDist  = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
-    int fdRefreshIntvl  = 20;           // how often to fetch new flight data
-    int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
-    int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
+    int labelColor      = COLOR_YELLOW;             ///< label color, by default yellow
+    int maxNumAc        = DEF_MAX_NUM_AC;           ///< how many aircraft to create at most?
+    int fdStdDistance   = DEF_FD_STD_DISTANCE;      ///< nm: miles to look for a/c around myself
+    int fdSnapTaxiDist  = DEF_FD_SNAP_TAXI_DIST;    ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
+    int fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;     ///< how often to fetch new flight data
+    int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
+    int acOutdatedIntvl = DEF_AC_OUTDATED_INTVL;    ///< a/c considered outdated if latest flight data more older than this compare to 'now'
     int netwTimeout     = 90;           // [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
@@ -524,6 +550,18 @@ public:
     RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
+    
+    // UI information
+    int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
+    
+    int SUIwidth  = 690;                ///< Settings UI width
+    int SUIheight = 500;                ///< Settings UI height
+    int SUItransp = 0;                  ///< Settings UI: transaprent background?
+
+    int ACIwidth  = 320;                ///< A/C Info Wnd width
+    int ACIheight = 510;                ///< A/C Info Wnd height
+    int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
+    int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
 //MARK: Constructor
 public:

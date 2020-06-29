@@ -105,14 +105,15 @@ protected:
 
     // A set of static functions to create/administer the windows
 protected:
-    /// Font scaling factor for ACI Windows
-    static float fFontScale;
-    /// Transparency level for ACI Windows
-    static float fOpacity;
     /// are the ACI windows displayed or hidden?
     static bool bAreShown;
     /// list of all ACI windows currently displayed
     static std::list<ACIWnd*> listACIWnd;
+    /// Set a bit in the configuration of collasped sections
+    static void CollSecClear (int bit);
+    /// Returns `ImGuiTreeNodeFlags_DefaultOpen` if bit is _not_ set, 0 otherwise,
+    /// then sets the bit
+    static ImGuiTreeNodeFlags_ CollSecGetSet (int bit);
 public:
     /// @brief Create a new A/C Info window
     /// @param _acKey (optional) specifies a search text to find an a/c, if empty -> AUTO mode

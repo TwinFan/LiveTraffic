@@ -390,6 +390,16 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 
     {"livetraffic/ver/nr",                          GetLTVerNum,  NULL, NULL, false },
     {"livetraffic/ver/date",                        GetLTVerDate, NULL, NULL, false },
+    
+    // UI information
+    {"livetraffic/ui/opacity",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/settings/width",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/settings/height",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/settings/transparent",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/ui/aci/width",                    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/aci/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/aci/collapsed",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/aci/font_scale",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
@@ -446,8 +456,18 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 void* DataRefs::getVarAddr (dataRefsLT dr)
 {
     switch (dr) {
+        // UI information
+        case DR_UI_OPACITY:                 return &UIopacity;
+        case DR_UI_SETTINGS_WIDTH:          return &SUIwidth;
+        case DR_UI_SETTINGS_HEIGHT:         return &SUIheight;
+        case DR_UI_SETTINGS_TRANSP:         return &SUItransp;
+        case DR_UI_ACI_WIDTH:               return &ACIwidth;
+        case DR_UI_ACI_HEIGHT:              return &ACIheight;
+        case DR_UI_ACI_COLLAPSED:           return &ACIcollapsed;
+        case DR_UI_ACI_FONT_SCALE:          return &ACIfontScale;
+
         // configuration options
-        case DR_CFG_AIRCRAFT_DISPLAYED:    return &bShowingAircraft;
+        case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_LABELS:                 return &labelCfg;
@@ -698,6 +718,9 @@ void DataRefs::Stop ()
         XPLMUnregisterDataAccessor(dr);
         dr = NULL;
     }
+
+    // save config file
+    SaveConfigFile();    
 }
 
 // call XPLMRegisterDataAccessor
