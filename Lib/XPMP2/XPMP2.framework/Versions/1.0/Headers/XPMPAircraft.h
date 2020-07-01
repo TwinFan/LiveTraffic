@@ -179,6 +179,13 @@ public:
     /// How much of the vertical offset shall be applied? (This allows phasing out the vertical offset in higher altitudes.) [0..1]
     float       vertOfsRatio = 1.0f;
     
+    /// @brief By how much of the gear deflection shall the plane's altitude be reduced?
+    /// @details This is to keep the wheels on the ground when gear deflection is applied.
+    ///          Unfortunately, the exact factor is model-dependend. `0.5` seems an OK compromise.\n
+    ///          If you know better, then overwrite.\n
+    ///          If you don't want XPMP2 to correct for gear deflection, set `0.0`.
+    float       gearDeflectRatio = 0.5f;
+
     /// @brief Shall this plane be clamped to ground (ie. never sink below ground)?
     /// @note This involves Y-Testing, which is a bit expensive, see [SDK](https://developer.x-plane.com/sdk/XPLMScenery).
     ///       If you know your plane is not close to the ground,

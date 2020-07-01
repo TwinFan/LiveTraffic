@@ -2582,9 +2582,6 @@ XPMPPlaneCallbackResult LTAircraft::GetPlanePosition(XPMPPlanePosition_t* outPos
             *outPosition = ppos;
             
             outPosition->aiPrio = aiPrio;       // AI slotting priority
-            // alter altitude by main gear deflection, so plane moves down
-            if (IsOnGrnd())
-                outPosition->elevation -= gearDeflection.is() / M_per_FT;
             
             // add the label
             memcpy(outPosition->label, szLabelAc, sizeof(outPosition->label));
