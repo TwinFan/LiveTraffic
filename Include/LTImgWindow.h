@@ -155,6 +155,22 @@ IMGUI_API bool FilteredLabel(const char* label, const char* filter, bool bEnable
 IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx,
                                    const char* tooltip = nullptr);
 
+/// @brief Filter label plus checkbox for a bit
+/// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
+///          Otherwise, cursor is at beginning of (next) cell afterwards.
+/// @return Value just changed?
+IMGUI_API bool FilteredCheckboxFlags(const char* label, const char* filter,
+                                     unsigned int* flags, unsigned int flags_value,
+                                     const char* tooltip = nullptr);
+
+/// @brief Filter label plus checkbox linked to boolean(integer) dataRef
+/// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
+///          Otherwise, cursor is at beginning of (next) cell afterwards.
+/// @return Value just changed?
+IMGUI_API bool FilteredRadioButton(const char* label, const char* filter,
+                                   int* v, int v_button,
+                                   const char* tooltip = nullptr);
+
 /// @brief Filter label plus integer slider linked to dataRef
 /// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
 ///          Otherwise, cursor is at beginning of (next) cell afterwards.

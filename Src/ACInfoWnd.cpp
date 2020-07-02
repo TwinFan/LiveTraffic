@@ -129,7 +129,7 @@ bool ACIWnd::SearchAndSetFlightData ()
     
     trim(keyEntry);
     if (!keyEntry.empty())
-        mapFdSearchAc(keyEntry);
+        fdIter = mapFdSearchAc(keyEntry);
     
     // found?
     if (fdIter != mapFd.cend()) {

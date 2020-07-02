@@ -285,6 +285,44 @@ IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRe
     return bRet;
 }
 
+// Filter label plus checkbox for a bit
+IMGUI_API bool FilteredCheckboxFlags(const char* label, const char* filter,
+                                     unsigned int* flags, unsigned int flags_value,
+                                     const char* tooltip)
+{
+    // Draw label first
+    if (!FilteredLabel(label, filter))
+        return false;
+
+    // Next cell: Draw the flag checkbox
+    PushID(label);
+    const bool bRet = CheckboxFlags("", flags, flags_value);
+    if (tooltip && IsItemHovered())
+        SetTooltip("%s", tooltip);
+    PopID();
+    TableNextCell();
+    return bRet;
+}
+
+// Filter label plus checkbox linked to boolean(integer) dataRef
+IMGUI_API bool FilteredRadioButton(const char* label, const char* filter,
+                                   int* v, int v_button,
+                                   const char* tooltip)
+{
+    // Draw label first
+    if (!FilteredLabel(label, filter))
+        return false;
+
+    // Next cell: Draw the flag checkbox
+    PushID(label);
+    const bool bRet = RadioButton("", v, v_button);
+    if (tooltip && IsItemHovered())
+        SetTooltip("%s", tooltip);
+    PopID();
+    TableNextCell();
+    return bRet;
+}
+
 // Filter label plus integer slider linked to dataRef
 IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefsLT idx,
                                  int v_min, int v_max, int v_step, const char* format)

@@ -164,7 +164,7 @@ void LTSettingsUI::buildInterface()
             
             // auto-open and warning if any of these values are set as they limit what's shown
             const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAutoHidingActive();
-            if (ImGui::TreeNodeLinkHelp("Parallelism with other plugins", nCol,
+            if (ImGui::TreeNodeLinkHelp("Cooperation with other plugins", nCol,
                                         bSomeRestrict ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
                                         "Some options are active restricting displayed traffic or TCAS!",
                                         HELP_SET_BASICS, "Open Help on Basics in Browser",
@@ -287,6 +287,7 @@ void LTSettingsUI::buildInterface()
             }
 
             // --- RealTraffic ---
+            const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",
@@ -319,6 +320,11 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // If RealTraffic has just been enabled then, as a courtesy,
+            // we also make sure that OpenSky Master data is enabled
+            if (!bWasRTEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE))
+                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+            
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Input Channels ---
         
@@ -346,49 +352,203 @@ void LTSettingsUI::buildInterface()
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Input Channels ---
+        
+        // MARK: --- Aircraft Labels ---
+        if (ImGui::TreeNodeHelp("Aircraft Labels", nCol,
+                                HELP_SET_ACLABELS, "Open Help on Aircraft Label options in Browser",
+                                sFilter, nOpCl))
+        {
+            // When to show?
+            unsigned c = dataRefs.GetLabelShowCfg().GetUInt();
+            if (ImGui::FilteredLabel("Show in which views", sFilter)) {
+                ImGui::CheckboxFlags("External", &c, (1 << 0)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Internal", &c, (1 << 0)); ImGui::SameLine();
+                ImGui::CheckboxFlags("VR",       &c, (1 << 0)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Map",      &c, (1 << 0));
+            }
+            if (c != dataRefs.GetLabelShowCfg().GetUInt())
+                cfgSet(DR_CFG_LABEL_SHOWN, int(c));
+
+            // Static / dynamic info
+            c = dataRefs.GetLabelCfg().GetUInt();
+            if (ImGui::TreeNodeHelp("Static Information", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCheckboxFlags("ICAO A/C Type Code",  sFilter, &c, (1 << 0));
+                ImGui::FilteredCheckboxFlags("Any A/C ID",          sFilter, &c, (1 << 1));
+                ImGui::FilteredCheckboxFlags("Transponder Hex Code",sFilter, &c, (1 << 2));
+                ImGui::FilteredCheckboxFlags("Registration",        sFilter, &c, (1 << 3));
+                ImGui::FilteredCheckboxFlags("ICAO Operator Code",  sFilter, &c, (1 << 4));
+                ImGui::FilteredCheckboxFlags("Call Sign",           sFilter, &c, (1 << 5));
+                ImGui::FilteredCheckboxFlags("Flight Number",       sFilter, &c, (1 << 6));
+                ImGui::FilteredCheckboxFlags("Route",               sFilter, &c, (1 << 7));
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNodeHelp("Dynamic Information", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCheckboxFlags("Flight Phase",        sFilter, &c, (1 << 8));
+                ImGui::FilteredCheckboxFlags("Heading",             sFilter, &c, (1 << 9));
+                ImGui::FilteredCheckboxFlags("Altitude [ft]",       sFilter, &c, (1 << 10));
+                ImGui::FilteredCheckboxFlags("Height AGL [ft]",     sFilter, &c, (1 << 11));
+                ImGui::FilteredCheckboxFlags("Speed [kn]",          sFilter, &c, (1 << 12));
+                ImGui::FilteredCheckboxFlags("VSI [ft/min]",        sFilter, &c, (1 << 13));
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // Did the config change?
+            if (c != dataRefs.GetLabelCfg().GetUInt())
+                cfgSet(DR_CFG_LABELS, int(c));
+
+            if (ImGui::TreeNodeHelp("Label Color", nCol, nullptr, nullptr, sFilter, nOpCl))
+            {
+                // Fixed or dynamic label color?
+                int bLabelDyn = dataRefs.IsLabelColorDynamic();
+                ImGui::FilteredRadioButton("Dynamic by Flight Model", sFilter, &bLabelDyn, 1);
+                ImGui::FilteredRadioButton("Fixed color", sFilter, &bLabelDyn, 0);
+                if (bLabelDyn != dataRefs.IsLabelColorDynamic())
+                    cfgSet(DR_CFG_LABEL_COL_DYN, bLabelDyn);
+                
+                // If fixed then offer color selection
+                if (!bLabelDyn && ImGui::FilteredLabel("Pick any color", sFilter)) {
+                    constexpr const char* SUI_LBL_COL = "Label Color Picker";
+                    float lblCol[4];
+                    dataRefs.GetLabelColor(lblCol);
+                    if (ImGui::ColorButton("Click to pick Label Color",
+                                           ImVec4(lblCol[0], lblCol[1], lblCol[2], lblCol[3]),
+                                           ImGuiColorEditFlags_NoAlpha))
+                        ImGui::OpenPopup(SUI_LBL_COL);
+                    
+                    if (ImGui::BeginPopup(SUI_LBL_COL)) {
+                        if (ImGui::ColorPicker3 (SUI_LBL_COL, lblCol,
+                                                 ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoLabel |
+                                                 ImGuiColorEditFlags_NoSmallPreview | ImGuiColorEditFlags_NoSidePreview))
+                        {
+                            const int col = (int)(
+                            (std::lround(lblCol[0] * 255.0f) << 16) +   // red
+                            (std::lround(lblCol[1] * 255.0f) <<  8) +   // green
+                            (std::lround(lblCol[2] * 255.0f) <<  0));   // blue
+                            cfgSet(DR_CFG_LABEL_COLOR, col);
+                        }
+                        ImGui::EndPopup();
+                    }
+                    
+                    ImGui::SameLine();
+                    ImGui::TextUnformatted("or a default:");
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Yellow",ImVec4(1.0f, 1.0f, 0.0f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_YELLOW);
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Red",   ImVec4(1.0f, 0.0f, 0.0f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_RED);
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Green", ImVec4(0.0f, 1.0f, 0.0f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_GREEN);
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Blue",  ImVec4(0.0f, 0.94f, 0.94f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_BLUE);
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Aircraft Labels ---
+
 
         // MARK: --- Advanced ---
         if (ImGui::TreeNodeHelp("Advanced", nCol,
                                 HELP_SET_ADVANCED, "Open Help on Advanced options in Browser",
                                 sFilter, nOpCl))
         {
-            ImGui::FilteredCfgNumber("Max number of aircraft", sFilter, DR_CFG_MAX_NUM_AC,        5, 100, 5);
-            ImGui::FilteredCfgNumber("Search distance",        sFilter, DR_CFG_FD_STD_DISTANCE,   5, 100, 5, "%d nm");
-            ImGui::FilteredCfgNumber("Snap to taxiway",        sFilter, DR_CFG_FD_SNAP_TAXI_DIST, 0,  50, 1, "%d m");
-            
-            ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
-            ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
-            ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
-            ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
-            
-            if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
-                ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
-                                     bool(dataRefs.SUItransp) != (wndStyle == WND_STYLE_HUD) ?
-                                     "Reopen Settings window to take effect##TranspSettings" :
-                                     "##TranspSettings",
-                                     (unsigned*)&dataRefs.SUItransp, 1);
-                ImGui::TableNextCell();
+            if (ImGui::TreeNodeHelp("Logging", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                const float cbWidth = ImGui::CalcTextSize("Warning (default)_____").x;
+                if (ImGui::FilteredLabel("Log.txt logging level", sFilter)) {
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetLogLevel();
+                    if (ImGui::Combo("##LogLevel", &n, "Debug\0Info\0Warning (default)\0Error\0Fatal\0", 5))
+                        dataRefs.SetLogLevel(n);
+                    ImGui::TableNextCell();
+                }
+                if (ImGui::FilteredLabel("Message area", sFilter)) {
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetMsgAreaLevel()-1;   // 0=Debug is not used
+                    if (ImGui::Combo("##MsgLevel", &n, "Info (default)\0Warning\0Error\0Fatal\0", 4))
+                        dataRefs.SetMsgAreaLevel(n+1);
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
             }
+
+            if (ImGui::TreeNodeHelp("Aircraft Selection", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgNumber("Max number of aircraft", sFilter, DR_CFG_MAX_NUM_AC,        5, 100, 5);
+                ImGui::FilteredCfgNumber("Search distance",        sFilter, DR_CFG_FD_STD_DISTANCE,   5, 100, 5, "%d nm");
+                ImGui::FilteredCfgNumber("Snap to taxiway",        sFilter, DR_CFG_FD_SNAP_TAXI_DIST, 0,  50, 1, "%d m");
+                
+                ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
             
-            if (ImGui::FilteredLabel("Opacity", sFilter)) {
-                ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
-                ImGui::TableNextCell();
+                if (!*sFilter) ImGui::TreePop();
             }
-            
+
+            if (ImGui::TreeNodeHelp("User Interface", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
+                    ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
+                                         bool(dataRefs.SUItransp) != (wndStyle == WND_STYLE_HUD) ?
+                                         "Reopen Settings window to take effect##TranspSettings" :
+                                         "##TranspSettings",
+                                         (unsigned*)&dataRefs.SUItransp, 1);
+                    ImGui::TableNextCell();
+                }
+                
+                if (ImGui::FilteredLabel("Opacity", sFilter)) {
+                    ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
+                    ImGui::TableNextCell();
+                }
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            // "Reset to Defaults" button: Pop up a confirmation dialog before actually resetting
             if (!*sFilter) {
                 ImGui::TableNextCell();
-                if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
-                    cfgSet(DR_CFG_MAX_NUM_AC,           DEF_MAX_NUM_AC);
-                    cfgSet(DR_CFG_FD_STD_DISTANCE,      DEF_FD_STD_DISTANCE);
-                    cfgSet(DR_CFG_FD_SNAP_TAXI_DIST,    DEF_FD_SNAP_TAXI_DIST);
-                    cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);
-                    cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);
-                    cfgSet(DR_CFG_AC_OUTDATED_INTVL,    DEF_AC_OUTDATED_INTVL);
-                    cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
-                    cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
-                    cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
-                    dataRefs.UIopacity      = DEF_UI_OPACITY;
-                }
+                constexpr const char* SUI_ADVSET_POPUP = "Advanced Settings";
+                if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults..."))
+                    ImGui::OpenPopup(SUI_ADVSET_POPUP);
+
+                if (ImGui::BeginPopup(SUI_ADVSET_POPUP)) {
+                    ImGui::TextUnformatted("Confirm: Resetting Advanced Settings to defaults");
+                    if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
+                        dataRefs.SetLogLevel(logWARN);
+                        dataRefs.SetMsgAreaLevel(logINFO);
+                        cfgSet(DR_CFG_MAX_NUM_AC,           DEF_MAX_NUM_AC);
+                        cfgSet(DR_CFG_FD_STD_DISTANCE,      DEF_FD_STD_DISTANCE);
+                        cfgSet(DR_CFG_FD_SNAP_TAXI_DIST,    DEF_FD_SNAP_TAXI_DIST);
+                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);
+                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);
+                        cfgSet(DR_CFG_AC_OUTDATED_INTVL,    DEF_AC_OUTDATED_INTVL);
+                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
+                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
+                        cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
+                        dataRefs.UIopacity      = DEF_UI_OPACITY;
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button(ICON_FA_TIMES " Cancel"))
+                        ImGui::CloseCurrentPopup();
+                    
+                    ImGui::EndPopup();
+                } // Popup
+                
                 ImGui::TableNextCell();
             }
 

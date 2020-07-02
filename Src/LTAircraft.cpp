@@ -82,6 +82,7 @@ bool NextCycle (int newCycle)
         XPMPEnableAircraftLabels();
     else
         XPMPDisableAircraftLabels();
+    XPMPEnableMap(true, dataRefs.ShallDrawMapLabels());
     
 #ifdef DEBUG
     // When debugging we want to step through the data and don't mind if

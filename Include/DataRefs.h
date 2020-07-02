@@ -428,10 +428,10 @@ public:
         bVSI : 1;
         
         // this is a bit ugly but avoids a wrapper union with an int
-        inline int GetInt() const { return *reinterpret_cast<const int*>(this); }
-        inline void SetInt(int i) { *reinterpret_cast<int*>(this) = i; }
+        inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
+        inline void SetUInt(int i) { *reinterpret_cast<unsigned*>(this) = i; }
         inline bool operator != (const LabelCfgTy& o) const
-        { return GetInt() != o.GetInt(); }
+        { return GetUInt() != o.GetUInt(); }
     };
     
     // when to show a/c labels?
@@ -439,13 +439,14 @@ public:
         unsigned
         bExternal : 1,              // external/outside views
         bInternal : 1,              // internal/cockpit views
-        bVR : 1;                    // VR views
+        bVR       : 1,              // VR views
+        bMap      : 1;              // Map icons
 
         // this is a bit ugly but avoids a wrapper union with an int
-        inline int GetInt() const { return *reinterpret_cast<const int*>(this); }
-        inline void SetInt(int i) { *reinterpret_cast<int*>(this) = i; }
-        inline bool operator != (const LabelCfgTy& o) const
-        { return GetInt() != o.GetInt(); }
+        inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
+        inline void SetUInt(unsigned i) { *reinterpret_cast<unsigned*>(this) = i; }
+        inline bool operator != (const LabelShowCfgTy& o) const
+        { return GetUInt() != o.GetUInt(); }
     };
     
     struct CSLPathCfgTy {           // represents a line in the [CSLPath] section of LiveTrafic.prg
@@ -506,7 +507,7 @@ protected:
     bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
-    LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
+    LabelShowCfgTy labelShown = { 1, 1, 1, 1 };     ///< when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW;             ///< label color, by default yellow
     int maxNumAc        = DEF_MAX_NUM_AC;           ///< how many aircraft to create at most?
@@ -755,6 +756,7 @@ public:
     static inline boundingBoxTy GetBoundingBox(double dist) // bounding box around current view pos
     { return boundingBoxTy(GetViewPos(), dist); }
     bool ShallDrawLabels() const;
+    bool ShallDrawMapLabels() const { return labelShown.bMap; }
     bool ToggleLabelDraw();                 // returns new value
 };
 
