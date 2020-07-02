@@ -39,7 +39,12 @@ protected:
         ADSBX_KEY_FAILED,           ///< key test ended with failure
         ADSBX_KEY_SUCCESS,          ///< key test succeeded
     } eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
-    std::string sADSBExKeyEntry;
+    std::string sADSBExKeyEntry;    ///< current ADSBEx key entry
+    // Debug options
+    std::string txtDebugFilter;     ///< filter for single aircraft
+    std::string txtFixAcType;       ///< fixed aircraft type
+    std::string txtFixOp;           ///< fixed operator
+    std::string txtFixLivery;       ///< fixed livery
 public:
     /// Constructor creates and displays the window
     LTSettingsUI();

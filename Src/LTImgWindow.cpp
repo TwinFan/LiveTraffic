@@ -269,6 +269,36 @@ IMGUI_API bool FilteredLabel(const char* label, const char* filter,
     return true;
 }
 
+// Filter label plus text input box
+IMGUI_API bool FilteredInputText(const char* label, const char* filter,
+                                 std::string& s, float width,
+                                 const char* hint,
+                                 ImGuiInputTextFlags flags)
+{
+    // Draw label first
+    if (!FilteredLabel(label, filter))
+        return false;
+
+    // Next cell: Draw the checkbox with a value linked to the dataRef
+    PushID(label);
+    if (width == 0.0f)
+        width = GetContentRegionAvail().x - GetWidthIconBtn();
+    SetNextItemWidth(width);
+    bool bRet = hint ?
+        InputTextWithHint("", hint, &s, flags) :
+        InputText("", &s, flags);
+    // Add a clear button
+    ImGui::SameLine();
+    if (ImGui::Button(ICON_FA_TIMES)) {
+        s.clear();
+        bRet = true;
+    }
+    PopID();
+    TableNextCell();
+    return bRet;
+}
+
+
 // Filter label plus checkbox linked to boolean(integer) dataRef
 IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx,
                                    const char* tooltip)

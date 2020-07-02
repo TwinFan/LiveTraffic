@@ -57,6 +57,12 @@ LTImgWindow(WND_MODE_FLOAT_CNT_VR,
     // If a key is already defined, then by default obscure it
     sADSBExKeyEntry = dataRefs.GetADSBExAPIKey();
     bADSBExKeyClearText = sADSBExKeyEntry.empty();
+    
+    // Fill debug entry texts with current values
+    txtDebugFilter  = dataRefs.GetDebugAcFilter();
+    txtFixAcType    = dataRefs.cslFixAcIcaoType;
+    txtFixOp        = dataRefs.cslFixOpIcao;
+    txtFixLivery    = dataRefs.cslFixLivery;
 }
 
 // Destructor completely removes the window
@@ -164,9 +170,9 @@ void LTSettingsUI::buildInterface()
             
             // auto-open and warning if any of these values are set as they limit what's shown
             const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAutoHidingActive();
-            if (ImGui::TreeNodeLinkHelp("Cooperation with other plugins", nCol,
+            if (ImGui::TreeNodeLinkHelp("Cooperation", nCol,
                                         bSomeRestrict ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
-                                        "Some options are active restricting displayed traffic or TCAS!",
+                                        "Some options are active, restricting displayed traffic or TCAS!",
                                         HELP_SET_BASICS, "Open Help on Basics in Browser",
                                         sFilter, nOpCl,
                                         (bSomeRestrict ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
@@ -362,12 +368,14 @@ void LTSettingsUI::buildInterface()
             unsigned c = dataRefs.GetLabelShowCfg().GetUInt();
             if (ImGui::FilteredLabel("Show in which views", sFilter)) {
                 ImGui::CheckboxFlags("External", &c, (1 << 0)); ImGui::SameLine();
-                ImGui::CheckboxFlags("Internal", &c, (1 << 0)); ImGui::SameLine();
-                ImGui::CheckboxFlags("VR",       &c, (1 << 0)); ImGui::SameLine();
-                ImGui::CheckboxFlags("Map",      &c, (1 << 0));
+                ImGui::CheckboxFlags("Internal", &c, (1 << 1)); ImGui::SameLine();
+                ImGui::CheckboxFlags("VR",       &c, (1 << 2)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Map",      &c, (1 << 3));
             }
-            if (c != dataRefs.GetLabelShowCfg().GetUInt())
+            if (c != dataRefs.GetLabelShowCfg().GetUInt()) {
                 cfgSet(DR_CFG_LABEL_SHOWN, int(c));
+                XPMPEnableMap(true, dataRefs.ShallDrawMapLabels());
+            }
 
             // Static / dynamic info
             c = dataRefs.GetLabelCfg().GetUInt();
@@ -555,6 +563,82 @@ void LTSettingsUI::buildInterface()
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Advanced ---
         
+        // MARK: --- Debug ---
+        const bool bLimitations =
+        !dataRefs.GetDebugAcFilter().empty() ||
+        !dataRefs.cslFixAcIcaoType.empty() ||
+        !dataRefs.cslFixOpIcao.empty() ||
+        !dataRefs.cslFixLivery.empty();
+
+        if (ImGui::TreeNodeLinkHelp("Debug", nCol,
+                                    bLimitations ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    "Forced Model Matching or filter options are active, restricting chosen aircraft or CSL models!",
+                                    HELP_SET_DEBUG, "Open Help on Debug options in Browser",
+                                    sFilter, nOpCl,
+                                    (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+        {
+            if (ImGui::TreeNodeHelp("Logging", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                unsigned int bLogDebug = dataRefs.GetLogLevel() == logDEBUG;
+                if (ImGui::FilteredCheckboxFlags("Set Log Level = Debug", sFilter, &bLogDebug, 1,
+                                                 "Sets the logging level for Log.txt to 'Debug',\nsame as above in 'Advanced/Logging'"))
+                    dataRefs.SetLogLevel(bLogDebug ? logDEBUG : logWARN);
+                ImGui::FilteredCfgCheckbox("Log Model Matching", sFilter, DR_DBG_MODEL_MATCHING,
+                                           "Logs how available tracking data was matched with the chosen CSL model (into Log.txt)");
+                ImGui::FilteredCfgCheckbox("Log a/c positions", sFilter, DR_DBG_AC_POS,
+                                           "Logs detailed position information of currently selected aircraft (into Log.txt)");
+                ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
+                                           "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue;
+            const float fWidth = ImGui::CalcTextSize("ABCDEF__").x;
+            if (ImGui::TreeNodeHelp("Forced Model Matching", nCol, nullptr, nullptr,
+                                    sFilter, nOpCl,
+                                    (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                bool bChanged = ImGui::FilteredInputText("ICAO a/c type", sFilter, txtFixAcType, fWidth, nullptr, flags);
+                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp, fWidth, nullptr, flags) || bChanged;
+                bChanged = ImGui::FilteredInputText("Livery / registration", sFilter, txtFixLivery, fWidth, nullptr, flags) || bChanged;
+                if (bChanged) {
+                    dataRefs.cslFixAcIcaoType = txtFixAcType;
+                    dataRefs.cslFixOpIcao = txtFixOp;
+                    dataRefs.cslFixLivery = txtFixLivery;
+                    if (dataRefs.cslFixAcIcaoType.empty()   &&
+                        dataRefs.cslFixOpIcao.empty()       &&
+                        dataRefs.cslFixLivery.empty())
+                        SHOW_MSG(logWARN, MSG_MDL_NOT_FORCED)
+                    else
+                        SHOW_MSG(logWARN, MSG_MDL_FORCED,
+                                 dataRefs.cslFixAcIcaoType.c_str(),
+                                 dataRefs.cslFixOpIcao.c_str(),
+                                 dataRefs.cslFixLivery.c_str());
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            if (ImGui::FilteredInputText("Filter single a/c", sFilter, txtDebugFilter, fWidth, nullptr, flags))
+            {
+                mapLTFlightDataTy::iterator fdIter = mapFd.end();
+                if (!txtDebugFilter.empty())
+                    fdIter = mapFdSearchAc(txtDebugFilter);
+                // found?
+                if (fdIter != mapFd.cend()) {
+                    txtDebugFilter = fdIter->second.key();
+                    DataRefs::LTSetDebugAcFilter(NULL,int(fdIter->second.key().num));
+                }
+                else
+                    DataRefs::LTSetDebugAcFilter(NULL,0);
+            }
+
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Debug ---
+        
         // --- End of the table
         ImGui::EndTable();
     }
@@ -562,35 +646,6 @@ void LTSettingsUI::buildInterface()
 }
 
 /*
-void LTSettingsUI::LabelBtnSave()
-{
-    // store the checkboxes states in a zero-inited configuration
-    DataRefs::LabelCfgTy cfg = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    cfg.bIcaoType     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,NULL);
-    cfg.bAnyAcId      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_AC_ID],xpProperty_ButtonState,NULL);
-    cfg.bTranspCode   = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,NULL);
-    cfg.bReg          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,NULL);
-    cfg.bIcaoOp       = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,NULL);
-    cfg.bCallSign     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,NULL);
-    cfg.bFlightNo     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,NULL);
-    cfg.bRoute        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,NULL);
-    cfg.bPhase        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,NULL);
-    cfg.bHeading      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,NULL);
-    cfg.bAlt          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,NULL);
-    cfg.bHeightAGL    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,NULL);
-    cfg.bSpeed        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,NULL);
-    cfg.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
-    // save as current config
-    drCfgLabels.Set(cfg.GetInt());
-    
-    // store the when-to-show information in a similar way
-    DataRefs::LabelShowCfgTy show = { 0, 0, 0 };
-    show.bExternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,NULL);
-    show.bInternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,NULL);
-    show.bVR          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,NULL);
-    drCfgLabelShow.Set(show.GetInt());
-}
-
 void LTSettingsUI::SaveCSLPath(int idx)
 {
     // what to save

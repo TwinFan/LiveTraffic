@@ -328,10 +328,15 @@ void ACIWnd::buildInterface()
         if (bOpen) {
             CollSecClear(ACI_SB_IDENTIFICATION);
             buildRow("Registration",        stat.reg,           pFD);
-            buildRow("ICAO Type (Class)", pFD,
-                     "%s (%s)",
-                     stat.acTypeIcao.c_str(),
-                     pDoc8643 ? pDoc8643->classification.c_str() : "?");
+            if (pDoc8643 && !pDoc8643->classification.empty())
+                buildRow("ICAO Type (Class)", pFD,
+                         "%s (%s)",
+                         stat.acTypeIcao.c_str(),
+                         pDoc8643->classification.c_str());
+            else
+                buildRow("ICAO Type (Class)", pFD,
+                         "%s",
+                         stat.acTypeIcao.c_str());
             buildRow("Manufacturer",    stat.man,           pFD);
             buildRow("Model",           stat.mdl,           pFD);
             buildRow("Operator",

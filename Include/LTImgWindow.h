@@ -148,6 +148,15 @@ inline bool TreeNodeLinkHelp(const char* label, int nCol,
 /// @return Shown?
 IMGUI_API bool FilteredLabel(const char* label, const char* filter, bool bEnabled = true);
 
+/// @brief Filter label plus text input box
+/// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
+///          Otherwise, cursor is at beginning of (next) cell afterwards.
+/// @return Value just changed?
+IMGUI_API bool FilteredInputText(const char* label, const char* filter,
+                                 std::string& s, float width = 0.0f,
+                                 const char* hint = nullptr,
+                                 ImGuiInputTextFlags flags = 0);
+
 /// @brief Filter label plus checkbox linked to boolean(integer) dataRef
 /// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
 ///          Otherwise, cursor is at beginning of (next) cell afterwards.
