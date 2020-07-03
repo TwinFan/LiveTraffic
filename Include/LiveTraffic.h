@@ -147,15 +147,15 @@ void LTErrorCB (const char* msg);
 // MARK: Path helpers
 
 // deal with paths: make a full one from a relative one or keep a full path
-std::string LTCalcFullPath ( const std::string path );
-std::string LTCalcFullPluginPath ( const std::string path );
+std::string LTCalcFullPath ( const std::string& path );
+std::string LTCalcFullPluginPath ( const std::string& path );
 
-// if path starts with the XP system path it is removed
+/// returns path but a beginning XP system path stripped
 std::string LTRemoveXPSystemPath (std::string path );
 
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
-int LTNumFilesInPath ( const std::string path );
+int LTNumFilesInPath ( const std::string& path );
 
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);

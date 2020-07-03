@@ -677,12 +677,15 @@ bool LTImgWindowInit ()
                     ICON_FA_EXCLAMATION_TRIANGLE
                     ICON_FA_EYE
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
+                    ICON_FA_FOLDER_OPEN
                     ICON_FA_QUESTION_CIRCLE
+                    ICON_FA_SAVE
                     ICON_FA_SEARCH
                     ICON_FA_SPINNER
                     ICON_FA_TIMES
                     ICON_FA_TRASH_ALT
                     ICON_FA_UNDO
+                    ICON_FA_UPLOAD
                     ICON_FA_WINDOW_CLOSE
                     ICON_FA_WINDOW_MAXIMIZE
                     ICON_FA_WINDOW_RESTORE);

@@ -553,6 +553,36 @@ int timeOffsetUTC()
 	}
 }
 
+// MARK: CSLPathCfgTy
+
+DataRefs::CSLPathCfgTy::CSLPathCfgTy (bool b, const std::string& p) :
+bEnabled(b), path(LTRemoveXPSystemPath(p))
+{}
+
+// tests path for existence
+bool DataRefs::CSLPathCfgTy::exists() const
+{
+    if (bPathExists)                    // stored result available?
+        return bPathExists > 0;         // 1 = "exists"
+    // need to test the file system
+    return LTNumFilesInPath(LTCalcFullPath(path)) > 0;
+}
+
+// tests path for existence, saves test result
+bool DataRefs::CSLPathCfgTy::existsSave()
+{
+    bPathExists = exists();
+    return bPathExists > 0;
+}
+
+// assign new path
+const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
+{
+    path = LTRemoveXPSystemPath(_p);        // store (shortened) path
+    existsSave();                           // check for existence
+    return path;
+}
+
 //MARK: Constructor - just plain variable init, no API calls
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel)
@@ -1786,7 +1816,7 @@ bool DataRefs::SaveConfigFile()
         for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
             if (!cslPath.empty())
                 fOut << (cslPath.enabled() ? "1|" : "0|") <<
-                LTRemoveXPSystemPath(cslPath.path) << '\n';
+                cslPath.getPath() << '\n';
     }
     
     // some error checking towards the end
@@ -1806,40 +1836,29 @@ bool DataRefs::SaveConfigFile()
     return true;
 }
 
-// Save a new/changed CSL path
-void DataRefs::SaveCSLPath(int idx, const CSLPathCfgTy path)
+// Load a CSL package interactively from a given path
+bool DataRefs::LoadCSLPackage(const std::string& _path)
 {
-    // make sure the array of paths is large enough
-    while (size_t(idx) >= vCSLPaths.size())
-        vCSLPaths.push_back({});
+    // path could be relative to X-Plane
+    const std::string path = LTCalcFullPath(_path);
     
-    // then store the actual path
-    vCSLPaths[idx] = path;
-}
-
-// Load a CSL package interactively
-bool DataRefs::LoadCSLPackage(int idx)
-{
-    if (size_t(idx) < vCSLPaths.size()) {
-        // enabled, path could be relative to X-Plane
-        const std::string path = LTCalcFullPath(vCSLPaths[idx].path);
+    // doesn't exist? has no files?
+    if (LTNumFilesInPath(path) < 1) {
+        SHOW_MSG(logERR, ERR_CFG_CSL_EMPTY, path.c_str());
+    }
+    else
+    {
+        // try loading the package
+        const char* cszResult = XPMPLoadCSLPackage(path.c_str());
         
-        // doesn't exist? has no files?
-        if (LTNumFilesInPath(path) < 1) {
-            SHOW_MSG(logERR, ERR_CFG_CSL_EMPTY, path.c_str());
-        }
-        else
-        {
-            // try loading the package
-            const char* cszResult = XPMPLoadCSLPackage(path.c_str());
-            
-            // Addition of CSL package failed?
-            if ( cszResult[0] ) {
-                SHOW_MSG(logERR,ERR_XPMP_ADD_CSL, cszResult);
-            } else {
-                SHOW_MSG(logMSG,MSG_CSL_PACKAGE_LOADED, vCSLPaths[idx].path.c_str());
-                return true;
-            }
+        // Addition of CSL package failed?
+        if ( cszResult[0] ) {
+            SHOW_MSG(logERR,ERR_XPMP_ADD_CSL, _path.c_str(), cszResult);
+        } else {
+            SHOW_MSG(logMSG,MSG_CSL_PACKAGE_LOADED, _path.c_str());
+            // successfully loaded...now update all CSL models in use
+            LTFlightData::UpdateAllModels();
+            return true;
         }
     }
     

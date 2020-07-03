@@ -35,7 +35,7 @@ void LogTimestamps ();
 
 // construct path: if passed-in base is a full path just take it
 // otherwise it is relative to XP system path
-std::string LTCalcFullPath ( const std::string path )
+std::string LTCalcFullPath ( const std::string& path )
 {
     // starts already with system path? -> nothing to so
     if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
@@ -53,10 +53,8 @@ std::string LTCalcFullPath ( const std::string path )
 }
 
 // same as above, but relative to plugin directory
-std::string LTCalcFullPluginPath ( const std::string path )
+std::string LTCalcFullPluginPath ( const std::string& path )
 {
-    std::string ret;
-    
     // starts with DirSeparator or [windows] second char is a colon?
     if (dataRefs.GetDirSeparator()[0] == path[0] ||
         (path.length() >= 2 && path[1] == ':' ) )
@@ -64,8 +62,7 @@ std::string LTCalcFullPluginPath ( const std::string path )
         return path;
 
     // otherwise it shall be a local path relative to the plugin's dir
-    // otherwise it is supposingly a local path relative to XP main
-    // prepend with XP system path to make it a full path:
+    // prepend with plugin path to make it a full path:
     return dataRefs.GetLTPluginPath() + path;
 }
 
@@ -79,7 +76,7 @@ std::string LTRemoveXPSystemPath (std::string path)
 
 // given a path returns number of files in the path
 // or 0 in case of errors
-int LTNumFilesInPath ( const std::string path )
+int LTNumFilesInPath ( const std::string& path )
 {
     char aszFileNames[2048] = "";
     int iTotalFiles = 0;
@@ -324,31 +321,21 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
                               DataRefs::vecCSLPaths::const_iterator cEnd)
 {
-    std::string ret;
-    
     // loop over vector of CSL paths
     for ( ;cslIter != cEnd; ++cslIter) {
         // disabled?
         if (!cslIter->enabled()) {
-            LOG_MSG(logMSG, ERR_CFG_CSL_DISABLED, cslIter->path.c_str());
+            LOG_MSG(logMSG, ERR_CFG_CSL_DISABLED, cslIter->getPath().c_str());
             continue;
         }
         
-        // enabled, path could be relative to X-Plane
-        ret = LTCalcFullPath(cslIter->path);
-        
-        // exists, has files?
-        if (LTNumFilesInPath(ret) < 1) {
-            LOG_MSG(logMSG, ERR_CFG_CSL_EMPTY, cslIter->path.c_str());
-            ret.erase();
-            continue;
-        }
-        
-        // looks like a possible path, return it
-        // prepare for next call, move to next item
-        ++cslIter;
-        
-        return ret;
+        // enabled, does path exist?
+        if (cslIter->exists())
+            // return this path, but also inrement iterator for next call
+            return LTCalcFullPath((cslIter++)->getPath());
+
+        // doesn't exist or is empty
+        LOG_MSG(logMSG, ERR_CFG_CSL_EMPTY, cslIter->getPath().c_str());
     }
     
     // didn't find anything
@@ -393,7 +380,7 @@ bool LTMainInit ()
         // Addition of CSL package failed...that's not fatal as we did already
         // register one with the XPMPMultiplayerInitLegacyData call
         if ( cszResult[0] ) {
-            LOG_MSG(logERR,ERR_XPMP_ADD_CSL, cszResult);
+            LOG_MSG(logERR,ERR_XPMP_ADD_CSL, cslPath.c_str(), cszResult);
         }
     }
     

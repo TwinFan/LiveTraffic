@@ -563,6 +563,151 @@ void LTSettingsUI::buildInterface()
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Advanced ---
         
+        // MARK: --- CSL ---
+        if (ImGui::TreeNodeHelp("CSL", nCol,
+                                HELP_SET_CSL, "Open Help on CSL Model options in Browser",
+                                sFilter, nOpCl))
+        {
+            // Existing CSL paths (aren't included in filter search)
+            if (!*sFilter) {
+                int iDelete = -1;               // delete a path?
+                DataRefs::vecCSLPaths& vec = dataRefs.GetCSLPaths();
+                for (int i = 0; (size_t)i < vec.size(); ++i)
+                {
+                    DataRefs::CSLPathCfgTy& pathCfg = vec[i];
+                    ImGui::PushID(pathCfg.getPath().c_str());
+                    
+                    // Enable Checkbox / Load Button
+                    ImGui::Checkbox("Enabled", &pathCfg.bEnabled);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Load CSL package during startup?");
+                    
+                    // Indicator if path exists, right-aligned
+                    ImGui::SameLine();
+                    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - ImGui::GetWidthIconBtn());
+                    // for the active line decide based on temporary check
+                    const bool bPathExists = cslActiveLn == i ? bCslEntryExists : pathCfg.exists();
+                    ImGui::TextUnformatted(bPathExists ? ICON_FA_CHECK_CIRCLE : ICON_FA_EXCLAMATION_TRIANGLE);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", bPathExists ?
+                                          "Path exists and contains files" :
+                                          "Path does not exist or is empty");
+                    
+                    // Path entry
+                    ImGui::TableNextCell();
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
+                    if (cslActiveLn == i) {
+                        if (ImGui::InputText("##PathEntry", &cslEntry, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            pathCfg = cslEntry;             // store path and stop editing
+                            cslActiveLn = -1; cslEntry.clear();
+                        }
+                        // did the entry line just get changed? then test for valid path
+                        if (ImGui::IsItemEdited())
+                            bCslEntryExists = LTNumFilesInPath(LTCalcFullPath(cslEntry));
+                    } else
+                        ImGui::InputText("##PathEntry", (std::string*)&pathCfg.getPath());
+                    
+                    // Now editing _this_ line?
+                    if (cslActiveLn != i && ImGui::IsItemActive()) {
+                        cslActiveLn = i;
+                        cslEntry = pathCfg.getPath();
+                        bCslEntryExists = pathCfg.existsSave();
+                    }
+                    
+                    // Open Folder button
+                    ImGui::SameLine();
+                    if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder")) {
+                        if (cslActiveLn != i) {     // if not yet active:
+                            cslActiveLn = i;        // make this the active line
+                            cslEntry = pathCfg.getPath();
+                            bCslEntryExists = pathCfg.existsSave();
+                        }
+                    }
+                    
+                    ImGui::SameLine();
+                    if (cslActiveLn == i && cslEntry != pathCfg.getPath()) {
+                        // This line being edited and changed: offer Save button
+                        if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Save the changed path")) {
+                            pathCfg = cslEntry;
+                            cslActiveLn = -1; cslEntry.clear();
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::ButtonTooltip(ICON_FA_UNDO, "Undo path change")) {
+                            // actually, we stop editing without saving
+                            cslActiveLn = -1; cslEntry.clear();
+                        }
+                    } else {
+                        // Not being edited: offer Load button
+                        if (ImGui::ButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
+                            dataRefs.LoadCSLPackage(pathCfg.getPath());
+                        ImGui::SameLine();
+                        // Delete button, requires confirmation
+                        constexpr const char* SUI_CSL_DEL_POPUP = "Delete CSL Path";
+                        if (ImGui::ButtonTooltip(ICON_FA_TRASH_ALT, "Remove this path from the configuration"))
+                            ImGui::OpenPopup(SUI_CSL_DEL_POPUP);
+                        if (ImGui::BeginPopup(SUI_CSL_DEL_POPUP)) {
+                            ImGui::Text("Confirm deletion of path\n%s", pathCfg.getPath().c_str());
+                            if (ImGui::Button(ICON_FA_TRASH_ALT " Delete"))
+                                iDelete = i;        // can't delete here as we loop the array, delete later
+                            ImGui::SameLine();
+                            if (ImGui::Button(ICON_FA_UNDO " Keep"))
+                                ImGui::CloseCurrentPopup();
+                            ImGui::EndPopup();
+                        }
+                    }
+                    
+                    ImGui::TableNextCell();
+                    ImGui::PopID();
+                } // for all CSL paths
+                
+                // One additional line for the possibility to add a new path
+                bool bDoAdd = false;
+                ImGui::TextUnformatted("Add new path:");
+                if (!cslNew.empty()) {
+                    // Indicator if path exists, right-aligned
+                    ImGui::SameLine();
+                    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - ImGui::GetWidthIconBtn());
+                    // for the active line decide based on temporary check
+                    ImGui::TextUnformatted(bCslNewExists ? ICON_FA_CHECK_CIRCLE : ICON_FA_EXCLAMATION_TRIANGLE);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", bCslNewExists ?
+                                          "Path exists and contains files" :
+                                          "Path does not exist or is empty");
+                }
+                // Text Input
+                ImGui::TableNextCell();
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
+                if (ImGui::InputText("##NewCSLPath", &cslNew, ImGuiInputTextFlags_EnterReturnsTrue) &&
+                    bCslEntryExists)        // store new path only if it exists
+                    bDoAdd = true;
+                // did the entry line just get changed? then test for valid path
+                if (ImGui::IsItemEdited())
+                    bCslNewExists = LTNumFilesInPath(LTCalcFullPath(cslNew));
+                ImGui::SameLine();
+                if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder")) {
+                }
+                if (bCslNewExists && !cslNew.empty()) {
+                    ImGui::SameLine();
+                    if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
+                        bDoAdd = true;
+                }
+                
+                // Shall we delete any of the paths?
+                if (0 <= iDelete && iDelete < (int)vec.size())
+                    vec.erase(std::next(vec.begin(), iDelete));
+                
+                // Shall we add a new path?
+                if (bDoAdd) {
+                    vec.emplace_back(true, cslNew);
+                    dataRefs.LoadCSLPackage(vec.back().getPath());
+                    cslNew.clear();
+                    bCslNewExists = false;
+                }
+            }
+
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Advanced ---
+
         // MARK: --- Debug ---
         const bool bLimitations =
         !dataRefs.GetDebugAcFilter().empty() ||

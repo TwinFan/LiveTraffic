@@ -266,7 +266,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
 #define ERR_INIT_XPMP           "Could not initialize XPMP2: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
-#define ERR_XPMP_ADD_CSL        "Could not add additional CSL package: %s"
+#define ERR_XPMP_ADD_CSL        "Could not add additional CSL package from '%s': %s"
 #define ERR_APPEND_MENU_ITEM    "Could not append a menu item"
 #define ERR_CREATE_MENU         "Could not create menu %s"
 #define ERR_CURL_INIT           "Could not initialize CURL: %s"

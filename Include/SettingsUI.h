@@ -31,6 +31,7 @@ class LTSettingsUI : public LTImgWindow
 protected:
     /// Search filter
     char sFilter[50] = {0};
+
     /// Is ADSBEx key displayed clear text?
     bool bADSBExKeyClearText = false;
     enum {
@@ -40,6 +41,16 @@ protected:
         ADSBX_KEY_SUCCESS,          ///< key test succeeded
     } eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
     std::string sADSBExKeyEntry;    ///< current ADSBEx key entry
+    
+    // CSL
+    int cslActiveLn = -1;           ///< CSL path line currently being edited
+    std::string cslEntry;           ///< buffer for current path editing
+    bool bCslEntryExists = false;   ///< does the temporarily entered path exist?
+    
+    // CSL Add Entry
+    std::string cslNew;             ///< buffer for new line entry
+    bool bCslNewExists = false;     ///< does the newly entered path exist?
+
     // Debug options
     std::string txtDebugFilter;     ///< filter for single aircraft
     std::string txtFixAcType;       ///< fixed aircraft type

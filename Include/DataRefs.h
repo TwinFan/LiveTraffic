@@ -449,16 +449,25 @@ public:
         { return GetUInt() != o.GetUInt(); }
     };
     
-    struct CSLPathCfgTy {           // represents a line in the [CSLPath] section of LiveTrafic.prg
-        bool        bEnabled = false;
-        std::string path;
+    /// represents a line in the [CSLPath] section of LiveTrafic.prg
+    struct CSLPathCfgTy {
+    public:
+        bool        bEnabled = false;   ///< enabled for auto-load on startup
+    protected:
+        int         bPathExists = 0;    ///< 3-values: -1 no, 0 not tested, 1 yes
+        std::string path;               ///< actual path, can be relative to X-Plane system path
         
+    public:
         CSLPathCfgTy () {}
-        CSLPathCfgTy (bool b, std::string&& p) : bEnabled(b), path(std::move(p)) {}
-        inline bool empty() const   { return path.empty(); }
-        inline bool enabled() const { return bEnabled && !empty(); }
-        inline bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
-        inline bool operator== (const std::string& s) const { return path == s; }
+        CSLPathCfgTy (bool b, const std::string& p);
+        bool empty() const   { return path.empty(); }
+        bool enabled() const { return bEnabled && !empty(); }
+        const std::string& getPath() const { return path; }
+        bool existsSave();              ///< tests path for existence, saves test result
+        bool exists() const;            ///< tests path for existence
+        const std::string& operator= (const std::string& _p);  ///< assign new path
+        bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
+        bool operator== (const std::string& s) const { return path == s; }
     };
     typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     
@@ -693,8 +702,7 @@ public:
 
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }
-    void SaveCSLPath(int idx, const CSLPathCfgTy path);
-    bool LoadCSLPackage(int idx);
+    bool LoadCSLPackage(const std::string& _path);
     std::string GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
     std::string GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
     bool SetDefaultAcIcaoType(const std::string type);
