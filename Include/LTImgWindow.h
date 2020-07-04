@@ -89,6 +89,16 @@ IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
 /// @brief Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
 IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, float v_min = 0.0f, float v_max = 1.0f, const char* format = "%.0f%%", float power = 1.0f);
 
+/// @brief Folder selection popup, returns true when done and confirmed
+/// @details Use instead of Begin/EndPop, but your one call to OpenPop is still needed
+IMGUI_API bool SelectPath (const char* popupId, std::string& path);
+
+/// @brief Right-aligned indicator for OK/Error
+IMGUI_API void Indicator (bool bOK, const char* okText, const char* nokText);
+
+/// @brief Go back to previous cell (same row only)
+IMGUI_API bool TablePrevCell();
+
 /// --- Combined controls, meant to be used in a configuraton table,
 ///     these functions move across table cells ---
 
@@ -99,6 +109,8 @@ IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, f
 /// @param idxCbx (optional) dataRef index (passed on to ImGui::CheckboxDr()), `CNT_DATAREFS_LT` for no checkbox
 /// @param cbxPopup (optional) Tooltip text when hovering over checkbox, or `nullptr`
 /// @param linkLabel (optional) Label for a URL-opening button / or just plain text if `!helpURL`
+/// @param linkURL (optional) URL opened when the link button is clicked, or `nullptr`
+/// @param linkPopup (optional) Tooltip text when hovering over link button
 /// @param helpURL (optional) URL opened when the help icon button is clicked, or `nullptr`
 /// @param helpPopup (optional) Tooltip text when hovering over help icon button
 /// @param nCol Number of columns of the table (needed to know where the help icon button goes)

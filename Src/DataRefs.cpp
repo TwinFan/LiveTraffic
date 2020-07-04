@@ -726,7 +726,7 @@ bool DataRefs::Init ()
     // then: add an activated entry
     for (std::string stdCSL: { PATH_RESOURCES_CSL, PATH_RESOURCES_SCSL }) {
         // 1. Underlying directory _does_ exist and is not empty
-        std::string path (LTCalcFullPluginPath(stdCSL));
+        const std::string path (LTCalcFullPluginPath(stdCSL));
         if (LTNumFilesInPath(path) > 0) {
             // 2. Entry in vCSLPath does _not_ yet exist
             CSLPathCfgTy cfg (true, LTRemoveXPSystemPath(path));

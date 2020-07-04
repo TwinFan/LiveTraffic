@@ -317,11 +317,7 @@ const char* GetLogString (const char* szPath, int ln, const char* szFunc,
     // prepare timestamp
     if (lvl < logMSG)                             // normal messages without, all other with location info
     {
-#if IBM
-        const char* szFile = strrchr(szPath, '\\');  // extract file from path
-#else
-        const char* szFile = strrchr(szPath, '/');   // extract file from path
-#endif
+        const char* szFile = strrchr(szPath, PATH_DELIM);  // extract file from path
         if (!szFile) szFile = szPath; else szFile++;
         snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC " %s %s:%d/%s: ",
                  runH, runM, runS,                  // Running time stamp

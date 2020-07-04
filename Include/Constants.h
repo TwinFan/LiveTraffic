@@ -253,6 +253,13 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
+// Standard path delimiter
+constexpr const char* PATH_DELIMS = "/\\";      ///< potential path delimiters in all OS
+#if IBM
+#define PATH_DELIM '\\'                         ///< Windows path delimiter
+#else
+#define PATH_DELIM '/'                          ///< MacOS/Linux path delimiter
+#endif
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;

@@ -35,6 +35,7 @@
 
 // MARK: Includes
 // Standard C
+#include <sys/stat.h>
 #include <cstdio>
 #include <cstdarg>
 #include <cmath>
@@ -150,12 +151,20 @@ void LTErrorCB (const char* msg);
 std::string LTCalcFullPath ( const std::string& path );
 std::string LTCalcFullPluginPath ( const std::string& path );
 
-/// returns path but a beginning XP system path stripped
-std::string LTRemoveXPSystemPath (std::string path );
+/// returns path, with XP system path stripped if path starts with it
+std::string LTRemoveXPSystemPath (const std::string& path);
+/// strips XP system path if path starts with it
+void LTRemoveXPSystemPath (std::string& path);
 
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
 int LTNumFilesInPath ( const std::string& path );
+
+/// Is path a directory?
+bool IsDir (const std::string& path);
+
+/// List of files in a directory (wrapper around XPLMGetDirectoryContents)
+std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly = false);
 
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);

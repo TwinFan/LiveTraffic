@@ -42,7 +42,19 @@ static float SUI_VALUE_SIZE = NAN;              ///< Ideal Width of 2nd column f
 LTSettingsUI::LTSettingsUI () :
 LTImgWindow(WND_MODE_FLOAT_CNT_VR,
             dataRefs.SUItransp ? WND_STYLE_HUD : WND_STYLE_SOLID,
-            WndRect(0, dataRefs.SUIheight, dataRefs.SUIwidth, 0))
+            WndRect(0, dataRefs.SUIheight, dataRefs.SUIwidth, 0)),
+// If there is no ADSBEx key yet then display any new entry in clear text,
+// If a key is already defined, then by default obscure it
+sADSBExKeyEntry     (dataRefs.GetADSBExAPIKey()),
+bADSBExKeyClearText (sADSBExKeyEntry.empty()),
+// Fill CSL type entry with current values
+acTypeEntry     (dataRefs.GetDefaultAcIcaoType()),
+gndVehicleEntry (dataRefs.GetDefaultCarIcaoType()),
+// Fill debug entry texts with current values
+txtDebugFilter  (dataRefs.GetDebugAcFilter()),
+txtFixAcType    (dataRefs.cslFixAcIcaoType),
+txtFixOp        (dataRefs.cslFixOpIcao),
+txtFixLivery    (dataRefs.cslFixLivery)
 {
     // Set up window basics
     SetWindowTitle(SUI_WND_TITLE);
@@ -52,17 +64,6 @@ LTImgWindow(WND_MODE_FLOAT_CNT_VR,
     
     // Define Help URL to open for generic Help (?) button
     szHelpURL = HELP_SETTINGS;
-    
-    // If there is no ADSBEx key yet then display any new entry in clear text,
-    // If a key is already defined, then by default obscure it
-    sADSBExKeyEntry = dataRefs.GetADSBExAPIKey();
-    bADSBExKeyClearText = sADSBExKeyEntry.empty();
-    
-    // Fill debug entry texts with current values
-    txtDebugFilter  = dataRefs.GetDebugAcFilter();
-    txtFixAcType    = dataRefs.cslFixAcIcaoType;
-    txtFixOp        = dataRefs.cslFixOpIcao;
-    txtFixLivery    = dataRefs.cslFixLivery;
 }
 
 // Destructor completely removes the window
@@ -151,6 +152,8 @@ void LTSettingsUI::buildInterface()
                           ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
                           ImGuiTableFlags_BordersHInner))
     {
+        const float fSmallWidth = ImGui::CalcTextSize("ABCDEF__").x;
+
         // Set up the columns of the table
         for (int i = 0; i < nCol; i += 2) {
             ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, SUI_LABEL_SIZE);
@@ -166,7 +169,6 @@ void LTSettingsUI::buildInterface()
         {
             ImGui::FilteredCfgCheckbox("Show Live Aircraft",    sFilter, DR_CFG_AIRCRAFT_DISPLAYED,     "Main switch to enable display of live traffic");
             ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
-            ImGui::FilteredCfgCheckbox("Landing lights during taxi", sFilter, DR_CFG_LND_LIGHTS_TAXI,   "Some models do not feature taxi lights,\nthis makes them visible in the dark");
             
             // auto-open and warning if any of these values are set as they limit what's shown
             const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAutoHidingActive();
@@ -409,7 +411,8 @@ void LTSettingsUI::buildInterface()
             if (c != dataRefs.GetLabelCfg().GetUInt())
                 cfgSet(DR_CFG_LABELS, int(c));
 
-            if (ImGui::TreeNodeHelp("Label Color", nCol, nullptr, nullptr, sFilter, nOpCl))
+            if (ImGui::TreeNodeHelp("Label Color", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
             {
                 // Fixed or dynamic label color?
                 int bLabelDyn = dataRefs.IsLabelColorDynamic();
@@ -568,8 +571,57 @@ void LTSettingsUI::buildInterface()
                                 HELP_SET_CSL, "Open Help on CSL Model options in Browser",
                                 sFilter, nOpCl))
         {
+            // Modelling Options
+            if (ImGui::TreeNodeHelp("Modelling Options", nCol, nullptr, nullptr, sFilter, nOpCl,
+                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgCheckbox("Landing lights during taxi", sFilter, DR_CFG_LND_LIGHTS_TAXI,   "Some models do not feature taxi lights,\nthis makes them visible in the dark");
+
+                if (ImGui::FilteredLabel("Default a/c type", sFilter)) {
+                    // Indicator if saved OK
+                    if (acTypeOK) {
+                        ImGui::TablePrevCell();
+                        ImGui::Indicator(acTypeOK > 0,
+                                         "New default successfully saved",
+                                         "Type doesn't exist, not saved");
+                        ImGui::TableNextCell();
+                    }
+                    ImGui::SetNextItemWidth(fSmallWidth);
+                    if (ImGui::InputText("##DefaultAcType", &acTypeEntry,
+                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                        acTypeOK = dataRefs.SetDefaultAcIcaoType(acTypeEntry) ? 1 : -1;
+                    }
+                    if (ImGui::IsItemEdited()) acTypeOK = 0;
+                    ImGui::TableNextCell();
+                }
+
+                if (ImGui::FilteredLabel("Ground vehicle type", sFilter)) {
+                    // Indicator if saved OK
+                    if (gndVehicleOK) {
+                        ImGui::TablePrevCell();
+                        ImGui::Indicator(gndVehicleOK > 0,
+                                         "New vehicle type successfully saved",
+                                         "Wrong text length, not saved");
+                        ImGui::TableNextCell();
+                    }
+                    ImGui::SetNextItemWidth(fSmallWidth);
+                    if (ImGui::InputText("##CarType", &gndVehicleEntry,
+                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                        gndVehicleOK = dataRefs.SetDefaultCarIcaoType(gndVehicleEntry) ? 1 : -1;
+                    }
+                    if (ImGui::IsItemEdited()) gndVehicleOK = 0;
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            } // Modelling Options
+
             // Existing CSL paths (aren't included in filter search)
-            if (!*sFilter) {
+            if (!*sFilter &&
+                ImGui::TreeNodeHelp("CSL Package Paths", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                constexpr const char* SUI_OPEN_FOLDER = "OpenFolder";
                 int iDelete = -1;               // delete a path?
                 DataRefs::vecCSLPaths& vec = dataRefs.GetCSLPaths();
                 for (int i = 0; (size_t)i < vec.size(); ++i)
@@ -578,20 +630,15 @@ void LTSettingsUI::buildInterface()
                     ImGui::PushID(pathCfg.getPath().c_str());
                     
                     // Enable Checkbox / Load Button
-                    ImGui::Checkbox("Enabled", &pathCfg.bEnabled);
+                    ImGui::Checkbox("Auto Load", &pathCfg.bEnabled);
                     if (ImGui::IsItemHovered())
                         ImGui::SetTooltip("%s", "Load CSL package during startup?");
                     
                     // Indicator if path exists, right-aligned
                     ImGui::SameLine();
-                    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - ImGui::GetWidthIconBtn());
-                    // for the active line decide based on temporary check
-                    const bool bPathExists = cslActiveLn == i ? bCslEntryExists : pathCfg.exists();
-                    ImGui::TextUnformatted(bPathExists ? ICON_FA_CHECK_CIRCLE : ICON_FA_EXCLAMATION_TRIANGLE);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", bPathExists ?
-                                          "Path exists and contains files" :
-                                          "Path does not exist or is empty");
+                    ImGui::Indicator(cslActiveLn == i ? bCslEntryExists : pathCfg.exists(),
+                                     "Path exists and contains files",
+                                     "Path does not exist or is empty");
                     
                     // Path entry
                     ImGui::TableNextCell();
@@ -603,7 +650,7 @@ void LTSettingsUI::buildInterface()
                         }
                         // did the entry line just get changed? then test for valid path
                         if (ImGui::IsItemEdited())
-                            bCslEntryExists = LTNumFilesInPath(LTCalcFullPath(cslEntry));
+                            bCslEntryExists = LTNumFilesInPath(LTCalcFullPath(cslEntry)) > 0;
                     } else
                         ImGui::InputText("##PathEntry", (std::string*)&pathCfg.getPath());
                     
@@ -616,14 +663,22 @@ void LTSettingsUI::buildInterface()
                     
                     // Open Folder button
                     ImGui::SameLine();
-                    if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder")) {
+                    if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                        // or this is the active line and we shall re-open the popup
+                        (cslActiveLn == i && bSubDirsOpen)) {
                         if (cslActiveLn != i) {     // if not yet active:
                             cslActiveLn = i;        // make this the active line
                             cslEntry = pathCfg.getPath();
                             bCslEntryExists = pathCfg.existsSave();
                         }
+                        ImGui::OpenPopup(SUI_OPEN_FOLDER);
+                        bSubDirsOpen = false;
                     }
-                    
+                    if (ImGui::SelectPath(SUI_OPEN_FOLDER, cslEntry)) {
+                        bSubDirsOpen = true;        // reopen next frame!
+                        bCslEntryExists = LTNumFilesInPath(LTCalcFullPath(cslEntry)) > 0;
+                    }
+
                     ImGui::SameLine();
                     if (cslActiveLn == i && cslEntry != pathCfg.getPath()) {
                         // This line being edited and changed: offer Save button
@@ -661,31 +716,40 @@ void LTSettingsUI::buildInterface()
                 } // for all CSL paths
                 
                 // One additional line for the possibility to add a new path
+                
                 bool bDoAdd = false;
                 ImGui::TextUnformatted("Add new path:");
                 if (!cslNew.empty()) {
                     // Indicator if path exists, right-aligned
                     ImGui::SameLine();
-                    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - ImGui::GetWidthIconBtn());
-                    // for the active line decide based on temporary check
-                    ImGui::TextUnformatted(bCslNewExists ? ICON_FA_CHECK_CIRCLE : ICON_FA_EXCLAMATION_TRIANGLE);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", bCslNewExists ?
-                                          "Path exists and contains files" :
-                                          "Path does not exist or is empty");
+                    ImGui::Indicator(bCslNewExists,
+                                     "Path exists and contains files",
+                                     "Path does not exist or is empty");
                 }
+                
                 // Text Input
                 ImGui::TableNextCell();
                 ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
                 if (ImGui::InputText("##NewCSLPath", &cslNew, ImGuiInputTextFlags_EnterReturnsTrue) &&
-                    bCslEntryExists)        // store new path only if it exists
+                    bCslNewExists)        // store new path only if it exists
                     bDoAdd = true;
                 // did the entry line just get changed? then test for valid path
                 if (ImGui::IsItemEdited())
-                    bCslNewExists = LTNumFilesInPath(LTCalcFullPath(cslNew));
+                    bCslNewExists = LTNumFilesInPath(LTCalcFullPath(cslNew)) > 0;
                 ImGui::SameLine();
-                if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder")) {
+                
+                // Folder selection button
+                if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                    bNewSubDirsOpen) {
+                    ImGui::OpenPopup(SUI_OPEN_FOLDER);
+                    bNewSubDirsOpen = false;
                 }
+                if (ImGui::SelectPath(SUI_OPEN_FOLDER, cslNew)) {
+                    bNewSubDirsOpen = true;             // open next frame again
+                    bCslNewExists = LTNumFilesInPath(LTCalcFullPath(cslNew)) > 0;
+                }
+                
+                // Save button
                 if (bCslNewExists && !cslNew.empty()) {
                     ImGui::SameLine();
                     if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
@@ -698,12 +762,17 @@ void LTSettingsUI::buildInterface()
                 
                 // Shall we add a new path?
                 if (bDoAdd) {
-                    vec.emplace_back(true, cslNew);
-                    dataRefs.LoadCSLPackage(vec.back().getPath());
+                    // avoid duplicates
+                    if (std::find(vec.cbegin(), vec.cend(), cslNew) == vec.cend()) {
+                        vec.emplace_back(true, cslNew);
+                        dataRefs.LoadCSLPackage(vec.back().getPath());
+                    }
                     cslNew.clear();
                     bCslNewExists = false;
                 }
-            }
+                
+                if (!*sFilter) ImGui::TreePop();
+            } // List of paths
 
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Advanced ---
@@ -740,14 +809,13 @@ void LTSettingsUI::buildInterface()
             }
             
             constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue;
-            const float fWidth = ImGui::CalcTextSize("ABCDEF__").x;
             if (ImGui::TreeNodeHelp("Forced Model Matching", nCol, nullptr, nullptr,
                                     sFilter, nOpCl,
                                     (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
             {
-                bool bChanged = ImGui::FilteredInputText("ICAO a/c type", sFilter, txtFixAcType, fWidth, nullptr, flags);
-                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp, fWidth, nullptr, flags) || bChanged;
-                bChanged = ImGui::FilteredInputText("Livery / registration", sFilter, txtFixLivery, fWidth, nullptr, flags) || bChanged;
+                bool bChanged = ImGui::FilteredInputText("ICAO a/c type", sFilter, txtFixAcType, fSmallWidth, nullptr, flags);
+                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp, fSmallWidth, nullptr, flags) || bChanged;
+                bChanged = ImGui::FilteredInputText("Livery / registration", sFilter, txtFixLivery, fSmallWidth, nullptr, flags) || bChanged;
                 if (bChanged) {
                     dataRefs.cslFixAcIcaoType = txtFixAcType;
                     dataRefs.cslFixOpIcao = txtFixOp;
@@ -766,7 +834,7 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
-            if (ImGui::FilteredInputText("Filter single a/c", sFilter, txtDebugFilter, fWidth, nullptr, flags))
+            if (ImGui::FilteredInputText("Filter single a/c", sFilter, txtDebugFilter, fSmallWidth, nullptr, flags))
             {
                 mapLTFlightDataTy::iterator fdIter = mapFd.end();
                 if (!txtDebugFilter.empty())
@@ -783,6 +851,18 @@ void LTSettingsUI::buildInterface()
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Debug ---
+        
+        // Version information
+        if constexpr (VERSION_BETA) {
+            if (ImGui::FilteredLabel("BETA Version", sFilter)) {
+                ImGui::Text("%s, limited to %s",
+                            LT_VERSION_FULL, LT_BETA_VER_LIMIT_TXT);
+            }
+        } else {
+            if (ImGui::FilteredLabel("Version", sFilter)) {
+                ImGui::Text("%s", LT_VERSION_FULL);
+            }
+        }
         
         // --- End of the table
         ImGui::EndTable();

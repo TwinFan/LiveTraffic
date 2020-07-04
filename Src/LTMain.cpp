@@ -67,11 +67,19 @@ std::string LTCalcFullPluginPath ( const std::string& path )
 }
 
 // if path starts with the XP system path it is removed
-std::string LTRemoveXPSystemPath (std::string path)
+std::string LTRemoveXPSystemPath (const std::string& path)
 {
-    if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
-        path.erase(0, dataRefs.GetXPSystemPath().length());
-    return path;
+    std::string p(path);
+    LTRemoveXPSystemPath(p);
+    return p;
+}
+
+void LTRemoveXPSystemPath (std::string& path)
+{
+    const size_t sysPLen = dataRefs.GetXPSystemPath().length();
+    if (path.length() > sysPLen &&      // only remove if path is actually longer
+        begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
+        path.erase(0, sysPLen);
 }
 
 // given a path returns number of files in the path
@@ -87,6 +95,55 @@ int LTNumFilesInPath ( const std::string& path )
     { LOG_MSG(logERR,ERR_DIR_CONTENT,path.c_str()); }
     
     return iTotalFiles;
+}
+
+// Is path a directory?
+bool IsDir (const std::string& path)
+{
+    struct stat buffer;
+    if (stat (path.c_str(), &buffer) != 0)  // get stats...error?
+        return false;                       // doesn't exist...no directory either
+    return S_ISDIR(buffer.st_mode);         // check for S_IFDIR mode flag
+}
+
+// List of files in a directory (wrapper around XPLMGetDirectoryContents)
+std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly)
+{
+    std::vector<std::string> l;             // the list to be returned
+    char szNames[4048];                     // buffer for file names
+    char* indices[256];                     // buffer for indices to beginnings of names
+    int start = 0;                          // first file to return
+    int numFiles = 0;                       // number of files returned (per batch)
+    bool bFinished = false;
+    
+    // does path not end with slash? Then we'll need to add one when testing for directories
+    std::string addChar;
+    if (!path.empty() && path.back() != PATH_DELIM)
+        addChar = PATH_DELIM;
+    
+    // Call XPLMGetDirectoryContents as often as needed to read all directory content
+    do {
+        numFiles = 0;
+        bFinished = XPLMGetDirectoryContents(path.c_str(),
+                                             start,
+                                             szNames, sizeof(szNames),
+                                             indices, sizeof(indices)/sizeof(*indices),
+                                             NULL, &numFiles);
+        // process (the batch of) files we received now
+        for (int i = 0; i < numFiles; ++i)
+            if (indices[i][0] != '.' &&     // skip parent_dir and hidden entries
+                // if requested: directories only
+                (!bDirOnly || IsDir(path + addChar + indices[i])))
+                l.push_back(indices[i]);
+        // next batch start (if needed)
+        start += numFiles;
+    } while(!bFinished);
+    
+    // sort the list of files
+    std::sort(l.begin(), l.end());
+    
+    // return the list of files
+    return l;
 }
 
 /// Read a text line, handling both Windows (CRLF) and Unix (LF) ending

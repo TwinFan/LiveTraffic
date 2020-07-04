@@ -369,6 +369,88 @@ IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefs
     return bRet;
 }
 
+// @brief Folder selection popup, returns true when done and confirmed
+IMGUI_API bool SelectPath (const char* popupId, std::string& path)
+{
+    static std::string _p ("<uninit>");
+    static std::vector<std::string> _l;
+
+    bool ret = false;
+    if (BeginPopup(popupId))
+    {
+        // Replace an empty path with X-Plane's root
+        if (path.empty())
+            path = dataRefs.GetXPSystemPath();
+        // If a path starts with system path, strip the system path
+        else
+            LTRemoveXPSystemPath(path);
+        
+        // make sure path doesn't end on slash
+        // (but keep a single slash for "root")
+        if (path.size() > 1 && path.back() == PATH_DELIM)
+            path.pop_back();
+        
+        // make sure we have the proper list of subdirectories
+        if (_p != path) {
+            _p = path;
+            _l = GetDirContents(path,true);
+        }
+        
+        // Can we offer a "dir up" entry?
+#if IBM
+        if (path.size() > 3 && path[1] == ':')
+#else
+        if (path != "/")
+#endif
+        {
+            if (Selectable(ICON_FA_LEVEL_UP_ALT)) {
+                size_t lastSlash = path.find_last_of(PATH_DELIMS);
+                if (lastSlash != std::string::npos)
+                    path.erase(std::max(lastSlash,1UL));// one level up, but keep a single slash for root
+                else
+                    path.clear();                   // nothing left
+                ret = true;                         // something selected
+            }
+        }
+        
+        // Subdirs of that path, as a Listbox
+        for (const std::string& s: _l) {
+            if (Selectable(s.c_str())) {
+                if (path != "/")
+                    path += PATH_DELIM;
+                path += s;                      // one level down
+                ret = true;                     // something selected
+            }
+        }
+        
+        EndPopup();
+    }
+    
+    return ret;
+}
+
+// Right-aligned indicator for OK/Error
+IMGUI_API void Indicator (bool bOK, const char* okText, const char* nokText)
+{
+    // right-aligned
+    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - ImGui::GetWidthIconBtn());
+    // for the active line decide based on temporary check
+    ImGui::TextUnformatted(bOK ? ICON_FA_CHECK_CIRCLE : ICON_FA_EXCLAMATION_TRIANGLE);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", bOK ? okText : nokText);
+}
+
+
+// Go back to previous cell (same row only)
+IMGUI_API bool TablePrevCell()
+{
+    int col = TableGetColumnIndex();
+    if (col < 1)
+        return false;
+    else
+        return TableSetColumnIndex(col-1);
+}
+
 
 }   // namespace ImGui
 
@@ -560,7 +642,12 @@ void LTImgWindow::buildWndButtons ()
     const float btnWidth = ImGui::GetWidthIconBtn();
     const bool bBtnHelp = szHelpURL != nullptr;
     const bool bBtnPopOut = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
+#if APL
+    // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
+    const bool bBtnPopIn  = !dataRefs.UsingModernDriver() && (IsPoppedOut() || IsInVR());
+#else
     const bool bBtnPopIn  = IsPoppedOut() || IsInVR();
+#endif
     const bool bBtnVR     = dataRefs.IsVREnabled() && !IsInVR();
     int numBtn = bBtnHelp + bBtnPopOut + bBtnPopIn + bBtnVR;
     if (numBtn > 0) {
@@ -678,6 +765,7 @@ bool LTImgWindowInit ()
                     ICON_FA_EYE
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
                     ICON_FA_FOLDER_OPEN
+                    ICON_FA_LEVEL_UP_ALT
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_SAVE
                     ICON_FA_SEARCH

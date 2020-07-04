@@ -32,8 +32,7 @@ protected:
     /// Search filter
     char sFilter[50] = {0};
 
-    /// Is ADSBEx key displayed clear text?
-    bool bADSBExKeyClearText = false;
+    
     enum {
         ADSBX_KEY_NO_ACTION = 0,    ///< no key test currently happening
         ADSBX_KEY_TESTING,          ///< key test underway
@@ -41,15 +40,24 @@ protected:
         ADSBX_KEY_SUCCESS,          ///< key test succeeded
     } eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
     std::string sADSBExKeyEntry;    ///< current ADSBEx key entry
-    
+    bool bADSBExKeyClearText = false;   ///< Is ADSBEx key displayed clear text?
+
     // CSL
     int cslActiveLn = -1;           ///< CSL path line currently being edited
     std::string cslEntry;           ///< buffer for current path editing
     bool bCslEntryExists = false;   ///< does the temporarily entered path exist?
+    bool bSubDirsOpen = false;      ///< shall the subdir popup be reopened
     
     // CSL Add Entry
     std::string cslNew;             ///< buffer for new line entry
     bool bCslNewExists = false;     ///< does the newly entered path exist?
+    bool bNewSubDirsOpen = false;   ///< shall the subdir popup be reopened
+    
+    // CSL Type
+    std::string acTypeEntry;        ///< edit buffer for a/c type
+    int acTypeOK = 0;               ///< -1 error, 0 untested, 1 OK
+    std::string gndVehicleEntry;    ///< edit buffer for ground vehicle
+    int gndVehicleOK = 0;           ///< -1 error, 0 untested, 1 OK
 
     // Debug options
     std::string txtDebugFilter;     ///< filter for single aircraft
