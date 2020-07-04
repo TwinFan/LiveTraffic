@@ -97,6 +97,11 @@ int LTNumFilesInPath ( const std::string& path )
     return iTotalFiles;
 }
 
+// Windows is missing a few simple macro definitions
+#if !defined(S_ISDIR)
+#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#endif
+
 // Is path a directory?
 bool IsDir (const std::string& path)
 {

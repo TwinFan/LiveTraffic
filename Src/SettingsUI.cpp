@@ -418,7 +418,7 @@ void LTSettingsUI::buildInterface()
                 int bLabelDyn = dataRefs.IsLabelColorDynamic();
                 ImGui::FilteredRadioButton("Dynamic by Flight Model", sFilter, &bLabelDyn, 1);
                 ImGui::FilteredRadioButton("Fixed color", sFilter, &bLabelDyn, 0);
-                if (bLabelDyn != dataRefs.IsLabelColorDynamic())
+                if (bool(bLabelDyn) != dataRefs.IsLabelColorDynamic())
                     cfgSet(DR_CFG_LABEL_COL_DYN, bLabelDyn);
                 
                 // If fixed then offer color selection

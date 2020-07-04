@@ -382,12 +382,26 @@ IMGUI_API bool SelectPath (const char* popupId, std::string& path)
         if (path.empty())
             path = dataRefs.GetXPSystemPath();
         // If a path starts with system path, strip the system path
-        else
+        else {
+#if IBM
+            // Replace any backslashes with forward slashes as XP seems to do that internally, too
+            for (char& c : path)
+                if (c == '\\') c = '/';
+            // except for the one after the drive letter
+            if (path.length() >= 2 && path[1] == ':') {
+                // Windows drive letter -> upper case
+                path[0] = (char)toupper(path[0]);
+                // that slash afterwards needs to be a backslash
+                if (path.length() >= 3 && path[2] == '/')
+                    path[2] = '\\';
+            }
+#endif
             LTRemoveXPSystemPath(path);
+        }
         
         // make sure path doesn't end on slash
-        // (but keep a single slash for "root")
-        if (path.size() > 1 && path.back() == PATH_DELIM)
+        // (but keep a single slash for "root"...and as the one after a Windows drive letter is kept as backslash it won't be removed either
+        if (path.size() > 1 && path.back() == '/')
             path.pop_back();
         
         // make sure we have the proper list of subdirectories
@@ -406,7 +420,7 @@ IMGUI_API bool SelectPath (const char* popupId, std::string& path)
             if (Selectable(ICON_FA_LEVEL_UP_ALT)) {
                 size_t lastSlash = path.find_last_of(PATH_DELIMS);
                 if (lastSlash != std::string::npos)
-                    path.erase(std::max(lastSlash,1UL));// one level up, but keep a single slash for root
+                    path.erase(std::max(lastSlash, size_t(1)));// one level up, but keep a single slash for root
                 else
                     path.clear();                   // nothing left
                 ret = true;                         // something selected
@@ -417,7 +431,7 @@ IMGUI_API bool SelectPath (const char* popupId, std::string& path)
         for (const std::string& s: _l) {
             if (Selectable(s.c_str())) {
                 if (path != "/")
-                    path += PATH_DELIM;
+                    path += '/';                // always use forward slash, also on Windows
                 path += s;                      // one level down
                 ret = true;                     // something selected
             }

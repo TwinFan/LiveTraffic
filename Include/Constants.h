@@ -229,7 +229,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
-#warning Need final help URLs!
+//#warning Need final help URLs!
 #define HELP_SET_INPUT_CH       "setup/configuration/settings-basics#flight-data-channels"
 #define HELP_SET_CH_OPENSKY     "setup/configuration/settings-basics#flight-data-channels"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
