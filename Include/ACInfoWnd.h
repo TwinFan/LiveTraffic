@@ -21,73 +21,106 @@
 #ifndef ACInfoWnd_h
 #define ACInfoWnd_h
 
-#include "TFWidgets.h"
-
-//
-// Text Edit field searching for a/c
-//
-
-// Seach for a/c with text provided by user
-// Replace by icao transp hex code
-// Provide LTFlighData/LTAircraft object on request
-class TFACSearchEditWidget : public TFTextFieldWidget
-{
-protected:
-    LTFlightData::FDKeyTy acKey;            // key to the a/c to display
-public:
-    TFACSearchEditWidget (XPWidgetID _me = NULL, const char* szKey = NULL);
-
-    // Find my aircraft
-    const LTFlightData* SearchFlightData (std::string ac_key);
-    void SetAcKey (const LTFlightData::FDKeyTy& _key);
-
-    // Get the found aircraft
-    bool HasAcKey () const { return !acKey.empty(); }
-    const std::string GetAcKey () const { return acKey; }
-    unsigned int GetAcKeyNum () const { return (unsigned)strtoul (acKey.c_str(), NULL, 16); }
-    LTFlightData* GetFlightData () const;
-    LTAircraft* GetAircraft () const;
-    
-protected:
-    // capture entry into the key field
-    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
-    virtual bool MsgKeyPress (XPKeyState_t& key);
-};
+/// Standard window title (if yet empty)
+#define ACI_WND_TITLE   "A/C Info"
 
 //
 // A/C Info Main Window
 //
-class ACIWnd : public TFMainWindowWidget
+class ACIWnd : public LTImgWindow
 {
 protected:
-    XPWidgetID* widgetIds = nullptr;    // all widget ids in the dialog
+    // What's currently valid?
+    LTFlightData::FDKeyTy   acKey;  ///< key of a/c to be displayed
+    bool bAuto = false;             ///< currently in AUTO mode?
+    // Last static and dynamic data
+    LTFlightData::FDStaticData stat;
+    LTFlightData::FDDynamicData dyn;
     
-    // edit field for a/c key
-    TFACSearchEditWidget txtAcKey;
-    TFButtonWidget btnAuto;
- //   bool    bAutoAc = false;        // do we pick the a/c to show automatically?
+    // Temporary user input
+    std::string keyEntry;           ///< what user is currently entering
     
-    // data output fields
-    TFWidget valSquawk;
-    TFWidget valPos, valBearing, valDist, valPhase;
-    TFWidget valGear, valFlaps, valLights;
-    TFWidget valHeading, valPitch, valRoll, valAlt, valAGL, valSpeed, valVSI;
+    /// When did we check for an update of the AUTO a/c last? (in XP network time)
+    float lastAutoCheck = 0.0f;
     
-    // check boxes for visibility
-    TFButtonWidget btnCamera, btnVisible, btnAutoVisible;
-    TFWidget capAutoVisible;
-    
-    static bool bAreShown;
-    
+    /// Nearest airport
+    std::string nearestAirport;
+    positionTy  nearestAirportPos;
+    float       lastNearestAirportCheck = 0.0f;
+
 public:
-    ACIWnd(TFWndMode wndMode, const char* szKey = INFO_WND_AUTO_AC);
-    virtual ~ACIWnd();
+    /// Constructor shows a window for the given a/c key
+    /// @param _acKey (optional) specifies a search text to find an a/c, if empty -> AUTO mode
+    /// @param _mode (optional) window mode, defaults to "float or VR"
+    ACIWnd(const std::string& _acKey = "",
+           WndMode _mode = WND_MODE_FLOAT_OR_VR);
+    /// Desctructor cleans up
+    ~ACIWnd() override;
     
-    // constructor finished initialization?
-    bool isEnabled () const { return widgetIds && *widgetIds; }
+    /// Get current a/c key. This is the currently valid key (not any temporary user entry)
+    const LTFlightData::FDKeyTy& GetAcKey () const { return acKey; }
+    /// Set the a/c key - no validation, if invalid window will clear
+    void SetAcKey (const LTFlightData::FDKeyTy& _key);
+    /// Clear the a/c key, ie. display no data
+    void ClearAcKey ();
+    /// Is in AUTO mode?
+    bool IsAuto () const { return bAuto; }
+    /// Set AUTO mode
+    void SetAuto (bool _b);
+    /// Return the text to be used as window title
+    std::string GetWndTitle () const;
+
+protected:
+    /// Taking user's temporary input `keyEntry` searches for a valid a/c, sets acKey on success
+    bool SearchAndSetFlightData ();
+    /// @brief using `acKey` returns the actual a/c data
+    LTFlightData* GetFlightData () const;
+    /// switch to another focus a/c?
+    bool UpdateFocusAc ();
+    /// periodically find the nearest airport and return a nice position string relative to it
+    std::string RelativePositionText (const positionTy& pos);
     
-    // create a new window
-    static ACIWnd* OpenNewWnd (TFWndMode wndMode, const char* szIcao = INFO_WND_AUTO_AC);
+    /// Some setup before UI building starts, here text size calculations
+    ImGuiWindowFlags_ beforeBegin() override;
+    /// Main function to render the window's interface
+    void buildInterface() override;
+    /// Add a label to the list of a/c info
+    void buildRowLabel (const std::string& label);
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   const std::string& val,
+                   bool bShowVal);
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   bool bShowVal,
+                   const char* szFormat, ...) LT_FMTARGS(4);
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   int iVal, bool bShowVal,
+                   const char* szFormat = "%d");
+    /// Add a label and a value to the list of a/c info
+    void buildRow (const std::string& label,
+                   double fVal, bool bShowVal,
+                   const char* szFormat = "%.1f");
+
+    // A set of static functions to create/administer the windows
+protected:
+    /// are the ACI windows displayed or hidden?
+    static bool bAreShown;
+    /// list of all ACI windows currently displayed
+    static std::list<ACIWnd*> listACIWnd;
+    /// Set a bit in the configuration of collasped sections
+    static void CollSecClear (int bit);
+    /// Returns `ImGuiTreeNodeFlags_DefaultOpen` if bit is _not_ set, 0 otherwise,
+    /// then sets the bit
+    static ImGuiTreeNodeFlags_ CollSecGetSet (int bit);
+public:
+    /// @brief Create a new A/C Info window
+    /// @param _acKey (optional) specifies a search text to find an a/c, if empty -> AUTO mode
+    /// @param _mode (optional) window mode, defaults to "float(centered) or VR"
+    /// @return pointer to the newly created window
+    static ACIWnd* OpenNewWnd (const std::string& _acKey = "",
+                               WndMode _mode = WND_MODE_FLOAT_CNT_VR);
     // move all windows into/out of VR
     static void MoveAllVR (bool bIntoVR);
     // hide/show all windows, returns new state
@@ -95,21 +128,6 @@ public:
     static bool AreShown() { return bAreShown; }
     static void CloseAll();
     
-protected:
-    // capture entry into the key field
-    virtual bool MsgTextFieldChanged (XPWidgetID textWidget, std::string text);
-    // handles visibility buttons
-    virtual bool MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked);
-    virtual bool MsgPushButtonPressed (XPWidgetID buttonWidget);
-    // triggered every seond to update values in the window
-    virtual bool TfwMsgMain1sTime ();
-    // close and delete(!) myself
-    virtual bool MessageCloseButtonPushed();
-    // Updated myself
-    bool UpdateFocusAc ();          // switch to another focus a/c?
-    bool ClearStaticValues ();      // clear static fields, returns if there was text that was cleared away
-    void UpdateStatValues ();       // static fields
-    void UpdateDynValues ();        // dynamic fields
 };
 
 #endif /* ACInfoWnd_h */

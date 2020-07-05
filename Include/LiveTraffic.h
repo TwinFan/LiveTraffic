@@ -35,6 +35,7 @@
 
 // MARK: Includes
 // Standard C
+#include <sys/stat.h>
 #include <cstdio>
 #include <cstdarg>
 #include <cmath>
@@ -72,6 +73,7 @@
 #include <thread>
 #include <future>
 #include <algorithm>
+#include <numeric>
 #include <atomic>
 #include <chrono>
 #include <regex>
@@ -85,11 +87,16 @@
 #include "XPLMPlugin.h"
 #include "XPLMProcessing.h"
 #include "XPLMCamera.h"
-#include "XPWidgets.h"
-#include "XPWidgetUtils.h"
-#include "XPStandardWidgets.h"
+#include "XPLMNavigation.h"
 
-// XP Multiplayer API
+// ImGui / ImgWindow
+#include "imgui.h"
+#include "imgui_stdlib.h"
+#include "ImgWindow.h"
+#include "ImgFontAtlas.h"
+#include "IconsFontAwesome5.h"
+
+// XP Multiplayer API (XPMP2)
 #include "XPMPMultiplayer.h"
 
 // LTAPI Includes, this defines the bulk transfer structure
@@ -98,11 +105,15 @@
 // LiveTraffic Includes
 #include "Constants.h"
 #include "DataRefs.h"
+
+// Global DataRef object, which also includes 'global' variables
+extern DataRefs dataRefs;
+
 #include "CoordCalc.h"
 #include "TextIO.h"
 #include "LTAircraft.h"
 #include "LTFlightData.h"
-#include "TFWidgets.h"
+#include "LTImgWindow.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
 #include "XPCompatibility.h"
@@ -115,10 +126,6 @@
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
-
-// MARK: Global variables
-// Global DataRef object, which also includes 'global' variables
-extern DataRefs dataRefs;
 
 //MARK: Global Control functions
 bool LTMainInit ();
@@ -141,15 +148,23 @@ void LTErrorCB (const char* msg);
 // MARK: Path helpers
 
 // deal with paths: make a full one from a relative one or keep a full path
-std::string LTCalcFullPath ( const std::string path );
-std::string LTCalcFullPluginPath ( const std::string path );
+std::string LTCalcFullPath ( const std::string& path );
+std::string LTCalcFullPluginPath ( const std::string& path );
 
-// if path starts with the XP system path it is removed
-std::string LTRemoveXPSystemPath (std::string path );
+/// returns path, with XP system path stripped if path starts with it
+std::string LTRemoveXPSystemPath (const std::string& path);
+/// strips XP system path if path starts with it
+void LTRemoveXPSystemPath (std::string& path);
 
 // given a path (in XPLM notation) returns number of files in the path
 // or 0 in case of errors
-int LTNumFilesInPath ( const std::string path );
+int LTNumFilesInPath ( const std::string& path );
+
+/// Is path a directory?
+bool IsDir (const std::string& path);
+
+/// List of files in a directory (wrapper around XPLMGetDirectoryContents)
+std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly = false);
 
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);
@@ -252,9 +267,6 @@ int GetLTVerNum(void* = NULL);
 
 /// LiveTraffic's build date as pure integer for returning in a dataRef, like 20200430 for 30-APR-2020
 int GetLTVerDate(void* = NULL);
-
-// default window open mode depends on XP10/11 and VR
-TFWndMode GetDefaultWndOpenMode ();
 
 // MARK: Compiler differences
 

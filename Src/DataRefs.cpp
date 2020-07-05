@@ -390,6 +390,16 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 
     {"livetraffic/ver/nr",                          GetLTVerNum,  NULL, NULL, false },
     {"livetraffic/ver/date",                        GetLTVerDate, NULL, NULL, false },
+    
+    // UI information
+    {"livetraffic/ui/opacity",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/settings/width",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/settings/height",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/settings/transparent",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/ui/aci/width",                    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/aci/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/aci/collapsed",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/aci/font_scale",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
@@ -446,8 +456,18 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 void* DataRefs::getVarAddr (dataRefsLT dr)
 {
     switch (dr) {
+        // UI information
+        case DR_UI_OPACITY:                 return &UIopacity;
+        case DR_UI_SETTINGS_WIDTH:          return &SUIwidth;
+        case DR_UI_SETTINGS_HEIGHT:         return &SUIheight;
+        case DR_UI_SETTINGS_TRANSP:         return &SUItransp;
+        case DR_UI_ACI_WIDTH:               return &ACIwidth;
+        case DR_UI_ACI_HEIGHT:              return &ACIheight;
+        case DR_UI_ACI_COLLAPSED:           return &ACIcollapsed;
+        case DR_UI_ACI_FONT_SCALE:          return &ACIfontScale;
+
         // configuration options
-        case DR_CFG_AIRCRAFT_DISPLAYED:    return &bShowingAircraft;
+        case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_LABELS:                 return &labelCfg;
@@ -531,6 +551,36 @@ int timeOffsetUTC()
 
 		return cachedOffset = (int)difftime(rawtime, gmt);
 	}
+}
+
+// MARK: CSLPathCfgTy
+
+DataRefs::CSLPathCfgTy::CSLPathCfgTy (bool b, const std::string& p) :
+bEnabled(b), path(LTRemoveXPSystemPath(p))
+{}
+
+// tests path for existence
+bool DataRefs::CSLPathCfgTy::exists() const
+{
+    if (bPathExists)                    // stored result available?
+        return bPathExists > 0;         // 1 = "exists"
+    // need to test the file system
+    return LTNumFilesInPath(LTCalcFullPath(path)) > 0;
+}
+
+// tests path for existence, saves test result
+bool DataRefs::CSLPathCfgTy::existsSave()
+{
+    bPathExists = exists();
+    return bPathExists > 0;
+}
+
+// assign new path
+const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
+{
+    path = LTRemoveXPSystemPath(_p);        // store (shortened) path
+    existsSave();                           // check for existence
+    return path;
 }
 
 //MARK: Constructor - just plain variable init, no API calls
@@ -676,7 +726,7 @@ bool DataRefs::Init ()
     // then: add an activated entry
     for (std::string stdCSL: { PATH_RESOURCES_CSL, PATH_RESOURCES_SCSL }) {
         // 1. Underlying directory _does_ exist and is not empty
-        std::string path (LTCalcFullPluginPath(stdCSL));
+        const std::string path (LTCalcFullPluginPath(stdCSL));
         if (LTNumFilesInPath(path) > 0) {
             // 2. Entry in vCSLPath does _not_ yet exist
             CSLPathCfgTy cfg (true, LTRemoveXPSystemPath(path));
@@ -698,6 +748,9 @@ void DataRefs::Stop ()
         XPLMUnregisterDataAccessor(dr);
         dr = NULL;
     }
+
+    // save config file
+    SaveConfigFile();    
 }
 
 // call XPLMRegisterDataAccessor
@@ -1118,16 +1171,26 @@ double DataRefs::GetSimTime() const
             / 1000000.0
             // minus the buffering time
             - GetFdBufPeriod()
+#ifdef DEBUG
+            // minus debugging delay
+            - fdBufDebug
+#endif
             // plus the offset compared to network (this corrects for wrong system clock time as compared to reality)
             + GetChTsOffset();
     }
     
 }
 
-// current sim time as human readable string
+// current sim time as human readable string,
+// including 10th of seconds
 std::string DataRefs::GetSimTimeString() const
 {
-    return ts2string(time_t(GetSimTime()));
+    const double simTime = dataRefs.GetSimTime();
+    char s[100];
+    snprintf(s, sizeof(s), "%s.%dZ",
+             ts2string(time_t(simTime)).c_str(),
+             int(std::fmod(simTime, 1.0f)*10.0f) );
+    return std::string(s);
 }
 
 // livetraffic/sim/date and .../time
@@ -1323,11 +1386,11 @@ bool DataRefs::SetCfgValue (void* p, int val)
         maxNumAc        < 5                 || maxNumAc         > 100   ||
 #endif
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
-        fdRefreshIntvl  < 10                || fdRefreshIntvl   > 5*60  ||
-        fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 5*60  ||
-        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 5*60  ||
+        fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
+        fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 180   ||
+        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 180   ||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
-        netwTimeout     < 15                ||
+        netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
@@ -1753,7 +1816,7 @@ bool DataRefs::SaveConfigFile()
         for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
             if (!cslPath.empty())
                 fOut << (cslPath.enabled() ? "1|" : "0|") <<
-                LTRemoveXPSystemPath(cslPath.path) << '\n';
+                cslPath.getPath() << '\n';
     }
     
     // some error checking towards the end
@@ -1773,40 +1836,29 @@ bool DataRefs::SaveConfigFile()
     return true;
 }
 
-// Save a new/changed CSL path
-void DataRefs::SaveCSLPath(int idx, const CSLPathCfgTy path)
+// Load a CSL package interactively from a given path
+bool DataRefs::LoadCSLPackage(const std::string& _path)
 {
-    // make sure the array of paths is large enough
-    while (size_t(idx) >= vCSLPaths.size())
-        vCSLPaths.push_back({});
+    // path could be relative to X-Plane
+    const std::string path = LTCalcFullPath(_path);
     
-    // then store the actual path
-    vCSLPaths[idx] = path;
-}
-
-// Load a CSL package interactively
-bool DataRefs::LoadCSLPackage(int idx)
-{
-    if (size_t(idx) < vCSLPaths.size()) {
-        // enabled, path could be relative to X-Plane
-        const std::string path = LTCalcFullPath(vCSLPaths[idx].path);
+    // doesn't exist? has no files?
+    if (LTNumFilesInPath(path) < 1) {
+        SHOW_MSG(logERR, ERR_CFG_CSL_EMPTY, path.c_str());
+    }
+    else
+    {
+        // try loading the package
+        const char* cszResult = XPMPLoadCSLPackage(path.c_str());
         
-        // doesn't exist? has no files?
-        if (LTNumFilesInPath(path) < 1) {
-            SHOW_MSG(logERR, ERR_CFG_CSL_EMPTY, path.c_str());
-        }
-        else
-        {
-            // try loading the package
-            const char* cszResult = XPMPLoadCSLPackage(path.c_str());
-            
-            // Addition of CSL package failed?
-            if ( cszResult[0] ) {
-                SHOW_MSG(logERR,ERR_XPMP_ADD_CSL, cszResult);
-            } else {
-                SHOW_MSG(logMSG,MSG_CSL_PACKAGE_LOADED, vCSLPaths[idx].path.c_str());
-                return true;
-            }
+        // Addition of CSL package failed?
+        if ( cszResult[0] ) {
+            SHOW_MSG(logERR,ERR_XPMP_ADD_CSL, _path.c_str(), cszResult);
+        } else {
+            SHOW_MSG(logMSG,MSG_CSL_PACKAGE_LOADED, _path.c_str());
+            // successfully loaded...now update all CSL models in use
+            LTFlightData::UpdateAllModels();
+            return true;
         }
     }
     

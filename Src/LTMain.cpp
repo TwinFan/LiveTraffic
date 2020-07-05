@@ -35,7 +35,7 @@ void LogTimestamps ();
 
 // construct path: if passed-in base is a full path just take it
 // otherwise it is relative to XP system path
-std::string LTCalcFullPath ( const std::string path )
+std::string LTCalcFullPath ( const std::string& path )
 {
     // starts already with system path? -> nothing to so
     if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
@@ -53,10 +53,8 @@ std::string LTCalcFullPath ( const std::string path )
 }
 
 // same as above, but relative to plugin directory
-std::string LTCalcFullPluginPath ( const std::string path )
+std::string LTCalcFullPluginPath ( const std::string& path )
 {
-    std::string ret;
-    
     // starts with DirSeparator or [windows] second char is a colon?
     if (dataRefs.GetDirSeparator()[0] == path[0] ||
         (path.length() >= 2 && path[1] == ':' ) )
@@ -64,22 +62,29 @@ std::string LTCalcFullPluginPath ( const std::string path )
         return path;
 
     // otherwise it shall be a local path relative to the plugin's dir
-    // otherwise it is supposingly a local path relative to XP main
-    // prepend with XP system path to make it a full path:
+    // prepend with plugin path to make it a full path:
     return dataRefs.GetLTPluginPath() + path;
 }
 
 // if path starts with the XP system path it is removed
-std::string LTRemoveXPSystemPath (std::string path)
+std::string LTRemoveXPSystemPath (const std::string& path)
 {
-    if (begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
-        path.erase(0, dataRefs.GetXPSystemPath().length());
-    return path;
+    std::string p(path);
+    LTRemoveXPSystemPath(p);
+    return p;
+}
+
+void LTRemoveXPSystemPath (std::string& path)
+{
+    const size_t sysPLen = dataRefs.GetXPSystemPath().length();
+    if (path.length() > sysPLen &&      // only remove if path is actually longer
+        begins_with<std::string>(path, dataRefs.GetXPSystemPath()))
+        path.erase(0, sysPLen);
 }
 
 // given a path returns number of files in the path
 // or 0 in case of errors
-int LTNumFilesInPath ( const std::string path )
+int LTNumFilesInPath ( const std::string& path )
 {
     char aszFileNames[2048] = "";
     int iTotalFiles = 0;
@@ -90,6 +95,60 @@ int LTNumFilesInPath ( const std::string path )
     { LOG_MSG(logERR,ERR_DIR_CONTENT,path.c_str()); }
     
     return iTotalFiles;
+}
+
+// Windows is missing a few simple macro definitions
+#if !defined(S_ISDIR)
+#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#endif
+
+// Is path a directory?
+bool IsDir (const std::string& path)
+{
+    struct stat buffer;
+    if (stat (path.c_str(), &buffer) != 0)  // get stats...error?
+        return false;                       // doesn't exist...no directory either
+    return S_ISDIR(buffer.st_mode);         // check for S_IFDIR mode flag
+}
+
+// List of files in a directory (wrapper around XPLMGetDirectoryContents)
+std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly)
+{
+    std::vector<std::string> l;             // the list to be returned
+    char szNames[4048];                     // buffer for file names
+    char* indices[256];                     // buffer for indices to beginnings of names
+    int start = 0;                          // first file to return
+    int numFiles = 0;                       // number of files returned (per batch)
+    bool bFinished = false;
+    
+    // does path not end with slash? Then we'll need to add one when testing for directories
+    std::string addChar;
+    if (!path.empty() && path.back() != PATH_DELIM)
+        addChar = PATH_DELIM;
+    
+    // Call XPLMGetDirectoryContents as often as needed to read all directory content
+    do {
+        numFiles = 0;
+        bFinished = XPLMGetDirectoryContents(path.c_str(),
+                                             start,
+                                             szNames, sizeof(szNames),
+                                             indices, sizeof(indices)/sizeof(*indices),
+                                             NULL, &numFiles);
+        // process (the batch of) files we received now
+        for (int i = 0; i < numFiles; ++i)
+            if (indices[i][0] != '.' &&     // skip parent_dir and hidden entries
+                // if requested: directories only
+                (!bDirOnly || IsDir(path + addChar + indices[i])))
+                l.push_back(indices[i]);
+        // next batch start (if needed)
+        start += numFiles;
+    } while(!bFinished);
+    
+    // sort the list of files
+    std::sort(l.begin(), l.end());
+    
+    // return the list of files
+    return l;
 }
 
 /// Read a text line, handling both Windows (CRLF) and Unix (LF) ending
@@ -218,16 +277,6 @@ bool dequal ( const double d1, const double d2 )
     ((d1 + epsilon) > d2);
 }
 
-// default window open mode depends on XP10/11 and VR
-TFWndMode GetDefaultWndOpenMode ()
-{
-    return
-    !XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS") ?
-        TF_MODE_CLASSIC :               // XP10
-    dataRefs.IsVREnabled() ?
-        TF_MODE_VR : TF_MODE_FLOAT;     // XP11, VR vs. non-VR
-}
-
 //
 //MARK: Callbacks
 //
@@ -334,31 +383,21 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 std::string NextValidCSLPath (DataRefs::vecCSLPaths::const_iterator& cslIter,
                               DataRefs::vecCSLPaths::const_iterator cEnd)
 {
-    std::string ret;
-    
     // loop over vector of CSL paths
     for ( ;cslIter != cEnd; ++cslIter) {
         // disabled?
         if (!cslIter->enabled()) {
-            LOG_MSG(logMSG, ERR_CFG_CSL_DISABLED, cslIter->path.c_str());
+            LOG_MSG(logMSG, ERR_CFG_CSL_DISABLED, cslIter->getPath().c_str());
             continue;
         }
         
-        // enabled, path could be relative to X-Plane
-        ret = LTCalcFullPath(cslIter->path);
-        
-        // exists, has files?
-        if (LTNumFilesInPath(ret) < 1) {
-            LOG_MSG(logMSG, ERR_CFG_CSL_EMPTY, cslIter->path.c_str());
-            ret.erase();
-            continue;
-        }
-        
-        // looks like a possible path, return it
-        // prepare for next call, move to next item
-        ++cslIter;
-        
-        return ret;
+        // enabled, does path exist?
+        if (cslIter->exists())
+            // return this path, but also inrement iterator for next call
+            return LTCalcFullPath((cslIter++)->getPath());
+
+        // doesn't exist or is empty
+        LOG_MSG(logMSG, ERR_CFG_CSL_EMPTY, cslIter->getPath().c_str());
     }
     
     // didn't find anything
@@ -403,7 +442,7 @@ bool LTMainInit ()
         // Addition of CSL package failed...that's not fatal as we did already
         // register one with the XPMPMultiplayerInitLegacyData call
         if ( cszResult[0] ) {
-            LOG_MSG(logERR,ERR_XPMP_ADD_CSL, cszResult);
+            LOG_MSG(logERR,ERR_XPMP_ADD_CSL, cslPath.c_str(), cszResult);
         }
     }
     
@@ -601,9 +640,6 @@ void LTMainDisable ()
     
     // disable fetching flight data
     LTFlightDataDisable();
-    
-    // save config file
-    dataRefs.SaveConfigFile();
     
     // success
     dataRefs.pluginState = STATE_INIT;

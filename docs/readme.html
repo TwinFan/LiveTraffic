@@ -76,7 +76,6 @@
         <code>LiveTraffic/Resources/FlightModels.prf</code><br>
         <code>LiveTraffic/Resources/MapIcons.png</code><br>
         <code>LiveTraffic/Resources/model_typecode.txt</code><br>
-        <code>LiveTraffic/Resources/NoPlane.acf</code><br>
         <code>LiveTraffic/Resources/related.txt</code><br>
     </P>
 
@@ -86,19 +85,70 @@
 
     <h2>v2.0</h2>
 
-    <h3>v2.05</h3>
+    <h3>v2.06</h3>
 
     <P>Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
 
+    <P>For updating coming from v2.05
+       <ul>
+           <li>copy
+               <ul>
+                   <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                   <li><code>Resources/CSL2XSB.py</code>,</li>
+                   <li><code>Resources/FlightModels.prf</code>,</li>
+                   <li><code>Resources/related.txt</code>.</li>
+               </ul>
+           </li>
+           <li>It is recommended to
+               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+               on your CSL models again if you ever did so before,
+               no matter the settings you had used.</li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>REIMPLEMENTED
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration">Settings window</a>
+            in form of a configuration tree list with numerous help options.
+            Supports search for items and copy&amp;paste.</li>
+        <li>REIMPLEMENTED
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Aircraft Info Window</a>,
+            resizeable, pop out/in buttons, collapsable sections, variable text size and opacity.<br>
+            These reimplementations lay the technology foundation for further UI improvements
+            (and cause the noticeable increase in file size).</li>
+        <li>FIXED numerous bugs in position and heading calculation.
+            Plane movement, especially on the ground, should look much smoother now.<br>
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/">Here is</a>
+            how that exercise started!</li>
+        <li>ADDED TCAS fallback: In X-Plane versions prior to 11.50b8,
+            LiveTraffic/XPMP2 falls back to the previous concept of TCAS provisioning,
+            namely AI/multiplayer planes, so that TCAS is again available
+            also in XP11.41 and before;
+            requiring setup of AI Aircraft, though, in most cases.</li>
+        <li>ADDED TCAS slotting, ie. planes will as much as possible try to
+            stay in one TCAS target (resp. AI/multiplayer) slot to make it
+            easier for 3rd party plugins to follow one single plane.
+            Certainly <a href="https://twinfan.github.io/XPMP2/TCAS.html#slotting">has limits</a>.</li>
+        <li>ADDED: LiveTraffic/XPMP2 understand PilotEdge's format of the
+            <code>xsb_aircraft.txt</code> file, allowing LiveTraffic to read
+            PE's CSL models directly, no conversion required.<br>
+            Note that PE's CSL models might be subject to copyright and/or
+            license restrictions. Check your PE license information.</li>
+    </ul>
+    
+    <h3>v2.05</h3>
+
     <P>For updating coming from v2.04 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</P>
        
     <P>Change log:</P>
 
     <ul>
-        <li>FIXED crash (with no dump or log entry) when aircraft id
+        <li>FIXED crash (Windows only, with no dump or log entry) when aircraft id
             (registration, flight number, call sign) is 8 characters or more
             while TCAS is on.</li>
         <li>FIXED matching of models with no entry in <code>related.txt</code>:

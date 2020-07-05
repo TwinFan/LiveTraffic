@@ -647,6 +647,24 @@ double HeadingNormalize (double h)
     return h;
 }
 
+// Return an abbreviation for a heading, like N, SW
+std::string HeadingText (double h)
+{
+    constexpr double CARDINAL_HALF_SEGMENT = 360.0 / 16.0 / 2.0;
+    h = HeadingNormalize(h);
+    double card = 0.0;
+    for (const char* sCard: { "N", "NNE", "NE", "ENE",
+                              "E", "ESE", "SE", "SSE",
+                              "S", "SSW", "SW", "WSW",
+                              "W", "WNW", "NW", "NNW" })
+    {
+        if (h <= card + CARDINAL_HALF_SEGMENT)
+            return sCard;
+        card += CARDINAL_HALF_SEGMENT * 2.0;
+    }
+    return "N";
+}
+
 
 //
 //MARK: Bounding Box

@@ -14,8 +14,11 @@ endif ()
 include_directories("${CMAKE_SOURCE_DIR}/Include")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/Widgets")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui/misc/cpp")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/ImgWindow")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/Font")
 
 # Enable all necessary X-Plane SDK APIs
 add_definitions(-DXPLM200=1 -DXPLM210=1 -DXPLM300=1 -DXPLM301=1 -DXPLM303=1)
@@ -59,15 +62,27 @@ set(Header_Files
     Include/LTChannel.h
     Include/LTFlightData.h
     Include/LTForeFlight.h
+    Include/LTImgWindow.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/Network.h
     Include/parson.h
     Include/SettingsUI.h
     Include/TextIO.h
-    Include/TFWidgets.h
     Include/XPCompatibility.h
     Lib/LTAPI/LTAPI.h
+    Lib/ImGui/imconfig.h
+    Lib/ImGui/imgui_internal.h
+    Lib/ImGui/imgui.h
+    Lib/ImGui/misc/cpp/imgui_stdlib.h
+    Lib/ImGui/imstb_rectpack.h
+    Lib/ImGui/imstb_textedit.h
+    Lib/ImGui/imstb_truetype.h
+    Lib/ImgWindow/ImgFontAtlas.h
+    Lib/ImgWindow/ImgWindow.h
+    Lib/ImgWindow/SystemGL.h
+    Lib/Font/IconsFontAwesome5.h
+    Lib/Font/fa-solid-900.inc
     Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPCAircraft.h
     Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPMultiplayer.h
     Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPPlaneRenderer.h
@@ -85,6 +100,7 @@ set(Source_Files
     Src/LTChannel.cpp
     Src/LTFlightData.cpp
     Src/LTForeFlight.cpp
+    Src/LTImgWindow.cpp
     Src/LTMain.cpp
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp
@@ -93,14 +109,24 @@ set(Source_Files
     Src/parson.c
     Src/SettingsUI.cpp
     Src/TextIO.cpp
-    Src/TFWidgets.cpp
     Src/XPCompatibility.cpp
+    Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_widgets.cpp
+    Lib/ImGui/imgui.cpp
+    Lib/ImGui/misc/cpp/imgui_stdlib.cpp
+    Lib/ImgWindow/ImgFontAtlas.cpp
+    Lib/ImgWindow/ImgWindow.cpp
 )
 source_group("Source Files" FILES ${Source_Files})
 
 set(ALL_FILES  ${Header_Files} ${Source_Files})
 
 add_library(LiveTraffic MODULE ${ALL_FILES})
+
+# ImGui files do a lot of comparisons on floats
+set_source_files_properties(Lib/ImGui/imgui_draw.cpp PROPERTIES COMPILE_FLAGS -Wno-float-equal)
+set_source_files_properties(Lib/ImGui/imgui_widgets.cpp PROPERTIES COMPILE_FLAGS -Wno-float-equal)
+set_source_files_properties(Lib/ImGui/imgui.cpp PROPERTIES COMPILE_FLAGS -Wno-float-equal)
 
 ################################################################################
 # Link Libraries
@@ -140,24 +166,18 @@ else()
 endif()
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
-
-# ***********************************************
-# This will allows docker to build but get "undefined symbol: curl_easy_perform"
-# When I try to run X-Plane
-# FIND_PACKAGE(CURL)
-# IF(CURL_FOUND)
-#   INCLUDE_DIRECTORIES(${CURL_INCLUDE_DIR})
-#   SET(requiredlibs ${requiredlibs} ${CURL_LIBRARIES} )
-# ELSE(CURL_FOUND)
-#   MESSAGE(FATAL_ERROR "Could not find the CURL library and development files.")
-# ENDIF(CURL_FOUND)
-
+# Link OpenGL and OpenAL related libraries.
+set (OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
+if ( OpenGL_FOUND )
+    include_directories( ${OpenGL_INCLUDE_DIRS} )
+    target_link_libraries( LiveTraffic ${OpenGL_LIBRARIES} )
+endif( OpenGL_FOUND )
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
 if (WIN32 OR APPLE)
     find_library(XPLM_LIBRARY NAMES XPLM XPLM_64.lib)
-	find_library(XPWIDGETS_LIBRARY NAMES XPWidgets XPWidgets_64.lib)
-    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} ${XPWIDGETS_LIBRARY})
+    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} )
 endif ()
 
 
@@ -169,7 +189,7 @@ endif ()
 
 # Link OS X core system libraries.
 if (APPLE)
-    find_library(IOKIT_LIBRARY IOKit)
+    find_library(APPLICATION_SERVICES ApplicationServices)
     find_library(CORE_FOUNDATION_LIBRARY CoreFoundation)
     find_library(SECURITY_LIBRARY Security)
     find_library(GSS_LIBRARY GSS)
@@ -177,7 +197,7 @@ if (APPLE)
     find_library(Cocoa_LIBRARY Cocoa)
 
     target_link_libraries(LiveTraffic
-        ${IOKIT_LIBRARY}
+        ${APPLICATION_SERVICES}
         ${CORE_FOUNDATION_LIBRARY}
         ${SECURITY_LIBRARY}
         ${GSS_LIBRARY}

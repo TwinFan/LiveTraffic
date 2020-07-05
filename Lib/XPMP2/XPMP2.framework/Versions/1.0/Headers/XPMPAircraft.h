@@ -29,7 +29,7 @@
 
 #include <stdexcept>
 #include <string>
-#include <array>
+#include <vector>
 #include <list>
 
 //
@@ -50,6 +50,7 @@ constexpr int M_per_NM      = 1852;     // meter per one nautical mile
 /// The dataRefs provided by XPMP2 to the CSL models
 enum DR_VALS {
     V_CONTROLS_GEAR_RATIO = 0,                  ///< `libxplanemp/controls/gear_ratio` and \n`sim/cockpit2/tcas/targets/position/gear_deploy`
+    V_CONTROLS_NWS_RATIO,                       ///< `libxplanemp/controls/nws_ratio`, the nose wheel angle, actually in degrees
     V_CONTROLS_FLAP_RATIO,                      ///< `libxplanemp/controls/flap_ratio` and \n`sim/cockpit2/tcas/targets/position/flap_ratio` and `...flap_ratio2`
     V_CONTROLS_SPOILER_RATIO,                   ///< `libxplanemp/controls/spoiler_ratio`
     V_CONTROLS_SPEED_BRAKE_RATIO,               ///< `libxplanemp/controls/speed_brake_ratio` and \n`sim/cockpit2/tcas/targets/position/speedbrake_ratio`
@@ -67,6 +68,7 @@ enum DR_VALS {
     V_CONTROLS_STROBE_LITES_ON,                 ///< `libxplanemp/controls/strobe_lites_on` and \n`sim/cockpit2/tcas/targets/position/lights`
     V_CONTROLS_NAV_LITES_ON,                    ///< `libxplanemp/controls/nav_lites_on` and \n`sim/cockpit2/tcas/targets/position/lights`
     
+    V_GEAR_NOSE_GEAR_DEFLECTION_MTR,            ///< `libxplanemp/gear/nose_gear_deflection_mtr`
     V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR,        ///< `libxplanemp/gear/tire_vertical_deflection_mtr`
     V_GEAR_TIRE_ROTATION_ANGLE_DEG,             ///< `libxplanemp/gear/tire_rotation_angle_deg`
     V_GEAR_TIRE_ROTATION_SPEED_RPM,             ///< `libxplanemp/gear/tire_rotation_speed_rpm`
@@ -80,14 +82,66 @@ enum DR_VALS {
     V_ENGINES_PROP_ROTATION_SPEED_RAD_SEC,      ///< `libxplanemp/engines/prop_rotation_speed_rad_sec`
     V_ENGINES_THRUST_REVERSER_DEPLOY_RATIO,     ///< `libxplanemp/engines/thrust_reverser_deploy_ratio`
     
+    V_ENGINES_ENGINE_ROTATION_ANGLE_DEG1,       ///< `libxplanemp/engines/engine_rotation_angle_deg1`
+    V_ENGINES_ENGINE_ROTATION_ANGLE_DEG2,       ///< `libxplanemp/engines/engine_rotation_angle_deg2`
+    V_ENGINES_ENGINE_ROTATION_ANGLE_DEG3,       ///< `libxplanemp/engines/engine_rotation_angle_deg3`
+    V_ENGINES_ENGINE_ROTATION_ANGLE_DEG4,       ///< `libxplanemp/engines/engine_rotation_angle_deg4`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RPM1,       ///< `libxplanemp/engines/engine_rotation_speed_rpm1`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RPM2,       ///< `libxplanemp/engines/engine_rotation_speed_rpm2`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RPM3,       ///< `libxplanemp/engines/engine_rotation_speed_rpm3`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RPM4,       ///< `libxplanemp/engines/engine_rotation_speed_rpm4`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC1,   ///< `libxplanemp/engines/engine_rotation_speed_rad_sec1`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC2,   ///< `libxplanemp/engines/engine_rotation_speed_rad_sec2`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC3,   ///< `libxplanemp/engines/engine_rotation_speed_rad_sec3`
+    V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC4,   ///< `libxplanemp/engines/engine_rotation_speed_rad_sec4`
+
+    
     V_MISC_TOUCH_DOWN,                          ///< `libxplanemp/misc/touch_down`
     
-    V_COUNT                                     ///< always last, number of dataRefs supported
+    V_COUNT                                     ///< always last, number of dataRefs XPMP2 pre-defines
+};
+
+/// @brief Collates some information on the CSL model
+/// @details The XPMP2::CSLModel class definition is private to the XPMP2 library
+///          as it contains many technical implementation details.
+///          This structure contains some of the CSLModel information in a public
+///          definition, returned by XPMP2::Aircraft::GetModelInfo().
+struct CSLModelInfo_t {
+    /// id, just an arbitrary label read from `xsb_aircraft.txt::OBJ8_AIRCRAFT`
+    std::string         cslId;
+    /// name, formed by last part of path plus id
+    std::string         modelName;
+    /// Path to the xsb_aircraft.txt file from where this model is loaded
+    std::string         xsbAircraftPath;
+    /// Line number in the xsb_aircraft.txt file where the model definition starts
+    int                 xsbAircraftLn = 0;
+    /// ICAO aircraft type this model represents: `xsb_aircraft.txt::ICAO`
+    std::string         icaoType;
+    /// Doc8643 information: Classification, like L1P, L4J, H1T
+    std::string         doc8643Classification;
+    /// Doc8643 information: wake turbulence class, like M, L/M, L, H
+    std::string         doc8643WTC;
+
+    /// Any number of airline codes and/or liveries can be assigned to a model for matching purpose
+    struct MatchCrit_t {
+        std::string     icaoAirline;    ///< ICAO airine/operator code
+        std::string     livery;         ///< special livery (not often used)
+    };
+    typedef std::vector<MatchCrit_t> vecMatchCrit_t;
+    // List of match criteria defined for the model, can be empty
+    vecMatchCrit_t      vecMatchCrit;
+
+    /// Default constructor does nothing
+    CSLModelInfo_t() {}
+    /// Constructor copies from XPMP2::CSLModel
+    CSLModelInfo_t(const XPMP2::CSLModel& csl);
 };
 
 /// @brief Actual representation of all aircraft in XPMP2.
 /// @note In modern implementations, this class shall be subclassed by your plugin's code.
 class Aircraft {
+
+public:
     
 protected:
     /// @brief A plane is uniquely identified by a 24bit number [0x01..0xFFFFFF]
@@ -110,9 +164,13 @@ public:
     XPLMDrawInfo_t drawInfo;
     
     /// @brief actual dataRef values to be provided to the CSL model
-    /// @details Combined with the indexes (see `DR_VALS`) this should be the primary location
-    ///          of maintaining current aircraft parameters to avoid copy operations per drawing frame
-    std::array<float,V_COUNT> v;
+    /// @details XPMP2 provides a minimum set of dataRefs and also getter/setter
+    ///          member functions, see below. This is the one place where
+    ///          current dataRef values are stored. This array is passed on
+    ///          _directly_ to the XP instance.\n
+    ///          The size of the vector can increase if adding user-defined
+    ///          dataRefs through XPMPAddModelDataRef().
+    std::vector<float> v;
     
     /// aircraft label shown in the 3D world next to the plane
     std::string label;
@@ -121,6 +179,13 @@ public:
     /// How much of the vertical offset shall be applied? (This allows phasing out the vertical offset in higher altitudes.) [0..1]
     float       vertOfsRatio = 1.0f;
     
+    /// @brief By how much of the gear deflection shall the plane's altitude be reduced?
+    /// @details This is to keep the wheels on the ground when gear deflection is applied.
+    ///          Unfortunately, the exact factor is model-dependend. `0.5` seems an OK compromise.\n
+    ///          If you know better, then overwrite.\n
+    ///          If you don't want XPMP2 to correct for gear deflection, set `0.0`.
+    float       gearDeflectRatio = 0.5f;
+
     /// @brief Shall this plane be clamped to ground (ie. never sink below ground)?
     /// @note This involves Y-Testing, which is a bit expensive, see [SDK](https://developer.x-plane.com/sdk/XPLMScenery).
     ///       If you know your plane is not close to the ground,
@@ -199,7 +264,7 @@ public:
     /// Is this plane currently also being tracked as a TCAS target, ie. will appear on TCAS?
     bool        IsCurrentlyShownAsTcasTarget () const { return tcasTargetIdx >= 1; }
     /// Is this plane currently also being tracked by X-Plane's classic AI/multiplayer?
-    bool        IsCurrentlyShownAsAI () const { return 1 <= tcasTargetIdx && tcasTargetIdx <= 20; }
+    bool        IsCurrentlyShownAsAI () const;
     /// Is this plane to be drawn on TCAS? (It will if transponder is not switched off)
     bool        ShowAsAIPlane () const { return IsVisible() && acRadar.mode != xpmpTransponderMode_Standby; }
     /// Reset TCAS target slot index to `-1`
@@ -228,6 +293,8 @@ public:
     XPMP2::CSLModel* GetModel () const { return pCSLMdl; }
     /// return the name of the CSL model in use
     const std::string& GetModelName () const;
+    /// return an information structure for the CSL model associated with the aircraft
+    CSLModelInfo_t GetModelInfo() const { return pCSLMdl ? CSLModelInfo_t(*pCSLMdl) : CSLModelInfo_t();  }
     /// quality of the match with the CSL model
     int         GetMatchQuality () const { return matchQuality; }
     /// Vertical offset, ie. the value that needs to be added to `drawInfo.y` to make the aircraft appear on the ground
@@ -250,7 +317,8 @@ public:
 
     /// @brief Called right before updating the aircraft's placement in the world
     /// @details Abstract virtual function. Override in derived classes and fill
-    ///          `drawInfo`, the `v` array of dataRefs, `label`, and `infoTexts` with current values.
+    ///          `drawInfo`, the `v` array of dataRefs by calling the `Set`ters,
+    ///          `label`, and `infoTexts` with current values.
     /// @see See [XPLMFlightLoop_f](https://developer.x-plane.com/sdk/XPLMProcessing/#XPLMFlightLoop_f)
     ///      for background on the two passed-on parameters:
     /// @param _elapsedSinceLastCall The wall time since last call
@@ -285,6 +353,8 @@ public:
     // --- Getters and Setters for the values in the `v` array ---
     float GetGearRatio () const          { return v[V_CONTROLS_GEAR_RATIO]; }           ///< Gear deploy ratio
     void  SetGearRatio (float _f)        { v[V_CONTROLS_GEAR_RATIO] = _f;   }           ///< Gear deploy ratio
+    float GetNoseWheelAngle () const     { return v[V_CONTROLS_NWS_RATIO]; }            ///< Nose Wheel angle in degrees
+    void  SetNoseWheelAngle (float _f)   { v[V_CONTROLS_NWS_RATIO] = _f;   }            ///< Nose Wheel angle in degrees
     float GetFlapRatio () const          { return v[V_CONTROLS_FLAP_RATIO]; }           ///< Flaps deploy ratio
     void  SetFlapRatio (float _f)        { v[V_CONTROLS_FLAP_RATIO] = _f;   }           ///< Flaps deploy ratio
     float GetSpoilerRatio () const       { return v[V_CONTROLS_SPOILER_RATIO]; }        ///< Spoilers deploy ratio
@@ -317,8 +387,10 @@ public:
     bool  GetLightsNav () const          { return v[V_CONTROLS_NAV_LITES_ON] > 0.5f; }      ///< Navigation lights
     void  SetLightsNav (bool _b)         { v[V_CONTROLS_NAV_LITES_ON] = float(_b);   }      ///< Navigation lights
 
-    float GetTireDeflection () const     { return v[V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR]; } ///< Vertical tire deflection [meter]
-    void  SetTireDeflection (float _mtr) { v[V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR] = _mtr; } ///< Vertical tire deflection [meter]
+    float GetNoseGearDeflection () const { return v[V_GEAR_NOSE_GEAR_DEFLECTION_MTR]; }     ///< Vertical nose gear deflection [meter]
+    void  SetNoseGearDeflection (float _mtr) { v[V_GEAR_NOSE_GEAR_DEFLECTION_MTR] = _mtr; } ///< Vertical nose gear deflection [meter]
+    float GetTireDeflection () const     { return v[V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR]; } ///< Vertical (main) gear deflection [meter]
+    void  SetTireDeflection (float _mtr) { v[V_GEAR_TIRE_VERTICAL_DEFLECTION_MTR] = _mtr; } ///< Vertical (main) gear deflection [meter]
     float GetTireRotAngle () const       { return v[V_GEAR_TIRE_ROTATION_ANGLE_DEG]; }      ///< Tire rotation angle [degree]
     void  SetTireRotAngle (float _deg)   { v[V_GEAR_TIRE_ROTATION_ANGLE_DEG] = _deg; }      ///< Tire rotation angle [degree]
     float GetTireRotRpm () const         { return v[V_GEAR_TIRE_ROTATION_SPEED_RPM]; }      ///< Tire rotation speed [rpm]
@@ -328,14 +400,22 @@ public:
     void  SetTireRotRad (float _rad)     { v[V_GEAR_TIRE_ROTATION_SPEED_RAD_SEC] = _rad;    ///< Tire rotation speed [rad/s], also sets [rpm]
                                            v[V_GEAR_TIRE_ROTATION_SPEED_RPM] = _rad / RPM_to_RADs; }
     
-    float GetEngineRotAngle () const     { return v[V_ENGINES_ENGINE_ROTATION_ANGLE_DEG]; }      ///< Engine rotation angle [degree]
-    void  SetEngineRotAngle (float _deg) { v[V_ENGINES_ENGINE_ROTATION_ANGLE_DEG] = _deg; }      ///< Engine rotation angle [degree]
-    float GetEngineRotRpm () const       { return v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM]; }      ///< Engine rotation speed [rpm]
-    void  SetEngineRotRpm (float _rpm)   { v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM] = _rpm;        ///< Engine rotation speed [rpm], also sets [rad/s]
-                                           v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC] = _rpm * RPM_to_RADs; }
-    float GetEngineRotRad () const       { return v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC]; }  ///< Engine rotation speed [rad/s]
-    void  SetEngineRotRad (float _rad)   { v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC] = _rad;    ///< Engine rotation speed [rad/s], also sets [rpm]
-                                           v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM] = _rad / RPM_to_RADs; }
+    float GetEngineRotAngle () const     { return v[V_ENGINES_ENGINE_ROTATION_ANGLE_DEG]; }     ///< Engine rotation angle [degree]
+    void  SetEngineRotAngle (float _deg);                                                       ///< Engine rotation angle [degree], also sets engines 1..4
+    float GetEngineRotRpm () const       { return v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM]; }     ///< Engine rotation speed [rpm]
+    void  SetEngineRotRpm (float _rpm);                                                         ///< Engine rotation speed [rpm], also sets [rad/s] and engines 1..4
+    float GetEngineRotRad () const       { return v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC]; } ///< Engine rotation speed [rad/s]
+    void  SetEngineRotRad (float _rad);                                                         ///< Engine rotation speed [rad/s], also sets [rpm] and engines 1..4
+    
+    float GetEngineRotAngle (size_t idx) const              ///< Engine rotation angle [degree] for engine `idx` (1..4)
+    { return 1 <= idx && idx <= 4 ? v[V_ENGINES_ENGINE_ROTATION_ANGLE_DEG1+idx-1] : 0.0f; }
+    void  SetEngineRotAngle (size_t idx, float _deg);       ///< Engine rotation angle [degree] for engine `idx` (1..4)
+    float GetEngineRotRpm (size_t idx) const                ///< Engine rotation speed [rpm] for engine `idx` (1..4)
+    { return 1 <= idx && idx <= 4 ? v[V_ENGINES_ENGINE_ROTATION_SPEED_RPM1+idx-1] : 0.0f; }
+    void  SetEngineRotRpm (size_t idx, float _rpm);         ///< Engine rotation speed [rpm] for engine `idx` (1..4), also sets [rad/s]
+    float GetEngineRotRad (size_t idx) const                ///< Engine rotation speed [rad/s] for engine `idx` (1..4)
+    { return 1 <= idx && idx <= 4 ? v[V_ENGINES_ENGINE_ROTATION_SPEED_RAD_SEC+idx-1] : 0.0f; }
+    void  SetEngineRotRad (size_t idx, float _rad);         ///< Engine rotation speed [rad/s] for engine `idx` (1..4), also sets [rpm]
 
     float GetPropRotAngle () const       { return v[V_ENGINES_PROP_ROTATION_ANGLE_DEG]; }      ///< Propellor rotation angle [degree]
     void  SetPropRotAngle (float _deg)   { v[V_ENGINES_PROP_ROTATION_ANGLE_DEG] = _deg; }      ///< Propellor rotation angle [degree]
@@ -384,8 +464,10 @@ protected:
     // The following functions are implemented in AIMultiplayer.cpp:
     /// Define the TCAS target index in use
     virtual void SetTcasTargetIdx (int _idx) { tcasTargetIdx = _idx; }
-    // These functions are called from AIMultiUpdate()
+    // These functions perform the TCAS target / multiplayer data updates
     friend void AIMultiUpdate ();
+    friend size_t AIUpdateTCASTargets ();
+    friend size_t AIUpdateMultiplayerDataRefs ();
 };
 
 /// Find aircraft by its plane ID, can return nullptr

@@ -1280,8 +1280,8 @@ public:
                 pos.edgeIdx     = prevPos.edgeIdx;
                 pos.f           = prevPos.f;
                 if (dataRefs.GetDebugAcPos(fd.key()))
-                    LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f) based on previously snapped position",
-                            old_lat, old_lon, pos.lat(), pos.lon());
+                    LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu) based on previously snapped position",
+                            old_lat, old_lon, pos.lat(), pos.lon(), pos.edgeIdx);
                 return true;
             }
             
@@ -1290,8 +1290,8 @@ public:
         
         // --- found a match, say hurray ---
         if (dataRefs.GetDebugAcPos(fd.key())) {
-            LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f)",
-                    old_lat, old_lon, pos.lat(), pos.lon());
+            LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
+                    old_lat, old_lon, pos.lat(), pos.lon(), pos.edgeIdx);
         }
             
         // this is now an artificially moved position, don't touch any further
@@ -1364,12 +1364,13 @@ public:
             maxLen *= 3.0;
         
         // let's try finding a shortest path
+        const double headGeneral = prevPos.angle(pos);
         vecIdxTy vecPath = ShortestPath(prevErelN,
                                         currEstartN,
                                         maxLen,
-                                        prevE.angle,
-                                        prevPos.angle(pos),
-                                        pEdge->angle);
+                                        prevE.GetAngleByHead(headGeneral),
+                                        headGeneral,
+                                        pEdge->GetAngleByHead(headGeneral));
 
         // Some path found?
         if (vecPath.size() >= 2)
@@ -1393,6 +1394,8 @@ public:
             
             // path is returned in reverse order, so work on it reversely
             size_t prevIdxN = ULONG_MAX;
+            bool bFirstNode = true;
+            double segmLen = 0.0;           // length of the inserted segment if combined from several shortest path segments
             for (vecIdxTy::const_reverse_iterator iter = vecPath.crbegin();
                  iter != vecPath.crend();
                  ++iter)
@@ -1402,6 +1405,10 @@ public:
                     (bSkipEnd   && std::next(iter) == vecPath.crend()))
                     continue;
                 
+                // Is this (going to be) the last node?
+                const bool bLastNode =  std::next(iter) == vecPath.crend() ||
+                                       (bSkipEnd && std::next(iter,2) == vecPath.crend());
+
                 // create a proper position and insert it into fd's posDeque
                 const TaxiNode& n = vecTaxiNodes[*iter];
                 positionTy insPos (n.lat, n.lon, NAN,   // lat, lon, altitude
@@ -1416,8 +1423,10 @@ public:
                 // Which edge is this pos on? (Or, as it is a node: one of the edges it is connected to)
                 if (prevIdxN == ULONG_MAX)
                     insPos.edgeIdx = prevPos.edgeIdx;
-                else
+                else {
                     insPos.edgeIdx = GetEdgeBetweenNodes(*iter, prevIdxN);
+                    segmLen += vecTaxiEdges[insPos.edgeIdx].dist_m;
+                }
                 prevIdxN = *iter;
                 
                 // insPos is now either on a taxiway or a runway
@@ -1425,9 +1434,17 @@ public:
                 vecTaxiEdges[insPos.edgeIdx].GetType() == TaxiEdge::RUN_WAY ?
                 SPOS_RWY : SPOS_TAXI;
                 
-                // Insert before the position that was passed in
-                posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
-                ++posIter;                                      // posIter points to originally passed in element again
+                // A few short segments might be combined into one
+                if (bFirstNode || bLastNode                     ||  // we always add first and last nodes
+                    insPos.f.specialPos == SPOS_RWY             ||  // we always add RWY nodes
+                    segmLen >= APT_PATH_MIN_SEGM_LEN)               // we add once the segment length is long enough
+                {
+                    // Insert before the position that was passed in
+                    posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
+                    ++posIter;                                      // posIter points to originally passed in element again
+                    segmLen = 0.0;
+                    bFirstNode = false;
+                }
             }
             
             if (dataRefs.GetDebugAcPos(fd.key())) {
@@ -2469,8 +2486,6 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
     // The heading diff of the best match to its runway
     // (initialized to the max allowed value so that worse heading diffs aren't considered)
     double bestHeadingDiff = ART_RWY_MAX_HEAD_DIFF;
-    // distance to best airport?
-    double bestDist = ART_RWY_MAX_DIST;
     // when would we arrive there?
     double bestArrivalTS = NAN;
     
@@ -2505,7 +2520,7 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
             
             // 3. Vertical speed, for which we need to know distance / flying time
             const double dist = CoordDistance(_from.lat(), _from.lon(), re.lat, re.lon);
-            if (dist > bestDist)                // too far out
+            if (dist > ART_RWY_MAX_DIST)        // too far out
                 continue;
             const double d_ts = dist / _speed_m_s;
             const double agl = _from.alt_m() - re.alt_m;
@@ -2528,7 +2543,6 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
             bestApt = &apt;
             bestRwyEndPt = &re;
             bestHeadingDiff = headingDiff;      // the heading diff (which would be a selection criterion on several rwys match)
-            bestDist = dist;
             bestArrivalTS = _from.ts() + d_ts;   // the arrival timestamp
         }
     }

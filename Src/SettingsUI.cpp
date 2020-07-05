@@ -21,917 +21,856 @@
 #include "LiveTraffic.h"
 
 //
-//MARK: LTSettingsUI
+// MARK: LTSettingsUI
 //
 
+// Defined in LTImgWindow.cpp:
+void cfgSet (dataRefsLT idx, int v);
+
+// Global static pointer to the one settings object
+static LTSettingsUI* gpSettings = nullptr;
+
+/// Window's title
+constexpr const char* SUI_WND_TITLE = LIVE_TRAFFIC " Settings";
+/// Resizing limits (minimum and maximum sizes)
+const WndRect SUI_RESIZE_LIMITS = WndRect(300, 300, 99999, 99999);
+
+static float SUI_LABEL_SIZE = NAN;              ///< Width of 1st column, which displays static labels
+static float SUI_VALUE_SIZE = NAN;              ///< Ideal Width of 2nd column for text entry
+
+// Constructor creates and displays the window
 LTSettingsUI::LTSettingsUI () :
-widgetIds(nullptr)
-{}
-
-
-LTSettingsUI::~LTSettingsUI()
+LTImgWindow(WND_MODE_FLOAT_CNT_VR,
+            dataRefs.SUItransp ? WND_STYLE_HUD : WND_STYLE_SOLID,
+            WndRect(0, dataRefs.SUIheight, dataRefs.SUIwidth, 0)),
+// If there is no ADSBEx key yet then display any new entry in clear text,
+// If a key is already defined, then by default obscure it
+sADSBExKeyEntry     (dataRefs.GetADSBExAPIKey()),
+bADSBExKeyClearText (sADSBExKeyEntry.empty()),
+// Fill CSL type entry with current values
+acTypeEntry     (dataRefs.GetDefaultAcIcaoType()),
+gndVehicleEntry (dataRefs.GetDefaultCarIcaoType()),
+// Fill debug entry texts with current values
+txtDebugFilter  (dataRefs.GetDebugAcFilter()),
+txtFixAcType    (dataRefs.cslFixAcIcaoType),
+txtFixOp        (dataRefs.cslFixOpIcao),
+txtFixLivery    (dataRefs.cslFixLivery)
 {
-    // just in case...
-    Disable();
+    // Set up window basics
+    SetWindowTitle(SUI_WND_TITLE);
+    SetWindowResizingLimits(SUI_RESIZE_LIMITS.tl.x, SUI_RESIZE_LIMITS.tl.y,
+                            SUI_RESIZE_LIMITS.br.x, SUI_RESIZE_LIMITS.br.y);
+    SetVisible(true);
+    
+    // Define Help URL to open for generic Help (?) button
+    szHelpURL = HELP_SETTINGS;
 }
 
-//
-//MARK: Window Structure
-// Basics | Debug
-//
-
-// indexes into the below definition array, must be kept in synch with the same
-enum UI_WIDGET_IDX_T {
-    UI_MAIN_WND     = 0,
-    // Buttons to select 'tabs'
-    UI_BTN_BASICS,
-    UI_BTN_AC_LABELS,
-    UI_BTN_ADVANCED,
-    UI_BTN_CSL,
-    UI_BTN_DEBUG,
-    UI_BTN_HELP,
-    // "Basics" tab
-    UI_BASICS_LIVE_SUB_WND,
-    UI_BASICS_BTN_ENABLE,
-    UI_BASICS_BTN_AUTO_START,
-    UI_BASICS_CAP_FDCHANNELS,
-    UI_BASICS_BTN_OPENSKY_LIVE,
-    UI_BASICS_BTN_OPENSKY_MASTERDATA,
-    UI_BASICS_BTN_ADSB_LIVE,
-    UI_BASICS_TXT_ADSB_API_KEY,
-    UI_BASICS_CAP_ADSB_OUTPUT,
-    UI_BASICS_BTN_REALTRAFFIC_LIVE,
-    UI_BASICS_CAP_REALTRAFFIC_STATUS,
-    UI_BASICS_CAP_REALTRAFFIC_METAR,
-
-    UI_BASICS_CAP_VERSION_TXT,
-    UI_BASICS_CAP_VERSION,
-
-    UI_BASICS_RIGHT_SUB_WND,
-    UI_BASICS_CAP_MISC,
-    UI_BASICS_BTN_LND_LIGHTS_TAXI,
-    UI_BASICS_CAP_PARALLEL,
-    UI_BASICS_CAP_HIDE_BELOW_AGL,
-    UI_BASICS_INT_HIDE_BELOW_AGL,
-    UI_BASICS_BTN_HIDE_TAXIING,
-    UI_BASICS_BTN_AI_ON_REQUEST,
-
-    UI_BASICS_CAP_OUTPUT_CHANNELS,
-    UI_BASICS_BTN_FOREFLIGHT_SEND,
-    UI_BASICS_INT_FOREFLIGHT_INTVL,
-    UI_BASICS_CAP_FOREFLIGHT_S,
-    UI_BASICS_BTN_FOREFLIGHT_USERSPLANE,
-    UI_BASICS_BTN_FOREFLIGHT_TRAFFIC,
-
-    UI_BASICS_CAP_DBG_LIMIT,
-    
-    // "A/C Labels" tab
-    UI_LABELS_SUB_WND,
-    UI_LABELS_CAP_STATIC,
-    UI_LABELS_BTN_TYPE,
-    UI_LABELS_BTN_AC_ID,
-    UI_LABELS_BTN_TRANSP,
-    UI_LABELS_BTN_REG,
-    UI_LABELS_BTN_OP,
-    UI_LABELS_BTN_CALL_SIGN,
-    UI_LABELS_BTN_FLIGHT_NO,
-    UI_LABELS_BTN_ROUTE,
-
-    UI_LABELS_CAP_DYNAMIC,
-    UI_LABELS_BTN_PHASE,
-    UI_LABELS_BTN_HEADING,
-    UI_LABELS_BTN_ALT,
-    UI_LABELS_BTN_HEIGHT,
-    UI_LABELS_BTN_SPEED,
-    UI_LABELS_BTN_VSI,
-    
-    UI_LABELS_CAP_COLOR,
-    UI_LABELS_BTN_DYNAMIC,
-    UI_LABELS_BTN_FIXED,
-    UI_LABELS_TXT_COLOR,
-    UI_LABELS_BTN_YELLOW,
-    UI_LABELS_BTN_RED,
-    UI_LABELS_BTN_GREEN,
-    UI_LABELS_BTN_BLUE,
-    
-    UI_LABELS_CAP_WHEN,
-    UI_LABELS_BTN_EXTERNAL,
-    UI_LABELS_BTN_INTERNAL,
-    UI_LABELS_BTN_VR,
-
-    // "Advanced" tab
-    UI_ADVCD_SUB_WND,
-    UI_ADVCD_CAP_LOGLEVEL,
-    UI_ADVCD_BTN_LOG_FATAL,
-    UI_ADVCD_BTN_LOG_ERROR,
-    UI_ADVCD_BTN_LOG_WARNING,
-    UI_ADVCD_BTN_LOG_INFO,
-    UI_ADVCD_BTN_LOG_DEBUG,
-    UI_ADVCD_CAP_MSGAREA_LEVEL,
-    UI_ADVCD_BTN_MSGAREA_FATAL,
-    UI_ADVCD_BTN_MSGAREA_ERROR,
-    UI_ADVCD_BTN_MSGAREA_WARNING,
-    UI_ADVCD_BTN_MSGAREA_INFO,
-    UI_ADVCD_CAP_MAX_NUM_AC,
-    UI_ADVCD_INT_MAX_NUM_AC,
-    UI_ADVCD_CAP_FD_STD_DISTANCE,
-    UI_ADVCD_INT_FD_STD_DISTANCE,
-    UI_ADVCD_CAP_FD_SNAP_TAXI_DIST,
-    UI_ADVCD_INT_FD_SNAP_TAXI_DIST,
-    UI_ADVCD_CAP_FD_REFRESH_INTVL,
-    UI_ADVCD_INT_FD_REFRESH_INTVL,
-    UI_ADVCD_CAP_FD_BUF_PERIOD,
-    UI_ADVCD_INT_FD_BUF_PERIOD,
-    UI_ADVCD_CAP_AC_OUTDATED_INTVL,
-    UI_ADVCD_INT_AC_OUTDATED_INTVL,
-    UI_ADVCD_CAP_NETW_TIMEOUT,
-    UI_ADVCD_INT_NETW_TIMEOUT,
-
-    // "CSL" tab
-    UI_CSL_SUB_WND,
-    UI_CSL_CAP_PATHS,
-    UI_CSL_BTN_ENABLE_1,
-    UI_CSL_TXT_PATH_1,
-    UI_CSL_BTN_LOAD_1,
-    UI_CSL_BTN_ENABLE_2,
-    UI_CSL_TXT_PATH_2,
-    UI_CSL_BTN_LOAD_2,
-    UI_CSL_BTN_ENABLE_3,
-    UI_CSL_TXT_PATH_3,
-    UI_CSL_BTN_LOAD_3,
-    UI_CSL_BTN_ENABLE_4,
-    UI_CSL_TXT_PATH_4,
-    UI_CSL_BTN_LOAD_4,
-    UI_CSL_BTN_ENABLE_5,
-    UI_CSL_TXT_PATH_5,
-    UI_CSL_BTN_LOAD_5,
-    UI_CSL_BTN_ENABLE_6,
-    UI_CSL_TXT_PATH_6,
-    UI_CSL_BTN_LOAD_6,
-    UI_CSL_BTN_ENABLE_7,
-    UI_CSL_TXT_PATH_7,
-    UI_CSL_BTN_LOAD_7,
-    
-    UI_CSL_CAP_DEFAULT_AC_TYPE,
-    UI_CSL_TXT_DEFAULT_AC_TYPE,
-    UI_CSL_CAP_GROUND_VEHICLE_TYPE,
-    UI_CSL_TXT_GROUND_VEHICLE_TYPE,
-    
-    // "Debug" tab
-    UI_DEBUG_SUB_WND,
-    UI_DEBUG_CAP_FILTER,
-    UI_DEBUG_TXT_FILTER,
-    UI_DEBUG_BTN_LOG_LEVEL_DEBUG,
-    UI_DEBUG_BTN_LOG_ACPOS,
-    UI_DEBUG_BTN_LOG_MODELMATCH,
-    UI_DEBUG_BTN_LOG_RAW_FD,
-    UI_DEBUG_CAP_CSL_MODEL_MATCHING,
-    UI_DEBUG_CAP_FIX_AC_ICAO_TYPE,
-    UI_DEBUG_TXT_FIX_AC_ICAO_TYPE,
-    UI_DEBUG_CAP_FIX_OP_ICAO,
-    UI_DEBUG_TXT_FIX_OP_ICAO,
-    UI_DEBUG_CAP_FIX_LIVERY,
-    UI_DEBUG_TXT_FIX_LIVERY,
-
-    // always last: number of UI elements
-    UI_NUMBER_OF_ELEMENTS
-};
-
-// for ease of definition coordinates start at (0|0)
-// window will be centered shortly before presenting it
-TFWidgetCreate_t SETTINGS_UI[] =
+// Destructor completely removes the window
+LTSettingsUI::~LTSettingsUI()
 {
-    {{   0,   0, 400, 330, 0, "LiveTraffic Settings", 1, NO_PARENT, xpWidgetClass_MainWindow}, {{xpProperty_MainWindowHasCloseBoxes, 1}, {xpProperty_MainWindowType,xpMainWindowStyle_Translucent},{0,0}} },
-    // Buttons to select 'tabs'
-    {{  10,  30,  65,  10, 1, "Basics",               0, UI_MAIN_WND, xpWidgetClass_Button}, {{xpProperty_ButtonBehavior,xpButtonBehaviorRadioButton},{0,0},{0,0}} },
-    {{  75,  30,  65,  10, 1, "A/C Labels",           0, UI_MAIN_WND, xpWidgetClass_Button}, {{xpProperty_ButtonBehavior,xpButtonBehaviorRadioButton},{0,0},{0,0}} },
-    {{ 140,  30,  65,  10, 1, "Advanced",             0, UI_MAIN_WND, xpWidgetClass_Button}, {{xpProperty_ButtonBehavior,xpButtonBehaviorRadioButton},{0,0},{0,0}} },
-    {{ 205,  30,  65,  10, 1, "CSL",                  0, UI_MAIN_WND, xpWidgetClass_Button}, {{xpProperty_ButtonBehavior,xpButtonBehaviorRadioButton},{0,0},{0,0}} },
-    {{ 270,  30,  65,  10, 1, "Debug",                0, UI_MAIN_WND, xpWidgetClass_Button}, {{xpProperty_ButtonBehavior,xpButtonBehaviorRadioButton},{0,0},{0,0}} },
-    // Push button for help
-    {{ 360,  30,  30,  10, 1, "?",                    0, UI_MAIN_WND, xpWidgetClass_Button}, {{xpProperty_ButtonBehavior,xpButtonBehaviorPushButton}, {0,0},{0,0}} },
-    // "Basics" tab
-    {{  10,  50, 190, -10, 0, "Basics Live",          0, UI_MAIN_WND, xpWidgetClass_SubWindow}, {{0,0},{0,0},{0,0}} },
-    {{  10,  10,  10,  10, 1, "Show Live Aircraft",   0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType,xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  25,  10,  10, 1, "Auto Start",           0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType,xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{   5,  50,  -5,  10, 1, "Flight Data Channels:",0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10,  70,  10,  10, 1, "OpenSky Network",      0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  85,  10,  10, 1, "OpenSky Network Master Data",  0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10, 105,  10,  10, 1, "ADS-B Exchange, API Key:",    0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10, 120,  -5,  15, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{  10, 138,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
+    // Save settings
+    dataRefs.SaveConfigFile();
+    // I am no longer...
+    gpSettings = nullptr;
+}
 
-    {{  10, 165,  10,  10, 1, "RealTraffic",          0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{   5, 180,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{   5, 195,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
 
-    {{   5, -15,  -5,  10, 1, "Version",              0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  50, -15,  -5,  10, 1, "",                     0, UI_BASICS_LIVE_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-
-    {{ 200,  50, -10, -10, 0, "Basics Right",         0, UI_MAIN_WND, xpWidgetClass_SubWindow}, {{0,0},{0,0},{0,0}} },
-    {{   5,   8,  -5,  10, 1, "Misc options:",        0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10,  25,  10,  10, 1, "Landing lights during taxi", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-
-    {{   5,  50,  -5,  10, 1, "Parallel with other traffic plugins:",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{   5,  68, 140,  10, 1, "No a/c below [ft AGL]",0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ -50,  68, -10,  15, 1, "",                     0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,6},{0,0},{0,0}} },
-    {{  10,  85,  10,  10, 1, "Hide a/c while taxiing", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10, 100,  10,  10, 1, "AI/TCAS on request only", 0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-
-    {{   5, 125,  -5,  10, 1, "Output Channels:",    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10, 140,  10,  10, 1, "ForeFlight | every",  0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ -50, 138, -15,  15, 1, "",                    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,6},{0,0},{0,0}} },
-    {{ -15, 140, -10,  10, 1, "s",                   0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  25, 155,  10,  10, 1, "User's Plane",        0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 120, 155,  10,  10, 1, "Traffic",             0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-
-    {{   5, -15,  -5,  10, 1, "",                    0, UI_BASICS_RIGHT_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    // "A/C Label" tab
-    {{  10,  50, -10, -10, 0, "A/C Label",           0, UI_MAIN_WND, xpWidgetClass_SubWindow}, {{0,0},{0,0},{0,0}} },
-    {{   5,  10, 190,  10, 1, "Static info:",        0, UI_LABELS_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10,  30,  10,  10, 1, "ICAO A/C Type Code",  0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  45,  10,  10, 1, "Any A/C ID",          0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  60,  10,  10, 1, "Transponder Hex Code",0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  75,  10,  10, 1, "Registration",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  90,  10,  10, 1, "ICAO Operator Code",  0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10, 105,  10,  10, 1, "Call Sign",           0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10, 120,  10,  10, 1, "Flight Number (rare)",0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10, 135,  10,  10, 1, "Route",               0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 200,  10, -10,  10, 1, "Dynamic data:",       0, UI_LABELS_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 200,  30,  10,  10, 1, "Flight Phase",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 200,  45,  10,  10, 1, "Heading",             0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 200,  60,  10,  10, 1, "Altitude [ft]",       0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 200,  75,  10,  10, 1, "Height AGL [ft]",     0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 200,  90,  10,  10, 1, "Speed [kn]",          0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 200, 105,  10,  10, 1, "VSI [ft/min]",        0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{   5, 155,  50,  10, 1, "Label Color:",        0, UI_LABELS_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10, 170,  10,  10, 1, "Dynamic by Flight Model",0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{  10, 185,  10,  10, 1, "Fixed:",              0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{  60, 182,  60,  15, 1, "",                    0, UI_LABELS_SUB_WND, xpWidgetClass_TextField}, {{xpProperty_MaxCharacters,6},{0,0},{0,0}} },
-    {{ 120, 185,  50,  10, 1, "Yellow",              0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{ 170, 185,  50,  10, 1, "Red",                 0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{ 220, 185,  50,  10, 1, "Green",               0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{ 270, 185,  50,  10, 1, "Blue",                0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{   5, 205,  50,  10, 1, "In which views to show A/C labels:", 0, UI_LABELS_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10, 225,  10,  10, 1, "External",            0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  80, 225,  10,  10, 1, "Internal",            0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{ 150, 225,  10,  10, 1, "VR",                  0, UI_LABELS_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    // "Advanced" tab
-    {{  10,  50, -10, -10, 0, "Advanced",            0, UI_MAIN_WND, xpWidgetClass_SubWindow}, {{0,0},{0,0},{0,0}} },
-    {{   5,  10,  -5,  10, 1, "Log Level:",          0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  80,  10,  10,  10, 1, "Fatal",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 140,  10,  10,  10, 1, "Error",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 200,  10,  10,  10, 1, "Warning",             0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 270,  10,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 320,  10,  10,  10, 1, "Debug",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{   5,  30,  -5,  10, 1, "Msg Area:",           0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  80,  30,  10,  10, 1, "Fatal",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 140,  30,  10,  10, 1, "Error",               0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 200,  30,  10,  10, 1, "Warning",             0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{ 270,  30,  10,  10, 1, "Info",                0, UI_ADVCD_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorRadioButton},{0,0}} },
-    {{   5,  50, 225,  10, 1, "Max number of aircraft",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230,  50,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5,  70, 225,  10, 1, "Search distance [nm]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230,  70,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5,  90, 225,  10, 1, "Snap to taxiway [m]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230,  90,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5, 110, 225,  10, 1, "Live data refresh [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230, 110,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5, 130, 225,  10, 1, "Buffering period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230, 130,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5, 150, 225,  10, 1, "a/c outdated period [s]",   0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230, 150,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5, 170, 225,  10, 1, "Network timeout [s]", 0, UI_ADVCD_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 230, 170,  50,  15, 1, "",                    0, UI_ADVCD_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    // "CSL" tab
-    {{  10,  50, -10, -10, 0, "CSL",                 0, UI_MAIN_WND, xpWidgetClass_SubWindow}, {{0,0},{0,0},{0,0}} },
-    {{   5,  10,  -5,  10, 1, "Enabled | Paths to CSL packages:", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{  10,  30,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25,  27, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330,  30,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{  10,  50,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25,  47, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330,  50,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{  10,  70,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25,  67, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330,  70,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{  10,  90,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25,  87, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330,  90,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{  10, 110,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25, 107, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330, 110,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{  10, 130,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25, 127, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330, 130,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{  10, 150,  10,  10, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  25, 147, 300,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField}, {{0,0},{0,0},{0,0}} },
-    {{ 330, 150,  50,  10, 1, "Load",                0, UI_CSL_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpPushButton}, {xpProperty_ButtonBehavior,xpButtonBehaviorPushButton},{0,0}} },
-    {{   5, 230, 130,  10, 1, "Default a/c type",    0, UI_CSL_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 135, 227,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,4},{0,0},{0,0}} },
-    {{   5, 250, 130,  10, 1, "Ground vehicle type", 0, UI_CSL_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 135, 247,  50,  15, 1, "",                    0, UI_CSL_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,4},{0,0},{0,0}} },
-    // "Debug" tab
-    {{  10,  50, -10, -10, 0, "Debug",               0, UI_MAIN_WND, xpWidgetClass_SubWindow}, {{0,0},{0,0},{0,0}} },
-    {{   5,  10, 215,  10, 1, "Filter for transponder hex code:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 220,  10,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,8},{0,0},{0,0}} },
-    {{  10,  30,  10,  10, 1, "Log.txt: Set Log Level = \"Debug\"",     0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  45,  10,  10, 1, "Log.txt: Log a/c positions",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  60,  10,  10, 1, "Log.txt: Log model matching (XPMP2)",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{  10,  80,  10,  10, 1, "LTRawFD.log: Log raw network flight data",  0, UI_DEBUG_SUB_WND, xpWidgetClass_Button}, {{xpProperty_ButtonType, xpRadioButton}, {xpProperty_ButtonBehavior, xpButtonBehaviorCheckBox},{0,0}} },
-    {{   5, 105,  -5,  10, 1, "Forced model matching parameters for next aircraft to create:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{   5, 120, 215,  10, 1, "ICAO a/c type:",       0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 220, 120,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,4},{0,0},{0,0}} },
-    {{   5, 140, 215,  10, 1, "ICAO operator/airline:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 220, 140,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,3},{0,0},{0,0}} },
-    {{   5, 160, 215,  10, 1, "livery/registration:", 0, UI_DEBUG_SUB_WND, xpWidgetClass_Caption}, {{0,0},{0,0},{0,0}} },
-    {{ 220, 160,  70,  15, 1, "",                    0, UI_DEBUG_SUB_WND, xpWidgetClass_TextField},{{xpProperty_MaxCharacters,8},{0,0},{0,0}} },
-};
-
-constexpr int NUM_WIDGETS = sizeof(SETTINGS_UI)/sizeof(SETTINGS_UI[0]);
-
-static_assert(UI_NUMBER_OF_ELEMENTS == NUM_WIDGETS,
-              "UI_WIDGET_IDX_T and SETTINGS_UI[] differ in number of elements!");
-
-// creates the main window and all its widgets based on the above
-// definition array
-void LTSettingsUI::Enable()
+// Some setup before UI building starts, here text size calculations
+ImGuiWindowFlags_ LTSettingsUI::beforeBegin()
 {
-    if (!isEnabled()) {
-        // array, which receives ids of all created widgets
-        widgetIds = new XPWidgetID[NUM_WIDGETS];
-        LOG_ASSERT(widgetIds);
-        memset(widgetIds, 0, sizeof(XPWidgetID)*NUM_WIDGETS );
+    // If not yet done calculate some common widths
+    if (std::isnan(SUI_LABEL_SIZE)) {
+        /// Size of longest text plus some room for tree indenttion, rounded up to the next 10
+        ImGui::SetWindowFontScale(1.0f);
+        SUI_LABEL_SIZE = std::ceil(ImGui::CalcTextSize("_____OpenSky Network Master Data_").x / 10.0f) * 10.0f;
+        SUI_VALUE_SIZE =
+        ImGui::GetWidthIconBtn() +
+        std::ceil(ImGui::CalcTextSize("_01234567890abcdefghijklmnopq").x / 10.0f) * 10.0f;
+    }
+    
+    // Save latest screen size to configuration (if not popped out)
+    if (!IsPoppedOut()) {
+        const WndRect r = GetCurrentWindowGeometry();
+        dataRefs.SUIwidth   = r.width();
+        dataRefs.SUIheight  = r.height();
+    }
+    
+    // Set background opacity / color
+    ImGuiStyle& style = ImGui::GetStyle();
+    if ((wndStyle == WND_STYLE_HUD) && !IsPoppedOut())
+        style.Colors[ImGuiCol_WindowBg] = ImColor(0.0f, 0.0f, 0.0f, float(dataRefs.UIopacity)/100.0f);
+    else
+        style.Colors[ImGuiCol_WindowBg] = ImColor(DEF_WND_BG_COL);
+    
+    return ImGuiWindowFlags_None;
+}
 
-        // create all widgets, i.e. the entire window structure, but keep invisible
-        if (!TFUCreateWidgetsEx(SETTINGS_UI, NUM_WIDGETS, NULL, widgetIds,
-                                GetDefaultWndOpenMode()))
+// Main function to render the window's interface
+void LTSettingsUI::buildInterface()
+{
+    // --- Title Bar (only if created HUD-style) ---
+    const bool bSelfDeco = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
+    if (bSelfDeco)
+        buildTitleBar(SUI_WND_TITLE);
+    
+    // "Open all" and "Close all" buttons
+    int nOpCl = 0;          // 3 states: -1 close, 0 do nothing, 1 open
+    if (ImGui::ButtonTooltip(ICON_FA_ANGLE_DOUBLE_DOWN, "Open all sections"))
+        nOpCl = 1;
+    ImGui::SameLine();
+    if (ImGui::ButtonTooltip(ICON_FA_ANGLE_DOUBLE_UP, "Close all sections"))
+        nOpCl = -1;
+    ImGui::SameLine();
+    
+    // Search a setting
+    // If there is a search text then the tree nodes will be suppressed,
+    // and only matching config items are shown
+    ImGui::InputTextWithHint("##SearchText", ICON_FA_SEARCH " Search Settings", sFilter, IM_ARRAYSIZE(sFilter),
+                             ImGuiInputTextFlags_CharsUppercase);
+    if (*sFilter) {
+        ImGui::SameLine();
+        if (ImGui::ButtonTooltip(ICON_FA_TIMES, "Remove filter"))
+            sFilter[0]=0;
+    }
+
+    // Help and some occasional window buttons, if they aren't already in the self-decorated title bar
+    if (!bSelfDeco) {
+        ImGui::SameLine();
+        buildWndButtons();
+    }
+    
+    // --- Start the table, which will hold our values
+    const unsigned COL_TBL_BG = IM_COL32(0x1E,0x2A,0x3A,0xFF);
+    ImGui::PushStyleColor(ImGuiCol_TableBorderLight, COL_TBL_BG);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg,    IM_COL32_BLACK_TRANS);
+    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, IM_COL32_BLACK_TRANS);
+
+    // minimum 2 columns, in wider windows we allow for more columns dynamically
+    const int nCol = std::max (2, int(ImGui::GetWindowContentRegionWidth() / (SUI_LABEL_SIZE+SUI_VALUE_SIZE)) * 2);
+    if (ImGui::BeginTable("Settings", nCol,
+                          ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
+                          ImGuiTableFlags_BordersHInner))
+    {
+        const float fSmallWidth = ImGui::CalcTextSize("ABCDEF__").x;
+
+        // Set up the columns of the table
+        for (int i = 0; i < nCol; i += 2) {
+            ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, SUI_LABEL_SIZE);
+            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
+        }
+        ImGui::TableNextRow();
+        
+        // MARK: --- Basics ---
+        if (ImGui::TreeNodeHelp("Basics", nCol,
+                                HELP_SET_BASICS, "Open Help on Basics in Browser",
+                                sFilter, nOpCl,
+                                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
-            SHOW_MSG(logERR,ERR_WIDGET_CREATE);
-            return;
+            ImGui::FilteredCfgCheckbox("Show Live Aircraft",    sFilter, DR_CFG_AIRCRAFT_DISPLAYED,     "Main switch to enable display of live traffic");
+            ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
+            
+            // auto-open and warning if any of these values are set as they limit what's shown
+            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAutoHidingActive();
+            if (ImGui::TreeNodeLinkHelp("Cooperation", nCol,
+                                        bSomeRestrict ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                        "Some options are active, restricting displayed traffic or TCAS!",
+                                        HELP_SET_BASICS, "Open Help on Basics in Browser",
+                                        sFilter, nOpCl,
+                                        (bSomeRestrict ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgCheckbox("TCAS on request only",   sFilter, DR_CFG_AI_ON_REQUEST,     "Do not take over control of TCAS automatically, but only via menu 'TCAS controlled'");
+                ImGui::FilteredCfgCheckbox("Hide a/c while taxiing", sFilter, DR_CFG_HIDE_TAXIING,      "Hide aircraft in phase 'Taxi'");
+                ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         }
-        setId(widgetIds[0]);        // register in base class for message handling
-        
-        // some widgets with objects
-        subBasicsLive.setId(widgetIds[UI_BASICS_LIVE_SUB_WND]);
-        subBasicsRight.setId(widgetIds[UI_BASICS_RIGHT_SUB_WND]);
-        subAcLabel.setId(widgetIds[UI_LABELS_SUB_WND]);
-        subAdvcd.setId(widgetIds[UI_ADVCD_SUB_WND]);
-        subCSL.setId(widgetIds[UI_CSL_SUB_WND]);
-        subDebug.setId(widgetIds[UI_DEBUG_SUB_WND]);
 
-        // organise the tab button group
-        tabGrp.Add({
-            widgetIds[UI_BTN_BASICS],
-            widgetIds[UI_BTN_AC_LABELS],
-            widgetIds[UI_BTN_ADVANCED],
-            widgetIds[UI_BTN_CSL],
-            widgetIds[UI_BTN_DEBUG]
-        });
-        tabGrp.SetChecked(widgetIds[UI_BTN_BASICS]);
-        HookButtonGroup(tabGrp);
-        
-        // *** Basic ***
-        // the following widgets are linked to dataRefs,
-        // i.e. the dataRefs are changed automatically as soon as the
-        //      widget's status/contents changes. This in turn
-        //      directly controls LiveTraffic (see class DataRefs,
-        //      which receives the callbacks for the changed dataRefs)
-        //      Class LTSettingsUI has no more code for handling these:
-        btnBasicsEnable.setId(widgetIds[UI_BASICS_BTN_ENABLE],
-                              DATA_REFS_LT[DR_CFG_AIRCRAFT_DISPLAYED]);
-        btnBasicsAutoStart.setId(widgetIds[UI_BASICS_BTN_AUTO_START],
-                              DATA_REFS_LT[DR_CFG_AUTO_START]);
-        btnOpenSkyLive.setId(widgetIds[UI_BASICS_BTN_OPENSKY_LIVE],
-                              DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_ONLINE]);
-        btnOpenSkyMasterdata.setId(widgetIds[UI_BASICS_BTN_OPENSKY_MASTERDATA],
-                              DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA]);
-        btnADSBLive.setId(widgetIds[UI_BASICS_BTN_ADSB_LIVE],
-                              DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE]);
-        txtADSBAPIKey.setId(widgetIds[UI_BASICS_TXT_ADSB_API_KEY]);
-        if (dataRefs.GetADSBExAPIKey().empty()) {       // no API key
-            btnADSBLive.Set(0);                         // disable channel
-            btnADSBLive.SetEnabled(false);              // disable check box
-        }
-        else
-            txtADSBAPIKey.SetDescriptor(dataRefs.GetADSBExAPIKey());
-        capADSBOutput.setId(widgetIds[UI_BASICS_CAP_ADSB_OUTPUT]);
-        
-        btnRealTraffic.setId(widgetIds[UI_BASICS_BTN_REALTRAFFIC_LIVE],
-                             DATA_REFS_LT[DR_CHANNEL_REAL_TRAFFIC_ONLINE],
-                             true);     // still inform the settings UI of state changes
-        capRealTrafficStatus.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_STATUS]);
-        capRealTrafficMetar.setId(widgetIds[UI_BASICS_CAP_REALTRAFFIC_METAR]);
-
-        // * right-hand side *
-        // landing lights during taxi?
-        btnLndLightsTaxi.setId(widgetIds[UI_BASICS_BTN_LND_LIGHTS_TAXI],
-                               DATA_REFS_LT[DR_CFG_LND_LIGHTS_TAXI]);
-
-        // enhance parallel operation with other multiplayer clients
-        intHideBelowAGL.setId(widgetIds[UI_BASICS_INT_HIDE_BELOW_AGL],
-                              DATA_REFS_LT[DR_CFG_HIDE_BELOW_AGL]);
-        // hide a/c while taxiing?
-        btnHideTaxiing.setId(widgetIds[UI_BASICS_BTN_HIDE_TAXIING],
-                             DATA_REFS_LT[DR_CFG_HIDE_TAXIING]);
-        // AI/TCAS on request only?
-        btnAIonRequest.setId(widgetIds[UI_BASICS_BTN_AI_ON_REQUEST],
-                             DATA_REFS_LT[DR_CFG_AI_ON_REQUEST]);
-        
-        // ForeFlight
-        btnForeFlight.setId(widgetIds[UI_BASICS_BTN_FOREFLIGHT_SEND],
-                            DATA_REFS_LT[DR_CHANNEL_FORE_FLIGHT_SENDER]);
-        intFFTrfcIntvl.setId(widgetIds[UI_BASICS_INT_FOREFLIGHT_INTVL],
-                             DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC_INTVL]);
-        btnFFUsersPlane.setId(widgetIds[UI_BASICS_BTN_FOREFLIGHT_USERSPLANE],
-                              DATA_REFS_LT[DR_CFG_FF_SEND_USER_PLANE]);
-        btnFFTraffic.setId(widgetIds[UI_BASICS_BTN_FOREFLIGHT_TRAFFIC],
-                           DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC]);
-        
-        // version number
-        XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_VERSION],
-                              LT_VERSION_FULL);
-        if (LT_BETA_VER_LIMIT)
+        // MARK: --- Input Channels ---
+        if (ImGui::TreeNodeHelp("Input Channels", nCol,
+                                HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
+                                sFilter, nOpCl,
+                                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
-            char dbgLimit[100];
-            snprintf(dbgLimit,sizeof(dbgLimit), BETA_LIMITED_VERSION,LT_BETA_VER_LIMIT_TXT);
-            XPSetWidgetDescriptor(widgetIds[UI_BASICS_CAP_DBG_LIMIT],
-                                  dbgLimit);
-        }
-        
-        // *** A/C Labels ***
-        drCfgLabels.setDataRef(DATA_REFS_LT[DR_CFG_LABELS]);
-        drCfgLabelShow.setDataRef(DATA_REFS_LT[DR_CFG_LABEL_SHOWN]);
-        LabelBtnInit();
-        
-        // Color
-        btnGrpLabelColorDyn.Add({
-            widgetIds[UI_LABELS_BTN_DYNAMIC],
-            widgetIds[UI_LABELS_BTN_FIXED]
-        });
-        btnGrpLabelColorDyn.SetChecked(dataRefs.IsLabelColorDynamic() ?
-                                       widgetIds[UI_LABELS_BTN_DYNAMIC] :
-                                       widgetIds[UI_LABELS_BTN_FIXED]
-                                       );
-        HookButtonGroup(btnGrpLabelColorDyn);
-        drLabelColDyn.setDataRef(DATA_REFS_LT[DR_CFG_LABEL_COL_DYN]);
-        intLabelColor.setId(widgetIds[UI_LABELS_TXT_COLOR],
-                            DATA_REFS_LT[DR_CFG_LABEL_COLOR],
-                            TFTextFieldWidget::TFF_HEX);
+            // --- OpenSky ---
+            if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
+                                           DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " OpenSky Explorer",
+                                           "https://opensky-network.org/network/explorer",
+                                           "Check OpenSky's coverage",
+                                           HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
+                                           sFilter, nOpCl))
+            {
+                ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
 
-        // *** Advanced ***
-        logLevelGrp.Add({
-            widgetIds[UI_ADVCD_BTN_LOG_DEBUG],      // index 0 equals logDEBUG, which is also 0
-            widgetIds[UI_ADVCD_BTN_LOG_INFO],       // ...
-            widgetIds[UI_ADVCD_BTN_LOG_WARNING],
-            widgetIds[UI_ADVCD_BTN_LOG_ERROR],
-            widgetIds[UI_ADVCD_BTN_LOG_FATAL],      // index 4 equals logFATAL, which is also 4
-        });
-        logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
-        HookButtonGroup(logLevelGrp);
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // --- ADS-B Exchange ---
+            if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
+                                           // we offer the enable checkbox only when an API key is defined
+                                           dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
+                                           dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ADSBX Radar View",
+                                           "https://tar1090.adsbexchange.com/",
+                                           "Check ADS-B Exchange's coverage",
+                                           HELP_SET_CH_ADSBEX, "Open Help on ADS-B Exchange in Browser",
+                                           sFilter, nOpCl))
+            {
+                // Have no ADSBEx key?
+                if (dataRefs.GetADSBExAPIKey().empty()) {
+                    if (ImGui::FilteredLabel("ADS-B Exchange", sFilter, false)) {
+                        ImGui::TextDisabled("%s", "requires an API key:");
+                        ImGui::TableNextCell();
+                    }
+                }
+                
+                // ADS-B Exchange's API key
+                if (ImGui::FilteredLabel("API Key", sFilter)) {
+                    // "Eye" button changes password flag
+                    ImGui::Selectable(ICON_FA_EYE "##ADSBExKeyVisible", &bADSBExKeyClearText,
+                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Show/Hide key");
+                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    if (ImGui::InputTextWithHint("##ADSBExKey",
+                                                 "Enter or paste API key",
+                                                 &sADSBExKeyEntry,
+                                                 // clear text or password mode?
+                                                 (bADSBExKeyClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
+                                                 // prohibit changes to the key while test is underway
+                                                 (eADSBExKeyTest == ADSBX_KEY_TESTING ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None)))
+                        // when key is changing reset a potential previous result
+                        eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
+                    // key is changed and different -> offer to test it
+                    if (eADSBExKeyTest == ADSBX_KEY_NO_ACTION &&
+                        !sADSBExKeyEntry.empty() &&
+                        sADSBExKeyEntry != dataRefs.GetADSBExAPIKey())
+                    {
+                        if (ImGui::ButtonTooltip(ICON_FA_UNDO " Reset to saved", "Resets the key to the previously saved key"))
+                        {
+                            sADSBExKeyEntry = dataRefs.GetADSBExAPIKey();
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::ButtonTooltip(ICON_FA_CHECK " Test and Save Key", "Sends a request to ADS-B Exchange using your entered key to test its validity.\nKey is saved only after a successful test."))
+                        {
+                            ADSBExchangeConnection::TestADSBExAPIKey(sADSBExKeyEntry);
+                            eADSBExKeyTest = ADSBX_KEY_TESTING;
+                        }
+                    }
+                    // Test of key underway? -> check for result
+                    if (eADSBExKeyTest == ADSBX_KEY_TESTING) {
+                        bool bSuccess = false;
+                        if (ADSBExchangeConnection::TestADSBExAPIKeyResult(bSuccess)) {
+                            eADSBExKeyTest = bSuccess ? ADSBX_KEY_SUCCESS : ADSBX_KEY_FAILED;
+                            if (bSuccess) {
+                                dataRefs.SetADSBExAPIKey(sADSBExKeyEntry);
+                                
+                            }
+                        } else {
+                            ImGui::TextUnformatted(ICON_FA_SPINNER " Key is being tested...");
+                        }
+                    }
+                    // Key tested successfully
+                    if (eADSBExKeyTest == ADSBX_KEY_SUCCESS)
+                        ImGui::TextUnformatted(ICON_FA_CHECK_CIRCLE " Key tested successfully");
+                    else if (eADSBExKeyTest == ADSBX_KEY_FAILED)
+                        ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
+                    
+                    // If available, show information on remaining RAPID API data usage
+                    if (dataRefs.ADSBExRLimit || dataRefs.ADSBExRRemain)
+                    {
+                        ImGui::Text("%ld / %ld RAPID API requests left",
+                                    dataRefs.ADSBExRRemain, dataRefs.ADSBExRLimit);
+                    }
+
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            // --- RealTraffic ---
+            const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
+            if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
+                                           DR_CHANNEL_REAL_TRAFFIC_ONLINE,
+                                           "Enable RealTraffic tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " RealTraffic's web site",
+                                           "https://rtweb.flyrealtraffic.com/",
+                                           "Open RealTraffic's web site, which has a traffic status overview",
+                                           HELP_SET_CH_REALTRAFFIC, "Open Help on RealTraffic in Browser",
+                                           sFilter, nOpCl))
+            {
+                // RealTraffic's connection status details
+                if (dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE) ||
+                    (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()))
+                {
+                    if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                        if (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()) {
+                            // There is a RealTraffic connection object
+                            ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());
+                            if (dataRefs.pRTConn->IsConnected())
+                                ImGui::Text("%ld hPa at %s",
+                                            std::lround(dataRefs.pRTConn->GetHPA()),
+                                            dataRefs.pRTConn->GetMetarIcao().c_str());
+                        }
+                        else
+                            // Channel is activated, but not yet started
+                            ImGui::TextUnformatted("Starting...");
+                        ImGui::TableNextCell();
+                    }
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // If RealTraffic has just been enabled then, as a courtesy,
+            // we also make sure that OpenSky Master data is enabled
+            if (!bWasRTEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE))
+                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Input Channels ---
         
-        msgAreaLevelGrp.Add({
-            widgetIds[UI_ADVCD_BTN_MSGAREA_INFO],       // index 0 is logINFO, which is 1
-            widgetIds[UI_ADVCD_BTN_MSGAREA_WARNING],
-            widgetIds[UI_ADVCD_BTN_MSGAREA_ERROR],
-            widgetIds[UI_ADVCD_BTN_MSGAREA_FATAL],      // index 4 equals logFATAL, which is also 4
-        });
-        msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
-        HookButtonGroup(msgAreaLevelGrp);
+        // MARK: --- Output Channels ---
+        if (ImGui::TreeNodeHelp("Output Channels", nCol,
+                                HELP_SET_OUTPUT_CH, "Open Help on Output Channels in Browser",
+                                sFilter, nOpCl))
+        {
+            // --- ForeFlight ---
+            if (ImGui::TreeNodeCbxLinkHelp("ForeFlight", nCol,
+                                           DR_CHANNEL_FORE_FLIGHT_SENDER,
+                                           "Enable sending data to ForeFlight",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ForeFlight Mobile EFB",
+                                           "https://foreflight.com/products/foreflight-mobile/",
+                                           "Open ForeFlight's web site about the Mobile EFB",
+                                           HELP_SET_CH_FOREFLIGHT, "Open Help on ForeFlight in Browser",
+                                           sFilter, nOpCl))
+            {
+                ImGui::FilteredCfgCheckbox("Send user's position", sFilter, DR_CFG_FF_SEND_USER_PLANE,  "Include your own plane's position in ForeFlight stream");
+                ImGui::FilteredCfgCheckbox("Send traffic", sFilter, DR_CFG_FF_SEND_TRAFFIC,             "Include live traffic in ForeFlight stream");
+                ImGui::FilteredCfgNumber("Send traffic every", sFilter, DR_CFG_FF_SEND_TRAFFIC_INTVL, 1, 30, 1, "%d seconds");
 
-        // link some buttons directly to dataRefs:
-        intMaxNumAc.setId(widgetIds[UI_ADVCD_INT_MAX_NUM_AC],
-                          DATA_REFS_LT[DR_CFG_MAX_NUM_AC]);
-        intFdStdDistance.setId(widgetIds[UI_ADVCD_INT_FD_STD_DISTANCE],
-                          DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE]);
-        intFdSnapTaxiDist.setId(widgetIds[UI_ADVCD_INT_FD_SNAP_TAXI_DIST],
-                          DATA_REFS_LT[DR_CFG_FD_SNAP_TAXI_DIST]);
-        intFdRefreshIntvl.setId(widgetIds[UI_ADVCD_INT_FD_REFRESH_INTVL],
-                          DATA_REFS_LT[DR_CFG_FD_REFRESH_INTVL]);
-        intFdBufPeriod.setId(widgetIds[UI_ADVCD_INT_FD_BUF_PERIOD],
-                          DATA_REFS_LT[DR_CFG_FD_BUF_PERIOD]);
-        intAcOutdatedIntvl.setId(widgetIds[UI_ADVCD_INT_AC_OUTDATED_INTVL],
-                          DATA_REFS_LT[DR_CFG_AC_OUTDATED_INTVL]);
-        intNetwTimeout.setId(widgetIds[UI_ADVCD_INT_NETW_TIMEOUT],
-                          DATA_REFS_LT[DR_CFG_NETW_TIMEOUT]);
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Input Channels ---
+        
+        // MARK: --- Aircraft Labels ---
+        if (ImGui::TreeNodeHelp("Aircraft Labels", nCol,
+                                HELP_SET_ACLABELS, "Open Help on Aircraft Label options in Browser",
+                                sFilter, nOpCl))
+        {
+            // When to show?
+            unsigned c = dataRefs.GetLabelShowCfg().GetUInt();
+            if (ImGui::FilteredLabel("Show in which views", sFilter)) {
+                ImGui::CheckboxFlags("External", &c, (1 << 0)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Internal", &c, (1 << 1)); ImGui::SameLine();
+                ImGui::CheckboxFlags("VR",       &c, (1 << 2)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Map",      &c, (1 << 3));
+            }
+            if (c != dataRefs.GetLabelShowCfg().GetUInt()) {
+                cfgSet(DR_CFG_LABEL_SHOWN, int(c));
+                XPMPEnableMap(true, dataRefs.ShallDrawMapLabels());
+            }
 
-        // *** CSL ***
-        // Initialize all paths (3 elements each: check box, text field, button)
-        const DataRefs::vecCSLPaths& paths = dataRefs.GetCSLPaths();
-        for (size_t i=0; i < SETUI_CSL_PATHS; i++) {
-            const size_t wIdx = UI_CSL_BTN_ENABLE_1 + i*SETUI_CSL_ELEMS_PER_PATH;
-            txtCSLPaths[i].setId(widgetIds[wIdx+1]);            // connect text object to widget
-            if (i < paths.size()) {                             // if there is a configured path for this line
-                XPSetWidgetProperty(widgetIds[wIdx  ],          // check box
-                                    xpProperty_ButtonState,
-                                    paths[i].enabled());
-                txtCSLPaths[i].SetDescriptor(paths[i].path);    // text field
+            // Static / dynamic info
+            c = dataRefs.GetLabelCfg().GetUInt();
+            if (ImGui::TreeNodeHelp("Static Information", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCheckboxFlags("ICAO A/C Type Code",  sFilter, &c, (1 << 0));
+                ImGui::FilteredCheckboxFlags("Any A/C ID",          sFilter, &c, (1 << 1));
+                ImGui::FilteredCheckboxFlags("Transponder Hex Code",sFilter, &c, (1 << 2));
+                ImGui::FilteredCheckboxFlags("Registration",        sFilter, &c, (1 << 3));
+                ImGui::FilteredCheckboxFlags("ICAO Operator Code",  sFilter, &c, (1 << 4));
+                ImGui::FilteredCheckboxFlags("Call Sign",           sFilter, &c, (1 << 5));
+                ImGui::FilteredCheckboxFlags("Flight Number",       sFilter, &c, (1 << 6));
+                ImGui::FilteredCheckboxFlags("Route",               sFilter, &c, (1 << 7));
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNodeHelp("Dynamic Information", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCheckboxFlags("Flight Phase",        sFilter, &c, (1 << 8));
+                ImGui::FilteredCheckboxFlags("Heading",             sFilter, &c, (1 << 9));
+                ImGui::FilteredCheckboxFlags("Altitude [ft]",       sFilter, &c, (1 << 10));
+                ImGui::FilteredCheckboxFlags("Height AGL [ft]",     sFilter, &c, (1 << 11));
+                ImGui::FilteredCheckboxFlags("Speed [kn]",          sFilter, &c, (1 << 12));
+                ImGui::FilteredCheckboxFlags("VSI [ft/min]",        sFilter, &c, (1 << 13));
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // Did the config change?
+            if (c != dataRefs.GetLabelCfg().GetUInt())
+                cfgSet(DR_CFG_LABELS, int(c));
+
+            if (ImGui::TreeNodeHelp("Label Color", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                // Fixed or dynamic label color?
+                int bLabelDyn = dataRefs.IsLabelColorDynamic();
+                ImGui::FilteredRadioButton("Dynamic by Flight Model", sFilter, &bLabelDyn, 1);
+                ImGui::FilteredRadioButton("Fixed color", sFilter, &bLabelDyn, 0);
+                if (bool(bLabelDyn) != dataRefs.IsLabelColorDynamic())
+                    cfgSet(DR_CFG_LABEL_COL_DYN, bLabelDyn);
+                
+                // If fixed then offer color selection
+                if (!bLabelDyn && ImGui::FilteredLabel("Pick any color", sFilter)) {
+                    constexpr const char* SUI_LBL_COL = "Label Color Picker";
+                    float lblCol[4];
+                    dataRefs.GetLabelColor(lblCol);
+                    if (ImGui::ColorButton("Click to pick Label Color",
+                                           ImVec4(lblCol[0], lblCol[1], lblCol[2], lblCol[3]),
+                                           ImGuiColorEditFlags_NoAlpha))
+                        ImGui::OpenPopup(SUI_LBL_COL);
+                    
+                    if (ImGui::BeginPopup(SUI_LBL_COL)) {
+                        if (ImGui::ColorPicker3 (SUI_LBL_COL, lblCol,
+                                                 ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoLabel |
+                                                 ImGuiColorEditFlags_NoSmallPreview | ImGuiColorEditFlags_NoSidePreview))
+                        {
+                            const int col = (int)(
+                            (std::lround(lblCol[0] * 255.0f) << 16) +   // red
+                            (std::lround(lblCol[1] * 255.0f) <<  8) +   // green
+                            (std::lround(lblCol[2] * 255.0f) <<  0));   // blue
+                            cfgSet(DR_CFG_LABEL_COLOR, col);
+                        }
+                        ImGui::EndPopup();
+                    }
+                    
+                    ImGui::SameLine();
+                    ImGui::TextUnformatted("or a default:");
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Yellow",ImVec4(1.0f, 1.0f, 0.0f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_YELLOW);
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Red",   ImVec4(1.0f, 0.0f, 0.0f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_RED);
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Green", ImVec4(0.0f, 1.0f, 0.0f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_GREEN);
+                    ImGui::SameLine();
+                    if (ImGui::ColorButton("Blue",  ImVec4(0.0f, 0.94f, 0.94f, 1.0f)))
+                        cfgSet(DR_CFG_LABEL_COLOR, COLOR_BLUE);
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Aircraft Labels ---
+
+
+        // MARK: --- Advanced ---
+        if (ImGui::TreeNodeHelp("Advanced", nCol,
+                                HELP_SET_ADVANCED, "Open Help on Advanced options in Browser",
+                                sFilter, nOpCl))
+        {
+            if (ImGui::TreeNodeHelp("Logging", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                const float cbWidth = ImGui::CalcTextSize("Warning (default)_____").x;
+                if (ImGui::FilteredLabel("Log.txt logging level", sFilter)) {
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetLogLevel();
+                    if (ImGui::Combo("##LogLevel", &n, "Debug\0Info\0Warning (default)\0Error\0Fatal\0", 5))
+                        dataRefs.SetLogLevel(n);
+                    ImGui::TableNextCell();
+                }
+                if (ImGui::FilteredLabel("Message area", sFilter)) {
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetMsgAreaLevel()-1;   // 0=Debug is not used
+                    if (ImGui::Combo("##MsgLevel", &n, "Info (default)\0Warning\0Error\0Fatal\0", 4))
+                        dataRefs.SetMsgAreaLevel(n+1);
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNodeHelp("Aircraft Selection", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgNumber("Max number of aircraft", sFilter, DR_CFG_MAX_NUM_AC,        5, 100, 5);
+                ImGui::FilteredCfgNumber("Search distance",        sFilter, DR_CFG_FD_STD_DISTANCE,   5, 100, 5, "%d nm");
+                ImGui::FilteredCfgNumber("Snap to taxiway",        sFilter, DR_CFG_FD_SNAP_TAXI_DIST, 0,  50, 1, "%d m");
+                
+                ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
+            
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNodeHelp("User Interface", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
+                    ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
+                                         bool(dataRefs.SUItransp) != (wndStyle == WND_STYLE_HUD) ?
+                                         "Reopen Settings window to take effect##TranspSettings" :
+                                         "##TranspSettings",
+                                         (unsigned*)&dataRefs.SUItransp, 1);
+                    ImGui::TableNextCell();
+                }
+                
+                if (ImGui::FilteredLabel("Opacity", sFilter)) {
+                    ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
+                    ImGui::TableNextCell();
+                }
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            // "Reset to Defaults" button: Pop up a confirmation dialog before actually resetting
+            if (!*sFilter) {
+                ImGui::TableNextCell();
+                constexpr const char* SUI_ADVSET_POPUP = "Advanced Settings";
+                if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults..."))
+                    ImGui::OpenPopup(SUI_ADVSET_POPUP);
+
+                if (ImGui::BeginPopup(SUI_ADVSET_POPUP)) {
+                    ImGui::TextUnformatted("Confirm: Resetting Advanced Settings to defaults");
+                    if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
+                        dataRefs.SetLogLevel(logWARN);
+                        dataRefs.SetMsgAreaLevel(logINFO);
+                        cfgSet(DR_CFG_MAX_NUM_AC,           DEF_MAX_NUM_AC);
+                        cfgSet(DR_CFG_FD_STD_DISTANCE,      DEF_FD_STD_DISTANCE);
+                        cfgSet(DR_CFG_FD_SNAP_TAXI_DIST,    DEF_FD_SNAP_TAXI_DIST);
+                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);
+                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);
+                        cfgSet(DR_CFG_AC_OUTDATED_INTVL,    DEF_AC_OUTDATED_INTVL);
+                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
+                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
+                        cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
+                        dataRefs.UIopacity      = DEF_UI_OPACITY;
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button(ICON_FA_TIMES " Cancel"))
+                        ImGui::CloseCurrentPopup();
+                    
+                    ImGui::EndPopup();
+                } // Popup
+                
+                ImGui::TableNextCell();
+            }
+
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Advanced ---
+        
+        // MARK: --- CSL ---
+        if (ImGui::TreeNodeHelp("CSL", nCol,
+                                HELP_SET_CSL, "Open Help on CSL Model options in Browser",
+                                sFilter, nOpCl))
+        {
+            // Modelling Options
+            if (ImGui::TreeNodeHelp("Modelling Options", nCol, nullptr, nullptr, sFilter, nOpCl,
+                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgCheckbox("Landing lights during taxi", sFilter, DR_CFG_LND_LIGHTS_TAXI,   "Some models do not feature taxi lights,\nthis makes them visible in the dark");
+
+                if (ImGui::FilteredLabel("Default a/c type", sFilter)) {
+                    // Indicator if saved OK
+                    if (acTypeOK) {
+                        ImGui::TablePrevCell();
+                        ImGui::Indicator(acTypeOK > 0,
+                                         "New default successfully saved",
+                                         "Type doesn't exist, not saved");
+                        ImGui::TableNextCell();
+                    }
+                    ImGui::SetNextItemWidth(fSmallWidth);
+                    if (ImGui::InputText("##DefaultAcType", &acTypeEntry,
+                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                        acTypeOK = dataRefs.SetDefaultAcIcaoType(acTypeEntry) ? 1 : -1;
+                    }
+                    if (ImGui::IsItemEdited()) acTypeOK = 0;
+                    ImGui::TableNextCell();
+                }
+
+                if (ImGui::FilteredLabel("Ground vehicle type", sFilter)) {
+                    // Indicator if saved OK
+                    if (gndVehicleOK) {
+                        ImGui::TablePrevCell();
+                        ImGui::Indicator(gndVehicleOK > 0,
+                                         "New vehicle type successfully saved",
+                                         "Wrong text length, not saved");
+                        ImGui::TableNextCell();
+                    }
+                    ImGui::SetNextItemWidth(fSmallWidth);
+                    if (ImGui::InputText("##CarType", &gndVehicleEntry,
+                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                        gndVehicleOK = dataRefs.SetDefaultCarIcaoType(gndVehicleEntry) ? 1 : -1;
+                    }
+                    if (ImGui::IsItemEdited()) gndVehicleOK = 0;
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            } // Modelling Options
+
+            // Existing CSL paths (aren't included in filter search)
+            if (!*sFilter &&
+                ImGui::TreeNodeHelp("CSL Package Paths", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                constexpr const char* SUI_OPEN_FOLDER = "OpenFolder";
+                int iDelete = -1;               // delete a path?
+                DataRefs::vecCSLPaths& vec = dataRefs.GetCSLPaths();
+                for (int i = 0; (size_t)i < vec.size(); ++i)
+                {
+                    DataRefs::CSLPathCfgTy& pathCfg = vec[i];
+                    ImGui::PushID(pathCfg.getPath().c_str());
+                    
+                    // Enable Checkbox / Load Button
+                    ImGui::Checkbox("Auto Load", &pathCfg.bEnabled);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Load CSL package during startup?");
+                    
+                    // Indicator if path exists, right-aligned
+                    ImGui::SameLine();
+                    ImGui::Indicator(cslActiveLn == i ? bCslEntryExists : pathCfg.exists(),
+                                     "Path exists and contains files",
+                                     "Path does not exist or is empty");
+                    
+                    // Path entry
+                    ImGui::TableNextCell();
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
+                    if (cslActiveLn == i) {
+                        if (ImGui::InputText("##PathEntry", &cslEntry, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            pathCfg = cslEntry;             // store path and stop editing
+                            cslActiveLn = -1; cslEntry.clear();
+                        }
+                        // did the entry line just get changed? then test for valid path
+                        if (ImGui::IsItemEdited())
+                            bCslEntryExists = LTNumFilesInPath(LTCalcFullPath(cslEntry)) > 0;
+                    } else
+                        ImGui::InputText("##PathEntry", (std::string*)&pathCfg.getPath());
+                    
+                    // Now editing _this_ line?
+                    if (cslActiveLn != i && ImGui::IsItemActive()) {
+                        cslActiveLn = i;
+                        cslEntry = pathCfg.getPath();
+                        bCslEntryExists = pathCfg.existsSave();
+                    }
+                    
+                    // Open Folder button
+                    ImGui::SameLine();
+                    if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                        // or this is the active line and we shall re-open the popup
+                        (cslActiveLn == i && bSubDirsOpen)) {
+                        if (cslActiveLn != i) {     // if not yet active:
+                            cslActiveLn = i;        // make this the active line
+                            cslEntry = pathCfg.getPath();
+                            bCslEntryExists = pathCfg.existsSave();
+                        }
+                        ImGui::OpenPopup(SUI_OPEN_FOLDER);
+                        bSubDirsOpen = false;
+                    }
+                    if (ImGui::SelectPath(SUI_OPEN_FOLDER, cslEntry)) {
+                        bSubDirsOpen = true;        // reopen next frame!
+                        bCslEntryExists = LTNumFilesInPath(LTCalcFullPath(cslEntry)) > 0;
+                    }
+
+                    ImGui::SameLine();
+                    if (cslActiveLn == i && cslEntry != pathCfg.getPath()) {
+                        // This line being edited and changed: offer Save button
+                        if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Save the changed path")) {
+                            pathCfg = cslEntry;
+                            cslActiveLn = -1; cslEntry.clear();
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::ButtonTooltip(ICON_FA_UNDO, "Undo path change")) {
+                            // actually, we stop editing without saving
+                            cslActiveLn = -1; cslEntry.clear();
+                        }
+                    } else {
+                        // Not being edited: offer Load button
+                        if (ImGui::ButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
+                            dataRefs.LoadCSLPackage(pathCfg.getPath());
+                        ImGui::SameLine();
+                        // Delete button, requires confirmation
+                        constexpr const char* SUI_CSL_DEL_POPUP = "Delete CSL Path";
+                        if (ImGui::ButtonTooltip(ICON_FA_TRASH_ALT, "Remove this path from the configuration"))
+                            ImGui::OpenPopup(SUI_CSL_DEL_POPUP);
+                        if (ImGui::BeginPopup(SUI_CSL_DEL_POPUP)) {
+                            ImGui::Text("Confirm deletion of path\n%s", pathCfg.getPath().c_str());
+                            if (ImGui::Button(ICON_FA_TRASH_ALT " Delete"))
+                                iDelete = i;        // can't delete here as we loop the array, delete later
+                            ImGui::SameLine();
+                            if (ImGui::Button(ICON_FA_UNDO " Keep"))
+                                ImGui::CloseCurrentPopup();
+                            ImGui::EndPopup();
+                        }
+                    }
+                    
+                    ImGui::TableNextCell();
+                    ImGui::PopID();
+                } // for all CSL paths
+                
+                // One additional line for the possibility to add a new path
+                
+                bool bDoAdd = false;
+                ImGui::TextUnformatted("Add new path:");
+                if (!cslNew.empty()) {
+                    // Indicator if path exists, right-aligned
+                    ImGui::SameLine();
+                    ImGui::Indicator(bCslNewExists,
+                                     "Path exists and contains files",
+                                     "Path does not exist or is empty");
+                }
+                
+                // Text Input
+                ImGui::TableNextCell();
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
+                if (ImGui::InputText("##NewCSLPath", &cslNew, ImGuiInputTextFlags_EnterReturnsTrue) &&
+                    bCslNewExists)        // store new path only if it exists
+                    bDoAdd = true;
+                // did the entry line just get changed? then test for valid path
+                if (ImGui::IsItemEdited())
+                    bCslNewExists = LTNumFilesInPath(LTCalcFullPath(cslNew)) > 0;
+                ImGui::SameLine();
+                
+                // Folder selection button
+                if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                    bNewSubDirsOpen) {
+                    ImGui::OpenPopup(SUI_OPEN_FOLDER);
+                    bNewSubDirsOpen = false;
+                }
+                if (ImGui::SelectPath(SUI_OPEN_FOLDER, cslNew)) {
+                    bNewSubDirsOpen = true;             // open next frame again
+                    bCslNewExists = LTNumFilesInPath(LTCalcFullPath(cslNew)) > 0;
+                }
+                
+                // Save button
+                if (bCslNewExists && !cslNew.empty()) {
+                    ImGui::SameLine();
+                    if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
+                        bDoAdd = true;
+                }
+                
+                // Shall we delete any of the paths?
+                if (0 <= iDelete && iDelete < (int)vec.size())
+                    vec.erase(std::next(vec.begin(), iDelete));
+                
+                // Shall we add a new path?
+                if (bDoAdd) {
+                    // avoid duplicates
+                    if (std::find(vec.cbegin(), vec.cend(), cslNew) == vec.cend()) {
+                        vec.emplace_back(true, cslNew);
+                        dataRefs.LoadCSLPackage(vec.back().getPath());
+                    }
+                    cslNew.clear();
+                    bCslNewExists = false;
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            } // List of paths
+
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Advanced ---
+
+        // MARK: --- Debug ---
+        const bool bLimitations =
+        !dataRefs.GetDebugAcFilter().empty() ||
+        !dataRefs.cslFixAcIcaoType.empty() ||
+        !dataRefs.cslFixOpIcao.empty() ||
+        !dataRefs.cslFixLivery.empty();
+
+        if (ImGui::TreeNodeLinkHelp("Debug", nCol,
+                                    bLimitations ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    "Forced Model Matching or filter options are active, restricting chosen aircraft or CSL models!",
+                                    HELP_SET_DEBUG, "Open Help on Debug options in Browser",
+                                    sFilter, nOpCl,
+                                    (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+        {
+            if (ImGui::TreeNodeHelp("Logging", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                unsigned int bLogDebug = dataRefs.GetLogLevel() == logDEBUG;
+                if (ImGui::FilteredCheckboxFlags("Set Log Level = Debug", sFilter, &bLogDebug, 1,
+                                                 "Sets the logging level for Log.txt to 'Debug',\nsame as above in 'Advanced/Logging'"))
+                    dataRefs.SetLogLevel(bLogDebug ? logDEBUG : logWARN);
+                ImGui::FilteredCfgCheckbox("Log Model Matching", sFilter, DR_DBG_MODEL_MATCHING,
+                                           "Logs how available tracking data was matched with the chosen CSL model (into Log.txt)");
+                ImGui::FilteredCfgCheckbox("Log a/c positions", sFilter, DR_DBG_AC_POS,
+                                           "Logs detailed position information of currently selected aircraft (into Log.txt)");
+                ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
+                                           "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue;
+            if (ImGui::TreeNodeHelp("Forced Model Matching", nCol, nullptr, nullptr,
+                                    sFilter, nOpCl,
+                                    (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                bool bChanged = ImGui::FilteredInputText("ICAO a/c type", sFilter, txtFixAcType, fSmallWidth, nullptr, flags);
+                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp, fSmallWidth, nullptr, flags) || bChanged;
+                bChanged = ImGui::FilteredInputText("Livery / registration", sFilter, txtFixLivery, fSmallWidth, nullptr, flags) || bChanged;
+                if (bChanged) {
+                    dataRefs.cslFixAcIcaoType = txtFixAcType;
+                    dataRefs.cslFixOpIcao = txtFixOp;
+                    dataRefs.cslFixLivery = txtFixLivery;
+                    if (dataRefs.cslFixAcIcaoType.empty()   &&
+                        dataRefs.cslFixOpIcao.empty()       &&
+                        dataRefs.cslFixLivery.empty())
+                        SHOW_MSG(logWARN, MSG_MDL_NOT_FORCED)
+                    else
+                        SHOW_MSG(logWARN, MSG_MDL_FORCED,
+                                 dataRefs.cslFixAcIcaoType.c_str(),
+                                 dataRefs.cslFixOpIcao.c_str(),
+                                 dataRefs.cslFixLivery.c_str());
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            if (ImGui::FilteredInputText("Filter single a/c", sFilter, txtDebugFilter, fSmallWidth, nullptr, flags))
+            {
+                mapLTFlightDataTy::iterator fdIter = mapFd.end();
+                if (!txtDebugFilter.empty())
+                    fdIter = mapFdSearchAc(txtDebugFilter);
+                // found?
+                if (fdIter != mapFd.cend()) {
+                    txtDebugFilter = fdIter->second.key();
+                    DataRefs::LTSetDebugAcFilter(NULL,int(fdIter->second.key().num));
+                }
+                else
+                    DataRefs::LTSetDebugAcFilter(NULL,0);
+            }
+
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Debug ---
+        
+        // Version information
+        if constexpr (VERSION_BETA) {
+            if (ImGui::FilteredLabel("BETA Version", sFilter)) {
+                ImGui::Text("%s, limited to %s",
+                            LT_VERSION_FULL, LT_BETA_VER_LIMIT_TXT);
+            }
+        } else {
+            if (ImGui::FilteredLabel("Version", sFilter)) {
+                ImGui::Text("%s", LT_VERSION_FULL);
             }
         }
         
-        txtDefaultAcType.setId(widgetIds[UI_CSL_TXT_DEFAULT_AC_TYPE]);
-        txtDefaultAcType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
-        txtDefaultAcType.SetDescriptor(dataRefs.GetDefaultAcIcaoType());
-        
-        txtGroundVehicleType.setId(widgetIds[UI_CSL_TXT_GROUND_VEHICLE_TYPE]);
-        txtGroundVehicleType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
-        txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
-        
-        // *** Debug ***
-
-        // filter for transponder hex code
-        txtDebugFilter.setId(widgetIds[UI_DEBUG_TXT_FILTER]);
-        txtDebugFilter.SearchFlightData(dataRefs.GetDebugAcFilter());
-        
-        // debug options
-        btnDebugLogLevelDebug.setId(widgetIds[UI_DEBUG_BTN_LOG_LEVEL_DEBUG]);
-        btnDebugLogACPos.setId(widgetIds[UI_DEBUG_BTN_LOG_ACPOS],
-                               DATA_REFS_LT[DR_DBG_AC_POS]);
-        btnDebugLogModelMatch.setId(widgetIds[UI_DEBUG_BTN_LOG_MODELMATCH],
-                                    DATA_REFS_LT[DR_DBG_MODEL_MATCHING]);
-        btnDebugLogRawFd.setId(widgetIds[UI_DEBUG_BTN_LOG_RAW_FD],
-                               DATA_REFS_LT[DR_DBG_LOG_RAW_FD]);
-        
-        // forced values for CSL model matching tests
-        txtFixAcType.setId(widgetIds[UI_DEBUG_TXT_FIX_AC_ICAO_TYPE]);
-        txtFixAcType.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
-        txtFixAcType.SetDescriptor(dataRefs.cslFixAcIcaoType);
-        
-        txtFixOp.setId(widgetIds[UI_DEBUG_TXT_FIX_OP_ICAO]);
-        txtFixOp.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
-        txtFixOp.SetDescriptor(dataRefs.cslFixOpIcao);
-        
-        txtFixLivery.setId(widgetIds[UI_DEBUG_TXT_FIX_LIVERY]);
-        txtFixLivery.tfFormat = TFTextFieldWidget::TFF_UPPER_CASE;
-        txtFixOp.SetDescriptor(dataRefs.cslFixLivery);
-        
-        // update all values that would be updated anyway
-        TfwMsgMain1sTime();
-
-        // center the UI
-        Center();
+        // --- End of the table
+        ImGui::EndTable();
     }
+    ImGui::PopStyleColor(3);
 }
 
-void LTSettingsUI::Disable()
-{
-    if (isEnabled()) {
-        // remove widgets and free memory
-        XPDestroyWidget(*widgetIds, 1);
-        delete widgetIds;
-        widgetIds = nullptr;
-    }
-}
-
-// make sure I'm created before first use
-void LTSettingsUI::Show (bool bShow)
-{
-    if (bShow)              // create before use
-        Enable();
-    TFWidget::Show(bShow);  // show/hide
-    
-    // make sure we are in the right window mode
-    if (GetWndMode() != GetDefaultWndOpenMode()) {      // only possible in XP11
-        if (GetDefaultWndOpenMode() == TF_MODE_VR)
-            SetWindowPositioningMode(xplm_WindowVR, -1);
-        else
-            SetWindowPositioningMode(xplm_WindowPositionFree, -1);	
-    }
-}
-
-// capture entry into 'filter for transponder hex code' field
-// and into CSL paths
-bool LTSettingsUI::MsgTextFieldChanged (XPWidgetID textWidget, std::string text)
-{
-    // *** Basic ***
-    if (txtADSBAPIKey == textWidget) {
-        // did the key really change?
-        const std::string newKey(txtADSBAPIKey.GetDescriptor());
-        if (newKey.empty()) {
-            dataRefs.SetADSBExAPIKey(newKey);
-            btnADSBLive.Set(0);                         // disable channel
-            btnADSBLive.SetEnabled(false);              // disable check box
-        }
-        else if (newKey != dataRefs.GetADSBExAPIKey())
-        {
-            // key changed, test it
-            ADSBExchangeConnection::TestADSBExAPIKey(newKey);
-            btnADSBLive.SetEnabled(true);               // enable check box
-        }
-    }
-    
-    // *** Advanced ***
-    if (txtDebugFilter == textWidget) {
-        // set the filter a/c if defined
-        if (txtDebugFilter.HasAcKey())
-            DataRefs::LTSetDebugAcFilter(NULL,txtDebugFilter.GetAcKeyNum());
-        else
-            DataRefs::LTSetDebugAcFilter(NULL,0);
-        return true;
-    }
-    
-    // *** CSL ***
-    // if any of the paths changed we store that path
-    for (int i = 0; i < SETUI_CSL_PATHS; i++)
-        if (widgetIds[UI_CSL_TXT_PATH_1 + i*SETUI_CSL_ELEMS_PER_PATH] == textWidget) {
-            SaveCSLPath(i);
-            return true;
-        }
-    
-    // if the types change we store them (and if setting fails after validation,
-    // then  we restore the current value)
-    if (txtDefaultAcType == textWidget) {
-        if (!dataRefs.SetDefaultAcIcaoType(text))
-            txtDefaultAcType.SetDescriptor(dataRefs.GetDefaultAcIcaoType());
-        return true;
-    }
-    if (txtGroundVehicleType == textWidget) {
-        if (!dataRefs.SetDefaultCarIcaoType(text))
-            txtGroundVehicleType.SetDescriptor(dataRefs.GetDefaultCarIcaoType());
-        return true;
-    }
-
-    // *** Debug ***
-    // save forced model matching parameters
-    if (txtFixAcType == textWidget  ||
-        txtFixOp     == textWidget  ||
-        txtFixLivery == textWidget)
-    {
-        dataRefs.cslFixAcIcaoType   = txtFixAcType.GetDescriptor();
-        dataRefs.cslFixOpIcao       = txtFixOp.GetDescriptor();
-        dataRefs.cslFixLivery       = txtFixLivery.GetDescriptor();
-        
-        if (dataRefs.cslFixAcIcaoType.empty()   &&
-            dataRefs.cslFixOpIcao.empty()       &&
-            dataRefs.cslFixLivery.empty())
-            SHOW_MSG(logWARN, MSG_MDL_NOT_FORCED)
-        else
-            SHOW_MSG(logWARN, MSG_MDL_FORCED,
-                     dataRefs.cslFixAcIcaoType.c_str(),
-                     dataRefs.cslFixOpIcao.c_str(),
-                     dataRefs.cslFixLivery.c_str());
-        return true;
-    }
-
-    
-    // not ours
-    return TFMainWindowWidget::MsgTextFieldChanged(textWidget, text);
-}
-
-
-// writes current values out into config file
-bool LTSettingsUI::MsgHidden (XPWidgetID hiddenWidget)
-{
-    if (hiddenWidget == *this) {        // only if it was me who got hidden
-        // then only save the config file
-        dataRefs.SaveConfigFile();
-    }
-    // pass on in class hierarchy
-    return TFMainWindowWidget::MsgHidden(hiddenWidget);
-}
-
-// update state of some buttons from dataRef every second
-bool LTSettingsUI::TfwMsgMain1sTime ()
-{
-    TFMainWindowWidget::TfwMsgMain1sTime();
-    
-    // *** Basics ***
-    
-    // ADSBEx: Feedback
-    if (dataRefs.ADSBExRLimit || dataRefs.ADSBExRRemain) {
-        char buf[100];
-        snprintf(buf, sizeof(buf), MSG_ADSBEX_LIMITE,
-                 dataRefs.ADSBExRRemain, dataRefs.ADSBExRLimit);
-        capADSBOutput.SetDescriptor(buf);
-    } else
-        capADSBOutput.SetDescriptor("");
-    
-    // real traffic stuff
-    UpdateRealTraffic();
-
-    // *** A/C Labels ***
-    // read current 'when-to-show' config and set accordingly
-    DataRefs::LabelShowCfgTy show = dataRefs.GetLabelShowCfg();
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,show.bExternal);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,show.bInternal);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,show.bVR);
-
-    // *** Advanced ***
-    logLevelGrp.SetCheckedIndex(dataRefs.GetLogLevel());
-    msgAreaLevelGrp.SetCheckedIndex(dataRefs.GetMsgAreaLevel() - 1);
-    
-    // *** Debug ***
-    // "Log-Level = Debug" is checked if, well, log level is set to Debug
-    btnDebugLogLevelDebug.SetChecked(dataRefs.GetLogLevel() == logDEBUG);
-    
-    return true;
-}
-
-// handles show/hide of 'tabs', values of logging level
-bool LTSettingsUI::MsgButtonStateChanged (XPWidgetID buttonWidget, bool bNowChecked)
-{
-    // first pass up the class hierarchy to make sure the button groups are handled correctly
-    bool bRet = TFMainWindowWidget::MsgButtonStateChanged(buttonWidget, bNowChecked);
-    
-    // *** Tab Groups ***
-    // if the button is one of our tab buttons show/hide the appropriate subwindow
-    if (widgetIds[UI_BTN_BASICS] == buttonWidget) {
-        subBasicsLive.Show(bNowChecked);
-        subBasicsRight.Show(bNowChecked);
-        return true;
-    }
-    else if (widgetIds[UI_BTN_AC_LABELS] == buttonWidget) {
-        subAcLabel.Show(bNowChecked);
-        return true;
-    }
-    else if (widgetIds[UI_BTN_ADVANCED] == buttonWidget) {
-        subAdvcd.Show(bNowChecked);
-        return true;
-    }
-    else if (widgetIds[UI_BTN_CSL] == buttonWidget) {
-        subCSL.Show(bNowChecked);
-        return true;
-    }
-    else if (widgetIds[UI_BTN_DEBUG] == buttonWidget) {
-        subDebug.Show(bNowChecked);
-        return true;
-    }
-    
-    // *** Basics ***
-    // If RealTraffic is now activated then we also activate OpenSky Master as a courtesy,
-    // but we never deactivate OpenSky Master this way.
-    if (btnRealTraffic == buttonWidget && bNowChecked)
-        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-
-    // *** A/C Labels ***
-    // if any of the a/c label check boxes changes we set the config accordingly
-    if (widgetIds[UI_LABELS_BTN_TYPE]       == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_AC_ID]      == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_TRANSP]     == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_REG]        == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_OP]         == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_CALL_SIGN]  == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_FLIGHT_NO]  == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_ROUTE]      == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_PHASE]      == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_HEADING]    == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_ALT]        == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_HEIGHT]     == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_SPEED]      == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_VSI]        == buttonWidget ||
-        // when-to-show selection
-        widgetIds[UI_LABELS_BTN_EXTERNAL]   == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_INTERNAL]   == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_VR]         == buttonWidget)
-    {
-        LabelBtnSave();
-        return true;
-    }
-    
-    // dynamic / fixed label colors?
-    if (widgetIds[UI_LABELS_BTN_DYNAMIC]    == buttonWidget ||
-        widgetIds[UI_LABELS_BTN_FIXED]      == buttonWidget)
-    {
-        drLabelColDyn.Set(buttonWidget == widgetIds[UI_LABELS_BTN_DYNAMIC]);
-        return true;
-    }
-    
-    // *** Advanced ***
-    // if any of the log-level radio buttons changes we set log-level accordingly
-    if (bNowChecked && logLevelGrp.isInGroup(buttonWidget))
-    {
-        dataRefs.SetLogLevel(logLevelGrp.GetCheckedIndex());
-        return true;
-    }
-    if (bNowChecked && msgAreaLevelGrp.isInGroup(buttonWidget))
-    {
-        dataRefs.SetMsgAreaLevel(msgAreaLevelGrp.GetCheckedIndex() + 1);
-        return true;
-    }
-
-    // *** CSL ***
-    // if any of the enable-check boxes changed we store that setting
-    for (int i = 0; i < SETUI_CSL_PATHS; i++)
-        if (widgetIds[UI_CSL_BTN_ENABLE_1 + i*SETUI_CSL_ELEMS_PER_PATH] == buttonWidget) {
-            SaveCSLPath(i);
-            return true;
-        }
-    
-    // *** Advanced ***
-    // if "Level-Level = DEBUG" is activate we set Log level to Debug,
-    // if it is deactviated we set back to Warning
-    if ( btnDebugLogLevelDebug == buttonWidget) {
-        dataRefs.SetLogLevel(bNowChecked ? logDEBUG : logWARN);
-        return true;
-    }
-    
-    return bRet;
-}
-
-// push buttons
-bool LTSettingsUI::MsgPushButtonPressed (XPWidgetID buttonWidget)
-{
-    // *** Help ***
-    if (widgetIds[UI_BTN_HELP] == buttonWidget)
-    {
-        // open help for the currently selected tab of the settings dialog
-        const char* helpSettingsPaths[5] = HELP_SETTINGS_PATHS;
-        LTOpenHelp(helpSettingsPaths[tabGrp.GetCheckedIndex()]);
-        return true;
-    }
-    
-    // *** A/C Labels ***
-    // color presets?
-    if (widgetIds[UI_LABELS_BTN_YELLOW] == buttonWidget) { intLabelColor.Set(COLOR_YELLOW); return true; }
-    if (widgetIds[UI_LABELS_BTN_RED]    == buttonWidget) { intLabelColor.Set(COLOR_RED);    return true; }
-    if (widgetIds[UI_LABELS_BTN_GREEN]  == buttonWidget) { intLabelColor.Set(COLOR_GREEN);  return true; }
-    if (widgetIds[UI_LABELS_BTN_BLUE]   == buttonWidget) { intLabelColor.Set(COLOR_BLUE);   return true; }
-    
-    // *** CSL ***
-    // any of the "Load" buttons pushed?
-    for (int i=0; i < SETUI_CSL_PATHS; i++) {
-        if (widgetIds[UI_CSL_BTN_LOAD_1 + i*SETUI_CSL_ELEMS_PER_PATH] == buttonWidget) {
-            SaveCSLPath(i);
-            if (dataRefs.LoadCSLPackage(i))
-                // successfully loaded...not update all CSL models in use
-                LTFlightData::UpdateAllModels();
-            return true;
-        }
-    }
-    
-    // we don't know that button...
-    return TFMainWindowWidget::MsgPushButtonPressed(buttonWidget);
-}
-
-// Handle checkboxes for a/c labels
-void LTSettingsUI::LabelBtnInit()
-{
-    // read current label configuration and init the checkboxes accordingly
-    DataRefs::LabelCfgTy cfg = dataRefs.GetLabelCfg();
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,cfg.bIcaoType);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_AC_ID],xpProperty_ButtonState,cfg.bAnyAcId);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,cfg.bTranspCode);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,cfg.bReg);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,cfg.bIcaoOp);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,cfg.bCallSign);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,cfg.bFlightNo);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,cfg.bRoute);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,cfg.bPhase);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,cfg.bHeading);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,cfg.bAlt);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,cfg.bHeightAGL);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,cfg.bSpeed);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,cfg.bVSI);
-    
-    // read current 'when-to-show' config and init accordingly
-    DataRefs::LabelShowCfgTy show = dataRefs.GetLabelShowCfg();
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,show.bExternal);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,show.bInternal);
-    XPSetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,show.bVR);
-}
-
-void LTSettingsUI::LabelBtnSave()
-{
-    // store the checkboxes states in a zero-inited configuration
-    DataRefs::LabelCfgTy cfg = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    cfg.bIcaoType     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TYPE],xpProperty_ButtonState,NULL);
-    cfg.bAnyAcId      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_AC_ID],xpProperty_ButtonState,NULL);
-    cfg.bTranspCode   = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_TRANSP],xpProperty_ButtonState,NULL);
-    cfg.bReg          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_REG],xpProperty_ButtonState,NULL);
-    cfg.bIcaoOp       = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_OP],xpProperty_ButtonState,NULL);
-    cfg.bCallSign     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_CALL_SIGN],xpProperty_ButtonState,NULL);
-    cfg.bFlightNo     = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_FLIGHT_NO],xpProperty_ButtonState,NULL);
-    cfg.bRoute        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ROUTE],xpProperty_ButtonState,NULL);
-    cfg.bPhase        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_PHASE],xpProperty_ButtonState,NULL);
-    cfg.bHeading      = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEADING],xpProperty_ButtonState,NULL);
-    cfg.bAlt          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_ALT],xpProperty_ButtonState,NULL);
-    cfg.bHeightAGL    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_HEIGHT],xpProperty_ButtonState,NULL);
-    cfg.bSpeed        = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_SPEED],xpProperty_ButtonState,NULL);
-    cfg.bVSI          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VSI],xpProperty_ButtonState,NULL);
-    // save as current config
-    drCfgLabels.Set(cfg.GetInt());
-    
-    // store the when-to-show information in a similar way
-    DataRefs::LabelShowCfgTy show = { 0, 0, 0 };
-    show.bExternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_EXTERNAL],xpProperty_ButtonState,NULL);
-    show.bInternal    = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_INTERNAL],xpProperty_ButtonState,NULL);
-    show.bVR          = (unsigned)XPGetWidgetProperty(widgetIds[UI_LABELS_BTN_VR],xpProperty_ButtonState,NULL);
-    drCfgLabelShow.Set(show.GetInt());
-}
-
-void LTSettingsUI::UpdateRealTraffic()
-{
-    if (dataRefs.pRTConn) {
-        capRealTrafficStatus.SetDescriptor(dataRefs.pRTConn->GetStatusWithTimeStr());
-        capRealTrafficMetar.SetDescriptor(dataRefs.pRTConn->IsConnected() ?
-                                          std::to_string(std::lround(dataRefs.pRTConn->GetHPA())) +
-                                          " hPa @ " + dataRefs.pRTConn->GetMetarIcao() : "");
-    } else {
-        capRealTrafficStatus.SetDescriptor("");
-        capRealTrafficMetar.SetDescriptor("");
-    }
-}
-
+/*
 void LTSettingsUI::SaveCSLPath(int idx)
 {
     // what to save
@@ -943,4 +882,44 @@ void LTSettingsUI::SaveCSLPath(int idx)
     
     // save
     dataRefs.SaveCSLPath(idx, newPath);
+}
+
+*/
+
+//
+// MARK: Static Functions
+//
+
+// Creates/opens/displays/hides/closes the settings window
+bool LTSettingsUI::ToggleDisplay (int _force)
+{
+    // If we toggle then do what current is not the state
+    if (!_force)
+        _force = LTSettingsUI::IsDisplayed() ? -1 : 1;
+    
+    // Open the window?
+    if (_force > 0)
+    {
+        // Create the object and window if needed
+        if (!gpSettings)
+            gpSettings = new LTSettingsUI();
+        // Ensure it is visible and centered
+        gpSettings->SetMode(WND_MODE_FLOAT_CNT_VR);
+        gpSettings->SetVisible(true);
+        gpSettings->BringWindowToFront();
+        return true;                    // visible now
+    }
+    // Close the window
+    else
+    {
+        if (gpSettings)                 // just remove the object
+            delete gpSettings;          // (constructor clears gpSettings)
+        return false;                   // not visible
+    }
+}
+
+// Is the settings window currently displayed?
+bool LTSettingsUI::IsDisplayed ()
+{
+    return gpSettings && gpSettings->GetVisible();
 }

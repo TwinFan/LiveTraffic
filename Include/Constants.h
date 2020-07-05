@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.05f;
+constexpr float VERSION_NR = 2.06f;
 constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -71,15 +71,15 @@ constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between positions less than this then favor heading from flight data over vector between positions
-constexpr double FD_GND_AGL =       50;         // [ft] consider pos 'ON GRND' if this close to YProbe
+constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
-constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5� glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
-constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5� glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
-constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5�), slope ratio for keeping a plane above the approach to a runway
-constexpr double BEZIER_MIN_HEAD_DIFF = 2.0;    ///< [�] turns of less than this will not be modeled with Bezier curves
+constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
+constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), slope ratio for keeping a plane above the approach to a runway
+constexpr double BEZIER_MIN_HEAD_DIFF = 5.0;    ///< [°] turns of less than this will not be modeled with Bezier curves
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -91,7 +91,7 @@ constexpr double MDL_TO_LOOK_AHEAD  =    60.0;  // [s] to look ahead for take of
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
 constexpr float  MDL_EXT_FAST_MOVE =      5.0f; //               ...a 'fast' command
-constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [�] step turn with one command
+constexpr float  MDL_EXT_STEP_DEG =       1.0f; // [°] step turn with one command
 constexpr float  MDL_EXT_FAST_DEG =       5.0f;
 constexpr float  MDL_EXT_STEP_FACTOR =    1.025f; // step factor with one zoom command
 constexpr float  MDL_EXT_FAST_FACTOR =    1.1f;
@@ -110,26 +110,27 @@ constexpr int COLOR_GREEN       = 0x00FF00;
 constexpr int COLOR_BLUE        = 0x00F0F0;     // light blue
 
 //MARK: Airports, Runways, Taxiways
-constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [�] tolerance of searched heading to edge's angle to be considered a fit
-constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [�] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE=30.0; ///< [°] tolerance of searched heading to edge's angle to be considered a fit
+constexpr double ART_EDGE_ANGLE_TOLERANCE_EXT=80.0; ///< [°] extended (second prio) tolerance of searched heading to edge's angle to be considered a fit
 constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle tolerance wins, if such a node is this much closer than an first priority angle match
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
-constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [�] maximum heading difference between flight and runway
+constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [°] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
 constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
 constexpr double ART_TAXI_SPEED_F  = 0.8;       ///< [-] ratio of MAX_TAXI_SPEED to use as taxi speed
-constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [�] Maximum turn angle (compared to original edge's angle) for combining edges
+constexpr double APT_MAX_TAXI_SEGM_TURN = 15.0; ///< [°] Maximum turn angle (compared to original edge's angle) for combining edges
 constexpr double APT_MAX_SIMILAR_NODE_DIST_M = 2.0; ///< [m] Max distance for two taxi nodes to be considered "similar", so that only one of them is kept
 constexpr double APT_STARTUP_VIA_DIST = 50.0;   ///< [m] distance of StartupLoc::viaLoc from startup location
 constexpr double APT_STARTUP_MOVE_BACK = 10.0;  ///< [m] move back startup location so that it sits about in plane's center instead of at its head
 constexpr double APT_JOIN_MAX_DIST_M = 15.0;    ///< [m] Max distance for an open node to be joined with another edge
-constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [�] tolerance of angle for an open node to be joined with another edge
-constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [�] extended (second prio) tolerance of angle for an open node to be joined with another edge
-constexpr double APT_MAX_PATH_TURN=100.0;       ///< [�] Maximum turn allowed during shortest path calculation
-constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [�] Tolerance when trying to devide for rectangular angle
+constexpr double APT_JOIN_ANGLE_TOLERANCE=15.0; ///< [°] tolerance of angle for an open node to be joined with another edge
+constexpr double APT_JOIN_ANGLE_TOLERANCE_EXT=45.0; ///< [°] extended (second prio) tolerance of angle for an open node to be joined with another edge
+constexpr double APT_MAX_PATH_TURN=100.0;       ///< [°] Maximum turn allowed during shortest path calculation
+constexpr double APT_PATH_MIN_SEGM_LEN=SIMILAR_POS_DIST*2;      ///< [m] Minimum segment length when taking over a shortest path. Shorter taxi segments are joined into one to avoid too many positions in the fd deque
+constexpr double APT_RECT_ANGLE_TOLERANCE=10.0; ///< [°] Tolerance when trying to decide for rectangular angle
 
 //MARK: Version Information
 extern char LT_VERSION[];               // like "1.0"
@@ -157,7 +158,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
 #define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
-#define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %sZ"
+#define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_READING_HIST_FD     "Reading historic flight data..."
@@ -165,7 +166,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
-#define MSG_ADSBEX_LIMITE       "%ld / %ld requests left"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
@@ -175,7 +175,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define INFO_REQU_AI_RELEASE    "%s requested us to release TCAS / AI control. Switch off '" MENU_HAVE_TCAS "' if you want so."
 #define INFO_GOT_AI_CONTROL     LIVE_TRAFFIC " has TCAS / AI control now"
 #define INFO_RETRY_GET_AI       "Another plugin released AI control, will try again to get control..."
-#define INFO_WND_AUTO_AC        "AUTO"
 #define INFO_AC_HIDDEN          "A/c %s hidden"
 #define INFO_AC_HIDDEN_AUTO     "A/c %s automatically hidden"
 #define INFO_AC_SHOWN           "A/c %s visible"
@@ -229,13 +228,17 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_MENU_ITEMS         "using-lt/menu-items"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
-#define HELP_SETTINGS_PATHS {                       \
-    "setup/configuration/settings-basics",          \
-    "setup/configuration/settings-a-c-labels",      \
-    "setup/configuration/settings-advanced",        \
-    "setup/configuration/settings-csl",             \
-    "setup/configuration/settings-debug",           \
-}
+#define HELP_SET_BASICS         "setup/configuration/settings-basics"
+#define HELP_SET_INPUT_CH       "introduction/features/channels"
+#define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
+#define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
+#define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
+#define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
+#define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
+#define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"
+#define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
+#define HELP_SET_CSL            "setup/configuration/settings-csl"
+#define HELP_SET_DEBUG          "setup/configuration/settings-debug"
 
 //MARK: File Paths
 // these are under the plugins directory
@@ -249,6 +252,13 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
+// Standard path delimiter
+constexpr const char* PATH_DELIMS = "/\\";      ///< potential path delimiters in all OS
+#if IBM
+#define PATH_DELIM '\\'                         ///< Windows path delimiter
+#else
+#define PATH_DELIM '/'                          ///< MacOS/Linux path delimiter
+#endif
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
@@ -262,7 +272,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
 #define ERR_INIT_XPMP           "Could not initialize XPMP2: %s"
 #define ERR_LOAD_CSL            "Could not load CSL Package: %s"
-#define ERR_XPMP_ADD_CSL        "Could not add additional CSL package: %s"
+#define ERR_XPMP_ADD_CSL        "Could not add additional CSL package from '%s': %s"
 #define ERR_APPEND_MENU_ITEM    "Could not append a menu item"
 #define ERR_CREATE_MENU         "Could not create menu %s"
 #define ERR_CURL_INIT           "Could not initialize CURL: %s"
@@ -302,7 +312,6 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_TOP_LEVEL_EXCEPTION "Caught top-level exception! %s"
 #define ERR_EXCEPTION_AC_CREATE "Exception occured while creating a/c %s of type %s: %s\nPosDeque before was:\n%s"
 #define ERR_UNKN_EXCP_AC_CREATE "Unknown " ERR_EXCEPTION_AC_CREATE
-#define ERR_WIDGET_CREATE       "Could not create widget required for settings UI"
 #define ERR_CFG_FILE_OPEN_OUT   "Could not create config file '%s': %s"
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
 #define ERR_CFG_FILE_OPEN_IN    "Could not open '%s': %s"
@@ -355,6 +364,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while 
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
+#define DBG_REUSING_TO_POS      "DEBUG RE-USED POS FOR TAKE-OFF: %s"
 #define DBG_INV_POS_REMOVED     "DEBUG %s: Removed an invalid position: %s"
 #define DBG_INV_POS_AC_REMOVED  "DEBUG %s: Removed a/c due to invalid positions"
 #define DBG_HOVER_POS_REMOVED   "DEBUG %s: Removed a hovering position: %s"

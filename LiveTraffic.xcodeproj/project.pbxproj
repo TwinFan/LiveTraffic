@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25067F6A213F17FE004A861F /* TFWidgets.cpp */; };
+		2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */; };
+		2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41F248D022B00F18B76 /* LTImgWindow.cpp */; };
 		2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2536421C2215FE81000DC56F /* XPCompatibility.cpp */; };
 		254EA4702083E403008A312F /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 254EA46F2083E403008A312F /* parson.c */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
@@ -15,6 +16,12 @@
 		2564042621AAC914001E2F2A /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042521AAC914001E2F2A /* Security.framework */; };
 		2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042921AAC9B5001E2F2A /* GSS.framework */; };
 		2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */; };
+		256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */; };
+		256CA1C4248C458D009F4AAE /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BF248C458D009F4AAE /* imgui.cpp */; };
+		256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1C2248C458D009F4AAE /* imgui_draw.cpp */; };
+		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; };
+		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; };
+		256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
 		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
 		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
@@ -25,7 +32,6 @@
 		258790A923020C5700129569 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 258790A823020C5700129569 /* libcurl.framework */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F52203B0C500658AA8 /* XPLM.framework */; };
-		25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F42203B0C500658AA8 /* XPWidgets.framework */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
 		25C59458207A296500E52073 /* TextIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59456207A296500E52073 /* TextIO.cpp */; };
@@ -33,6 +39,7 @@
 		25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59461207AB4D800E52073 /* LTAircraft.cpp */; };
 		25C59465207ABDC700E52073 /* LTMain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59464207ABDC700E52073 /* LTMain.cpp */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
+		25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25EFC76D24959662005DB0A6 /* ApplicationServices.framework */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
@@ -52,21 +59,22 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		25067F6A213F17FE004A861F /* TFWidgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TFWidgets.cpp; sourceTree = "<group>"; };
 		250C2B5923BD4BF70059AA14 /* scenery_packs.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = scenery_packs.ini; path = "../../../Applications/X-Plane 11/Custom Scenery/scenery_packs.ini"; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
+		2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui_stdlib.h; sourceTree = "<group>"; };
+		2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_stdlib.cpp; sourceTree = "<group>"; };
+		2515F41E248CF59C00F18B76 /* LTImgWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTImgWindow.h; sourceTree = "<group>"; };
+		2515F41F248D022B00F18B76 /* LTImgWindow.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTImgWindow.cpp; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		25271352220F36340039D2A4 /* LiveTraffic.prf */ = {isa = PBXFileReference; lastKnownFileType = text; name = LiveTraffic.prf; path = "../../../Applications/X-Plane 11/Output/preferences/LiveTraffic.prf"; sourceTree = "<group>"; };
 		2536421C2215FE81000DC56F /* XPCompatibility.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = XPCompatibility.cpp; sourceTree = "<group>"; };
 		2536421E2215FEBB000DC56F /* XPCompatibility.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XPCompatibility.h; sourceTree = "<group>"; };
 		25364221221755B1000DC56F /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		253B6F2E2225EC14001F8B42 /* Commands.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Commands.txt; path = "../../../Applications/X-Plane 11/Resources/plugins/Commands.txt"; sourceTree = "<group>"; };
-		2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_zlib.txt; sourceTree = "<group>"; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
 		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
 		2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = aircraftDatabase.csv; sourceTree = "<group>"; };
 		254EA46F2083E403008A312F /* parson.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = parson.c; sourceTree = "<group>"; };
-		254EA4722083EA8B008A312F /* LICENSE_parson.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE_parson.txt; sourceTree = "<group>"; };
 		2558579320950C6700816F65 /* CoordCalc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CoordCalc.cpp; sourceTree = "<group>"; };
 		2558579A2095B86200816F65 /* adsbexchange32001 3x.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "adsbexchange32001 3x.json"; sourceTree = "<group>"; };
 		2558579B2095B86200816F65 /* adsbexchange32001_1x_pretty.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = adsbexchange32001_1x_pretty.json; sourceTree = "<group>"; };
@@ -84,6 +92,18 @@
 		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
 		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
+		256CA1BC248C458D009F4AAE /* imgui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui.h; sourceTree = "<group>"; };
+		256CA1BD248C458D009F4AAE /* imconfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imconfig.h; sourceTree = "<group>"; };
+		256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_widgets.cpp; sourceTree = "<group>"; };
+		256CA1BF248C458D009F4AAE /* imgui.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui.cpp; sourceTree = "<group>"; };
+		256CA1C0248C458D009F4AAE /* imgui_internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui_internal.h; sourceTree = "<group>"; };
+		256CA1C2248C458D009F4AAE /* imgui_draw.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_draw.cpp; sourceTree = "<group>"; };
+		256CA1C9248C5094009F4AAE /* ImgFontAtlas.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImgFontAtlas.h; sourceTree = "<group>"; };
+		256CA1CA248C5094009F4AAE /* ImgWindow.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ImgWindow.cpp; sourceTree = "<group>"; };
+		256CA1CC248C5094009F4AAE /* ImgWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImgWindow.h; sourceTree = "<group>"; };
+		256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ImgFontAtlas.cpp; sourceTree = "<group>"; };
+		256CA1D0248C511D009F4AAE /* SystemGL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SystemGL.h; sourceTree = "<group>"; };
+		256CA1D2248C6137009F4AAE /* build_LiveTraffic */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_LiveTraffic; sourceTree = "<group>"; };
 		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
 		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
 		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
@@ -106,14 +126,12 @@
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
 		2593063D22DB411500C82D4F /* LTAPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAPI.h; sourceTree = "<group>"; };
-		2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Log_HoursOfExecution_For_Analysis.txt; sourceTree = "<group>"; wrapsLines = 0; };
 		25A095BE2203B01300658AA8 /* TextIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TextIO.h; sourceTree = "<group>"; };
 		25A095BF2203B01300658AA8 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; };
 		25A095C02203B01300658AA8 /* CoordCalc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordCalc.h; sourceTree = "<group>"; };
 		25A095C12203B01300658AA8 /* parson.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
 		25A095C22203B01300658AA8 /* LTChannel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTChannel.h; sourceTree = "<group>"; };
 		25A095C32203B01300658AA8 /* SettingsUI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SettingsUI.h; sourceTree = "<group>"; };
-		25A095C42203B01300658AA8 /* TFWidgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TFWidgets.h; sourceTree = "<group>"; };
 		25A095C52203B01300658AA8 /* Constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Constants.h; sourceTree = "<group>"; };
 		25A095C62203B01300658AA8 /* ACInfoWnd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ACInfoWnd.h; sourceTree = "<group>"; };
 		25A095C72203B01300658AA8 /* DataRefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DataRefs.h; sourceTree = "<group>"; };
@@ -176,10 +194,8 @@
 		25A0960C2203B0C500658AA8 /* README.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
 		25A0960D2203B0C500658AA8 /* license.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = license.txt; sourceTree = "<group>"; };
 		25A70295241D911200D2E7EE /* Apt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Apt.md; sourceTree = "<group>"; };
-		25AACA2D217A82FF0035DC20 /* Acceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Acceleration.psd; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
-		25AB477923B560C2007E7B15 /* XP-APT-1100-Spec_revised_04-11-2019.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "XP-APT-1100-Spec_revised_04-11-2019.pdf"; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
 		25B4427923EF674B0040F67A /* MapIcons.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MapIcons.png; sourceTree = "<group>"; };
@@ -196,9 +212,6 @@
 		25D09095222D69C400D52057 /* OMDB_20190224_1915Z.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OMDB_20190224_1915Z.txt; sourceTree = "<group>"; };
 		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
 		25D59F4B23106A79002D81CF /* model_typecode.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = model_typecode.txt; sourceTree = "<group>"; };
-		25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BADA_Aircraft_Performance_Summary_Tables.pdf; sourceTree = "<group>"; };
-		25D6542A210C630800E65D77 /* Calc.xlsx */ = {isa = PBXFileReference; lastKnownFileType = file; path = Calc.xlsx; sourceTree = "<group>"; };
-		25D6542B210C631B00E65D77 /* Deceleration.psd */ = {isa = PBXFileReference; lastKnownFileType = file; path = Deceleration.psd; sourceTree = "<group>"; };
 		25D712A821B72E1700B5802F /* Doc8643.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Doc8643.txt; sourceTree = "<group>"; };
 		25D712A921B72EF900B5802F /* related.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = related.txt; sourceTree = "<group>"; };
 		25D810FE2402D60A00A8723B /* Dockerfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile; sourceTree = "<group>"; };
@@ -210,6 +223,9 @@
 		25DC1E2A21B72922008D0F8B /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = "<group>"; };
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
+		25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IconsFontAwesome5.h; sourceTree = "<group>"; };
+		25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = "fa-solid-900.inc"; sourceTree = "<group>"; };
+		25EFC76D24959662005DB0A6 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
 		25FC893B222F269700F5D57C /* KLAS_20190305_2055Z_PE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = KLAS_20190305_2055Z_PE.txt; sourceTree = "<group>"; };
 		25FC893C222F269700F5D57C /* KJFK_20190305_2028Z_METAR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = KJFK_20190305_2028Z_METAR.json; sourceTree = "<group>"; };
@@ -231,13 +247,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				25850BF723F7605500905D9F /* libz.tbd in Frameworks */,
+				25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */,
 				D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */,
 				2564042621AAC914001E2F2A /* Security.framework in Frameworks */,
+				256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */,
 				2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */,
 				2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */,
 				258790A923020C5700129569 /* libcurl.framework in Frameworks */,
 				25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */,
-				25ABF65B226E2F77008365AF /* XPWidgets.framework in Frameworks */,
 				2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -245,6 +262,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2515F418248CF4CB00F18B76 /* misc */ = {
+			isa = PBXGroup;
+			children = (
+				2515F419248CF4CB00F18B76 /* cpp */,
+			);
+			path = misc;
+			sourceTree = "<group>";
+		};
+		2515F419248CF4CB00F18B76 /* cpp */ = {
+			isa = PBXGroup;
+			children = (
+				2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */,
+				2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */,
+			);
+			path = cpp;
+			sourceTree = "<group>";
+		};
 		2540F51720D5AAD900DCCF45 /* OpenSky */ = {
 			isa = PBXGroup;
 			children = (
@@ -262,19 +296,11 @@
 			isa = PBXGroup;
 			children = (
 				25A70295241D911200D2E7EE /* Apt.md */,
-				25AACA2D217A82FF0035DC20 /* Acceleration.psd */,
-				25D65429210C630800E65D77 /* BADA_Aircraft_Performance_Summary_Tables.pdf */,
-				25D6542A210C630800E65D77 /* Calc.xlsx */,
-				25D6542B210C631B00E65D77 /* Deceleration.psd */,
-				254EA4722083EA8B008A312F /* LICENSE_parson.txt */,
-				2540F51620D5963A00DCCF45 /* LICENSE_zlib.txt */,
 				258B581823BBFFC300753C82 /* LiveTraffic.doxygen */,
-				2594F0C821765F6400D91D39 /* Log_HoursOfExecution_For_Analysis.txt */,
 				2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */,
 				258B581723BBFFC300753C82 /* MainPage.md */,
 				25F5CBAA20813880004C232C /* Notes.txt */,
 				25606F8D21B362790017D1EE /* readme.html */,
-				25AB477923B560C2007E7B15 /* XP-APT-1100-Spec_revised_04-11-2019.pdf */,
 			);
 			path = docs;
 			sourceTree = "<group>";
@@ -302,6 +328,7 @@
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
 				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
+				2515F41F248D022B00F18B76 /* LTImgWindow.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
 				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
 				2573631922233008005210C5 /* LTRealTraffic.cpp */,
@@ -310,7 +337,6 @@
 				254EA46F2083E403008A312F /* parson.c */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
-				25067F6A213F17FE004A861F /* TFWidgets.cpp */,
 				2536421C2215FE81000DC56F /* XPCompatibility.cpp */,
 			);
 			path = Src;
@@ -353,6 +379,32 @@
 				255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */,
 			);
 			path = Historical;
+			sourceTree = "<group>";
+		};
+		256CA1BB248C458D009F4AAE /* ImGui */ = {
+			isa = PBXGroup;
+			children = (
+				2515F418248CF4CB00F18B76 /* misc */,
+				256CA1BC248C458D009F4AAE /* imgui.h */,
+				256CA1BD248C458D009F4AAE /* imconfig.h */,
+				256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */,
+				256CA1BF248C458D009F4AAE /* imgui.cpp */,
+				256CA1C0248C458D009F4AAE /* imgui_internal.h */,
+				256CA1C2248C458D009F4AAE /* imgui_draw.cpp */,
+			);
+			path = ImGui;
+			sourceTree = "<group>";
+		};
+		256CA1C8248C5094009F4AAE /* ImgWindow */ = {
+			isa = PBXGroup;
+			children = (
+				256CA1D0248C511D009F4AAE /* SystemGL.h */,
+				256CA1C9248C5094009F4AAE /* ImgFontAtlas.h */,
+				256CA1CA248C5094009F4AAE /* ImgWindow.cpp */,
+				256CA1CC248C5094009F4AAE /* ImgWindow.h */,
+				256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */,
+			);
+			path = ImgWindow;
 			sourceTree = "<group>";
 		};
 		2577B6A0216A9397004B432D /* Resources */ = {
@@ -416,13 +468,13 @@
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
 				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
+				2515F41E248CF59C00F18B76 /* LTImgWindow.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
 				257363182222C8E2005210C5 /* Network.h */,
 				25A095C12203B01300658AA8 /* parson.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
 				25A095BE2203B01300658AA8 /* TextIO.h */,
-				25A095C42203B01300658AA8 /* TFWidgets.h */,
 				2536421E2215FEBB000DC56F /* XPCompatibility.h */,
 			);
 			path = Include;
@@ -431,6 +483,9 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				25EFC76A249567BF005DB0A6 /* Font */,
+				256CA1C8248C5094009F4AAE /* ImgWindow */,
+				256CA1BB248C458D009F4AAE /* ImGui */,
 				2593063C22DB411500C82D4F /* LTAPI */,
 				25A095CB2203B0C500658AA8 /* XPSDK301 */,
 			);
@@ -596,6 +651,7 @@
 		25A4CB8F2196FF4A00F6A9E2 /* NoGit */ = {
 			isa = PBXGroup;
 			children = (
+				256CA1D2248C6137009F4AAE /* build_LiveTraffic */,
 				25DC1E2A21B72922008D0F8B /* Data */,
 				2591F9692197008C00F0D436 /* Src */,
 			);
@@ -613,6 +669,15 @@
 				25D811032402D60A00A8723B /* Toolchain-ubuntu-osxcross-10.11.cmake */,
 			);
 			path = docker;
+			sourceTree = "<group>";
+		};
+		25EFC76A249567BF005DB0A6 /* Font */ = {
+			isa = PBXGroup;
+			children = (
+				25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */,
+				25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */,
+			);
+			path = Font;
 			sourceTree = "<group>";
 		};
 		D607B15F09A5563000699BC3 = {
@@ -647,6 +712,7 @@
 		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				25EFC76D24959662005DB0A6 /* ApplicationServices.framework */,
 				25850BF623F7605500905D9F /* libz.tbd */,
 				2575F44823ECC2C000747524 /* XPMP2.framework */,
 				258790AB23020C8C00129569 /* libpng.framework */,
@@ -721,17 +787,23 @@
 				25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */,
 				25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */,
 				2536421D2215FE81000DC56F /* XPCompatibility.cpp in Sources */,
+				256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */,
+				256CA1C4248C458D009F4AAE /* imgui.cpp in Sources */,
+				256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */,
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
 				2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */,
 				2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */,
+				2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */,
 				257363172222C879005210C5 /* Network.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
-				25067F6B213F17FE004A861F /* TFWidgets.cpp in Sources */,
 				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
+				256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */,
+				2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
 				25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */,
+				256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */,
 				254EA4702083E403008A312F /* parson.c in Sources */,
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
@@ -770,7 +842,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.00;
+				CURRENT_PROJECT_VERSION = 2.05;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
@@ -818,6 +890,9 @@
 					"Lib/SDK/CHeaders/**",
 					Lib/XPMP2/XPMP2.framework/Headers,
 					Lib/LTAPI,
+					"Lib/ImGui/**",
+					Lib/ImgWindow,
+					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = NO;
@@ -858,8 +933,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.00;
+				CURRENT_PROJECT_VERSION = 2.05;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
@@ -873,6 +947,7 @@
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"APL=1",
@@ -884,6 +959,7 @@
 					"XPLM301=1",
 					"XPLM303=1",
 					CURL_STATICLIB,
+					"NDEBUG=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -904,6 +980,9 @@
 					"Lib/SDK/CHeaders/**",
 					Lib/XPMP2/XPMP2.framework/Headers,
 					Lib/LTAPI,
+					"Lib/ImGui/**",
+					Lib/ImgWindow,
+					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LLVM_LTO = YES;

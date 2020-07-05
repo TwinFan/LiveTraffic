@@ -16,6 +16,15 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{50ab93fd-ebe5-4767-98c9-f81193a338df}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{17118021-020d-4e69-a42b-e9371ece2449}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\ImGui">
+      <UniqueIdentifier>{64035e60-470e-40b5-abe3-04adee7464a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\ImgWindow">
+      <UniqueIdentifier>{a093f39e-7934-4ccd-a376-9aeb9fa4ca1c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ACInfoWnd.cpp">
@@ -51,12 +60,6 @@
     <ClCompile Include="src\TextIO.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TFWidgets.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\parson.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Src\XPCompatibility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -76,6 +79,30 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Src\LTApt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\ImGui\imgui.cpp">
+      <Filter>Lib\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\ImGui\imgui_draw.cpp">
+      <Filter>Lib\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\ImGui\imgui_widgets.cpp">
+      <Filter>Lib\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\ImGui\misc\cpp\imgui_stdlib.cpp">
+      <Filter>Lib\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\ImgWindow\ImgFontAtlas.cpp">
+      <Filter>Lib\ImgWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\ImgWindow\ImgWindow.cpp">
+      <Filter>Lib\ImgWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\parson.c">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\LTImgWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -113,9 +140,6 @@
     <ClInclude Include="include\TextIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\TFWidgets.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -141,6 +165,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Include\LTApt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\LTImgWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

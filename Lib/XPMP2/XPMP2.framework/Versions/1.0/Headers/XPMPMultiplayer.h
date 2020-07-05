@@ -442,6 +442,20 @@ int         XPMPModelMatchQuality(const char *              inICAO,
 /// @brief Is `inICAO` a valid ICAO aircraft type designator?
 bool            XPMPIsICAOValid(const char *                inICAO);
 
+/// @brief Add a user-defined dataRef to the list of dataRefs supported by every plane.
+/// @details All planes created by XPMP2 define the same set of dataRefs.
+///          See XPMP2::DR_VALS for the definitions that come pre-defined with
+///          XPMP2. Here you can add more dataRefs that you want to set
+///          in your XPMP2::Aircraft::UpdatePosition() implementation.
+/// @return  The functions returns the array index you need to use in the
+///          XPMP2::Aircraft::v array to provide the actual value.
+///          Or `0` when the function was called while planes are active.
+/// @note There is a duplication check: Adding an already existing dataRef,
+///       no matter if XPMP2-predefined or by the plugin will return the
+///       already existing index.
+/// @note Can only be called while no plane exists as it influence the size
+///       of important data arrays. Returns `0` if called while planes exist.
+size_t XPMPAddModelDataRef (const std::string& dataRef);
 
 /************************************************************************************
  * MARK: PLANE CREATION API

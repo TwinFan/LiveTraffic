@@ -150,43 +150,16 @@ protected:
     positionTy start;           ///< start point of the actual Bezier curve
     positionTy end;             ///< end point of the actual Bezier curve
     ptTy ptCtrl;                ///< Control point of the curve
-    double startF = NAN;        ///< at which factor f (from LTAircraft::CalcPPos()) does Bezier execution begin?
-    double endF = NAN;          ///< at which factor f (from LTAircraft::CalcPPos()) does Bezier execution end?
-    double fCalAdd = NAN;       ///< summand for `f` calibration
-    double fCalDiv = NAN;       ///< divisor for `f` calibration
-    double myF = NAN;           ///< last used `f` after calibration
-    double mySecondMaxF = NAN;  ///< in case of a cut-corner curve: maximum f value on second half
 public:
     BezierCurve () {}           ///< Standard constructor does nothing
     
     /// @brief Define a quadratic Bezier Curve based on the given flight data positions
-    /// @param _nowF Current factor f as earliest possible starting factor
-    /// @param _from From position on the leg towards _mid
+    /// @param _start Start position of the Bezier curve
     /// @param _mid Mid position, current leg's end and next leg's starting point, the turning point, used as Bezier control point, ie. will not be reached
-    /// @param _to End position of next leg
-    /// @param _angleFromMid Angle from `_from` to `_mid` to avoid recalculation of already known data
-    /// @param _angleMidTo Angle from `_mid` to `_to` to avoid recalculation of already known data
-    /// @param _fullTurnTime Seconds allowed for a 360° turn (taken from LTAircraft::FlightModel)
-    void Define (double _nowF,
-                 const positionTy& _from,
-                 double _angleFromMid,
+    /// @param _end End position of the curve
+    void Define (const positionTy& _start,
                  const positionTy& _mid,
-                 double _angleMidTo,
-                 const positionTy& _to,
-                 double _fullTurnTime);
-    
-    /// @brief Define a quadratic Bezier Curve based on the given flight data positions
-    /// @param _initF The initial `f` factor when starting this Bezier for internal calibration of seemless calculations
-    /// @param _from Start position of current leg
-    /// @param _to End position of current leg
-    /// @param _vec Vector from `_from` to `_to` to avoid recalculation of already known data
-    /// @details The control point is computed as the point where the lines through _from and _to,
-    ///          having angle as defined by `.heading()`, meet. This can and cannot work out.
-    /// @return Has a valid Bezier curve been defined?
-    bool Define (double _initF,
-                 const positionTy& _from,
-                 const positionTy& _to,
-                 const vectorTy& _vec);
+                 const positionTy& _end);
     
     /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
     /// This is needed for accurate angle calculations
@@ -197,22 +170,10 @@ public:
     /// Convert the given position back to geographic coordinates
     void ConvertToGeographic (ptTy& pt) const;
     
-    /// Calibrate the Bezier so that `f = [_inifF.._maxF]` maps to `myF = [_myInit.._myMax]`
-    void Calibrate (double _initF, double _maxF,
-                    double _myInit, double _myMax);
-    /// Re-Calibrate for the second half of a cut-corner curve
-    void ReCalibrate2ndHalf () { Calibrate(0.0, mySecondMaxF, 0.5, 1.0); }
-    
     /// Clear the definition, so that BezierCurve::isDefined() will return `false`
     void Clear ();
     /// Is a curve defined?
     bool isDefined () const { return ptCtrl.isValid(); }
-    /// Is Bezier active for given timestamp?
-    bool isActive (double _f) const
-    { return isDefined() && startF <= _f && _f <= endF; }
-    /// Is or will Bezier be active for given factor f?
-    bool isActiveFuture (double _f) const
-    { return isDefined() && _f <= endF; }
     /// is defined and the given timestamp between start's and end's timestamp?
     bool isTsInbetween (double _ts) const
     { return isDefined() && start.ts() <= _ts && _ts <= end.ts(); }
@@ -222,10 +183,9 @@ public:
 
     /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
     /// @param[in,out] pos Current position, to be overwritten with new position
-    /// @param ts Timestamp for the position we look for, only used for validation if Bezier is active
-    /// @param f Factor in range [0..1]: This controls the returned value (might be controled by acceleration!)
+    /// @param _calcTs Timestamp for the position we look for, used to calculate factor `f`
     /// @return if the position was adjusted
-    bool GetPos (positionTy& pos, double ts, double f);
+    bool GetPos (positionTy& pos, double _calcTs);
 
     /// Debug text output
     std::string dbgTxt() const;
@@ -426,7 +386,7 @@ protected:
     // determine other parameters like gear, flap, roll etc. based on flight model assumptions
     void CalcFlightModel (const positionTy& from, const positionTy& to);
     /// determine roll, based on a previous and a current heading
-    void CalcRoll (double _prevTs, double _prevHeading);
+    void CalcRoll (double _prevHeading);
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();

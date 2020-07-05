@@ -128,12 +128,6 @@
             <PersistentString
                value = "pAc">
             </PersistentString>
-            <PersistentString
-               value = "pos1">
-            </PersistentString>
-            <PersistentString
-               value = "takeOffTS">
-            </PersistentString>
          </PersistentStrings>
       </ContextState>
       <ContextState
@@ -394,10 +388,10 @@
                value = "from">
             </PersistentString>
             <PersistentString
-               value = "ppos.v[6]">
+               value = "to">
             </PersistentString>
             <PersistentString
-               value = "to">
+               value = "vec">
             </PersistentString>
             <PersistentString
                value = "ppos">
@@ -471,6 +465,14 @@
       </ContextState>
       <ContextState
          contextName = "Apt::GetEdgeBetweenNodes(unsigned long, unsigned long):LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTAircraft::CalcRoll(double):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ppos">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "LTAircraft::LTAircraft(char const*, char const*, char const*, char const*):LTAircraft.cpp">
@@ -767,6 +769,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "BezierCurve::Define(positionTy const&amp;, positionTy const&amp;, positionTy const&amp;, double):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
          contextName = "ADSBExchangeHistorical::ProcessFetchedData(std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, LTFlightData, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const, LTFlightData&gt; &gt; &gt;&amp;):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
@@ -833,10 +838,15 @@
          contextName = "LTFlightData::CalcNextPosMain():LTFlightData.cpp">
       </ContextState>
       <ContextState
-         contextName = "TaxiEdge::TaxiEdge(TaxiEdge::nodeTy, unsigned long, unsigned long, double, double):LTApt.cpp">
+         contextName = "BezierCurve::Define(positionTy const&amp;, positionTy const&amp;, positionTy const&amp;):LTAircraft.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "_end">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "DistResultToBaseLoc(double, double, double, double, distToLineTy const&amp;, double&amp;, double&amp;):CoordCalc.cpp">
+         contextName = "TaxiEdge::TaxiEdge(TaxiEdge::nodeTy, unsigned long, unsigned long, double, double):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double, double, unsigned long&amp;, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt; const&amp;) const:LTApt.cpp">
@@ -851,6 +861,9 @@
       </ContextState>
       <ContextState
          contextName = "Apt::FindClosestEdge(positionTy const&amp;, positionTy&amp;, int, double) const:LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "DistResultToBaseLoc(double, double, double, double, distToLineTy const&amp;, double&amp;, double&amp;):CoordCalc.cpp">
       </ContextState>
       <ContextState
          contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">

@@ -45,9 +45,6 @@ f_XPLMGetScreenBoundsGlobal* pXPLMGetScreenBoundsGlobal = nullptr;
 typedef void (f_XPLMSetWindowPositioningMode)(XPLMWindowID,XPLMWindowPositioningMode,int);
 f_XPLMSetWindowPositioningMode* pXPLMSetWindowPositioningMode = nullptr;
 
-typedef XPLMWindowID (f_XPGetWidgetUnderlyingWindow)(XPWidgetID);
-f_XPGetWidgetUnderlyingWindow* pXPGetWidgetUnderlyingWindow = nullptr;
-
 typedef void (f_XPLMGetAllMonitorBoundsGlobal)(XPLMReceiveMonitorBoundsGlobal_f,void*);
 f_XPLMGetAllMonitorBoundsGlobal* pXPLMGetAllMonitorBoundsGlobal = nullptr;
 
@@ -88,11 +85,6 @@ void XPC_SetWindowPositioningMode(XPLMWindowID              inWindowID,
 {
     LOG_ASSERT(pXPLMSetWindowPositioningMode);
     pXPLMSetWindowPositioningMode(inWindowID, inPositioningMode, inMonitorIndex);
-}
-
-XPLMWindowID XPC_GetWidgetUnderlyingWindow(XPWidgetID       inWidget)
-{
-    return pXPGetWidgetUnderlyingWindow ? pXPGetWidgetUnderlyingWindow(inWidget) : 0;
 }
 
 void XPC_GetAllMonitorBoundsGlobal(XPLMReceiveMonitorBoundsGlobal_f inMonitorBoundsCallback,
@@ -187,7 +179,6 @@ bool XPC_Init()
     if ( IS_XPLM301 ) {
         FIND_SYM(XPLMGetScreenBoundsGlobal);
         FIND_SYM(XPLMSetWindowPositioningMode);
-        FIND_SYM(XPGetWidgetUnderlyingWindow);
         FIND_SYM(XPLMGetAllMonitorBoundsGlobal);
         FIND_SYM(XPLMGetAllMonitorBoundsOS);
         FIND_SYM(XPLMWindowIsPoppedOut);

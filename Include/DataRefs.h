@@ -34,6 +34,22 @@
 class RealTrafficConnection;
 
 //
+// MARK: Defaults
+//
+
+const int DEF_MAX_NUM_AC        = 50;           ///< how many aircraft to create at most?
+const int DEF_FD_STD_DISTANCE   = 25;           ///< nm: miles to look for a/c around myself
+const int DEF_FD_SNAP_TAXI_DIST = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
+const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flight data
+const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
+const int DEF_AC_OUTDATED_INTVL = 50;           ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
+
+
+constexpr int DEF_UI_FONT_SCALE = 100;  ///< [%] Default font scaling
+constexpr int DEF_UI_OPACITY    =  25;  ///< [%] Default background opacity
+
+//
 // MARK: Doc8643
 //
 class Doc8643 {
@@ -236,6 +252,16 @@ enum dataRefsLT {
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
     
+    // UI information
+    DR_UI_OPACITY,
+    DR_UI_SETTINGS_WIDTH,
+    DR_UI_SETTINGS_HEIGHT,
+    DR_UI_SETTINGS_TRANSP,
+    DR_UI_ACI_WIDTH,
+    DR_UI_ACI_HEIGHT,
+    DR_UI_ACI_COLLAPSED,
+    DR_UI_ACI_FONT_SCALE,
+    
     // configuration options
     DR_CFG_AIRCRAFT_DISPLAYED,
     DR_CFG_AUTO_START,
@@ -402,10 +428,10 @@ public:
         bVSI : 1;
         
         // this is a bit ugly but avoids a wrapper union with an int
-        inline int GetInt() const { return *reinterpret_cast<const int*>(this); }
-        inline void SetInt(int i) { *reinterpret_cast<int*>(this) = i; }
+        inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
+        inline void SetUInt(int i) { *reinterpret_cast<unsigned*>(this) = i; }
         inline bool operator != (const LabelCfgTy& o) const
-        { return GetInt() != o.GetInt(); }
+        { return GetUInt() != o.GetUInt(); }
     };
     
     // when to show a/c labels?
@@ -413,25 +439,35 @@ public:
         unsigned
         bExternal : 1,              // external/outside views
         bInternal : 1,              // internal/cockpit views
-        bVR : 1;                    // VR views
+        bVR       : 1,              // VR views
+        bMap      : 1;              // Map icons
 
         // this is a bit ugly but avoids a wrapper union with an int
-        inline int GetInt() const { return *reinterpret_cast<const int*>(this); }
-        inline void SetInt(int i) { *reinterpret_cast<int*>(this) = i; }
-        inline bool operator != (const LabelCfgTy& o) const
-        { return GetInt() != o.GetInt(); }
+        inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
+        inline void SetUInt(unsigned i) { *reinterpret_cast<unsigned*>(this) = i; }
+        inline bool operator != (const LabelShowCfgTy& o) const
+        { return GetUInt() != o.GetUInt(); }
     };
     
-    struct CSLPathCfgTy {           // represents a line in the [CSLPath] section of LiveTrafic.prg
-        bool        bEnabled = false;
-        std::string path;
+    /// represents a line in the [CSLPath] section of LiveTrafic.prg
+    struct CSLPathCfgTy {
+    public:
+        bool        bEnabled = false;   ///< enabled for auto-load on startup
+    protected:
+        int         bPathExists = 0;    ///< 3-values: -1 no, 0 not tested, 1 yes
+        std::string path;               ///< actual path, can be relative to X-Plane system path
         
+    public:
         CSLPathCfgTy () {}
-        CSLPathCfgTy (bool b, std::string&& p) : bEnabled(b), path(std::move(p)) {}
-        inline bool empty() const   { return path.empty(); }
-        inline bool enabled() const { return bEnabled && !empty(); }
-        inline bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
-        inline bool operator== (const std::string& s) const { return path == s; }
+        CSLPathCfgTy (bool b, const std::string& p);
+        bool empty() const   { return path.empty(); }
+        bool enabled() const { return bEnabled && !empty(); }
+        const std::string& getPath() const { return path; }
+        bool existsSave();              ///< tests path for existence, saves test result
+        bool exists() const;            ///< tests path for existence
+        const std::string& operator= (const std::string& _p);  ///< assign new path
+        bool operator== (const CSLPathCfgTy& o) const { return path == o.path; }
+        bool operator== (const std::string& s) const { return path == s; }
     };
     typedef std::vector<CSLPathCfgTy> vecCSLPaths;
     
@@ -439,6 +475,7 @@ public:
     pluginStateTy pluginState = STATE_STOPPED;
 #ifdef DEBUG
     bool bSimVREntered = false;                 // for me to simulate some aspects of VR
+    double fdBufDebug  = 0.0;                   // Due to debugging, the buffering period might extend a lot...
 #endif
     
 //MARK: DataRefs
@@ -479,15 +516,15 @@ protected:
     bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
-    LabelShowCfgTy labelShown = { 1, 1, 1 };        // when to show? (default: always)
+    LabelShowCfgTy labelShown = { 1, 1, 1, 1 };     ///< when to show? (default: always)
     bool bLabelColDynamic  = false;     // dynamic label color?
-    int labelColor      = COLOR_YELLOW; // label color, by default yellow
-    int maxNumAc        = 50;           // how many aircraft to create at most?
-    int fdStdDistance   = 25;           // nm: miles to look for a/c around myself
-    int fdSnapTaxiDist  = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
-    int fdRefreshIntvl  = 20;           // how often to fetch new flight data
-    int fdBufPeriod     = 90;           // seconds to buffer before simulating aircraft
-    int acOutdatedIntvl = 50;           // a/c considered outdated if latest flight data more older than this compare to 'now'
+    int labelColor      = COLOR_YELLOW;             ///< label color, by default yellow
+    int maxNumAc        = DEF_MAX_NUM_AC;           ///< how many aircraft to create at most?
+    int fdStdDistance   = DEF_FD_STD_DISTANCE;      ///< nm: miles to look for a/c around myself
+    int fdSnapTaxiDist  = DEF_FD_SNAP_TAXI_DIST;    ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
+    int fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;     ///< how often to fetch new flight data
+    int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
+    int acOutdatedIntvl = DEF_AC_OUTDATED_INTVL;    ///< a/c considered outdated if latest flight data more older than this compare to 'now'
     int netwTimeout     = 90;           // [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
@@ -523,6 +560,18 @@ public:
     RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
+    
+    // UI information
+    int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
+    
+    int SUIwidth  = 690;                ///< Settings UI width
+    int SUIheight = 500;                ///< Settings UI height
+    int SUItransp = 0;                  ///< Settings UI: transaprent background?
+
+    int ACIwidth  = 320;                ///< A/C Info Wnd width
+    int ACIheight = 510;                ///< A/C Info Wnd height
+    int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
+    int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
 //MARK: Constructor
 public:
@@ -653,8 +702,7 @@ public:
 
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }
-    void SaveCSLPath(int idx, const CSLPathCfgTy path);
-    bool LoadCSLPackage(int idx);
+    bool LoadCSLPackage(const std::string& _path);
     std::string GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
     std::string GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
     bool SetDefaultAcIcaoType(const std::string type);
@@ -716,6 +764,7 @@ public:
     static inline boundingBoxTy GetBoundingBox(double dist) // bounding box around current view pos
     { return boundingBoxTy(GetViewPos(), dist); }
     bool ShallDrawLabels() const;
+    bool ShallDrawMapLabels() const { return labelShown.bMap; }
     bool ToggleLabelDraw();                 // returns new value
 };
 

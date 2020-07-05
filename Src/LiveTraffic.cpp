@@ -35,9 +35,6 @@ extern bool InitFullVersion ();
 // access to data refs
 DataRefs dataRefs(logWARN);
 
-// Settings Dialog
-LTSettingsUI settingsUI;
-
 //MARK: Plugin Menu
 enum menuItems {
     MENU_ID_LIVETRAFFIC = 0,
@@ -75,10 +72,10 @@ void MenuHandler(void * /*mRef*/, void * iRef)
         // act based on menu id
         switch (reinterpret_cast<unsigned long long>(iRef)) {
             case MENU_ID_AC_INFO_WND:
-                ACIWnd::OpenNewWnd(GetDefaultWndOpenMode());
+                ACIWnd::OpenNewWnd();
                 break;
             case MENU_ID_AC_INFO_WND_POPOUT:
-                ACIWnd::OpenNewWnd(TF_MODE_POPOUT);
+                ACIWnd::OpenNewWnd("", WND_MODE_POPOUT);
                 break;
             case MENU_ID_AC_INFO_WND_SHOWN:
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_AC_INFO_WND_SHOWN],
@@ -99,8 +96,8 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                                   dataRefs.ToggleLabelDraw() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_SETTINGS_UI:
-                settingsUI.Show();
-                settingsUI.Center();
+                XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
+                                  LTSettingsUI::ToggleDisplay() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_NEWVER:
                 LTOpenURL(LT_DOWNLOAD_URL);
@@ -177,6 +174,10 @@ void MenuUpdateAllItemStatus()
     XPLMSetMenuItemName(menuID, aMenuItems[MENU_ID_HAVE_TCAS],
                         dataRefs.AwaitingAIControl() ? MENU_HAVE_TCAS_REQUSTD : MENU_HAVE_TCAS,
                         0);
+
+    // Is Settings window open?
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
+                      LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 }
 
 void HandleNewVersionAvail ()
@@ -268,7 +269,9 @@ bool RegisterMenuItem ()
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
     XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
-    
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
+                      LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+
     // --- Help submenu ---
     aMenuItems[MENU_ID_HELP] =
     XPLMAppendMenuItem(menuID, MENU_HELP, NULL, 1);
@@ -351,21 +354,10 @@ bool RegisterCommandHandlers ()
 /// Puts some timestamps into the log for analysis purposes
 void LogTimestamps ()
 {
-    // current Zulu time
-    char tZuluS[100];
-    struct tm zulu;
-    std::time_t t = std::time(nullptr);
-    gmtime_s(&zulu, &t);
-    std::strftime(tZuluS, sizeof(tZuluS), "%d-%b-%Y %T", &zulu);
-
-    // current simTime
-    char tSimZ[100];
-    t = std::time_t(dataRefs.GetSimTime());
-    gmtime_s(&zulu, &t);
-    std::strftime(tSimZ, sizeof(tSimZ), "%d-%b-%Y %T", &zulu);
-
-    // Log it
-    LOG_MSG(logMSG, MSG_TIMESTAMPS, tZuluS, tSimZ);
+    // Log current timestamp and sim-time-stamp
+    LOG_MSG(logMSG, MSG_TIMESTAMPS,
+            ts2string(std::time(nullptr)).c_str(),
+            dataRefs.GetSimTimeString().c_str());
 }
 
 // For informing dataRe Editor and tool see
@@ -492,6 +484,9 @@ PLUGIN_API int XPluginStart(
         // create menu
         if (!RegisterMenuItem()) { DestroyWindow(); return 0; }
         
+        // Setup ImGui window stuff
+        if (!LTImgWindowInit()) { DestroyWindow(); return 0; }
+        
 #if IBM
         // Windows: Recommended before calling ShellExecuteA
         // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
@@ -585,18 +580,19 @@ PLUGIN_API void XPluginDisable(void) {
         // unregister the one-time callback, just in case
         XPLMUnregisterFlightLoopCallback(LoopCBOneTimeSetup, NULL);
 
-        // if there still is a message window remove it
-        DestroyWindow();
-        
-        // deregister Settings UI
-        settingsUI.Disable();
-        
         // stop showing aircraft
         LTMainDisable ();
 
         // Stop reading apt.dat
         LTAptDisable();
 
+        // if there still is a message window remove it
+        DestroyWindow();
+        
+        // deregister Settings UI, close all windows, cleanup ImGui stuff
+        LTSettingsUI::ToggleDisplay(-1);
+        ACIWnd::CloseAll();
+        
         LOG_MSG(logMSG, MSG_DISABLED);
 
     } catch (const std::exception& e) {
@@ -611,11 +607,14 @@ PLUGIN_API void    XPluginStop(void)
         // Cleanup aircraft handling (including XPMP library)
         LTMainStop();
         
-        // Cleanup dataRef registration
+        // Cleanup dataRef registration, save config file
         dataRefs.Stop();
         
         // last chance to remove the message area window
         DestroyWindow();
+
+        // cleanup ImGui stuff
+        LTImgWindowCleanup();
 
 #if IBM
         // Windows: Balance CoInitializeEx
