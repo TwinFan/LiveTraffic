@@ -212,8 +212,8 @@ void LTSettingsUI::buildInterface()
             // --- ADS-B Exchange ---
             if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
                                            // we offer the enable checkbox only when an API key is defined
-                                           dataRefs.GetADSBExAPIKey().empty() ? CNT_DATAREFS_LT : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
-                                           "Enable ADS-B Exchange tracking data",
+                                           dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
+                                           dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ADSBX Radar View",
                                            "https://tar1090.adsbexchange.com/",
                                            "Check ADS-B Exchange's coverage",

@@ -33,6 +33,7 @@ static XPLMDataRef gDR[CNT_DATAREFS_LT];
 /// Lazily fetches the dataRef handle, then returns its current value
 int cfgGet (dataRefsLT idx)
 {
+    LOG_ASSERT(0 <= idx && idx < CNT_DATAREFS_LT);
     if (!gDR[idx])
         gDR[idx] = XPLMFindDataRef(DATA_REFS_LT[idx]);
     return gDR[idx] ? XPLMGetDatai(gDR[idx]) : 0;
@@ -41,6 +42,7 @@ int cfgGet (dataRefsLT idx)
 /// Lazily fetches the dataRef handle, then sets integer value
 void cfgSet (dataRefsLT idx, int v)
 {
+    LOG_ASSERT(0 <= idx && idx < CNT_DATAREFS_LT);
     if (!gDR[idx])
         gDR[idx] = XPLMFindDataRef(DATA_REFS_LT[idx]);
     if (gDR[idx]) XPLMSetDatai(gDR[idx], v);
@@ -127,11 +129,11 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     return b;
 }
 
-// @brief A checkbox toggling a defined integer dataRef
+// A checkbox toggling a defined integer dataRef
 IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip)
 {
     // Show the checkbox
-    bool bV = cfgGet(idx);
+    bool bV = idx >= 0 ? cfgGet(idx) : false;
     const bool bRet = Checkbox(label, &bV);
     
     // do the tooltip
@@ -139,7 +141,7 @@ IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip
         SetTooltip("%s", tooltip);
     
     // Process a changed value
-    if (bRet) {
+    if (bRet && idx >= 0) {
         cfgSet(idx, bV);                // set dataRef value
         return true;
     } else

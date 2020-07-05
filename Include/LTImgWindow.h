@@ -66,7 +66,7 @@ IMGUI_API bool ButtonIcon(const char* icon, const char* tooltip = nullptr, bool 
 
 /// @brief A checkbox toggling a defined integer dataRef
 /// @param label Checkbox's label
-/// @param idx Index into `DATA_REFS_LT`, defining the integer dataRef to toggle between 0 and 1
+/// @param idx Index into `DATA_REFS_LT`, defining the integer dataRef to toggle between 0 and 1. Can be -1 for an always deactivated checkbox
 /// @param tooltip (optional) Tooltip text shown when hovering over the checkbox
 /// @return if just toggled
 IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip = nullptr);
