@@ -1124,6 +1124,10 @@ double DataRefs::GetSimTime() const
             / 1000000.0
             // minus the buffering time
             - GetFdBufPeriod()
+#ifdef DEBUG
+            // minus debugging delay
+            - fdBufDebug
+#endif
             // plus the offset compared to network (this corrects for wrong system clock time as compared to reality)
             + GetChTsOffset();
     }

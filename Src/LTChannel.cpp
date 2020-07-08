@@ -790,5 +790,11 @@ void LTFlightDataAcMaintenance()
         if ( (numAcBefore > 0) && !numAcAfter)
             CreateMsgWindow(WIN_TIME_DISPLAY, logINFO, MSG_NUM_AC_ZERO);
     }
+    
+#ifdef DEBUG
+    // if no planes are left we can reset our debug buffering period
+    if (numAcAfter == 0)
+        dataRefs.fdBufDebug = 0.0;
+#endif
 }
 
