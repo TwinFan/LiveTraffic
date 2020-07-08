@@ -451,9 +451,9 @@ PLUGIN_API int XPluginStart(
          srand((unsigned int)time(NULL));
         
         // tell X-Plane who we are
-         strcpy_s(outName, 255, LIVE_TRAFFIC);
-         strcpy_s(outSig,  255, PLUGIN_SIGNATURE);
-         strcpy_s(outDesc, 255, PLUGIN_DESCRIPTION);
+        strncpy_s(outName, 255, LIVE_TRAFFIC,       100);
+        strncpy_s(outSig,  255, PLUGIN_SIGNATURE,   100);
+        strncpy_s(outDesc, 255, PLUGIN_DESCRIPTION, 100);
         
 #ifdef DEBUG
         // install error handler

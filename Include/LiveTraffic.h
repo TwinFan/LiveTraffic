@@ -270,10 +270,10 @@ TFWndMode GetDefaultWndOpenMode ();
 
 #if APL == 1 || LIN == 1
 // not quite the same but close enough for our purposes
-inline void strcpy_s(char * dest, size_t destsz, const char * src)
-{ strncpy(dest, src, destsz); dest[destsz-1]=0; }
-inline void strcat_s(char * dest, size_t destsz, const char * src)
-{ strncat(dest, src, destsz - strlen(dest) - 1); }
+inline void strncpy_s(char * dest, size_t destsz, const char * src, size_t count)
+{
+    strncpy(dest, src, std::min(destsz,count)); dest[destsz - 1] = 0;
+}
 
 // these simulate the VC++ version, not the C standard versions!
 inline struct tm *gmtime_s(struct tm * result, const time_t * time)
@@ -283,9 +283,9 @@ inline struct tm *localtime_s(struct tm * result, const time_t * time)
 
 #endif
 
-/// Simpler access to strcpy_s if dest is a char array (not a pointer!)
-#define STRCPY_S(dest,src) strcpy_s(dest,sizeof(dest),src)
-#define STRCPY_ATMOST(dest,src) strcpy_s(dest,sizeof(dest),strAtMost(src,sizeof(dest)-1).c_str())
+/// Simpler access to strncpy_s if dest is a char array (not a pointer!)
+#define STRCPY_S(dest,src) strncpy_s(dest,sizeof(dest),src,sizeof(dest)-1)
+#define STRCPY_ATMOST(dest,src) strncpy_s(dest,sizeof(dest),strAtMost(src,sizeof(dest)-1).c_str(),sizeof(dest)-1)
 
 #if APL == 1
 // XCode/Linux don't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
@@ -294,7 +294,7 @@ inline int strerror_s( char *buf, size_t bufsz, int errnum )
 #endif
 #if LIN == 1
 inline int strerror_s( char *buf, size_t bufsz, int errnum )
-{ strcpy_s(buf,bufsz,strerror(errnum)); return 0; }
+{ strncpy_s(buf,bufsz,strerror(errnum),bufsz-1); return 0; }
 #endif
 
 // MARK: Thread names
