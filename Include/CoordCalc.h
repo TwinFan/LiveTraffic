@@ -350,14 +350,16 @@ struct positionTy {
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
     size_t edgeIdx = EDGE_UNKNOWN;
 public:
-    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN}
-    { *(uint16_t*)&f = 0; }
+    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN},
+    f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE,false}
+    {}
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
                 flightPhaseE fPhase = FPH_UNKNOWN) :
-        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll}
-    { *(uint16_t*)&f = 0; f.onGrnd=grnd; f.unitCoord=uCoord; f.unitAngle=uAngle; f.flightPhase=fPhase; }
+        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll},
+        f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE,false}
+    {}
     positionTy(const XPMPPlanePosition_t& x) :
         positionTy (x.lat, x.lon, x.elevation * M_per_FT,
                     NAN, x.heading, x.pitch, x.roll) {}

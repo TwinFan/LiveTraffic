@@ -84,6 +84,39 @@
 
     <h2>v1.5</h2>
     
+    <h3>v1.54</h3>
+
+    <p><b>To update</b> coming from v1.53: Copy
+    <ul>
+        <li>the 3 executables<code>LiveTraffic/64/*.xpl</code>,</li>
+        <li><code>Resources/FlightModels.prg</code>, and</li>
+        <li><code>related.txt</code>.</li>
+    </ul></p>
+    
+    <p>Change log:</p>
+            
+    <ul>
+        <li>FIXED numerous bugs in position and heading calculation.
+            Plane movement, especially on the ground, should look much smoother now.<br>
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/">Here is</a>
+            how that exercise started!</li>
+        <li>ADDED: LiveTraffic understands PilotEdge's format of the
+            <code>xsb_aircraft.txt</code> file, allowing LiveTraffic to read
+            PE's CSL models directly, no conversion required.<br>
+            Note that PE's CSL models might be subject to copyright and/or
+            license restrictions. Check your PE license information.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
+            garbage character read from Settings text fields.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/184">#184</a>:
+            Aircraft on the ground, for which no updates are available any longer,
+            were not properly removed but could just sit there forever.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/178">#178</a>
+            planes transforming to cars on touch-down.</li>
+        <li>CHANGED identification of cars: If no info about an object is available
+            at all (e.g. not maintained yet at OpenSky), then will decide for
+            default plane, not car.</li>
+    </ul>
+
     <h3>v1.53</h3>
     
     <p>v1.53 marks the split from the main development branch of LiveTraffic.
