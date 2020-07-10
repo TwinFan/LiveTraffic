@@ -106,6 +106,9 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
 /// Show the special text "Seeing aircraft...showing..."
 XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime);
 
+/// Check if message wait to be shown, then show
+bool CheckThenShowMsgWindow();
+
 // Destroys the windows (if still active)
 void DestroyWindow();
 
