@@ -1,25 +1,27 @@
 TODO
 ===
 
-KLAX, file KLAX_20200624_2220Z.csv
-    A4462E / DAL839
-    Deceleration bad
-    Turning off rwy OK
-    Crossing rwy ok
-    Tiny jump just before taxi way crossing
-
-Auto-Land:
-    Test deceleration
+Thread-calling-SDK analysis (issue #190)
+- Handle LOG_MSG by adding to a central buffer storage with write-flag
+- LTChannel.cpp
+  - FDMainThread
+  - CalcPosThread
+- LTForeFlight.cpp
+  - ForeFlightSender::thrUdpSender
+- LTRealTraffic.cpp
+  - RealTrafficConnection::thrTcpServer
+  - RealTrafficConnection::thrUdpListener
+- LTADSBEx.cpp
+  - DoTestADSBExAPIKey
+- LiveTraffic.cpp / LTVersion.cpp
+  - FetchXPlaneOrgVersion
+- LTApt.cpp
+  - AsyncReadApt
 
 Add Nose-wheel steering angle
 
 ImGui
-- Convert Settings UI
-  - LTImgWindow: Instead of killing a hidden window call a virtual function and let that decide what to do
-  - ACInfoWnd will then kill itself
-  - Settings window will just save data
-  - Test reopen of settings window after hiding
-  - Test proper deletion during shutdown
+- A/c info has too short initial length for when data is shown
 - Implement a generic searchable plane list
 - Add plane selection to A/C Info
 - Add new status window

@@ -92,11 +92,14 @@
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
 
-    <P>For updating coming from v2.06 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
+    <P>For updating coming from v2.07 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
 	
     <P>Change log:</P>
 
     <ul>
+        <li>FIXED a crash when a LiveTraffic aircraft is turned invalid (due to new
+            <code>THREAD_is_main_thread</code> validations in XP, see
+            <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a>).</li>
 		<li>FIXED a potential crash when a LiveTraffic aircraft is turned invalid in a spearate thread
 		    while in parallel XPMP2 is sending its data to dataRefs (TCAS, multiplayer, shared info).</li>
 	</ul>
@@ -108,8 +111,10 @@
     <P>Change log:</P>
 
     <ul>
-		<li>FIXED a crash when entering/changing the ADS-B Exchange API key that came up with XP11.50b14.
-		    <a href="https://forums.x-plane.org/index.php?/forums/topic/221016-adsbx-key-test-ctd-xplane-11b13/&do=findComment&comment=1988830">See here.</a></li>
+		<li>FIXED a crash when entering/changing the ADS-B Exchange API key that came up with XP11.50b14
+            (due to new <code>THREAD_is_main_thread</code> validations in XP, see
+            <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a> and
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/221016-adsbx-key-test-ctd-xplane-11b13/&do=findComment&comment=1988830">here</a>.)</li>
 		<li>FIXED welcome message and beta warning not showing on startup.</li>
 	</ul>
 

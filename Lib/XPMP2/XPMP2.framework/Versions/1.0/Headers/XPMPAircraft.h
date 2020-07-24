@@ -239,6 +239,9 @@ protected:
     float               mapY = 0.0f;        ///< temporary: map coordinates (NAN = not to be drawn)
     std::string         mapLabel;           ///< label for map drawing
     
+private:
+    bool bDestroyInst           = false;    ///< Instance to be destroyed in next flight loop callback?
+    
 public:
     /// Constructor creates a new aircraft object, which will be managed and displayed
     /// @exception XPMP2::XPMP2Error Mode S id invalid or duplicate, no model found during model matching

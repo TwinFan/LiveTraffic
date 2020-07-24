@@ -737,6 +737,9 @@ bool DataRefs::Init ()
         }
     }
     
+    // Read initial cached values
+    UpdateCachedValues();
+    
     return true;
 }
 
@@ -1933,10 +1936,30 @@ void DataRefs::ChTsOffsetAdd (double aNetTS)
     chTsOffset /= ++chTsOffsetCnt;
 }
 
-//MARK: Processed values (static functions)
+//
+// MARK: Update cached values for thread-safe access
+//
 
-// return the camera's position in world coordinates
-positionTy DataRefs::GetViewPos()
+/// Mutex guarding updates to cached values
+static std::mutex mutexDrUpdate;
+
+// update all cached values for thread-safe access
+void DataRefs::UpdateCachedValues ()
+{
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    UpdateViewPos();
+}
+
+
+//
+// MARK: Processed values (static functions)
+//
+
+// last read camera position
+positionTy DataRefs::lastCamPos;
+
+// fetch and save the camera's position in world coordinates
+void DataRefs::UpdateViewPos()
 {
     XPLMCameraPosition_t camPos = {NAN, NAN, NAN, 0.0f, 0.0f, 0.0f, 0.0f};
     // get the dataref values for current view pos, which are in local coordinates
@@ -1946,20 +1969,43 @@ positionTy DataRefs::GetViewPos()
     XPLMLocalToWorld(camPos.x, camPos.y, camPos.z,
                      &lat, &lon, &alt);
     
-    return positionTy(lat, lon, alt,
-                      dataRefs.GetSimTime(),
-                      camPos.heading,
-                      camPos.pitch,
-                      camPos.roll);
+    lastCamPos = positionTy(lat, lon, alt,
+                            dataRefs.GetSimTime(),
+                            camPos.heading,
+                            camPos.pitch,
+                            camPos.roll);
+}
+
+// return the camera's position in world coordinates
+positionTy DataRefs::GetViewPos()
+{
+    // If in main thread just return latest pos
+    if (dataRefs.IsXPThread())
+        return lastCamPos;
+    else
+    {
+        // calling from another thread: safely copy the cached value
+        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        positionTy camPos = lastCamPos;
+        lock.unlock();
+        return camPos;
+    }
 }
 
 // return the direction the camera is looking to
 double DataRefs::GetViewHeading()
 {
-    XPLMCameraPosition_t camPos = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    // get the dataref values for current view pos, which are in local coordinates
-    XPLMReadCameraPosition(&camPos);
-    return camPos.heading;
+    // If in main thread just return latest heading
+    if (dataRefs.IsXPThread())
+        return lastCamPos.heading();
+    else
+    {
+        // calling from another thread: safely copy the cached value
+        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        double h = lastCamPos.heading();
+        lock.unlock();
+        return h;
+    }
 }
 
 // in current situation, shall we draw labels?
