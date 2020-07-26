@@ -281,7 +281,7 @@ bool dequal ( const double d1, const double d2 )
 //MARK: Callbacks
 //
 
-// flight loop callback, will be called every second if enabled
+// flight loop callback, will be called every 5th frame while showing aircraft;
 // creates/destroys aircraft by looping the flight data map
 float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*)
 {
@@ -501,8 +501,8 @@ bool LTMainShowAircraft ()
     
     // enable the flight loop callback to maintain aircraft
     XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
-                                      FLIGHT_LOOP_INTVL,    // every 5th frame
-                                      1,            // relative to now
+                                      -1.0,     // initial call as fast as possible
+                                      1,        // relative to now
                                       NULL);
     
     // success
