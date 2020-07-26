@@ -589,52 +589,62 @@ void LTFlightDataSelectAc ()
 
     while ( !bFDMainStop )
     {
-        // determine when to be called next
-        // (calls to network requests might take a long time,
-        //  see wait in OpenSkyAcMasterdata::FetchAllData)
+        // basis for determining when to be called next
         auto nextWakeup = std::chrono::steady_clock::now();
-        nextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
         
         // LiveTraffic Top Level Exception Handling
         try {
             // where are we right now?
             positionTy pos (dataRefs.GetViewPos());
             
-            // cycle all flight data connections
-            for ( ptrLTChannelTy& p: listFDC )
-            {
-                // LiveTraffic Top Level Exception Handling
-                try {
-                    // fetch all aicrafts
-                    if ( p->IsEnabled() ) {
-                        
-                        // if enabled fetch data and process it
-                        if ( p->FetchAllData(pos) && !bFDMainStop ) {
-                            if (p->ProcessFetchedData(mapFd))
-                                // reduce error count if processed successfully
-                                // as a chance to appear OK in the long run
-                                p->DecErrCnt();
-                        }
-                    } else {
-                        // if disabled...maybe do still some processing to connections
-                        p->DoDisabledProcessing();
-                    }
-                } catch (const std::exception& e) {
-                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-                    // in case of any exception disable this channel
-                    p->SetValid(false, true);
-                } catch (...) {
-                    // in case of any exception disable this channel
-                    p->SetValid(false, true);
-                }
-                
-                // exit early if asked to do so
-                if ( bFDMainStop )
-                    break;
-            }
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
 
-            // Clear away processed master data requests
-            LTACMasterdataChannel::ClearMasterDataRequests();
+                // Next wakeup is "refresh interval" from _now_
+                // (calls to network requests might take a long time,
+                //  see wait in OpenSkyAcMasterdata::FetchAllData)
+                nextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+
+                // cycle all flight data connections
+                for ( ptrLTChannelTy& p: listFDC )
+                {
+                    // LiveTraffic Top Level Exception Handling
+                    try {
+                        // fetch all aicrafts
+                        if ( p->IsEnabled() ) {
+                            
+                            // if enabled fetch data and process it
+                            if ( p->FetchAllData(pos) && !bFDMainStop ) {
+                                if (p->ProcessFetchedData(mapFd))
+                                    // reduce error count if processed successfully
+                                    // as a chance to appear OK in the long run
+                                    p->DecErrCnt();
+                            }
+                        } else {
+                            // if disabled...maybe do still some processing to connections
+                            p->DoDisabledProcessing();
+                        }
+                    } catch (const std::exception& e) {
+                        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+                        // in case of any exception disable this channel
+                        p->SetValid(false, true);
+                    } catch (...) {
+                        // in case of any exception disable this channel
+                        p->SetValid(false, true);
+                    }
+                    
+                    // exit early if asked to do so
+                    if ( bFDMainStop )
+                        break;
+                }
+
+                // Clear away processed master data requests
+                LTACMasterdataChannel::ClearMasterDataRequests();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                nextWakeup += std::chrono::seconds(1);
+            }
             
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
