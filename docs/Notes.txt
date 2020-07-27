@@ -17,6 +17,15 @@ Thread-calling-SDK analysis (issue #190)
   - FetchXPlaneOrgVersion
 - LTApt.cpp
   - AsyncReadApt
+  
+  
+TEST
+- GetNetwTime: Just watch if log shows correct values
+- VR enabled
+- Simulated time: If standard flight in Bonn works it should work
+- Camera pos: with tight distance follow a cruising jet
+- User's plane pos: Watch FF output while flying
+
 
 Add Nose-wheel steering angle
 
