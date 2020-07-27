@@ -1,24 +1,6 @@
 TODO
 ===
 
-Thread-calling-SDK analysis (issue #190)
-- Handle LOG_MSG by adding to a central buffer storage with write-flag
-- LTChannel.cpp
-  - FDMainThread
-  - CalcPosThread
-- LTForeFlight.cpp
-  - ForeFlightSender::thrUdpSender
-- LTRealTraffic.cpp
-  - RealTrafficConnection::thrTcpServer
-  - RealTrafficConnection::thrUdpListener
-- LTADSBEx.cpp
-  - DoTestADSBExAPIKey
-- LiveTraffic.cpp / LTVersion.cpp
-  - FetchXPlaneOrgVersion
-- LTApt.cpp
-  - AsyncReadApt
-  
-  
 TEST
 - GetNetwTime: Just watch if log shows correct values
 - VR enabled

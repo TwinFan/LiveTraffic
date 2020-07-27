@@ -637,10 +637,6 @@ iLogLevel (initLogLevel)
 // Find and register dataRefs
 bool DataRefs::Init ()
 {
-    // initialize XP compatibility proxy functions
-    if (!XPC_Init())
-        return false;
-    
     // XP System Path
     char aszPath[512];
     XPLMGetSystemPath ( aszPath );
