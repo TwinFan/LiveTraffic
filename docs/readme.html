@@ -100,8 +100,11 @@
         <li>FIXED a crash when a LiveTraffic aircraft is turned invalid (due to new
             <code>THREAD_is_main_thread</code> validations in XP, see
             <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a>).</li>
-		<li>FIXED a potential crash when a LiveTraffic aircraft is turned invalid in a spearate thread
+		<li>FIXED other calls into X-Plane's API from worker threads, hopefully
+            avoiding crashes in future versions of X-Plane when validations tighten even further.</li>
+        <li>FIXED a potential crash when a LiveTraffic aircraft is turned invalid in a spearate thread
 		    while in parallel XPMP2 is sending its data to dataRefs (TCAS, multiplayer, shared info).</li>
+        <li>FIXED initial height of A/C Info window so that no scrollbar appears</li>
 	</ul>
 
     <h3>v2.07</h3>

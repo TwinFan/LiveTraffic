@@ -110,7 +110,8 @@ bool NextCycle (int newCycle)
             dataRefs.fdBufDebug -= avgFrameLen;             // minus an average frame length
             
             // And fix this cycle
-            currCycle.simTime  = dataRefs.GetSimTime();                 // recalc simTime based on fdBufDebug
+            dataRefs.UpdateSimTime();                       // recalc simTime based on fdBufDebug
+            currCycle.simTime  = dataRefs.GetSimTime();
             currCycle.diffTime = currCycle.simTime - prevCycle.simTime; // should be about avgFrameLen now
         }
         // otherwise all good, store our frame time

@@ -1754,6 +1754,10 @@ bool DataRefs::LoadConfigFile()
         return false;
     }
     
+    // ACInfoWnd was configured to small...make it longer
+    if (ACIheight == 510)
+        ACIheight = 530;
+    
     // looks like success
     return true;
 }

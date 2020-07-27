@@ -560,7 +560,7 @@ public:
     int SUItransp = 0;                  ///< Settings UI: transaprent background?
 
     int ACIwidth  = 320;                ///< A/C Info Wnd width
-    int ACIheight = 510;                ///< A/C Info Wnd height
+    int ACIheight = 530;                ///< A/C Info Wnd height
     int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
     int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
@@ -745,8 +745,8 @@ public:
 
 // MARK: Updating cached values for thread-safe access
     void UpdateCachedValues ();                 ///< performs all updates of cached values
-protected:
     void UpdateSimTime();                       ///< calculate simulated time
+protected:
     void UpdateUsersPlanePos ();                ///< fetches user's plane position
     static void UpdateViewPos();                ///< read and cache camera position
 
