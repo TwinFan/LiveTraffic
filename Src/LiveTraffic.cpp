@@ -386,6 +386,21 @@ float LoopCBOneTimeSetup (float, float, int, void*)
     
     switch (eOneTimeState) {
         case ONCE_CB_ADD_DREFS:
+            // Create a message window and say hello
+            if (dataRefs.UsingModernDriver()) {
+                // This version cannot run under Vulkan/Metal!
+                SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER, LT_VERSION_FULL);
+                SHOW_MSG(logFATAL, MSG_NOT_MODERN_DRIVER2);
+                dataRefs.SetAircraftDisplayed(false);
+            } else {
+                SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
+            }
+            if constexpr (VERSION_BETA)
+                SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
+#ifdef DEBUG
+            SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
+#endif
+
             // loop over all available data ref editor signatures
             for (const char* szDREditor: DATA_REF_EDITORS) {
                 // find the plugin by signature
@@ -454,6 +469,9 @@ PLUGIN_API int XPluginStart(
         strncpy_s(outName, 255, LIVE_TRAFFIC,       100);
         strncpy_s(outSig,  255, PLUGIN_SIGNATURE,   100);
         strncpy_s(outDesc, 255, PLUGIN_DESCRIPTION, 100);
+
+        // Keep track of this thread's id
+        dataRefs.ThisThreadIsXP();
         
 #ifdef DEBUG
         // install error handler

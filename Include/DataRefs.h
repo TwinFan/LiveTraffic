@@ -455,6 +455,7 @@ public:
 
 //MARK: Provided Data, i.e. global variables
 protected:
+    std::thread::id xpThread;        ///< id of X-Plane's thread (when it is OK to use XP API calls)
     XPLMPluginID pluginID       = 0;
     logLevelTy iLogLevel        = logWARN;
     logLevelTy iMsgAreaLevel    = logINFO;
@@ -544,6 +545,8 @@ protected:
 
 //MARK: DataRef access
 public:
+    void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
+    bool IsXPThread() const { return std::this_thread::get_id() == xpThread; }
     inline float GetMiscNetwTime() const        { return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]); }
     inline float GetLocalTimeSec() const        { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
     inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }

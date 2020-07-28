@@ -82,6 +82,7 @@ posStr(_fd.Positions2String())
 
 // An opaque handle to the window we will create
 XPLMWindowID    g_window = 0;
+bool            g_visible = false;      ///< window visible? (locally to avoid API calls)
 // when to remove the window
 float           fTimeRemove = NAN;
 
@@ -176,7 +177,7 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
             fTimeRemove = currTime + WIN_TIME_REMAIN;
         else if (currTime >= fTimeRemove) {
             // time's up: remove
-            XPLMSetWindowIsVisible ( g_window, false );
+            XPLMSetWindowIsVisible ( g_window, g_visible=false );
             fTimeRemove = NAN;
         }
     }
@@ -194,6 +195,60 @@ int dummy_wheel_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int
 void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags /*flags*/, char /*virtual_key*/, void * /*in_refcon*/, int /*losing_focus*/)
 { }
 
+/// Create/show the message window
+XPLMWindowID DoShowMsgWindow()
+{
+    // must only do so if executed from XP's main thread
+    if (!dataRefs.IsXPThread())
+        return nullptr;
+
+    // Create the message window
+    XPLMCreateWindow_t params;
+    params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
+    params.visible = 1;
+    params.drawWindowFunc = draw_msg;
+    // Note on "dummy" handlers:
+    // Even if we don't want to handle these events, we have to register a "do-nothing" callback for them
+    params.handleMouseClickFunc = dummy_mouse_handler;
+    params.handleRightClickFunc = dummy_mouse_handler;
+    params.handleMouseWheelFunc = dummy_wheel_handler;
+    params.handleKeyFunc = dummy_key_handler;
+    params.handleCursorFunc = dummy_cursor_status_handler;
+    params.refcon = NULL;
+    params.layer = xplm_WindowLayerFloatingWindows;
+    // No decoration...this is just message output and shall stay where it is
+    params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
+
+    // Set the window's initial bounds
+    // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
+    // We'll need to query for the global desktop bounds!
+    LT_GetScreenSize(params.left, params.top, params.right, params.bottom,
+        LT_SCR_RIGHT_TOP_MOST);
+
+    // define a window in the top right corner,
+    // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
+    // enough height for all lines of text
+    params.top -= WIN_FROM_TOP;
+    params.right -= WIN_FROM_RIGHT;
+    params.left = params.right - WIN_WIDTH;
+    params.bottom = params.top - (WIN_ROW_HEIGHT * (2 * int(listTexts.size()) + 1 +
+        (needSeeingShowMsg() ? 2 : 0)));
+
+    // if the window still exists just resize it
+    if (g_window) {
+        if (!XPLMGetWindowIsVisible(g_window))
+            XPLMSetWindowIsVisible(g_window, true);
+        XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
+    }
+    else {
+        // otherwise create a new one
+        g_window = XPLMCreateWindowEx(&params);
+        LOG_ASSERT(g_window);
+    }
+    g_visible = true;
+
+    return g_window;
+}
 
 //MARK: custom X-Plane message Window - Create / Destroy
 XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
@@ -227,51 +282,8 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
         listTexts.emplace_back(std::move(dispTxt));
     }
 
-    // Create the message window
-    XPLMCreateWindow_t params;
-    params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
-    params.visible = 1;
-    params.drawWindowFunc = draw_msg;
-    // Note on "dummy" handlers:
-    // Even if we don't want to handle these events, we have to register a "do-nothing" callback for them
-    params.handleMouseClickFunc = dummy_mouse_handler;
-    params.handleRightClickFunc = dummy_mouse_handler;
-    params.handleMouseWheelFunc = dummy_wheel_handler;
-    params.handleKeyFunc = dummy_key_handler;
-    params.handleCursorFunc = dummy_cursor_status_handler;
-    params.refcon = NULL;
-    params.layer = xplm_WindowLayerFloatingWindows;
-    // No decoration...this is just message output and shall stay where it is
-    params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
-    
-    // Set the window's initial bounds
-    // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
-    // We'll need to query for the global desktop bounds!
-    LT_GetScreenSize(params.left, params.top, params.right, params.bottom,
-                     LT_SCR_RIGHT_TOP_MOST);
-    
-    // define a window in the top right corner,
-    // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
-    // enough height for all lines of text
-    params.top -= WIN_FROM_TOP;
-    params.right -= WIN_FROM_RIGHT;
-    params.left = params.right - WIN_WIDTH;
-    params.bottom = params.top - (WIN_ROW_HEIGHT * (2*int(listTexts.size())+1+
-                                                    (needSeeingShowMsg() ? 2 : 0)));
-    
-    // if the window still exists just resize it
-    if (g_window) {
-        if (!XPLMGetWindowIsVisible( g_window))
-            XPLMSetWindowIsVisible ( g_window, true );
-        XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
-    }
-    else {
-        // otherwise create a new one
-        g_window = XPLMCreateWindowEx(&params);
-        LOG_ASSERT(g_window);
-    }
-    
-    return g_window;
+    // Show the window
+    return DoShowMsgWindow();
 }
 
 
@@ -285,12 +297,26 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int 
 }
 
 
+// Check if message wait to be shown, then show
+bool CheckThenShowMsgWindow()
+{
+    if ((!listTexts.empty() || needSeeingShowMsg()) &&      // something to show
+        (!g_window || !g_visible))                          // no window/visible
+    {
+        DoShowMsgWindow();
+        return true;
+    }
+    return false;
+}
+
+
 void DestroyWindow()
 {
     if ( g_window )
     {
         XPLMDestroyWindow(g_window);
         g_window = NULL;
+        g_visible = false;
         listTexts.clear();
    }
 }

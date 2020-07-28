@@ -73,6 +73,9 @@ bool NextCycle (int newCycle)
     
     // the time that has passed since the last cycle
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
+
+    // Quickly test if we need to show a window
+    CheckThenShowMsgWindow();
     
     // tell multiplayer lib if we want to see labels
     // (these are very quick calls only setting a variable)

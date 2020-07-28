@@ -241,6 +241,9 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
+            // Check if some msg window needs to show
+            CheckThenShowMsgWindow();
+
             // handle new network data (that func has a short-cut exit if nothing to do)
             LTFlightData::AppendAllNewPos();
             
