@@ -871,7 +871,7 @@ void    DataRefs::LTSetBool(void* p, int i)
     
     // If label config changes we need to tell XPMP2
     if (p == &dataRefs.bLabelVisibilityCUtOff)
-        XPMPSetAircraftLabelDist(dataRefs.labelMaxDist, dataRefs.bLabelVisibilityCUtOff);
+        XPMPSetAircraftLabelDist(float(dataRefs.labelMaxDist), dataRefs.bLabelVisibilityCUtOff);
 }
 
 //
@@ -1403,7 +1403,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
     
     // If label draw distance changes we need to tell XPMP2
     if (p == &labelMaxDist)
-        XPMPSetAircraftLabelDist(labelMaxDist, bLabelVisibilityCUtOff);
+        XPMPSetAircraftLabelDist(float(labelMaxDist), bLabelVisibilityCUtOff);
     
     // success
     return true;
