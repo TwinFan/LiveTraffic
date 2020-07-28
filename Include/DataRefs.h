@@ -259,6 +259,8 @@ enum dataRefsLT {
     DR_CFG_AI_UNDER_CONTROL,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
+    DR_CFG_LABEL_MAX_DIST,
+    DR_CFG_LABEL_VISIBILITY_CUT_OFF,
     DR_CFG_LABEL_COL_DYN,
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
@@ -508,6 +510,8 @@ protected:
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1, 1 };     ///< when to show? (default: always)
+    int labelMaxDist    = 3;            ///< [nm] max label distance
+    bool bLabelVisibilityCUtOff = true; ///< cut off labels at reported visibility?
     bool bLabelColDynamic  = false;     // dynamic label color?
     int labelColor      = COLOR_YELLOW;             ///< label color, by default yellow
     int maxNumAc        = DEF_MAX_NUM_AC;           ///< how many aircraft to create at most?

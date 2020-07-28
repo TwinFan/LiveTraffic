@@ -373,11 +373,16 @@ void LTSettingsUI::buildInterface()
                 ImGui::CheckboxFlags("Internal", &c, (1 << 1)); ImGui::SameLine();
                 ImGui::CheckboxFlags("VR",       &c, (1 << 2)); ImGui::SameLine();
                 ImGui::CheckboxFlags("Map",      &c, (1 << 3));
+                ImGui::TableNextCell();
             }
             if (c != dataRefs.GetLabelShowCfg().GetUInt()) {
                 cfgSet(DR_CFG_LABEL_SHOWN, int(c));
                 XPMPEnableMap(true, dataRefs.ShallDrawMapLabels());
             }
+            
+            // Label cut off: distance / visibility
+            ImGui::FilteredCfgNumber  ("Max Distance",          sFilter, DR_CFG_LABEL_MAX_DIST, 1, 50, 1, "%d nm");
+            ImGui::FilteredCfgCheckbox("Cut off at Visibility", sFilter, DR_CFG_LABEL_VISIBILITY_CUT_OFF);
 
             // Static / dynamic info
             c = dataRefs.GetLabelCfg().GetUInt();
