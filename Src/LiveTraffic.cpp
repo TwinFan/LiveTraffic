@@ -38,6 +38,7 @@ DataRefs dataRefs(logWARN);
 //MARK: Plugin Menu
 enum menuItems {
     MENU_ID_LIVETRAFFIC = 0,
+    MENU_ID_INFO_LIST_WND,
     MENU_ID_AC_INFO_WND,
     MENU_ID_AC_INFO_WND_POPOUT,
     MENU_ID_AC_INFO_WND_SHOWN,
@@ -71,6 +72,10 @@ void MenuHandler(void * /*mRef*/, void * iRef)
     try {
         // act based on menu id
         switch (reinterpret_cast<unsigned long long>(iRef)) {
+            case MENU_ID_INFO_LIST_WND:
+                XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_INFO_LIST_WND],
+                                  InfoListWnd::ToggleDisplay() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+                break;
             case MENU_ID_AC_INFO_WND:
                 ACIWnd::OpenNewWnd();
                 break;
@@ -153,6 +158,10 @@ void MenuCheckAircraftDisplayed ( bool bChecked, int numAc )
 // called regularly from flight-loop callbacks to update the menu items status
 void MenuUpdateAllItemStatus()
 {
+    // Is Info List window open?
+    XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_INFO_LIST_WND],
+                      InfoListWnd::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+
     // don't allow closing of a/c wnds in VR camera view
     XPLMEnableMenuItem(menuID, aMenuItems[MENU_ID_AC_INFO_WND_CLOSE_ALL],
                        !dataRefs.IsVREnabled() || !LTAircraft::IsCameraViewOn());
@@ -211,7 +220,7 @@ void HandleNewVersionAvail ()
 int AppendMenuItem (XPLMMenuID   inMenu,
                        const char*  inItemName,
                        void*        inItemRef,
-                       XPLMCommandRef inCommandToExecute)
+                       XPLMCommandRef inCommandToExecute = nullptr)
 {
     // use XP11 version to also set a command?
     if (inCommandToExecute)
@@ -229,6 +238,11 @@ bool RegisterMenuItem ()
     aMenuItems[MENU_ID_LIVETRAFFIC] = XPLMAppendMenuItem(XPLMFindPluginsMenu(), LIVE_TRAFFIC, NULL, 1);
     menuID = XPLMCreateMenu(LIVE_TRAFFIC, XPLMFindPluginsMenu(), aMenuItems[MENU_ID_LIVETRAFFIC], MenuHandler, NULL);
     if ( !menuID ) { LOG_MSG(logERR,ERR_CREATE_MENU,LIVE_TRAFFIC); return 0; }
+    
+    // Open the info list window
+    aMenuItems[MENU_ID_INFO_LIST_WND] =
+    AppendMenuItem(menuID, MENU_INFO_LIST_WND, (void *)MENU_ID_INFO_LIST_WND);
+#warning Add command for Info List Window
     
     // Open an aircraft info window
     aMenuItems[MENU_ID_AC_INFO_WND] =

@@ -777,11 +777,14 @@ bool LTImgWindowInit ()
                     ICON_FA_CAMERA
                     ICON_FA_CHECK
                     ICON_FA_CHECK_CIRCLE
+                    ICON_FA_CLIPBOARD_LIST
                     ICON_FA_EXCLAMATION_TRIANGLE
                     ICON_FA_EYE
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
                     ICON_FA_FOLDER_OPEN
+                    ICON_FA_INFO_CIRCLE
                     ICON_FA_LEVEL_UP_ALT
+                    ICON_FA_PLANE
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_SAVE
                     ICON_FA_SEARCH

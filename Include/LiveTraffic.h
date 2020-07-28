@@ -116,6 +116,7 @@ extern DataRefs dataRefs;
 #include "LTImgWindow.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
+#include "InfoListWnd.h"
 #include "LTApt.h"
 
 // LiveTraffic channels

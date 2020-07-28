@@ -251,6 +251,8 @@ enum dataRefsLT {
     DR_UI_ACI_HEIGHT,
     DR_UI_ACI_COLLAPSED,
     DR_UI_ACI_FONT_SCALE,
+    DR_UI_ILW_WIDTH,
+    DR_UI_ILW_HEIGHT,
     
     // configuration options
     DR_CFG_AIRCRAFT_DISPLAYED,
@@ -563,6 +565,9 @@ public:
     int ACIheight = 530;                ///< A/C Info Wnd height
     int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
     int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
+
+    int ILWwidth  = 500;                ///< Info List Wnd width
+    int ILWheight = 300;                ///< Info List Wnd height
 
 //MARK: Constructor
 public:

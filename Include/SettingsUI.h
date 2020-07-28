@@ -76,13 +76,6 @@ protected:
     /// Main function to render the window's interface
     void buildInterface() override;
 
-    /*
-    /// Set CSL label configuration
-    void LabelBtnSave();
-    
-    // Save CSL path / Load a CSL package
-    void SaveCSLPath(int idx);*/
-    
 public:
     /// @brief Creates/opens/displays/hides/closes the settings window
     /// @param _force 0 - toggle, <0 force close, >0 force open

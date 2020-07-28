@@ -200,6 +200,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define XPPRF_RENOPT_HDR_ANTIAL "renopt_HDR_antial"
 
 //MARK: Menu Items
+#define MENU_INFO_LIST_WND      "Status / Information..."
 #define MENU_AC_INFO_WND        "Aircraft Info..."
 #define MENU_AC_INFO_WND_POPOUT "Aircraft Info... (Popped out)"
 #define MENU_AC_INFO_WND_SHOWN  "Aircraft Info shown"
@@ -239,6 +240,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
+#define HELP_ILW                "using-lt/info-list-window"
 
 //MARK: File Paths
 // these are under the plugins directory

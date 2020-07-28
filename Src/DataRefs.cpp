@@ -390,6 +390,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/ui/aci/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/ui/aci/collapsed",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/ui/aci/font_scale",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/ilw/width",                    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/ilw/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
@@ -455,6 +457,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_UI_ACI_HEIGHT:              return &ACIheight;
         case DR_UI_ACI_COLLAPSED:           return &ACIcollapsed;
         case DR_UI_ACI_FONT_SCALE:          return &ACIfontScale;
+        case DR_UI_ILW_WIDTH:               return &ILWwidth;
+        case DR_UI_ILW_HEIGHT:              return &ILWheight;
 
         // configuration options
         case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
