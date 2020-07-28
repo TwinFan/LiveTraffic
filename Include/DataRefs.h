@@ -721,7 +721,13 @@ public:
     inline bool IsReInitAll() const { return bReInitAll; }
     inline void SetReInitAll (bool b) { bReInitAll = b; }
     
+    /// update all cached values for thread-safe access
+    void UpdateCachedValues ();
+    
 //MARK: Processed values
+protected:
+    static positionTy lastCamPos;               ///< last read camera position
+    static void UpdateViewPos();                ///< read and cache camera position
 public:
     static positionTy GetViewPos();            // view position in World coordinates
     static double GetViewHeading();

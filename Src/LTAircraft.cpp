@@ -74,6 +74,9 @@ bool NextCycle (int newCycle)
     // the time that has passed since the last cycle
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
 
+    // Update cached values in dataRefs
+    dataRefs.UpdateCachedValues();
+    
     // Quickly test if we need to show a window
     CheckThenShowMsgWindow();
     
@@ -2101,7 +2104,7 @@ bool LTAircraft::YProbe ()
         // *** unrelated to YProbe...just makes use of the "calc every so often" mechanism
         
         // calc current bearing and distance for pure informational purpose ***
-        vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
+        vecView = dataRefs.GetViewPos().between(ppos);
         // update AI slotting priority
         CalcAIPrio();
         // update the a/c label with fresh values
