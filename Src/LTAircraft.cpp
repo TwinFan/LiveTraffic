@@ -470,24 +470,31 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
     const double accel = deltaSpeed / (_targetTime - tx);
     
     // set object's values
-    LOG_ASSERT(tx <= _targetTime);
-    SetSpeed(_startSpeed);              // reset
-    startSpeed = _startSpeed;
-    targetSpeed = _targetSpeed;
-    acceleration = accel;
-    targetDeltaDist = _deltaDist;
-    startTime = _startTime;
-    accelStartTime = std::max(tx, _startTime);
-    targetTime = _targetTime;
-//    if (dataRefs.GetDebugAcPos(pAc->key())) {
-//        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
-//                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
-//                startSpeed,
-//                accelStartTime - startTime,
-//                acceleration,
-//                targetSpeed,
-//                std::string(*pAc).c_str());
-//    }
+    if (tx <= _targetTime) {            // expected...but in rare edge cases it seems possible to be violated
+        SetSpeed(_startSpeed);          // reset, then set to calculated values:
+        startSpeed = _startSpeed;
+        targetSpeed = _targetSpeed;
+        acceleration = accel;
+        targetDeltaDist = _deltaDist;
+        startTime = _startTime;
+        accelStartTime = std::max(tx, _startTime);
+        targetTime = _targetTime;
+    //    if (dataRefs.GetDebugAcPos(pAc->key())) {
+    //        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
+    //                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
+    //                startSpeed,
+    //                accelStartTime - startTime,
+    //                acceleration,
+    //                targetSpeed,
+    //                std::string(*pAc).c_str());
+    //    }
+    } else {
+        LOG_MSG(logERR, "tx <= _targetTime violated for %s (tx = %.1f | %.1f, %.1f, %.1f, %.1f, %.1f)",
+                pAc->key().c_str(), tx,
+                _startSpeed, _targetSpeed, _deltaDist, _startTime, _targetTime);
+        SetSpeed(avgSpeed);
+        return;
+    }
 }
 
 // *** Acceleration formula ***
@@ -1503,7 +1510,11 @@ bool LTAircraft::CalcPPos()
             // need to check with LTFlightData's posDeque:
             switch ( fd.TryGetNextPos(to.ts()+1.0, nextPos) ) {
                 case LTFlightData::TRY_SUCCESS:
-                    // got the next position! Compute vector to it
+                    // got the next position!
+                    // But it's from flight data's queue, so potentially doesn't yet have an altitude, we need one now
+                    if (nextPos.IsOnGnd() && std::isnan(nextPos.alt_m()))
+                        nextPos.alt_m() = fd.YProbe_at_m(nextPos);
+                    // Compute vector to it
                     nextVec = to.between(nextPos);
                     break;
                 case LTFlightData::TRY_NO_LOCK:
