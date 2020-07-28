@@ -122,13 +122,9 @@ enum dataRefsXP {
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
-    DR_LAT_REF,                         // sim/flightmodel/position/lat_ref    float    n    degrees    The latitude of the point 0,0,0 in OpenGL coordinates
-    DR_LON_REF,                         // sim/flightmodel/position/lon_ref    float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates.
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
     DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
-    DR_WEATHER_BARO_SEA,                // XP's weather
-    DR_WEATHER_USE_REAL,
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
@@ -139,12 +135,6 @@ enum dataRefsXP {
     DR_PLANE_TRUE_AIRSPEED,
     DR_PLANE_ONGRND,
     DR_VR_ENABLED,                      // VR stuff
-    DR_PILOTS_HEAD_X,
-    DR_PILOTS_HEAD_Y,
-    DR_PILOTS_HEAD_Z,
-    DR_PILOTS_HEAD_HEADING,
-    DR_PILOTS_HEAD_PITCH,
-    DR_PILOTS_HEAD_ROLL,
     CNT_DATAREFS_XP                     // always last, number of elements
 };
 
@@ -543,37 +533,30 @@ protected:
     bool RegisterCommands();
     void* getVarAddr (dataRefsLT dr);
 
-//MARK: DataRef access
+//MARK: DataRef access, partly cached for thread-safe access
+protected:
+    static positionTy lastCamPos;               ///< cached read camera position
+    float       lastNetwTime    = 0.0f;         ///< cached network time
+    double      lastSimTime     = NAN;          ///< cached simulated time
+    bool        lastVREnabled   = false;        ///< cached info: VR enabled?
+    bool        bUsingModernDriver = false;     ///< modern driver in use?
+    positionTy  lastUsersPlanePos;              ///< cached user's plane position
+    double      lastUsersTrueAirspeed = 0.0;    ///< cached user's plane's air speed
+    double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
     bool IsXPThread() const { return std::this_thread::get_id() == xpThread; }
-    inline float GetMiscNetwTime() const        { return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]); }
-    inline float GetLocalTimeSec() const        { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
-    inline int   GetLocalDateDays() const       { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
-    inline bool  GetUseSystemTime() const       { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0; }
-    inline float GetZuluTimeSec() const         { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
-    bool DidLocalRefPointChange ();             ///< Did the reference point to the local coordinate system change since last call to this function?
+    inline float GetMiscNetwTime() const        { return lastNetwTime; }
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
-    inline bool UsingModernDriver () const      { return adrXP[DR_MODERN_DRIVER] ? XPLMGetDatai(adrXP[DR_MODERN_DRIVER]) != 0 : false; }
-    inline bool  IsVREnabled() const            { return
-#ifdef DEBUG
-        bSimVREntered ? true :                  // simulate some aspects of VR
-#endif
-        adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false; }  // for XP10 compatibility we accept not having this dataRef
-    // weather / air pressure
-    inline float GetWeatherBaroSea_inch () const { return XPLMGetDataf(adrXP[DR_WEATHER_BARO_SEA]) * 100.0f; }
-    inline double GetWeatherBaroSea_hpa () const { return GetWeatherBaroSea_inch() * HPA_per_INCH; }
-    inline bool IsRealWeatherInUse () const     { return XPLMGetDatai(adrXP[DR_WEATHER_USE_REAL]) != 0; }
-    // how many feet to add to barometric altitude to get geometric altitude?
-    inline double GetAltCorrection_ft () const  { return (GetWeatherBaroSea_hpa() - HPA_STANDARD) * FT_per_HPA; }
+    inline bool UsingModernDriver () const      { return bUsingModernDriver; }
+    inline bool  IsVREnabled() const            { return lastVREnabled; }
 
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
     inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
     positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
-    void GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks
@@ -595,7 +578,7 @@ public:
     static float LTGetAcInfoF(void* p);
     
     // seconds since epoch including fractionals
-    double GetSimTime() const;
+    double GetSimTime() const { return lastSimTime; }
     std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time
@@ -700,7 +683,7 @@ public:
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
-    // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP API)
+    // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP2)
     inline bool GetDebugModelMatching() const   { return bDebugModelMatching; }
     
     // Number of aircraft
@@ -720,14 +703,16 @@ public:
     // Re-Init
     inline bool IsReInitAll() const { return bReInitAll; }
     inline void SetReInitAll (bool b) { bReInitAll = b; }
-    
-    /// update all cached values for thread-safe access
-    void UpdateCachedValues ();
+
+// MARK: Updating cached values for thread-safe access
+    void UpdateCachedValues ();                 ///< performs all updates of cached values
+    void UpdateSimTime();                       ///< calculate simulated time
+protected:
+    void UpdateUsersPlanePos ();                ///< fetches user's plane position
+    static void UpdateViewPos();                ///< read and cache camera position
+
     
 //MARK: Processed values
-protected:
-    static positionTy lastCamPos;               ///< last read camera position
-    static void UpdateViewPos();                ///< read and cache camera position
 public:
     static positionTy GetViewPos();            // view position in World coordinates
     static double GetViewHeading();
