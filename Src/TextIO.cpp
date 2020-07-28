@@ -78,6 +78,61 @@ posStr(_fd.Positions2String())
 }
 
 
+//
+// MARK: Helper for finding top right corner
+//
+
+static int rm_idx, rm_l, rm_t, rm_r, rm_b;     // window's idx & coordinates
+
+/// callback function that receives monitor coordinates
+void CBRightTopMostMonitorGlobal(int    inMonitorIndex,
+                                 int    inLeftBx,
+                                 int    inTopBx,
+                                 int    inRightBx,
+                                 int    inBottomBx,
+                                 void * )          // inRefcon
+{
+    // right-top-most?
+    if ((inRightBx > rm_r) ||
+        (inRightBx == rm_r && inTopBx > rm_t))
+    {
+        rm_idx = inMonitorIndex;
+        rm_l   = inLeftBx;
+        rm_t   = inTopBx;
+        rm_r   = inRightBx;
+        rm_b   = inBottomBx;
+    }
+}
+
+/// determines screen size
+void GetTopRightScreenSize (int& outLeft,
+                            int& outTop,
+                            int& outRight,
+                            int& outBottom)
+{
+    // find window coordinates
+    // this will only find full screen monitors!
+    rm_l = rm_t = rm_r = rm_b = 0;
+    rm_idx = INT_MAX;
+    
+    // fetch global bounds of X-Plane-used windows
+    XPLMGetAllMonitorBoundsGlobal (CBRightTopMostMonitorGlobal, NULL);
+    
+    // did we find something? then return it
+    if ( rm_l || rm_t || rm_r || rm_b ) {
+        outLeft     = rm_l;
+        outTop      = rm_t;
+        outRight    = rm_r;
+        outBottom   = rm_b;
+        return;
+    }
+    
+    // if we didn't find anything we are running in windowed mode
+    outLeft = outBottom = 0;
+    XPLMGetScreenSize(&outRight,&outTop);
+}
+
+
 //MARK: custom X-Plane message Window - Globals
 
 // An opaque handle to the window we will create
@@ -204,7 +259,7 @@ XPLMWindowID DoShowMsgWindow()
 
     // Create the message window
     XPLMCreateWindow_t params;
-    params.structSize = IS_XPLM301 ? sizeof(params) : XPLMCreateWindow_s_210;
+    params.structSize = sizeof(params);
     params.visible = 1;
     params.drawWindowFunc = draw_msg;
     // Note on "dummy" handlers:
@@ -222,8 +277,7 @@ XPLMWindowID DoShowMsgWindow()
     // Set the window's initial bounds
     // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
     // We'll need to query for the global desktop bounds!
-    LT_GetScreenSize(params.left, params.top, params.right, params.bottom,
-        LT_SCR_RIGHT_TOP_MOST);
+    GetTopRightScreenSize(params.left, params.top, params.right, params.bottom);
 
     // define a window in the top right corner,
     // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,

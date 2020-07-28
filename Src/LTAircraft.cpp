@@ -51,11 +51,19 @@ static FrameLenArrTy gFrameLen;
 static FrameLenArrTy::iterator gFrameLenIter;
 #endif
 
+/// This is called every frame before updating aircraft positions,
+/// but only while there are aircraft to show.
 // cycle the cycle...that is move the old current values to previous
 // and fetch new current values
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
 bool NextCycle (int newCycle)
 {
+    // Update cached values in dataRefs (incl. time information)
+    dataRefs.UpdateCachedValues();
+    
+    // Quickly test if we need to show a window
+    CheckThenShowMsgWindow();
+    
     if ( currCycle.num >= 0 )    // not the very very first cycle?
         prevCycle = currCycle;
     else
@@ -74,9 +82,6 @@ bool NextCycle (int newCycle)
     // the time that has passed since the last cycle
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
 
-    // Quickly test if we need to show a window
-    CheckThenShowMsgWindow();
-    
     // tell multiplayer lib if we want to see labels
     // (these are very quick calls only setting a variable)
     // as the user can change between views any frame
@@ -105,7 +110,8 @@ bool NextCycle (int newCycle)
             dataRefs.fdBufDebug -= avgFrameLen;             // minus an average frame length
             
             // And fix this cycle
-            currCycle.simTime  = dataRefs.GetSimTime();                 // recalc simTime based on fdBufDebug
+            dataRefs.UpdateSimTime();                       // recalc simTime based on fdBufDebug
+            currCycle.simTime  = dataRefs.GetSimTime();
             currCycle.diffTime = currCycle.simTime - prevCycle.simTime; // should be about avgFrameLen now
         }
         // otherwise all good, store our frame time
@@ -2109,7 +2115,7 @@ bool LTAircraft::YProbe ()
         // *** unrelated to YProbe...just makes use of the "calc every so often" mechanism
         
         // calc current bearing and distance for pure informational purpose ***
-        vecView = positionTy(dataRefs.GetViewPos()).between(ppos);
+        vecView = dataRefs.GetViewPos().between(ppos);
         // update AI slotting priority
         CalcAIPrio();
         // update the a/c label with fresh values

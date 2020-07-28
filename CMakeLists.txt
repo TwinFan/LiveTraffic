@@ -69,7 +69,6 @@ set(Header_Files
     Include/parson.h
     Include/SettingsUI.h
     Include/TextIO.h
-    Include/XPCompatibility.h
     Lib/LTAPI/LTAPI.h
     Lib/ImGui/imconfig.h
     Lib/ImGui/imgui_internal.h
@@ -109,7 +108,6 @@ set(Source_Files
     Src/parson.c
     Src/SettingsUI.cpp
     Src/TextIO.cpp
-    Src/XPCompatibility.cpp
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp

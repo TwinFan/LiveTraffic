@@ -282,13 +282,9 @@ const char* DATA_REFS_XP[] = {
     "sim/time/local_date_days",
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
-    "sim/flightmodel/position/lat_ref",         // float    n    degrees    The latitude of the point 0,0,0 in OpenGL coordinates
-    "sim/flightmodel/position/lon_ref",         // float    n    degrees    The longitude of the point 0,0,0 in OpenGL coordinates"
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
     "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
-    "sim/weather/barometer_sealevel_inhg",      // float  y    29.92    +- ....        The barometric pressure at sea level.
-    "sim/weather/use_real_weather_bool",        // int    y    0,1    Whether a real weather file is in use."
     "sim/flightmodel/position/latitude",
     "sim/flightmodel/position/longitude",
     "sim/flightmodel/position/elevation",
@@ -299,12 +295,6 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/true_airspeed",
     "sim/flightmodel/failures/onground_any",
     "sim/graphics/VR/enabled",
-    "sim/graphics/view/pilots_head_x",
-    "sim/graphics/view/pilots_head_y",
-    "sim/graphics/view/pilots_head_z",
-    "sim/graphics/view/pilots_head_psi",
-    "sim/graphics/view/pilots_head_the",
-    "sim/graphics/view/pilots_head_phi",
 };
 
 static_assert(sizeof(DATA_REFS_XP) / sizeof(DATA_REFS_XP[0]) == CNT_DATAREFS_XP,
@@ -583,7 +573,11 @@ const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
     return path;
 }
 
-//MARK: Constructor - just plain variable init, no API calls
+//MARK: DataRefs Constructor - just plain variable init, no API calls
+
+/// Mutex guarding updates to cached values
+static std::mutex mutexDrUpdate;
+
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel)
 #ifdef DEBUG
@@ -643,10 +637,6 @@ iLogLevel (initLogLevel)
 // Find and register dataRefs
 bool DataRefs::Init ()
 {
-    // initialize XP compatibility proxy functions
-    if (!XPC_Init())
-        return false;
-    
     // XP System Path
     char aszPath[512];
     XPLMGetSystemPath ( aszPath );
@@ -681,7 +671,6 @@ bool DataRefs::Init ()
             // for XP10 compatibility we accept if we don't find a few,
             // all else stays an error
             if (i != DR_VR_ENABLED &&
-                i != DR_PILOTS_HEAD_ROLL &&
                 i != DR_MODERN_DRIVER) {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
@@ -703,6 +692,9 @@ bool DataRefs::Init ()
     // register all LiveTraffic-provided dataRefs and commands
     if (!RegisterDataAccessors() || !RegisterCommands())
         return false;
+    
+    // Using a modern graphics driver? (Metal, Vulkan)
+    bUsingModernDriver = adrXP[DR_MODERN_DRIVER] ? XPLMGetDatai(adrXP[DR_MODERN_DRIVER]) != 0 : false;
 
     // read Doc8643 file (which we could live without)
     Doc8643::ReadDoc8643File();
@@ -736,6 +728,9 @@ bool DataRefs::Init ()
             }
         }
     }
+    
+    // Read initial cached values
+    UpdateCachedValues();
     
     return true;
 }
@@ -807,32 +802,26 @@ bool DataRefs::RegisterCommands()
 }
 
 
-// Did the reference point to the local coordinate system change since last call to this function?
-/// @note Will always return `true` on first call, intentionally.
-bool DataRefs::DidLocalRefPointChange ()
-{
-    const float nowLatRef = XPLMGetDataf(adrXP[DR_LAT_REF]);
-    const float nowLonRef = XPLMGetDataf(adrXP[DR_LON_REF]);
-    
-    // Is this a change compared to what we know?
-    if (std::isnan(lstLonRef) ||          // never asked before?
-        !dequal(lstLatRef, nowLatRef) ||  // changed compared to last call?
-        !dequal(lstLonRef, nowLonRef))
-    {
-        // Update our known value of lat/lon reference
-        lstLatRef = nowLatRef;
-        lstLonRef = nowLonRef;
-        
-        // ref point changed
-        return true;
-    }
- 
-    // no change
-    return false;
-}
-
 // return user's plane pos
 positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) const
+{
+    if (IsXPThread()) {
+        // running in XP's main thread we can just return the values
+        trueAirspeed_m = lastUsersTrueAirspeed;
+        track = lastUsersTrack;
+        return lastUsersPlanePos;
+    } else {
+        // in a worker thread, we need to have the lock, and copy before release
+        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        positionTy ret = lastUsersPlanePos;
+        trueAirspeed_m = lastUsersTrueAirspeed;
+        track = lastUsersTrack;
+        lock.unlock();
+        return ret;
+    }
+}
+
+void DataRefs::UpdateUsersPlanePos ()
 {
     positionTy pos
     (
@@ -850,23 +839,12 @@ positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) co
     if (pos.lat() < -75 || pos.lat() > 75)
         pos.lat() = NAN;
     
+    // cache the position
+    lastUsersPlanePos = pos;
+    
     // also fetch true airspeed and track
-    trueAirspeed_m =    XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
-    track =             XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
-
-    return pos;
-}
-
-// return pilot's head position from 6 dataRefs combined
-void DataRefs::GetPilotsHeadPos(XPLMCameraPosition_t& headPos) const
-{
-    headPos.x = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_X]);
-    headPos.y = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_Y]);
-    headPos.z = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_Z]);
-    headPos.heading = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_HEADING]);
-    headPos.pitch   = XPLMGetDataf(adrXP[DR_PILOTS_HEAD_PITCH]);
-    headPos.roll    = adrXP[DR_PILOTS_HEAD_ROLL] ? XPLMGetDataf(adrXP[DR_PILOTS_HEAD_ROLL]) : 0.0f;
-    headPos.zoom    = 1.0f;
+    lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
+    lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
 }
 
 //
@@ -1097,8 +1075,8 @@ float DataRefs::LTGetAcInfoF(void* p)
 //MARK: Config Options
 //
 
-// simulated time (seconds since Unix epoch, including fractionals)
-double DataRefs::GetSimTime() const
+/// Compute simulated time (seconds since Unix epoch, including fractionals)
+void DataRefs::UpdateSimTime()
 {
     // using historic data means: we take the date configured in X-Plane's date&time settings
     if ( bUseHistoricData )
@@ -1110,9 +1088,9 @@ double DataRefs::GetSimTime() const
         static int lastLocalDateDays = -1;
         
         // current zulu time of day
-        double z  = GetZuluTimeSec();
+        double z  = XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]);
         // X-Plane's local date, expressed in days since January 1st
-        int localDateDays = GetLocalDateDays();
+        int localDateDays = XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]);
 
         // if the zulu hour or the date changed since last full calc then the full calc
         // might change, so redo it once and cache the result
@@ -1135,7 +1113,7 @@ double DataRefs::GetSimTime() const
             // 2 -----0--z---l-----  z < l, -12 <= d <  0
             // 3 --z--0---l--------  z > l,   d > 12,  z-day less    than l-day
             // 4 --l--0---z--------  l > z,   d < -12, z-day greater than l-day
-            double l = GetLocalTimeSec();
+            double l = XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]);  // local time in seconds
             double d  = z - l;        // time doesn't move between the two calls within the same drawing frame so the diff is actually a multiple of hours (or at least minutes), but no fractional seconds
             
             // we only need to adapt d if abs(d) is greater than 12 hours
@@ -1157,14 +1135,14 @@ double DataRefs::GetSimTime() const
         }
 
         // add current zulu time to start of zulu day
-        return cacheStartOfZuluDay + z;
+        lastSimTime = cacheStartOfZuluDay + z;
     }
     else
     {
         // we use current system time (no matter what X-Plane simulates),
         // but lagging behind by the buffering time
         using namespace std::chrono;
-        return
+        lastSimTime =
             // system time in microseconds
             double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
             // divided by 1000000 to create seconds with fractionals
@@ -1328,7 +1306,8 @@ bool DataRefs::SetUseHistData (bool bUseHistData, bool bForceReload)
         return true;
     
     // change to historical data but running with system time?
-    if ( bUseHistData && dataRefs.GetUseSystemTime() )
+    if ( bUseHistData &&
+         (XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]) != 0) )
     {
         SHOW_MSG(logERR, MSG_HIST_WITH_SYS_TIME);
         return false;
@@ -1775,6 +1754,10 @@ bool DataRefs::LoadConfigFile()
         return false;
     }
     
+    // ACInfoWnd was configured to small...make it longer
+    if (ACIheight == 510)
+        ACIheight = 530;
+    
     // looks like success
     return true;
 }
@@ -1933,10 +1916,38 @@ void DataRefs::ChTsOffsetAdd (double aNetTS)
     chTsOffset /= ++chTsOffsetCnt;
 }
 
-//MARK: Processed values (static functions)
+//
+// MARK: Update cached values for thread-safe access
+//
 
-// return the camera's position in world coordinates
-positionTy DataRefs::GetViewPos()
+// update all cached values for thread-safe access
+void DataRefs::UpdateCachedValues ()
+{
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+
+    lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
+    lastVREnabled =                         // is VR enabled?
+    #ifdef DEBUG
+        bSimVREntered ? true :              // simulate some aspects of VR
+    #endif
+        // for XP10 compatibility we accept not having this dataRef
+        adrXP[DR_VR_ENABLED] ? XPLMGetDatai(adrXP[DR_VR_ENABLED]) != 0 : false;
+
+    UpdateSimTime();
+    UpdateViewPos();
+    UpdateUsersPlanePos();
+}
+
+
+//
+// MARK: Processed values (static functions)
+//
+
+// last read camera position
+positionTy DataRefs::lastCamPos;
+
+// fetch and save the camera's position in world coordinates
+void DataRefs::UpdateViewPos()
 {
     XPLMCameraPosition_t camPos = {NAN, NAN, NAN, 0.0f, 0.0f, 0.0f, 0.0f};
     // get the dataref values for current view pos, which are in local coordinates
@@ -1946,20 +1957,43 @@ positionTy DataRefs::GetViewPos()
     XPLMLocalToWorld(camPos.x, camPos.y, camPos.z,
                      &lat, &lon, &alt);
     
-    return positionTy(lat, lon, alt,
-                      dataRefs.GetSimTime(),
-                      camPos.heading,
-                      camPos.pitch,
-                      camPos.roll);
+    lastCamPos = positionTy(lat, lon, alt,
+                            dataRefs.GetSimTime(),
+                            camPos.heading,
+                            camPos.pitch,
+                            camPos.roll);
+}
+
+// return the camera's position in world coordinates
+positionTy DataRefs::GetViewPos()
+{
+    // If in main thread just return latest pos
+    if (dataRefs.IsXPThread())
+        return lastCamPos;
+    else
+    {
+        // calling from another thread: safely copy the cached value
+        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        positionTy camPos = lastCamPos;
+        lock.unlock();
+        return camPos;
+    }
 }
 
 // return the direction the camera is looking to
 double DataRefs::GetViewHeading()
 {
-    XPLMCameraPosition_t camPos = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    // get the dataref values for current view pos, which are in local coordinates
-    XPLMReadCameraPosition(&camPos);
-    return camPos.heading;
+    // If in main thread just return latest heading
+    if (dataRefs.IsXPThread())
+        return lastCamPos.heading();
+    else
+    {
+        // calling from another thread: safely copy the cached value
+        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        double h = lastCamPos.heading();
+        lock.unlock();
+        return h;
+    }
 }
 
 // in current situation, shall we draw labels?
