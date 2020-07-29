@@ -400,6 +400,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/label_max_dist",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/label_visibility_cut_off",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
@@ -466,6 +468,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_LABELS:                 return &labelCfg;
         case DR_CFG_LABEL_SHOWN:            return &labelShown;
+        case DR_CFG_LABEL_MAX_DIST:         return &labelMaxDist;
+        case DR_CFG_LABEL_VISIBILITY_CUT_OFF: return &bLabelVisibilityCUtOff;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
         case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
@@ -868,6 +872,10 @@ void    DataRefs::LTSetBool(void* p, int i)
         ((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST]) &&
          dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) )
         dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+    
+    // If label config changes we need to tell XPMP2
+    if (p == &dataRefs.bLabelVisibilityCUtOff)
+        XPMPSetAircraftLabelDist(float(dataRefs.labelMaxDist), dataRefs.bLabelVisibilityCUtOff);
 }
 
 //
@@ -1396,6 +1404,10 @@ bool DataRefs::SetCfgValue (void* p, int val)
         else if (oldFdSnapTaxiDist == 0 && fdSnapTaxiDist > 0)
             LTAptEnable();
     }
+    
+    // If label draw distance changes we need to tell XPMP2
+    if (p == &labelMaxDist)
+        XPMPSetAircraftLabelDist(float(labelMaxDist), bLabelVisibilityCUtOff);
     
     // success
     return true;

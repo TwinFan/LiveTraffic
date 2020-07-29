@@ -678,6 +678,12 @@ void XPMPDisableAircraftLabels();
 /// Returns if labels are currently configured to be drawn
 bool XPMPDrawingAircraftLabels();
 
+
+/// Configure maximum label distance and if labels shall be cut off at reported visibility
+/// @param _dist_nm Maximum label distance in nm, default is 3, minimum is 1
+/// @param _bCutOffAtVisibility Shall labels not be drawn further away than XP's reported visibility?
+void XPMPSetAircraftLabelDist (float _dist_nm, bool _bCutOffAtVisibility = true);
+
 //
 // MARK: MAP
 //       Enable or disable the drawing of icons on maps
