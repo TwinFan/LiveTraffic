@@ -256,7 +256,7 @@ ImgWindow::RenderImGui(ImDrawData *draw_data)
         io.DisplayFramebufferScale.y != 1.0)
         draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
-	updateMatrices();
+    updateMatrices();
 
 	// We are using the OpenGL fixed pipeline because messing with the
 	// shader-state in X-Plane is not very well documented, but using the fixed
