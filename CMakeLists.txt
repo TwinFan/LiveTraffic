@@ -12,6 +12,7 @@ endif ()
 
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_SOURCE_DIR}/Include")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
@@ -66,9 +67,9 @@ set(Header_Files
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/Network.h
-    Include/parson.h
     Include/SettingsUI.h
     Include/TextIO.h
+    Lib/parson/parson.h
     Lib/LTAPI/LTAPI.h
     Lib/ImGui/imconfig.h
     Lib/ImGui/imgui_internal.h
@@ -105,9 +106,9 @@ set(Source_Files
     Src/LTRealTraffic.cpp
     Src/LTVersion.cpp
     Src/Network.cpp
-    Src/parson.c
     Src/SettingsUI.cpp
     Src/TextIO.cpp
+    Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
@@ -138,7 +139,7 @@ target_precompile_headers(LiveTraffic PUBLIC Include/LiveTraffic.h)
 
 # Exclude all the non-core-LiveTraffic modules from the pch
 set_source_files_properties(
-    Src/parson.c
+    Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
