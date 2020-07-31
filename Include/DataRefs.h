@@ -309,13 +309,15 @@ enum dataRefsLT {
 };
 
 enum cmdRefsLT {
-    CR_ACINFOWND_OPEN = 0,
+    CR_INFO_LIST_WND = 0,
+    CR_ACINFOWND_OPEN,
     CR_ACINFOWND_OPEN_POPPED_OUT,
     CR_ACINFOWND_HIDE_SHOW,
     CR_ACINFOWND_CLOSE_ALL,
     CR_AC_DISPLAYED,
     CR_AC_TCAS_CONTROLLED,
     CR_LABELS_TOGGLE,
+    CR_SETTINGS_UI,
     CNT_CMDREFS_LT                      // always last, number of elements
 };
 

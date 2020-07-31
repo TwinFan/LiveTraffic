@@ -81,6 +81,24 @@ IMGUI_API void PushID_formatted(const char* format, ...)
     PushID(sz);
 }
 
+// Outputs aligned text
+IMGUI_API void TextAligned (AlignTy _align, const std::string& s)
+{
+    // Change cursor position so that text becomes aligned
+    if (_align != IM_ALIGN_LEFT) {
+        ImVec2 avail = GetContentRegionAvail();
+        ImVec2 pos = GetCursorPos();
+        const float txtWidth = CalcTextSize(s.c_str()).x;
+        if (_align == IM_ALIGN_CENTER)
+            pos.x += avail.x/2.0f - txtWidth/2.0f;
+        else
+            pos.x += avail.x - txtWidth - ImGui::GetStyle().ItemSpacing.x;
+        SetCursorPos(pos);
+    }
+    // Output the text
+    TextUnformatted(s.c_str());
+}
+
 // Button with on-hover popup helper text
 IMGUI_API bool ButtonTooltip(const char* label,
                              const char* tip,
@@ -484,7 +502,7 @@ rectFloat(_initPos)
 {
     // Disable reading/writing of "imgui.ini"
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;
+    io.IniFilename = IMGUI_INI_PATH;
 
     // Create a flight loop id
     XPLMCreateFlightLoop_t flDef = {

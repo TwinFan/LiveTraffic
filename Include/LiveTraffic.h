@@ -116,6 +116,7 @@ extern DataRefs dataRefs;
 #include "LTImgWindow.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"
+#include "ACTable.h"
 #include "InfoListWnd.h"
 #include "LTApt.h"
 

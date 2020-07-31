@@ -1121,6 +1121,8 @@ std::string LTAircraft::FlightPhase2String (flightPhaseE phase)
 //MARK: LTAircraft Init/Destroy
 //
 
+constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
+
 // Constructor: create an aircraft from Flight Data
 LTAircraft::LTAircraft(LTFlightData& inFd) :
 // Base class -> this registers with XPMP API for actual display in XP!
@@ -1295,6 +1297,47 @@ bool LTAircraft::OutOfPositions() const
     (posList.size() < 2) ||
     (currCycle.simTime >= posList.back().ts());
 }
+
+
+/// Finds a near airport and outputs a human-readable position like "3.1nm N of EDDL"
+std::string LTAircraft::RelativePositionText ()
+{
+    // find/update the nearest airport when needed or
+    if (std::isnan(nearestAirportPos.lat()) ||
+        dataRefs.GetMiscNetwTime() >= lastNearestAirportCheck + ACI_NEAR_AIRPRT_PERIOD)
+    {
+        lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
+    
+        // Find the nearest airport
+        float lat = (float)GetPPos().lat();
+        float lon = (float)GetPPos().lon();
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
+                                           &lat, &lon, nullptr,
+                                           xplm_Nav_Airport);
+        if (!navRef)
+            return std::string(GetPPos());
+    
+        // Where is that airport and what's its name?
+        char airportId[32];
+        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
+                          airportId, nullptr, nullptr);
+        
+        // Save the data
+        nearestAirport = airportId;
+        nearestAirportPos.lat() = lat;
+        nearestAirportPos.lon() = lon;
+    }
+    
+    // determine bearing from airport to position
+    vectorTy vecRel = nearestAirportPos.between(GetPPos());
+    
+    // put together a nice string
+    char out[100];
+    snprintf(out, sizeof(out), "%.1fnm %s of %s",
+             vecRel.dist / M_per_NM, HeadingText(vecRel.angle).c_str(), nearestAirport.c_str());
+    return std::string(out);
+}
+
 
 
 // is the aircraft on a rwy (on ground and at least on pos on rwy)

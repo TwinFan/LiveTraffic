@@ -25,7 +25,7 @@
 //
 
 /// Resizing limits (minimum and maximum sizes)
-const WndRect ILW_RESIZE_LIMITS = WndRect(200, 200, 640, 9999);
+const WndRect ILW_RESIZE_LIMITS = WndRect(200, 200, 9999, 9999);
 
 // Global static pointer to the one info list window object
 static InfoListWnd* gpILW = nullptr;
@@ -101,7 +101,23 @@ void InfoListWnd::buildInterface()
         if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List")) {
             TabActive(ILW_TAB_AC_LIST);
             
-            ImGui::Text("Showing %d aircraft", dataRefs.GetNumAc());
+            // Limit to visible planes only
+            ImGui::Checkbox("Only visible a/c", &acList.bFilterAcOnly);
+            
+            // Search a setting
+            // If there is a search text then the tree nodes will be suppressed,
+            // and only matching config items are shown
+            ImGui::SameLine();
+            ImGui::InputTextWithHint("##SearchText", ICON_FA_SEARCH " Search Aircraft", sFilter, IM_ARRAYSIZE(sFilter),
+                                     ImGuiInputTextFlags_CharsUppercase);
+            if (*sFilter) {
+                ImGui::SameLine();
+                if (ImGui::ButtonTooltip(ICON_FA_TIMES, "Remove filter"))
+                    sFilter[0]=0;
+            }
+            
+            // Show the list of aircraft
+            acList.build(sFilter);
             
             ImGui::EndTabItem();
         }
@@ -116,6 +132,8 @@ void InfoListWnd::buildInterface()
         // MARK: Status / About
         if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About")) {
             TabActive(ILW_TAB_STATUS);
+
+            ImGui::Text("Showing %d aircraft", dataRefs.GetNumAc());
 
             // Version information
             if constexpr (VERSION_BETA)

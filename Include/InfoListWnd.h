@@ -31,6 +31,10 @@ protected:
     ILWTabTy    activeTab = ILW_TAB_NONE;
     std::string wndTitle;           ///< current window title, contains opened tab
 
+    ACTable acList;                 ///< represents the aircraft list on the first tab
+
+    /// Search filter
+    char sFilter[50] = {0};
 public:
     /// Constructor shows the window
     /// @param _mode (optional) window mode, defaults to "float or VR"

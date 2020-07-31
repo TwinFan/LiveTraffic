@@ -27,6 +27,8 @@
 
 /// The standard font to use
 #define WND_STANDARD_FONT "Resources/fonts/DejaVuSans.ttf"
+/// The place where ImGui writes its persistent information
+#define IMGUI_INI_PATH    "Output/preferences/" LIVE_TRAFFIC "_imgui.prf"
 /// The font's standard size
 constexpr int WND_FONT_SIZE = 15;
 /// Standard solid window background color
@@ -44,6 +46,16 @@ IMGUI_API float GetWidthIconBtn ();
 /// @brief Helper for creating unique IDs
 /// @details Required when creating many widgets in a loop, e.g. in a table
 IMGUI_API void PushID_formatted(const char* format, ...)    IM_FMTARGS(1);
+
+/// Output alignment
+enum AlignTy {
+    IM_ALIGN_LEFT = 0,  ///< left aligned
+    IM_ALIGN_CENTER,    ///< centered
+    IM_ALIGN_RIGHT,     ///< right aligned
+};
+
+/// @brief Outputs aligned text
+IMGUI_API void TextAligned (AlignTy _align, const std::string& s);
 
 /// @brief Button with on-hover popup helper text
 /// @param label Text on Button

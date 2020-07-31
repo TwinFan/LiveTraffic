@@ -518,13 +518,15 @@ struct cmdRefDescrTy {
     const char* cmdName;
     const char* cmdDescr;
 } CMD_REFS_LT[] = {
-    {"LiveTraffic/Aircraft_Info_Wnd/Open",              "Opens an aircraft information window"},
-    {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out aircraft information window (separate OS-level window)"},
-    {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all aircraft information windows, but does not close"},
-    {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all aircraft information windows"},
+    {"LiveTraffic/Info_Staus_Wnd/Open",                 "Opens/Closes the Information/Status window"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Open",              "Opens an Aircraft Information Window"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out Aircraft Information Window (separate OS-level window)"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all Aircraft Information Windows, but does not close"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all Aircraft Information Windows"},
     {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircraft"},
-    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircraft"},
+    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control toggle: Tries to take control over AI aircraft, or release it"},
     {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
+    {"LiveTraffic/Settings/Open",                       "Opens/Closes the Settings window"},
 };
 
 static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,

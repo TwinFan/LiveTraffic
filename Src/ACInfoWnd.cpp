@@ -36,7 +36,6 @@ enum SectionsBits {
 };
 
 constexpr float ACI_AUTO_CHECK_PERIOD = 1.00f;  ///< How often to check for AUTO a/c change? [s]
-constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
 constexpr float ACI_TREE_V_SEP        = 5.00f;  ///< Separation between tree sections
 
 static float ACI_LABEL_SIZE = NAN;              ///< Width of first column, which displays static labels
@@ -96,10 +95,6 @@ void ACIWnd::ClearAcKey ()
     acKey.clear();
     keyEntry.clear();
     lastAutoCheck = 0.0f;
-    
-    nearestAirport.clear();
-    nearestAirportPos = positionTy();
-    lastNearestAirportCheck = 0.0f;
     
     SetWindowTitle(GetWndTitle());
 }
@@ -189,45 +184,6 @@ bool ACIWnd::UpdateFocusAc ()
     return false;
 }
 
-/// Finds a near airport and outputs a human-readable position like "3.1nm N of EDDL"
-std::string ACIWnd::RelativePositionText (const positionTy& pos)
-{
-    // find/update the nearest airport when needed or
-    if (std::isnan(nearestAirportPos.lat()) ||
-        dataRefs.GetMiscNetwTime() >= lastNearestAirportCheck + ACI_NEAR_AIRPRT_PERIOD)
-    {
-        lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
-    
-        // Find the nearest airport
-        float lat = (float)pos.lat();
-        float lon = (float)pos.lon();
-        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
-                                           &lat, &lon, nullptr,
-                                           xplm_Nav_Airport);
-        if (!navRef)
-            return std::string(pos);
-    
-        // Where is that airport and what's its name?
-        char airportId[32];
-        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
-                          airportId, nullptr, nullptr);
-        
-        // Save the data
-        nearestAirport = airportId;
-        nearestAirportPos.lat() = lat;
-        nearestAirportPos.lon() = lon;
-    }
-    
-    // determine bearing from airport to position
-    vectorTy vec = nearestAirportPos.between(pos);
-    
-    // put together a nice string
-    char out[100];
-    snprintf(out, sizeof(out), "%.1fnm %s of %s",
-             vec.dist / M_per_NM, HeadingText(vec.angle).c_str(), nearestAirport.c_str());
-    return std::string(out);
-}
-
 // Some setup before UI building starts, here text size calculations
 ImGuiWindowFlags_ ACIWnd::beforeBegin()
 {
@@ -250,7 +206,9 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_WindowBg] =  ImColor(0.0f, 0.0f, 0.0f, float(dataRefs.UIopacity)/100.0f);
     
-    return ImGuiWindowFlags_None;
+    // For A/C Info Window we don't store any settings in imgui.ini
+    // because we can open multiple windows which all get different random ids, which collect over time
+    return ImGuiWindowFlags_NoSavedSettings;
 }
 
 // Main function to render the window's interface
@@ -385,7 +343,7 @@ void ACIWnd::buildInterface()
                                  CollSecGetSet(ACI_SB_POSITION) | ImGuiTreeNodeFlags_SpanFullWidth);
         ImGui::TableNextCell();
         if (pAc)
-            ImGui::TextUnformatted(RelativePositionText(pAc->GetPPos()).c_str());
+            ImGui::TextUnformatted(pAc->RelativePositionText().c_str());
         if (bOpen)
         {
             // Node is open

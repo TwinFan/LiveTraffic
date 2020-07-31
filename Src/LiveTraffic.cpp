@@ -241,32 +241,30 @@ bool RegisterMenuItem ()
     
     // Open the info list window
     aMenuItems[MENU_ID_INFO_LIST_WND] =
-    AppendMenuItem(menuID, MENU_INFO_LIST_WND, (void *)MENU_ID_INFO_LIST_WND);
-#warning Add command for Info List Window
+    AppendMenuItem(menuID, MENU_INFO_LIST_WND, (void *)MENU_ID_INFO_LIST_WND,
+                   dataRefs.cmdLT[CR_INFO_LIST_WND]);
     
     // Open an aircraft info window
     aMenuItems[MENU_ID_AC_INFO_WND] =
     AppendMenuItem(menuID, MENU_AC_INFO_WND, (void *)MENU_ID_AC_INFO_WND,
-                      dataRefs.cmdLT[CR_ACINFOWND_OPEN]);
+                   dataRefs.cmdLT[CR_ACINFOWND_OPEN]);
     
-    // modern windows only if available
-    if (XPLMHasFeature("XPLM_USE_NATIVE_WIDGET_WINDOWS")) {
-        aMenuItems[MENU_ID_AC_INFO_WND_POPOUT] =
-        AppendMenuItem(menuID, MENU_AC_INFO_WND_POPOUT, (void *)MENU_ID_AC_INFO_WND_POPOUT,
-                          dataRefs.cmdLT[CR_ACINFOWND_OPEN_POPPED_OUT]);
-    }
+    // Open an aircraft info window (popped out)
+    aMenuItems[MENU_ID_AC_INFO_WND_POPOUT] =
+    AppendMenuItem(menuID, MENU_AC_INFO_WND_POPOUT, (void *)MENU_ID_AC_INFO_WND_POPOUT,
+                   dataRefs.cmdLT[CR_ACINFOWND_OPEN_POPPED_OUT]);
 
     // Show/Hide all info wnds / with checkmark symbol
     aMenuItems[MENU_ID_AC_INFO_WND_SHOWN] =
     AppendMenuItem(menuID, MENU_AC_INFO_WND_SHOWN, (void *)MENU_ID_AC_INFO_WND_SHOWN,
-                      dataRefs.cmdLT[CR_ACINFOWND_HIDE_SHOW]);
+                   dataRefs.cmdLT[CR_ACINFOWND_HIDE_SHOW]);
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_AC_INFO_WND_SHOWN],
                       ACIWnd::AreShown() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     
     // Close all a/c info wnds
     aMenuItems[MENU_ID_AC_INFO_WND_CLOSE_ALL] =
     AppendMenuItem(menuID, MENU_AC_INFO_WND_CLOSEALL, (void *)MENU_ID_AC_INFO_WND_CLOSE_ALL,
-                      dataRefs.cmdLT[CR_ACINFOWND_CLOSE_ALL]);
+                   dataRefs.cmdLT[CR_ACINFOWND_CLOSE_ALL]);
 
     // Separator
     XPLMAppendMenuSeparator(menuID);
@@ -274,19 +272,19 @@ bool RegisterMenuItem ()
     // Show Aircraft / with checkmark symbol
     aMenuItems[MENU_ID_TOGGLE_AIRCRAFT] =
     AppendMenuItem(menuID, MENU_TOGGLE_AIRCRAFT, (void *)MENU_ID_TOGGLE_AIRCRAFT,
-                      dataRefs.cmdLT[CR_AC_DISPLAYED]);
+                   dataRefs.cmdLT[CR_AC_DISPLAYED]);
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_AIRCRAFT],xplm_Menu_Unchecked);
     
     // Have/Get TCAS / with checkmark symbol
     aMenuItems[MENU_ID_HAVE_TCAS] =
     AppendMenuItem(menuID, MENU_HAVE_TCAS, (void *)MENU_ID_HAVE_TCAS,
-                      dataRefs.cmdLT[CR_AC_TCAS_CONTROLLED]);
+                   dataRefs.cmdLT[CR_AC_TCAS_CONTROLLED]);
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_HAVE_TCAS],xplm_Menu_Unchecked);
     
     // Toggle display of labels
     aMenuItems[MENU_ID_TOGGLE_LABELS] =
     AppendMenuItem(menuID, MENU_TOGGLE_LABELS, (void *)MENU_ID_TOGGLE_LABELS,
-                      dataRefs.cmdLT[CR_LABELS_TOGGLE]);
+                   dataRefs.cmdLT[CR_LABELS_TOGGLE]);
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_LABELS],
                       dataRefs.ShallDrawLabels() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     
@@ -295,7 +293,8 @@ bool RegisterMenuItem ()
     
     // Show Settings UI
     aMenuItems[MENU_ID_SETTINGS_UI] =
-    XPLMAppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,1);
+    AppendMenuItem(menuID, MENU_SETTINGS_UI, (void *)MENU_ID_SETTINGS_UI,
+                   dataRefs.cmdLT[CR_SETTINGS_UI]);
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
                       LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 
@@ -349,6 +348,7 @@ struct cmdMenuMap {
     cmdRefsLT cmd;
     menuItems menu;
 } CMD_MENU_MAP[] = {
+    { CR_INFO_LIST_WND,             MENU_ID_INFO_LIST_WND },
     { CR_ACINFOWND_OPEN,            MENU_ID_AC_INFO_WND },
     { CR_ACINFOWND_OPEN_POPPED_OUT, MENU_ID_AC_INFO_WND_POPOUT },
     { CR_ACINFOWND_HIDE_SHOW,       MENU_ID_AC_INFO_WND_SHOWN },
@@ -356,6 +356,7 @@ struct cmdMenuMap {
     { CR_AC_DISPLAYED,              MENU_ID_TOGGLE_AIRCRAFT },
     { CR_AC_TCAS_CONTROLLED,        MENU_ID_HAVE_TCAS },
     { CR_LABELS_TOGGLE,             MENU_ID_TOGGLE_LABELS },
+    { CR_SETTINGS_UI,               MENU_ID_SETTINGS_UI },
 };
 
 int CommandHandlerMenuItems (XPLMCommandRef       /*inCommand*/,
