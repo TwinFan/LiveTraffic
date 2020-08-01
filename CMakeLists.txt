@@ -53,9 +53,11 @@ endif()
 ################################################################################
 set(Header_Files
     Include/ACInfoWnd.h
+    Include/ACTable.h
     Include/Constants.h
     Include/CoordCalc.h
     Include/DataRefs.h
+    Include/InfoListWnd.h
     Include/LiveTraffic.h
     Include/LTADSBEx.h
     Include/LTAircraft.h
@@ -91,8 +93,10 @@ source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
     Src/ACInfoWnd.cpp
+    Src/ACTable.cpp
     Src/CoordCalc.cpp
     Src/DataRefs.cpp
+    Src/InfoListWnd.cpp
     Src/LiveTraffic.cpp
     Src/LTADSBEx.cpp
     Src/LTAircraft.cpp
