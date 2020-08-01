@@ -150,7 +150,7 @@ void LTSettingsUI::buildInterface()
     const int nCol = std::max (2, int(ImGui::GetWindowContentRegionWidth() / (SUI_LABEL_SIZE+SUI_VALUE_SIZE)) * 2);
     if (ImGui::BeginTable("Settings", nCol,
                           ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
-                          ImGuiTableFlags_BordersHInner))
+                          ImGuiTableFlags_BordersInnerH))
     {
         const float fSmallWidth = ImGui::CalcTextSize("ABCDEF__").x;
 
