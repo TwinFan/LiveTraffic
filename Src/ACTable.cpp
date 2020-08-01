@@ -42,24 +42,52 @@ public:
     ACTColDefTy (const std::string& _name,
                  float _width,
                  ImGui::AlignTy _align = ImGui::IM_ALIGN_LEFT,
-                 ImGuiTableColumnFlags _flags = ImGuiTableColumnFlags_NoHeaderWidth) :
+                 ImGuiTableColumnFlags _flags = ImGuiTableColumnFlags_None) :
     colName(_name), colWidth(_width), colAlign(_align), colFlags(_flags) {}
 };
 
 /// Names all the available columns
 std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
-    {"Key",              60},
-    {"ID",               60,    ImGui::IM_ALIGN_LEFT,  ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_NoHeaderWidth},
+    {"Key",              60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"ID",               60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultSort},
     {"Registration",     60},
     
-    {"Manufacturer",    100},
+    {"Type",             45},
+    {"Class",            35,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"Manufacturer",    100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Model",           100},
+    {"Operator",        100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     
     {"Call Sign",        60},
-    {"Squawk",           50},
+    {"Squawk",           45,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"Flight",           65},
+    {"From",             45},
+    {"To",               45},
+
+    {"Position",        150},
+    {"Lat",              75,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Lon",              75,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Altitude",         50,    ImGui::IM_ALIGN_RIGHT},
+    {"AGL",              50,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {ICON_FA_CHEVRON_DOWN ICON_FA_CHEVRON_UP, 15, ImGui::IM_ALIGN_CENTER, ImGuiTableColumnFlags_NoSort},
+    {"VSI",              45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Speed",            35,    ImGui::IM_ALIGN_RIGHT},
+    {"Heading",          35,    ImGui::IM_ALIGN_RIGHT},
+    {"Pitch",            45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Roll",             45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Bearing",          35,    ImGui::IM_ALIGN_RIGHT},
+    {"Distance",         40,    ImGui::IM_ALIGN_RIGHT},
     
-    {"Position",        200},
-    {"Speed",            60,    ImGui::IM_ALIGN_RIGHT},
+    {"CSL Model",       150,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"Last Data",        35,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Channel",          60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"Phase",            85},
+    {"Gear",             40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Flaps",            40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"Lights",          140,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    
+    // This stays last
+    {"Actions",         100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_NoSort},
 }};
 
 //
@@ -68,12 +96,17 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
 
 FDInfo::FDInfo (const LTFlightData& fd)
 {
+    std::fill(vf.begin(), vf.end(), NAN);
     UpdateFrom(fd);
 }
 
 // Reads relevant data from the fd object
 bool FDInfo::UpdateFrom (const LTFlightData& fd)
 {
+    // buffer and macro for converting numeric data
+    char s[50];
+#define v_f(idx,fmt,val) vf[idx] = float(val); snprintf(s, sizeof(s), fmt, vf[idx]); v[idx] = s;
+
     bUpToDate = true;
     v[ACT_COL_KEY] = key = fd.key();    // possible without lock
     
@@ -82,26 +115,74 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
     if (fd.TryGetSafeCopy(stat)) {
         v[ACT_COL_ID]           = stat.acId(v[ACT_COL_KEY]);
         v[ACT_COL_REG]          = stat.reg;
+        v[ACT_COL_TYPE]         = stat.acTypeIcao;
+        v[ACT_COL_CLASS]        = Doc8643::get(stat.acTypeIcao).classification;
         v[ACT_COL_MAN]          = stat.man;
         v[ACT_COL_MDL]          = stat.mdl;
+        v[ACT_COL_OP]           = stat.op;
         v[ACT_COL_CALLSIGN]     = stat.call;
+        v[ACT_COL_FLIGHT]       = stat.flight;
+        v[ACT_COL_FROM]         = stat.originAp;
+        v[ACT_COL_TO]           = stat.destAp;
     } else
         bUpToDate = false;
-
+    
     // try fetching some dynamic data
     LTFlightData::FDDynamicData dyn;
     if (fd.TryGetSafeCopy(dyn)) {
         v[ACT_COL_SQUAWK]       = std::to_string(dyn.radar.code);
+        if (dyn.pChannel) {
+            v[ACT_COL_CHANNEL]  = dyn.pChannel->ChName();
+            // last flight data / channel
+            v_f(ACT_COL_LASTDATA, "%+.f", fd.GetYoungestTS() - dataRefs.GetSimTime());
+        } else {
+            v[ACT_COL_CHANNEL].clear();
+            v[ACT_COL_LASTDATA].clear();
+            vf[ACT_COL_LASTDATA] = NAN;
+        }
     } else
         bUpToDate = false;
+    
     
     // try fetching some actual flight data
     LTAircraft* pAc = fd.GetAircraft();
     if (pAc) {
-        char s[50];
         v[ACT_COL_POS]          = pAc->RelativePositionText();
-        snprintf(s, sizeof(s), "%.f", pAc->GetSpeed_kt());
-        v[ACT_COL_SPEED]        = s;
+        v_f(ACT_COL_LAT,    "%.4f",     pAc->GetPPos().lat());
+        v_f(ACT_COL_LON,    "%.4f",     pAc->GetPPos().lon());
+        v_f(ACT_COL_ALT,    "%.f",      pAc->GetAlt_ft());
+        v_f(ACT_COL_AGL,    "%.f",      pAc->GetPHeight_ft());
+        v_f(ACT_COL_VSI,    "%.f",      pAc->GetVSI_ft());
+        if (vf[ACT_COL_VSI] < -pAc->mdl.VSI_STABLE)     // up/down arrow depending on value of VSI
+            v[ACT_COL_UPDOWN] = ICON_FA_CHEVRON_DOWN;
+        else if (vf[ACT_COL_VSI] > pAc->mdl.VSI_STABLE)
+            v[ACT_COL_UPDOWN] = ICON_FA_CHEVRON_UP;
+        else
+            v[ACT_COL_UPDOWN].clear();
+        v_f(ACT_COL_SPEED,  "%.f",      pAc->GetSpeed_kt());
+        v_f(ACT_COL_HEADING,"%.f",      pAc->GetHeading());
+        v_f(ACT_COL_PITCH,  "%.1f",     pAc->GetPitch());
+        v_f(ACT_COL_ROLL,   "%.1f",     pAc->GetRoll());
+        v_f(ACT_COL_BEARING,"%.f",      pAc->GetCameraBearing());
+        v_f(ACT_COL_DIST,   "%.1f",     pAc->GetCameraDist() / M_per_NM);
+        
+        v[ACT_COL_CSLMDL]       = pAc->GetModelName();
+        v[ACT_COL_PHASE]        = pAc->GetFlightPhaseString();
+        vf[ACT_COL_PHASE]       = float(pAc->GetFlightPhase()); // sort flight phase by its index
+        v_f(ACT_COL_GEAR,   "%.f%%",    pAc->GetGearPos() * 100.0);
+        v_f(ACT_COL_FLAPS,  "%.f%%",    pAc->GetFlapsPos() * 100.0);
+        v[ACT_COL_LIGHTS]       = pAc->GetLightsStr();
+    }
+    // if there is no a/c, but there previously was, then we need to clear a lot of fields
+    else if (!v[ACT_COL_POS].empty()) {
+        for (int idx: {
+            ACT_COL_POS, ACT_COL_LAT, ACT_COL_LON, ACT_COL_ALT, ACT_COL_AGL,
+            ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
+            ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
+            ACT_COL_CSLMDL, ACT_COL_PHASE, ACT_COL_GEAR, ACT_COL_FLAPS,
+            ACT_COL_LIGHTS
+        })
+        { vf[idx] = NAN; v[idx].clear(); }
     }
     
     // Have we successfully updated?
@@ -181,7 +262,7 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
         for (ImGuiID col = 0; col < ACT_COL_COUNT; ++col) {
             const ACTColDefTy& colDef = gCols[col];
             ImGui::TableSetupColumn(colDef.colName.c_str(),
-                                    colDef.colFlags,
+                                    colDef.colFlags | ImGuiTableColumnFlags_NoHeaderWidth,
                                     colDef.colWidth,
                                     col);       // use ACTColumnsTy as ColumnUserID
         }
@@ -206,13 +287,72 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
         // Fill the data into the list
         for (const FDInfo& fdi: vecFDI) {
             ImGui::TableNextRow();
-            for (int col = 0; col < ACT_COL_COUNT; ++col) {
+            for (int col = 0; col < ACT_COL_ACTIONS; ++col) {
                 if (ImGui::TableSetColumnIndex(col)) {
                     ImGui::TextAligned(gCols[col].colAlign, fdi.v[col]);
                 }
             }
-        }
 
+            // Action column
+            if (ImGui::TableSetColumnIndex(ACT_COL_ACTIONS)) {
+                // Make sure all the buttons have a unique id
+                ImGui::PushID(fdi.key.c_str());
+                
+                // Limit the width of the selectables
+                ImVec2 selSize (ImGui::GetWidthIconBtn(), 0.0f);
+                
+                // (Potential) access to the aircraft, can be `nullptr`!
+                LTFlightData* pFD = fdi.GetFD();
+                LTAircraft* pAc = pFD ? pFD->GetAircraft() : nullptr;
+                
+                // Is a/c visible/auto-visible?
+                bool bVisible       = pAc ? pAc->IsVisible()        : false;
+                bool bAutoVisible   = pAc ? pAc->IsAutoVisible()    : false;
+
+                // Open a/c info window
+                if (ImGui::SmallButton(ICON_FA_INFO_CIRCLE "##ACIWnd")) {
+                    // Open an ACIWnd, which is another ImGui window, so safe/restore our context
+                    ImGuiContext* pCtxt = ImGui::GetCurrentContext();
+                    ACIWnd::OpenNewWnd(fdi.key);
+                    ImGui::SetCurrentContext(pCtxt);
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", "Open Aircraft Info Window");
+
+                // Camera view
+                ImGui::SameLine();
+                if (ImGui::Selectable(ICON_FA_CAMERA "##CameraView",
+                                      pAc ? pAc->IsInCameraView() : false,
+                                      pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
+                                      selSize))
+                    pAc->ToggleCameraView();
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", "Toggle camera view");
+
+                // Visible
+                ImGui::SameLine();
+                if (ImGui::Selectable(ICON_FA_EYE "##Visible", &bVisible,
+                                      pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
+                                      selSize))
+                    pAc->SetVisible(bVisible);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", "Toggle aircraft's visibility");
+
+                // "Auto Visible" only if some auto-hiding option is on
+                if (dataRefs.IsAutoHidingActive()) {
+                    ImGui::SameLine();
+                    if (ImGui::Selectable(ICON_FA_EYE "##AutoVisible", &bAutoVisible,
+                                          pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
+                                          selSize))
+                        pAc->SetAutoVisible(bAutoVisible);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Toggle aircraft's auto visibility");
+                }
+                
+                ImGui::PopID();
+            } // action column
+        }   // for all a/c rows
+        
         // End of aircraft list
         ImGui::EndTable();
     }
@@ -266,20 +406,30 @@ bool ACTable::UpdateFDIs (const std::string& _filter)
 // Sort the aircraft list by given column
 void ACTable::Sort (ACTColumnsTy _col, bool _asc)
 {
-    // All right-aligned data is treated as numeric
-    if (gCols.at(_col).colAlign == ImGui::IM_ALIGN_RIGHT) {
+    // All right-aligned data is treated as numeric, using the numeric `vf` array,
+    // so is the "flight phase", which gets sorted by its numeric value, too:
+    if (gCols.at(_col).colAlign == ImGui::IM_ALIGN_RIGHT ||
+        _col == ACT_COL_PHASE) {
         std::sort(vecFDI.begin(), vecFDI.end(),
                   [_col](const FDInfo& a, const FDInfo& b)
         {
-            return
-            (a.v[_col].empty() ? NAN : std::stof(a.v[_col])) <
-            (b.v[_col].empty() ? NAN : std::stof(b.v[_col]));
+            const float af = a.vf[_col]; const bool a_nan = std::isnan(af);
+            const float bf = b.vf[_col]; const bool b_nan = std::isnan(bf);
+            if (!a_nan && !b_nan)       // standard case: both value defined
+                return af < bf;
+            if (a_nan && b_nan)         // both NAN -> considered equal, for a stable sort let the key decide
+                return a.key < b.key;
+            return a_nan;               // one of them is NAN -> is it is a then we consider it "less"
         });
     } else {
+        // otherwise we sort by text
         std::sort(vecFDI.begin(), vecFDI.end(),
                   [_col](const FDInfo& a, const FDInfo& b)
         {
-            return a.v[_col] < b.v[_col];
+            const int cmp = a.v[_col].compare(b.v[_col]);
+            return
+            cmp == 0 ? a.key < b.key :  // in case of equality let the key decide for a stable sorting order
+            cmp < 0;
         });
     }
     

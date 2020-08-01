@@ -61,11 +61,14 @@ namespace ImGui {
 static float gWidthIconBtn = NAN;
 
 // Get width of an icon button (calculate on first use)
-IMGUI_API float GetWidthIconBtn ()
+IMGUI_API float GetWidthIconBtn (bool _bWithSpacing)
 {
     if (std::isnan(gWidthIconBtn))
-        gWidthIconBtn = CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x + 5;
-    return gWidthIconBtn;
+        gWidthIconBtn = CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x;
+    if (_bWithSpacing)
+        return gWidthIconBtn + ImGui::GetStyle().ItemSpacing.x;
+    else
+        return gWidthIconBtn;
 }
 
 // Helper for creating unique IDs
@@ -97,6 +100,38 @@ IMGUI_API void TextAligned (AlignTy _align, const std::string& s)
     }
     // Output the text
     TextUnformatted(s.c_str());
+}
+
+// Small Button with on-hover popup helper text
+IMGUI_API bool SmallButtonTooltip(const char* label,
+                                  const char* tip,
+                                  ImU32 colFg,
+                                  ImU32 colBg)
+{
+    // Setup colors
+    if (colFg != IM_COL32(1,1,1,0))
+        PushStyleColor(ImGuiCol_Text, colFg);
+    if (colBg != IM_COL32(1,1,1,0))
+        PushStyleColor(ImGuiCol_Button, colBg);
+
+    // do the button (and we _really_ using also x frame padding = 0)
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f,0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f,0.0f));
+    bool b = SmallButton(label);
+    ImGui::PopStyleVar(2);
+    
+    // restore previous colors
+    if (colBg != IM_COL32(1,1,1,0))
+        PopStyleColor();
+    if (colFg != IM_COL32(1,1,1,0))
+        PopStyleColor();
+
+    // do the tooltip
+    if (tip && IsItemHovered())
+        SetTooltip("%s", tip);
+    
+    // return if button pressed
+    return b;
 }
 
 // Button with on-hover popup helper text
@@ -137,7 +172,7 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     PushStyleColor(ImGuiCol_ButtonHovered, GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
 
     if (rightAligned)
-        SetCursorPosX(GetContentRegionMax().x - GetWidthIconBtn());
+        SetCursorPosX(GetWindowContentRegionMax().x - GetWidthIconBtn() - ImGui::GetStyle().ItemSpacing.x);
 
     bool b = ButtonTooltip(label, tooltip);
 
@@ -611,7 +646,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
                                  bool bCloseBtn,
                                  bool bWndBtns)
 {
-    const float btnWidth = ImGui::GetWidthIconBtn();
+    const float btnWidth = ImGui::GetWidthIconBtn(true);
     const ImGuiStyle& style = ImGui::GetStyle();
     
     // Close button
@@ -673,7 +708,7 @@ void LTImgWindow::buildWndButtons ()
 {
     // Button with fixed width 30 and standard height
     // to pop out the window in an OS window
-    const float btnWidth = ImGui::GetWidthIconBtn();
+    const float btnWidth = ImGui::GetWidthIconBtn(true);
     const bool bBtnHelp = szHelpURL != nullptr;
     const bool bBtnPopOut = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
 #if APL
@@ -795,6 +830,8 @@ bool LTImgWindowInit ()
                     ICON_FA_CAMERA
                     ICON_FA_CHECK
                     ICON_FA_CHECK_CIRCLE
+                    ICON_FA_CHEVRON_DOWN
+                    ICON_FA_CHEVRON_UP
                     ICON_FA_CLIPBOARD_LIST
                     ICON_FA_EXCLAMATION_TRIANGLE
                     ICON_FA_EYE

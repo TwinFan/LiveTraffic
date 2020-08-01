@@ -1,9 +1,6 @@
 TODO
 ===
 
-Review LiveTraffic_imgui.prf
-Set proper default column widths
-
 Add Nose-wheel steering angle
 
 ImGui

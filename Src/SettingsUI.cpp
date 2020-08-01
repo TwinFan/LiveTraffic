@@ -668,7 +668,7 @@ void LTSettingsUI::buildInterface()
                     
                     // Open Folder button
                     ImGui::SameLine();
-                    if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                    if (ImGui::SmallButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
                         // or this is the active line and we shall re-open the popup
                         (cslActiveLn == i && bSubDirsOpen)) {
                         if (cslActiveLn != i) {     // if not yet active:
@@ -687,23 +687,23 @@ void LTSettingsUI::buildInterface()
                     ImGui::SameLine();
                     if (cslActiveLn == i && cslEntry != pathCfg.getPath()) {
                         // This line being edited and changed: offer Save button
-                        if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Save the changed path")) {
+                        if (ImGui::SmallButtonTooltip(ICON_FA_SAVE, "Save the changed path")) {
                             pathCfg = cslEntry;
                             cslActiveLn = -1; cslEntry.clear();
                         }
                         ImGui::SameLine();
-                        if (ImGui::ButtonTooltip(ICON_FA_UNDO, "Undo path change")) {
+                        if (ImGui::SmallButtonTooltip(ICON_FA_UNDO, "Undo path change")) {
                             // actually, we stop editing without saving
                             cslActiveLn = -1; cslEntry.clear();
                         }
                     } else {
                         // Not being edited: offer Load button
-                        if (ImGui::ButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
+                        if (ImGui::SmallButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
                             dataRefs.LoadCSLPackage(pathCfg.getPath());
                         ImGui::SameLine();
                         // Delete button, requires confirmation
                         constexpr const char* SUI_CSL_DEL_POPUP = "Delete CSL Path";
-                        if (ImGui::ButtonTooltip(ICON_FA_TRASH_ALT, "Remove this path from the configuration"))
+                        if (ImGui::SmallButtonTooltip(ICON_FA_TRASH_ALT, "Remove this path from the configuration"))
                             ImGui::OpenPopup(SUI_CSL_DEL_POPUP);
                         if (ImGui::BeginPopup(SUI_CSL_DEL_POPUP)) {
                             ImGui::Text("Confirm deletion of path\n%s", pathCfg.getPath().c_str());
@@ -744,7 +744,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::SameLine();
                 
                 // Folder selection button
-                if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                if (ImGui::SmallButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
                     bNewSubDirsOpen) {
                     ImGui::OpenPopup(SUI_OPEN_FOLDER);
                     bNewSubDirsOpen = false;
@@ -757,7 +757,7 @@ void LTSettingsUI::buildInterface()
                 // Save button
                 if (bCslNewExists && !cslNew.empty()) {
                     ImGui::SameLine();
-                    if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
+                    if (ImGui::SmallButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
                         bDoAdd = true;
                 }
                 

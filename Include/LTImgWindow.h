@@ -41,7 +41,7 @@ constexpr ImU32 DEF_WND_BG_COL = IM_COL32(15,15,15,240);
 namespace ImGui {
 
 /// Get width of an icon button (calculate on first use)
-IMGUI_API float GetWidthIconBtn ();
+IMGUI_API float GetWidthIconBtn (bool _bWithSpacing = false);
 
 /// @brief Helper for creating unique IDs
 /// @details Required when creating many widgets in a loop, e.g. in a table
@@ -56,6 +56,17 @@ enum AlignTy {
 
 /// @brief Outputs aligned text
 IMGUI_API void TextAligned (AlignTy _align, const std::string& s);
+
+/// @brief Small button with on-hover popup helper text
+/// @param label Text on Button
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param colFg Foreground/text color (optional, otherwise no change)
+/// @param colBg Background color (optional, otherwise no change)
+IMGUI_API bool SmallButtonTooltip(const char* label,
+                                  const char* tip = nullptr,
+                                  ImU32 colFg = IM_COL32(1,1,1,0),
+                                  ImU32 colBg = IM_COL32(1,1,1,0));
+
 
 /// @brief Button with on-hover popup helper text
 /// @param label Text on Button

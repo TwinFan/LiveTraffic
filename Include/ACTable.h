@@ -27,15 +27,42 @@ enum ACTColumnsTy {
     ACT_COL_ID,             ///< some id, same as "any id" in label config
     ACT_COL_REG,            ///< registration / tail number
     
+    ACT_COL_TYPE,           ///< ICAO aircraft type (like "A388")
+    ACT_COL_CLASS,          ///< ICAO aircraft class (like "L4J")
     ACT_COL_MAN,            ///< manufacturer (human-readable)
     ACT_COL_MDL,            ///< model (human-readable)
+    ACT_COL_OP,             ///< operator
     
     ACT_COL_CALLSIGN,       ///< call sign
     ACT_COL_SQUAWK,         ///< Squawk code
+    ACT_COL_FLIGHT,         ///< Flight number
+    ACT_COL_FROM,           ///< departure airport
+    ACT_COL_TO,             ///< destination airport
     
     ACT_COL_POS,            ///< position relative to nearest airport
+    ACT_COL_LAT,            ///< latitude
+    ACT_COL_LON,            ///< longitude
+    ACT_COL_ALT,            ///< altitude
+    ACT_COL_AGL,            ///< height above ground level
+    ACT_COL_UPDOWN,         ///< up/down arrows
+    ACT_COL_VSI,            ///< vertical speed
     ACT_COL_SPEED,          ///< speed in knots
+    ACT_COL_HEADING,        ///< heading
+    ACT_COL_PITCH,          ///< pitch
+    ACT_COL_ROLL,           ///< roll
+    ACT_COL_BEARING,        ///< bearing relative to camera
+    ACT_COL_DIST,           ///< distance to camera
     
+    ACT_COL_CSLMDL,         ///< CSL model path/name
+    ACT_COL_LASTDATA,       ///< last tracking data received when
+    ACT_COL_CHANNEL,        ///< channel feeding this aircraft
+    ACT_COL_PHASE,          ///< flight phase
+    ACT_COL_GEAR,           ///< gear deployment ratio
+    ACT_COL_FLAPS,          ///< flap deployment ratio
+    ACT_COL_LIGHTS,         ///< which lights are on?
+    
+    // these must stay last
+    ACT_COL_ACTIONS,        ///< actions like a/c info wnd, camera, visibility
     ACT_COL_COUNT           ///< number of columns (always last)
 };
 
@@ -49,6 +76,8 @@ public:
     LTFlightData::FDKeyTy key;
     /// The values (converted to string) to show for each column
     std::array<std::string,ACT_COL_COUNT> v;
+    /// The original numeric value (if any) for faster comparison
+    std::array<float,ACT_COL_COUNT> vf;
 protected:
     /// Did the last update succeed?
     bool bUpToDate = false;
