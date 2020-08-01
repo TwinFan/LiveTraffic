@@ -1,9 +1,6 @@
 TODO
 ===
 
-Cleanup "FDDynamicData":
-    inHg, brng, dst aren't used
-    
 Review LiveTraffic_imgui.prf
 Set proper default column widths
 
