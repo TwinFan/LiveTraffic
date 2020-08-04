@@ -139,6 +139,7 @@ void LTMainHideAircraft ();
 void LTMainDisable ();
 void LTMainStop ();
 
+void LTRegularUpdates();        ///< collects all updates that need to be done up to every flight loop cycle
 void MenuUpdateAllItemStatus();
 void HandleNewVersionAvail ();
 

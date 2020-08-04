@@ -267,6 +267,7 @@ enum dataRefsLT {
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
     DR_CFG_MSG_AREA_LEVEL,
+    DR_CFG_LOG_LIST_LEN,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
     DR_CFG_FD_STD_DISTANCE,
@@ -488,6 +489,11 @@ protected:
     XPLMPluginID pluginID       = 0;
     logLevelTy iLogLevel        = logWARN;
     logLevelTy iMsgAreaLevel    = logINFO;
+#ifdef DEBUG
+    int logListLen              = 100;  ///< number of log message kept in storage to show in Info List Window
+#else
+    int logListLen              = 500;  ///< number of log message kept in storage to show in Info List Window
+#endif
     int bShowingAircraft        = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?

@@ -281,6 +281,32 @@ bool dequal ( const double d1, const double d2 )
 //MARK: Callbacks
 //
 
+// collects all updates that need to be done up to every flight loop cycle
+void LTRegularUpdates()
+{
+    // only update once per flight loop cycle
+    static int lstCycleNum = -1;
+    const int currCycleNum = XPLMGetCycleNumber();
+    if (lstCycleNum == currCycleNum)
+        return;
+    lstCycleNum = currCycleNum;
+    
+    // all calls needed (up to) every flight loop:
+    
+    // Update cached values
+    dataRefs.UpdateCachedValues();
+    
+    // Check if some msg window needs to show
+    CheckThenShowMsgWindow();
+
+    // handle new network data (that func has a short-cut exit if nothing to do)
+    LTFlightData::AppendAllNewPos();
+
+    // Flush out all non-written log messages
+    FlushMsg();
+}
+
+
 // flight loop callback, will be called every 5th frame while showing aircraft;
 // creates/destroys aircraft by looping the flight data map
 float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*)
@@ -290,14 +316,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
-            // Update cached values
-            dataRefs.UpdateCachedValues();
-            
-            // Check if some msg window needs to show
-            CheckThenShowMsgWindow();
-
-            // handle new network data (that func has a short-cut exit if nothing to do)
-            LTFlightData::AppendAllNewPos();
+            // regular calls collected here
+            LTRegularUpdates();
             
             // all the rest we do only every 2s
             elapsedSinceLastAcMaint += inElapsedSinceLastCall;
@@ -346,6 +366,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             LTFlightDataAcMaintenance();
             // updates to menu item status
             MenuUpdateAllItemStatus();
+            // Purge messages kept in local storage for display
+            PurgeMsgList();
         } catch (const std::exception& e) {
             // try re-init...
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());

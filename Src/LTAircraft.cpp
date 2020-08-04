@@ -58,11 +58,8 @@ static FrameLenArrTy::iterator gFrameLenIter;
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
 bool NextCycle (int newCycle)
 {
-    // Update cached values in dataRefs (incl. time information)
-    dataRefs.UpdateCachedValues();
-    
-    // Quickly test if we need to show a window
-    CheckThenShowMsgWindow();
+    // All regular updates are collected here
+    LTRegularUpdates();
     
     if ( currCycle.num >= 0 )    // not the very very first cycle?
         prevCycle = currCycle;

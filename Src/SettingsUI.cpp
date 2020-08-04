@@ -496,6 +496,7 @@ void LTSettingsUI::buildInterface()
                         dataRefs.SetMsgAreaLevel(n+1);
                     ImGui::TableNextCell();
                 }
+                ImGui::FilteredCfgNumber("Max Message List Len", sFilter, DR_CFG_LOG_LIST_LEN, 25, 500, 25);
 
                 if (!*sFilter) ImGui::TreePop();
             }
