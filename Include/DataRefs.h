@@ -490,9 +490,9 @@ protected:
     logLevelTy iLogLevel        = logWARN;
     logLevelTy iMsgAreaLevel    = logINFO;
 #ifdef DEBUG
-    int logListLen              = 100;  ///< number of log message kept in storage to show in Info List Window
-#else
     int logListLen              = 500;  ///< number of log message kept in storage to show in Info List Window
+#else
+    int logListLen              = 100;  ///< number of log message kept in storage to show in Info List Window
 #endif
     int bShowingAircraft        = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
@@ -578,7 +578,7 @@ public:
     int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
     int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
-    int ILWwidth  = 500;                ///< Info List Wnd width
+    int ILWwidth  = 700;                ///< Info List Wnd width
     int ILWheight = 300;                ///< Info List Wnd height
 
 //MARK: Constructor

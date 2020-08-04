@@ -109,16 +109,16 @@ void InfoListWnd::buildInterface()
             // and only matching config items are shown
             ImGui::SameLine();
             ImGui::SetNextItemWidth(200.0f);
-            ImGui::InputTextWithHint("##SearchText", ICON_FA_SEARCH " Search Aircraft", sFilter, IM_ARRAYSIZE(sFilter),
+            ImGui::InputTextWithHint("##AcSearchText", ICON_FA_SEARCH " Search Aircraft", sAcFilter, IM_ARRAYSIZE(sAcFilter),
                                      ImGuiInputTextFlags_CharsUppercase);
-            if (*sFilter) {
+            if (*sAcFilter) {
                 ImGui::SameLine();
                 if (ImGui::ButtonTooltip(ICON_FA_TIMES, "Remove filter"))
-                    sFilter[0]=0;
+                    sAcFilter[0]=0;
             }
             
             // Show the list of aircraft
-            acList.build(sFilter);
+            acList.build(sAcFilter);
             
             ImGui::EndTabItem();
         }
@@ -126,6 +126,88 @@ void InfoListWnd::buildInterface()
         // MARK: Message List
         if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages")) {
             TabActive(ILW_TAB_MSG);
+            
+            // Filter which log levels?
+            bool bFilterChanged = false;
+            for (logLevelTy lvl: {logDEBUG, logMSG, logINFO, logWARN, logERR, logFATAL}) {
+                if (lvl) ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ConvColor(LogLvlColor(lvl)));
+                if (ImGui::CheckboxFlags(LogLvlText(lvl), &msgLvlFilter, 1 << lvl))
+                    bFilterChanged = true;
+                ImGui::PopStyleColor();
+            }
+
+            // Text filter
+            if (ImGui::InputTextWithHint("##MsgSearchText", ICON_FA_SEARCH " Search Messages", sMsgFilter, IM_ARRAYSIZE(sMsgFilter),
+                                         ImGuiInputTextFlags_CharsUppercase))
+                bFilterChanged = true;
+            
+            // List of messages
+            if (ImGui::BeginTable("MsgList", 7,
+                                  ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+                                  ImGuiTableFlags_Hideable |
+                                  ImGuiTableFlags_RowBg |
+                                  ImGuiTableFlags_SizingPolicyFixedX | ImGuiTableFlags_Scroll |
+                                  ImGuiTableFlags_ScrollFreezeTopRow |
+                                  ImGuiTableFlags_ScrollFreezeLeftColumn))
+            {
+                // Set up columns
+                ImGui::TableSetupColumn("Time",         ImGuiTableColumnFlags_NoHeaderWidth,  70);
+                ImGui::TableSetupColumn("Network Time", ImGuiTableColumnFlags_NoHeaderWidth,  85);
+                ImGui::TableSetupColumn("Level",        ImGuiTableColumnFlags_NoHeaderWidth,  70);
+                ImGui::TableSetupColumn("File",         ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
+                ImGui::TableSetupColumn("Line",         ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth,  50);
+                ImGui::TableSetupColumn("Function",     ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
+                ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_NoHeaderWidth, 400);
+                ImGui::TableAutoHeaders();
+                
+                // Add rows
+                // TODO: Rework to apply filter first
+                for (const LogMsgTy& msg: gLog) {
+                    
+                    // check for log level
+                    // TODO: Rework to apply filter first
+                    if ((msgLvlFilter & (1 << msg.lvl)) == 0)
+                        continue;
+                    
+                    ImGui::TableNextRow();
+                    // Time
+                    char buf[50];
+                    if (ImGui::TableSetColumnIndex(0)) {
+                        std::time_t t_c = std::chrono::system_clock::to_time_t(msg.wallTime);
+                        strftime(buf, sizeof(buf), "%T",
+                                 std::localtime(&t_c));
+                        ImGui::TextUnformatted(buf);
+                    }
+                    // Network Time
+                    if (ImGui::TableSetColumnIndex(1))
+                        ImGui::TextUnformatted(NetwTimeString(msg.netwTime).c_str());
+                    // Level
+                    if (ImGui::TableSetColumnIndex(2)) {
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ConvColor(LogLvlColor(msg.lvl)));
+                        ImGui::TextUnformatted(LogLvlText(msg.lvl));
+                        ImGui::PopStyleColor();
+                    }
+                    // File
+                    if (ImGui::TableSetColumnIndex(3))
+                        ImGui::TextUnformatted(msg.fileName.c_str());
+                    // Line
+                    if (ImGui::TableSetColumnIndex(4))
+                        ImGui::Text("%d", msg.ln);
+                    // Function
+                    if (ImGui::TableSetColumnIndex(5))
+                        ImGui::TextUnformatted(msg.func.c_str());
+                    // Message
+                    if (ImGui::TableSetColumnIndex(6)) {
+                        ImGui::PushTextWrapPos();
+                        ImGui::TextUnformatted(msg.msg.c_str());
+                        ImGui::PopTextWrapPos();
+                    }
+                }
+                
+                ImGui::EndTable();
+            }
+
 
             ImGui::EndTabItem();
         }

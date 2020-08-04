@@ -103,6 +103,12 @@ void FlushMsg ();
 /// @brief Remove old message
 void PurgeMsgList ();
 
+/// Return text for log level
+const char* LogLvlText (logLevelTy _lvl);
+
+/// Return color for log level (as float[3])
+float* LogLvlColor (logLevelTy _lvl);
+
 // Log a message if this is a beta version, or
 //               if lvl is greater or equal currently defined log level
 // Note: First parameter after lvl must be the message text,

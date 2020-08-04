@@ -94,13 +94,13 @@ struct dispTextTy {
 };
 std::list<dispTextTy> listTexts;     // lines of text to be displayed
 
-float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log level
-    {0.00f, 0.00f, 0.00f},              // 0
-    {1.00f, 1.00f, 1.00f},              // INFO (white)
-    {1.00f, 1.00f, 0.00f},              // WARN (yellow)
-    {1.00f, 0.00f, 0.00f},              // ERROR (red)
-    {1.00f, 0.54f, 0.83f},              // FATAL (purple, FF8AD4)
-    {1.00f, 1.00f, 1.00f}               // MSG (white)
+float COL_LVL[logMSG+1][4] = {          // text colors [RGB] depending on log level
+    {0.7019607843f, 0.7137254902f, 0.7176470588f, 1.00f},       // DEBUG (very light gray)
+    {1.00f, 1.00f, 1.00f, 1.00f},       // INFO (white)
+    {1.00f, 1.00f, 0.00f, 1.00f},       // WARN (yellow)
+    {1.00f, 0.00f, 0.00f, 1.00f},       // ERROR (red)
+    {1.00f, 0.54f, 0.83f, 1.00f},       // FATAL (purple, FF8AD4)
+    {1.00f, 1.00f, 1.00f, 1.00f}        // MSG (white)
 };
 
 /// Values for "Seeing aircraft...showing..."
@@ -349,28 +349,23 @@ const char* GetLogString (const LogMsgTy& l)
 {
     // Access to static buffer and list guarded by a lock
     std::lock_guard<std::recursive_mutex> lock(gLogMutex);
-
-    // Extract hours, minutes, and seconds (incl. fractions) from runS
-    float runS = l.netwTime;
-    const unsigned runH = unsigned(runS / 3600.0f);
-    runS -= runH * 3600.0f;
-    const unsigned runM = unsigned(runS / 60.0f);
-    runS -= runM * 60.0f;
+    
+    // Network time string
+    const std::string netwT = NetwTimeString(l.netwTime);
 
     // prepare timestamp
     if (l.lvl < logMSG)                             // normal messages without, all other with location info
     {
-        const char* szFile = strrchr(l.fileName.c_str(), PATH_DELIM);  // extract file from path
-        if (!szFile) szFile = l.fileName.c_str(); else szFile++;
-        snprintf(gBuf, sizeof(gBuf)-1, "%u:%02u:%06.3f " LIVE_TRAFFIC " %s %s:%d/%s: %s",
-                 runH, runM, runS,                  // Running time stamp
+        snprintf(gBuf, sizeof(gBuf)-1, "%s " LIVE_TRAFFIC " %s %s:%d/%s: %s",
+                 netwT.c_str(),                     // network time (string)
                  LOG_LEVEL[l.lvl],                  // logging level
-                 szFile, l.ln, l.func.c_str(),      // source code location info
+                 l.fileName.c_str(), l.ln,          // source file and line number
+                 l.func.c_str(),                    // function name
                  l.msg.c_str());                    // actual message
     }
     else
-        snprintf(gBuf, sizeof(gBuf)-1, "%u:%02u:%06.3f " LIVE_TRAFFIC ": %s",
-                 runH, runM, runS,                  // Running time stamp
+        snprintf(gBuf, sizeof(gBuf)-1, "%s " LIVE_TRAFFIC ": %s",
+                 netwT.c_str(),                     // network time (string)
                  l.msg.c_str());                    // actual message
     
     // ensure there's a trailing CR
@@ -391,13 +386,17 @@ LogMsgListTy::iterator AddLogMsg (const char* szPath, int ln, const char* szFunc
 {
     // We get the lock already to avoid having to lock twice if in main thread
     std::lock_guard<std::recursive_mutex> lock(gLogMutex);
+    
+    // Cut off path from file name
+    const char* szFile = strrchr(szPath, PATH_DELIM);  // extract file from path
+    if (!szFile) szFile = szPath; else szFile++;
 
     // Prepare the formatted string if variable arguments are given
     if (args)
         vsnprintf(gBuf, sizeof(gBuf), szMsg, args);
 
     // Add the list entry
-    gLog.emplace_front(szPath, ln, szFunc, lvl,
+    gLog.emplace_front(szFile, ln, szFunc, lvl,
                        args ? gBuf : szMsg);
 
     // Flush immediately if called from main thread
@@ -474,6 +473,21 @@ void PurgeMsgList ()
     if (gLog.size() > nKeep)
         gLog.resize(nKeep);
 }
+
+/// Return text for log level
+const char* LogLvlText (logLevelTy _lvl)
+{
+    LOG_ASSERT(logDEBUG <= _lvl && _lvl <= logMSG);
+    return LOG_LEVEL[_lvl];
+}
+
+/// Return color for log level (as float[3])
+float* LogLvlColor (logLevelTy _lvl)
+{
+    LOG_ASSERT(logDEBUG <= _lvl && _lvl <= logMSG);
+    return COL_LVL[_lvl];
+}
+
 
 //
 // MARK: LiveTraffic Exception classes

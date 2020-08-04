@@ -269,6 +269,22 @@ std::string str_first_non_empty ( std::initializer_list<const std::string> l)
 
 // MARK: Other Utility Functions
 
+// Convert an XP network time float to a string
+std::string NetwTimeString (float runS)
+{
+    // Extract hours, minutes, and seconds (incl. fractions) from runS
+    const unsigned runH = unsigned(runS / 3600.0f);
+    runS -= runH * 3600.0f;
+    const unsigned runM = unsigned(runS / 60.0f);
+    runS -= runM * 60.0f;
+
+    // Convert to string
+    char s[20];
+    snprintf(s, sizeof(s), "%u:%02u:%06.3f",
+             runH, runM, runS);
+    return std::string(s);
+}
+
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 )
 {

@@ -229,6 +229,9 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
 
 // MARK: Other Utility Functions
 
+/// Convert an XP network time float to a string
+std::string NetwTimeString (float _runS);
+
 // convert a color value from int to float[4]
 void conv_color ( int inCol, float outCol[4] );
 

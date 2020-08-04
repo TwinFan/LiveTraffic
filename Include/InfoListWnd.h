@@ -31,10 +31,14 @@ protected:
     ILWTabTy    activeTab = ILW_TAB_NONE;
     std::string wndTitle;           ///< current window title, contains opened tab
 
+    // A/c list
     ACTable acList;                 ///< represents the aircraft list on the first tab
+    char sAcFilter[50] = {0};       ///< aircraft search filter
+    
+    // Message list
+    unsigned int msgLvlFilter = 63; ///< which log levels to show? (default: all)
+    char sMsgFilter[50] = {0};      ///< messages search filter
 
-    /// Search filter
-    char sFilter[50] = {0};
 public:
     /// Constructor shows the window
     /// @param _mode (optional) window mode, defaults to "float or VR"
