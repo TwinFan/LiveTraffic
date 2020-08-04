@@ -2288,6 +2288,9 @@ void AsyncReadApt (positionTy ctr, double radius)
 {
     static size_t lenSceneryLnBegin = strlen(APTDAT_SCENERY_LN_BEGIN);
     
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_ReadApt");
+
     // To avoid costly distance calculations we define a bounding box
     // just by calculating lat/lon values north/east/south/west of given pos
     // and include all airports with coordinates falling into it

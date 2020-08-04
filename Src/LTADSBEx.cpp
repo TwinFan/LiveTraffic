@@ -365,6 +365,9 @@ bool ADSBExchangeConnection::TestADSBExAPIKeyResult (bool& bIsKeyValid)
 // actual test, blocks, should by called via std::async
 bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_TestADSBEx");
+
     bool bResult = false;
     char curl_errtxt[CURL_ERROR_SIZE];
     std::string readBuf;

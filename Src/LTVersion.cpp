@@ -195,6 +195,9 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
 // This function would block. Idea is to call it in a thread like with std::async
 bool FetchXPlaneOrgVersion ()
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_Version");
+
     char curl_errtxt[CURL_ERROR_SIZE];
     std::string readBuf;
     
