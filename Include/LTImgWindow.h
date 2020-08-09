@@ -229,47 +229,8 @@ IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefs
 };
 
 //
-// MARK: Screen coordinate helpers
+// MARK: Window Mode/Style Helpers
 //
-
-/// 2D window position
-struct WndPos {
-    int x = 0;
-    int y = 0;
-};
-
-/// 2D rectagle
-struct WndRect {
-    WndPos tl;          ///< top left
-    WndPos br;          ///< bottom right
-    
-    /// Default Constructor -> all zero
-    WndRect () {}
-    /// Constructor takes four ints as a convenience
-    WndRect (int _l, int _t, int _r, int _b) :
-    tl{_l, _t}, br{_r, _b} {}
-    /// Constructor taking two positions
-    WndRect (const WndPos& _tl, const WndPos& _br) :
-    tl(_tl), br(_br) {}
-    
-    // Accessor to individual coordinates
-    int     left () const   { return tl.x; }    ///< reading left
-    int&    left ()         { return tl.x; }    ///< writing left
-    int     top () const    { return tl.y; }    ///< reading top
-    int&    top ()          { return tl.y; }    ///< writing top
-    int     right () const  { return br.x; }    ///< reading right
-    int&    right ()        { return br.x; }    ///< writing right
-    int     bottom () const { return br.y; }    ///< reading bottom
-    int&    bottom ()       { return br.y; }    ///< writing bottom
-    
-    int     width () const  { return right() - left(); }    ///< width
-    int     height () const { return top() - bottom(); }    ///< height
-    
-    // Clear all to zero
-    void    clear () { tl.x = tl.y = br.x = br.y = 0; }
-    bool    empty () const { return !tl.x && !tl.y && !br.x && !br.y; }
-};
-
 
 /// Mode the window is to open in / does currently operate in
 enum WndMode {
@@ -359,6 +320,8 @@ public:
     
     /// Get current window geometry as an WndRect structure
     WndRect GetCurrentWindowGeometry () const;
+    /// Set window geometry
+    void SetCurrentWindowGeometry (const WndRect& r);
     
     /// @brief Loose keyboard foucs, ie. return focus to X-Plane proper, if I have it now
     /// @return Actually returned focus to X-Plane?

@@ -32,7 +32,7 @@ static InfoListWnd* gpILW = nullptr;
 
 // Constructor shows a window for the given a/c key
 InfoListWnd::InfoListWnd(WndMode _mode) :
-LTImgWindow(_mode, WND_STYLE_HUD, WndRect(0, dataRefs.ILWheight, dataRefs.ILWwidth, 0)),
+LTImgWindow(_mode, WND_STYLE_HUD, dataRefs.ILWrect),
 wndTitle(LIVE_TRAFFIC)
 {
     // Set up window basics
@@ -71,11 +71,8 @@ void InfoListWnd::TabActive (ILWTabTy _tab)
 ImGuiWindowFlags_ InfoListWnd::beforeBegin()
 {
     // Save latest screen size to configuration (if not popped out)
-    if (!IsPoppedOut()) {
-        const WndRect r = GetCurrentWindowGeometry();
-        dataRefs.ILWwidth   = r.width();
-        dataRefs.ILWheight  = r.height();
-    }
+    if (!IsPoppedOut())
+        dataRefs.ILWrect = GetCurrentWindowGeometry();
     
     // Set background opacity
     ImGuiStyle& style = ImGui::GetStyle();
@@ -88,7 +85,7 @@ ImGuiWindowFlags_ InfoListWnd::beforeBegin()
 void InfoListWnd::buildInterface()
 {
     // Scale the font for this window
-    const float fFontScale = float(dataRefs.ACIfontScale)/100.0f;
+    const float fFontScale = float(dataRefs.UIFontScale)/100.0f;
     ImGui::SetWindowFontScale(fFontScale);
     
     // --- Title Bar ---
@@ -256,8 +253,7 @@ bool InfoListWnd::ToggleDisplay (int _force)
         // Create the object and window if needed
         if (!gpILW)
             gpILW = new InfoListWnd();
-        // Ensure it is visible and centered
-        gpILW->SetMode(WND_MODE_FLOAT_CNT_VR);
+        // Ensure it is visible
         gpILW->SetVisible(true);
         gpILW->BringWindowToFront();
         return true;                    // visible now

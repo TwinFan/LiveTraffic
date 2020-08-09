@@ -42,7 +42,7 @@ static float SUI_VALUE_SIZE = NAN;              ///< Ideal Width of 2nd column f
 LTSettingsUI::LTSettingsUI () :
 LTImgWindow(WND_MODE_FLOAT_CNT_VR,
             dataRefs.SUItransp ? WND_STYLE_HUD : WND_STYLE_SOLID,
-            WndRect(0, dataRefs.SUIheight, dataRefs.SUIwidth, 0)),
+            dataRefs.SUIrect),
 // If there is no ADSBEx key yet then display any new entry in clear text,
 // If a key is already defined, then by default obscure it
 sADSBExKeyEntry     (dataRefs.GetADSBExAPIKey()),
@@ -90,11 +90,8 @@ ImGuiWindowFlags_ LTSettingsUI::beforeBegin()
     }
     
     // Save latest screen size to configuration (if not popped out)
-    if (!IsPoppedOut()) {
-        const WndRect r = GetCurrentWindowGeometry();
-        dataRefs.SUIwidth   = r.width();
-        dataRefs.SUIheight  = r.height();
-    }
+    if (!IsPoppedOut())
+        dataRefs.SUIrect = GetCurrentWindowGeometry();
     
     // Set background opacity / color
     ImGuiStyle& style = ImGui::GetStyle();
@@ -910,7 +907,6 @@ bool LTSettingsUI::ToggleDisplay (int _force)
         if (!gpSettings)
             gpSettings = new LTSettingsUI();
         // Ensure it is visible and centered
-        gpSettings->SetMode(WND_MODE_FLOAT_CNT_VR);
         gpSettings->SetVisible(true);
         gpSettings->BringWindowToFront();
         return true;                    // visible now

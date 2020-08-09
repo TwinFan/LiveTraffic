@@ -557,7 +557,31 @@ rectFloat(_initPos)
         SetWindowDragArea(0, 5, INT_MAX, 5 + 2*WND_FONT_SIZE);
     }
     
-    // Set the positioning mode
+    // Set the positioning mode:
+    
+    // Safeguard position a bit against "out of view" positions
+    if (_initPos.left() > 0 || _initPos.bottom()) {
+        WndRect screen;
+        XPLMGetScreenBoundsGlobal (&screen.left(), &screen.top(),
+                                   &screen.right(), &screen.bottom());
+        if (!screen.contains(_initPos.tl) ||
+            !screen.contains(_initPos.tl.shiftedBy(50, -20)))
+        {
+            // top left corner is not (sufficiently) inside screen bounds
+            // -> make left/botom = 0 so that wnd will be centered
+            //    while retaining width/height
+            _initPos.shift(- _initPos.left(), - _initPos.bottom());
+        }
+    }
+    
+    // If _initPos defines left/bottom already then we don't do centered
+    if (_initPos.left() > 0 || _initPos.bottom() > 0) {
+        // Don't center the window as we have a proper position
+        if (_mode == WND_MODE_FLOAT_CENTERED)
+            _mode = WND_MODE_FLOAT;
+        else if (_mode == WND_MODE_FLOAT_CNT_VR)
+            _mode = WND_MODE_FLOAT_OR_VR;
+    }
     SetMode(_mode);
     
     // Show myself and monitor that we stay visible
@@ -596,8 +620,7 @@ void LTImgWindow::SetMode (WndMode _mode)
 
     // If we pop in, then we need to explicitely set a position for the window to appear
     if (_mode == WND_MODE_FLOAT && !rectFloat.empty()) {
-        SetWindowGeometry(rectFloat.left(),  rectFloat.top(),
-                          rectFloat.right(), rectFloat.bottom());
+        SetCurrentWindowGeometry(rectFloat);
         rectFloat.clear();
     }
     // if we set any of the "centered" modes
@@ -625,6 +648,21 @@ WndRect LTImgWindow::GetCurrentWindowGeometry () const
     WndRect r;
     ImgWindow::GetCurrentWindowGeometry(r.left(), r.top(), r.right(), r.bottom());
     return r;
+}
+
+// Set window geometry
+void LTImgWindow::SetCurrentWindowGeometry (const WndRect& r)
+{
+    switch (GetMode()) {
+        case WND_MODE_POPOUT:
+            SetWindowGeometryOS(r.left(), r.top(), r.right(), r.bottom());
+            break;
+        case WND_MODE_VR:
+            SetWindowGeometryVR(r.width(), r.height());
+            break;
+        default:
+            SetWindowGeometry(r.left(), r.top(), r.right(), r.bottom());
+    }
 }
 
 // Loose keyboard foucs, ie. return focus to X-Plane proper, if I have it now
@@ -711,12 +749,12 @@ void LTImgWindow::buildWndButtons ()
     const float btnWidth = ImGui::GetWidthIconBtn(true);
     const bool bBtnHelp = szHelpURL != nullptr;
     const bool bBtnPopOut = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
-#if APL
-    // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
-    const bool bBtnPopIn  = !dataRefs.UsingModernDriver() && (IsPoppedOut() || IsInVR());
-#else
+//#if APL
+//    // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
+//    const bool bBtnPopIn  = !dataRefs.UsingModernDriver() && (IsPoppedOut() || IsInVR());
+//#else
     const bool bBtnPopIn  = IsPoppedOut() || IsInVR();
-#endif
+//#endif
     const bool bBtnVR     = dataRefs.IsVREnabled() && !IsInVR();
     int numBtn = bBtnHelp + bBtnPopOut + bBtnPopIn + bBtnVR;
     if (numBtn > 0) {

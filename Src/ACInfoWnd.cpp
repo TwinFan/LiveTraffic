@@ -43,7 +43,7 @@ static float ACI_AUTO_CB_SIZE = NAN;            ///< Width of AUTO checkbox
 
 // Constructor shows a window for the given a/c key
 ACIWnd::ACIWnd(const std::string& _acKey, WndMode _mode) :
-LTImgWindow(_mode, WND_STYLE_HUD, WndRect(0, dataRefs.ACIheight, dataRefs.ACIwidth, 0)),
+LTImgWindow(_mode, WND_STYLE_HUD, dataRefs.ACIrect),
 bAuto(_acKey.empty()),              // if _acKey empty -> AUTO mode
 keyEntry(_acKey)                    // the passed-in input is taken as the user's entry
 {
@@ -51,6 +51,13 @@ keyEntry(_acKey)                    // the passed-in input is taken as the user'
     SetWindowTitle(GetWndTitle());
     SetWindowResizingLimits(ACI_RESIZE_LIMITS.tl.x, ACI_RESIZE_LIMITS.tl.y,
                             ACI_RESIZE_LIMITS.br.x, ACI_RESIZE_LIMITS.br.y);
+    
+    // If this is not the first window then it got created right on top of an existing one
+    // -> move it down/right by a few pixel
+    if (!listACIWnd.empty() && IsInsideSim()) {
+        int delta = int(ImGui::GetWidthIconBtn() + 2 * ImGui::GetStyle().ItemSpacing.x);
+        SetCurrentWindowGeometry(dataRefs.ACIrect.shift(delta,-delta));
+    }
     
     // Define Help URL to open for Help (?) button
     szHelpURL = HELP_AC_INFO_WND;
@@ -196,11 +203,8 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
     }
     
     // Save latest screen size to configuration (if not popped out)
-    if (!IsPoppedOut()) {
-        const WndRect r = GetCurrentWindowGeometry();
-        dataRefs.ACIwidth   = r.width();
-        dataRefs.ACIheight  = r.height();
-    }
+    if (!IsPoppedOut())
+        dataRefs.ACIrect = GetCurrentWindowGeometry();
     
     // Set background opacity
     ImGuiStyle& style = ImGui::GetStyle();
@@ -218,7 +222,7 @@ void ACIWnd::buildInterface()
     UpdateFocusAc();
     
     // Scale the font for this window
-    const float fFontScale = float(dataRefs.ACIfontScale)/100.0f;
+    const float fFontScale = float(dataRefs.UIFontScale)/100.0f;
     ImGui::SetWindowFontScale(fFontScale);
     
     // The data we will deal with, can be NULL!
@@ -439,7 +443,7 @@ void ACIWnd::buildInterface()
             ImGui::TextUnformatted("Drag controls with mouse:");
             
             buildRowLabel("Font Scaling");
-            ImGui::DragInt("##FontScaling", &dataRefs.ACIfontScale, 1.0f, 10, 200, "%d%%");
+            ImGui::DragInt("##FontScaling", &dataRefs.UIFontScale, 1.0f, 10, 200, "%d%%");
             
             buildRowLabel("Opacity");
             ImGui::DragInt("##Opacity", &dataRefs.UIopacity, 1.0f, 0, 100, "%d%%");
@@ -447,7 +451,7 @@ void ACIWnd::buildInterface()
             ImGui::TableNextRow();
             ImGui::TableNextCell();
             if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
-                dataRefs.ACIfontScale   = DEF_UI_FONT_SCALE;
+                dataRefs.UIFontScale   = DEF_UI_FONT_SCALE;
                 dataRefs.UIopacity      = DEF_UI_OPACITY;
             }
 

@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.08f;
+constexpr float VERSION_NR = 2.09f;
 constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -190,6 +190,9 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
+#define CFG_WNDPOS_SUI          "SettingsWndPos"
+#define CFG_WNDPOS_ACI          "ACInfoWndPos"
+#define CFG_WNDPOS_ILW          "InfoListWndPos"
 #define CFG_DEFAULT_AC_TYPE     "DEFAULT_AC_TYPE"
 #define CFG_DEFAULT_CAR_TYPE    "DEFAULT_CAR_TYPE"
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
@@ -341,7 +344,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_FM_UNKNOWN_PARENT   "Parent section missing in '%s', line %d: %s"
 #define ERR_FM_REGEX            "%s in '%s', line %d: %s"
 #define ERR_FM_NOT_FOUND        "Found no flight model for ICAO %s/match-string %s: will use default"
-constexpr int ERR_CFG_FILE_MAXWARN = 5;     // maximum number of warnings while reading config file, then: dead
+constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while reading config file, then: dead
 
 //MARK: Debug Texts
 #define DBG_MENU_CREATED        "Menu created"

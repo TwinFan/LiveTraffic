@@ -117,6 +117,73 @@ namespace ModelIcaoType
 
 
 //
+// MARK: Screen coordinate helpers
+//
+
+/// 2D window position
+struct WndPos {
+    int x = 0;
+    int y = 0;
+    
+    /// Shift both values
+    void shift (int _dx, int _dy) { x += _dx; y += _dy; }
+    
+    /// Return a shifted copy
+    WndPos shiftedBy (int _dx, int _dy) const
+    { WndPos ret = *this; ret.shift(_dx,_dy); return ret; }
+};
+
+/// 2D rectagle
+struct WndRect {
+    WndPos tl;          ///< top left
+    WndPos br;          ///< bottom right
+    
+    /// Default Constructor -> all zero
+    WndRect () {}
+    /// Constructor takes four ints as a convenience
+    WndRect (int _l, int _t, int _r, int _b) :
+    tl{_l, _t}, br{_r, _b} {}
+    /// Constructor taking two positions
+    WndRect (const WndPos& _tl, const WndPos& _br) :
+    tl(_tl), br(_br) {}
+    
+    // Accessor to individual coordinates
+    int     left () const   { return tl.x; }    ///< reading left
+    int&    left ()         { return tl.x; }    ///< writing left
+    int     top () const    { return tl.y; }    ///< reading top
+    int&    top ()          { return tl.y; }    ///< writing top
+    int     right () const  { return br.x; }    ///< reading right
+    int&    right ()        { return br.x; }    ///< writing right
+    int     bottom () const { return br.y; }    ///< reading bottom
+    int&    bottom ()       { return br.y; }    ///< writing bottom
+    
+    int     width () const  { return right() - left(); }    ///< width
+    int     height () const { return top() - bottom(); }    ///< height
+    
+    /// Does window contain the position?
+    bool    contains (const WndPos& _p) const
+    { return
+        left()   <= _p.x && _p.x <= right() &&
+        bottom() <= _p.y && _p.y <= top(); }
+    
+    /// Clear all to zero
+    void    clear () { tl.x = tl.y = br.x = br.y = 0; }
+    /// Is all zeroes?
+    bool    empty () const { return !tl.x && !tl.y && !br.x && !br.y; }
+    
+    /// Shift position right/down
+    WndRect& shift (int _dx, int _dy)
+    { tl.shift(_dx,_dy); br.shift(_dx,_dy); return *this; }
+    
+    /// Set from config file string ("left,top,right.bottom")
+    void    set (const std::string& _s);
+};
+
+/// Write WndRect into config file ("left,top,right.bottom")
+std::ostream& operator<< (std::ostream& _stream, const WndRect& _r);
+
+
+//
 // MARK: DataRefs
 //
 
@@ -244,15 +311,9 @@ enum dataRefsLT {
     
     // UI information
     DR_UI_OPACITY,
-    DR_UI_SETTINGS_WIDTH,
-    DR_UI_SETTINGS_HEIGHT,
+    DR_UI_FONT_SCALE,
     DR_UI_SETTINGS_TRANSP,
-    DR_UI_ACI_WIDTH,
-    DR_UI_ACI_HEIGHT,
     DR_UI_ACI_COLLAPSED,
-    DR_UI_ACI_FONT_SCALE,
-    DR_UI_ILW_WIDTH,
-    DR_UI_ILW_HEIGHT,
     
     // configuration options
     DR_CFG_AIRCRAFT_DISPLAYED,
@@ -568,18 +629,18 @@ public:
     
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
-    
-    int SUIwidth  = 690;                ///< Settings UI width
-    int SUIheight = 500;                ///< Settings UI height
+    int UIFontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
+
+    // Settings UI
+    WndRect SUIrect;                    ///< Settings UI Window position
     int SUItransp = 0;                  ///< Settings UI: transaprent background?
-
-    int ACIwidth  = 320;                ///< A/C Info Wnd width
-    int ACIheight = 530;                ///< A/C Info Wnd height
+    
+    // A/C Info Window(s)
+    WndRect ACIrect;                    ///< A/C Info Window position
     int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
-    int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
-    int ILWwidth  = 700;                ///< Info List Wnd width
-    int ILWheight = 300;                ///< Info List Wnd height
+    // Info List Window (Status etc)
+    WndRect ILWrect;                    ///< Info List Window position
 
 //MARK: Constructor
 public:

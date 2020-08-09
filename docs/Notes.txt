@@ -9,6 +9,8 @@ ImGui
 - Add plane selection to A/C Info
 - Add new status window
 
+- In Later version reduce ERR_CFG_FILE_MAXWARN to 5 again
+
 Download History
 ==========
 Download counter when providing v2.00: 77.048

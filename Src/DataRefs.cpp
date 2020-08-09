@@ -275,6 +275,32 @@ namespace ModelIcaoType
 
 }
 
+//
+// MARK: WndRect
+//
+
+
+// Write WndRect into config file ("left,top,right.bottom")
+std::ostream& operator<< (std::ostream& _stream, const WndRect& _r)
+{
+    return _stream << _r.left() << ',' << _r.top() << ',' << _r.right() << ',' << _r.bottom();
+}
+
+// Set from config file string ("left,top,right.bottom")
+void WndRect::set (const std::string& _s)
+{
+    std::vector<std::string> tok = str_tokenize(_s, ",");
+    if (tok.size() == 4) {
+        left()      = std::stoi(tok[0]);
+        top()       = std::stoi(tok[1]);
+        right()     = std::stoi(tok[2]);
+        bottom()    = std::stoi(tok[3]);
+    } else {
+        LOG_MSG(logERR, "Window pos expects 4 numbers but got: %s", _s.c_str());
+    }
+}
+
+
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[] = {
     "sim/network/misc/network_time_sec",        // float	n	seconds	The current elapsed time synched across the network (used as timestamp in Log.txt)
@@ -383,15 +409,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     
     // UI information
     {"livetraffic/ui/opacity",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/settings/width",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/settings/height",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/font_scale",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/ui/settings/transparent",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/ui/aci/width",                    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/aci/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/ui/aci/collapsed",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/aci/font_scale",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/ilw/width",                    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/ilw/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
@@ -453,15 +473,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     switch (dr) {
         // UI information
         case DR_UI_OPACITY:                 return &UIopacity;
-        case DR_UI_SETTINGS_WIDTH:          return &SUIwidth;
-        case DR_UI_SETTINGS_HEIGHT:         return &SUIheight;
+        case DR_UI_FONT_SCALE:              return &UIFontScale;
         case DR_UI_SETTINGS_TRANSP:         return &SUItransp;
-        case DR_UI_ACI_WIDTH:               return &ACIwidth;
-        case DR_UI_ACI_HEIGHT:              return &ACIheight;
         case DR_UI_ACI_COLLAPSED:           return &ACIcollapsed;
-        case DR_UI_ACI_FONT_SCALE:          return &ACIfontScale;
-        case DR_UI_ILW_WIDTH:               return &ILWwidth;
-        case DR_UI_ILW_HEIGHT:              return &ILWheight;
 
         // configuration options
         case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
@@ -591,10 +605,13 @@ const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
 static std::mutex mutexDrUpdate;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
-iLogLevel (initLogLevel)
+iLogLevel (initLogLevel),
 #ifdef DEBUG
-,bDebugAcPos (true)
+bDebugAcPos (true),
 #endif
+SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
+ACIrect (0, 530, 320, 0),
+ILWrect (0, 300, 700, 0)
 {
     // override log level in Beta and DEBUG cases
     // (config file is read later, that may reduce the level again)
@@ -1701,6 +1718,15 @@ bool DataRefs::LoadConfigFile()
                 // *** valid config entry, now process it ***
                 i->setData(sVal);
             }
+            
+            // *** Window positions ***
+            else if (sDataRef == CFG_WNDPOS_SUI)
+                SUIrect.set(sVal);
+            else if (sDataRef == CFG_WNDPOS_ACI)
+                ACIrect.set(sVal);
+            else if (sDataRef == CFG_WNDPOS_ILW)
+                ILWrect.set(sVal);
+            
             // *** Strings ***
             else if (sDataRef == CFG_DEFAULT_AC_TYPE)
                 dataRefs.SetDefaultAcIcaoType(sVal);
@@ -1774,10 +1800,6 @@ bool DataRefs::LoadConfigFile()
         return false;
     }
     
-    // ACInfoWnd was configured to small...make it longer
-    if (ACIheight == 510)
-        ACIheight = 530;
-    
     // looks like success
     return true;
 }
@@ -1805,6 +1827,11 @@ bool DataRefs::SaveConfigFile()
     for (const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT)
         if (def.isCfgFile())                   // only for values which are to be saved
             fOut << def.GetConfigString() << '\n';
+    
+    // *** Window positions ***
+    fOut << CFG_WNDPOS_SUI << ' ' << SUIrect << '\n';
+    fOut << CFG_WNDPOS_ACI << ' ' << ACIrect << '\n';
+    fOut << CFG_WNDPOS_ILW << ' ' << ILWrect << '\n';
     
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << dataRefs.GetDefaultAcIcaoType() << '\n';

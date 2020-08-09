@@ -42,7 +42,7 @@ protected:
 public:
     /// Constructor shows the window
     /// @param _mode (optional) window mode, defaults to "float or VR"
-    InfoListWnd(WndMode _mode = WND_MODE_FLOAT_OR_VR);
+    InfoListWnd(WndMode _mode = WND_MODE_FLOAT_CNT_VR);
     /// Desctructor cleans up
     ~InfoListWnd() override;
     
