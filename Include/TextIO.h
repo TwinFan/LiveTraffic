@@ -84,12 +84,20 @@ struct LogMsgTy {
     /// Constructor fills all fields
     LogMsgTy (const char* _fn, int _ln, const char* _func,
               logLevelTy _lvl, const char* _msg);
-    /// Standard constructor does nothing mush, only needed for std::list::resize
+    /// Standard constructor does nothing much, only needed for std::list::resize
     LogMsgTy () {}
+    
+    /// does the entry match the given string (expected in upper case)?
+    bool matches (const char* _s) const;
 };
 
 /// A list of log messages
 typedef std::list<LogMsgTy> LogMsgListTy;
+
+/// @brief A list of log message iterators
+/// @details iterators into a `std::list` are guaranteed to stay valid
+///          throughout all operations, except deletions of the element.
+typedef std::list<LogMsgListTy::const_iterator> LogMsgIterListTy;
 
 /// The global list of log messages
 extern LogMsgListTy gLog;

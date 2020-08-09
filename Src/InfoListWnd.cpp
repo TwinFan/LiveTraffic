@@ -20,6 +20,9 @@
 
 #include "LiveTraffic.h"
 
+// Controls access to the log list (defined in TextIO)
+extern std::recursive_mutex gLogMutex;
+
 //
 // MARK: InfoListWnd Implementation
 //
@@ -33,7 +36,9 @@ static InfoListWnd* gpILW = nullptr;
 // Constructor shows a window for the given a/c key
 InfoListWnd::InfoListWnd(WndMode _mode) :
 LTImgWindow(_mode, WND_STYLE_HUD, dataRefs.ILWrect),
-wndTitle(LIVE_TRAFFIC)
+wndTitle(LIVE_TRAFFIC),
+// initialize these references with something which definitely evaluates false later if there are any messages
+lastBegin(gLog.cend()), lastEnd(gLog.cend())
 {
     // Set up window basics
     SetWindowTitle(GetWndTitle());
@@ -158,16 +163,56 @@ void InfoListWnd::buildInterface()
                 ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_NoHeaderWidth, 400);
                 ImGui::TableAutoHeaders();
                 
-                // Add rows
-                // TODO: Rework to apply filter first
-                for (const LogMsgTy& msg: gLog) {
+                // Set up / update list of messages to show
+                
+                // generally, we only need to check for new messages added to the global list
+                LogMsgListTy::const_iterator readTo = lastBegin;
+                
+                // Figure out if messages were purged from the back of the message list
+                if (gLog.empty() ||
+                    std::prev(gLog.cend()) != lastEnd)
+                    bFilterChanged = true;
+                // Redo the entire list?
+                if (bFilterChanged) {
+                    // start over
+                    msgIterList.clear();
+                    readTo = gLog.cend();
+                }
+                
+                // Messages are added to the beginning of the list
+                const LogMsgIterListTy::iterator insBefore = msgIterList.begin();
                     
-                    // check for log level
-                    // TODO: Rework to apply filter first
-                    if ((msgLvlFilter & (1 << msg.lvl)) == 0)
-                        continue;
+                // Access to static buffer and list guarded by a lock
+                {
+                    // We lock once here to avoid re-locking with every match attempt
+                    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
                     
+                    // Loop all messages and remember those which match
+                    for (LogMsgListTy::const_iterator iMsg = gLog.cbegin();
+                         iMsg != readTo;
+                         ++iMsg)
+                    {
+                        // apply filter on message levels first
+                        if ((msgLvlFilter & (1 << iMsg->lvl)) > 0 &&
+                            // then test for match string
+                            (!sMsgFilter[0] || iMsg->matches(sMsgFilter)))
+                        {
+                            // add iterator to list of matching iterators
+                            msgIterList.insert(insBefore, iMsg);
+                        }
+                    }
+                    
+                    // remember based on what we made up the list
+                    lastBegin = gLog.cbegin();
+                    lastEnd = gLog.empty() ? gLog.cend() : std::prev(gLog.cend());
+                }
+                
+                // Add rows from the pre-filtered list of iterators
+                for (const LogMsgListTy::const_iterator& iMsg: msgIterList) {
+                    // the message to show
+                    const LogMsgTy& msg = *iMsg;
                     ImGui::TableNextRow();
+                    
                     // Time
                     char buf[50];
                     if (ImGui::TableSetColumnIndex(0)) {

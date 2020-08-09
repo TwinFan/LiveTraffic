@@ -38,6 +38,11 @@ protected:
     // Message list
     unsigned int msgLvlFilter = 63; ///< which log levels to show? (default: all)
     char sMsgFilter[50] = {0};      ///< messages search filter
+    LogMsgIterListTy msgIterList;   ///< list of msg to show
+    /// last `begin` iterator of all messages (to determine if new msg have been added)
+    LogMsgListTy::const_iterator lastBegin;
+    /// last iterator to the last element of all messages (to determine if msg have been deleted, which invalidates iterators)
+    LogMsgListTy::const_iterator lastEnd;
 
 public:
     /// Constructor shows the window

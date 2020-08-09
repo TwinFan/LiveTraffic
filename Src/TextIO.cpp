@@ -336,6 +336,11 @@ const char* LOG_LEVEL[] = {
     "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "MSG  "
 };
 
+// forward declaration: returns ptr to static buffer filled with log string
+const char* GetLogString (const LogMsgTy& l);
+
+
+// Constructor fills all fields
 LogMsgTy::LogMsgTy (const char* _fn, int _ln, const char* _func,
                     logLevelTy _lvl, const char* _msg) :
 wallTime(std::chrono::system_clock::now()),
@@ -343,6 +348,18 @@ netwTime(dataRefs.GetMiscNetwTime()),
 fileName(_fn), ln(_ln), func(_func), lvl(_lvl), msg(_msg), bFlushed(false)
 {}
 
+// does the entry match the given string (expected in upper case)?
+bool LogMsgTy::matches (const char* _s) const
+{
+    // catch the trivial case of no search term
+    if (!_s || !*_s)
+        return true;
+    
+    // Re-Create the complete log line and turn it upper case
+    std::string logText = GetLogString(*this);
+    str_toupper(logText);
+    return logText.find(_s) != std::string::npos;
+}
 
 // returns ptr to static buffer filled with log string
 const char* GetLogString (const LogMsgTy& l)
