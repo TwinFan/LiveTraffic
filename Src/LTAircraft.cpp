@@ -1301,7 +1301,7 @@ std::string LTAircraft::RelativePositionText ()
 {
     // find/update the nearest airport when needed or
     if (std::isnan(nearestAirportPos.lat()) ||
-        dataRefs.GetMiscNetwTime() >= lastNearestAirportCheck + ACI_NEAR_AIRPRT_PERIOD)
+        CheckEverySoOften(lastNearestAirportCheck, ACI_NEAR_AIRPRT_PERIOD))
     {
         lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
     

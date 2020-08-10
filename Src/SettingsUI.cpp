@@ -307,17 +307,7 @@ void LTSettingsUI::buildInterface()
                     (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()))
                 {
                     if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                        if (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()) {
-                            // There is a RealTraffic connection object
-                            ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());
-                            if (dataRefs.pRTConn->IsConnected())
-                                ImGui::Text("%ld hPa at %s",
-                                            std::lround(dataRefs.pRTConn->GetHPA()),
-                                            dataRefs.pRTConn->GetMetarIcao().c_str());
-                        }
-                        else
-                            // Channel is activated, but not yet started
-                            ImGui::TextUnformatted("Starting...");
+                        ImGui::TextRealTrafficStatus();
                         ImGui::TableNextCell();
                     }
                 }

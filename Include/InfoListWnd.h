@@ -43,6 +43,11 @@ protected:
     LogMsgListTy::const_iterator lastBegin;
     /// last iterator to the last element of all messages (to determine if msg have been deleted, which invalidates iterators)
     LogMsgListTy::const_iterator lastEnd;
+    
+    // Info/Status
+    std::string verText;            ///< version information
+    std::string aiCtrlPlugin;       ///< name of plugin controlling AI planes
+    float lastAIPluginCheck = 0.0f; ///< when last checked for AI-controlling plugin name?
 
 public:
     /// Constructor shows the window

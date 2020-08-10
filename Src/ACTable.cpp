@@ -365,11 +365,10 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
 bool ACTable::UpdateFDIs (const std::string& _filter)
 {
     // short-cut in case of no change
-    if (_filter == filterInUse &&
-        dataRefs.GetMiscNetwTime() < lastUpdate + ACT_AC_UPDATE_PERIOD)
+    if (!CheckEverySoOften(lastUpdate, ACT_AC_UPDATE_PERIOD) &&
+        _filter == filterInUse)
         return false;
     filterInUse = _filter;
-    lastUpdate = dataRefs.GetMiscNetwTime();
     
     // Walk all aircraft, test for match, then add
     vecFDI.clear();

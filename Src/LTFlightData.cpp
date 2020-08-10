@@ -402,9 +402,8 @@ bool LTFlightData::outdated (double simTime) const
         return false;
     }
     
-    // invalid and
-    // youngestTS longer ago than allowed?
-    return posDeque.empty() &&
+    // youngestTS longer ago than allowed? -> remove
+    return
     youngestTS + dataRefs.GetAcOutdatedIntvl() < (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime);
 }
 

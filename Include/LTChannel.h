@@ -77,6 +77,9 @@ public:
     virtual void DecErrCnt();               // decreases error counter
     virtual bool IsEnabled () const;
     virtual void SetEnable (bool bEnable);
+    std::string GetStatusText () const;     ///< return a human-readable staus
+    virtual int GetNumAcServed () const     ///< how many a/c do we feed?
+    { return 0; }
     
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
     virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
@@ -103,13 +106,19 @@ typedef std::unique_ptr<LTChannel> ptrLTChannelTy;
 
 // a list of flight data connections smart pointers
 typedef std::list<ptrLTChannelTy> listPtrLTChannelTy;
+/// the actual list of channels
+extern listPtrLTChannelTy    listFDC;
 
 //
 //MARK: LTFlightDataChannel
 //
 class LTFlightDataChannel : virtual public LTChannel {
+protected:
+    mutable float timeLastAcCnt = 0.0;      ///< when did we last count the a/c served by this channel?
+    mutable int     numAcServed = 0;        ///< how many a/c do we feed when counted last?
 public:
     LTFlightDataChannel () {}
+    int GetNumAcServed () const override;   ///< how many a/c do we feed when counted last?
 };
 
 //

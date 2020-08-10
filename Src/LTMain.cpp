@@ -285,6 +285,17 @@ std::string NetwTimeString (float runS)
     return std::string(s);
 }
 
+// Convenience function to check on something at most every x seconds
+bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
+{
+    if (_lastCheck < 0.00001f ||
+        _now >= _lastCheck + _interval) {
+        _lastCheck = _now;
+        return true;
+    }
+    return false;
+}
+
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 )
 {
@@ -546,6 +557,24 @@ bool LTMainShowAircraft ()
     // success
     dataRefs.pluginState = STATE_SHOW_AC;
     return true;
+}
+
+// Who controls AI?
+std::string GetAIControlPluginName ()
+{
+    // XPLMCountAircraft tells us who is in control
+    int total=0, active=0;
+    XPLMPluginID who=0;
+    XPLMCountAircraft(&total, &active, &who);
+    
+    // nobody?
+    if (who < 0)
+        return "";
+    
+    // get plugin info
+    char whoName[256];
+    XPLMGetPluginInfo(who, whoName, nullptr, nullptr, nullptr);
+    return std::string(whoName);
 }
 
 /// Callback for when some other plugin released AI control

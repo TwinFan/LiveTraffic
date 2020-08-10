@@ -170,9 +170,8 @@ bool ACIWnd::UpdateFocusAc ()
     if (!bAuto) return false;
     
     // do that only every so often
-    if (dataRefs.GetMiscNetwTime() < lastAutoCheck + ACI_AUTO_CHECK_PERIOD)
+    if (!CheckEverySoOften(lastAutoCheck, ACI_AUTO_CHECK_PERIOD))
         return false;
-    lastAutoCheck = dataRefs.GetMiscNetwTime();
     
     // find the current focus a/c and if different from current one then switch
     const LTFlightData* pFocusAc = LTFlightData::FindFocusAc(DataRefs::GetViewHeading());

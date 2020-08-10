@@ -84,6 +84,7 @@
 #include "XPLMUtilities.h"
 #include "XPLMDataAccess.h"
 #include "XPLMMenus.h"
+#include "XPLMPlanes.h"
 #include "XPLMPlugin.h"
 #include "XPLMProcessing.h"
 #include "XPLMCamera.h"
@@ -229,8 +230,25 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
 
 // MARK: Other Utility Functions
 
+/// Which plugin has control of AI?
+std::string GetAIControlPluginName ();
+
 /// Convert an XP network time float to a string
 std::string NetwTimeString (float _runS);
+
+/// @brief Convenience function to check on something at most every x seconds
+/// @param _lastCheck Provide a float which holds the time of last check (init with `0.0f`)
+/// @param _interval [seconds] How often to perform the check?
+/// @param _now Current time, possibly from a call to GetTotalRunningTime()
+/// @return `true` if more than `_interval` time has passed since `_lastCheck`
+bool CheckEverySoOften (float& _lastCheck, float _interval, float _now);
+
+/// @brief Convenience function to check on something at most every x seconds
+/// @param _lastCheck Provide a float which holds the time of last check (init with `0.0f`)
+/// @param _interval [seconds] How often to perform the check?
+/// @return `true` if more than `_interval` time has passed since `_lastCheck`
+inline bool CheckEverySoOften (float& _lastCheck, float _interval)
+{ return CheckEverySoOften(_lastCheck, _interval, dataRefs.GetMiscNetwTime()); }
 
 // convert a color value from int to float[4]
 void conv_color ( int inCol, float outCol[4] );

@@ -521,6 +521,33 @@ IMGUI_API bool TablePrevCell()
 }
 
 
+// Outputs up to 3 lines of RealTraffic channel status info
+IMGUI_API void TextRealTrafficStatus ()
+{
+    // Disabled in configuration?
+    if (!dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE)) {
+        TextUnformatted("Off");
+    }
+    // Enabled, but not yet initialized?
+    else if (!dataRefs.pRTConn || dataRefs.pRTConn->GetStatus() == RealTrafficConnection::RT_STATUS_NONE) {
+        TextUnformatted("Starting...");
+    }
+    // There is a _connected_ RealTraffic connection object
+    else if (dataRefs.pRTConn->IsConnected()) {
+        ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusText().c_str());          // "Active, serving # aircraft"
+        ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());   // "Fully connected, last msg..."
+        if (!dataRefs.pRTConn->GetMetarIcao().empty())
+            ImGui::Text("%ld hPa at %s",                                            // Weather info
+                        std::lround(dataRefs.pRTConn->GetHPA()),
+                        dataRefs.pRTConn->GetMetarIcao().c_str());
+    }
+    // There is an initialized RealTraffic connection object, but it is not connected
+    else {
+        ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());
+    }
+}
+
+
 }   // namespace ImGui
 
 //
