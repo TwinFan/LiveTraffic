@@ -181,11 +181,11 @@ void LTOpenURL  (const std::string url)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
     // Unix uses xdg-open, package xdg-utils, pre-installed at least on Ubuntu
-    (void)system((std::string("xdg-open ") + url).c_str());
+    (void)system((std::string("xdg-open '") + url + "'").c_str());
 #pragma GCC diagnostic pop
 #else
     // Max use standard system/open
-    system((std::string("open ") + url).c_str());
+    system((std::string("open '") + url + "'").c_str());
     // Code that causes warning goes here
 #endif
 }

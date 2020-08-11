@@ -90,6 +90,22 @@ IMGUI_API bool ButtonTooltip(const char* label,
 /// @return Button pressed?
 IMGUI_API bool ButtonIcon(const char* icon, const char* tooltip = nullptr, bool rightAligned = false);
 
+/// @brief Button which opens the given URL
+/// @param label Text on Button
+/// @param url URL to open
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param bSmallBtn User the SmallButton function?
+/// @param colFg Foreground/text color (optional, otherwise no change)
+/// @param colBg Background color (optional, otherwise no change)
+/// @param size button size, 0 for either axis means: auto size
+IMGUI_API bool ButtonURL(const char* label,
+                         const char* url,
+                         const char* tip = nullptr,
+                         bool bSmallBtn = false,
+                         ImU32 colFg = IM_COL32(1,1,1,0),
+                         ImU32 colBg = IM_COL32(1,1,1,0),
+                         const ImVec2& size = ImVec2(0,0));
+
 /// @brief A checkbox toggling a defined integer dataRef
 /// @param label Checkbox's label
 /// @param idx Index into `DATA_REFS_LT`, defining the integer dataRef to toggle between 0 and 1. Can be -1 for an always deactivated checkbox

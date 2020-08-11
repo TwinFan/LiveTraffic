@@ -64,14 +64,14 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"From",             45},
     {"To",               45},
 
-    {"Position",        150},
+    {"Position",        150,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Lat",              75,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Lon",              75,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Altitude",         50,    ImGui::IM_ALIGN_RIGHT},
     {"AGL",              50,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
-    {ICON_FA_CHEVRON_DOWN ICON_FA_CHEVRON_UP, 15, ImGui::IM_ALIGN_CENTER, ImGuiTableColumnFlags_NoSort},
+    {ICON_FA_SORT,       15,    ImGui::IM_ALIGN_CENTER, ImGuiTableColumnFlags_NoSort},
     {"VSI",              45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
-    {"Speed",            35,    ImGui::IM_ALIGN_RIGHT},
+    {"kn",               35,    ImGui::IM_ALIGN_RIGHT},
     {"Heading",          35,    ImGui::IM_ALIGN_RIGHT},
     {"Pitch",            45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Roll",             45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
@@ -366,9 +366,11 @@ bool ACTable::UpdateFDIs (const std::string& _filter)
 {
     // short-cut in case of no change
     if (!CheckEverySoOften(lastUpdate, ACT_AC_UPDATE_PERIOD) &&
-        _filter == filterInUse)
+        _filter == filterInUse &&
+        bFilterAcOnly == bAcOnlyInUse)
         return false;
     filterInUse = _filter;
+    bAcOnlyInUse = bFilterAcOnly;
     
     // Walk all aircraft, test for match, then add
     vecFDI.clear();

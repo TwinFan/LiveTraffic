@@ -182,6 +182,23 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     return b;
 }
 
+// Button which opens the given URL
+IMGUI_API bool ButtonURL(const char* label,
+                         const char* url,
+                         const char* tip,
+                         bool bSmallBtn,
+                         ImU32 colFg,
+                         ImU32 colBg,
+                         const ImVec2& size)
+{
+    if ((!bSmallBtn && ButtonTooltip(label, tip ? tip : url, colFg, colBg, size)) ||
+        ( bSmallBtn && SmallButtonTooltip(label, tip ? tip : url, colFg, colBg))) {
+        LTOpenURL(url);
+        return true;
+    } else
+        return false;
+}
+
 // A checkbox toggling a defined integer dataRef
 IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip)
 {
@@ -277,8 +294,7 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
     
     // add a button with a link action to the 2nd cell
     if (linkLabel && linkURL) {
-        if (ButtonTooltip(linkLabel, linkPopup))
-            LTOpenURL(linkURL);
+        ButtonURL(linkLabel, linkURL, linkPopup);
         SameLine();
     }
     // Not a button, but mayby just plain text?
@@ -908,6 +924,7 @@ bool LTImgWindowInit ()
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_SAVE
                     ICON_FA_SEARCH
+                    ICON_FA_SORT
                     ICON_FA_SPINNER
                     ICON_FA_TIMES
                     ICON_FA_TRASH_ALT

@@ -611,7 +611,7 @@ bDebugAcPos (true),
 #endif
 SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
 ACIrect (0, 530, 320, 0),
-ILWrect (0, 300, 700, 0)
+ILWrect (0, 400, 965, 0)
 {
     // override log level in Beta and DEBUG cases
     // (config file is read later, that may reduce the level again)

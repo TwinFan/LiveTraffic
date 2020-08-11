@@ -120,6 +120,8 @@ protected:
     float lastUpdate = 0.0f;
     /// The filter applied to the above list
     std::string filterInUse;
+    /// The filter applied
+    bool        bAcOnlyInUse = false;
     
 public:
     /// Constructor

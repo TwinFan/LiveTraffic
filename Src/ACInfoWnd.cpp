@@ -359,8 +359,13 @@ void ACIWnd::buildInterface()
                 ImGui::TableNextCell();
                 if (pAc->IsOnGrnd())
                     ImGui::TextUnformatted("On Grnd");
-                else
-                    ImGui::Text("%+.f ft", pAc->GetPHeight_ft());
+                else {
+                    ImGui::Text("%.f ft", pAc->GetPHeight_ft());
+                    if (std::abs(pAc->GetVSI_ft()) > pAc->mdl.VSI_STABLE) {
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted(pAc->GetVSI_ft() > 0.0 ? ICON_FA_CHEVRON_UP : ICON_FA_CHEVRON_DOWN);
+                    }
+                }
                 ImGui::EndTable();
             }
             buildRowLabel("Speed | VSI");

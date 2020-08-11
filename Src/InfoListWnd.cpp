@@ -23,6 +23,27 @@
 // Controls access to the log list (defined in TextIO)
 extern std::recursive_mutex gLogMutex;
 
+// Defined in LTVersion.cpp, contain the build date (like 20200811)
+extern int verBuildDate;
+
+// Credits
+struct CreditTy {
+    const char* txtLink;
+    const char* txtAdd;
+    const char* url;
+};
+
+static const CreditTy CREDITS[] = {
+    { "X-Plane APIs", "to integrate with X-Plane",      "https://developer.x-plane.com/sdk/plugin-sdk-documents/" },
+    { "XPMP2", "for CSL model processing",              "https://github.com/TwinFan/XPMP2" },
+    { "CURL", "for network protocol support",           "https://curl.haxx.se/libcurl/" },
+    { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
+    { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
+    { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
+    { "ImgWindow", "for integrating ImGui into X-Plane windows", "https://github.com/xsquawkbox/xsb_public" },
+    { "IconFontCppHeaders", "for header files for the included icon font", "https://github.com/juliettef/IconFontCppHeaders" },
+};
+
 //
 // MARK: InfoListWnd Implementation
 //
@@ -106,10 +127,12 @@ void InfoListWnd::buildInterface()
     buildTitleBar(GetWndTitle());
 
     // --- Tab Bar ---
-    if (ImGui::BeginTabBar("InfoListWnd", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown))
+    if (ImGui::BeginTabBar("InfoListWnd",
+                           ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown |
+                           ImGuiTabBarFlags_NoTooltip))
     {
         // MARK: Aircraft List
-        if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List")) {
+        if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List  ")) {
             TabActive(ILW_TAB_AC_LIST);
             
             // Limit to visible planes only
@@ -135,7 +158,7 @@ void InfoListWnd::buildInterface()
         }
         
         // MARK: Message List
-        if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages")) {
+        if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages  ")) {
             TabActive(ILW_TAB_MSG);
             
             // Filter which log levels?
@@ -176,7 +199,7 @@ void InfoListWnd::buildInterface()
                 ImGui::TableSetupColumn("File",         ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
                 ImGui::TableSetupColumn("Line",         ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth,  50);
                 ImGui::TableSetupColumn("Function",     ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
-                ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_NoHeaderWidth, 400);
+                ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_NoHeaderWidth, 650);
                 ImGui::TableAutoHeaders();
                 
                 // Set up / update list of messages to show
@@ -271,85 +294,121 @@ void InfoListWnd::buildInterface()
         }
         
         // MARK: Status / About
-        if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About")) {
+        if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About  ")) {
             TabActive(ILW_TAB_STATUS);
             
-            // Aircraft / Channel status
-            if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
-            
-                if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
-                    
-                    // Are we active at all?
-                    if (dataRefs.AreAircraftDisplayed()) {
-                        // Number of aircraft seen/shown
-                        ImGui::TableNextRow();
-                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live aircraft shown");
-                        if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.GetNumAc());
-                        ImGui::TableNextRow();
-                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Aircraft seen in tracking data");
-                        if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%lu", mapFd.size());
+            // Child window for scrolling region
+            if (ImGui::BeginChild("StatusAndInfo")) {
+                // Aircraft / Channel status
+                if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
+                
+                    if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
                         
-                        ImGui::TableNextRow();
-                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("TCAS / Multiplayer");
-                        if (ImGui::TableSetColumnIndex(1)) {
-                            // LiveTraffic controls AI
-                            if (dataRefs.HaveAIUnderControl()) {
-                                ImGui::TextUnformatted("controlled by " LIVE_TRAFFIC);
-                                lastAIPluginCheck = 0.0f;           // ensures we immediately fetch the controlling plugin's name once we are no longer in control
-                            }
-                            else {
-                                if (CheckEverySoOften(lastAIPluginCheck, 5.0f))
-                                    aiCtrlPlugin = GetAIControlPluginName();
-                                // LiveTraffic has requested AI control
-                                if (dataRefs.AwaitingAIControl()) {
-                                    if (!aiCtrlPlugin.empty())
-                                        ImGui::Text("control requested from %s", aiCtrlPlugin.c_str());
-                                    else
-                                        ImGui::TextUnformatted("control requested");
-                                }
-                                // LiveTraffic is not in control and doesn't want to
-                                else {
-                                    if (!aiCtrlPlugin.empty())
-                                        ImGui::Text("controlled by %s", aiCtrlPlugin.c_str());
-                                    else
-                                        ImGui::TextUnformatted("not controlled");
-                                }
-                            }
-                        }
-
-                        // Status of channels
-                        for (const ptrLTChannelTy& pCh: listFDC) {
+                        // Are we active at all?
+                        if (dataRefs.AreAircraftDisplayed()) {
+                            // Number of aircraft seen/shown
                             ImGui::TableNextRow();
-                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(pCh->ChName());
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live aircraft shown");
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.GetNumAc());
+                            ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Aircraft seen in tracking data");
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%lu", mapFd.size());
+                            
+                            ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("TCAS / Multiplayer");
                             if (ImGui::TableSetColumnIndex(1)) {
-                                if (pCh.get() == dataRefs.pRTConn)  // special treatment for RealTraffic
-                                    ImGui::TextRealTrafficStatus();
-                                else
-                                    ImGui::TextUnformatted(pCh->GetStatusText().c_str());
+                                // LiveTraffic controls AI
+                                if (dataRefs.HaveAIUnderControl()) {
+                                    ImGui::TextUnformatted("controlled by " LIVE_TRAFFIC);
+                                    lastAIPluginCheck = 0.0f;           // ensures we immediately fetch the controlling plugin's name once we are no longer in control
+                                }
+                                else {
+                                    if (CheckEverySoOften(lastAIPluginCheck, 5.0f))
+                                        aiCtrlPlugin = GetAIControlPluginName();
+                                    // LiveTraffic has requested AI control
+                                    if (dataRefs.AwaitingAIControl()) {
+                                        if (!aiCtrlPlugin.empty())
+                                            ImGui::Text("control requested from %s", aiCtrlPlugin.c_str());
+                                        else
+                                            ImGui::TextUnformatted("control requested");
+                                    }
+                                    // LiveTraffic is not in control and doesn't want to
+                                    else {
+                                        if (!aiCtrlPlugin.empty())
+                                            ImGui::Text("controlled by %s", aiCtrlPlugin.c_str());
+                                        else
+                                            ImGui::TextUnformatted("not controlled");
+                                    }
+                                }
+                            }
+
+                            // Status of channels
+                            for (const ptrLTChannelTy& pCh: listFDC) {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(pCh->ChName());
+                                if (ImGui::TableSetColumnIndex(1)) {
+                                    if (pCh.get() == dataRefs.pRTConn)  // special treatment for RealTraffic
+                                        ImGui::TextRealTrafficStatus();
+                                    else
+                                        ImGui::TextUnformatted(pCh->GetStatusText().c_str());
+                                }
                             }
                         }
-                    }
-                    // INACTIVE!
-                    else {
-                        ImGui::TableNextRow();
-                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(LIVE_TRAFFIC " is");
-                        if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                        // INACTIVE!
+                        else {
+                            ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(LIVE_TRAFFIC " is");
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                        }
+                        
+                        ImGui::EndTable();
                     }
                     
-                    ImGui::EndTable();
+                    ImGui::TreePop();
+                }
+
+                // Version information
+                if (ImGui::TreeNode(verText.c_str())) {
+                    ImGui::Text("(c) 2018-%d B. Hoppe", verBuildDate / 10000);
+                    ImGui::ButtonURL("MIT License", "https://github.com/TwinFan/LiveTraffic/blob/master/LICENSE", nullptr, true);
+                    ImGui::TextUnformatted("Open Source"); ImGui::SameLine();
+                    ImGui::ButtonURL("available on GitHub", "https://github.com/TwinFan/LiveTraffic", nullptr, true);
+                    
+                    ImGui::TreePop();
                 }
                 
-                ImGui::TreePop();
-            }
-
-            // Version information
-            if (ImGui::TreeNodeEx(verText.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::TextUnformatted("(c) 2018-2020 B. Hoppe");
-                ImGui::Spacing();
+                // Credits
+                if (ImGui::TreeNode("Credits")) {
+                    ImGui::TextUnformatted(LIVE_TRAFFIC " is based on a number of other great libraries and APIs, most notably:");
+                    for (const CreditTy& c: CREDITS)
+                    {
+                        ImGui::ButtonURL(c.txtLink, c.url, nullptr, true); ImGui::SameLine();
+                        ImGui::TextUnformatted(c.txtAdd);
+                    }
+                    ImGui::TreePop();
+                }
                 
-                ImGui::TreePop();
-            }
+                // Thanks
+                if (ImGui::TreeNode("Thanks")) {
+                    ImGui::TextUnformatted("Sparker for providing"); ImGui::SameLine();
+                    ImGui::ButtonURL("imgui4xp", "https://github.com/sparker256/imgui4xp", nullptr, true); ImGui::SameLine();
+                    ImGui::TextUnformatted("as a testbed for ImGui integration and for accepting my additions to it;");
+                    ImGui::TextUnformatted("as well as for providing the initial Linux build Docker environment.");
+                    ImGui::Spacing();
+                    
+                    ImGui::TextUnformatted("Dimitri van Heesch for"); ImGui::SameLine();
+                    ImGui::ButtonURL("Doxygen", "https://www.doxygen.nl/", nullptr, true); ImGui::SameLine();
+                    ImGui::TextUnformatted(", with which more and more parts of LiveTraffic's (and all of XPMP2's) code documentation have been created.");
+                    ImGui::Spacing();
 
+                    ImGui::ButtonURL("FontAwesome", "https://fontawesome.com/icons?d=gallery&s=solid&m=free", nullptr, true); ImGui::SameLine();
+                    ImGui::TextUnformatted("for the icon font fa-solid-900.ttf " ICON_FA_PLANE);
+
+                    ImGui::TreePop();
+                }
+
+            }
+            ImGui::EndChild();
             ImGui::EndTabItem();
         }
         
