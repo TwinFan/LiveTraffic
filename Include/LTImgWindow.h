@@ -298,9 +298,14 @@ inline XPLMWindowDecoration toDeco (WndStyle _s)
 }
 
 /// Determine window layer based on style
-inline XPLMWindowLayer toLayer (WndStyle _s)
+constexpr inline XPLMWindowLayer toLayer (WndStyle /*_s*/)
 {
-    return _s == WND_STYLE_HUD ? xplm_WindowLayerFlightOverlay : xplm_WindowLayerFloatingWindows;
+    // this used to use xplm_WindowLayerFlightOverlay when _s == WND_STYLE_HUD,
+    // but a FlightOverlay window will have trouble to compete with any
+    // FloatingWindow for keyboard input as the higher-level floating window
+    // will always get priority for keyboard.
+    // So I decided to always use floating to be able to have a chance for keyboard focus:
+    return xplm_WindowLayerFloatingWindows;
 }
 
 //
