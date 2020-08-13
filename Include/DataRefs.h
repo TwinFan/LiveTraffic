@@ -255,23 +255,38 @@ enum cmdRefsXP {
     CR_GENERAL_ZOOM_OUT,
     CR_GENERAL_ZOOM_IN_FAST,
     CR_GENERAL_ZOOM_OUT_FAST,           // last command registered for camera movement
+    
+    CR_VIEW_FREE_CAM,               ///< sim/view/free_camera                               Free camera.
+    CR_VIEW_FWD_2D,                 ///< sim/view/forward_with_2d_panel                     Forward with 2-D panel.
+    CR_VIEW_FWD_HUD ,               ///< sim/view/forward_with_hud                          Forward with HUD.
+    CR_VIEW_FWD_NODISP ,            ///< sim/view/forward_with_nothing                      Forward with nothing.
+    CR_VIEW_EXT_LINEAR ,            ///< sim/view/linear_spot                               Linear spot.
+    CR_VIEW_EXT_STILL ,             ///< sim/view/still_spot                                Still spot.
+    CR_VIEW_EXT_RNWY ,              ///< sim/view/runway                                    Runway.
+    CR_VIEW_EXT_CIRCLE ,            ///< sim/view/circle                                    Circle.
+    CR_VIEW_EXT_TOWER ,             ///< sim/view/tower                                     Tower.
+    CR_VIEW_EXT_RIDE ,              ///< sim/view/ridealong                                 Ride-along.
+    CR_VIEW_EXT_WEAPON ,            ///< sim/view/track_weapon                              Track weapon.
+    CR_VIEW_EXT_CHASE ,             ///< sim/view/chase                                     Chase.
+    CR_VIEW_FWD_3D ,                ///< sim/view/3d_cockpit_cmnd_look                      3-D cockpit.
+    
     CNT_CMDREFS_XP                      // always last, number of elements
 };
 
 enum XPViewTypes {
     VIEW_UNKNOWN    = 0,
-    VIEW_FWD_2D     = 1000,
-    VIEW_EXT_TOWER  = 1014,
-    VIEW_EXT_RNWY   = 1015,
-    VIEW_EXT_CHASE  = 1017,
-    VIEW_EXT_CIRCLE = 1018,
-    VIEW_EXT_STILL  = 1020,
-    VIEW_EXT_LINEAR = 1021,
-    VIEW_FWD_HUD    = 1023,
-    VIEW_FWD_NODISP = 1024,
-    VIEW_FWD_3D     = 1026,
-    VIEW_FREE_CAM   = 1028,
-    VIEW_EXT_RIDE   = 1031,
+    VIEW_FWD_2D     = 1000, ///< sim/view/forward_with_2d_panel                     Forward with 2-D panel.
+    VIEW_EXT_TOWER  = 1014, ///< sim/view/tower                                     Tower.
+    VIEW_EXT_RNWY   = 1015, ///< sim/view/runway                                    Runway.
+    VIEW_EXT_CHASE  = 1017, ///< sim/view/chase                                     Chase.
+    VIEW_EXT_CIRCLE = 1018, ///< sim/view/circle                                    Circle.
+    VIEW_EXT_STILL  = 1020, ///< sim/view/still_spot                                Still spot.
+    VIEW_EXT_LINEAR = 1021, ///< sim/view/linear_spot                               Linear spot.
+    VIEW_FWD_HUD    = 1023, ///< sim/view/forward_with_hud                          Forward with HUD.
+    VIEW_FWD_NODISP = 1024, ///< sim/view/forward_with_nothing                      Forward with nothing.
+    VIEW_FWD_3D     = 1026, ///< sim/view/3d_cockpit_cmnd_look                      3-D cockpit.
+    VIEW_FREE_CAM   = 1028, ///< sim/view/free_camera                               Free camera
+    VIEW_EXT_RIDE   = 1031, ///< sim/view/ridealong                                 Ride-along.
 };
 
 // Datarefs offered by LiveTraffic
@@ -676,7 +691,7 @@ public:
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
-    inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
+    void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
 
 //MARK: DataRef provision by LiveTraffic

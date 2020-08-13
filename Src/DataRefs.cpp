@@ -360,10 +360,45 @@ const char* CMD_REFS_XP[] = {
     "sim/general/zoom_out",
     "sim/general/zoom_in_fast",
     "sim/general/zoom_out_fast",
+    
+    "sim/view/free_camera",
+    "sim/view/forward_with_2d_panel",
+    "sim/view/forward_with_hud",
+    "sim/view/forward_with_nothing",
+    "sim/view/linear_spot",
+    "sim/view/still_spot",
+    "sim/view/runway",
+    "sim/view/circle",
+    "sim/view/tower",
+    "sim/view/ridealong",
+    "sim/view/track_weapon",
+    "sim/view/chase",
+    "sim/view/3d_cockpit_cmnd_look",
 };
 
 static_assert(sizeof(CMD_REFS_XP) / sizeof(CMD_REFS_XP[0]) == CNT_CMDREFS_XP,
     "cmdRefsXP and CMD_REFS_XP[] differ in number of elements");
+
+/// Map view types to view commands
+struct mapViewTypesTy {
+    XPViewTypes     e = VIEW_UNKNOWN;       ///< enum value
+    cmdRefsXP       cr = CR_NO_COMMAND;     ///< command ref enum value
+};
+
+mapViewTypesTy MAP_VIEW_TYPES[] = {
+    { VIEW_FWD_2D,      CR_VIEW_FWD_2D      },
+    { VIEW_EXT_TOWER,   CR_VIEW_EXT_TOWER   },
+    { VIEW_EXT_RNWY,    CR_VIEW_EXT_RNWY    },
+    { VIEW_EXT_CHASE,   CR_VIEW_EXT_CHASE   },
+    { VIEW_EXT_CIRCLE,  CR_VIEW_EXT_CIRCLE  },
+    { VIEW_EXT_STILL,   CR_VIEW_EXT_STILL   },
+    { VIEW_EXT_LINEAR,  CR_VIEW_EXT_LINEAR  },
+    { VIEW_FWD_HUD,     CR_VIEW_FWD_HUD     },
+    { VIEW_FWD_NODISP,  CR_VIEW_FWD_NODISP  },
+    { VIEW_FWD_3D,      CR_VIEW_FWD_3D      },
+    { VIEW_FREE_CAM,    CR_VIEW_FREE_CAM    },
+    { VIEW_EXT_RIDE,    CR_VIEW_EXT_RIDE    },
+};
 
 //
 //MARK: DataRefs::dataRefDefinitionT
@@ -828,6 +863,19 @@ bool DataRefs::RegisterCommands()
         { LOG_MSG(logERR,ERR_CREATE_COMMAND,CMD_REFS_LT[i].cmdName); bRet = false; }
     }
     return bRet;
+}
+
+
+/// Set the view type, translating from XPViewTypes to command ref needed
+void DataRefs::SetViewType(XPViewTypes vt)
+{
+    // search the view in the map of view types
+    for (const mapViewTypesTy& mvt: MAP_VIEW_TYPES)
+        if (mvt.e == vt) {
+            XPLMCommandOnce(cmdXP[mvt.cr]);
+            return;
+        }
+    LOG_MSG(logWARN, "Didn't find the requested view type %d", int(vt));
 }
 
 
