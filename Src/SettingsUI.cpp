@@ -515,6 +515,10 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
+                if (ImGui::FilteredLabel("Font Scaling", sFilter)) {
+                    ImGui::SliderInt("##FontScaling", &dataRefs.UIFontScale, 10, 200, "%d%%");
+                    ImGui::TableNextCell();
+                }
                 if (ImGui::FilteredLabel("Opacity", sFilter)) {
                     ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
                     ImGui::TableNextCell();
@@ -543,6 +547,7 @@ void LTSettingsUI::buildInterface()
                         cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
                         cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
                         cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
+                        dataRefs.UIFontScale    = DEF_UI_FONT_SCALE;
                         dataRefs.UIopacity      = DEF_UI_OPACITY;
                         ImGui::CloseCurrentPopup();
                     }

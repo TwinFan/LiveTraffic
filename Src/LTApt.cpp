@@ -2246,7 +2246,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
     }               // for each line of the apt.dat file
     
     // If the last airport read is valid don't forget to add it to the list
-    if (apt.IsValid())
+    if (!bStopThread && apt.IsValid())
         Apt::AddApt(std::move(apt));
 }
 

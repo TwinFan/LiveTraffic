@@ -98,6 +98,7 @@ void InfoListWnd::TabActive (ILWTabTy _tab)
         case ILW_TAB_AC_LIST:   wndTitle = LIVE_TRAFFIC " - Aircraft List";     break;
         case ILW_TAB_MSG:       wndTitle = LIVE_TRAFFIC " - Messages";          break;
         case ILW_TAB_STATUS:    wndTitle = LIVE_TRAFFIC " - Status / About";    break;
+        case ILW_TAB_SETTINGS:  wndTitle = LIVE_TRAFFIC " - Status Settings";   break;
         case ILW_TAB_NONE:      wndTitle = LIVE_TRAFFIC;                        break;
     }
 }
@@ -128,11 +129,10 @@ void InfoListWnd::buildInterface()
 
     // --- Tab Bar ---
     if (ImGui::BeginTabBar("InfoListWnd",
-                           ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown |
-                           ImGuiTabBarFlags_NoTooltip))
+                           ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown))
     {
         // MARK: Aircraft List
-        if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List  ")) {
+        if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
             TabActive(ILW_TAB_AC_LIST);
             
             // Limit to visible planes only
@@ -158,7 +158,7 @@ void InfoListWnd::buildInterface()
         }
         
         // MARK: Message List
-        if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages  ")) {
+        if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
             TabActive(ILW_TAB_MSG);
             
             // Filter which log levels?
@@ -294,11 +294,11 @@ void InfoListWnd::buildInterface()
         }
         
         // MARK: Status / About
-        if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About  ")) {
+        if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
             TabActive(ILW_TAB_STATUS);
             
             // Child window for scrolling region
-            if (ImGui::BeginChild("StatusAndInfo")) {
+            if (ImGui::BeginChild("StatusAndInfo", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
                 // Aircraft / Channel status
                 if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
                 
@@ -403,7 +403,8 @@ void InfoListWnd::buildInterface()
 
                     ImGui::TextUnformatted("Dimitri van Heesch for"); ImGui::SameLine();
                     ImGui::ButtonURL("Doxygen", "https://www.doxygen.nl/", nullptr, true); ImGui::SameLine();
-                    ImGui::TextUnformatted(", with which more and more parts of LiveTraffic's (and all of XPMP2's) code documentation have been created.");
+                    ImGui::TextUnformatted(", with which more and more parts of LiveTraffic's");
+                    ImGui::TextUnformatted("(and all of XPMP2's) code documentation have been created.");
                     ImGui::Spacing();
 
                     ImGui::ButtonURL("FontAwesome", "https://fontawesome.com/icons?d=gallery&s=solid&m=free", nullptr, true); ImGui::SameLine();
@@ -416,6 +417,45 @@ void InfoListWnd::buildInterface()
             ImGui::EndChild();
             ImGui::EndTabItem();
         }
+        
+        // MARK: Settings
+        const bool bSettingsActive = ImGui::BeginTabItem(ICON_FA_SLIDERS_H "##UI Settings", nullptr, ImGuiTabItemFlags_NoTooltip);
+        // I found not way to provide a _different_ tooltop to the BeginTabItem functions, so we do the tooltip by hand:
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", "UI Settings");
+        if (bSettingsActive) {
+            TabActive(ILW_TAB_STATUS);
+            
+            if (ImGui::BeginTable("StatusSettings", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
+                
+                ImGui::TableNextRow();
+                ImGui::TableNextCell();
+                ImGui::TextUnformatted("Settings also affect A/C Info windows.");
+                ImGui::TextUnformatted("Drag controls with mouse:");
+                
+                ImGui::TableNextRow();
+                ImGui::TextUnformatted("Font Scaling");
+                ImGui::TableNextCell();
+                ImGui::DragInt("##FontScaling", &dataRefs.UIFontScale, 1.0f, 10, 200, "%d%%");
+                
+                ImGui::TableNextRow();
+                ImGui::TextUnformatted("Opacity");
+                ImGui::TableNextCell();
+                ImGui::DragInt("##Opacity", &dataRefs.UIopacity, 1.0f, 0, 100, "%d%%");
+
+                ImGui::TableNextRow();
+                ImGui::TableNextCell();
+                if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
+                    dataRefs.UIFontScale   = DEF_UI_FONT_SCALE;
+                    dataRefs.UIopacity      = DEF_UI_OPACITY;
+                }
+                
+                ImGui::EndTable();
+            }
+            
+            ImGui::EndTabItem();
+        }
+
         
         // End of tab bar
         ImGui::EndTabBar();

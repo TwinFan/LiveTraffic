@@ -924,6 +924,7 @@ bool LTImgWindowInit ()
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_SAVE
                     ICON_FA_SEARCH
+                    ICON_FA_SLIDERS_H
                     ICON_FA_SORT
                     ICON_FA_SPINNER
                     ICON_FA_TIMES
