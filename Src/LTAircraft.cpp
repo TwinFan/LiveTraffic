@@ -1781,9 +1781,6 @@ bool LTAircraft::CalcPPos()
         }
     }
     
-    // are we visible?
-    CalcVisible();
-    
     // save this position for (next) camera view position
     CalcCameraViewPos();
     
@@ -2171,6 +2168,8 @@ bool LTAircraft::YProbe ()
         CalcAIPrio();
         // update the a/c label with fresh values
         LabelUpdate();
+        // are we visible?
+        CalcVisible();
     }
     
     // Success
@@ -2325,9 +2324,20 @@ bool LTAircraft::CalcVisible ()
     else if (dataRefs.GetHideBelowAGL() > 0 &&
              GetPHeight_ft() < dataRefs.GetHideBelowAGL())
         XPMP2::Aircraft::SetVisible(false);
-    else
-        // otherwise we are visible
-        XPMP2::Aircraft::SetVisible(true);
+    // hide if close to user's aircraft?
+    else {
+        const int hideDist = dataRefs.GetHideNearby(IsOnGrnd());
+        if (hideDist > 0) {
+            // We need the distance to the user's aircraft
+            double d1, d2;
+            const positionTy userPos = dataRefs.GetUsersPlanePos(d1, d2);
+            const double dist = ppos.dist(userPos);
+            XPMP2::Aircraft::SetVisible(dist > double(hideDist));
+        }
+        else
+            // otherwise we are visible
+            XPMP2::Aircraft::SetVisible(true);
+    }
     
     // inform about a change
     if (bPrevVisible != IsVisible())

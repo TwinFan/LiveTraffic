@@ -355,6 +355,8 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
+    DR_CFG_HIDE_NEARBY_GND,
+    DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -610,6 +612,8 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
+    int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
+    int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -774,7 +778,11 @@ public:
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
-    inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
+    inline int GetHideNearby(bool bGnd) const   ///< return "hide nearby" config
+    { return bGnd ? hideNearbyGnd : hideNearbyAir; }
+    inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
+    { return hideBelowAGL > 0  || hideTaxiing != 0 ||
+             hideNearbyGnd > 0 || hideNearbyAir > 0; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

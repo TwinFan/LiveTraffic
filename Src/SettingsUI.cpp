@@ -179,6 +179,8 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgCheckbox("TCAS on request only",   sFilter, DR_CFG_AI_ON_REQUEST,     "Do not take over control of TCAS automatically, but only via menu 'TCAS controlled'");
                 ImGui::FilteredCfgCheckbox("Hide a/c while taxiing", sFilter, DR_CFG_HIDE_TAXIING,      "Hide aircraft in phase 'Taxi'");
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
+                ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
+                ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
 
                 if (!*sFilter) ImGui::TreePop();
             }

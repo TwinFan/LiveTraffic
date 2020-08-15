@@ -473,6 +473,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -536,6 +538,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
+        case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options
@@ -1452,6 +1456,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
+        hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
+        hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
