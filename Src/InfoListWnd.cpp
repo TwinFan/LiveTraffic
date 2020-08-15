@@ -396,6 +396,11 @@ void InfoListWnd::buildInterface()
                     ImGui::TextUnformatted("as well as for providing the initial Linux build Docker environment.");
                     ImGui::Spacing();
                     
+                    ImGui::TextUnformatted("Crbascott for compiling and providing the"); ImGui::SameLine();
+                    ImGui::ButtonURL("model_typecode.txt", "https://github.com/TwinFan/LiveTraffic/blob/master/Resources/model_typecode.txt", nullptr, true); ImGui::SameLine();
+                    ImGui::TextUnformatted("file.");
+                    ImGui::Spacing();
+
                     ImGui::TextUnformatted("Dimitri van Heesch for"); ImGui::SameLine();
                     ImGui::ButtonURL("Doxygen", "https://www.doxygen.nl/", nullptr, true); ImGui::SameLine();
                     ImGui::TextUnformatted(", with which more and more parts of LiveTraffic's (and all of XPMP2's) code documentation have been created.");

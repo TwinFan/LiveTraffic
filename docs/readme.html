@@ -92,8 +92,12 @@
         for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
     </P>
 
-    <P>For updating coming from v2.08 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
-    
+    <P>For updating coming from v2.08 copy
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+        <li><code>Resources/model_typecode.txt</code>.</li>
+    </ul>
+
     <P>Change log:</P>
 
     <ul>
@@ -109,6 +113,9 @@
             and search/filter options.
         </li>
         <li>ADDED: Window positions are saved/restored (inside the simulator)</li>
+        <li>UPDATED <code>model_typecode.txt</code>, which assist in model-guessing
+            when no ICAO type code is available.<br>
+            Thanks go to crbascott for providing this file.</li>
         <li>FIXED Camera view from internal views, and restoring previous view when
             switching off camera view.</li>
     </ul>
