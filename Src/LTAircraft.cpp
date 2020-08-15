@@ -2747,7 +2747,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         // for radar 'calculation' we need some dynData
         // but radar doesn't change often...just only check every 100th cycle
         if (!dataRefs.IsReInitAll() &&
-            currCycle.num % 100 == 0 )
+            currCycle.num % 100 <= 1 )
         {
             // fetch new data if available
             LTFlightData::FDDynamicData dynCopy;
@@ -2763,8 +2763,9 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         // just copy over our entire structure
         *outRadar = radar;
         
-        // if invisible we deactivate TCAS/AI/multiplayer
-        if (!IsVisible()) {
+        // If on the ground, but we shall not forward gnd a/c to TCAS/AI
+        // -> deactivate TCAS
+        if (dataRefs.IsAINotOnGnd() && IsOnGrnd()) {
             outRadar->mode = xpmpTransponderMode_Standby;
             ret = xpmpData_NewData;
         }

@@ -335,6 +335,7 @@ enum dataRefsLT {
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
     DR_CFG_AI_UNDER_CONTROL,
+    DR_CFG_AI_NOT_ON_GND,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_MAX_DIST,
@@ -595,6 +596,7 @@ protected:
     int bAutoStart          = true;     ///< shall display a/c right after startup?
     int bAIonRequest        = false;    ///< acquire multiplayer control for TCAS on request only, not automatically?
     bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
+    int bAINotOnGnd         = false;    ///< shall a/c on the ground be hidden from TCAS/AI?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1, 1 };     ///< when to show? (default: always)
@@ -757,6 +759,7 @@ public:
     // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
+    bool IsAINotOnGnd() const { return bAINotOnGnd != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
     bool AwaitingAIControl() const { return bAwaitingAIControl; }
     void SetAwaitingAIControl (bool _b) { bAwaitingAIControl = _b; }

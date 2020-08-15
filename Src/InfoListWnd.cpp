@@ -424,7 +424,7 @@ void InfoListWnd::buildInterface()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", "UI Settings");
         if (bSettingsActive) {
-            TabActive(ILW_TAB_STATUS);
+            TabActive(ILW_TAB_SETTINGS);
             
             if (ImGui::BeginTable("StatusSettings", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
                 

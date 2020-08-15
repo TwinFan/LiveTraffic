@@ -168,15 +168,17 @@ void LTSettingsUI::buildInterface()
             ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
             
             // auto-open and warning if any of these values are set as they limit what's shown
-            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAutoHidingActive();
+            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive();
+            if (bSomeRestrict)
+                ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
             if (ImGui::TreeNodeLinkHelp("Cooperation", nCol,
                                         bSomeRestrict ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
                                         "Some options are active, restricting displayed traffic or TCAS!",
                                         HELP_SET_BASICS, "Open Help on Basics in Browser",
-                                        sFilter, nOpCl,
-                                        (bSomeRestrict ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+                                        sFilter, nOpCl, ImGuiTreeNodeFlags_SpanFullWidth))
             {
                 ImGui::FilteredCfgCheckbox("TCAS on request only",   sFilter, DR_CFG_AI_ON_REQUEST,     "Do not take over control of TCAS automatically, but only via menu 'TCAS controlled'");
+                ImGui::FilteredCfgCheckbox("No TCAS/AI for ground a/c", sFilter, DR_CFG_AI_NOT_ON_GND,  "Aircraft on the ground will not be reported to TCAS or AI/multiplayer interfaces");
                 ImGui::FilteredCfgCheckbox("Hide a/c while taxiing", sFilter, DR_CFG_HIDE_TAXIING,      "Hide aircraft in phase 'Taxi'");
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
