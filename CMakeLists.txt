@@ -2,8 +2,8 @@
 #               mac does currently compile only, but fails linking.
 #               Set up to be used in a Visual Studio environment to build win (File > Open > Folder, then VS recognized the CMAKE configuration)
 
-cmake_minimum_required(VERSION 3.9)
-project(LiveTraffic VERSION 1.22 DESCRIPTION "LiveTraffic X-Plane plugin" LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.16)
+project(LiveTraffic VERSION 2.09 DESCRIPTION "LiveTraffic X-Plane plugin" LANGUAGES C CXX)
 
 # By default, use optimized release configuration.
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -12,6 +12,7 @@ endif ()
 
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_SOURCE_DIR}/Include")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
@@ -52,9 +53,11 @@ endif()
 ################################################################################
 set(Header_Files
     Include/ACInfoWnd.h
+    Include/ACTable.h
     Include/Constants.h
     Include/CoordCalc.h
     Include/DataRefs.h
+    Include/InfoListWnd.h
     Include/LiveTraffic.h
     Include/LTADSBEx.h
     Include/LTAircraft.h
@@ -66,9 +69,9 @@ set(Header_Files
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/Network.h
-    Include/parson.h
     Include/SettingsUI.h
     Include/TextIO.h
+    Lib/parson/parson.h
     Lib/LTAPI/LTAPI.h
     Lib/ImGui/imconfig.h
     Lib/ImGui/imgui_internal.h
@@ -90,8 +93,10 @@ source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
     Src/ACInfoWnd.cpp
+    Src/ACTable.cpp
     Src/CoordCalc.cpp
     Src/DataRefs.cpp
+    Src/InfoListWnd.cpp
     Src/LiveTraffic.cpp
     Src/LTADSBEx.cpp
     Src/LTAircraft.cpp
@@ -105,9 +110,9 @@ set(Source_Files
     Src/LTRealTraffic.cpp
     Src/LTVersion.cpp
     Src/Network.cpp
-    Src/parson.c
     Src/SettingsUI.cpp
     Src/TextIO.cpp
+    Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
@@ -122,10 +127,33 @@ set(ALL_FILES  ${Header_Files} ${Source_Files})
 add_library(LiveTraffic MODULE ${ALL_FILES})
 
 # ImGui files do a lot of comparisons on floats
-set_source_files_properties(Lib/ImGui/imgui_draw.cpp PROPERTIES COMPILE_FLAGS -Wno-float-equal)
-set_source_files_properties(Lib/ImGui/imgui_widgets.cpp PROPERTIES COMPILE_FLAGS -Wno-float-equal)
-set_source_files_properties(Lib/ImGui/imgui.cpp PROPERTIES COMPILE_FLAGS -Wno-float-equal)
+set_source_files_properties(
+    Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_widgets.cpp
+    Lib/ImGui/imgui.cpp
+    Lib/ImgWindow/ImgWindow.cpp
+PROPERTIES
+    COMPILE_FLAGS -Wno-float-equal)
 
+################################################################################
+# Define pre-compiled header
+################################################################################
+
+target_precompile_headers(LiveTraffic PUBLIC Include/LiveTraffic.h)
+
+# Exclude all the non-core-LiveTraffic modules from the pch
+set_source_files_properties(
+    Lib/parson/parson.c
+    Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_widgets.cpp
+    Lib/ImGui/imgui.cpp
+    Lib/ImGui/misc/cpp/imgui_stdlib.cpp
+    Lib/ImgWindow/ImgFontAtlas.cpp
+    Lib/ImgWindow/ImgWindow.cpp
+PROPERTIES
+    SKIP_PRECOMPILE_HEADERS ON)
+
+  
 ################################################################################
 # Link Libraries
 ################################################################################

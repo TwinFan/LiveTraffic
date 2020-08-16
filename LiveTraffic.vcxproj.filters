@@ -25,6 +25,9 @@
     <Filter Include="Lib\ImgWindow">
       <UniqueIdentifier>{a093f39e-7934-4ccd-a376-9aeb9fa4ca1c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lib\parson">
+      <UniqueIdentifier>{4b0a64ad-18e3-416a-bcca-def6f241d3b3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ACInfoWnd.cpp">
@@ -96,10 +99,16 @@
     <ClCompile Include="Lib\ImgWindow\ImgWindow.cpp">
       <Filter>Lib\ImgWindow</Filter>
     </ClCompile>
-    <ClCompile Include="Src\parson.c">
-      <Filter>Lib</Filter>
-    </ClCompile>
     <ClCompile Include="Src\LTImgWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\parson\parson.c">
+      <Filter>Lib\parson</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\ACTable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\InfoListWnd.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -126,9 +135,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\LTFlightData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\parson.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\SettingsUI.h">
@@ -162,6 +168,27 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Include\LTImgWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lib\ImGui\imconfig.h">
+      <Filter>Lib\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Lib\ImGui\imgui.h">
+      <Filter>Lib\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Lib\ImgWindow\ImgFontAtlas.h">
+      <Filter>Lib\ImgWindow</Filter>
+    </ClInclude>
+    <ClInclude Include="Lib\ImgWindow\ImgWindow.h">
+      <Filter>Lib\ImgWindow</Filter>
+    </ClInclude>
+    <ClInclude Include="Lib\parson\parson.h">
+      <Filter>Lib\parson</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ACTable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\InfoListWnd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

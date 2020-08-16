@@ -61,11 +61,14 @@ namespace ImGui {
 static float gWidthIconBtn = NAN;
 
 // Get width of an icon button (calculate on first use)
-IMGUI_API float GetWidthIconBtn ()
+IMGUI_API float GetWidthIconBtn (bool _bWithSpacing)
 {
     if (std::isnan(gWidthIconBtn))
-        gWidthIconBtn = CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x + 5;
-    return gWidthIconBtn;
+        gWidthIconBtn = CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x;
+    if (_bWithSpacing)
+        return gWidthIconBtn + ImGui::GetStyle().ItemSpacing.x;
+    else
+        return gWidthIconBtn;
 }
 
 // Helper for creating unique IDs
@@ -79,6 +82,56 @@ IMGUI_API void PushID_formatted(const char* format, ...)
     va_end (args);
     // Call the actual push function
     PushID(sz);
+}
+
+// Outputs aligned text
+IMGUI_API void TextAligned (AlignTy _align, const std::string& s)
+{
+    // Change cursor position so that text becomes aligned
+    if (_align != IM_ALIGN_LEFT) {
+        ImVec2 avail = GetContentRegionAvail();
+        ImVec2 pos = GetCursorPos();
+        const float txtWidth = CalcTextSize(s.c_str()).x;
+        if (_align == IM_ALIGN_CENTER)
+            pos.x += avail.x/2.0f - txtWidth/2.0f;
+        else
+            pos.x += avail.x - txtWidth - ImGui::GetStyle().ItemSpacing.x;
+        SetCursorPos(pos);
+    }
+    // Output the text
+    TextUnformatted(s.c_str());
+}
+
+// Small Button with on-hover popup helper text
+IMGUI_API bool SmallButtonTooltip(const char* label,
+                                  const char* tip,
+                                  ImU32 colFg,
+                                  ImU32 colBg)
+{
+    // Setup colors
+    if (colFg != IM_COL32(1,1,1,0))
+        PushStyleColor(ImGuiCol_Text, colFg);
+    if (colBg != IM_COL32(1,1,1,0))
+        PushStyleColor(ImGuiCol_Button, colBg);
+
+    // do the button (and we _really_ using also x frame padding = 0)
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f,0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f,0.0f));
+    bool b = SmallButton(label);
+    ImGui::PopStyleVar(2);
+    
+    // restore previous colors
+    if (colBg != IM_COL32(1,1,1,0))
+        PopStyleColor();
+    if (colFg != IM_COL32(1,1,1,0))
+        PopStyleColor();
+
+    // do the tooltip
+    if (tip && IsItemHovered())
+        SetTooltip("%s", tip);
+    
+    // return if button pressed
+    return b;
 }
 
 // Button with on-hover popup helper text
@@ -119,7 +172,7 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     PushStyleColor(ImGuiCol_ButtonHovered, GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
 
     if (rightAligned)
-        SetCursorPosX(GetContentRegionMax().x - GetWidthIconBtn());
+        SetCursorPosX(GetWindowContentRegionMax().x - GetWidthIconBtn() - ImGui::GetStyle().ItemSpacing.x);
 
     bool b = ButtonTooltip(label, tooltip);
 
@@ -127,6 +180,23 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     PopStyleColor(3);
     
     return b;
+}
+
+// Button which opens the given URL
+IMGUI_API bool ButtonURL(const char* label,
+                         const char* url,
+                         const char* tip,
+                         bool bSmallBtn,
+                         ImU32 colFg,
+                         ImU32 colBg,
+                         const ImVec2& size)
+{
+    if ((!bSmallBtn && ButtonTooltip(label, tip ? tip : url, colFg, colBg, size)) ||
+        ( bSmallBtn && SmallButtonTooltip(label, tip ? tip : url, colFg, colBg))) {
+        LTOpenURL(url);
+        return true;
+    } else
+        return false;
 }
 
 // A checkbox toggling a defined integer dataRef
@@ -224,8 +294,7 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
     
     // add a button with a link action to the 2nd cell
     if (linkLabel && linkURL) {
-        if (ButtonTooltip(linkLabel, linkPopup))
-            LTOpenURL(linkURL);
+        ButtonURL(linkLabel, linkURL, linkPopup);
         SameLine();
     }
     // Not a button, but mayby just plain text?
@@ -468,6 +537,33 @@ IMGUI_API bool TablePrevCell()
 }
 
 
+// Outputs up to 3 lines of RealTraffic channel status info
+IMGUI_API void TextRealTrafficStatus ()
+{
+    // Disabled in configuration?
+    if (!dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE)) {
+        TextUnformatted("Off");
+    }
+    // Enabled, but not yet initialized?
+    else if (!dataRefs.pRTConn || dataRefs.pRTConn->GetStatus() == RealTrafficConnection::RT_STATUS_NONE) {
+        TextUnformatted("Starting...");
+    }
+    // There is a _connected_ RealTraffic connection object
+    else if (dataRefs.pRTConn->IsConnected()) {
+        ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusText().c_str());          // "Active, serving # aircraft"
+        ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());   // "Fully connected, last msg..."
+        if (!dataRefs.pRTConn->GetMetarIcao().empty())
+            ImGui::Text("%ld hPa at %s",                                            // Weather info
+                        std::lround(dataRefs.pRTConn->GetHPA()),
+                        dataRefs.pRTConn->GetMetarIcao().c_str());
+    }
+    // There is an initialized RealTraffic connection object, but it is not connected
+    else {
+        ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());
+    }
+}
+
+
 }   // namespace ImGui
 
 //
@@ -484,7 +580,7 @@ rectFloat(_initPos)
 {
     // Disable reading/writing of "imgui.ini"
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;
+    io.IniFilename = IMGUI_INI_PATH;
 
     // Create a flight loop id
     XPLMCreateFlightLoop_t flDef = {
@@ -504,7 +600,31 @@ rectFloat(_initPos)
         SetWindowDragArea(0, 5, INT_MAX, 5 + 2*WND_FONT_SIZE);
     }
     
-    // Set the positioning mode
+    // Set the positioning mode:
+    
+    // Safeguard position a bit against "out of view" positions
+    if (_initPos.left() > 0 || _initPos.bottom()) {
+        WndRect screen;
+        XPLMGetScreenBoundsGlobal (&screen.left(), &screen.top(),
+                                   &screen.right(), &screen.bottom());
+        if (!screen.contains(_initPos.tl) ||
+            !screen.contains(_initPos.tl.shiftedBy(50, -20)))
+        {
+            // top left corner is not (sufficiently) inside screen bounds
+            // -> make left/botom = 0 so that wnd will be centered
+            //    while retaining width/height
+            _initPos.shift(- _initPos.left(), - _initPos.bottom());
+        }
+    }
+    
+    // If _initPos defines left/bottom already then we don't do centered
+    if (_initPos.left() > 0 || _initPos.bottom() > 0) {
+        // Don't center the window as we have a proper position
+        if (_mode == WND_MODE_FLOAT_CENTERED)
+            _mode = WND_MODE_FLOAT;
+        else if (_mode == WND_MODE_FLOAT_CNT_VR)
+            _mode = WND_MODE_FLOAT_OR_VR;
+    }
     SetMode(_mode);
     
     // Show myself and monitor that we stay visible
@@ -543,8 +663,7 @@ void LTImgWindow::SetMode (WndMode _mode)
 
     // If we pop in, then we need to explicitely set a position for the window to appear
     if (_mode == WND_MODE_FLOAT && !rectFloat.empty()) {
-        SetWindowGeometry(rectFloat.left(),  rectFloat.top(),
-                          rectFloat.right(), rectFloat.bottom());
+        SetCurrentWindowGeometry(rectFloat);
         rectFloat.clear();
     }
     // if we set any of the "centered" modes
@@ -574,6 +693,21 @@ WndRect LTImgWindow::GetCurrentWindowGeometry () const
     return r;
 }
 
+// Set window geometry
+void LTImgWindow::SetCurrentWindowGeometry (const WndRect& r)
+{
+    switch (GetMode()) {
+        case WND_MODE_POPOUT:
+            SetWindowGeometryOS(r.left(), r.top(), r.right(), r.bottom());
+            break;
+        case WND_MODE_VR:
+            SetWindowGeometryVR(r.width(), r.height());
+            break;
+        default:
+            SetWindowGeometry(r.left(), r.top(), r.right(), r.bottom());
+    }
+}
+
 // Loose keyboard foucs, ie. return focus to X-Plane proper, if I have it now
 bool LTImgWindow::ReturnKeyboardFocus ()
 {
@@ -593,7 +727,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
                                  bool bCloseBtn,
                                  bool bWndBtns)
 {
-    const float btnWidth = ImGui::GetWidthIconBtn();
+    const float btnWidth = ImGui::GetWidthIconBtn(true);
     const ImGuiStyle& style = ImGui::GetStyle();
     
     // Close button
@@ -655,15 +789,15 @@ void LTImgWindow::buildWndButtons ()
 {
     // Button with fixed width 30 and standard height
     // to pop out the window in an OS window
-    const float btnWidth = ImGui::GetWidthIconBtn();
+    const float btnWidth = ImGui::GetWidthIconBtn(true);
     const bool bBtnHelp = szHelpURL != nullptr;
     const bool bBtnPopOut = (wndStyle == WND_STYLE_HUD) && !IsPoppedOut();
-#if APL
-    // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
-    const bool bBtnPopIn  = !dataRefs.UsingModernDriver() && (IsPoppedOut() || IsInVR());
-#else
+//#if APL
+//    // WORKAROUND: With metal, popping back in often crashes, so disable (does work in OpenGL mode, though)
+//    const bool bBtnPopIn  = !dataRefs.UsingModernDriver() && (IsPoppedOut() || IsInVR());
+//#else
     const bool bBtnPopIn  = IsPoppedOut() || IsInVR();
-#endif
+//#endif
     const bool bBtnVR     = dataRefs.IsVREnabled() && !IsInVR();
     int numBtn = bBtnHelp + bBtnPopOut + bBtnPopIn + bBtnVR;
     if (numBtn > 0) {
@@ -777,14 +911,21 @@ bool LTImgWindowInit ()
                     ICON_FA_CAMERA
                     ICON_FA_CHECK
                     ICON_FA_CHECK_CIRCLE
+                    ICON_FA_CHEVRON_DOWN
+                    ICON_FA_CHEVRON_UP
+                    ICON_FA_CLIPBOARD_LIST
                     ICON_FA_EXCLAMATION_TRIANGLE
                     ICON_FA_EYE
                     ICON_FA_EXTERNAL_LINK_SQUARE_ALT
                     ICON_FA_FOLDER_OPEN
+                    ICON_FA_INFO_CIRCLE
                     ICON_FA_LEVEL_UP_ALT
+                    ICON_FA_PLANE
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_SAVE
                     ICON_FA_SEARCH
+                    ICON_FA_SLIDERS_H
+                    ICON_FA_SORT
                     ICON_FA_SPINNER
                     ICON_FA_TIMES
                     ICON_FA_TRASH_ALT

@@ -275,6 +275,32 @@ namespace ModelIcaoType
 
 }
 
+//
+// MARK: WndRect
+//
+
+
+// Write WndRect into config file ("left,top,right.bottom")
+std::ostream& operator<< (std::ostream& _stream, const WndRect& _r)
+{
+    return _stream << _r.left() << ',' << _r.top() << ',' << _r.right() << ',' << _r.bottom();
+}
+
+// Set from config file string ("left,top,right.bottom")
+void WndRect::set (const std::string& _s)
+{
+    std::vector<std::string> tok = str_tokenize(_s, ",");
+    if (tok.size() == 4) {
+        left()      = std::stoi(tok[0]);
+        top()       = std::stoi(tok[1]);
+        right()     = std::stoi(tok[2]);
+        bottom()    = std::stoi(tok[3]);
+    } else {
+        LOG_MSG(logERR, "Window pos expects 4 numbers but got: %s", _s.c_str());
+    }
+}
+
+
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[] = {
     "sim/network/misc/network_time_sec",        // float	n	seconds	The current elapsed time synched across the network (used as timestamp in Log.txt)
@@ -334,10 +360,45 @@ const char* CMD_REFS_XP[] = {
     "sim/general/zoom_out",
     "sim/general/zoom_in_fast",
     "sim/general/zoom_out_fast",
+    
+    "sim/view/free_camera",
+    "sim/view/forward_with_2d_panel",
+    "sim/view/forward_with_hud",
+    "sim/view/forward_with_nothing",
+    "sim/view/linear_spot",
+    "sim/view/still_spot",
+    "sim/view/runway",
+    "sim/view/circle",
+    "sim/view/tower",
+    "sim/view/ridealong",
+    "sim/view/track_weapon",
+    "sim/view/chase",
+    "sim/view/3d_cockpit_cmnd_look",
 };
 
 static_assert(sizeof(CMD_REFS_XP) / sizeof(CMD_REFS_XP[0]) == CNT_CMDREFS_XP,
     "cmdRefsXP and CMD_REFS_XP[] differ in number of elements");
+
+/// Map view types to view commands
+struct mapViewTypesTy {
+    XPViewTypes     e = VIEW_UNKNOWN;       ///< enum value
+    cmdRefsXP       cr = CR_NO_COMMAND;     ///< command ref enum value
+};
+
+mapViewTypesTy MAP_VIEW_TYPES[] = {
+    { VIEW_FWD_2D,      CR_VIEW_FWD_2D      },
+    { VIEW_EXT_TOWER,   CR_VIEW_EXT_TOWER   },
+    { VIEW_EXT_RNWY,    CR_VIEW_EXT_RNWY    },
+    { VIEW_EXT_CHASE,   CR_VIEW_EXT_CHASE   },
+    { VIEW_EXT_CIRCLE,  CR_VIEW_EXT_CIRCLE  },
+    { VIEW_EXT_STILL,   CR_VIEW_EXT_STILL   },
+    { VIEW_EXT_LINEAR,  CR_VIEW_EXT_LINEAR  },
+    { VIEW_FWD_HUD,     CR_VIEW_FWD_HUD     },
+    { VIEW_FWD_NODISP,  CR_VIEW_FWD_NODISP  },
+    { VIEW_FWD_3D,      CR_VIEW_FWD_3D      },
+    { VIEW_FREE_CAM,    CR_VIEW_FREE_CAM    },
+    { VIEW_EXT_RIDE,    CR_VIEW_EXT_RIDE    },
+};
 
 //
 //MARK: DataRefs::dataRefDefinitionT
@@ -383,19 +444,16 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     
     // UI information
     {"livetraffic/ui/opacity",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/settings/width",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/settings/height",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/ui/font_scale",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/ui/settings/transparent",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/ui/aci/width",                    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/aci/height",                   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/ui/aci/collapsed",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/ui/aci/font_scale",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
+    {"livetraffic/cfg/ai_not_on_gnd",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/labels",                      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_max_dist",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -404,6 +462,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/msg_area_level",              DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
+    {"livetraffic/cfg/log_list_len",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, false },
     {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -415,6 +474,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -450,18 +511,15 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
     switch (dr) {
         // UI information
         case DR_UI_OPACITY:                 return &UIopacity;
-        case DR_UI_SETTINGS_WIDTH:          return &SUIwidth;
-        case DR_UI_SETTINGS_HEIGHT:         return &SUIheight;
+        case DR_UI_FONT_SCALE:              return &UIFontScale;
         case DR_UI_SETTINGS_TRANSP:         return &SUItransp;
-        case DR_UI_ACI_WIDTH:               return &ACIwidth;
-        case DR_UI_ACI_HEIGHT:              return &ACIheight;
         case DR_UI_ACI_COLLAPSED:           return &ACIcollapsed;
-        case DR_UI_ACI_FONT_SCALE:          return &ACIfontScale;
 
         // configuration options
         case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
+        case DR_CFG_AI_NOT_ON_GND:          return &bAINotOnGnd;
         case DR_CFG_LABELS:                 return &labelCfg;
         case DR_CFG_LABEL_SHOWN:            return &labelShown;
         case DR_CFG_LABEL_MAX_DIST:         return &labelMaxDist;
@@ -470,6 +528,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
         case DR_CFG_MSG_AREA_LEVEL:         return &iMsgAreaLevel;
+        case DR_CFG_LOG_LIST_LEN:           return &logListLen;
         case DR_CFG_USE_HISTORIC_DATA:      return &bUseHistoricData;
         case DR_CFG_MAX_NUM_AC:             return &maxNumAc;
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
@@ -481,6 +540,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
+        case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options
@@ -514,13 +575,15 @@ struct cmdRefDescrTy {
     const char* cmdName;
     const char* cmdDescr;
 } CMD_REFS_LT[] = {
-    {"LiveTraffic/Aircraft_Info_Wnd/Open",              "Opens an aircraft information window"},
-    {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out aircraft information window (separate OS-level window)"},
-    {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all aircraft information windows, but does not close"},
-    {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all aircraft information windows"},
+    {"LiveTraffic/Info_Staus_Wnd/Open",                 "Opens/Closes the Information/Status window"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Open",              "Opens an Aircraft Information Window"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Open_Popped_Out",   "Opens a popped out Aircraft Information Window (separate OS-level window)"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Hide_Show",         "Hides/Shows all Aircraft Information Windows, but does not close"},
+    {"LiveTraffic/Aircraft_Info_Wnd/Close_All",         "Closes all Aircraft Information Windows"},
     {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircraft"},
-    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control: Tries to take control over AI aircraft"},
+    {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control toggle: Tries to take control over AI aircraft, or release it"},
     {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
+    {"LiveTraffic/Settings/Open",                       "Opens/Closes the Settings window"},
 };
 
 static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,
@@ -583,10 +646,13 @@ const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
 static std::mutex mutexDrUpdate;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
-iLogLevel (initLogLevel)
+iLogLevel (initLogLevel),
 #ifdef DEBUG
-,bDebugAcPos (true)
+bDebugAcPos (true),
 #endif
+SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
+ACIrect (0, 530, 320, 0),
+ILWrect (0, 400, 965, 0)
 {
     // override log level in Beta and DEBUG cases
     // (config file is read later, that may reduce the level again)
@@ -803,6 +869,19 @@ bool DataRefs::RegisterCommands()
         { LOG_MSG(logERR,ERR_CREATE_COMMAND,CMD_REFS_LT[i].cmdName); bRet = false; }
     }
     return bRet;
+}
+
+
+/// Set the view type, translating from XPViewTypes to command ref needed
+void DataRefs::SetViewType(XPViewTypes vt)
+{
+    // search the view in the map of view types
+    for (const mapViewTypesTy& mvt: MAP_VIEW_TYPES)
+        if (mvt.e == vt) {
+            XPLMCommandOnce(cmdXP[mvt.cr]);
+            return;
+        }
+    LOG_MSG(logWARN, "Didn't find the requested view type %d", int(vt));
 }
 
 
@@ -1379,6 +1458,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
+        hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
+        hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
@@ -1693,6 +1774,15 @@ bool DataRefs::LoadConfigFile()
                 // *** valid config entry, now process it ***
                 i->setData(sVal);
             }
+            
+            // *** Window positions ***
+            else if (sDataRef == CFG_WNDPOS_SUI)
+                SUIrect.set(sVal);
+            else if (sDataRef == CFG_WNDPOS_ACI)
+                ACIrect.set(sVal);
+            else if (sDataRef == CFG_WNDPOS_ILW)
+                ILWrect.set(sVal);
+            
             // *** Strings ***
             else if (sDataRef == CFG_DEFAULT_AC_TYPE)
                 dataRefs.SetDefaultAcIcaoType(sVal);
@@ -1766,10 +1856,6 @@ bool DataRefs::LoadConfigFile()
         return false;
     }
     
-    // ACInfoWnd was configured to small...make it longer
-    if (ACIheight == 510)
-        ACIheight = 530;
-    
     // looks like success
     return true;
 }
@@ -1797,6 +1883,11 @@ bool DataRefs::SaveConfigFile()
     for (const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT)
         if (def.isCfgFile())                   // only for values which are to be saved
             fOut << def.GetConfigString() << '\n';
+    
+    // *** Window positions ***
+    fOut << CFG_WNDPOS_SUI << ' ' << SUIrect << '\n';
+    fOut << CFG_WNDPOS_ACI << ' ' << ACIrect << '\n';
+    fOut << CFG_WNDPOS_ILW << ' ' << ILWrect << '\n';
     
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << dataRefs.GetDefaultAcIcaoType() << '\n';

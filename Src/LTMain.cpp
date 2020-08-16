@@ -181,11 +181,11 @@ void LTOpenURL  (const std::string url)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
     // Unix uses xdg-open, package xdg-utils, pre-installed at least on Ubuntu
-    (void)system((std::string("xdg-open ") + url).c_str());
+    (void)system((std::string("xdg-open '") + url + "'").c_str());
 #pragma GCC diagnostic pop
 #else
     // Max use standard system/open
-    system((std::string("open ") + url).c_str());
+    system((std::string("open '") + url + "'").c_str());
     // Code that causes warning goes here
 #endif
 }
@@ -269,6 +269,33 @@ std::string str_first_non_empty ( std::initializer_list<const std::string> l)
 
 // MARK: Other Utility Functions
 
+// Convert an XP network time float to a string
+std::string NetwTimeString (float runS)
+{
+    // Extract hours, minutes, and seconds (incl. fractions) from runS
+    const unsigned runH = unsigned(runS / 3600.0f);
+    runS -= runH * 3600.0f;
+    const unsigned runM = unsigned(runS / 60.0f);
+    runS -= runM * 60.0f;
+
+    // Convert to string
+    char s[20];
+    snprintf(s, sizeof(s), "%u:%02u:%06.3f",
+             runH, runM, runS);
+    return std::string(s);
+}
+
+// Convenience function to check on something at most every x seconds
+bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
+{
+    if (_lastCheck < 0.00001f ||
+        _now >= _lastCheck + _interval) {
+        _lastCheck = _now;
+        return true;
+    }
+    return false;
+}
+
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 )
 {
@@ -281,6 +308,32 @@ bool dequal ( const double d1, const double d2 )
 //MARK: Callbacks
 //
 
+// collects all updates that need to be done up to every flight loop cycle
+void LTRegularUpdates()
+{
+    // only update once per flight loop cycle
+    static int lstCycleNum = -1;
+    const int currCycleNum = XPLMGetCycleNumber();
+    if (lstCycleNum == currCycleNum)
+        return;
+    lstCycleNum = currCycleNum;
+    
+    // all calls needed (up to) every flight loop:
+    
+    // Update cached values
+    dataRefs.UpdateCachedValues();
+    
+    // Check if some msg window needs to show
+    CheckThenShowMsgWindow();
+
+    // handle new network data (that func has a short-cut exit if nothing to do)
+    LTFlightData::AppendAllNewPos();
+
+    // Flush out all non-written log messages
+    FlushMsg();
+}
+
+
 // flight loop callback, will be called every 5th frame while showing aircraft;
 // creates/destroys aircraft by looping the flight data map
 float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*)
@@ -290,14 +343,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
-            // Update cached values
-            dataRefs.UpdateCachedValues();
-            
-            // Check if some msg window needs to show
-            CheckThenShowMsgWindow();
-
-            // handle new network data (that func has a short-cut exit if nothing to do)
-            LTFlightData::AppendAllNewPos();
+            // regular calls collected here
+            LTRegularUpdates();
             
             // all the rest we do only every 2s
             elapsedSinceLastAcMaint += inElapsedSinceLastCall;
@@ -346,6 +393,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             LTFlightDataAcMaintenance();
             // updates to menu item status
             MenuUpdateAllItemStatus();
+            // Purge messages kept in local storage for display
+            PurgeMsgList();
         } catch (const std::exception& e) {
             // try re-init...
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
@@ -508,6 +557,24 @@ bool LTMainShowAircraft ()
     // success
     dataRefs.pluginState = STATE_SHOW_AC;
     return true;
+}
+
+// Who controls AI?
+std::string GetAIControlPluginName ()
+{
+    // XPLMCountAircraft tells us who is in control
+    int total=0, active=0;
+    XPLMPluginID who=0;
+    XPLMCountAircraft(&total, &active, &who);
+    
+    // nobody?
+    if (who < 0)
+        return "";
+    
+    // get plugin info
+    char whoName[256];
+    XPLMGetPluginInfo(who, whoName, nullptr, nullptr, nullptr);
+    return std::string(whoName);
 }
 
 /// Callback for when some other plugin released AI control

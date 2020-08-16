@@ -193,6 +193,45 @@ void LTChannel::SetEnable (bool bEnable)
     dataRefs.SetChannelEnabled(channel,bEnable);
 }
 
+std::string LTChannel::GetStatusText () const
+{
+    // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
+    if (!IsValid())                         return "Invalid";
+    if (!IsEnabled())                       return "Off";
+    if (GetChType() != CHT_TRACKING_DATA)   return "Active";
+    
+    // An active source of tracking data...for how many aircraft?
+    char buf[50];
+    snprintf (buf, sizeof(buf), "Active, serving %d aircraft",
+              GetNumAcServed());
+    return std::string(buf);
+}
+
+//
+//MARK: LTFlightDataChannel
+//
+
+// how many a/c do we feed when counted last?
+int LTFlightDataChannel::GetNumAcServed () const
+{
+    // only try to re-count every second, and needs the mapFd lock
+    if (timeLastAcCnt + 1.0f < dataRefs.GetMiscNetwTime()) {
+        std::unique_lock<std::mutex> lockFd(mapFdMutex, std::try_to_lock);
+        if (lockFd) {
+            timeLastAcCnt = dataRefs.GetMiscNetwTime();
+            numAcServed = 0;                // start counting flight data served by _this_ channel
+            for (const mapLTFlightDataTy::value_type& p: mapFd) {
+                const LTChannel* pCh = nullptr;
+                if (p.second.GetCurrChannel(pCh) && pCh == this)
+                    ++numAcServed;
+            }
+        }
+    }
+
+    // return whatever we know
+    return numAcServed;
+}
+
 //
 //MARK: LTACMasterdata
 //

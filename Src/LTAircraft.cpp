@@ -58,11 +58,8 @@ static FrameLenArrTy::iterator gFrameLenIter;
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
 bool NextCycle (int newCycle)
 {
-    // Update cached values in dataRefs (incl. time information)
-    dataRefs.UpdateCachedValues();
-    
-    // Quickly test if we need to show a window
-    CheckThenShowMsgWindow();
+    // All regular updates are collected here
+    LTRegularUpdates();
     
     if ( currCycle.num >= 0 )    // not the very very first cycle?
         prevCycle = currCycle;
@@ -1121,6 +1118,8 @@ std::string LTAircraft::FlightPhase2String (flightPhaseE phase)
 //MARK: LTAircraft Init/Destroy
 //
 
+constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
+
 // Constructor: create an aircraft from Flight Data
 LTAircraft::LTAircraft(LTFlightData& inFd) :
 // Base class -> this registers with XPMP API for actual display in XP!
@@ -1295,6 +1294,47 @@ bool LTAircraft::OutOfPositions() const
     (posList.size() < 2) ||
     (currCycle.simTime >= posList.back().ts());
 }
+
+
+/// Finds a near airport and outputs a human-readable position like "3.1nm N of EDDL"
+std::string LTAircraft::RelativePositionText ()
+{
+    // find/update the nearest airport when needed or
+    if (std::isnan(nearestAirportPos.lat()) ||
+        CheckEverySoOften(lastNearestAirportCheck, ACI_NEAR_AIRPRT_PERIOD))
+    {
+        lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
+    
+        // Find the nearest airport
+        float lat = (float)GetPPos().lat();
+        float lon = (float)GetPPos().lon();
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
+                                           &lat, &lon, nullptr,
+                                           xplm_Nav_Airport);
+        if (!navRef)
+            return std::string(GetPPos());
+    
+        // Where is that airport and what's its name?
+        char airportId[32];
+        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
+                          airportId, nullptr, nullptr);
+        
+        // Save the data
+        nearestAirport = airportId;
+        nearestAirportPos.lat() = lat;
+        nearestAirportPos.lon() = lon;
+    }
+    
+    // determine bearing from airport to position
+    vectorTy vecRel = nearestAirportPos.between(GetPPos());
+    
+    // put together a nice string
+    char out[100];
+    snprintf(out, sizeof(out), "%.1fnm %s of %s",
+             vecRel.dist / M_per_NM, HeadingText(vecRel.angle).c_str(), nearestAirport.c_str());
+    return std::string(out);
+}
+
 
 
 // is the aircraft on a rwy (on ground and at least on pos on rwy)
@@ -1741,9 +1781,6 @@ bool LTAircraft::CalcPPos()
         }
     }
     
-    // are we visible?
-    CalcVisible();
-    
     // save this position for (next) camera view position
     CalcCameraViewPos();
     
@@ -2131,6 +2168,8 @@ bool LTAircraft::YProbe ()
         CalcAIPrio();
         // update the a/c label with fresh values
         LabelUpdate();
+        // are we visible?
+        CalcVisible();
     }
     
     // Success
@@ -2285,9 +2324,20 @@ bool LTAircraft::CalcVisible ()
     else if (dataRefs.GetHideBelowAGL() > 0 &&
              GetPHeight_ft() < dataRefs.GetHideBelowAGL())
         XPMP2::Aircraft::SetVisible(false);
-    else
-        // otherwise we are visible
-        XPMP2::Aircraft::SetVisible(true);
+    // hide if close to user's aircraft?
+    else {
+        const int hideDist = dataRefs.GetHideNearby(IsOnGrnd());
+        if (hideDist > 0) {
+            // We need the distance to the user's aircraft
+            double d1, d2;
+            const positionTy userPos = dataRefs.GetUsersPlanePos(d1, d2);
+            const double dist = ppos.dist(userPos);
+            XPMP2::Aircraft::SetVisible(dist > double(hideDist));
+        }
+        else
+            // otherwise we are visible
+            XPMP2::Aircraft::SetVisible(true);
+    }
     
     // inform about a change
     if (bPrevVisible != IsVisible())
@@ -2697,7 +2747,7 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         // for radar 'calculation' we need some dynData
         // but radar doesn't change often...just only check every 100th cycle
         if (!dataRefs.IsReInitAll() &&
-            currCycle.num % 100 == 0 )
+            currCycle.num % 100 <= 1 )
         {
             // fetch new data if available
             LTFlightData::FDDynamicData dynCopy;
@@ -2713,8 +2763,9 @@ XPMPPlaneCallbackResult LTAircraft::GetPlaneRadar(XPMPPlaneRadar_t* outRadar)
         // just copy over our entire structure
         *outRadar = radar;
         
-        // if invisible we deactivate TCAS/AI/multiplayer
-        if (!IsVisible()) {
+        // If on the ground, but we shall not forward gnd a/c to TCAS/AI
+        // -> deactivate TCAS
+        if (dataRefs.IsAINotOnGnd() && IsOnGrnd()) {
             outRadar->mode = xpmpTransponderMode_Standby;
             ret = xpmpData_NewData;
         }

@@ -65,11 +65,6 @@ public:
         // positional
         bool            gnd;            // on ground?         false
         double          heading;        // heading            231.2 [°]
-        double          inHg;           // air pressure    29.88189 [mm Hg]
-        
-        // relative position
-        double          brng;           // Bearing            304.0 [°]
-        double          dst;            // Distance           19.54 [km]
         
         // movement
         double          spd;            // speed              190.0 [kt]

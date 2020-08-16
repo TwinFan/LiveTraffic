@@ -63,8 +63,8 @@ bool CalcBetaVerTimeLimit()
                 strcmp(buildDate,"Nov") == 0 ? 10 : 11;
     // Save the build date in a form to be offered via dataRef, like 20200430 for 30-APR-2020
     verBuildDate = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
-    // Limit is: build date plus 45 days
-    LT_BETA_VER_LIMIT = mktime(&tm) + 45 * SEC_per_D;
+    // Limit is: build date plus 30 days
+    LT_BETA_VER_LIMIT = mktime(&tm) + 30 * SEC_per_D;
     localtime_s(&tm, &LT_BETA_VER_LIMIT);
     
     // tell the world we're limited
@@ -195,6 +195,9 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
 // This function would block. Idea is to call it in a thread like with std::async
 bool FetchXPlaneOrgVersion ()
 {
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_Version");
+
     char curl_errtxt[CURL_ERROR_SIZE];
     std::string readBuf;
     

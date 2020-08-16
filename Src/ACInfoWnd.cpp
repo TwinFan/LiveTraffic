@@ -36,7 +36,6 @@ enum SectionsBits {
 };
 
 constexpr float ACI_AUTO_CHECK_PERIOD = 1.00f;  ///< How often to check for AUTO a/c change? [s]
-constexpr float ACI_NEAR_AIRPRT_PERIOD =180.0f; ///< How often update the nearest airport? [s]
 constexpr float ACI_TREE_V_SEP        = 5.00f;  ///< Separation between tree sections
 
 static float ACI_LABEL_SIZE = NAN;              ///< Width of first column, which displays static labels
@@ -44,7 +43,7 @@ static float ACI_AUTO_CB_SIZE = NAN;            ///< Width of AUTO checkbox
 
 // Constructor shows a window for the given a/c key
 ACIWnd::ACIWnd(const std::string& _acKey, WndMode _mode) :
-LTImgWindow(_mode, WND_STYLE_HUD, WndRect(0, dataRefs.ACIheight, dataRefs.ACIwidth, 0)),
+LTImgWindow(_mode, WND_STYLE_HUD, dataRefs.ACIrect),
 bAuto(_acKey.empty()),              // if _acKey empty -> AUTO mode
 keyEntry(_acKey)                    // the passed-in input is taken as the user's entry
 {
@@ -52,6 +51,13 @@ keyEntry(_acKey)                    // the passed-in input is taken as the user'
     SetWindowTitle(GetWndTitle());
     SetWindowResizingLimits(ACI_RESIZE_LIMITS.tl.x, ACI_RESIZE_LIMITS.tl.y,
                             ACI_RESIZE_LIMITS.br.x, ACI_RESIZE_LIMITS.br.y);
+    
+    // If this is not the first window then it got created right on top of an existing one
+    // -> move it down/right by a few pixel
+    if (!listACIWnd.empty() && IsInsideSim()) {
+        int delta = int(ImGui::GetWidthIconBtn() + 2 * ImGui::GetStyle().ItemSpacing.x);
+        SetCurrentWindowGeometry(dataRefs.ACIrect.shift(delta,-delta));
+    }
     
     // Define Help URL to open for Help (?) button
     szHelpURL = HELP_AC_INFO_WND;
@@ -96,10 +102,6 @@ void ACIWnd::ClearAcKey ()
     acKey.clear();
     keyEntry.clear();
     lastAutoCheck = 0.0f;
-    
-    nearestAirport.clear();
-    nearestAirportPos = positionTy();
-    lastNearestAirportCheck = 0.0f;
     
     SetWindowTitle(GetWndTitle());
 }
@@ -168,9 +170,8 @@ bool ACIWnd::UpdateFocusAc ()
     if (!bAuto) return false;
     
     // do that only every so often
-    if (dataRefs.GetMiscNetwTime() < lastAutoCheck + ACI_AUTO_CHECK_PERIOD)
+    if (!CheckEverySoOften(lastAutoCheck, ACI_AUTO_CHECK_PERIOD))
         return false;
-    lastAutoCheck = dataRefs.GetMiscNetwTime();
     
     // find the current focus a/c and if different from current one then switch
     const LTFlightData* pFocusAc = LTFlightData::FindFocusAc(DataRefs::GetViewHeading());
@@ -189,45 +190,6 @@ bool ACIWnd::UpdateFocusAc ()
     return false;
 }
 
-/// Finds a near airport and outputs a human-readable position like "3.1nm N of EDDL"
-std::string ACIWnd::RelativePositionText (const positionTy& pos)
-{
-    // find/update the nearest airport when needed or
-    if (std::isnan(nearestAirportPos.lat()) ||
-        dataRefs.GetMiscNetwTime() >= lastNearestAirportCheck + ACI_NEAR_AIRPRT_PERIOD)
-    {
-        lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
-    
-        // Find the nearest airport
-        float lat = (float)pos.lat();
-        float lon = (float)pos.lon();
-        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
-                                           &lat, &lon, nullptr,
-                                           xplm_Nav_Airport);
-        if (!navRef)
-            return std::string(pos);
-    
-        // Where is that airport and what's its name?
-        char airportId[32];
-        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
-                          airportId, nullptr, nullptr);
-        
-        // Save the data
-        nearestAirport = airportId;
-        nearestAirportPos.lat() = lat;
-        nearestAirportPos.lon() = lon;
-    }
-    
-    // determine bearing from airport to position
-    vectorTy vec = nearestAirportPos.between(pos);
-    
-    // put together a nice string
-    char out[100];
-    snprintf(out, sizeof(out), "%.1fnm %s of %s",
-             vec.dist / M_per_NM, HeadingText(vec.angle).c_str(), nearestAirport.c_str());
-    return std::string(out);
-}
-
 // Some setup before UI building starts, here text size calculations
 ImGuiWindowFlags_ ACIWnd::beforeBegin()
 {
@@ -240,17 +202,16 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
     }
     
     // Save latest screen size to configuration (if not popped out)
-    if (!IsPoppedOut()) {
-        const WndRect r = GetCurrentWindowGeometry();
-        dataRefs.ACIwidth   = r.width();
-        dataRefs.ACIheight  = r.height();
-    }
+    if (!IsPoppedOut())
+        dataRefs.ACIrect = GetCurrentWindowGeometry();
     
     // Set background opacity
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_WindowBg] =  ImColor(0.0f, 0.0f, 0.0f, float(dataRefs.UIopacity)/100.0f);
     
-    return ImGuiWindowFlags_None;
+    // For A/C Info Window we don't store any settings in imgui.ini
+    // because we can open multiple windows which all get different random ids, which collect over time
+    return ImGuiWindowFlags_NoSavedSettings;
 }
 
 // Main function to render the window's interface
@@ -260,7 +221,7 @@ void ACIWnd::buildInterface()
     UpdateFocusAc();
     
     // Scale the font for this window
-    const float fFontScale = float(dataRefs.ACIfontScale)/100.0f;
+    const float fFontScale = float(dataRefs.UIFontScale)/100.0f;
     ImGui::SetWindowFontScale(fFontScale);
     
     // The data we will deal with, can be NULL!
@@ -385,7 +346,7 @@ void ACIWnd::buildInterface()
                                  CollSecGetSet(ACI_SB_POSITION) | ImGuiTreeNodeFlags_SpanFullWidth);
         ImGui::TableNextCell();
         if (pAc)
-            ImGui::TextUnformatted(RelativePositionText(pAc->GetPPos()).c_str());
+            ImGui::TextUnformatted(pAc->RelativePositionText().c_str());
         if (bOpen)
         {
             // Node is open
@@ -398,8 +359,13 @@ void ACIWnd::buildInterface()
                 ImGui::TableNextCell();
                 if (pAc->IsOnGrnd())
                     ImGui::TextUnformatted("On Grnd");
-                else
-                    ImGui::Text("%+.f ft", pAc->GetPHeight_ft());
+                else {
+                    ImGui::Text("%.f ft", pAc->GetPHeight_ft());
+                    if (std::abs(pAc->GetVSI_ft()) > pAc->mdl.VSI_STABLE) {
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted(pAc->GetVSI_ft() > 0.0 ? ICON_FA_CHEVRON_UP : ICON_FA_CHEVRON_DOWN);
+                    }
+                }
                 ImGui::EndTable();
             }
             buildRowLabel("Speed | VSI");
@@ -481,7 +447,7 @@ void ACIWnd::buildInterface()
             ImGui::TextUnformatted("Drag controls with mouse:");
             
             buildRowLabel("Font Scaling");
-            ImGui::DragInt("##FontScaling", &dataRefs.ACIfontScale, 1.0f, 10, 200, "%d%%");
+            ImGui::DragInt("##FontScaling", &dataRefs.UIFontScale, 1.0f, 10, 200, "%d%%");
             
             buildRowLabel("Opacity");
             ImGui::DragInt("##Opacity", &dataRefs.UIopacity, 1.0f, 0, 100, "%d%%");
@@ -489,7 +455,7 @@ void ACIWnd::buildInterface()
             ImGui::TableNextRow();
             ImGui::TableNextCell();
             if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
-                dataRefs.ACIfontScale   = DEF_UI_FONT_SCALE;
+                dataRefs.UIFontScale   = DEF_UI_FONT_SCALE;
                 dataRefs.UIopacity      = DEF_UI_OPACITY;
             }
 

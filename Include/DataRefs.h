@@ -117,6 +117,73 @@ namespace ModelIcaoType
 
 
 //
+// MARK: Screen coordinate helpers
+//
+
+/// 2D window position
+struct WndPos {
+    int x = 0;
+    int y = 0;
+    
+    /// Shift both values
+    void shift (int _dx, int _dy) { x += _dx; y += _dy; }
+    
+    /// Return a shifted copy
+    WndPos shiftedBy (int _dx, int _dy) const
+    { WndPos ret = *this; ret.shift(_dx,_dy); return ret; }
+};
+
+/// 2D rectagle
+struct WndRect {
+    WndPos tl;          ///< top left
+    WndPos br;          ///< bottom right
+    
+    /// Default Constructor -> all zero
+    WndRect () {}
+    /// Constructor takes four ints as a convenience
+    WndRect (int _l, int _t, int _r, int _b) :
+    tl{_l, _t}, br{_r, _b} {}
+    /// Constructor taking two positions
+    WndRect (const WndPos& _tl, const WndPos& _br) :
+    tl(_tl), br(_br) {}
+    
+    // Accessor to individual coordinates
+    int     left () const   { return tl.x; }    ///< reading left
+    int&    left ()         { return tl.x; }    ///< writing left
+    int     top () const    { return tl.y; }    ///< reading top
+    int&    top ()          { return tl.y; }    ///< writing top
+    int     right () const  { return br.x; }    ///< reading right
+    int&    right ()        { return br.x; }    ///< writing right
+    int     bottom () const { return br.y; }    ///< reading bottom
+    int&    bottom ()       { return br.y; }    ///< writing bottom
+    
+    int     width () const  { return right() - left(); }    ///< width
+    int     height () const { return top() - bottom(); }    ///< height
+    
+    /// Does window contain the position?
+    bool    contains (const WndPos& _p) const
+    { return
+        left()   <= _p.x && _p.x <= right() &&
+        bottom() <= _p.y && _p.y <= top(); }
+    
+    /// Clear all to zero
+    void    clear () { tl.x = tl.y = br.x = br.y = 0; }
+    /// Is all zeroes?
+    bool    empty () const { return !tl.x && !tl.y && !br.x && !br.y; }
+    
+    /// Shift position right/down
+    WndRect& shift (int _dx, int _dy)
+    { tl.shift(_dx,_dy); br.shift(_dx,_dy); return *this; }
+    
+    /// Set from config file string ("left,top,right.bottom")
+    void    set (const std::string& _s);
+};
+
+/// Write WndRect into config file ("left,top,right.bottom")
+std::ostream& operator<< (std::ostream& _stream, const WndRect& _r);
+
+
+//
 // MARK: DataRefs
 //
 
@@ -188,23 +255,38 @@ enum cmdRefsXP {
     CR_GENERAL_ZOOM_OUT,
     CR_GENERAL_ZOOM_IN_FAST,
     CR_GENERAL_ZOOM_OUT_FAST,           // last command registered for camera movement
+    
+    CR_VIEW_FREE_CAM,               ///< sim/view/free_camera                               Free camera.
+    CR_VIEW_FWD_2D,                 ///< sim/view/forward_with_2d_panel                     Forward with 2-D panel.
+    CR_VIEW_FWD_HUD ,               ///< sim/view/forward_with_hud                          Forward with HUD.
+    CR_VIEW_FWD_NODISP ,            ///< sim/view/forward_with_nothing                      Forward with nothing.
+    CR_VIEW_EXT_LINEAR ,            ///< sim/view/linear_spot                               Linear spot.
+    CR_VIEW_EXT_STILL ,             ///< sim/view/still_spot                                Still spot.
+    CR_VIEW_EXT_RNWY ,              ///< sim/view/runway                                    Runway.
+    CR_VIEW_EXT_CIRCLE ,            ///< sim/view/circle                                    Circle.
+    CR_VIEW_EXT_TOWER ,             ///< sim/view/tower                                     Tower.
+    CR_VIEW_EXT_RIDE ,              ///< sim/view/ridealong                                 Ride-along.
+    CR_VIEW_EXT_WEAPON ,            ///< sim/view/track_weapon                              Track weapon.
+    CR_VIEW_EXT_CHASE ,             ///< sim/view/chase                                     Chase.
+    CR_VIEW_FWD_3D ,                ///< sim/view/3d_cockpit_cmnd_look                      3-D cockpit.
+    
     CNT_CMDREFS_XP                      // always last, number of elements
 };
 
 enum XPViewTypes {
     VIEW_UNKNOWN    = 0,
-    VIEW_FWD_2D     = 1000,
-    VIEW_EXT_TOWER  = 1014,
-    VIEW_EXT_RNWY   = 1015,
-    VIEW_EXT_CHASE  = 1017,
-    VIEW_EXT_CIRCLE = 1018,
-    VIEW_EXT_STILL  = 1020,
-    VIEW_EXT_LINEAR = 1021,
-    VIEW_FWD_HUD    = 1023,
-    VIEW_FWD_NODISP = 1024,
-    VIEW_FWD_3D     = 1026,
-    VIEW_FREE_CAM   = 1028,
-    VIEW_EXT_RIDE   = 1031,
+    VIEW_FWD_2D     = 1000, ///< sim/view/forward_with_2d_panel                     Forward with 2-D panel.
+    VIEW_EXT_TOWER  = 1014, ///< sim/view/tower                                     Tower.
+    VIEW_EXT_RNWY   = 1015, ///< sim/view/runway                                    Runway.
+    VIEW_EXT_CHASE  = 1017, ///< sim/view/chase                                     Chase.
+    VIEW_EXT_CIRCLE = 1018, ///< sim/view/circle                                    Circle.
+    VIEW_EXT_STILL  = 1020, ///< sim/view/still_spot                                Still spot.
+    VIEW_EXT_LINEAR = 1021, ///< sim/view/linear_spot                               Linear spot.
+    VIEW_FWD_HUD    = 1023, ///< sim/view/forward_with_hud                          Forward with HUD.
+    VIEW_FWD_NODISP = 1024, ///< sim/view/forward_with_nothing                      Forward with nothing.
+    VIEW_FWD_3D     = 1026, ///< sim/view/3d_cockpit_cmnd_look                      3-D cockpit.
+    VIEW_FREE_CAM   = 1028, ///< sim/view/free_camera                               Free camera
+    VIEW_EXT_RIDE   = 1031, ///< sim/view/ridealong                                 Ride-along.
 };
 
 // Datarefs offered by LiveTraffic
@@ -244,19 +326,16 @@ enum dataRefsLT {
     
     // UI information
     DR_UI_OPACITY,
-    DR_UI_SETTINGS_WIDTH,
-    DR_UI_SETTINGS_HEIGHT,
+    DR_UI_FONT_SCALE,
     DR_UI_SETTINGS_TRANSP,
-    DR_UI_ACI_WIDTH,
-    DR_UI_ACI_HEIGHT,
     DR_UI_ACI_COLLAPSED,
-    DR_UI_ACI_FONT_SCALE,
     
     // configuration options
     DR_CFG_AIRCRAFT_DISPLAYED,
     DR_CFG_AUTO_START,
     DR_CFG_AI_ON_REQUEST,
     DR_CFG_AI_UNDER_CONTROL,
+    DR_CFG_AI_NOT_ON_GND,
     DR_CFG_LABELS,
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_MAX_DIST,
@@ -265,6 +344,7 @@ enum dataRefsLT {
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
     DR_CFG_MSG_AREA_LEVEL,
+    DR_CFG_LOG_LIST_LEN,
     DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
     DR_CFG_FD_STD_DISTANCE,
@@ -276,6 +356,8 @@ enum dataRefsLT {
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
+    DR_CFG_HIDE_NEARBY_GND,
+    DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -307,13 +389,15 @@ enum dataRefsLT {
 };
 
 enum cmdRefsLT {
-    CR_ACINFOWND_OPEN = 0,
+    CR_INFO_LIST_WND = 0,
+    CR_ACINFOWND_OPEN,
     CR_ACINFOWND_OPEN_POPPED_OUT,
     CR_ACINFOWND_HIDE_SHOW,
     CR_ACINFOWND_CLOSE_ALL,
     CR_AC_DISPLAYED,
     CR_AC_TCAS_CONTROLLED,
     CR_LABELS_TOGGLE,
+    CR_SETTINGS_UI,
     CNT_CMDREFS_LT                      // always last, number of elements
 };
 
@@ -484,6 +568,11 @@ protected:
     XPLMPluginID pluginID       = 0;
     logLevelTy iLogLevel        = logWARN;
     logLevelTy iMsgAreaLevel    = logINFO;
+#ifdef DEBUG
+    int logListLen              = 500;  ///< number of log message kept in storage to show in Info List Window
+#else
+    int logListLen              = 100;  ///< number of log message kept in storage to show in Info List Window
+#endif
     int bShowingAircraft        = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
@@ -507,6 +596,7 @@ protected:
     int bAutoStart          = true;     ///< shall display a/c right after startup?
     int bAIonRequest        = false;    ///< acquire multiplayer control for TCAS on request only, not automatically?
     bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
+    int bAINotOnGnd         = false;    ///< shall a/c on the ground be hidden from TCAS/AI?
     // which elements make up an a/c label?
     LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1, 1 };     ///< when to show? (default: always)
@@ -524,6 +614,8 @@ protected:
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
+    int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
+    int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -558,15 +650,18 @@ public:
     
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
-    
-    int SUIwidth  = 690;                ///< Settings UI width
-    int SUIheight = 500;                ///< Settings UI height
-    int SUItransp = 0;                  ///< Settings UI: transaprent background?
+    int UIFontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
-    int ACIwidth  = 320;                ///< A/C Info Wnd width
-    int ACIheight = 530;                ///< A/C Info Wnd height
+    // Settings UI
+    WndRect SUIrect;                    ///< Settings UI Window position
+    int SUItransp = 0;                  ///< Settings UI: transaprent background?
+    
+    // A/C Info Window(s)
+    WndRect ACIrect;                    ///< A/C Info Window position
     int ACIcollapsed = 0;               ///< A/C Info Wnd collapsed sections status
-    int ACIfontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
+
+    // Info List Window (Status etc)
+    WndRect ILWrect;                    ///< Info List Window position
 
 //MARK: Constructor
 public:
@@ -602,7 +697,7 @@ public:
     inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
     inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
     inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
-    inline void SetViewType(XPViewTypes vt)     { XPLMSetDatai(adrXP[DR_VIEW_TYPE], (int)vt); }
+    void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
 
 //MARK: DataRef provision by LiveTraffic
@@ -664,6 +759,7 @@ public:
     // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
+    bool IsAINotOnGnd() const { return bAINotOnGnd != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
     bool AwaitingAIControl() const { return bAwaitingAIControl; }
     void SetAwaitingAIControl (bool _b) { bAwaitingAIControl = _b; }
@@ -685,7 +781,11 @@ public:
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }
-    inline bool IsAutoHidingActive() const { return hideBelowAGL > 0 || hideTaxiing != 0; }
+    inline int GetHideNearby(bool bGnd) const   ///< return "hide nearby" config
+    { return bGnd ? hideNearbyGnd : hideNearbyAir; }
+    inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
+    { return hideBelowAGL > 0  || hideTaxiing != 0 ||
+             hideNearbyGnd > 0 || hideNearbyAir > 0; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

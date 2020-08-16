@@ -45,8 +45,7 @@ std::atomic_flag flagNoNewPosToAdd = ATOMIC_FLAG_INIT;
 //MARK: Flight Data Subclasses
 //
 LTFlightData::FDDynamicData::FDDynamicData () :
-gnd(false), inHg(0.0),                  // positional
-brng(0.0), dst(0.0),                    // relative position
+gnd(false),                             // positional
 spd(0.0), vsi(0.0),                     // movement
 ts(0),
 pChannel(nullptr)
@@ -403,9 +402,8 @@ bool LTFlightData::outdated (double simTime) const
         return false;
     }
     
-    // invalid and
-    // youngestTS longer ago than allowed?
-    return posDeque.empty() &&
+    // youngestTS longer ago than allowed? -> remove
+    return
     youngestTS + dataRefs.GetAcOutdatedIntvl() < (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime);
 }
 

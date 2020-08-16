@@ -23,61 +23,6 @@
 
 #include "LiveTraffic.h"
 
-// MARK: LiveTraffic Exception classes
-
-// standard constructor
-LTError::LTError (const char* _szFile, int _ln, const char* _szFunc,
-                  logLevelTy _lvl,
-                  const char* _szMsg, ...) :
-std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, _szMsg, NULL)),
-fileName(_szFile), ln(_ln), funcName(_szFunc),
-lvl(_lvl)
-{
-    va_list args;
-    va_start (args, _szMsg);
-    msg = GetLogString(_szFile, _ln, _szFunc, _lvl, _szMsg, args);
-    va_end (args);
-    
-    // write to log (flushed immediately -> expensive!)
-    if (_lvl >= dataRefs.GetLogLevel())
-        XPLMDebugString ( msg.c_str() );
-}
-
-// protected constructor, only called by LTErrorFD
-LTError::LTError (const char* _szFile, int _ln, const char* _szFunc,
-                  logLevelTy _lvl) :
-std::logic_error(GetLogString(_szFile, _ln, _szFunc, _lvl, "", NULL)),
-fileName(_szFile), ln(_ln), funcName(_szFunc),
-lvl(_lvl)
-{}
-
-const char* LTError::what() const noexcept
-{
-    return msg.c_str();
-}
-
-// includsive reference to LTFlightData
-LTErrorFD::LTErrorFD (LTFlightData& _fd,
-                      const char* _szFile, int _ln, const char* _szFunc,
-                      logLevelTy _lvl,
-                      const char* _szMsg, ...) :
-LTError(_szFile,_ln,_szFunc,_lvl),
-fd(_fd),
-posStr(_fd.Positions2String())
-{
-    va_list args;
-    va_start (args, _szMsg);
-    msg = GetLogString(_szFile, _ln, _szFunc, _lvl, _szMsg, args);
-    va_end (args);
-    
-    // write to log (flushed immediately -> expensive!)
-    if (_lvl >= dataRefs.GetLogLevel()) {
-        XPLMDebugString ( msg.c_str() );
-        XPLMDebugString ( posStr.c_str() );
-    }
-}
-
-
 //
 // MARK: Helper for finding top right corner
 //
@@ -149,13 +94,13 @@ struct dispTextTy {
 };
 std::list<dispTextTy> listTexts;     // lines of text to be displayed
 
-float COL_LVL[logMSG+1][3] = {          // text colors [RGB] depending on log level
-    {0.00f, 0.00f, 0.00f},              // 0
-    {1.00f, 1.00f, 1.00f},              // INFO (white)
-    {1.00f, 1.00f, 0.00f},              // WARN (yellow)
-    {1.00f, 0.00f, 0.00f},              // ERROR (red)
-    {1.00f, 0.54f, 0.83f},              // FATAL (purple, FF8AD4)
-    {1.00f, 1.00f, 1.00f}               // MSG (white)
+float COL_LVL[logMSG+1][4] = {          // text colors [RGB] depending on log level
+    {0.7019607843f, 0.7137254902f, 0.7176470588f, 1.00f},       // DEBUG (very light gray)
+    {1.00f, 1.00f, 1.00f, 1.00f},       // INFO (white)
+    {1.00f, 1.00f, 0.00f, 1.00f},       // WARN (yellow)
+    {1.00f, 0.00f, 0.00f, 1.00f},       // ERROR (red)
+    {1.00f, 0.54f, 0.83f, 1.00f},       // FATAL (purple, FF8AD4)
+    {1.00f, 1.00f, 1.00f, 1.00f}        // MSG (white)
 };
 
 /// Values for "Seeing aircraft...showing..."
@@ -376,75 +321,233 @@ void DestroyWindow()
 }
 
 //
-//MARK: Log
+// MARK: Log message storage
 //
+
+// The global list of log messages
+LogMsgListTy gLog;
+
+/// Controls access to the log list
+std::recursive_mutex gLogMutex;
+
+static char gBuf[4048];
 
 const char* LOG_LEVEL[] = {
     "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "MSG  "
 };
 
-// returns ptr to static buffer filled with log string
-const char* GetLogString (const char* szPath, int ln, const char* szFunc,
-                          logLevelTy lvl, const char* szMsg, va_list args )
+// forward declaration: returns ptr to static buffer filled with log string
+const char* GetLogString (const LogMsgTy& l);
+
+
+// Constructor fills all fields
+LogMsgTy::LogMsgTy (const char* _fn, int _ln, const char* _func,
+                    logLevelTy _lvl, const char* _msg) :
+wallTime(std::chrono::system_clock::now()),
+netwTime(dataRefs.GetMiscNetwTime()),
+fileName(_fn), ln(_ln), func(_func), lvl(_lvl), msg(_msg), bFlushed(false)
+{}
+
+// does the entry match the given string (expected in upper case)?
+bool LogMsgTy::matches (const char* _s) const
 {
-    static char aszMsg[3072];
-    float runS = dataRefs.GetMiscNetwTime();
-    const unsigned runH = unsigned(runS / 3600.0f);
-    runS -= runH * 3600.0f;
-    const unsigned runM = unsigned(runS / 60.0f);
-    runS -= runM * 60.0f;
+    // catch the trivial case of no search term
+    if (!_s || !*_s)
+        return true;
+    
+    // Re-Create the complete log line and turn it upper case
+    std::string logText = GetLogString(*this);
+    str_toupper(logText);
+    return logText.find(_s) != std::string::npos;
+}
+
+// returns ptr to static buffer filled with log string
+const char* GetLogString (const LogMsgTy& l)
+{
+    // Access to static buffer and list guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
+    
+    // Network time string
+    const std::string netwT = NetwTimeString(l.netwTime);
 
     // prepare timestamp
-    if (lvl < logMSG)                             // normal messages without, all other with location info
+    if (l.lvl < logMSG)                             // normal messages without, all other with location info
     {
-        const char* szFile = strrchr(szPath, PATH_DELIM);  // extract file from path
-        if (!szFile) szFile = szPath; else szFile++;
-        snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC " %s %s:%d/%s: ",
-                 runH, runM, runS,                  // Running time stamp
-                 LOG_LEVEL[lvl],                    // logging level
-                 szFile, ln, szFunc);               // source code location info
+        snprintf(gBuf, sizeof(gBuf)-1, "%s " LIVE_TRAFFIC " %s %s:%d/%s: %s",
+                 netwT.c_str(),                     // network time (string)
+                 LOG_LEVEL[l.lvl],                  // logging level
+                 l.fileName.c_str(), l.ln,          // source file and line number
+                 l.func.c_str(),                    // function name
+                 l.msg.c_str());                    // actual message
     }
     else
-        snprintf(aszMsg, sizeof(aszMsg), "%u:%02u:%06.3f " LIVE_TRAFFIC ": ",
-                 runH, runM, runS);                 // Running time stamp
+        snprintf(gBuf, sizeof(gBuf)-1, "%s " LIVE_TRAFFIC ": %s",
+                 netwT.c_str(),                     // network time (string)
+                 l.msg.c_str());                    // actual message
     
-    // append given message
-    if (args) {
-        vsnprintf(&aszMsg[strlen(aszMsg)],
-                  sizeof(aszMsg)-strlen(aszMsg)-1,      // we save one char for the CR
-                  szMsg,
-                  args);
-    }
-
     // ensure there's a trailing CR
-    size_t l = strlen(aszMsg);
-    if ( aszMsg[l-1] != '\n' )
+    size_t sl = strlen(gBuf);
+    if (gBuf[sl-1] != '\n')
     {
-        aszMsg[l]   = '\n';
-        aszMsg[l+1] = 0;
+        gBuf[sl]   = '\n';
+        gBuf[sl+1] = 0;
     }
 
     // return the static buffer
-    return aszMsg;
+    return gBuf;
 }
 
+/// Actually adds an entry to the log list, flushes immediately if in main thread
+LogMsgListTy::iterator AddLogMsg (const char* szPath, int ln, const char* szFunc,
+                                  logLevelTy lvl, const char* szMsg, va_list args)
+{
+    // We get the lock already to avoid having to lock twice if in main thread
+    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
+    
+    // Cut off path from file name
+    const char* szFile = strrchr(szPath, PATH_DELIM);  // extract file from path
+    if (!szFile) szFile = szPath; else szFile++;
+
+    // Prepare the formatted string if variable arguments are given
+    if (args)
+        vsnprintf(gBuf, sizeof(gBuf), szMsg, args);
+
+    // Add the list entry
+    gLog.emplace_front(szFile, ln, szFunc, lvl,
+                       args ? gBuf : szMsg);
+
+    // Flush immediately if called from main thread
+    if (dataRefs.IsXPThread())
+        FlushMsg();
+    
+    // was added to the front
+    return gLog.begin();
+}
+
+// Add a message to the list, flush immediately if in main thread
 void LogMsg ( const char* szPath, int ln, const char* szFunc, logLevelTy lvl, const char* szMsg, ... )
 {
-    va_list args;
+    // We get the lock already to avoid having to lock twice if in main thread
+    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
 
+    // Prepare the formatted message
+    va_list args;
     va_start (args, szMsg);
-    // write to log (flushed immediately -> expensive!)
-    XPLMDebugString ( GetLogString(szPath, ln, szFunc, lvl, szMsg, args) );
+    AddLogMsg(szPath, ln, szFunc, lvl, szMsg, args);
     va_end (args);
+
 }
 
 // Might be used in macros of other packages like ImGui
 void LogFatalMsg ( const char* szPath, int ln, const char* szFunc, const char* szMsg, ... )
 {
-    va_list args;
+    // Access to static buffer and list guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
 
+    // Add to the message buffer
+    va_list args;
     va_start (args, szMsg);
-    // write to log (flushed immediately -> expensive!)
-    XPLMDebugString ( GetLogString(szPath, ln, szFunc, logFATAL, szMsg, args) );
+    AddLogMsg(szPath, ln, szFunc, logFATAL, szMsg, args);
     va_end (args);
 }
+
+// Force writing of all not yet flushed messages
+/// @details As new messages are added to the front, we start searching from
+///          the front and go forward until we find either the end or
+///          an already flushed message. Then we go back and actually write
+///          message in sequence
+void FlushMsg ()
+{
+    // Access to static buffer and list guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
+
+    // Quick exit if empty or nothing to write
+    if (gLog.empty() || gLog.front().bFlushed)
+        return;
+    
+    // Move forward to first flushed msg or end
+    LogMsgListTy::iterator logIter = gLog.begin();
+    while (logIter != gLog.end() && !logIter->bFlushed)
+        logIter++;
+    
+    // Now move back and on the way write out the messages into `Log.txt`
+    do {
+        logIter--;
+        // write to log (flushed immediately -> expensive!)
+        XPLMDebugString (GetLogString(*logIter));
+        logIter->bFlushed = true;
+    } while (logIter != gLog.begin());
+}
+
+// Remove old message (>1h XP network time)
+void PurgeMsgList ()
+{
+    // How many messages to keep?
+    const size_t nKeep = (size_t)DataRefs::GetCfgInt(DR_CFG_LOG_LIST_LEN);
+    
+    // Access to static buffer and list guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(gLogMutex);
+    if (gLog.size() > nKeep)
+        gLog.resize(nKeep);
+}
+
+/// Return text for log level
+const char* LogLvlText (logLevelTy _lvl)
+{
+    LOG_ASSERT(logDEBUG <= _lvl && _lvl <= logMSG);
+    return LOG_LEVEL[_lvl];
+}
+
+/// Return color for log level (as float[3])
+float* LogLvlColor (logLevelTy _lvl)
+{
+    LOG_ASSERT(logDEBUG <= _lvl && _lvl <= logMSG);
+    return COL_LVL[_lvl];
+}
+
+
+//
+// MARK: LiveTraffic Exception classes
+//
+
+// standard constructor
+LTError::LTError (const char* _szFile, int _ln, const char* _szFunc,
+                  logLevelTy _lvl,
+                  const char* _szMsg, ...) :
+std::logic_error(_szMsg)
+{
+    va_list args;
+    va_start (args, _szMsg);
+    msgIter = AddLogMsg(_szFile, _ln, _szFunc, _lvl, _szMsg, args);
+    va_end (args);
+}
+
+// protected constructor, only called by LTErrorFD
+LTError::LTError () :
+std::logic_error("")
+{}
+
+const char* LTError::what() const noexcept
+{
+    return msgIter->msg.c_str();
+}
+
+// includsive reference to LTFlightData
+LTErrorFD::LTErrorFD (LTFlightData& _fd,
+                      const char* _szFile, int _ln, const char* _szFunc,
+                      logLevelTy _lvl,
+                      const char* _szMsg, ...) :
+LTError(),
+fd(_fd),
+posStr(_fd.Positions2String())
+{
+    // Add the formatted message to the log list
+    va_list args;
+    va_start (args, _szMsg);
+    msgIter = AddLogMsg(_szFile, _ln, _szFunc, _lvl, _szMsg, args);
+    va_end (args);
+    
+    // Add the position information also to the log list
+    AddLogMsg(_szFile, _ln, _szFunc, _lvl, posStr.c_str(), nullptr);
+}
+

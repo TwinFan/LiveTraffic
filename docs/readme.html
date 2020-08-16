@@ -85,12 +85,52 @@
 
     <h2>v2.0</h2>
 
-    <h3>v2.08</h3>
-
     <P>Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
-        for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.0.
-    </P>
+        for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.x.</P>
+    
+    <P>It is always safe to copy all files found in the LiveTraffic.zip archive
+    over an existing installation.</P>
+
+    <h3>v2.09</h3>
+
+    <P>For updating coming from v2.08 copy
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+        <li><code>Resources/model_typecode.txt</code>.</li>
+    </ul>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>ADDED <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window">Status Information Window</a> showing:
+            <ul>
+                <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">List of Aircraft</a>
+                    including a lot of data and direct action buttons for info window/camera
+                    (issue <a href="https://github.com/TwinFan/LiveTraffic/issues/21">#21</a>)</li>
+                <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/messages">List of Messages</a>,
+                    ie. backlog of texts appearing in the message area and/or in <code>Log.txt</code></li>
+                <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">General status</a>
+                    like number of aircraft, TCAS control, channel status, and version information
+                    (issue <a href="https://github.com/TwinFan/LiveTraffic/issues/121">#121</a>)</li>
+            </ul>
+            All lists feature search/filter options and configurable columns
+            (selection, order, sorting) by left/right clicking/dragging in the column headers.
+        </li>
+        <li>ADDED: Window positions are saved/restored (inside the simulator)</li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/166">#166</a>
+            auto-hiding of nearby aircraft. Find two new settings in
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a>.</li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/192">#192</a>
+            option not to forward ground aircraft to TCAS/AI, see
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a>.</li>
+        <li>UPDATED <code>model_typecode.txt</code>, which assist in model-guessing
+            when no ICAO type code is available.<br>
+            Thanks go to crbascott for providing this file.</li>
+        <li>FIXED restoring previous view when switching off camera view.</li>
+    </ul>
+        
+    <h3>v2.08</h3>
 
     <P>For updating coming from v2.07 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
 	

@@ -2246,7 +2246,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
     }               // for each line of the apt.dat file
     
     // If the last airport read is valid don't forget to add it to the list
-    if (apt.IsValid())
+    if (!bStopThread && apt.IsValid())
         Apt::AddApt(std::move(apt));
 }
 
@@ -2288,6 +2288,9 @@ void AsyncReadApt (positionTy ctr, double radius)
 {
     static size_t lenSceneryLnBegin = strlen(APTDAT_SCENERY_LN_BEGIN);
     
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_ReadApt");
+
     // To avoid costly distance calculations we define a bounding box
     // just by calculating lat/lon values north/east/south/west of given pos
     // and include all airports with coordinates falling into it

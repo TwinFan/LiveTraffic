@@ -30,6 +30,7 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 Thanks go to
 - Sparker for providing [imgui4xp](https://github.com/sparker256/imgui4xp)
   as a testbed for ImGui integration and for accepting my additions to it.
+- Crbascott for compiling and providing the `model_typecode.txt` file.
 - Dimitri van Heesch for [Doxygen](https://www.doxygen.nl/), with which more and more
   parts of LiveTraffic's (and all of XPMP2's) code documentation have been created. 
 - [FontAwesome](https://fontawesome.com/icons?d=gallery&s=solid&m=free)

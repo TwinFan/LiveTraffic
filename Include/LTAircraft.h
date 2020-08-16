@@ -317,6 +317,12 @@ protected:
     bool                bAutoVisible = true;    // visibility handled automatically?
     int                 aiPrio = 0;     ///< prio for AI slotting (libxplanemp)
     int                 multiIdx = 0;   ///< plane's multiplayer index if reported via sim/multiplayer/position dataRefs, 0 otherwise
+    
+    /// Nearest airport
+    std::string nearestAirport;
+    positionTy  nearestAirportPos;
+    float       lastNearestAirportCheck = 0.0f;
+
 public:
     LTAircraft(LTFlightData& fd);
     virtual ~LTAircraft();
@@ -338,6 +344,10 @@ public:
     const positionTy& GetToPos() const;
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
+    /// periodically find the nearest airport and return a nice position string relative to it
+    std::string RelativePositionText ();
+    /// nearest airport
+    const std::string& GetNearestAirport () const { return nearestAirport; }
     // current a/c configuration
     inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }

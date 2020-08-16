@@ -5,7 +5,7 @@ RUN sed -i -e 's/http:\/\/archive.ubuntu.com\/ubuntu\//mirror:\/\/mirrors.ubuntu
 # Install Linux toolchain (GCC).
 RUN apt-get install -y --no-install-recommends build-essential ninja-build sudo bash coreutils ca-certificates curl libcurl4-openssl-dev zlib1g-dev libpng-dev\
   && apt-get clean \
-  && curl -sSL https://cmake.org/files/v3.12/cmake-3.12.3-Linux-x86_64.tar.gz \
+  && curl -sSL https://cmake.org/files/v3.18/cmake-3.18.0-Linux-x86_64.tar.gz \
      | tar -xz -C /usr/local/ --strip-components=1
 
 # Only set up to compile on Linux and MacOS.

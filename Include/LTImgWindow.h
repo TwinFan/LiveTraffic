@@ -27,6 +27,8 @@
 
 /// The standard font to use
 #define WND_STANDARD_FONT "Resources/fonts/DejaVuSans.ttf"
+/// The place where ImGui writes its persistent information
+#define IMGUI_INI_PATH    "Output/preferences/" LIVE_TRAFFIC "_imgui.prf"
 /// The font's standard size
 constexpr int WND_FONT_SIZE = 15;
 /// Standard solid window background color
@@ -39,11 +41,35 @@ constexpr ImU32 DEF_WND_BG_COL = IM_COL32(15,15,15,240);
 namespace ImGui {
 
 /// Get width of an icon button (calculate on first use)
-IMGUI_API float GetWidthIconBtn ();
+IMGUI_API float GetWidthIconBtn (bool _bWithSpacing = false);
+
+/// Convert color from float pointer to ImVec4
+inline ImVec4 ConvColor (float _col[4]) { return ImVec4(_col[0], _col[1], _col[2], _col[3]); }
 
 /// @brief Helper for creating unique IDs
 /// @details Required when creating many widgets in a loop, e.g. in a table
 IMGUI_API void PushID_formatted(const char* format, ...)    IM_FMTARGS(1);
+
+/// Output alignment
+enum AlignTy {
+    IM_ALIGN_LEFT = 0,  ///< left aligned
+    IM_ALIGN_CENTER,    ///< centered
+    IM_ALIGN_RIGHT,     ///< right aligned
+};
+
+/// @brief Outputs aligned text
+IMGUI_API void TextAligned (AlignTy _align, const std::string& s);
+
+/// @brief Small button with on-hover popup helper text
+/// @param label Text on Button
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param colFg Foreground/text color (optional, otherwise no change)
+/// @param colBg Background color (optional, otherwise no change)
+IMGUI_API bool SmallButtonTooltip(const char* label,
+                                  const char* tip = nullptr,
+                                  ImU32 colFg = IM_COL32(1,1,1,0),
+                                  ImU32 colBg = IM_COL32(1,1,1,0));
+
 
 /// @brief Button with on-hover popup helper text
 /// @param label Text on Button
@@ -63,6 +89,22 @@ IMGUI_API bool ButtonTooltip(const char* label,
 /// @param rightAligned (optional) Align button to the right of the content region?
 /// @return Button pressed?
 IMGUI_API bool ButtonIcon(const char* icon, const char* tooltip = nullptr, bool rightAligned = false);
+
+/// @brief Button which opens the given URL
+/// @param label Text on Button
+/// @param url URL to open
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param bSmallBtn User the SmallButton function?
+/// @param colFg Foreground/text color (optional, otherwise no change)
+/// @param colBg Background color (optional, otherwise no change)
+/// @param size button size, 0 for either axis means: auto size
+IMGUI_API bool ButtonURL(const char* label,
+                         const char* url,
+                         const char* tip = nullptr,
+                         bool bSmallBtn = false,
+                         ImU32 colFg = IM_COL32(1,1,1,0),
+                         ImU32 colBg = IM_COL32(1,1,1,0),
+                         const ImVec2& size = ImVec2(0,0));
 
 /// @brief A checkbox toggling a defined integer dataRef
 /// @param label Checkbox's label
@@ -199,51 +241,14 @@ IMGUI_API bool FilteredRadioButton(const char* label, const char* filter,
 IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefsLT idx,
                                  int v_min, int v_max, int v_step = 1, const char* format = "%d");
 
+/// @brief Outputs up to 3 lines of RealTraffic channel status info
+IMGUI_API void TextRealTrafficStatus ();
 
 };
 
 //
-// MARK: Screen coordinate helpers
+// MARK: Window Mode/Style Helpers
 //
-
-/// 2D window position
-struct WndPos {
-    int x = 0;
-    int y = 0;
-};
-
-/// 2D rectagle
-struct WndRect {
-    WndPos tl;          ///< top left
-    WndPos br;          ///< bottom right
-    
-    /// Default Constructor -> all zero
-    WndRect () {}
-    /// Constructor takes four ints as a convenience
-    WndRect (int _l, int _t, int _r, int _b) :
-    tl{_l, _t}, br{_r, _b} {}
-    /// Constructor taking two positions
-    WndRect (const WndPos& _tl, const WndPos& _br) :
-    tl(_tl), br(_br) {}
-    
-    // Accessor to individual coordinates
-    int     left () const   { return tl.x; }    ///< reading left
-    int&    left ()         { return tl.x; }    ///< writing left
-    int     top () const    { return tl.y; }    ///< reading top
-    int&    top ()          { return tl.y; }    ///< writing top
-    int     right () const  { return br.x; }    ///< reading right
-    int&    right ()        { return br.x; }    ///< writing right
-    int     bottom () const { return br.y; }    ///< reading bottom
-    int&    bottom ()       { return br.y; }    ///< writing bottom
-    
-    int     width () const  { return right() - left(); }    ///< width
-    int     height () const { return top() - bottom(); }    ///< height
-    
-    // Clear all to zero
-    void    clear () { tl.x = tl.y = br.x = br.y = 0; }
-    bool    empty () const { return !tl.x && !tl.y && !br.x && !br.y; }
-};
-
 
 /// Mode the window is to open in / does currently operate in
 enum WndMode {
@@ -293,9 +298,14 @@ inline XPLMWindowDecoration toDeco (WndStyle _s)
 }
 
 /// Determine window layer based on style
-inline XPLMWindowLayer toLayer (WndStyle _s)
+constexpr inline XPLMWindowLayer toLayer (WndStyle /*_s*/)
 {
-    return _s == WND_STYLE_HUD ? xplm_WindowLayerFlightOverlay : xplm_WindowLayerFloatingWindows;
+    // this used to use xplm_WindowLayerFlightOverlay when _s == WND_STYLE_HUD,
+    // but a FlightOverlay window will have trouble to compete with any
+    // FloatingWindow for keyboard input as the higher-level floating window
+    // will always get priority for keyboard.
+    // So I decided to always use floating to be able to have a chance for keyboard focus:
+    return xplm_WindowLayerFloatingWindows;
 }
 
 //
@@ -333,6 +343,8 @@ public:
     
     /// Get current window geometry as an WndRect structure
     WndRect GetCurrentWindowGeometry () const;
+    /// Set window geometry
+    void SetCurrentWindowGeometry (const WndRect& r);
     
     /// @brief Loose keyboard foucs, ie. return focus to X-Plane proper, if I have it now
     /// @return Actually returned focus to X-Plane?

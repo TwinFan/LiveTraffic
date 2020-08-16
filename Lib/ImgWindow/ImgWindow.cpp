@@ -48,6 +48,7 @@ static XPLMDataRef		gVrEnabledRef			= nullptr;
 static XPLMDataRef		gModelviewMatrixRef		= nullptr;
 static XPLMDataRef		gViewportRef			= nullptr;
 static XPLMDataRef		gProjectionMatrixRef	= nullptr;
+static XPLMDataRef		gFrameRatePeriodRef     = nullptr;
 
 std::shared_ptr<ImgFontAtlas> ImgWindow::sFontAtlas;
 
@@ -78,7 +79,7 @@ ImgWindow::ImgWindow(
 		gModelviewMatrixRef = XPLMFindDataRef("sim/graphics/view/modelview_matrix");
 		gViewportRef = XPLMFindDataRef("sim/graphics/view/viewport");
 		gProjectionMatrixRef = XPLMFindDataRef("sim/graphics/view/projection_matrix");
-
+        gFrameRatePeriodRef = XPLMFindDataRef("sim/operation/misc/frame_rate_period");
 		first_init=true;
 	}
 
@@ -118,7 +119,7 @@ ImgWindow::ImgWindow(
 	if (mFontAtlas) {
         mFontTexture = static_cast<GLuint>(reinterpret_cast<intptr_t>(io.Fonts->TexID));
     } else {
-        if (iFontAtlas->TexID == nullptr) {
+        if (!iFontAtlas || iFontAtlas->TexID == nullptr) {
             // fallback binding if an atlas wasn't explicitly set.
             unsigned char *pixels;
             int width, height;
@@ -256,7 +257,7 @@ ImgWindow::RenderImGui(ImDrawData *draw_data)
         io.DisplayFramebufferScale.y != 1.0)
         draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
-	updateMatrices();
+    updateMatrices();
 
 	// We are using the OpenGL fixed pipeline because messing with the
 	// shader-state in X-Plane is not very well documented, but using the fixed
@@ -358,6 +359,11 @@ ImgWindow::updateImgui()
 	float win_width = static_cast<float>(mRight - mLeft);
 	float win_height = static_cast<float>(mTop - mBottom);
 
+    // Needed to add this to prevent io.DeltaTime causing a CTD because when X-Plane starts FrameRatePeriod is equal to 0.0f
+    float FrameRatePeriod = XPLMGetDataf(gFrameRatePeriodRef);
+    if (FrameRatePeriod > 0.0f) {
+        io.DeltaTime = XPLMGetDataf(gFrameRatePeriodRef);
+    }
 	io.DisplaySize = ImVec2(win_width, win_height);
 	// in boxels, we're always scale 1, 1.
 	io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);

@@ -42,7 +42,7 @@ static float SUI_VALUE_SIZE = NAN;              ///< Ideal Width of 2nd column f
 LTSettingsUI::LTSettingsUI () :
 LTImgWindow(WND_MODE_FLOAT_CNT_VR,
             dataRefs.SUItransp ? WND_STYLE_HUD : WND_STYLE_SOLID,
-            WndRect(0, dataRefs.SUIheight, dataRefs.SUIwidth, 0)),
+            dataRefs.SUIrect),
 // If there is no ADSBEx key yet then display any new entry in clear text,
 // If a key is already defined, then by default obscure it
 sADSBExKeyEntry     (dataRefs.GetADSBExAPIKey()),
@@ -90,11 +90,8 @@ ImGuiWindowFlags_ LTSettingsUI::beforeBegin()
     }
     
     // Save latest screen size to configuration (if not popped out)
-    if (!IsPoppedOut()) {
-        const WndRect r = GetCurrentWindowGeometry();
-        dataRefs.SUIwidth   = r.width();
-        dataRefs.SUIheight  = r.height();
-    }
+    if (!IsPoppedOut())
+        dataRefs.SUIrect = GetCurrentWindowGeometry();
     
     // Set background opacity / color
     ImGuiStyle& style = ImGui::GetStyle();
@@ -150,7 +147,7 @@ void LTSettingsUI::buildInterface()
     const int nCol = std::max (2, int(ImGui::GetWindowContentRegionWidth() / (SUI_LABEL_SIZE+SUI_VALUE_SIZE)) * 2);
     if (ImGui::BeginTable("Settings", nCol,
                           ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
-                          ImGuiTableFlags_BordersHInner))
+                          ImGuiTableFlags_BordersInnerH))
     {
         const float fSmallWidth = ImGui::CalcTextSize("ABCDEF__").x;
 
@@ -171,17 +168,21 @@ void LTSettingsUI::buildInterface()
             ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
             
             // auto-open and warning if any of these values are set as they limit what's shown
-            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAutoHidingActive();
+            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive();
+            if (bSomeRestrict)
+                ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
             if (ImGui::TreeNodeLinkHelp("Cooperation", nCol,
                                         bSomeRestrict ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
                                         "Some options are active, restricting displayed traffic or TCAS!",
                                         HELP_SET_BASICS, "Open Help on Basics in Browser",
-                                        sFilter, nOpCl,
-                                        (bSomeRestrict ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
+                                        sFilter, nOpCl, ImGuiTreeNodeFlags_SpanFullWidth))
             {
                 ImGui::FilteredCfgCheckbox("TCAS on request only",   sFilter, DR_CFG_AI_ON_REQUEST,     "Do not take over control of TCAS automatically, but only via menu 'TCAS controlled'");
+                ImGui::FilteredCfgCheckbox("No TCAS/AI for ground a/c", sFilter, DR_CFG_AI_NOT_ON_GND,  "Aircraft on the ground will not be reported to TCAS or AI/multiplayer interfaces");
                 ImGui::FilteredCfgCheckbox("Hide a/c while taxiing", sFilter, DR_CFG_HIDE_TAXIING,      "Hide aircraft in phase 'Taxi'");
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
+                ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
+                ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
 
                 if (!*sFilter) ImGui::TreePop();
             }
@@ -310,17 +311,7 @@ void LTSettingsUI::buildInterface()
                     (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()))
                 {
                     if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                        if (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()) {
-                            // There is a RealTraffic connection object
-                            ImGui::TextUnformatted(dataRefs.pRTConn->GetStatusWithTimeStr().c_str());
-                            if (dataRefs.pRTConn->IsConnected())
-                                ImGui::Text("%ld hPa at %s",
-                                            std::lround(dataRefs.pRTConn->GetHPA()),
-                                            dataRefs.pRTConn->GetMetarIcao().c_str());
-                        }
-                        else
-                            // Channel is activated, but not yet started
-                            ImGui::TextUnformatted("Starting...");
+                        ImGui::TextRealTrafficStatus();
                         ImGui::TableNextCell();
                     }
                 }
@@ -496,6 +487,7 @@ void LTSettingsUI::buildInterface()
                         dataRefs.SetMsgAreaLevel(n+1);
                     ImGui::TableNextCell();
                 }
+                ImGui::FilteredCfgNumber("Max Message List Len", sFilter, DR_CFG_LOG_LIST_LEN, 25, 500, 25);
 
                 if (!*sFilter) ImGui::TreePop();
             }
@@ -527,6 +519,10 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
+                if (ImGui::FilteredLabel("Font Scaling", sFilter)) {
+                    ImGui::SliderInt("##FontScaling", &dataRefs.UIFontScale, 10, 200, "%d%%");
+                    ImGui::TableNextCell();
+                }
                 if (ImGui::FilteredLabel("Opacity", sFilter)) {
                     ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
                     ImGui::TableNextCell();
@@ -555,6 +551,7 @@ void LTSettingsUI::buildInterface()
                         cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
                         cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
                         cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
+                        dataRefs.UIFontScale    = DEF_UI_FONT_SCALE;
                         dataRefs.UIopacity      = DEF_UI_OPACITY;
                         ImGui::CloseCurrentPopup();
                     }
@@ -668,7 +665,7 @@ void LTSettingsUI::buildInterface()
                     
                     // Open Folder button
                     ImGui::SameLine();
-                    if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                    if (ImGui::SmallButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
                         // or this is the active line and we shall re-open the popup
                         (cslActiveLn == i && bSubDirsOpen)) {
                         if (cslActiveLn != i) {     // if not yet active:
@@ -687,23 +684,23 @@ void LTSettingsUI::buildInterface()
                     ImGui::SameLine();
                     if (cslActiveLn == i && cslEntry != pathCfg.getPath()) {
                         // This line being edited and changed: offer Save button
-                        if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Save the changed path")) {
+                        if (ImGui::SmallButtonTooltip(ICON_FA_SAVE, "Save the changed path")) {
                             pathCfg = cslEntry;
                             cslActiveLn = -1; cslEntry.clear();
                         }
                         ImGui::SameLine();
-                        if (ImGui::ButtonTooltip(ICON_FA_UNDO, "Undo path change")) {
+                        if (ImGui::SmallButtonTooltip(ICON_FA_UNDO, "Undo path change")) {
                             // actually, we stop editing without saving
                             cslActiveLn = -1; cslEntry.clear();
                         }
                     } else {
                         // Not being edited: offer Load button
-                        if (ImGui::ButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
+                        if (ImGui::SmallButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
                             dataRefs.LoadCSLPackage(pathCfg.getPath());
                         ImGui::SameLine();
                         // Delete button, requires confirmation
                         constexpr const char* SUI_CSL_DEL_POPUP = "Delete CSL Path";
-                        if (ImGui::ButtonTooltip(ICON_FA_TRASH_ALT, "Remove this path from the configuration"))
+                        if (ImGui::SmallButtonTooltip(ICON_FA_TRASH_ALT, "Remove this path from the configuration"))
                             ImGui::OpenPopup(SUI_CSL_DEL_POPUP);
                         if (ImGui::BeginPopup(SUI_CSL_DEL_POPUP)) {
                             ImGui::Text("Confirm deletion of path\n%s", pathCfg.getPath().c_str());
@@ -744,7 +741,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::SameLine();
                 
                 // Folder selection button
-                if (ImGui::ButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
+                if (ImGui::SmallButtonTooltip(ICON_FA_FOLDER_OPEN, "Select a folder") ||
                     bNewSubDirsOpen) {
                     ImGui::OpenPopup(SUI_OPEN_FOLDER);
                     bNewSubDirsOpen = false;
@@ -757,7 +754,7 @@ void LTSettingsUI::buildInterface()
                 // Save button
                 if (bCslNewExists && !cslNew.empty()) {
                     ImGui::SameLine();
-                    if (ImGui::ButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
+                    if (ImGui::SmallButtonTooltip(ICON_FA_SAVE, "Add the new path and load the models"))
                         bDoAdd = true;
                 }
                 
@@ -909,7 +906,6 @@ bool LTSettingsUI::ToggleDisplay (int _force)
         if (!gpSettings)
             gpSettings = new LTSettingsUI();
         // Ensure it is visible and centered
-        gpSettings->SetMode(WND_MODE_FLOAT_CNT_VR);
         gpSettings->SetVisible(true);
         gpSettings->BringWindowToFront();
         return true;                    // visible now
