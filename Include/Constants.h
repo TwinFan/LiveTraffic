@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.09f;
+constexpr float VERSION_NR = 2.10f;
 constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -157,7 +157,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
-#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
+#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.org!"
 #define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
@@ -218,6 +218,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_HELP_DOCUMENTATION "Documentation"
 #define MENU_HELP_FAQ           "FAQ"
 #define MENU_HELP_MENU_ITEMS    "Menu Items"
+#define MENU_HELP_INFO_LIST_WND "Status / Info Window"
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
 #define MENU_NEWVER             "New Version %01.2f available!"
@@ -230,6 +231,11 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_URL                "https://twinfan.gitbook.io/livetraffic/"
 #define HELP_FAQ                "reference/faq"
 #define HELP_MENU_ITEMS         "using-lt/menu-items"
+#define HELP_ILW                "using-lt/info-list-window"
+#define HELP_ILW_AC_LIST        "using-lt/info-list-window/aircraft-list"
+#define HELP_ILW_MESSAGES       "using-lt/info-list-window/messages"
+#define HELP_ILW_STATUS         "using-lt/info-list-window/status-about"
+#define HELP_ILW_SETTINGS       "using-lt/info-list-window/ui-settings"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
@@ -243,7 +249,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
-#define HELP_ILW                "using-lt/info-list-window"
 
 //MARK: File Paths
 // these are under the plugins directory

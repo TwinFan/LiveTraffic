@@ -85,6 +85,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Gear",             40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Flaps",            40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Lights",          140,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"TCAS Idx",         25,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     
     // This stays last
     {"Actions",         100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_NoSort},
@@ -172,6 +173,13 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v_f(ACT_COL_GEAR,   "%.f%%",    pAc->GetGearPos() * 100.0);
         v_f(ACT_COL_FLAPS,  "%.f%%",    pAc->GetFlapsPos() * 100.0);
         v[ACT_COL_LIGHTS]       = pAc->GetLightsStr();
+        if (pAc->IsCurrentlyShownAsTcasTarget()) {
+            v_f(ACT_COL_TCAS_IDX, "%.f", pAc->GetTcasTargetIdx());
+        } else {
+            vf[ACT_COL_TCAS_IDX] = NAN;
+            v[ACT_COL_TCAS_IDX].clear();
+        }
+            
     }
     // if there is no a/c, but there previously was, then we need to clear a lot of fields
     else if (!v[ACT_COL_POS].empty()) {
@@ -180,7 +188,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
             ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
             ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
             ACT_COL_CSLMDL, ACT_COL_PHASE, ACT_COL_GEAR, ACT_COL_FLAPS,
-            ACT_COL_LIGHTS
+            ACT_COL_LIGHTS, ACT_COL_TCAS_IDX
         })
         { vf[idx] = NAN; v[idx].clear(); }
     }
@@ -412,7 +420,7 @@ void ACTable::Sort (ACTColumnsTy _col, bool _asc)
     if (gCols.at(_col).colAlign == ImGui::IM_ALIGN_RIGHT ||
         _col == ACT_COL_PHASE) {
         std::sort(vecFDI.begin(), vecFDI.end(),
-                  [_col](const FDInfo& a, const FDInfo& b)
+                  [_col,_asc](const FDInfo& a, const FDInfo& b)
         {
             const float af = a.vf[_col]; const bool a_nan = std::isnan(af);
             const float bf = b.vf[_col]; const bool b_nan = std::isnan(bf);
@@ -420,7 +428,7 @@ void ACTable::Sort (ACTColumnsTy _col, bool _asc)
                 return af < bf;
             if (a_nan && b_nan)         // both NAN -> considered equal, for a stable sort let the key decide
                 return a.key < b.key;
-            return a_nan;               // one of them is NAN -> is it is a then we consider it "less"
+            return a_nan != _asc;       // one of them is NAN -> make NAN appear always at the end
         });
     } else {
         // otherwise we sort by text

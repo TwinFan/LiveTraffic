@@ -51,6 +51,7 @@ enum menuItems {
     MENU_ID_HELP_DOCUMENTATION,
     MENU_ID_HELP_FAQ,
     MENU_ID_HELP_MENU_ITEMS,
+    MENU_ID_HELP_INFO_LIST_WND,
     MENU_ID_HELP_AC_INFO_WND,
     MENU_ID_HELP_SETTINGS,
     MENU_ID_NEWVER,
@@ -307,6 +308,7 @@ bool RegisterMenuItem ()
     aMenuItems[MENU_ID_HELP_DOCUMENTATION]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_DOCUMENTATION, (void*)"",1);
     aMenuItems[MENU_ID_HELP_FAQ] =          XPLMAppendMenuItem(menuHelpID, MENU_HELP_FAQ,           (void*)HELP_FAQ,1);
     aMenuItems[MENU_ID_HELP_MENU_ITEMS] =   XPLMAppendMenuItem(menuHelpID, MENU_HELP_MENU_ITEMS,    (void*)HELP_MENU_ITEMS,1);
+    aMenuItems[MENU_ID_HELP_INFO_LIST_WND]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_INFO_LIST_WND, (void*)HELP_ILW,1);
     aMenuItems[MENU_ID_HELP_AC_INFO_WND] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_AC_INFO_WND,   (void*)HELP_AC_INFO_WND,1);
     aMenuItems[MENU_ID_HELP_SETTINGS] =     XPLMAppendMenuItem(menuHelpID, MENU_HELP_SETTINGS,      (void*)HELP_SETTINGS,1);
     

@@ -93,13 +93,13 @@ void InfoListWnd::TabActive (ILWTabTy _tab)
     if (activeTab == _tab) return;
     activeTab = _tab;
 
-    // Define window title based on active tab
+    // Define window title and help URL based on active tab
     switch (_tab) {
-        case ILW_TAB_AC_LIST:   wndTitle = LIVE_TRAFFIC " - Aircraft List";     break;
-        case ILW_TAB_MSG:       wndTitle = LIVE_TRAFFIC " - Messages";          break;
-        case ILW_TAB_STATUS:    wndTitle = LIVE_TRAFFIC " - Status / About";    break;
-        case ILW_TAB_SETTINGS:  wndTitle = LIVE_TRAFFIC " - Status Settings";   break;
-        case ILW_TAB_NONE:      wndTitle = LIVE_TRAFFIC;                        break;
+        case ILW_TAB_AC_LIST:   wndTitle = LIVE_TRAFFIC " - Aircraft List";     szHelpURL = HELP_ILW_AC_LIST;   break;
+        case ILW_TAB_MSG:       wndTitle = LIVE_TRAFFIC " - Messages";          szHelpURL = HELP_ILW_MESSAGES;  break;
+        case ILW_TAB_STATUS:    wndTitle = LIVE_TRAFFIC " - Status / About";    szHelpURL = HELP_ILW_STATUS;    break;
+        case ILW_TAB_SETTINGS:  wndTitle = LIVE_TRAFFIC " - Status Settings";   szHelpURL = HELP_ILW_SETTINGS;  break;
+        case ILW_TAB_NONE:      wndTitle = LIVE_TRAFFIC;                        szHelpURL = HELP_ILW;           break;
     }
 }
 

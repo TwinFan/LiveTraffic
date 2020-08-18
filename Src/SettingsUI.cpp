@@ -455,6 +455,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::SameLine();
                     if (ImGui::ColorButton("Blue",  ImVec4(0.0f, 0.94f, 0.94f, 1.0f)))
                         cfgSet(DR_CFG_LABEL_COLOR, COLOR_BLUE);
+                    ImGui::TableNextCell();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -520,10 +521,12 @@ void LTSettingsUI::buildInterface()
                 }
                 
                 if (ImGui::FilteredLabel("Font Scaling", sFilter)) {
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
                     ImGui::SliderInt("##FontScaling", &dataRefs.UIFontScale, 10, 200, "%d%%");
                     ImGui::TableNextCell();
                 }
                 if (ImGui::FilteredLabel("Opacity", sFilter)) {
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
                     ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
                     ImGui::TableNextCell();
                 }
