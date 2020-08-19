@@ -199,7 +199,37 @@ IMGUI_API bool ButtonURL(const char* label,
         return false;
 }
 
-// A checkbox toggling a defined integer dataRef
+// Selectable, which turns green when selected
+IMGUI_API bool SelectableTooltip(const char* label,
+                                 bool* p_selected,
+                                 bool bEnabled,
+                                 const char* tip,
+                                 ImGuiSelectableFlags flags,
+                                 const ImVec2& size)
+{
+    // Turn background green when selected
+    // do the selectable and remember the return value
+    if (!bEnabled)
+        flags |= ImGuiSelectableFlags_Disabled;
+    const bool bRet = ImGui::Selectable(label, p_selected,flags, size);
+    // if given do a tooltip
+    if (tip && IsItemHovered())
+        SetTooltip("%s", tip);
+    // return if it was just clicked
+    return bRet;
+}
+
+// Selectable, which turns green when selected
+IMGUI_API bool SelectableTooltip(const char* label,
+                                 bool bSelected,
+                                 bool bEnabled,
+                                 const char* tip,
+                                 ImGuiSelectableFlags flags,
+                                 const ImVec2& size)
+{
+    return SelectableTooltip(label, &bSelected, bEnabled, tip, flags, size);
+}
+
 IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip)
 {
     // Show the checkbox

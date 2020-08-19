@@ -306,6 +306,11 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                 // Make sure all the buttons have a unique id
                 ImGui::PushID(fdi.key.c_str());
                 
+                // Make selected buttons more visible: Exchange Hovered (lighter) and std color (darker)
+                const ImU32 colHeader = ImGui::GetColorU32(ImGuiCol_Header);
+                ImGui::PushStyleColor(ImGuiCol_Header,          ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered,   colHeader);
+                
                 // Limit the width of the selectables
                 ImVec2 selSize (ImGui::GetWidthIconBtn(), 0.0f);
                 
@@ -318,45 +323,54 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                 bool bAutoVisible   = pAc ? pAc->IsAutoVisible()    : false;
 
                 // Open a/c info window
-                if (ImGui::SmallButton(ICON_FA_INFO_CIRCLE "##ACIWnd")) {
-                    // Open an ACIWnd, which is another ImGui window, so safe/restore our context
+                ACIWnd* pACIWnd = ACIWnd::GetWnd(fdi.key);
+                if (ImGui::SelectableTooltip(ICON_FA_INFO_CIRCLE "##ACIWnd",
+                                             pACIWnd != nullptr, true,              // selected?, enabled!
+                                             "Open Aircraft Info Window",
+                                             ImGuiSelectableFlags_None, selSize))
+                {
+                    // Toggle a/c info wnd (safe/restore our context as we are now dealing with another ImGui window,
+                    // which can mess up context pointers)
                     ImGuiContext* pCtxt = ImGui::GetCurrentContext();
-                    ACIWnd::OpenNewWnd(fdi.key);
+                    if (pACIWnd) {
+                        delete pACIWnd;
+                        pACIWnd = nullptr;
+                    } else {
+                        ACIWnd::OpenNewWnd(fdi.key);
+                    }
                     ImGui::SetCurrentContext(pCtxt);
+
+                    // Open an ACIWnd, which is another ImGui window, so safe/restore our context
                 }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", "Open Aircraft Info Window");
 
                 // Camera view
                 ImGui::SameLine();
-                if (ImGui::Selectable(ICON_FA_CAMERA "##CameraView",
-                                      pAc ? pAc->IsInCameraView() : false,
-                                      pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                                      selSize))
+                if (ImGui::SelectableTooltip(ICON_FA_CAMERA "##CameraView",
+                                             pAc ? pAc->IsInCameraView() : false,   // selected?
+                                             pAc != nullptr,                        // enabled?
+                                             "Toggle camera view",
+                                             ImGuiSelectableFlags_None, selSize))
                     pAc->ToggleCameraView();
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", "Toggle camera view");
 
                 // Visible
                 ImGui::SameLine();
-                if (ImGui::Selectable(ICON_FA_EYE "##Visible", &bVisible,
-                                      pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                                      selSize))
+                if (ImGui::SelectableTooltip(ICON_FA_EYE "##Visible", &bVisible,
+                                             pAc != nullptr,      // enabled/disabled?
+                                             "Toggle aircraft's visibility",
+                                             ImGuiSelectableFlags_None, selSize))
                     pAc->SetVisible(bVisible);
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", "Toggle aircraft's visibility");
 
                 // "Auto Visible" only if some auto-hiding option is on
                 if (dataRefs.IsAutoHidingActive()) {
                     ImGui::SameLine();
-                    if (ImGui::Selectable(ICON_FA_EYE "##AutoVisible", &bAutoVisible,
-                                          pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                                          selSize))
+                    if (ImGui::SelectableTooltip(ICON_FA_EYE "##AutoVisible", &bAutoVisible,
+                                                 pAc != nullptr,  // enabled/disabled
+                                                 "Toggle aircraft's auto visibility",
+                                                 ImGuiSelectableFlags_None, selSize))
                         pAc->SetAutoVisible(bAutoVisible);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Toggle aircraft's auto visibility");
                 }
                 
+                ImGui::PopStyleColor(2);
                 ImGui::PopID();
             } // action column
         }   // for all a/c rows

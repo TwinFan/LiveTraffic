@@ -631,6 +631,15 @@ bool ACIWnd::ToggleHideShowAll()
     return bAreShown;
 }
 
+// return the window (if it exists) for the given key
+ACIWnd* ACIWnd::GetWnd (const LTFlightData::FDKeyTy& _key)
+{
+    for (ACIWnd* pWnd: listACIWnd)
+        if (pWnd->GetAcKey() == _key)
+            return pWnd;
+    return nullptr;
+}
+
 // close all windows
 void ACIWnd::CloseAll()
 {

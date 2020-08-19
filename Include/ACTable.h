@@ -100,8 +100,8 @@ public:
     /// @warning Can return `nullptr`!
     LTFlightData* GetFD () const;
     
-    /// @brief Does _any_ value match this filter string?
-    /// @param _s Substring to be searched for, expected in _upper case_
+    /// @brief Does any value match this filter string?
+    /// @param _s Substring to be searched for, expected in upper case
     bool matches (const std::string& _s) const;
 };
 
