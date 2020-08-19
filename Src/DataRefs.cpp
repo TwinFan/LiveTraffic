@@ -1986,6 +1986,19 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
     return false;
 }
 
+// Set the channel's status
+void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
+{
+    bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
+    // if a channel got disabled check if any tracking data channel is left
+    if (!bEnable && AreAircraftDisplayed() &&   // just diabled? Activated for aircraft display?
+        !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
+    {
+        LOG_MSG(logERR, ERR_CH_NONE_ACTIVE);
+    }
+}
+
+
 // how many channels are enabled?
 int DataRefs::CntChannelEnabled () const
 {

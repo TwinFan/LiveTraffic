@@ -343,6 +343,16 @@ void InfoListWnd::buildInterface()
                             }
 
                             // Status of channels
+                            
+                            // No tracking data channel enabled?
+                            if (!LTFlightDataAnyTrackingChEnabled())
+                            {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(1))
+                                    ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " ERR_CH_NONE_ACTIVE);
+                            }
+                            
+                            // Individual channels' status
                             for (const ptrLTChannelTy& pCh: listFDC) {
                                 ImGui::TableNextRow();
                                 if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(pCh->ChName());
@@ -357,7 +367,7 @@ void InfoListWnd::buildInterface()
                         // INACTIVE!
                         else {
                             ImGui::TableNextRow();
-                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(LIVE_TRAFFIC " is");
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " LIVE_TRAFFIC " is");
                             if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
                         }
                         

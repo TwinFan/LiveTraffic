@@ -191,10 +191,12 @@ void LTSettingsUI::buildInterface()
         }
 
         // MARK: --- Input Channels ---
-        if (ImGui::TreeNodeHelp("Input Channels", nCol,
-                                HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
-                                sFilter, nOpCl,
-                                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+        if (ImGui::TreeNodeLinkHelp("Input Channels", nCol,
+                                    !LTFlightDataAnyTrackingChEnabled() ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    ERR_CH_NONE_ACTIVE1,
+                                    HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
+                                    sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,

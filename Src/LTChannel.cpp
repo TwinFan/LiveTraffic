@@ -713,12 +713,7 @@ bool LTFlightDataShowAircraft()
     
     // Verify if there are any enabled, active tracking data channels.
     // If not bail out and inform the user.
-    if (listFDC.empty() ||
-        std::find_if(listFDC.cbegin(), listFDC.cend(),
-                     [](const ptrLTChannelTy& pCh)
-                     { return
-                         pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
-                         pCh->IsEnabled(); }) == listFDC.cend())
+    if (!LTFlightDataAnyTrackingChEnabled())
     {
         SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
         return false;
@@ -775,6 +770,19 @@ void LTFlightDataHideAircraft()
     // not showing any longer
     LOG_MSG(logINFO,INFO_AC_ALL_REMOVED);
 }
+
+
+
+// Is at least one tracking data channel enabled?
+bool LTFlightDataAnyTrackingChEnabled ()
+{
+    return (!listFDC.empty() &&
+            std::find_if(listFDC.cbegin(), listFDC.cend(),
+                         [](const ptrLTChannelTy& pCh)
+                         { return pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
+                                  pCh->IsEnabled(); }) != listFDC.cend());
+}
+                         
 
 //
 //MARK: Aircraft Maintenance

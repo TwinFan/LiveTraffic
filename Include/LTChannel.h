@@ -237,6 +237,9 @@ void LTFlightDataHideAircraft();
 void LTFlightDataDisable();
 void LTFlightDataStop();
 
+/// Is at least one tracking data channel enabled?
+bool LTFlightDataAnyTrackingChEnabled ();
+
 //
 //MARK: Aircraft Maintenance (called from flight loop callback)
 //

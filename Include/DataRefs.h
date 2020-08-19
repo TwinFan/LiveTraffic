@@ -799,7 +799,7 @@ public:
     bool SetDefaultCarIcaoType(const std::string type);
     
     // livetraffic/channel/...
-    inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
+    void SetChannelEnabled (dataRefsLT ch, bool bEnable);
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
     
