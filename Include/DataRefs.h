@@ -688,7 +688,7 @@ protected:
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
     bool IsXPThread() const { return std::this_thread::get_id() == xpThread; }
-    inline float GetMiscNetwTime() const        { return lastNetwTime; }
+    float GetMiscNetwTime() const;
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }

@@ -871,6 +871,15 @@ bool DataRefs::RegisterCommands()
     return bRet;
 }
 
+// Return current network time
+// In main thred read directly from the dataRef, otherwise a cached value
+float DataRefs::GetMiscNetwTime() const
+{
+    if (IsXPThread())
+        return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
+    else
+        return lastNetwTime;
+}
 
 /// Set the view type, translating from XPViewTypes to command ref needed
 void DataRefs::SetViewType(XPViewTypes vt)
