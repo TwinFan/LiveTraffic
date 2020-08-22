@@ -310,6 +310,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
     <ClCompile Include="Src\LTOpenSky.cpp" />
     <ClCompile Include="Src\LTRealTraffic.cpp" />
     <ClCompile Include="src\LTVersion.cpp" />
+    <ClCompile Include="Src\LTWeather.cpp" />
     <ClCompile Include="Src\Network.cpp" />
     <ClCompile Include="src\SettingsUI.cpp" />
     <ClCompile Include="src\TextIO.cpp" />
@@ -331,6 +332,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
     <ClInclude Include="Include\LTImgWindow.h" />
     <ClInclude Include="Include\LTOpenSky.h" />
     <ClInclude Include="Include\LTRealTraffic.h" />
+    <ClInclude Include="Include\LTWeather.h" />
     <ClInclude Include="Include\Network.h" />
     <ClInclude Include="include\SettingsUI.h" />
     <ClInclude Include="include\TextIO.h" />
