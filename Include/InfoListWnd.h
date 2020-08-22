@@ -45,9 +45,12 @@ protected:
     LogMsgListTy::const_iterator lastEnd;
     
     // Info/Status
+    float lastStatusUpdate = 0.0f;  ///< when last updates periodic status info?
     std::string verText;            ///< version information
     std::string aiCtrlPlugin;       ///< name of plugin controlling AI planes
-    float lastAIPluginCheck = 0.0f; ///< when last checked for AI-controlling plugin name?
+    float weatherHPA = HPA_STANDARD;///< Weather: QNH
+    std::string weatherStationId;   ///< Weather: reporting station
+    std::string weatherMETAR;       ///< Weather: full METAR
 
 public:
     /// Constructor shows the window

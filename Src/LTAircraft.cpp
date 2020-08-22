@@ -1306,23 +1306,12 @@ std::string LTAircraft::RelativePositionText ()
         lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
     
         // Find the nearest airport
-        float lat = (float)GetPPos().lat();
-        float lon = (float)GetPPos().lon();
-        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
-                                           &lat, &lon, nullptr,
-                                           xplm_Nav_Airport);
-        if (!navRef)
+        nearestAirportPos.lat() = NAN;
+        nearestAirportPos.lon() = NAN;
+        nearestAirport = GetNearestAirportId(GetPPos(), &nearestAirportPos);
+        if (std::isnan(nearestAirportPos.lat())) {   // no airport found?
             return std::string(GetPPos());
-    
-        // Where is that airport and what's its name?
-        char airportId[32];
-        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
-                          airportId, nullptr, nullptr);
-        
-        // Save the data
-        nearestAirport = airportId;
-        nearestAirportPos.lat() = lat;
-        nearestAirportPos.lon() = lon;
+        }
     }
     
     // determine bearing from airport to position

@@ -120,6 +120,7 @@ extern DataRefs dataRefs;
 #include "ACTable.h"
 #include "InfoListWnd.h"
 #include "LTApt.h"
+#include "LTWeather.h"
 
 // LiveTraffic channels
 #include "Network.h"
@@ -229,6 +230,13 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
 }
 
 // MARK: Other Utility Functions
+
+/// Fetch nearest airport id by location
+std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = nullptr);
+
+/// Fetch nearest airport id by location
+inline std::string GetNearestAirportId (float lat, float lon)
+{ return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
 
 /// Which plugin has control of AI?
 std::string GetAIControlPluginName ();

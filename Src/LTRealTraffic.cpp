@@ -766,9 +766,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         } else {
             // probably not on gnd, so take care of altitude
             // altitude comes without local pressure applied
-            double alt_f = std::stod(tfc[RT_TFC_ALT]);
-            alt_f += (hPa - HPA_STANDARD) * FT_per_HPA;
-            pos.SetAltFt(alt_f);
+            pos.SetAltFt(dataRefs.WeatherAltCorr_ft(std::stod(tfc[RT_TFC_ALT])));
         }
         
         // don't forget gnd-flag in position
@@ -906,20 +904,20 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
     if (newQNH < 1.0)
         newQNH = jog_l(pObj, RT_WEATHER_QNH);
 
-    // this could be inch mercury in the US...convert to hPa
-    if (2600 <= newQNH && newQNH <= 3400)
+    // this could be inch mercury * 100 in the US...convert to hPa
+    if (2600 <= newQNH && newQNH <= 3400) {
+        newQNH /= 100.0;
         newQNH *= HPA_per_INCH;
+    }
 
-    // process a change
+    // process a change and report the weather centrally
     if (800 <= newQNH && newQNH <= 1100) {
-        metarIcao = jog_s(pObj, RT_WEATHER_ICAO);
-        metar =     jog_s(pObj, RT_WEATHER_METAR);
-        if (!dequal(hPa, newQNH))                          // report a change in the log
-            LOG_MSG(logINFO, MSG_RT_WEATHER_IS, metarIcao.c_str(), std::lround(newQNH), metar.c_str());
-        hPa = newQNH;
+        const std::string metarIcao = jog_s(pObj, RT_WEATHER_ICAO);
+        const std::string metar =     jog_s(pObj, RT_WEATHER_METAR);
+        dataRefs.SetWeather(float(newQNH), NAN, NAN, metarIcao, metar);
         return true;
     } else {
-        LOG_MSG(logWARN, ERR_RT_WEATHER_QNH, metarIcao.c_str(), std::lround(newQNH));
+        LOG_MSG(logWARN, ERR_RT_WEATHER_QNH, std::lround(newQNH));
         return false;
     }
 }
@@ -927,8 +925,5 @@ bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
 // initialize weather info
 void RealTrafficConnection::InitWeather()
 {
-    hPa = HPA_STANDARD;
     lastWeather.clear();
-    metar.clear();
-    metarIcao.clear();
 }

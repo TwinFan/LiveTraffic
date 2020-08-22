@@ -42,11 +42,10 @@ constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
-#define MSG_RT_WEATHER_IS       "RealTraffic weather: %s reports %ld hPa and '%s'"
 #define MSG_RT_LAST_RCVD        " | last: %lds ago"
 
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
-#define ERR_RT_WEATHER_QNH      "RealTraffic: %s reports unreasonable QNH %ld - ignored"
+#define ERR_RT_WEATHER_QNH      "RealTraffic reports unreasonable QNH %ld - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
 
 // Traffic data format and fields
@@ -138,10 +137,7 @@ protected:
     // map of last received datagrams for duplicate detection
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     // weather, esp. current barometric pressure to correct altitude values
-    double hPa = HPA_STANDARD;
     std::string lastWeather;            // for duplicate detection
-    std::string metar;
-    std::string metarIcao;
 
 public:
     RealTrafficConnection (mapLTFlightDataTy& _fdMap);
@@ -176,11 +172,6 @@ public:
     void SetStatusTcp (bool bEnable, bool _bStopTcp);
     void SetStatusUdp (bool bEnable, bool _bStopUdp);
     
-    // Weather
-    inline double GetHPA() const { return hPa; }
-    inline std::string GetMetar() const { return metar; }
-    inline std::string GetMetarIcao() const { return metarIcao; }
-
 protected:
     // Start/Stop
     bool StartConnections ();

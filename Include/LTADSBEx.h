@@ -55,7 +55,7 @@
 #define ADSBEX_LAT              "lat"
 #define ADSBEX_LON              "lon"
 #define ADSBEX_ELEVATION        "galt"          // geometric altitude
-// #define ADSBEX_ALT              "alt"           // barometric altitude
+#define ADSBEX_ALT              "alt"           // barometric altitude
 #define ADSBEX_HEADING          "trak"
 #define ADSBEX_GND              "gnd"
 // #define ADSBEX_IN_HG            "InHg"

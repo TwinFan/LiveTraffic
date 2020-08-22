@@ -103,6 +103,15 @@
             better visible when camera/visibility is on/off.</li>
         <li>CHANGED Help in Info Status Window is now context-sensitive.</li>
         <li>ADDED field "TCAS Id" to list of available columns in Aircraft List</li>
+        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/189">#189</a>
+            handling of aircraft altitude:
+            LiveTraffic now takes <i>barometric</i> altitude from channels
+            instead of <i>geometric</i>, requests current weather from
+            <a href="https://www.aviationweather.gov/metar">AWC</a>
+            (shown in <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status</a>)
+            and corrects altitude internally.
+            While more complex, this approach proved to be more accurate and should
+            reduce number of long landings.</li>
     </ul>
 
 

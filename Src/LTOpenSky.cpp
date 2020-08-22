@@ -151,7 +151,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // position
                 positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
                                 jag_n_nan(pJAc, OPSKY_LON),
-                                jag_n_nan(pJAc, OPSKY_ELEVATION),
+                                dataRefs.WeatherAltCorr_m(jag_n_nan(pJAc, OPSKY_BARO_ALT)),
                                 posTime,
                                 dyn.heading);
                 pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;

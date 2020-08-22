@@ -2145,3 +2145,94 @@ bool DataRefs::ToggleLabelDraw()
     else
         return (labelShown.bInternal = !labelShown.bInternal);
 }
+
+//
+// MARK: Weather
+//
+
+/// Weather to be updated this period
+constexpr float WEATHER_UPD_PERIOD = 600.0f;
+constexpr double WEATHER_UPD_DIST = 25.0 * M_per_NM;
+
+// check if weather updated needed, then do
+bool DataRefs::WeatherUpdate ()
+{
+    // protected against updates from the weather thread
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+
+    // Our current camera position
+    positionTy camPos = GetViewPos();
+    camPos.LocalToWorld();
+    
+    // So...do we need an update?
+    if (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
+        lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime() ||  // waited long enough?
+        camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST)             // travelled far enough?
+    {
+        // Trigger a weather update; this is an asynch operation
+        return ::WeatherUpdate(camPos, WEATHER_UPD_DIST/M_per_NM);  // travel distances [m] doubles as weather search distance [nm]
+    }
+    return false;
+}
+
+// Called by the asynch process spawned by ::WeatherUpdate to inform us of the weather
+void DataRefs::SetWeather (float hPa, float lat, float lon,
+                           const std::string& stationId,
+                           const std::string& METAR)
+{
+    // protected against reads from the main thread
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    
+    // Compute the new altitude correction and save its position and time
+    altPressCorr_ft = (hPa - HPA_STANDARD) * FT_per_HPA;
+    lastWeatherUpd = GetMiscNetwTime();
+    lastWeatherStationId = stationId;
+    lastWeatherMETAR = METAR;
+    
+    // if no position is given we have two options:
+    if (std::isnan(lat) || std::isnan(lon)) {
+        // try finding the coordinates from XP's navigation database
+        XPLMNavRef hRef =
+        stationId.empty() ? 0 :
+        XPLMFindNavAid(nullptr, stationId.c_str(),
+                       nullptr, nullptr, nullptr,
+                       xplm_Nav_Airport);
+        if (hRef) {
+            XPLMGetNavAidInfo(hRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
+                              nullptr, nullptr, nullptr);
+            lastWeatherPos.lat() = (double)lat;
+            lastWeatherPos.lon() = (double)lon;
+        } else
+            // last resort: current camera position
+            lastWeatherPos = GetViewPos();
+    } else {
+        // if given we use passed-in position
+        lastWeatherPos.lat() = (double)lat;
+        lastWeatherPos.lon() = (double)lon;
+    }
+    
+    // If we didn't get a station id we can find a matching airport now
+    if (lastWeatherStationId.empty())
+        lastWeatherStationId = GetNearestAirportId(lastWeatherPos);
+    
+    // Did weather change?
+    if (!dequal(lastWeatherHPA, hPa)) {
+        LOG_MSG(logINFO, INFO_WEATHER_UPDATED, hPa,
+                lastWeatherStationId.c_str(),
+                lastWeatherPos.lat(), lastWeatherPos.lon());
+    }
+    
+    // Finally: Save the new pressure
+    lastWeatherHPA = hPa;
+}
+
+// Thread-safely gets current weather info
+void DataRefs::GetWeather (float& hPa, std::string& stationId, std::string& METAR)
+{
+    // protected against reads from the main thread
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    
+    hPa = lastWeatherHPA;
+    stationId = lastWeatherStationId;
+    METAR = lastWeatherMETAR;
+}

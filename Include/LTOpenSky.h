@@ -38,11 +38,11 @@ constexpr int OPSKY_COUNTRY       = 2;               // origin_county
 constexpr int OPSKY_POS_TIME      = 3;               // time_position
 constexpr int OPSKY_LON           = 5;               // longitude
 constexpr int OPSKY_LAT           = 6;               // latitude
+constexpr int OPSKY_BARO_ALT      = 7;               // baro_altitude [m]
 constexpr int OPSKY_GND           = 8;               // on_ground
 constexpr int OPSKY_SPD           = 9;               // velocity
 constexpr int OPSKY_HEADING       = 10;              // heading
 constexpr int OPSKY_VSI           = 11;              // vertical rate
-constexpr int OPSKY_ELEVATION     = 13;              // geo_altitude
 constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 
 constexpr double OPSKY_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data

@@ -269,6 +269,35 @@ std::string str_first_non_empty ( std::initializer_list<const std::string> l)
 
 // MARK: Other Utility Functions
 
+// Fetch nearest airport id by location
+std::string GetNearestAirportId (const positionTy& _pos,
+                                 positionTy* outApPos)
+{
+    char airportId[33] = "";
+
+    // Find the nearest airport
+    float lat = (float)_pos.lat();
+    float lon = (float)_pos.lon();
+    XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
+                                       &lat, &lon, nullptr,
+                                       xplm_Nav_Airport);
+    if (navRef) {
+        // fetch airport info
+        float alt = 0.0f;
+        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, &alt, nullptr, nullptr,
+                          airportId, nullptr, nullptr);
+        // fill output structure
+        if (outApPos) {
+            outApPos->lat() = lat;
+            outApPos->lon() = lon;
+            outApPos->SetAltFt((double)alt);
+        }
+    }
+    
+    // return the id
+    return airportId;
+}
+
 // Convert an XP network time float to a string
 std::string NetwTimeString (float runS)
 {
@@ -387,6 +416,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
+            // Potentially refresh weather information
+            dataRefs.WeatherUpdate();
             // Refresh airport data from apt.dat (in case camera moved far)
             LTAptRefresh();
             // maintenance (add/remove)
