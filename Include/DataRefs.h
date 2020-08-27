@@ -358,6 +358,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_TAXIING,
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
+    DR_CFG_COPY_OBJ_FILES,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -616,6 +617,7 @@ protected:
     int hideTaxiing     = 0;            // hide a/c while taxiing?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
+    int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -794,6 +796,7 @@ public:
     inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
     { return hideBelowAGL > 0  || hideTaxiing != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0; }
+    bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

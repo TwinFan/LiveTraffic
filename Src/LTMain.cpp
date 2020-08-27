@@ -460,6 +460,10 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     }
     // We don't want clamping to the ground, we take care of the ground ourselves
     if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    // Copying .obj files is an advanced setting
+    if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
+        !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))
+        return dataRefs.ShallCpyObjFiles();
     
     // dont' know/care about the option, return the default value
     return iDefault;

@@ -619,6 +619,8 @@ void LTSettingsUI::buildInterface()
                     if (ImGui::IsItemEdited()) gndVehicleOK = 0;
                     ImGui::TableNextCell();
                 }
+                
+                ImGui::FilteredCfgCheckbox("Enhance models, copies files", sFilter, DR_CFG_COPY_OBJ_FILES, "Replaces dataRefs and textures (if needed) to support more animation and show correct livery, requires disk spaces for copied .obj files");
 
                 if (!*sFilter) ImGui::TreePop();
             } // Modelling Options
