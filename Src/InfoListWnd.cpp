@@ -350,7 +350,7 @@ void InfoListWnd::buildInterface()
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live Weather");
                             if (ImGui::TableSetColumnIndex(1)) {
-                                ImGui::Text(weatherStationId.empty() ? "QNH %.2f hPa" : "QNH %.2f hPa at %s",
+                                ImGui::Text(weatherStationId.empty() ? "QNH %.f hPa" : "QNH %.f hPa at %s",
                                             weatherHPA, weatherStationId.c_str());
                                 if (!weatherMETAR.empty())
                                     ImGui::TextUnformatted(weatherMETAR.c_str());
