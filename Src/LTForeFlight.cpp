@@ -33,7 +33,12 @@ LTChannel(DR_CHANNEL_FORE_FLIGHT_SENDER),
 LTOnlineChannel(),
 LTFlightDataChannel(),
 fdMap(_fdMap)
-{}
+{
+    // purely informational
+    urlName  = FF_CHECK_NAME;
+    urlLink  = FF_CHECK_URL;
+    urlPopup = FF_CHECK_POPUP;
+}
 
 ForeFlightSender::~ForeFlightSender()
 {

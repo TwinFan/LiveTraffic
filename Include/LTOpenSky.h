@@ -28,6 +28,10 @@
 #include "LTChannel.h"
 
 //MARK: OpenSky Constants
+#define OPSKY_CHECK_NAME        "OpenSky Explorer"
+#define OPSKY_CHECK_URL         "https://opensky-network.org/network/explorer"
+#define OPSKY_CHECK_POPUP       "Check OpenSky's coverage"
+
 #define OPSKY_NAME              "OpenSky Live Online"
 #define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
 #define OPSKY_TIME              "time"
@@ -54,10 +58,7 @@ constexpr double OPSKY_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 class OpenSkyConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 public:
-    OpenSkyConnection () :
-    LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE),
-    LTOnlineChannel(),
-    LTFlightDataChannel()  {}
+    OpenSkyConnection ();
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
     virtual bool IsLiveFeed() const { return true; }
@@ -70,6 +71,10 @@ public:
 };
 
 //MARK: OpenSky Master Data Constats
+#define OPSKY_MD_CHECK_NAME     "OpenSky Aircraft Database"
+#define OPSKY_MD_CHECK_URL      "https://opensky-network.org/aircraft-database"
+#define OPSKY_MD_CHECK_POPUP    "Search and update OpenSky's databse of airframes"
+
 constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 2 requests
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
@@ -103,10 +108,7 @@ protected:
     listStringTy invIcaos;          // list of not-to-query-again icaos
     listStringTy invCallSigns;      // list of not-to-query-again call signs
 public:
-    OpenSkyAcMasterdata () :
-    LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA),
-    LTOnlineChannel(),
-    LTACMasterdataChannel()  {}
+    OpenSkyAcMasterdata ();
 public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos);

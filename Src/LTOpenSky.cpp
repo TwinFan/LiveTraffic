@@ -29,6 +29,18 @@
 //MARK: OpenSky
 //
 
+// Constructor
+OpenSkyConnection::OpenSkyConnection () :
+LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE),
+LTOnlineChannel(),
+LTFlightDataChannel()
+{
+    // purely informational
+    urlName  = OPSKY_CHECK_NAME;
+    urlLink  = OPSKY_CHECK_URL;
+    urlPopup = OPSKY_CHECK_POPUP;
+}
+
 // put together the URL to fetch based on current view position
 std::string OpenSkyConnection::GetURL (const positionTy& pos)
 {
@@ -178,6 +190,18 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 //
 //MARK: OpenSkyAcMasterdata
 //
+
+// Constructor
+OpenSkyAcMasterdata::OpenSkyAcMasterdata () :
+LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA),
+LTOnlineChannel(),
+LTACMasterdataChannel()
+{
+    // purely informational
+    urlName  = OPSKY_MD_CHECK_NAME;
+    urlLink  = OPSKY_MD_CHECK_URL;
+    urlPopup = OPSKY_MD_CHECK_POPUP;
+}
 
 // OpenSkyAcMasterdata fetches two objects with two URL requests:
 // 1. Master (or Meta) data based on transpIcao

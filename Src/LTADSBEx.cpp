@@ -34,6 +34,18 @@
 //MARK: ADS-B Exchange
 //
 
+ADSBExchangeConnection::ADSBExchangeConnection () :
+LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
+LTOnlineChannel(),
+LTFlightDataChannel()
+{
+    // purely informational
+    urlName  = ADSBEX_CHECK_NAME;
+    urlLink  = ADSBEX_CHECK_URL;
+    urlPopup = ADSBEX_CHECK_POPUP;
+}
+
+
 // put together the URL to fetch based on current view position
 std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {

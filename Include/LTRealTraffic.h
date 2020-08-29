@@ -33,6 +33,10 @@
 // MARK: RealTraffic Constants
 //
 
+#define RT_CHECK_NAME           "RealTraffic's web site"
+#define RT_CHECK_URL            "https://rtweb.flyrealtraffic.com/"
+#define RT_CHECK_POPUP          "Open RealTraffic's web site, which has a traffic status overview"
+
 #define REALTRAFFIC_NAME        "RealTraffic"
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 512;

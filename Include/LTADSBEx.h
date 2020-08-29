@@ -34,6 +34,10 @@
 #include "LTChannel.h"
 
 //MARK: ADS-B Exchange Constants
+#define ADSBEX_CHECK_NAME       "ADSBX Radar View"
+#define ADSBEX_CHECK_URL        "https://globe.adsbexchange.com/"
+#define ADSBEX_CHECK_POPUP      "Check ADS-B Exchange's coverage"
+
 #define ADSBEX_NAME             "ADS-B Exchange Online"
 #define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/json/lat/%f/lon/%f/dist/%d/"
 #define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
@@ -116,10 +120,7 @@ protected:
     keyTypeE keyTy = ADSBEX_KEY_NONE;
     struct curl_slist* slistKey = NULL;
 public:
-    ADSBExchangeConnection () :
-    LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
-    LTOnlineChannel(),
-    LTFlightDataChannel()  {}
+    ADSBExchangeConnection ();
     virtual std::string GetURL (const positionTy& pos);
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
     virtual bool IsLiveFeed() const { return true; }

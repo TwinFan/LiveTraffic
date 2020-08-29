@@ -41,6 +41,11 @@ LTOnlineChannel(),
 LTFlightDataChannel(),
 fdMap(_fdMap)
 {
+    //purely information
+    urlName  = RT_CHECK_NAME;
+    urlLink  = RT_CHECK_URL;
+    urlPopup = RT_CHECK_POPUP;
+    
     // this pointer makes it easier for settings UI to access status/weather
     dataRefs.pRTConn = this;
 }

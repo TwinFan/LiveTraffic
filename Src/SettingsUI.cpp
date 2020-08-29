@@ -201,9 +201,9 @@ void LTSettingsUI::buildInterface()
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " OpenSky Explorer",
-                                           "https://opensky-network.org/network/explorer",
-                                           "Check OpenSky's coverage",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " OPSKY_CHECK_NAME,
+                                           OPSKY_CHECK_URL,
+                                           OPSKY_CHECK_POPUP,
                                            HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
                                            sFilter, nOpCl))
             {
@@ -217,9 +217,9 @@ void LTSettingsUI::buildInterface()
                                            // we offer the enable checkbox only when an API key is defined
                                            dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
                                            dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ADSBX Radar View",
-                                           "https://tar1090.adsbexchange.com/",
-                                           "Check ADS-B Exchange's coverage",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBEX_CHECK_NAME,
+                                           ADSBEX_CHECK_URL,
+                                           ADSBEX_CHECK_POPUP,
                                            HELP_SET_CH_ADSBEX, "Open Help on ADS-B Exchange in Browser",
                                            sFilter, nOpCl))
             {
@@ -302,9 +302,9 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " RealTraffic's web site",
-                                           "https://rtweb.flyrealtraffic.com/",
-                                           "Open RealTraffic's web site, which has a traffic status overview",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " RT_CHECK_NAME,
+                                           RT_CHECK_URL,
+                                           RT_CHECK_POPUP,
                                            HELP_SET_CH_REALTRAFFIC, "Open Help on RealTraffic in Browser",
                                            sFilter, nOpCl))
             {
@@ -338,9 +338,9 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeCbxLinkHelp("ForeFlight", nCol,
                                            DR_CHANNEL_FORE_FLIGHT_SENDER,
                                            "Enable sending data to ForeFlight",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ForeFlight Mobile EFB",
-                                           "https://foreflight.com/products/foreflight-mobile/",
-                                           "Open ForeFlight's web site about the Mobile EFB",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " FF_CHECK_NAME,
+                                           FF_CHECK_URL,
+                                           FF_CHECK_POPUP,
                                            HELP_SET_CH_FOREFLIGHT, "Open Help on ForeFlight in Browser",
                                            sFilter, nOpCl))
             {

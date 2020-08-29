@@ -369,13 +369,22 @@ void InfoListWnd::buildInterface()
                             // Individual channels' status
                             for (const ptrLTChannelTy& pCh: listFDC) {
                                 ImGui::TableNextRow();
-                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(pCh->ChName());
+                                ImGui::PushID(pCh->ChName());           // helps making link buttons distinguishable
+                                // Channel's link and name
+                                if (ImGui::TableSetColumnIndex(0)) {
+                                    ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT, pCh->urlLink.c_str(),
+                                                     (pCh->urlName + '\n' + pCh->urlPopup).c_str(), true);
+                                    ImGui::SameLine();
+                                    ImGui::TextUnformatted(pCh->ChName());
+                                }
+                                // Channel's status
                                 if (ImGui::TableSetColumnIndex(1)) {
                                     if (pCh.get() == dataRefs.pRTConn)  // special treatment for RealTraffic
                                         ImGui::TextRealTrafficStatus();
                                     else
                                         ImGui::TextUnformatted(pCh->GetStatusText().c_str());
                                 }
+                                ImGui::PopID();
                             }
                         }
                         // INACTIVE!
