@@ -110,9 +110,11 @@
                 </ul>
             <li>remove
                 <ul>
-                    <li><code>Resources/CSL2XSB.py</code>, which is no longer needed.</li>
+                    <li><code>Resources/CSL2XSB.py</code>, which is no longer needed,</li>
                 </ul>
             </li>
+            <li>execute <code>Resources/RestoreOrig.py</code> if you have ever used
+                the <code>CSL2XSB.py</code> script before.</li>
         </ul>
     </p>
 
@@ -124,12 +126,17 @@
             was done through the <code>CSL2XSB.py</code> script. LiveTraffic
             now creates necessary copies of .obj files on the fly just before
             loading them.<br>
-            Use the provided <code>Resources/RestoreOrig.py</code> script
-            to restore original CSL model versions. This removes what
-            <code>CSL2XSB.py</code> created, but also what LiveTraffic from now on
-            creates on-the-fly, ie. can serve as cleanup at any time.<br>
             New <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-csl#modelling-options">CSL Setting</a>
-            <i>Enhance models, copies files</i> controls if such copies are created; requires restart.</li>
+            <i>Enhance models, copies files</i> controls if such copies are created;
+            requires restart to take effect.<br>
+            If you ever used <code>CSL2XSB.py</code>, then execute the provided
+            <code>Resources/RestoreOrig.py</code> script to restore original
+            CSL model versions. This removes most of what <code>CSL2XSB.py</code>
+            had created, but also what LiveTraffic from now on
+            creates on-the-fly, ie. it can serve as cleanup at any time.<br>
+            If you use <a href="https://csl.x-air.ru/?lang_id=43">X-CSL models</a>
+            then it is recommended to remove them completely and re-download
+            latest models for a clean start.</li>
         <li>CHANGED color of action buttons in Aircraft List so that it is now
             better visible when camera/visibility is on/off.</li>
         <li>CHANGED Help in Info Status Window is now context-sensitive.</li>
