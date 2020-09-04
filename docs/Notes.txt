@@ -13,6 +13,16 @@ ImGui
 
 Download History
 ==========
+Download counter when providing v2.10: 102.927
+Download counter when providing v2.09: 100.534
+Download counter when providing v2.08: 97.541
+Download counter when providing v2.07: 94.512
+Download counter when providing v2.06: 92.974
+Download counter when providing v2.05: 88.594
+Download counter when providing v2.04: 87.507
+Download counter when providing v2.03: 83.161
+Download counter when providing v2.02: 80.111
+Download counter when providing v2.01: 79.700
 Download counter when providing v2.00: 77.048
 Download counter when providing v1.52: 76.467
 Download counter when providing v1.51: 75.073
