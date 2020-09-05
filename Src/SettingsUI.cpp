@@ -191,17 +191,19 @@ void LTSettingsUI::buildInterface()
         }
 
         // MARK: --- Input Channels ---
-        if (ImGui::TreeNodeHelp("Input Channels", nCol,
-                                HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
-                                sFilter, nOpCl,
-                                ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+        if (ImGui::TreeNodeLinkHelp("Input Channels", nCol,
+                                    !LTFlightDataAnyTrackingChEnabled() ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    ERR_CH_NONE_ACTIVE1,
+                                    HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
+                                    sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " OpenSky Explorer",
-                                           "https://opensky-network.org/network/explorer",
-                                           "Check OpenSky's coverage",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " OPSKY_CHECK_NAME,
+                                           OPSKY_CHECK_URL,
+                                           OPSKY_CHECK_POPUP,
                                            HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
                                            sFilter, nOpCl))
             {
@@ -215,9 +217,9 @@ void LTSettingsUI::buildInterface()
                                            // we offer the enable checkbox only when an API key is defined
                                            dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
                                            dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ADSBX Radar View",
-                                           "https://tar1090.adsbexchange.com/",
-                                           "Check ADS-B Exchange's coverage",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBEX_CHECK_NAME,
+                                           ADSBEX_CHECK_URL,
+                                           ADSBEX_CHECK_POPUP,
                                            HELP_SET_CH_ADSBEX, "Open Help on ADS-B Exchange in Browser",
                                            sFilter, nOpCl))
             {
@@ -300,9 +302,9 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " RealTraffic's web site",
-                                           "https://rtweb.flyrealtraffic.com/",
-                                           "Open RealTraffic's web site, which has a traffic status overview",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " RT_CHECK_NAME,
+                                           RT_CHECK_URL,
+                                           RT_CHECK_POPUP,
                                            HELP_SET_CH_REALTRAFFIC, "Open Help on RealTraffic in Browser",
                                            sFilter, nOpCl))
             {
@@ -336,9 +338,9 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeCbxLinkHelp("ForeFlight", nCol,
                                            DR_CHANNEL_FORE_FLIGHT_SENDER,
                                            "Enable sending data to ForeFlight",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " ForeFlight Mobile EFB",
-                                           "https://foreflight.com/products/foreflight-mobile/",
-                                           "Open ForeFlight's web site about the Mobile EFB",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " FF_CHECK_NAME,
+                                           FF_CHECK_URL,
+                                           FF_CHECK_POPUP,
                                            HELP_SET_CH_FOREFLIGHT, "Open Help on ForeFlight in Browser",
                                            sFilter, nOpCl))
             {
@@ -455,6 +457,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::SameLine();
                     if (ImGui::ColorButton("Blue",  ImVec4(0.0f, 0.94f, 0.94f, 1.0f)))
                         cfgSet(DR_CFG_LABEL_COLOR, COLOR_BLUE);
+                    ImGui::TableNextCell();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -520,10 +523,12 @@ void LTSettingsUI::buildInterface()
                 }
                 
                 if (ImGui::FilteredLabel("Font Scaling", sFilter)) {
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
                     ImGui::SliderInt("##FontScaling", &dataRefs.UIFontScale, 10, 200, "%d%%");
                     ImGui::TableNextCell();
                 }
                 if (ImGui::FilteredLabel("Opacity", sFilter)) {
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
                     ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
                     ImGui::TableNextCell();
                 }
@@ -614,6 +619,8 @@ void LTSettingsUI::buildInterface()
                     if (ImGui::IsItemEdited()) gndVehicleOK = 0;
                     ImGui::TableNextCell();
                 }
+                
+                ImGui::FilteredCfgCheckbox("Enhance models, copies files", sFilter, DR_CFG_COPY_OBJ_FILES, "Replaces dataRefs and textures (if needed) to support more animation and show correct livery, requires disk spaces for copied .obj files");
 
                 if (!*sFilter) ImGui::TreePop();
             } // Modelling Options

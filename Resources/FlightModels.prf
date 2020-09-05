@@ -50,7 +50,7 @@ EXT_CAMERA_VERT_OFS   20    # vertical...
 LIGHT_PATTERN          1    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
 
 [HugeJets:MediumJets]
-GEAR_DEFLECTION        0.75 # [m] main gear deflection during touch-down
+GEAR_DEFLECTION        1.5  # [m] main gear deflection during touch-down
 FLAPS_DURATION        10    # [s] time for full flaps extension from 0% to 100%
 ROTATE_TIME            6    # [s] to rotate, half before lift off, half after
 VSI_INIT_CLIMB      2000    # [ft/min] assumed vsi if take-off-vector not available

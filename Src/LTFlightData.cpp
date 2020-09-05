@@ -2335,7 +2335,7 @@ bool LTFlightData::DetermineAcModel()
     {
         // yea, found something by mdl!
         if (prevType != statData.acTypeIcao) {
-            LOG_MSG(logWARN,ERR_NO_AC_TYPE_BUT_MDL,
+            LOG_MSG(logINFO,ERR_NO_AC_TYPE_BUT_MDL,
                     key().c_str(),
                     statData.man.c_str(), statData.mdl.c_str(),
                     statData.acTypeIcao.c_str());

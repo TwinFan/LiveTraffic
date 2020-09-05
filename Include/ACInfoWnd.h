@@ -119,6 +119,7 @@ public:
     // hide/show all windows, returns new state
     static bool ToggleHideShowAll();
     static bool AreShown() { return bAreShown; }
+    static ACIWnd* GetWnd (const LTFlightData::FDKeyTy& _key);
     static void CloseAll();
     
 };

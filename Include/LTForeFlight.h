@@ -31,6 +31,10 @@
 // MARK: ForeFlight Constants
 //
 
+#define FF_CHECK_NAME           "ForeFlight Mobile EFB"
+#define FF_CHECK_URL            "https://foreflight.com/products/foreflight-mobile/"
+#define FF_CHECK_POPUP          "Open ForeFlight's web site about the Mobile EFB"
+
 #define FOREFLIGHT_NAME        "ForeFlight"
 #define FF_LOCALHOST            "0.0.0.0"
 constexpr size_t FF_NET_BUF_SIZE    = 512;

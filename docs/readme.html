@@ -71,12 +71,13 @@
         <code>LiveTraffic/win_x64/LiveTraffic.xpl</code><br>
         <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
         <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
-        <code>LiveTraffic/Resources/CSL2XSB.py</code><br>
         <code>LiveTraffic/Resources/Doc8643.txt</code><br>
         <code>LiveTraffic/Resources/FlightModels.prf</code><br>
         <code>LiveTraffic/Resources/MapIcons.png</code><br>
         <code>LiveTraffic/Resources/model_typecode.txt</code><br>
+        <code>LiveTraffic/Resources/Obj8DataRefs.txt</code><br>
         <code>LiveTraffic/Resources/related.txt</code><br>
+        <code>LiveTraffic/Resources/RestoreOrig.py</code><br>
     </P>
 
     <h1>Release Notes</h1>
@@ -91,6 +92,69 @@
     
     <P>It is always safe to copy all files found in the LiveTraffic.zip archive
     over an existing installation.</P>
+
+    <h3>v2.10</h3>
+
+    <P>For updating coming from v2.09 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
+        <ul>
+            <li>copy
+                <ul>
+                    <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                    <li><code>Resources/FlightModels.prf</code>,</li>
+                </ul>
+            </li>
+            <li>add the new files
+                <ul>
+                    <li><code>Resources/Obj8DataRefs.txt</code>,</li>
+                    <li><code>Resources/RestoreOrig.py</code>,</li>
+                </ul>
+            <li>remove
+                <ul>
+                    <li><code>Resources/CSL2XSB.py</code>, which is no longer needed,</li>
+                </ul>
+            </li>
+            <li>execute <code>Resources/RestoreOrig.py</code> if you have ever used
+                the <code>CSL2XSB.py</code> script before.</li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>ADDED <a href="https://github.com/TwinFan/XPMP2/issues/4">XPMP2 Issue #4</a>
+            a built-in way of enhancing the CSL models, which previously
+            was done through the <code>CSL2XSB.py</code> script. LiveTraffic
+            now creates necessary copies of .obj files on the fly just before
+            loading them.<br>
+            New <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-csl#modelling-options">CSL Setting</a>
+            <i>Enhance models, copies files</i> controls if such copies are created;
+            requires restart to take effect.<br>
+            If you ever used <code>CSL2XSB.py</code>, then execute the provided
+            <code>Resources/RestoreOrig.py</code> script to restore original
+            CSL model versions. This removes most of what <code>CSL2XSB.py</code>
+            had created, but also what LiveTraffic from now on
+            creates on-the-fly, ie. it can serve as cleanup at any time.<br>
+            If you use <a href="https://csl.x-air.ru/?lang_id=43">X-CSL models</a>
+            then it is recommended to remove them completely and re-download
+            latest models for a clean start.</li>
+        <li>CHANGED color of action buttons in Aircraft List so that it is now
+            better visible when camera/visibility is on/off.</li>
+        <li>CHANGED Help in Info Status Window is now context-sensitive.</li>
+        <li>ADDED web links for checking ccoverage to Info Status Window in the channels' rows.</li>
+        <li>ADDED field "TCAS Id" to list of available columns in Aircraft List</li>
+        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/189">#189</a>
+            handling of aircraft altitude:
+            LiveTraffic now takes <i>barometric</i> altitude from channels
+            instead of <i>geometric</i>, requests current weather from
+            <a href="https://www.aviationweather.gov/metar">AWC</a>
+            (shown in <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status</a>)
+            and corrects altitude internally.
+            While more complex, this approach proved to be more accurate and should
+            reduce number of long landings.</li>
+        <li>CHANGED weight on wheels while landing/taxiing, should end up in
+            correct gear claw angle while taxiing in most models.
+    </ul>
+
 
     <h3>v2.09</h3>
 

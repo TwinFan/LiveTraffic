@@ -34,6 +34,18 @@
 //MARK: ADS-B Exchange
 //
 
+ADSBExchangeConnection::ADSBExchangeConnection () :
+LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
+LTOnlineChannel(),
+LTFlightDataChannel()
+{
+    // purely informational
+    urlName  = ADSBEX_CHECK_NAME;
+    urlLink  = ADSBEX_CHECK_URL;
+    urlPopup = ADSBEX_CHECK_POPUP;
+}
+
+
 // put together the URL to fetch based on current view position
 std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {
@@ -168,13 +180,13 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             dyn.ts =                posTime;
             dyn.pChannel =          this;
             
-            // altitude, if airborne; correct for baro pressure difference
-            const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
+            // altitude, if airborne; fetch barometric altitude here
+            const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
 
             // position and its ground status
             positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
                             jog_sn_nan(pJAc, ADSBEX_LON),
-                            alt_ft * M_per_FT,
+                            dataRefs.WeatherAltCorr_ft(alt_ft) * M_per_FT,  // correct altitude for pressure
                             posTime,
                             dyn.heading);
             pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;

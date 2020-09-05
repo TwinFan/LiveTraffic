@@ -93,13 +93,13 @@ void InfoListWnd::TabActive (ILWTabTy _tab)
     if (activeTab == _tab) return;
     activeTab = _tab;
 
-    // Define window title based on active tab
+    // Define window title and help URL based on active tab
     switch (_tab) {
-        case ILW_TAB_AC_LIST:   wndTitle = LIVE_TRAFFIC " - Aircraft List";     break;
-        case ILW_TAB_MSG:       wndTitle = LIVE_TRAFFIC " - Messages";          break;
-        case ILW_TAB_STATUS:    wndTitle = LIVE_TRAFFIC " - Status / About";    break;
-        case ILW_TAB_SETTINGS:  wndTitle = LIVE_TRAFFIC " - Status Settings";   break;
-        case ILW_TAB_NONE:      wndTitle = LIVE_TRAFFIC;                        break;
+        case ILW_TAB_AC_LIST:   wndTitle = LIVE_TRAFFIC " - Aircraft List";     szHelpURL = HELP_ILW_AC_LIST;   break;
+        case ILW_TAB_MSG:       wndTitle = LIVE_TRAFFIC " - Messages";          szHelpURL = HELP_ILW_MESSAGES;  break;
+        case ILW_TAB_STATUS:    wndTitle = LIVE_TRAFFIC " - Status / About";    szHelpURL = HELP_ILW_STATUS;    break;
+        case ILW_TAB_SETTINGS:  wndTitle = LIVE_TRAFFIC " - Status Settings";   szHelpURL = HELP_ILW_SETTINGS;  break;
+        case ILW_TAB_NONE:      wndTitle = LIVE_TRAFFIC;                        szHelpURL = HELP_ILW;           break;
     }
 }
 
@@ -296,6 +296,18 @@ void InfoListWnd::buildInterface()
         // MARK: Status / About
         if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
             TabActive(ILW_TAB_STATUS);
+
+            // Some info we update only irregularly
+            if (CheckEverySoOften(lastStatusUpdate, 5.0f)) {
+                // Who's in control of TCAS?
+                if (dataRefs.HaveAIUnderControl())
+                    aiCtrlPlugin = LIVE_TRAFFIC;
+                else
+                    aiCtrlPlugin = GetAIControlPluginName();
+                
+                // What's the weather?
+                dataRefs.GetWeather(weatherHPA, weatherStationId, weatherMETAR);
+            }
             
             // Child window for scrolling region
             if (ImGui::BeginChild("StatusAndInfo", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
@@ -314,50 +326,71 @@ void InfoListWnd::buildInterface()
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Aircraft seen in tracking data");
                             if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%lu", mapFd.size());
                             
+                            // TCAS / Multiplayer control
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("TCAS / Multiplayer");
                             if (ImGui::TableSetColumnIndex(1)) {
-                                // LiveTraffic controls AI
-                                if (dataRefs.HaveAIUnderControl()) {
-                                    ImGui::TextUnformatted("controlled by " LIVE_TRAFFIC);
-                                    lastAIPluginCheck = 0.0f;           // ensures we immediately fetch the controlling plugin's name once we are no longer in control
+                                // LiveTraffic has requested AI control
+                                if (dataRefs.AwaitingAIControl()) {
+                                    if (!aiCtrlPlugin.empty())
+                                        ImGui::Text("control requested from %s", aiCtrlPlugin.c_str());
+                                    else
+                                        ImGui::TextUnformatted("control requested");
                                 }
+                                // Some plugin, maybe LiveTraffic, has control:
                                 else {
-                                    if (CheckEverySoOften(lastAIPluginCheck, 5.0f))
-                                        aiCtrlPlugin = GetAIControlPluginName();
-                                    // LiveTraffic has requested AI control
-                                    if (dataRefs.AwaitingAIControl()) {
-                                        if (!aiCtrlPlugin.empty())
-                                            ImGui::Text("control requested from %s", aiCtrlPlugin.c_str());
-                                        else
-                                            ImGui::TextUnformatted("control requested");
-                                    }
-                                    // LiveTraffic is not in control and doesn't want to
-                                    else {
-                                        if (!aiCtrlPlugin.empty())
-                                            ImGui::Text("controlled by %s", aiCtrlPlugin.c_str());
-                                        else
-                                            ImGui::TextUnformatted("not controlled");
-                                    }
+                                    if (!aiCtrlPlugin.empty())
+                                        ImGui::Text("controlled by %s", aiCtrlPlugin.c_str());
+                                    else
+                                        ImGui::TextUnformatted("not controlled");
                                 }
+                            }
+                            
+                            // Weather
+                            ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live Weather");
+                            if (ImGui::TableSetColumnIndex(1)) {
+                                ImGui::Text(weatherStationId.empty() ? "QNH %.f hPa" : "QNH %.f hPa at %s",
+                                            weatherHPA, weatherStationId.c_str());
+                                if (!weatherMETAR.empty())
+                                    ImGui::TextUnformatted(weatherMETAR.c_str());
                             }
 
                             // Status of channels
+                            
+                            // No tracking data channel enabled?
+                            if (!LTFlightDataAnyTrackingChEnabled())
+                            {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(1))
+                                    ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " ERR_CH_NONE_ACTIVE);
+                            }
+                            
+                            // Individual channels' status
                             for (const ptrLTChannelTy& pCh: listFDC) {
                                 ImGui::TableNextRow();
-                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(pCh->ChName());
+                                ImGui::PushID(pCh->ChName());           // helps making link buttons distinguishable
+                                // Channel's link and name
+                                if (ImGui::TableSetColumnIndex(0)) {
+                                    ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT, pCh->urlLink.c_str(),
+                                                     (pCh->urlName + '\n' + pCh->urlPopup).c_str(), true);
+                                    ImGui::SameLine();
+                                    ImGui::TextUnformatted(pCh->ChName());
+                                }
+                                // Channel's status
                                 if (ImGui::TableSetColumnIndex(1)) {
                                     if (pCh.get() == dataRefs.pRTConn)  // special treatment for RealTraffic
                                         ImGui::TextRealTrafficStatus();
                                     else
                                         ImGui::TextUnformatted(pCh->GetStatusText().c_str());
                                 }
+                                ImGui::PopID();
                             }
                         }
                         // INACTIVE!
                         else {
                             ImGui::TableNextRow();
-                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(LIVE_TRAFFIC " is");
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " LIVE_TRAFFIC " is");
                             if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
                         }
                         

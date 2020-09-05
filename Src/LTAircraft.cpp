@@ -1189,8 +1189,10 @@ probeNextTs(0), terrainAlt_m(0.0)
             LOG_MSG(logERR,ERR_AC_CALC_PPOS,fd.key().c_str());
         
         // if we start on the ground then have the gear out already
-        if (IsOnGrnd())
+        if (IsOnGrnd()) {
             gear.SetVal(gear.defMax);
+            gearDeflection.SetVal((gearDeflection.defMin+gearDeflection.defMax)/2);
+        }
         
         // tell the world we've added something
         dataRefs.IncNumAc();
@@ -1306,23 +1308,12 @@ std::string LTAircraft::RelativePositionText ()
         lastNearestAirportCheck = dataRefs.GetMiscNetwTime();
     
         // Find the nearest airport
-        float lat = (float)GetPPos().lat();
-        float lon = (float)GetPPos().lon();
-        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
-                                           &lat, &lon, nullptr,
-                                           xplm_Nav_Airport);
-        if (!navRef)
+        nearestAirportPos.lat() = NAN;
+        nearestAirportPos.lon() = NAN;
+        nearestAirport = GetNearestAirportId(GetPPos(), &nearestAirportPos);
+        if (std::isnan(nearestAirportPos.lat())) {   // no airport found?
             return std::string(GetPPos());
-    
-        // Where is that airport and what's its name?
-        char airportId[32];
-        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
-                          airportId, nullptr, nullptr);
-        
-        // Save the data
-        nearestAirport = airportId;
-        nearestAirportPos.lat() = lat;
-        nearestAirportPos.lon() = lon;
+        }
     }
     
     // determine bearing from airport to position
@@ -1961,6 +1952,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.flashPattern = (XPMPLightsPattern)mdl.LIGHT_PATTERN;
         
         gear.down();
+        gearDeflection.half();
         flaps.up();
     }
     
@@ -1976,8 +1968,10 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     if (ENTERED(FPH_ROTATE)) {
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
-        if (phase == FPH_ROTATE)
+        if (phase == FPH_ROTATE) {
             pitch.max();
+            gearDeflection.min();               // and start easing up on the wheels
+        }
     }
     
     // Lift off
@@ -1985,6 +1979,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // Tires are rotating but shall stop in max 5s
         if (gear.isDown())
             tireRpm.min();                              // "move" to 0
+        gearDeflection.min();
     }
     
     // entered Initial Climb
@@ -2026,6 +2021,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.thrust = 0.3f;
         flaps.down();
         gear.down();
+        gearDeflection.min();
     }
     
     // flare
@@ -2047,9 +2043,9 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         reversers.max();                 // start opening reversers
     }
     
-    // if deflected all the way down: start returning to normal
+    // if deflected all the way down: start returning to on-the-ground normal
     if (gearDeflection.isDown())
-        gearDeflection.min();
+        gearDeflection.half();
 
     if (phase >= FPH_ROLL_OUT || phase == FPH_TAXI) {
         // stop reversers below 80kn

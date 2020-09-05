@@ -106,6 +106,34 @@ IMGUI_API bool ButtonURL(const char* label,
                          ImU32 colBg = IM_COL32(1,1,1,0),
                          const ImVec2& size = ImVec2(0,0));
 
+/// @brief Selectable with handling of disabled and with tooltip
+/// @param label Text on Button
+/// @param p_selected Passes in and receives the selected state
+/// @param bEnabled Is the selectable enabled or disabled (greyed out)?
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param flags are ImGui's standard set of Selectable flags
+/// @param size button size, 0 for either axis means: auto size
+IMGUI_API bool SelectableTooltip(const char* label,
+                                 bool* p_selected,
+                                 bool bEnabled = true,
+                                 const char* tip = nullptr,
+                                 ImGuiSelectableFlags flags = 0,
+                                 const ImVec2& size = ImVec2(0, 0));
+
+/// @brief Selectable with handling of disabled and with tooltip
+/// @param label Text on Button
+/// @param bSelected Currently selected?
+/// @param bEnabled Is the selectable enabled or disabled (greyed out)?
+/// @param tip Tooltip text when hovering over the button (or NULL of none)
+/// @param flags are ImGui's standard set of Selectable flags
+/// @param size button size, 0 for either axis means: auto size
+IMGUI_API bool SelectableTooltip(const char* label,
+                                 bool bSelected,
+                                 bool bEnabled = true,
+                                 const char* tip = nullptr,
+                                 ImGuiSelectableFlags flags = 0,
+                                 const ImVec2& size = ImVec2(0, 0));
+
 /// @brief A checkbox toggling a defined integer dataRef
 /// @param label Checkbox's label
 /// @param idx Index into `DATA_REFS_LT`, defining the integer dataRef to toggle between 0 and 1. Can be -1 for an always deactivated checkbox

@@ -54,6 +54,12 @@ public:
         CHT_MASTER_DATA,
         CHT_TRAFFIC_SENDER,         // sends out data (not receiving)
     };
+    
+public:
+    std::string urlLink;            ///< an URL related to that channel, eg. a radar view for testing coverage, or a home page
+    std::string urlName;            ///< Name for the URL, could show on link buttons
+    std::string urlPopup;           ///< more detailed text, shows eg. as popup when hovering over the link button
+    
 protected:
     dataRefsLT channel;             // id of channel (see dataRef)
 
@@ -236,6 +242,9 @@ bool LTFlightDataShowAircraft();
 void LTFlightDataHideAircraft();
 void LTFlightDataDisable();
 void LTFlightDataStop();
+
+/// Is at least one tracking data channel enabled?
+bool LTFlightDataAnyTrackingChEnabled ();
 
 //
 //MARK: Aircraft Maintenance (called from flight loop callback)

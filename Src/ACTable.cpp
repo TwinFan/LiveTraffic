@@ -85,6 +85,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Gear",             40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Flaps",            40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Lights",          140,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"TCAS Idx",         25,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     
     // This stays last
     {"Actions",         100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_NoSort},
@@ -172,6 +173,13 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v_f(ACT_COL_GEAR,   "%.f%%",    pAc->GetGearPos() * 100.0);
         v_f(ACT_COL_FLAPS,  "%.f%%",    pAc->GetFlapsPos() * 100.0);
         v[ACT_COL_LIGHTS]       = pAc->GetLightsStr();
+        if (pAc->IsCurrentlyShownAsTcasTarget()) {
+            v_f(ACT_COL_TCAS_IDX, "%.f", pAc->GetTcasTargetIdx());
+        } else {
+            vf[ACT_COL_TCAS_IDX] = NAN;
+            v[ACT_COL_TCAS_IDX].clear();
+        }
+            
     }
     // if there is no a/c, but there previously was, then we need to clear a lot of fields
     else if (!v[ACT_COL_POS].empty()) {
@@ -180,7 +188,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
             ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
             ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
             ACT_COL_CSLMDL, ACT_COL_PHASE, ACT_COL_GEAR, ACT_COL_FLAPS,
-            ACT_COL_LIGHTS
+            ACT_COL_LIGHTS, ACT_COL_TCAS_IDX
         })
         { vf[idx] = NAN; v[idx].clear(); }
     }
@@ -298,6 +306,11 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                 // Make sure all the buttons have a unique id
                 ImGui::PushID(fdi.key.c_str());
                 
+                // Make selected buttons more visible: Exchange Hovered (lighter) and std color (darker)
+                const ImU32 colHeader = ImGui::GetColorU32(ImGuiCol_Header);
+                ImGui::PushStyleColor(ImGuiCol_Header,          ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered,   colHeader);
+                
                 // Limit the width of the selectables
                 ImVec2 selSize (ImGui::GetWidthIconBtn(), 0.0f);
                 
@@ -310,45 +323,54 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                 bool bAutoVisible   = pAc ? pAc->IsAutoVisible()    : false;
 
                 // Open a/c info window
-                if (ImGui::SmallButton(ICON_FA_INFO_CIRCLE "##ACIWnd")) {
-                    // Open an ACIWnd, which is another ImGui window, so safe/restore our context
+                ACIWnd* pACIWnd = ACIWnd::GetWnd(fdi.key);
+                if (ImGui::SelectableTooltip(ICON_FA_INFO_CIRCLE "##ACIWnd",
+                                             pACIWnd != nullptr, true,              // selected?, enabled!
+                                             "Open Aircraft Info Window",
+                                             ImGuiSelectableFlags_None, selSize))
+                {
+                    // Toggle a/c info wnd (safe/restore our context as we are now dealing with another ImGui window,
+                    // which can mess up context pointers)
                     ImGuiContext* pCtxt = ImGui::GetCurrentContext();
-                    ACIWnd::OpenNewWnd(fdi.key);
+                    if (pACIWnd) {
+                        delete pACIWnd;
+                        pACIWnd = nullptr;
+                    } else {
+                        ACIWnd::OpenNewWnd(fdi.key);
+                    }
                     ImGui::SetCurrentContext(pCtxt);
+
+                    // Open an ACIWnd, which is another ImGui window, so safe/restore our context
                 }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", "Open Aircraft Info Window");
 
                 // Camera view
                 ImGui::SameLine();
-                if (ImGui::Selectable(ICON_FA_CAMERA "##CameraView",
-                                      pAc ? pAc->IsInCameraView() : false,
-                                      pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                                      selSize))
+                if (ImGui::SelectableTooltip(ICON_FA_CAMERA "##CameraView",
+                                             pAc ? pAc->IsInCameraView() : false,   // selected?
+                                             pAc != nullptr,                        // enabled?
+                                             "Toggle camera view",
+                                             ImGuiSelectableFlags_None, selSize))
                     pAc->ToggleCameraView();
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", "Toggle camera view");
 
                 // Visible
                 ImGui::SameLine();
-                if (ImGui::Selectable(ICON_FA_EYE "##Visible", &bVisible,
-                                      pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                                      selSize))
+                if (ImGui::SelectableTooltip(ICON_FA_EYE "##Visible", &bVisible,
+                                             pAc != nullptr,      // enabled/disabled?
+                                             "Toggle aircraft's visibility",
+                                             ImGuiSelectableFlags_None, selSize))
                     pAc->SetVisible(bVisible);
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", "Toggle aircraft's visibility");
 
                 // "Auto Visible" only if some auto-hiding option is on
                 if (dataRefs.IsAutoHidingActive()) {
                     ImGui::SameLine();
-                    if (ImGui::Selectable(ICON_FA_EYE "##AutoVisible", &bAutoVisible,
-                                          pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                                          selSize))
+                    if (ImGui::SelectableTooltip(ICON_FA_EYE "##AutoVisible", &bAutoVisible,
+                                                 pAc != nullptr,  // enabled/disabled
+                                                 "Toggle aircraft's auto visibility",
+                                                 ImGuiSelectableFlags_None, selSize))
                         pAc->SetAutoVisible(bAutoVisible);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Toggle aircraft's auto visibility");
                 }
                 
+                ImGui::PopStyleColor(2);
                 ImGui::PopID();
             } // action column
         }   // for all a/c rows
@@ -412,7 +434,7 @@ void ACTable::Sort (ACTColumnsTy _col, bool _asc)
     if (gCols.at(_col).colAlign == ImGui::IM_ALIGN_RIGHT ||
         _col == ACT_COL_PHASE) {
         std::sort(vecFDI.begin(), vecFDI.end(),
-                  [_col](const FDInfo& a, const FDInfo& b)
+                  [_col,_asc](const FDInfo& a, const FDInfo& b)
         {
             const float af = a.vf[_col]; const bool a_nan = std::isnan(af);
             const float bf = b.vf[_col]; const bool b_nan = std::isnan(bf);
@@ -420,7 +442,7 @@ void ACTable::Sort (ACTColumnsTy _col, bool _asc)
                 return af < bf;
             if (a_nan && b_nan)         // both NAN -> considered equal, for a stable sort let the key decide
                 return a.key < b.key;
-            return a_nan;               // one of them is NAN -> is it is a then we consider it "less"
+            return a_nan != _asc;       // one of them is NAN -> make NAN appear always at the end
         });
     } else {
         // otherwise we sort by text

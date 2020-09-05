@@ -358,6 +358,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_TAXIING,
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
+    DR_CFG_COPY_OBJ_FILES,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -616,6 +617,7 @@ protected:
     int hideTaxiing     = 0;            // hide a/c while taxiing?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
+    int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
 
     // channel config options
     int rtListenPort    = 10747;        // port opened for RT to connect
@@ -638,6 +640,14 @@ protected:
     int cntAc           = 0;            // number of a/c being displayed
     std::string keyAc;                  // key (transpIcao) for a/c whose data is returned
     const LTAircraft* pAc = nullptr;    // ptr to that a/c
+    
+    // Weather
+    double      altPressCorr_ft = 0.0;  ///< [ft] barometric correction for pressure altitude, in meter
+    float       lastWeatherUpd = 0.0f;  ///< last time the weather was updated? (in XP's network time)
+    float       lastWeatherHPA = HPA_STANDARD; ///< last barometric pressure received
+    positionTy  lastWeatherPos;         ///< last position for which weather was retrieved
+    std::string lastWeatherStationId;   ///< last weather station we got weather from
+    std::string lastWeatherMETAR;       ///< last full METAR string
     
 //MARK: Debug helpers (public)
 public:
@@ -688,7 +698,7 @@ protected:
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
     bool IsXPThread() const { return std::this_thread::get_id() == xpThread; }
-    inline float GetMiscNetwTime() const        { return lastNetwTime; }
+    float GetMiscNetwTime() const;
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
@@ -786,6 +796,7 @@ public:
     inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
     { return hideBelowAGL > 0  || hideTaxiing != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0; }
+    bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();
@@ -799,7 +810,7 @@ public:
     bool SetDefaultCarIcaoType(const std::string type);
     
     // livetraffic/channel/...
-    inline void SetChannelEnabled (dataRefsLT ch, bool bEnable) { bChannel[ch - DR_CHANNEL_FIRST] = bEnable; }
+    void SetChannelEnabled (dataRefsLT ch, bool bEnable);
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
     
@@ -864,6 +875,19 @@ public:
     bool ShallDrawLabels() const;
     bool ShallDrawMapLabels() const { return labelShown.bMap; }
     bool ToggleLabelDraw();                 // returns new value
+    
+    // Weather
+    bool WeatherUpdate ();              ///< check if weather updated needed, then do
+    /// @brief set/update current weather
+    /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
+    void SetWeather (float hPa, float lat, float lon, const std::string& stationId,
+                     const std::string& METAR);
+    /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
+    /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    double WeatherAltCorr_m (double pressureAlt_m) { return pressureAlt_m + altPressCorr_ft * M_per_FT; }
+    /// Thread-safely gets current weather info
+    void GetWeather (float& hPa, std::string& stationId, std::string& METAR);
 };
 
 extern DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT];

@@ -269,6 +269,35 @@ std::string str_first_non_empty ( std::initializer_list<const std::string> l)
 
 // MARK: Other Utility Functions
 
+// Fetch nearest airport id by location
+std::string GetNearestAirportId (const positionTy& _pos,
+                                 positionTy* outApPos)
+{
+    char airportId[33] = "";
+
+    // Find the nearest airport
+    float lat = (float)_pos.lat();
+    float lon = (float)_pos.lon();
+    XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
+                                       &lat, &lon, nullptr,
+                                       xplm_Nav_Airport);
+    if (navRef) {
+        // fetch airport info
+        float alt = 0.0f;
+        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, &alt, nullptr, nullptr,
+                          airportId, nullptr, nullptr);
+        // fill output structure
+        if (outApPos) {
+            outApPos->lat() = lat;
+            outApPos->lon() = lon;
+            outApPos->SetAltFt((double)alt);
+        }
+    }
+    
+    // return the id
+    return airportId;
+}
+
 // Convert an XP network time float to a string
 std::string NetwTimeString (float runS)
 {
@@ -387,6 +416,8 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
+            // Potentially refresh weather information
+            dataRefs.WeatherUpdate();
             // Refresh airport data from apt.dat (in case camera moved far)
             LTAptRefresh();
             // maintenance (add/remove)
@@ -429,6 +460,10 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     }
     // We don't want clamping to the ground, we take care of the ground ourselves
     if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    // Copying .obj files is an advanced setting
+    if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
+        !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))
+        return dataRefs.ShallCpyObjFiles();
     
     // dont' know/care about the option, return the default value
     return iDefault;
@@ -519,6 +554,12 @@ bool LTMainEnable ()
 {
     LOG_ASSERT(dataRefs.pluginState == STATE_INIT);
 
+    // enable the flight loop callback to maintain aircraft
+    XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
+                                      -1.0,     // initial call as fast as possible
+                                      1,        // relative to now
+                                      NULL);
+    
     // Enable fetching flight data
     if (!LTFlightDataEnable()) return false;
 
@@ -547,12 +588,6 @@ bool LTMainShowAircraft ()
     // Enable Multiplayer plane drawing, acquire multiuser planes
     if (!dataRefs.IsAIonRequest())      // but only if not only on request
         LTMainToggleAI(true);
-    
-    // enable the flight loop callback to maintain aircraft
-    XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
-                                      -1.0,     // initial call as fast as possible
-                                      1,        // relative to now
-                                      NULL);
     
     // success
     dataRefs.pluginState = STATE_SHOW_AC;
@@ -686,12 +721,6 @@ void LTMainHideAircraft ()
     // Remove any message about seeing planes
     CreateMsgWindow(float(AC_MAINT_INTVL), 0, 0, -1);
 
-    // disable the flight loop callback
-    XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
-                                      0,            // disable
-                                      1,            // relative to now
-                                      NULL);
-    
     // disable aircraft drawing, free up multiplayer planes
     // (the "soft way", which requires a few more drawing cycles,
     //  this will _not_ work while being shut down)
@@ -713,6 +742,12 @@ void LTMainDisable ()
     
     // disable fetching flight data
     LTFlightDataDisable();
+    
+    // disable the flight loop callback
+    XPLMSetFlightLoopCallbackInterval(LoopCBAircraftMaintenance,
+                                      0,            // disable
+                                      1,            // relative to now
+                                      NULL);
     
     // success
     dataRefs.pluginState = STATE_INIT;

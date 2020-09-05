@@ -29,8 +29,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.09f;
-constexpr bool VERSION_BETA = true;
+constexpr float VERSION_NR = 2.10f;
+constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -58,7 +58,7 @@ constexpr double PI         = 3.141592653589793238462643383279502884197169399375
 constexpr double EARTH_D_M  = 6371.0 * 2 * 1000;    // earth diameter in meter
 constexpr double JAN_FIRST_2019 = 1546344000;   // 01.01.2019
 constexpr double HPA_STANDARD   = 1013.25;      // air pressure
-constexpr double INCH_STANDARD  = 2992.126;
+constexpr double INCH_STANDARD  = 29.92126;
 constexpr double HPA_per_INCH   = HPA_STANDARD/INCH_STANDARD;
 // The pressure drops approximately by 11.3 Pa per meter in first 1000 meters above sea level.
 constexpr double PA_per_M       = 11.3;         // https://en.wikipedia.org/wiki/Barometric_formula
@@ -157,7 +157,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
-#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.com!"
+#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.org!"
 #define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
@@ -166,6 +166,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
+#define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f°, %.2f°)"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
@@ -218,6 +219,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MENU_HELP_DOCUMENTATION "Documentation"
 #define MENU_HELP_FAQ           "FAQ"
 #define MENU_HELP_MENU_ITEMS    "Menu Items"
+#define MENU_HELP_INFO_LIST_WND "Status / Info Window"
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
 #define MENU_NEWVER             "New Version %01.2f available!"
@@ -230,6 +232,11 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_URL                "https://twinfan.gitbook.io/livetraffic/"
 #define HELP_FAQ                "reference/faq"
 #define HELP_MENU_ITEMS         "using-lt/menu-items"
+#define HELP_ILW                "using-lt/info-list-window"
+#define HELP_ILW_AC_LIST        "using-lt/info-list-window/aircraft-list"
+#define HELP_ILW_MESSAGES       "using-lt/info-list-window/messages"
+#define HELP_ILW_STATUS         "using-lt/info-list-window/status-about"
+#define HELP_ILW_SETTINGS       "using-lt/info-list-window/ui-settings"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
@@ -243,7 +250,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
-#define HELP_ILW                "using-lt/info-list-window"
 
 //MARK: File Paths
 // these are under the plugins directory
@@ -289,7 +295,8 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
 #define ERR_HTTP_NOT_OK         "HTTP response was not HTTP_OK"
 #define ERR_FOUND_NO_VER_INFO   "Found no version info in response"
-#define ERR_CH_NONE_ACTIVE      "No enabled active channel for tracking data! Check Basic Settings and enable channels."
+#define ERR_CH_NONE_ACTIVE1     "No enabled active channel for tracking data!"
+#define ERR_CH_NONE_ACTIVE      ERR_CH_NONE_ACTIVE1 " Check Basic Settings and enable channels."
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
 #define ERR_CH_INVALID          "%s: Channel invalid and disabled"
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"

@@ -253,10 +253,13 @@ constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 ************************************************************************************/
 
 // Config section is defined for legacy reasons only
+#define XPMP_CFG_SEC_MODELS          "models"               ///< Config section "models"
 #define XPMP_CFG_SEC_PLANES          "planes"               ///< Config section "planes"
 #define XPMP_CFG_SEC_DEBUG           "debug"                ///< Config section "debug"
 
 // Config key definitions
+#define XPMP_CFG_ITM_REPLDATAREFS    "replace_datarefs"     ///< Config key: Replace dataRefs in OBJ8 files upon load, creating new OBJ8 files for XPMP2 (defaults to OFF!)
+#define XPMP_CFG_ITM_REPLTEXTURE     "replace_texture"      ///< Config key: Replace textures in OBJ8 files upon load if needed (specified on the OBJ8 line in xsb_aircraft.txt), creating new OBJ8 files
 #define XPMP_CFG_ITM_CLAMPALL        "clamp_all_to_ground"  ///< Config key: Ensure no plane sinks below ground, no matter of XPMP2::Aircraft::bClampToGround
 #define XPMP_CFG_ITM_LOGLEVEL        "log_level"            ///< Config key: General level of logging into `Log.txt` (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)
 #define XPMP_CFG_ITM_MODELMATCHING   "model_matching"       ///< Config key: Write information on model matching into `Log.txt`
@@ -267,12 +270,14 @@ constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 ///          \n
 /// `section | key                 | type | default | description`\n
 /// `------- | ------------------- | ---- | ------- | -------------------------------------------------------------------------`\n
+/// `models  | replace_datarefs    | int  |    0    | Replace dataRefs in OBJ8 files upon load, creating new OBJ8 files for XPMP2 (defaults to OFF!)`\n
+/// `models  | replace_texture     | int  |    1    | Replace textures in OBJ8 files upon load if needed (specified on the OBJ8 line in xsb_aircraft.txt), creating new OBJ8 files`\n
 /// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround`\n
 /// `debug   | log_level           | int  |    2    | General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)`\n
 /// `debug   | model_matching      | int  |    0    | Write information on model matching into Log.txt`\n
 /// @note There is no immediate requirement to check the value of `_section` in your implementation.
 ///       `_key` by itself is unique. Compare it with any of the `XPMP_CFG_ITM_*` values and return your value.
-/// @param _section Configuration section, ie. group of values, any of the `XPMP_CFG_SEC_*` values
+/// @param _section Configuration section, ie. group of values, any of the `XPMP_CFG_SEC_...` values
 /// @param _key Any of the `XPMP_CFG_ITM_*` values to indicate which config value is to be returned.
 /// @param _default A default provided by XPMP2. Have your callback return `_default` if you don't want to explicitely set a value or don't know the `_key`.
 /// @return Your callback shall return your config value for config item `_key`
@@ -294,7 +299,7 @@ const char *    XPMPMultiplayerInitLegacyData(const char* inCSLFolder,
 /// @brief Initializes the XPMP2 library. This shall be your first call to the library.
 /// @note Parameters changed compared to libxplanemp!
 /// @param inPluginName Your plugin's name, mainly used as map layer name and for logging
-/// @param resourceDir The directory where XPMP2 finds all required supplemental files (`Doc8643.txt`, `MapIcons.png`, `related.txt`)
+/// @param resourceDir The directory where XPMP2 finds all required supplemental files (`Doc8643.txt`, `MapIcons.png`, `related.txt`, optionally `Obj8DataRefs.txt`)
 /// @param inIntPrefsFunc (optional) A pointer to a callback function providing integer config values. See ::XPMPIntPrefsFuncTy for details.
 /// @param inDefaultICAO (optional) A fallback aircraft type if no type can be deduced otherwise for an aircraft.
 /// @param inPluginLogAcronym (optional) A short text to be used in log output. If not given then `inPluginName` is used also for this purpose.

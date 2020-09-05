@@ -476,6 +476,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -542,6 +543,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
         case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
+        case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options
@@ -871,6 +873,15 @@ bool DataRefs::RegisterCommands()
     return bRet;
 }
 
+// Return current network time
+// In main thred read directly from the dataRef, otherwise a cached value
+float DataRefs::GetMiscNetwTime() const
+{
+    if (IsXPThread())
+        return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
+    else
+        return lastNetwTime;
+}
 
 /// Set the view type, translating from XPViewTypes to command ref needed
 void DataRefs::SetViewType(XPViewTypes vt)
@@ -1986,6 +1997,19 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
     return false;
 }
 
+// Set the channel's status
+void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
+{
+    bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
+    // if a channel got disabled check if any tracking data channel is left
+    if (!bEnable && AreAircraftDisplayed() &&   // just diabled? Activated for aircraft display?
+        !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
+    {
+        LOG_MSG(logERR, ERR_CH_NONE_ACTIVE);
+    }
+}
+
+
 // how many channels are enabled?
 int DataRefs::CntChannelEnabled () const
 {
@@ -2122,4 +2146,95 @@ bool DataRefs::ToggleLabelDraw()
     // Situation = Internal View
     else
         return (labelShown.bInternal = !labelShown.bInternal);
+}
+
+//
+// MARK: Weather
+//
+
+/// Weather to be updated this period
+constexpr float WEATHER_UPD_PERIOD = 600.0f;
+constexpr double WEATHER_UPD_DIST = 25.0 * M_per_NM;
+
+// check if weather updated needed, then do
+bool DataRefs::WeatherUpdate ()
+{
+    // protected against updates from the weather thread
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+
+    // Our current camera position
+    positionTy camPos = GetViewPos();
+    camPos.LocalToWorld();
+    
+    // So...do we need an update?
+    if (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
+        lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime() ||  // waited long enough?
+        camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST)             // travelled far enough?
+    {
+        // Trigger a weather update; this is an asynch operation
+        return ::WeatherUpdate(camPos, WEATHER_UPD_DIST/M_per_NM);  // travel distances [m] doubles as weather search distance [nm]
+    }
+    return false;
+}
+
+// Called by the asynch process spawned by ::WeatherUpdate to inform us of the weather
+void DataRefs::SetWeather (float hPa, float lat, float lon,
+                           const std::string& stationId,
+                           const std::string& METAR)
+{
+    // protected against reads from the main thread
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    
+    // Compute the new altitude correction and save its position and time
+    altPressCorr_ft = (hPa - HPA_STANDARD) * FT_per_HPA;
+    lastWeatherUpd = GetMiscNetwTime();
+    lastWeatherStationId = stationId;
+    lastWeatherMETAR = METAR;
+    
+    // if no position is given we have two options:
+    if (std::isnan(lat) || std::isnan(lon)) {
+        // try finding the coordinates from XP's navigation database
+        XPLMNavRef hRef =
+        stationId.empty() ? 0 :
+        XPLMFindNavAid(nullptr, stationId.c_str(),
+                       nullptr, nullptr, nullptr,
+                       xplm_Nav_Airport);
+        if (hRef) {
+            XPLMGetNavAidInfo(hRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
+                              nullptr, nullptr, nullptr);
+            lastWeatherPos.lat() = (double)lat;
+            lastWeatherPos.lon() = (double)lon;
+        } else
+            // last resort: current camera position
+            lastWeatherPos = GetViewPos();
+    } else {
+        // if given we use passed-in position
+        lastWeatherPos.lat() = (double)lat;
+        lastWeatherPos.lon() = (double)lon;
+    }
+    
+    // If we didn't get a station id we can find a matching airport now
+    if (lastWeatherStationId.empty())
+        lastWeatherStationId = GetNearestAirportId(lastWeatherPos);
+    
+    // Did weather change?
+    if (!dequal(lastWeatherHPA, hPa)) {
+        LOG_MSG(logINFO, INFO_WEATHER_UPDATED, hPa,
+                lastWeatherStationId.c_str(),
+                lastWeatherPos.lat(), lastWeatherPos.lon());
+    }
+    
+    // Finally: Save the new pressure
+    lastWeatherHPA = hPa;
+}
+
+// Thread-safely gets current weather info
+void DataRefs::GetWeather (float& hPa, std::string& stationId, std::string& METAR)
+{
+    // protected against reads from the main thread
+    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    
+    hPa = lastWeatherHPA;
+    stationId = lastWeatherStationId;
+    METAR = lastWeatherMETAR;
 }
