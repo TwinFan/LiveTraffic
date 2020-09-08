@@ -3,7 +3,7 @@
 #               Set up to be used in a Visual Studio environment to build win (File > Open > Folder, then VS recognized the CMAKE configuration)
 
 cmake_minimum_required(VERSION 3.16)
-project(LiveTraffic VERSION 2.10 DESCRIPTION "LiveTraffic X-Plane plugin" LANGUAGES C CXX)
+project(LiveTraffic VERSION 2.20 DESCRIPTION "LiveTraffic X-Plane plugin" LANGUAGES C CXX)
 
 # By default, use optimized release configuration.
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -66,6 +66,7 @@ set(Header_Files
     Include/LTFlightData.h
     Include/LTForeFlight.h
     Include/LTImgWindow.h
+    Include/LTOpenGlider.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/LTWeather.h
@@ -107,6 +108,7 @@ set(Source_Files
     Src/LTForeFlight.cpp
     Src/LTImgWindow.cpp
     Src/LTMain.cpp
+    Src/LTOpenGlider.cpp
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp
     Src/LTVersion.cpp

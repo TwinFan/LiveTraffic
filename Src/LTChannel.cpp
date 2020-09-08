@@ -587,6 +587,7 @@ bool LTFlightDataEnable()
         listFDC.emplace_back(new RealTrafficConnection(mapFd));
         listFDC.emplace_back(new OpenSkyConnection);
         listFDC.emplace_back(new ADSBExchangeConnection);
+        listFDC.emplace_back(new OpenGliderConnection);
         // load online master data connections
         listFDC.emplace_back(new OpenSkyAcMasterdata);
         // load other channels

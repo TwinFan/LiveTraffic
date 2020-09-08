@@ -24,6 +24,7 @@
 /// Indexes for the columns we offer
 enum ACTColumnsTy {
     ACT_COL_KEY = 0,        ///< unique key, typically hex transponder code or FLARM id
+    ACT_COL_KEY_TYPE,       ///< Transponder Code, Flarm Id etc...
     ACT_COL_ID,             ///< some id, same as "any id" in label config
     ACT_COL_REG,            ///< registration / tail number
     
@@ -31,6 +32,7 @@ enum ACTColumnsTy {
     ACT_COL_CLASS,          ///< ICAO aircraft class (like "L4J")
     ACT_COL_MAN,            ///< manufacturer (human-readable)
     ACT_COL_MDL,            ///< model (human-readable)
+    ACT_COL_CAT_DESCR,      ///< category description
     ACT_COL_OP,             ///< operator
     
     ACT_COL_CALLSIGN,       ///< call sign

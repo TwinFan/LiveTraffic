@@ -129,6 +129,7 @@ extern DataRefs dataRefs;
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
+#include "LTOpenGlider.h"
 
 //MARK: Global Control functions
 bool LTMainInit ();

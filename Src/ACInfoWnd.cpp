@@ -217,6 +217,8 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
 // Main function to render the window's interface
 void ACIWnd::buildInterface()
 {
+    char buf[50];
+    
     // (maybe) update the focus a/c
     UpdateFocusAc();
     
@@ -263,7 +265,10 @@ void ACIWnd::buildInterface()
     
         // MARK: --- Identification ---
         ImGui::TableNextRow();
-        bool bOpen = ImGui::TreeNodeEx("A/C key", CollSecGetSet(ACI_SB_IDENTIFICATION) | ImGuiTreeNodeFlags_SpanFullWidth);
+        snprintf(buf, sizeof(buf), pFD ? "A/C key (%s)" : "A/C key",    // add the key's type to the label
+                 pFD ? pFD->key().GetKeyTypeText() : "");
+        bool bOpen = ImGui::TreeNodeEx(buf,
+                                       CollSecGetSet(ACI_SB_IDENTIFICATION) | ImGuiTreeNodeFlags_SpanFullWidth);
         ImGui::TableNextCell();
         if (ImGui::BeginTable("KeyOrAUTO", 2))
         {

@@ -29,8 +29,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.10f;
-constexpr bool VERSION_BETA = false;
+constexpr float VERSION_NR = 2.20f;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -48,6 +48,7 @@ constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a
 constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
 constexpr int M_per_KM      = 1000;
 constexpr double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
+constexpr double NM_per_KM  = 1000.0 / double(M_per_NM);
 constexpr int SEC_per_M     = 60;       // 60 seconds per minute
 constexpr int SEC_per_H     = 3600;     // 3600 seconds per hour
 constexpr int H_per_D       = 24;       // 24 hours per day
@@ -146,7 +147,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LIVE_TRAFFIC_XPMP2      "   LT"      ///< short form for logging by XPMP2, so that log entries are aligned
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
-#define LT_CFG_VERSION          "1.1"        // current version of config file format
+#define LT_CFG_VER_DEL_IMGUI    "1.1"        // cfg file version, for which we need to remove imgui config file (as we added a column into the aircraft list)
+#define LT_CFG_VERSION          "2.2"        // current version of config file format
 #define LT_FM_VERSION           "2.0"        // version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
@@ -243,6 +245,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
 #define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
+#define HELP_SET_CH_OPENGLIDER  "setup/installation/openglider"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"

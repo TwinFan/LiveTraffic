@@ -29,6 +29,7 @@
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		25850BF723F7605500905D9F /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25850BF623F7605500905D9F /* libz.tbd */; };
 		258790A923020C5700129569 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 258790A823020C5700129569 /* libcurl.framework */; };
+		259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 259EC47925057815009B86F3 /* LTOpenGlider.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25ABF65A226E2F77008365AF /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A095F52203B0C500658AA8 /* XPLM.framework */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
@@ -129,6 +130,8 @@
 		2591F96A219700AD00F0D436 /* LTFlightradar24.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightradar24.h; sourceTree = "<group>"; };
 		2591F96B219700C200F0D436 /* LTFlightradar24.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightradar24.cpp; sourceTree = "<group>"; };
 		2593063D22DB411500C82D4F /* LTAPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAPI.h; sourceTree = "<group>"; };
+		259EC47825057802009B86F3 /* LTOpenGlider.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTOpenGlider.h; sourceTree = "<group>"; };
+		259EC47925057815009B86F3 /* LTOpenGlider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTOpenGlider.cpp; sourceTree = "<group>"; };
 		25A095BE2203B01300658AA8 /* TextIO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TextIO.h; sourceTree = "<group>"; };
 		25A095BF2203B01300658AA8 /* LTFlightData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFlightData.h; sourceTree = "<group>"; };
 		25A095C02203B01300658AA8 /* CoordCalc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordCalc.h; sourceTree = "<group>"; };
@@ -331,6 +334,7 @@
 				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
 				2515F41F248D022B00F18B76 /* LTImgWindow.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
+				259EC47925057815009B86F3 /* LTOpenGlider.cpp */,
 				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
 				2573631922233008005210C5 /* LTRealTraffic.cpp */,
 				25ABEEFD219A1C2100F61413 /* LTVersion.cpp */,
@@ -464,6 +468,7 @@
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
 				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
 				2515F41E248CF59C00F18B76 /* LTImgWindow.h */,
+				259EC47825057802009B86F3 /* LTOpenGlider.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
 				254F278724EF22FE00CACCDA /* LTWeather.h */,
@@ -814,6 +819,7 @@
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
 				25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */,
+				259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

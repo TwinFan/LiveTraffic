@@ -249,6 +249,19 @@ bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
             t == ogn);
 }
 
+// return the type of key (as string)
+const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
+{
+    switch (eKeyType) {
+        case KEY_UNKNOWN:   return "unknown";
+        case KEY_OGN:       return "OGN";
+        case KEY_RT:        return "RealTraffic";
+        case KEY_FLARM:     return "FLARM";
+        case KEY_ICAO:      return "ICAO";
+    }
+    return "unknown";
+}
+
 
 //
 //MARK: Flight Data

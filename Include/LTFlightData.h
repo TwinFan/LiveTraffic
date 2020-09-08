@@ -201,6 +201,9 @@ public:
         
         // matches any string?
         bool isMatch (const std::string t) const;
+        
+        /// return the type of key (as string)
+        const char* GetKeyTypeText () const;
     };
 protected:
     FDKeyTy acKey;

@@ -1,13 +1,17 @@
 TODO
 ===
 
+OGN
+- Show Category in A/C Info Wnd
+- Configuration for A/C Types
+- Flight models for Gliders and the like...
+
+Workaround for Backspace in VR (Mark Cellis found one)
+
 Add Nose-wheel steering angle
 
 ImGui
-- A/c info has too short initial length for when data is shown
-- Implement a generic searchable plane list
 - Add plane selection to A/C Info
-- Add new status window
 
 - In Later version reduce ERR_CFG_FILE_MAXWARN to 5 again
 

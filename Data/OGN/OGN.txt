@@ -1,0 +1,79 @@
+Tracking Data
+==============
+
+http://live.glidernet.org/lxml.php?a=0&b=51.0&c=49.0&d=10.0&e=5.0
+
+http://live.glidernet.org/lxml.php?a=0&b=51.0&c=49.0&d=10.0&e=5.0
+
+a = all (0 - false, 1 - would show offline aircraft)
+b/c = max/min latitude
+d/e = max/min longitude
+
+<markers>
+<style class="darkreader darkreader--fallback">html, body, body :not(iframe) { background-color: #181a1b !important; border-color: #776e62 !important; color: #e8e6e3 !important; }</style>
+<m a="49.815819,7.957970,ADA,D-HYAF,188  ,21:20:27,318,343,11        ,-2.0        ,3       ,Waldalg3,3E1205   ,24064512"/>
+<m a="50.135269,8.654720,TWR,TWR,388,20:56:21,16,0,0,-0.1,15,EDFZ,D0077D,cd828b97"/>
+<m a="50.007050,8.655470,_fc,fa8a79fc,154,20:56:09,28,0,0,0.1,15,HochschDA,0,fa8a79fc"/>
+<m a="49.503948,8.032700,,,314,20:52:32,245,141,2,0.0,7,SKXFWD,112235,85a772bb"/>
+</markers>
+
+
+   a="lat      ,lon     ,CN ,reg   ,alt_m,ts      ,age_s,trk,speed_km_h,vert_m_per_s,a/c type,receiver,device id,OGN registration id"
+<m a="49.815819,7.957970,ADA,D-HYAF,188  ,21:20:27,318  ,343,11        ,-2.0        ,3       ,Waldalg3,3E1205   ,24064512"/>
+
+.::Aircraft::..
+CN: ADA
+Regist.: D-HYAF
+Device Id: 3E1205
+Type: Helicopter
+Model: Helicopter
+Last time: 21:20:27
+Latitude: 49.815819
+Longitude: 7.95797
+Altitude: 188 m
+G.Speed: 11 km/h
+Track: 343 °
+Vz: –2.0 m/s
+Receiver: Waldalg3 (18 Km)
+
+
+<m a="48.077679,11.564570,ADA,D-HBYA,713,19:37:27,15,325,80,-1.7,3,MunOst,A12345,c89ccc2f"/>
+
+.::Aircraft::..
+CN: ADA
+Regist.: D-HBYA
+Device Id: A12345
+Type: Helicopter
+Model: EC 135
+Last time: 21:37:27
+Latitude: 48.077679
+Longitude: 11.56457
+Altitude: 713 m
+G.Speed: 80 km/h
+Track: 325 °
+Vz: –1.7 m/s
+Receiver: MunOst (7 Km)
+
+<m a="47.118969,9.523870,_c3,a85c13c3,439,19:37:27,375,172,11,0.0,6,FNB110675,0,a85c13c3"/>
+
+.::Aircraft::..
+CN: _c3
+Regist.: a85c13c3
+Device Id: hidden
+Type: Hangglider
+Last time: 21:37:27
+Latitude: 47.118969
+Longitude: 9.52387
+Altitude: 439 m
+G.Speed: 11 km/h
+Track: 172 °
+Vz: +0.0 m/s
+Receiver: FNB110675 (?)
+
+
+
+Aircraft Master Data
+======================
+
+http://ddb.glidernet.org/download/
+

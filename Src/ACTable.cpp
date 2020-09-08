@@ -49,6 +49,7 @@ public:
 /// Names all the available columns
 std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Key",              60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"Key Type",         60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"ID",               60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultSort},
     {"Registration",     60},
     
@@ -56,6 +57,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Class",            35,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Manufacturer",    100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Model",           100},
+    {"Category Descr.", 100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Operator",        100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     
     {"Call Sign",        60},
@@ -110,7 +112,8 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
 
     bUpToDate = true;
     v[ACT_COL_KEY] = key = fd.key();    // possible without lock
-    
+    v[ACT_COL_KEY_TYPE]  = key.GetKeyTypeText();
+
     // try fetching some static data
     LTFlightData::FDStaticData stat;
     if (fd.TryGetSafeCopy(stat)) {
@@ -120,6 +123,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v[ACT_COL_CLASS]        = Doc8643::get(stat.acTypeIcao).classification;
         v[ACT_COL_MAN]          = stat.man;
         v[ACT_COL_MDL]          = stat.mdl;
+        v[ACT_COL_CAT_DESCR]    = stat.catDescr;
         v[ACT_COL_OP]           = stat.op;
         v[ACT_COL_CALLSIGN]     = stat.call;
         v[ACT_COL_FLIGHT]       = stat.flight;

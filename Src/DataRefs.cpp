@@ -1694,7 +1694,7 @@ int DataRefs::DecNumAc()
 bool DataRefs::LoadConfigFile()
 {
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM, CFG_DEL_IMGUI_CFG } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1713,8 +1713,7 @@ bool DataRefs::LoadConfigFile()
     }
     
     // *** VERSION ***
-    // first line is supposed to be the version - and we know of exactly one:
-    // read entire line
+    // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
     if (!safeGetline(fIn, lnBuf) ||                     // read a line
@@ -1728,10 +1727,15 @@ bool DataRefs::LoadConfigFile()
     // 2. is version / test for older version for which a conversion is to be done?
     if (ln[1] == LT_CFG_VERSION)            conv = CFG_NO_CONV;
     else if (ln[1] == LT_CFG_VER_NM_CONV)   conv = CFG_KM_2_NM;
+    else if (ln[1] == LT_CFG_VER_DEL_IMGUI) conv = CFG_DEL_IMGUI_CFG;
     else {
         SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
         return false;
     }
+    
+    // *** Delete LiveTraffic_imgui.prf? ***
+    if (conv == CFG_DEL_IMGUI_CFG)
+        std::remove(IMGUI_INI_PATH);
     
     // *** DataRefs ***
     // then follow the config entries
@@ -1780,6 +1784,7 @@ bool DataRefs::LoadConfigFile()
                                                   double(M_per_KM) / double(M_per_NM)));
                         }
                         break;
+                    case CFG_DEL_IMGUI_CFG: break;
                 }
                 
                 // *** valid config entry, now process it ***

@@ -297,6 +297,24 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
 
+            // --- Open Glider Network ---
+            if (ImGui::TreeNodeCbxLinkHelp("Open Glider Network", nCol,
+                                           DR_CHANNEL_OPEN_GLIDER_NET, "Enable OGN tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " "  OPGLIDER_CHECK_NAME,
+                                           OPGLIDER_CHECK_URL,
+                                           OPGLIDER_CHECK_POPUP,
+                                           HELP_SET_CH_OPENGLIDER, "Open Help on Open Glider Network in Browser",
+                                           sFilter, nOpCl))
+            {
+                // TODO: OGN: Map the aircraft types to ICAO types
+                if (ImGui::FilteredLabel("Aircraft Types", sFilter)) {
+                    ImGui::TextUnformatted("Map FLARM's aircraft types to ICAO types for model matching:");
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
             // --- RealTraffic ---
             const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
