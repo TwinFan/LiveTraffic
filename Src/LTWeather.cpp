@@ -78,10 +78,13 @@
 /// The request URL, parameters are in this order: radius, longitude, latitude
 const char* WEATHER_URL="https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&radialDistance=%.f;%.2f,%.2f&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
 
+/// Maximum search radius [nm]
+constexpr float MAX_WEATHER_RADIUS_NM = 100.0f;
+
 // Error messages
 #define ERR_WEATHER_REQU        "Could not request weather from aviationweather.gov: HTTP return code %d"
 #define ERR_WEATHER_ERROR       "Weather request returned with error: %s"
-#define ERR_WEATHER_INCOMPLETE  "Weather response did not include pressure!"
+#define WARN_NO_WEATHER         "Found no weather in a %.fnm radius"
 
 /// return the value between two xml tags
 std::string GetXMLValue (const std::string& _r, const std::string& _tag,
@@ -151,8 +154,7 @@ bool WeatherProcessResponse (const std::string& _r)
         return true;
     }
 
-    // didn't find pressure!
-    LOG_MSG(logERR, ERR_WEATHER_INCOMPLETE);
+    // didn't find weather!
     return false;
 }
 
@@ -176,7 +178,6 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
     
     bool bRet = false;
     try {
-
         char curl_errtxt[CURL_ERROR_SIZE];
         char url[255];
         std::string readBuf;
@@ -187,55 +188,73 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
             LOG_MSG(logERR,ERR_CURL_EASY_INIT);
             return false;
         }
-        
-        // put together the URL, convert nautical to statute miles
-        snprintf(url, sizeof(url), WEATHER_URL, _radius_nm / 1.151f, _lon, _lat);
-        
-        // prepare the handle with the right options
-        readBuf.reserve(CURL_MAX_WRITE_SIZE);
-        curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
-        curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-        curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WeatherFetchCB);
-        curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
-        curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-        curl_easy_setopt(pCurl, CURLOPT_URL, url);
 
-        // perform the HTTP get request
-        CURLcode cc = CURLE_OK;
-        if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
-        {
-            // problem with querying revocation list?
-            if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
-                // try not to query revoke list
-                curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
-                // and just give it another try
-                cc = curl_easy_perform(pCurl);
+        // Loop in case we need to re-do a request with larger radius
+        bool bRepeat = false;
+        do {
+            bRepeat = false;
+
+            // put together the URL, convert nautical to statute miles
+            snprintf(url, sizeof(url), WEATHER_URL, _radius_nm / 1.151f, _lon, _lat);
+
+            // prepare the handle with the right options
+            readBuf.reserve(CURL_MAX_WRITE_SIZE);
+            curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+            curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+            curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+            curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WeatherFetchCB);
+            curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+            curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+            curl_easy_setopt(pCurl, CURLOPT_URL, url);
+
+            // perform the HTTP get request
+            CURLcode cc = CURLE_OK;
+            if ((cc = curl_easy_perform(pCurl)) != CURLE_OK)
+            {
+                // problem with querying revocation list?
+                if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+                    // try not to query revoke list
+                    curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+                    LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+                    // and just give it another try
+                    cc = curl_easy_perform(pCurl);
+                }
+
+                // if (still) error, then log error
+                if (cc != CURLE_OK)
+                    LOG_MSG(logERR, ERR_CURL_NOVERCHECK, cc, curl_errtxt);
             }
-            
-            // if (still) error, then log error
-            if (cc != CURLE_OK)
-                LOG_MSG(logERR, ERR_CURL_NOVERCHECK, cc, curl_errtxt);
-        }
-        
-        if (cc == CURLE_OK)
-        {
-            // CURL was OK, now check HTTP response code
-            long httpResponse = 0;
-            curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-            
-            // not HTTP_OK?
-            if (httpResponse != HTTP_OK) {
-                LOG_MSG(logERR, ERR_WEATHER_REQU, (int)httpResponse);
-            } else {
-                // Success: Process data
-                bRet = WeatherProcessResponse (readBuf);
+
+            if (cc == CURLE_OK)
+            {
+                // CURL was OK, now check HTTP response code
+                long httpResponse = 0;
+                curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+
+                // not HTTP_OK?
+                if (httpResponse != HTTP_OK) {
+                    LOG_MSG(logERR, ERR_WEATHER_REQU, (int)httpResponse);
+                }
+                else {
+                    // Success: Process data
+                    bRet = WeatherProcessResponse(readBuf);
+                    // Not found weather yet?
+                    if (!bRet) {
+                        LOG_MSG(logWARN, WARN_NO_WEATHER, _radius_nm);
+                        if (_radius_nm < MAX_WEATHER_RADIUS_NM) {
+                            _radius_nm = MAX_WEATHER_RADIUS_NM;
+                            bRepeat = true;
+                        }
+                    }
+                }
             }
-        }
+        } while (bRepeat);
         
         // cleanup CURL handle
         curl_easy_cleanup(pCurl);
+    }
+    catch (const std::exception& e) {
+        LOG_MSG(logERR, "Fetching weather failed with exception %s", e.what());
     }
     catch (...) {
         LOG_MSG(logERR, "Fetching weather failed with exception");

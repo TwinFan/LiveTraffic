@@ -645,7 +645,7 @@ const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
 //MARK: DataRefs Constructor - just plain variable init, no API calls
 
 /// Mutex guarding updates to cached values
-static std::mutex mutexDrUpdate;
+static std::recursive_mutex mutexDrUpdate;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel),
@@ -906,7 +906,7 @@ positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) co
         return lastUsersPlanePos;
     } else {
         // in a worker thread, we need to have the lock, and copy before release
-        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
         positionTy ret = lastUsersPlanePos;
         trueAirspeed_m = lastUsersTrueAirspeed;
         track = lastUsersTrack;
@@ -2055,7 +2055,7 @@ void DataRefs::ChTsOffsetAdd (double aNetTS)
 // update all cached values for thread-safe access
 void DataRefs::UpdateCachedValues ()
 {
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
     lastVREnabled =                         // is VR enabled?
@@ -2105,7 +2105,7 @@ positionTy DataRefs::GetViewPos()
     else
     {
         // calling from another thread: safely copy the cached value
-        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
         positionTy camPos = lastCamPos;
         lock.unlock();
         return camPos;
@@ -2121,7 +2121,7 @@ double DataRefs::GetViewHeading()
     else
     {
         // calling from another thread: safely copy the cached value
-        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
         double h = lastCamPos.heading();
         lock.unlock();
         return h;
@@ -2157,15 +2157,15 @@ bool DataRefs::ToggleLabelDraw()
 // MARK: Weather
 //
 
-/// Weather to be updated this period
-constexpr float WEATHER_UPD_PERIOD = 600.0f;
-constexpr double WEATHER_UPD_DIST = 25.0 * M_per_NM;
+constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
+constexpr double WEATHER_UPD_DIST = 25.0 * M_per_NM;    ///< [m] Weather to be updated if moved more than this far from last weather update position
+constexpr float  WEATHER_SEARCH_RADIUS = 25;            ///< [nm] Search for latest weather reports in this radius
 
 // check if weather updated needed, then do
 bool DataRefs::WeatherUpdate ()
 {
     // protected against updates from the weather thread
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     // Our current camera position
     positionTy camPos = GetViewPos();
@@ -2188,39 +2188,19 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
                            const std::string& METAR)
 {
     // protected against reads from the main thread
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
     
     // Compute the new altitude correction and save its position and time
     altPressCorr_ft = (hPa - HPA_STANDARD) * FT_per_HPA;
-    lastWeatherUpd = GetMiscNetwTime();
+    lastWeatherPos = GetViewPos();              // here and...
+    lastWeatherUpd = GetMiscNetwTime();         // ...now
     lastWeatherStationId = stationId;
     lastWeatherMETAR = METAR;
     
-    // if no position is given we have two options:
-    if (std::isnan(lat) || std::isnan(lon)) {
-        // try finding the coordinates from XP's navigation database
-        XPLMNavRef hRef =
-        stationId.empty() ? 0 :
-        XPLMFindNavAid(nullptr, stationId.c_str(),
-                       nullptr, nullptr, nullptr,
-                       xplm_Nav_Airport);
-        if (hRef) {
-            XPLMGetNavAidInfo(hRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
-                              nullptr, nullptr, nullptr);
-            lastWeatherPos.lat() = (double)lat;
-            lastWeatherPos.lon() = (double)lon;
-        } else
-            // last resort: current camera position
-            lastWeatherPos = GetViewPos();
-    } else {
-        // if given we use passed-in position
-        lastWeatherPos.lat() = (double)lat;
-        lastWeatherPos.lon() = (double)lon;
-    }
-    
     // If we didn't get a station id we can find a matching airport now
-    if (lastWeatherStationId.empty())
-        lastWeatherStationId = GetNearestAirportId(lastWeatherPos);
+    if (lastWeatherStationId.empty() && !std::isnan(lat) && !std::isnan(lon)) {
+        lastWeatherStationId = GetNearestAirportId(lat, lon);
+    }
     
     // Did weather change?
     if (!dequal(lastWeatherHPA, hPa)) {
@@ -2237,7 +2217,7 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
 void DataRefs::GetWeather (float& hPa, std::string& stationId, std::string& METAR)
 {
     // protected against reads from the main thread
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
     
     hPa = lastWeatherHPA;
     stationId = lastWeatherStationId;
