@@ -1129,7 +1129,7 @@ LTAircraft::LTAircraft(LTFlightData& inFd) :
 XPCAircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafeCopyStat().acTypeIcao}).c_str(),
             str_first_non_empty({dataRefs.cslFixOpIcao,     inFd.WaitForSafeCopyStat().airlineCode()}).c_str(),
             str_first_non_empty({dataRefs.cslFixLivery,     inFd.WaitForSafeCopyStat().reg}).c_str(),
-            (XPMPPlaneID)inFd.key().num),
+            inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0),      // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
 // class members
 fd(inFd),
 mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model

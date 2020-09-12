@@ -2,6 +2,7 @@ TODO
 ===
 
 OGN
+-  ERROR LTOpenGlider.cpp:108/ProcessFetchedData: OGN response contains wrong number of fields: 51.806129,7.194880,IR,,454,13:59:40,13,334,130,0.4,1,NKRock,3E6F4D,77b1c602
 - Show Category in A/C Info Wnd
 - Configuration for A/C Types
 - Flight models for Gliders and the like...

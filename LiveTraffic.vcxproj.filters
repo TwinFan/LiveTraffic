@@ -114,6 +114,9 @@
     <ClCompile Include="Src\LTWeather.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\LTOpenGlider.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ACInfoWnd.h">
@@ -195,6 +198,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Include\LTWeather.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\LTOpenGlider.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
