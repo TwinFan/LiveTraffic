@@ -78,13 +78,16 @@
 /// The request URL, parameters are in this order: radius, longitude, latitude
 const char* WEATHER_URL="https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&radialDistance=%.f;%.2f,%.2f&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
 
-/// Maximum search radius [nm]
-constexpr float MAX_WEATHER_RADIUS_NM = 100.0f;
+/// Weather search radius (increment) to use if the initial weather request came back empty
+constexpr float ADD_WEATHER_RADIUS_NM = 100.0f;
+/// How often to add up ADD_WEATHER_RADIUS_NM before giving up?
+constexpr long  MAX_WEATHER_RADIUS_FACTOR = 5;
 
 // Error messages
 #define ERR_WEATHER_REQU        "Could not request weather from aviationweather.gov: HTTP return code %d"
 #define ERR_WEATHER_ERROR       "Weather request returned with error: %s"
 #define WARN_NO_WEATHER         "Found no weather in a %.fnm radius"
+#define ERR_NO_WEATHER          "Found no weather in a %.fnm radius, giving up"
 
 /// return the value between two xml tags
 std::string GetXMLValue (const std::string& _r, const std::string& _tag,
@@ -240,10 +243,14 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
                     bRet = WeatherProcessResponse(readBuf);
                     // Not found weather yet?
                     if (!bRet) {
-                        LOG_MSG(logWARN, WARN_NO_WEATHER, _radius_nm);
-                        if (_radius_nm < MAX_WEATHER_RADIUS_NM) {
-                            _radius_nm = MAX_WEATHER_RADIUS_NM;
+                        // How often did we apply ADD_WEATHER_RADIUS_NM already?
+                        const long nRadiusFactor = std::lround(_radius_nm/ADD_WEATHER_RADIUS_NM);
+                        if (nRadiusFactor < MAX_WEATHER_RADIUS_FACTOR) {
+                            LOG_MSG(logWARN, WARN_NO_WEATHER, _radius_nm);
+                            _radius_nm = (nRadiusFactor+1) * ADD_WEATHER_RADIUS_NM;
                             bRepeat = true;
+                        } else {
+                            LOG_MSG(logERR, ERR_NO_WEATHER, _radius_nm);
                         }
                     }
                 }
