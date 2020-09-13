@@ -214,13 +214,15 @@ inline std::string& trim(std::string& s, const char* t = WHITESPACE)
 }
 
 // last word of a string
-std::string str_last_word (const std::string s);
+std::string str_last_word (const std::string& s);
 // separates string into tokens
-std::vector<std::string> str_tokenize (const std::string s,
-                                       const std::string tokens,
+std::vector<std::string> str_tokenize (const std::string& s,
+                                       const std::string& tokens,
                                        bool bSkipEmpty = true);
+/// concatenates a vector of strings into one string (reverse of str_tokenize)
+std::string str_concat (const std::vector<std::string>& vs, const std::string& separator);
 // returns first non-empty string, and "" in case all are empty
-std::string str_first_non_empty ( std::initializer_list<const std::string> l);
+std::string str_first_non_empty (const std::initializer_list<const std::string>& l);
 
 // push a new item to the end only if it doesn't exist yet
 template< class ContainerT>
@@ -290,6 +292,11 @@ constexpr bool between( const T& v, const T& lo, const T& hi )
 
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 );
+
+/// @brief random long between too given values invlusive
+/// @see https://stackoverflow.com/a/7560171
+inline long randoml (long min, long max)
+{ return long(((double) rand() / (RAND_MAX+1.0)) * (max-min+1)) + min; }
 
 // gets latest version info from X-Plane.org
 bool FetchXPlaneOrgVersion ();

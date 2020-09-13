@@ -228,7 +228,7 @@ std::string ts2string (time_t t)
 }
 
 // last word of a string
-std::string str_last_word (const std::string s)
+std::string str_last_word (const std::string& s)
 {
     std::string::size_type p = s.find_last_of(' ');
     return (p == std::string::npos ? s :    // space not found? -> entire string
@@ -236,8 +236,8 @@ std::string str_last_word (const std::string s)
 }
 
 // separates string into tokens
-std::vector<std::string> str_tokenize (const std::string s,
-                                       const std::string tokens,
+std::vector<std::string> str_tokenize (const std::string& s,
+                                       const std::string& tokens,
                                        bool bSkipEmpty)
 {
     std::vector<std::string> v;
@@ -258,8 +258,24 @@ std::vector<std::string> str_tokenize (const std::string s,
     return v;
 }
 
+// concatenates a vector of strings into one string (reverse of str_tokenize)
+std::string str_concat (const std::vector<std::string>& vs, const std::string& separator)
+{
+    // empty? return empty string
+    if (vs.empty()) return "";
+    
+    // put together the return string, start with the first element
+    std::string s = vs.front();
+    for (auto iter = std::next(vs.begin()); iter != vs.end(); ++iter)
+    {
+        s += separator;
+        s += *iter;
+    }
+    return s;
+}
+
 // returns first non-empty string, and "" in case all are empty
-std::string str_first_non_empty ( std::initializer_list<const std::string> l)
+std::string str_first_non_empty (const std::initializer_list<const std::string>& l)
 {
     for (const std::string& s: l)
         if (!s.empty())

@@ -32,7 +32,7 @@ protected:
     /// Search filter
     char sFilter[50] = {0};
 
-    
+    // Channel: ADS-B Exchange
     enum {
         ADSBX_KEY_NO_ACTION = 0,    ///< no key test currently happening
         ADSBX_KEY_TESTING,          ///< key test underway
@@ -41,6 +41,10 @@ protected:
     } eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
     std::string sADSBExKeyEntry;    ///< current ADSBEx key entry
     bool bADSBExKeyClearText = false;   ///< Is ADSBEx key displayed clear text?
+    
+    // Channel: Open Glider Network
+    /// buffers for editing of Flarm a/c type mappings
+    std::array<std::string,14> aFlarmAcTys;
 
     // CSL
     int cslActiveLn = -1;           ///< CSL path line currently being edited

@@ -106,7 +106,10 @@ public:
 const char* OGNGetAcTypeName (FlarmAircraftTy _acTy);
 
 /// @brief Return a matching ICAO type code per flarm a/c type
-/// @details This will be user-configurable to a certain extent
-std::string OGNGetIcaoAcType (FlarmAircraftTy _acTy);
+/// @details Pick one of the types defined by the user
+const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy);
+
+/// Fill defaults for Flarm aircraft types where not existing
+void OGNFillDefaultFlarmAcTypes ();
 
 #endif /* LTOpenGlider_h */

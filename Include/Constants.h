@@ -191,6 +191,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
+#define CFG_FLARM_ACTY_SECTION  "[FlarmAcTypes]"
 #define CFG_WNDPOS_SUI          "SettingsWndPos"
 #define CFG_WNDPOS_ACI          "ACInfoWndPos"
 #define CFG_WNDPOS_ILW          "InfoListWndPos"

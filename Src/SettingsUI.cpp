@@ -56,6 +56,13 @@ txtFixAcType    (dataRefs.cslFixAcIcaoType),
 txtFixOp        (dataRefs.cslFixOpIcao),
 txtFixLivery    (dataRefs.cslFixLivery)
 {
+    /// GNF_COUNT is not available in SettingsUI.h (due to order of include files), make _now_ sure that aFlarmAcTys has the correct size
+    assert (aFlarmAcTys.size() == size_t(FAT_UAV)+1);
+    
+    // Fill Flarm aircraft types with current values
+    for (size_t i = 0; i < aFlarmAcTys.size(); i++)
+        aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
+
     // Set up window basics
     SetWindowTitle(SUI_WND_TITLE);
     SetWindowResizingLimits(SUI_RESIZE_LIMITS.tl.x, SUI_RESIZE_LIMITS.tl.y,
@@ -306,12 +313,46 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENGLIDER, "Open Help on Open Glider Network in Browser",
                                            sFilter, nOpCl))
             {
-                // TODO: OGN: Map the aircraft types to ICAO types
-                if (ImGui::FilteredLabel("Aircraft Types", sFilter)) {
-                    ImGui::TextUnformatted("Map FLARM's aircraft types to ICAO types for model matching:");
-                    ImGui::TableNextCell();
-                }
+                ImGui::TextUnformatted("Flarm A/c Types");
+                ImGui::TableNextCell();
+                ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
+                ImGui::TableNextCell();
+                    
+                // One edit field for each Flarm aircraft type
+                for (size_t i = 0; i < aFlarmAcTys.size(); i++) {
+                    // Flarm Aircraft Type in human readable text
+                    if (ImGui::FilteredLabel(OGNGetAcTypeName(FlarmAircraftTy(i)), sFilter)) {
+                        ImGui::PushID(int(i));
+                        
+                        // Warning if text entry too short
+                        if (aFlarmAcTys[i].length() < 2) {
+                            ImGui::TablePrevCell();
+                            ImGui::Indicator(false, "", "Too short a text to serve as ICAO aircraft type");
+                            ImGui::TableNextCell();
+                        }
 
+                        // Edit field for entering ICAO aircraft type(s)
+                        ImGui::SetNextItemWidth(2 * fSmallWidth);
+                        if (ImGui::InputText("", &aFlarmAcTys[i],
+                                             ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            // definition changed, process it if it contains 2 chars or more
+                            if (aFlarmAcTys[i].length() >= 2)
+                                // set the array of values in the dataRefs, then read it back into our edit variable, formatted with a standard space separator
+                                dataRefs.aFlarmToIcaoAcTy[i] = str_tokenize(aFlarmAcTys[i], " ,;/");
+                        }
+                        
+                        // Undo change if not confirmed with Enter, also refreshes after Enter
+                        if (ImGui::IsItemDeactivatedAfterEdit())
+                            aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
+                        else if (ImGui::IsItemActive()) {
+                            ImGui::SameLine();
+                            ImGui::TextUnformatted("Press [Enter] to save");
+                        }
+                        
+                        ImGui::TableNextCell();
+                        ImGui::PopID();
+                    } // if Flarm type visible
+                } // for all Flarm types
                 if (!*sFilter) ImGui::TreePop();
             }
             

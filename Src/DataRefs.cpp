@@ -1691,8 +1691,12 @@ int DataRefs::DecNumAc()
 
 //MARK: Config File
 
+
 bool DataRefs::LoadConfigFile()
 {
+    /// GNF_COUNT is not available in DataRefs.h (due to order of include files), make _now_ sure that aFlarmToIcaoAcTy has the correct size
+    assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
+
     // which conversion to do with the (older) version of the config file?
     enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM, CFG_DEL_IMGUI_CFG } conv = CFG_NO_CONV;
     
@@ -1747,13 +1751,13 @@ bool DataRefs::LoadConfigFile()
     while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN) {
         // read line and break into tokens, delimited by spaces
         safeGetline(fIn, lnBuf);
-        ln = str_tokenize(lnBuf, " ");
-        
-        // break out of loop if reading [CSLPaths]
-        if (ln.size() == 1 && ln[0] == CFG_CSL_SECTION)
-            break;
+        // skip empty lines without warning
+        if (lnBuf.empty()) continue;
+        // break out of loop if reading the start of another section indicated by [ ]
+        if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
 
         // otherwise should be 2 tokens
+        ln = str_tokenize(lnBuf, " ");
         if (ln.size() != 2) {
             // wrong number of words in that line
             LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf.c_str());
@@ -1817,10 +1821,10 @@ bool DataRefs::LoadConfigFile()
         
     }
     
-    // *** [CSLPaths] ***
-    // maybe there's a [CSLPath] section?
+    // *** [FlarmAcTypes] ***
+    // maybe there's a [FlarmAcTypes] section?
     if (fIn && errCnt <= ERR_CFG_FILE_MAXWARN &&
-        ln.size() == 1 && ln[0] == CFG_CSL_SECTION)
+        lnBuf == CFG_FLARM_ACTY_SECTION)
     {
         
         // loop until EOF
@@ -1828,11 +1832,46 @@ bool DataRefs::LoadConfigFile()
         {
             // read line and break into tokens, delimited by spaces
             safeGetline(fIn, lnBuf);
-
             // skip empty lines without warning
-            if (lnBuf.empty())
+            if (lnBuf.empty()) continue;
+            // break out of loop if reading the start of another section indicated by [ ]
+            if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
+
+            // line has to start with a reasonable number, followed by =, followed by a string
+            ln = str_tokenize(lnBuf, "=");
+            if (ln.size() != 2 ||
+                !between<int>(std::stoi(ln[0]), FAT_UNKNOWN, FAT_UAV) ||
+                ln[1].size() < 2)
+            {
+                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), lnBuf.c_str());
+                errCnt++;
                 continue;
+            }
             
+            // the second part is again an array of icao types, separated by space or comma or so
+            aFlarmToIcaoAcTy[std::stoi(ln[0])] = str_tokenize(ln[1], " ,;/");
+        }
+    }
+    
+    // set defaults for missing Flarm ac type definitions
+    OGNFillDefaultFlarmAcTypes();
+
+    // *** [CSLPaths] ***
+    // maybe there's a [CSLPath] section?
+    if (fIn && errCnt <= ERR_CFG_FILE_MAXWARN &&
+        lnBuf == CFG_CSL_SECTION)
+    {
+        
+        // loop until EOF
+        while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN)
+        {
+            // read line and break into tokens, delimited by spaces
+            safeGetline(fIn, lnBuf);
+            // skip empty lines without warning
+            if (lnBuf.empty()) continue;
+            // break out of loop if reading the start of another section indicated by [ ]
+            if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
+
             // line has to start with 0 or 1 and | to separate "enabled?" from path
             ln = str_tokenize(lnBuf, "|");
             if (ln.size() != 2 ||
@@ -1910,11 +1949,20 @@ bool DataRefs::SaveConfigFile()
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << dataRefs.GetDefaultCarIcaoType() << '\n';
     if (!dataRefs.GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << dataRefs.GetADSBExAPIKey() << '\n';
+    
+    // *** [FlarmAcTypes] ***
+    fOut << '\n' << CFG_FLARM_ACTY_SECTION << '\n';
+    for (size_t i = 0; i < dataRefs.aFlarmToIcaoAcTy.size(); i++) {
+        fOut << i << " =";
+        for (const std::string& s: dataRefs.aFlarmToIcaoAcTy[i])
+            fOut << ' ' << s;
+        fOut << '\n';
+    }
 
     // *** [CSLPatchs] ***
     // add section of CSL paths to the end
     if (!vCSLPaths.empty()) {
-        fOut << CFG_CSL_SECTION << '\n';
+        fOut << '\n' << CFG_CSL_SECTION << '\n';
         for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
             if (!cslPath.empty())
                 fOut << (cslPath.enabled() ? "1|" : "0|") <<

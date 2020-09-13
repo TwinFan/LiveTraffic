@@ -140,12 +140,14 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // so following fetch/update calls only make quick recursive calls
             std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
             
-            // completely new? fill key fields
-            if ( fd.empty() )
+            // completely new? fill key fields and define static data
+            // (for OGN we only define static data initially,
+            //  it has no changing elements, and ICAO a/c type derivation
+            //  has a random element (if more than one ICAO type is defined))
+            if ( fd.empty() ) {
                 fd.SetKey(fdKey);
             
-            // fill static data
-            {
+                // fill static data
                 LTFlightData::FDStaticData stat;
                 
                 // Call Sign: We use the CN, don't have a proper call sign,
@@ -237,25 +239,41 @@ const char* OGNGetAcTypeName (FlarmAircraftTy _acTy)
 }
 
 // Return a matching ICAO type code per flarm a/c type
-std::string OGNGetIcaoAcType (FlarmAircraftTy _acTy)
+const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
 {
-    // TODO: Make this user-configurable
-    switch (_acTy) {
-        case FAT_UNKNOWN:
-        case FAT_GLIDER:        return "GLID";
-        case FAT_TOW_PLANE:     return "PA25";
-        case FAT_HELI_ROTOR:    return "EC35";
-        case FAT_PARACHUTE:     return "ULAC";
-        case FAT_DROP_PLANE:    return "C208";
-        case FAT_HANG_GLIDER:
-        case FAT_PARA_GLIDER:   return "ULAC";
-        case FAT_POWERED_AC:    return "C172";
-        case FAT_JET_AC:        return "C510";
-        case FAT_UFO:
-        case FAT_BALLOON:       return "BALL";
-        case FAT_AIRSHIP:       return "SHIP";
-        case FAT_UAV:           return "ULAC";
-        case FAT_STATIC_OBJ:    return dataRefs.GetDefaultCarIcaoType();
-    }
-    return dataRefs.GetDefaultAcIcaoType();
+    const std::vector<std::string>& icaoTypes = dataRefs.aFlarmToIcaoAcTy[_acTy];
+    if (icaoTypes.empty()) return dataRefs.GetDefaultAcIcaoType();
+    if (icaoTypes.size() == 1) return icaoTypes.front();
+    // more than one type defined, take a random pick
+    const size_t i = randoml(0, icaoTypes.size()-1);
+    assert(0 <= i && i < icaoTypes.size());
+    return icaoTypes[i];
+}
+
+// Fill defaults for Flarm aircraft types where not existing
+void OGNFillDefaultFlarmAcTypes ()
+{
+    // Defaults for the FLARM aircraft types. It's of GLID, simply because
+    // there are currently no good CSL models out there for paragliders, balloons, ships...
+    const std::array<const char*, FAT_UAV+1> DEFAULT_FLARM_ACTY = {
+        "GLID",     // FAT_UNKNOWN     = 0,        ///< unknown
+        "GLID",     // FAT_GLIDER      = 1,        ///< Glider / Sailplane / Motor-Glider
+        "PA25",     // FAT_TOW_PLANE   = 2,        ///< Tow / Tug Plane (usually a L1P type of plane)
+        "EC35",     // FAT_HELI_ROTOR  = 3,        ///< Helicopter, Rotorcraft
+        "GLID",     // FAT_PARACHUTE   = 4,        ///< Parachute
+        "C208",     // FAT_DROP_PLANE  = 5,        ///< Drop Plane for parachutes (not rarely a L2T type of plane)
+        "GLID",     // FAT_HANG_GLIDER = 6,        ///< Hangglider
+        "GLID",     // FAT_PARA_GLIDER = 7,        ///< Paraglider
+        "C172",     // FAT_POWERED_AC  = 8,        ///< Powered Aircraft
+        "C510",     // FAT_JET_AC      = 9,        ///< Jet Aircraft
+        "MG29",     // FAT_UFO         = 10,       ///< Flying Saucer, UFO (well, yea...specification says so...not sure how the aliens can get hold of a FLARM sender before reaching earth, though...and _if_ they are interested in being tracked at all)
+        "GLID",     // FAT_BALLOON     = 11,       ///< Balloon
+        "GLID",     // FAT_AIRSHIP     = 12,       ///< Airship
+        "GLID",     // FAT_UAV         = 13,       ///< unmanned aerial vehicle
+    };
+
+    // Test all definitions in dataRefs, and if empty then add the above default as single option
+    for (size_t i = (size_t)FAT_UNKNOWN; i <= (size_t)FAT_UAV; i++)
+        if (dataRefs.aFlarmToIcaoAcTy[i].empty())
+            dataRefs.aFlarmToIcaoAcTy[i].push_back(DEFAULT_FLARM_ACTY[i]);
 }
