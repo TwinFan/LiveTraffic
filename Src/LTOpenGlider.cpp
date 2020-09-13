@@ -113,6 +113,11 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         if (std::stoi(tok[GNF_FLARM_ACFT_TYPE]) == FAT_STATIC_OBJ)
             continue;
         
+        // We also skip records, which are outdated by the time they arrive
+        const long age_s = std::abs(std::stol(tok[GNF_AGE_S]));
+        if (age_s >= dataRefs.GetAcOutdatedIntvl())
+            continue;
+        
         // the key: flarm id (which is persistent, but not always included),
         //          or alternatively the OGN id (which is assigned daily, so good enough to track a flight)
         LTFlightData::FDKeyTy fdKey (tok[GNF_FLARM_DEVICE_ID].size() == 6 ? LTFlightData::KEY_FLARM  : LTFlightData::KEY_OGN,
@@ -143,10 +148,16 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             {
                 LTFlightData::FDStaticData stat;
                 
-                // registration: We assume that GNF_REG holds a (more or less)
+                // Call Sign: We use the CN, don't have a proper call sign,
+                // makes it easier to match a/c to what live.glidernet.org shows
+                stat.call = tok[GNF_CN];
+                // We assume that GNF_REG holds a (more or less)
                 // proper reg in case it is not just the generated OGN_REG_ID
                 if (tok[GNF_REG] != tok[GNF_OGN_REG_ID])
-                    stat.reg = std::move(tok[GNF_REG]);
+                    stat.reg = tok[GNF_REG];
+                else
+                    // otherwise (again) the CN
+                    stat.reg = tok[GNF_CN];
                 // Aircraft type converted from Flarm AcftType
                 FlarmAircraftTy acTy = (FlarmAircraftTy)clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
                                                                    FAT_UNKNOWN, FAT_STATIC_OBJ);
@@ -164,7 +175,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 
                 // position time: zulu time is given in the data, but it is even easier
                 //                when using the age, which is always given relative to the query time
-                dyn.ts = double(tNow - std::abs(std::stol(tok[GNF_AGE_S])));
+                dyn.ts = double(tNow - age_s);
                 
                 // non-positional dynamic data
                 dyn.gnd =               false;      // there is no GND indicator in OGN data

@@ -1,79 +1,15 @@
-Tracking Data
-==============
+Socket connected
+user LiveTrffc pass -1 vers Py_Test 0.0.1 filter r/30.1/-95.9/30 -p/oimqstunw
 
-http://live.glidernet.org/lxml.php?a=0&b=51.0&c=49.0&d=10.0&e=5.0
+Login sent
+1. # aprsc 2.1.5-g8af3cdc
+2. # logresp LiveTrffc unverified, server GLIDERN5
+3. ICAA05C37>OGFLR,qAS,SCOH:/210729h3018.63N/09557.60W'164/081/A=004193 !W28! id05A05C37 -435fpm +0.0rot 7.5dB -16.3kHz gps2x3
+4. ICAACC2F4>OGFLR,qAS,SCOH:/210729h3011.07N/09558.79W'214/061/A=003544 !W11! id05ACC2F4 +356fpm -1.0rot 21.8dB -16.9kHz gps1x3
+5. ICAA6B053>OGFLR,qAS,SCOH:/210730h3009.50N/09557.11W'134/066/A=004951 !W26! id05A6B053 -039fpm +1.3rot 15.0dB -16.6kHz gps1x2
+6. ICAA05C37>OGFLR,qAS,SCOH:/210731h3018.58N/09557.59W'165/083/A=004187 !W84! id05A05C37 +119fpm +0.0rot 9.2dB -16.6kHz gps2x3
+7. ICAA6B053>OGFLR,qAS,SCOH:/210731h3009.48N/09557.10W'144/067/A=004948 !W83! id05A6B053 -078fpm +1.5rot 8.2dB -16.5kHz gps1x2 +9.3dBm
+ICAACC2F4>OGFLR,qAS,SCOH:/210731h3011.04N/09558.80W'203/063/A=003560 !W08! id05ACC2F4 +634fpm -0.9rot 23.8dB -17.0kHz gps1x3
+8. ICAA6B053>OGFLR,qAS,SCOH:/210732h3009.47N/09557.09W'154/067/A=004948 !W21! id05A6B053 -118fpm +1.5rot 1.5dB 2e -16.7kHz gps1x2
 
-http://live.glidernet.org/lxml.php?a=0&b=51.0&c=49.0&d=10.0&e=5.0
-
-a = all (0 - false, 1 - would show offline aircraft)
-b/c = max/min latitude
-d/e = max/min longitude
-
-<markers>
-<style class="darkreader darkreader--fallback">html, body, body :not(iframe) { background-color: #181a1b !important; border-color: #776e62 !important; color: #e8e6e3 !important; }</style>
-<m a="49.815819,7.957970,ADA,D-HYAF,188  ,21:20:27,318,343,11        ,-2.0        ,3       ,Waldalg3,3E1205   ,24064512"/>
-<m a="50.135269,8.654720,TWR,TWR,388,20:56:21,16,0,0,-0.1,15,EDFZ,D0077D,cd828b97"/>
-<m a="50.007050,8.655470,_fc,fa8a79fc,154,20:56:09,28,0,0,0.1,15,HochschDA,0,fa8a79fc"/>
-<m a="49.503948,8.032700,,,314,20:52:32,245,141,2,0.0,7,SKXFWD,112235,85a772bb"/>
-</markers>
-
-
-   a="lat      ,lon     ,CN ,reg   ,alt_m,ts      ,age_s,trk,speed_km_h,vert_m_per_s,a/c type,receiver,device id,OGN registration id"
-<m a="49.815819,7.957970,ADA,D-HYAF,188  ,21:20:27,318  ,343,11        ,-2.0        ,3       ,Waldalg3,3E1205   ,24064512"/>
-
-.::Aircraft::..
-CN: ADA
-Regist.: D-HYAF
-Device Id: 3E1205
-Type: Helicopter
-Model: Helicopter
-Last time: 21:20:27
-Latitude: 49.815819
-Longitude: 7.95797
-Altitude: 188 m
-G.Speed: 11 km/h
-Track: 343 °
-Vz: –2.0 m/s
-Receiver: Waldalg3 (18 Km)
-
-
-<m a="48.077679,11.564570,ADA,D-HBYA,713,19:37:27,15,325,80,-1.7,3,MunOst,A12345,c89ccc2f"/>
-
-.::Aircraft::..
-CN: ADA
-Regist.: D-HBYA
-Device Id: A12345
-Type: Helicopter
-Model: EC 135
-Last time: 21:37:27
-Latitude: 48.077679
-Longitude: 11.56457
-Altitude: 713 m
-G.Speed: 80 km/h
-Track: 325 °
-Vz: –1.7 m/s
-Receiver: MunOst (7 Km)
-
-<m a="47.118969,9.523870,_c3,a85c13c3,439,19:37:27,375,172,11,0.0,6,FNB110675,0,a85c13c3"/>
-
-.::Aircraft::..
-CN: _c3
-Regist.: a85c13c3
-Device Id: hidden
-Type: Hangglider
-Last time: 21:37:27
-Latitude: 47.118969
-Longitude: 9.52387
-Altitude: 439 m
-G.Speed: 11 km/h
-Track: 172 °
-Vz: +0.0 m/s
-Receiver: FNB110675 (?)
-
-
-
-Aircraft Master Data
-======================
-
-http://ddb.glidernet.org/download/
-
+Socket closed

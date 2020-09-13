@@ -244,7 +244,11 @@ public:
         bool operator <  (const FlightModel& o) const { return modelName <  o.modelName; }
         bool operator >  (const FlightModel& o) const { return modelName >  o.modelName; }
         operator bool () const { return !modelName.empty(); }
-
+        /// Calculate max possible heading change in the time given [s] based on turn speed (max return: 180.0)
+        double maxHeadChange (bool bOnGnd, double time_s) const;
+        /// Is this modelling a glider?
+        bool isGlider () const;
+        
     public:
         static bool ReadFlightModelFile ();
         static const FlightModel& FindFlightModel (const std::string& acTypeIcao);

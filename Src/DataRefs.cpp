@@ -2158,8 +2158,8 @@ bool DataRefs::ToggleLabelDraw()
 //
 
 constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
-constexpr double WEATHER_UPD_DIST = 25.0 * M_per_NM;    ///< [m] Weather to be updated if moved more than this far from last weather update position
-constexpr float  WEATHER_SEARCH_RADIUS = 25;            ///< [nm] Search for latest weather reports in this radius
+constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be updated if moved more than this far from last weather update position
+constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
 
 // check if weather updated needed, then do
 bool DataRefs::WeatherUpdate ()
@@ -2174,10 +2174,10 @@ bool DataRefs::WeatherUpdate ()
     // So...do we need an update?
     if (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
         lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime() ||  // waited long enough?
-        camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST)             // travelled far enough?
+        camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M)           // travelled far enough?
     {
         // Trigger a weather update; this is an asynch operation
-        return ::WeatherUpdate(camPos, WEATHER_UPD_DIST/M_per_NM);  // travel distances [m] doubles as weather search distance [nm]
+        return ::WeatherUpdate(camPos, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
     }
     return false;
 }

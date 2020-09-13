@@ -1521,8 +1521,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     const vectorTy v = lastPos.between(thisPos);
     if (pHeading) *pHeading = v.angle;      // return heading from lastPos to thisPos
     // maximum turn allowed depends on 'on ground' or not
-    const double maxTurn = (thisPos.IsOnGnd() ?
-                            MDL_MAX_TURN_GND : MDL_MAX_TURN);
+    const double maxTurn = mdl.maxHeadChange(thisPos.IsOnGnd(), thisPos.ts() - lastPos.ts());
 
     // angle between last and this, i.e. turn angle at thisPos
     const double hDiff = (std::isnan(lastHead) ? 0.0 :
@@ -1539,11 +1538,10 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
          !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MAX_TAXI_SPEED) )
     {
-        if constexpr (VERSION_BETA) {
-            LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f",
-                    keyDbg().c_str(),
-                    std::string(v).c_str(), hDiff );
-        }
+        LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f°)",
+                keyDbg().c_str(),
+                std::string(v).c_str(), hDiff,
+                3 * mdl.VSI_INIT_CLIMB, 4 * mdl.FLAPS_DOWN_SPEED, mdl.MAX_TAXI_SPEED, maxTurn);
         return false;
     }
     

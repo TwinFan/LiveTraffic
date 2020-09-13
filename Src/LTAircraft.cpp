@@ -688,6 +688,26 @@ std::string BezierCurve::dbgTxt() const
 //MARK: LTAircraft::FlightModel
 //
 
+// Calculate max possible heading change based on turn speed (max return: 180.0)
+double LTAircraft::FlightModel::maxHeadChange (bool bOnGnd, double time_s) const
+{
+    // max return value is 180°, so if time passed in is larger
+    // than half the turn time, then we max out:
+    const double turnTime = bOnGnd ? TAXI_TURN_TIME : FLIGHT_TURN_TIME;
+    if (time_s >= turnTime/2)
+        return 180.0;
+    else
+        // Otherwise we could have turned less only
+        return (time_s/turnTime) * 360.0;
+}
+
+// Is this modelling a glider?
+bool LTAircraft::FlightModel::isGlider () const
+{
+    // not quite exact...but have nothing better at the moment
+    return modelName == "LightAC";
+}
+
 // list of flight models as read from FlightModel.prf file
 std::list<LTAircraft::FlightModel> listFlightModels;
 
@@ -2108,7 +2128,11 @@ void LTAircraft::CalcRoll (double _prevHeading)
 {
     // On the ground we should actually better be levelled...
     if (IsOnGrnd()) {
-        ppos.roll() = 0.0;
+        // except...if we are a stopped glider ;-)
+        if (GetSpeed_m_s() < 0.2 && mdl.isGlider())
+            ppos.roll() = 5.0;
+        else
+            ppos.roll() = 0.0;
         return;
     }
     

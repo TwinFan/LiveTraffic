@@ -116,10 +116,41 @@ EXT_CAMERA_LON_OFS   -10    # longitudinal external camera offset
 EXT_CAMERA_LAT_OFS     0    # lateral...
 EXT_CAMERA_VERT_OFS    5    # vertical...
 
-[LightAC:GA]
-VSI_FINAL           -300    # [ft/min] assumed vsi for final if vector unavailable
+[LightAC]
+# This is mapped to stuff like Gliders, Airships, Paragliders...
+GEAR_DURATION         10    # [s] time for gear up/down
+GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
+FLAPS_DURATION         5    # [s] time for full flaps extension from 0% to 100%
+VSI_STABLE            50    # [ft/min] less than this VSI is considered 'stable'
+ROTATE_TIME            3    # [s] to rotate, half before lift off, half after
+VSI_FINAL           -200    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       400    # [ft/min] assumed vsi if take-off-vector not available
-SPEED_INIT_CLIMB      60    # [kt] initial climb speed if take-off-vector not available
+SPEED_INIT_CLIMB     100    # [kt] initial climb speed if take-off-vector not available
+AGL_GEAR_DOWN        200    # [ft] height AGL at which to lower the gear during approach
+AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
+AGL_FLARE              5    # [ft] height AGL to start flare
+MAX_TAXI_SPEED         5    # [kt] below that: taxi, above that: take-off/roll-out
+MIN_REVERS_SPEED      50    # [kt] use reversers down to this speed
+TAXI_TURN_TIME        45    # [s] time for a 360° turn on the ground
+FLIGHT_TURN_TIME      25    # [s] time for a 360° turn in flight
+ROLL_MAX_BANK         45    # [°] max bank angle
+ROLL_RATE              5    # [°/s] roll rate in normal turns
+FLAPS_UP_SPEED        80    # [kt] below that: initial climb, above that: climb
+FLAPS_DOWN_SPEED     100    # [kt] above that: descend, below that: approach
+CRUISE_HEIGHT       1000    # [ft] above that height AGL we consider level flight 'cruise'
+ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
+PITCH_MIN             -4    # [°] minimal pitch angle (aoa)
+PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
+PITCH_MAX              5    # [°] maximum pitch angle (aoa)
+PITCH_MAX_VSI       1000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_FLAP_ADD         1    # [°] to add if flaps extended
+PITCH_FLARE            3    # [°] pitch during flare
+PITCH_RATE             1    # [°/s] pitch rate of change
+LIGHT_PATTERN          2    # Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
+LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
+EXT_CAMERA_LON_OFS   -20    # longitudinal external camera offset
+EXT_CAMERA_LAT_OFS     0    # lateral...
+EXT_CAMERA_VERT_OFS    5    # vertical...
 
 [Heli:MediumJets]
 GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
@@ -184,6 +215,7 @@ MediumProps    ^M;L\dT;
 BizJet         ^L;L\dJ;
 GA             ^L;L\dP;
 LightAC        ^-;
+LightAC        ;(GLID|DIMO|DG40|DG50|DG60|DG80|ARCE|ARCP|DISC|DUOD|JANU|NIMB|VENT|LS9|HU1|HU2|SF24|SF25);
 Heli           ^L;H
 
 # This last line matches anything and serves as a default:
