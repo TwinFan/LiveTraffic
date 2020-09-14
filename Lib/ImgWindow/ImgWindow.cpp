@@ -406,6 +406,13 @@ ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void *inRefcon)
     
     // Give subclasses a chance to do something after all rendering
     thisWindow->afterRendering();
+    
+    // Hack: Reset the Backspace key if in VR (see HandleKeyFuncCB for details)
+    if (thisWindow->bResetBackspace) {
+        ImGuiIO& io = ImGui::GetIO();
+        io.KeysDown[XPLM_VK_BACK] = false;
+        thisWindow->bResetBackspace = false;
+    }
 }
 
 int
@@ -543,8 +550,24 @@ ImgWindow::HandleKeyFuncCB(
 	ImGui::SetCurrentContext(thisWindow->mImGuiContext);
 	ImGuiIO& io = ImGui::GetIO();
 	if (io.WantCaptureKeyboard) {
-		auto vk = static_cast<unsigned char>(inVirtualKey);
-		io.KeysDown[vk] = (inFlags & xplm_DownFlag) == xplm_DownFlag;
+        
+        // Hack for the Backspace key in VR:
+        // Apparently, the virtual VR keyboard sends both the Up and the Down
+        // event within the same drawing cycle, which would overwrite
+        // io.KeyDown[XPLM_VK_BACK] with false again before we could pass on true.
+        // Also see https://forums.x-plane.org/index.php?/forums/topic/147139-dear-imgui-x-plane/&do=findComment&comment=2032062
+        // though I am following a different solution:
+        // So we ignore the "up" event (release key) here, and do the actual
+        // release only after the next drawing cycle (flag bResetBackspace).
+        // (And this little delay doesn't hurt in non-VR either, so we don't even test for VR.)
+        
+        // If Backspace is _released_ ...
+        if (inVirtualKey == XPLM_VK_BACK && !(inFlags & xplm_DownFlag)) {
+            thisWindow->bResetBackspace = true; // have it reset only later in DrawWindowCB
+        }
+        else
+            // in all normal cases: save the up/down flag as it comes from XP
+            io.KeysDown[inVirtualKey] = (inFlags & xplm_DownFlag) == xplm_DownFlag;
 		io.KeyShift = (inFlags & xplm_ShiftFlag) == xplm_ShiftFlag;
 		io.KeyAlt = (inFlags & xplm_OptionAltFlag) == xplm_OptionAltFlag;
 		io.KeyCtrl = (inFlags & xplm_ControlFlag) == xplm_ControlFlag;

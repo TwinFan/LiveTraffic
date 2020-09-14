@@ -349,6 +349,9 @@ private:
 
     XPLMWindowLayer mPreferredLayer;
     
+    /** Shall reset the backspace key? (see HandleKeyFuncCB for details) */
+    bool bResetBackspace = false;
+    
     /** Set if `xplm_WindowDecorationSelfDecoratedResizable`,
      *  ie. we need to handle resizing ourselves: X-Plane provides
      *  the "hand" mouse icon but as we catch mouse events X-Plane
