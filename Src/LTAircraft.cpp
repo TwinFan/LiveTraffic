@@ -2130,7 +2130,7 @@ void LTAircraft::CalcRoll (double _prevHeading)
     if (IsOnGrnd()) {
         // except...if we are a stopped glider ;-)
         if (GetSpeed_m_s() < 0.2 && mdl.isGlider())
-            ppos.roll() = 5.0;
+            ppos.roll() = 8.0;
         else
             ppos.roll() = 0.0;
         return;

@@ -103,7 +103,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         
         // then this is the marker definition to work on
         const std::string sMarker (sPos, sEnd-sPos);
-        std::vector<std::string> tok = str_tokenize(sMarker, ",");
+        std::vector<std::string> tok = str_tokenize(sMarker, ",", false);
         if (tok.size() != GNF_COUNT) {
             LOG_MSG(logERR, ERR_OGN_WRONG_NUM_FIELDS, sMarker.c_str());
             break;
@@ -245,7 +245,7 @@ const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
     if (icaoTypes.empty()) return dataRefs.GetDefaultAcIcaoType();
     if (icaoTypes.size() == 1) return icaoTypes.front();
     // more than one type defined, take a random pick
-    const size_t i = randoml(0, icaoTypes.size()-1);
+    const size_t i = randoml(0, long(icaoTypes.size())-1);
     assert(0 <= i && i < icaoTypes.size());
     return icaoTypes[i];
 }
