@@ -3,7 +3,9 @@
 /// @see        https://opensky-network.org/
 /// @details    Implements OpenSkyConnection and OpenSkyAcMasterdata:\n
 ///             - Provides a proper REST-conform URL\n
-///             - Interprets the response and passes the tracking data on to LTFlightData.\n
+///             - Interprets the response and passes the tracking data on to LTFlightData.
+/// @details    Also downloads and performs searches in the aircraft list
+/// @see        http://ddb.glidernet.org/download/
 /// @author     Birger Hoppe
 /// @copyright  (c) 2018-2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,6 +34,10 @@
 // log messages
 #define ERR_OGN_XLM_END_MISSING     "OGN response malformed, end of XML element missing: %s"
 #define ERR_OGN_WRONG_NUM_FIELDS    "OGN response contains wrong number of fields: %s"
+
+#define ERR_OGN_ACL_FILE_OPEN       "Could not open '%s' for writing: %s"
+#define ERR_OGN_AC_LIST_DOWNLOAD    "Could not download a/c list from ddb.glidernet.org: HTTP return code %d"
+#define INFO_OGN_AC_LIST_DOWNLOADED "Aircraft list downloaded from ddb.glidernet.org"
 
 constexpr const char* OGN_MARKER_BEGIN = "<m a=\""; ///< beginning of a marker in the XML response
 constexpr const char* OGN_MARKER_END   = "\"/>";    ///< end of a marker in the XML response
@@ -212,8 +218,171 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 }
 
 //
+// MARK: OGN Aircraft list file
+//
+
+// process one line of input
+static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEndLn)
+{
+    // divide the line into its tokens separate by comma
+    std::vector<std::string> tok = str_tokenize(ho.readBuf.substr(0,posEndLn), ",", false);
+    
+    // remove whatever we process now
+    ho.readBuf.erase(0,posEndLn+1);
+    
+    // safety measure: no tokens identified?
+    if (tok.empty())
+        return;
+    
+    // is this the very first line telling the field positions?
+    if (tok[0][0] == '#') {
+        for (int i = 0; i < (int)tok.size(); i++) {
+            if (tok[i] == "DEVICE_ID") ho.deviceIdIdx = i;
+            else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
+            else if (tok[i] == "REGISTRATION") ho.regIdx = i;
+            else if (tok[i] == "CN") ho.cnIdx = i;
+        }
+        ho.maxIdx = std::max({ho.deviceIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx});
+        return;
+    }
+    
+    // regular line must have at least as many fields as we process at maximum
+    if (tok.size() <= (size_t)ho.maxIdx)
+        return;
+    
+    // Remove surrounding '
+    for (int i = 0; i <= ho.maxIdx; i++) {
+        if (tok[i].front() == '\'') tok[i].erase(0,1);
+        if (tok[i].back()  == '\'') tok[i].pop_back();
+    }
+    
+    // prepare a new record to be added to the output file
+    OGNcalcAcFileRecTy rec;
+    tok[ho.deviceIdIdx].copy(rec.deviceId,  sizeof(rec.deviceId));
+    tok[ho.mdlIdx].     copy(rec.mdl,       sizeof(rec.mdl));
+    tok[ho.regIdx].     copy(rec.reg,       sizeof(rec.reg));
+    tok[ho.cnIdx].      copy(rec.cn,        sizeof(rec.cn));
+    ho.f.write(reinterpret_cast<char*>(&rec), sizeof(rec));
+}
+
+/// CURL callback just adding up data
+static size_t OGNAcListNetwCB(char *ptr, size_t, size_t nmemb, void* userdata)
+{
+    // copy buffer to our std::string
+    OGNCbHandoverTy& ho = *reinterpret_cast<OGNCbHandoverTy*>(userdata);
+    ho.readBuf.append(ptr, nmemb);
+    
+    // Now process lines from the beginning of the buffer
+    for (std::string::size_type pos = ho.readBuf.find('\n');
+         pos != std::string::npos;
+         pos = ho.readBuf.find('\n'))
+    {
+        OGNAcListOneLine(ho, pos);
+    }
+    
+    // all bytes read from the network are consumed
+    return nmemb;
+}
+
+/// @brief Download OGN Aircraft list, to be called asynchronously (thread)
+/// @see http://ddb.glidernet.org/download/
+static bool OGNAcListDoDownload ()
+{
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_OGNAcList");
+    
+    bool bRet = false;
+    try {
+        char curl_errtxt[CURL_ERROR_SIZE];
+        OGNCbHandoverTy ho;             // hand-over structure to callback
+        
+        // open the output file in binary mode
+        const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
+        ho.f.open(sFileName, std::ios::binary | std::ios::trunc);
+        if (!ho.f) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN,
+                    sFileName.c_str(), sErr);
+            return false;
+        }
+        
+        // initialize the CURL handle
+        CURL *pCurl = curl_easy_init();
+        if (!pCurl) {
+            LOG_MSG(logERR,ERR_CURL_EASY_INIT);
+            return false;
+        }
+
+        // prepare the handle with the right options
+        ho.readBuf.reserve(CURL_MAX_WRITE_SIZE);
+        curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+        curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+        curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, OGNAcListNetwCB);
+        curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &ho);
+        curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+        curl_easy_setopt(pCurl, CURLOPT_URL, OGN_AC_LIST_URL);
+
+        // perform the HTTP get request
+        CURLcode cc = CURLE_OK;
+        if ((cc = curl_easy_perform(pCurl)) != CURLE_OK)
+        {
+            // problem with querying revocation list?
+            if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+                // try not to query revoke list
+                curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+                // and just give it another try
+                cc = curl_easy_perform(pCurl);
+            }
+
+            // if (still) error, then log error
+            if (cc != CURLE_OK)
+                LOG_MSG(logERR, ERR_CURL_NOVERCHECK, cc, curl_errtxt);
+        }
+
+        if (cc == CURLE_OK)
+        {
+            // CURL was OK, now check HTTP response code
+            long httpResponse = 0;
+            curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+
+            // not HTTP_OK?
+            if (httpResponse != HTTP_OK) {
+                LOG_MSG(logERR, ERR_OGN_AC_LIST_DOWNLOAD, (int)httpResponse);
+            }
+            else {
+                // Success: Process data
+                // TODO: Do something?
+                bRet = true;
+                LOG_MSG(logINFO, INFO_OGN_AC_LIST_DOWNLOADED);
+            }
+        }
+        
+        // close the file properly
+        ho.f.close();
+
+        // cleanup CURL handle
+        curl_easy_cleanup(pCurl);
+    }
+    catch (const std::exception& e) {
+        LOG_MSG(logERR, "Fetching OGN a/c list failed with exception %s", e.what());
+    }
+    catch (...) {
+        LOG_MSG(logERR, "Fetching OGN a/c list failed with exception");
+    }
+    
+    // done
+    return bRet;
+}
+
+//
 // MARK: Global Functions
 //
+
+/// Is currently an async operation running to download a/c list?
+static std::future<bool> futAcListDownload;
 
 // Return a descriptive text per flam a/c type
 const char* OGNGetAcTypeName (FlarmAircraftTy _acTy)
@@ -276,4 +445,18 @@ void OGNFillDefaultFlarmAcTypes ()
     for (size_t i = (size_t)FAT_UNKNOWN; i <= (size_t)FAT_UAV; i++)
         if (dataRefs.aFlarmToIcaoAcTy[i].empty())
             dataRefs.aFlarmToIcaoAcTy[i].push_back(DEFAULT_FLARM_ACTY[i]);
+}
+
+
+// Fetch the aircraft list from OGN
+void OGNDownloadAcList ()
+{
+    // a download still underway?
+    if (futAcListDownload.valid() &&
+        futAcListDownload.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            // then stop here
+            return;
+
+    // start another thread to download the a/c list
+    futAcListDownload = std::async(std::launch::async, OGNAcListDoDownload);
 }

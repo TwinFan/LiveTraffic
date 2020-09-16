@@ -29,13 +29,19 @@
 
 #include "LTChannel.h"
 
+//
 //MARK: OpenGlider Constants
+//
+
 #define OPGLIDER_CHECK_NAME     "Live Glidernet"
 #define OPGLIDER_CHECK_URL      "http://live.glidernet.org/"
 #define OPGLIDER_CHECK_POPUP    "Check Open Glider Network's coverage"
 
 #define OPGLIDER_NAME           "Open Glider Network"
 #define OPGLIDER_URL            "http://live.glidernet.org/lxml.php?a=0&b=%.3f&c=%.3f&d=%.3f&e=%.3f"
+
+#define OGN_AC_LIST_URL         "http://ddb.glidernet.org/download/"
+#define OGN_AC_LIST_FILE        "Resources/OGNAircraft.lst"
 
 //    a="lat      ,lon     ,CN ,reg   ,alt_m,ts      ,age_s,trk,speed_km_h,vert_m_per_s,a/c type,receiver,device id,OGN registration id"
 // <m a="49.815819,7.957970,ADA,D-HYAF,188  ,21:20:27,318  ,343,11        ,-2.0        ,3       ,Waldalg3,3E1205   ,24064512"/>
@@ -81,7 +87,7 @@ enum FlarmAircraftTy {
 };
 
 //
-// MARK: OpenSky
+// MARK: OpenGliderConnection
 //
 class OpenGliderConnection : public LTOnlineChannel, LTFlightDataChannel
 {
@@ -99,6 +105,34 @@ public:
 };
 
 //
+// MARK: OGN Aircraft list file
+//
+
+/// @brief Record structure of a record in the OGN Aircraft list file
+/// @details Data is stored in binary format so we can use seek to search in the file
+struct OGNcalcAcFileRecTy {
+    char deviceId[6] = {' ',' ',' ',' ',' ',' '};   ///< device id (6 hex chars)
+    char del1        = '|';
+    char mdl[25]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',};  ///< aircraft model (text)
+    char del2        = '|';
+    char reg[10]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',};  ///< registration
+    char del3        = '|';
+    char cn[3]       = {' ',' ',' '};               ///< CN (3 chars plus terminating zero)
+    char del4        = '\n';
+};
+
+/// Hand-over structure to callback
+struct OGNCbHandoverTy {
+    int deviceIdIdx = 1;                ///< which field is the DEVICE_ID field?
+    int mdlIdx = 2;                     ///< which field is the AIRCRAFT_MODEL field?
+    int regIdx = 3;                     ///< which field is the REGISTRATION field?
+    int cnIdx = 4;                      ///< which field is the CN field?
+    int maxIdx = 4;                     ///< maximum idx used? (this is the minimum length that can be processed)
+    std::string readBuf;                ///< read buffer collecting responses from ddb.glidernet.org
+    std::ofstream f;                    ///< file to write output to
+};
+
+//
 // MARK: Global Functions
 //
 
@@ -111,5 +145,8 @@ const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy);
 
 /// Fill defaults for Flarm aircraft types where not existing
 void OGNFillDefaultFlarmAcTypes ();
+
+/// Fetch the aircraft list from OGN
+void OGNDownloadAcList ();
 
 #endif /* LTOpenGlider_h */

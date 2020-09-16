@@ -669,9 +669,10 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable OpenSky and ADSBEx by default
-    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
-    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+    // enable OpenSky and OGN by default
+    bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));
@@ -950,14 +951,14 @@ float   DataRefs::LTGetFloat(void* p)   { return *reinterpret_cast<float*>(p); }
 
 void    DataRefs::LTSetBool(void* p, int i)
 {
+    // If any channel changed we forward
+    if (dataRefs.bChannel <= p && p <= &dataRefs.bChannel[CNT_DR_CHANNELS-1]) {
+        dataRefs.SetChannelEnabled(dataRefsLT(DR_CHANNEL_FIRST + ((int*)(p)-dataRefs.bChannel)), i != 0);
+        return;
+    }
+
+    // otherwise just do it
     *reinterpret_cast<int*>(p) = i != 0;
-    
-    // also enable OpenSky Master data if OpenSky tracking data is now enabled
-    if (((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_ONLINE - DR_CHANNEL_FIRST]) && i) ||
-        // override OpenSky Master if OpenSky tracking active
-        ((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST]) &&
-         dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) )
-        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
     
     // If label config changes we need to tell XPMP2
     if (p == &dataRefs.bLabelVisibilityCUtOff)
@@ -2054,11 +2055,20 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
 void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
 {
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
+    
+    // If OpenSky Tracking is enabled then make sure OpenSky Master is also
+    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE))
+        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
+    
+    // if OGN just got enabled download a fresh a/c list from OGN
+    if (bEnable && ch == DR_CHANNEL_OPEN_GLIDER_NET)
+        OGNDownloadAcList();
+    
     // if a channel got disabled check if any tracking data channel is left
-    if (!bEnable && AreAircraftDisplayed() &&   // just diabled? Activated for aircraft display?
+    if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
         !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
     {
-        LOG_MSG(logERR, ERR_CH_NONE_ACTIVE);
+        SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
     }
 }
 
