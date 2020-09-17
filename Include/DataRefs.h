@@ -643,6 +643,7 @@ protected:
     
     // Weather
     double      altPressCorr_ft = 0.0;  ///< [ft] barometric correction for pressure altitude, in meter
+    float       lastWeatherAttempt = 0.0f;  ///< last time we _tried_ to update the weather
     float       lastWeatherUpd = 0.0f;  ///< last time the weather was updated? (in XP's network time)
     float       lastWeatherHPA = HPA_STANDARD; ///< last barometric pressure received
     positionTy  lastWeatherPos;         ///< last position for which weather was retrieved

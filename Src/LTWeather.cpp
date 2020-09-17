@@ -84,7 +84,6 @@ constexpr float ADD_WEATHER_RADIUS_NM = 100.0f;
 constexpr long  MAX_WEATHER_RADIUS_FACTOR = 5;
 
 // Error messages
-#define ERR_WEATHER_REQU        "Could not request weather from aviationweather.gov: HTTP return code %d"
 #define ERR_WEATHER_ERROR       "Weather request returned with error: %s"
 #define WARN_NO_WEATHER         "Found no weather in a %.fnm radius"
 #define ERR_NO_WEATHER          "Found no weather in a %.fnm radius, giving up"
@@ -225,7 +224,7 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
 
                 // if (still) error, then log error
                 if (cc != CURLE_OK)
-                    LOG_MSG(logERR, ERR_CURL_NOVERCHECK, cc, curl_errtxt);
+                    LOG_MSG(logERR, ERR_CURL_PERFORM, "Weather download", cc, curl_errtxt);
             }
 
             if (cc == CURLE_OK)
@@ -236,7 +235,7 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
 
                 // not HTTP_OK?
                 if (httpResponse != HTTP_OK) {
-                    LOG_MSG(logERR, ERR_WEATHER_REQU, (int)httpResponse);
+                    LOG_MSG(logERR, ERR_CURL_PERFORM, "Weather download", (int)httpResponse, ERR_HTTP_NOT_OK);
                 }
                 else {
                     // Success: Process data

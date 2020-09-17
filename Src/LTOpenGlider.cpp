@@ -32,11 +32,11 @@
 //
 
 // log messages
+#define OGN_AC_LIST_DOWNLOAD        "Downloading a/c list from ddb.glidernet.org"
 #define ERR_OGN_XLM_END_MISSING     "OGN response malformed, end of XML element missing: %s"
 #define ERR_OGN_WRONG_NUM_FIELDS    "OGN response contains wrong number of fields: %s"
 
 #define ERR_OGN_ACL_FILE_OPEN       "Could not open '%s' for writing: %s"
-#define ERR_OGN_AC_LIST_DOWNLOAD    "Could not download a/c list from ddb.glidernet.org: HTTP return code %d"
 #define INFO_OGN_AC_LIST_DOWNLOADED "Aircraft list downloaded from ddb.glidernet.org"
 
 constexpr const char* OGN_MARKER_BEGIN = "<m a=\""; ///< beginning of a marker in the XML response
@@ -339,7 +339,7 @@ static bool OGNAcListDoDownload ()
 
             // if (still) error, then log error
             if (cc != CURLE_OK)
-                LOG_MSG(logERR, ERR_CURL_NOVERCHECK, cc, curl_errtxt);
+                LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, cc, curl_errtxt);
         }
 
         if (cc == CURLE_OK)
@@ -350,7 +350,7 @@ static bool OGNAcListDoDownload ()
 
             // not HTTP_OK?
             if (httpResponse != HTTP_OK) {
-                LOG_MSG(logERR, ERR_OGN_AC_LIST_DOWNLOAD, (int)httpResponse);
+                LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, (int)httpResponse, ERR_HTTP_NOT_OK);
             }
             else {
                 // Success: Process data
