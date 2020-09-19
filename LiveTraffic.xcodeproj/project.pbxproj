@@ -219,7 +219,6 @@
 		25CDC7482236F034007F504B /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 10/Log.txt"; sourceTree = "<group>"; };
 		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
 		25D59F4B23106A79002D81CF /* model_typecode.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = model_typecode.txt; sourceTree = "<group>"; };
-		25D712A921B72EF900B5802F /* related.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = related.txt; sourceTree = "<group>"; };
 		25D810FE2402D60A00A8723B /* Dockerfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile; sourceTree = "<group>"; };
 		25D810FF2402D60A00A8723B /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		25D811002402D60A00A8723B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -429,7 +428,6 @@
 			children = (
 				25B4427923EF674B0040F67A /* MapIcons.png */,
 				25D59F4B23106A79002D81CF /* model_typecode.txt */,
-				25D712A921B72EF900B5802F /* related.txt */,
 				2577B6A1216A93D1004B432D /* FlightModels.prf */,
 			);
 			path = Resources;

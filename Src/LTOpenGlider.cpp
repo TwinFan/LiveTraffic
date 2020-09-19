@@ -36,7 +36,8 @@
 #define ERR_OGN_XLM_END_MISSING     "OGN response malformed, end of XML element missing: %s"
 #define ERR_OGN_WRONG_NUM_FIELDS    "OGN response contains wrong number of fields: %s"
 
-#define ERR_OGN_ACL_FILE_OPEN       "Could not open '%s' for writing: %s"
+#define ERR_OGN_ACL_FILE_OPEN_W     "Could not open '%s' for writing: %s"
+#define ERR_OGN_ACL_FILE_OPEN_R     "Could not open '%s' for reading: %s"
 #define INFO_OGN_AC_LIST_DOWNLOADED "Aircraft list downloaded from ddb.glidernet.org"
 
 constexpr const char* OGN_MARKER_BEGIN = "<m a=\""; ///< beginning of a marker in the XML response
@@ -53,6 +54,13 @@ LTFlightDataChannel()
     urlName  = OPGLIDER_CHECK_NAME;
     urlLink  = OPGLIDER_CHECK_URL;
     urlPopup = OPGLIDER_CHECK_POPUP;
+}
+
+// Destructor closes the a/c list file
+OpenGliderConnection::~OpenGliderConnection ()
+{
+    if (ifAcList.is_open())
+        ifAcList.close();
 }
 
 // put together the URL to fetch based on current view position
@@ -173,6 +181,17 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.catDescr   = OGNGetAcTypeName(acTy);
                 stat.man        = "-";
                 stat.mdl        = stat.catDescr;
+                
+                // Try finding more a/c master data in the a/c list file
+                if (tok[GNF_FLARM_DEVICE_ID].size() == 6) {
+                    if (LookupAcList(std::stoul(tok[GNF_FLARM_DEVICE_ID], nullptr, 16), stat))
+                    {
+                        // found something! So we can try to feed that into the model_typecode lookup
+                        const std::string& acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
+                        if (!acTypeIcao.empty())            // found something!
+                            stat.acTypeIcao = acTypeIcao;
+                    }
+                }
 
                 fd.UpdateData(std::move(stat));
             }
@@ -217,6 +236,35 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     return true;
 }
 
+// Tries reading aircraft information from the OGN a/c list
+bool OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat)
+{
+    // If needed open the file
+    if (!ifAcList.is_open()) {
+        // open the output file in binary mode
+        const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
+        ifAcList.open (sFileName, std::ios::binary | std::ios::in);
+        if (!ifAcList) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN_R, sFileName.c_str(), sErr);
+            return false;
+        }
+    }
+    
+    // look up data in the sorted file
+    OGNcalcAcFileRecTy rec;
+    if (!FileRecLookup (ifAcList, numRecAcList,
+                        uDevId, minKeyAcList, maxKeyAcList,
+                        &rec, sizeof(rec)))
+        return false;
+    
+    // copy some information into the stat structure
+    if (*rec.mdl != ' ') { stat.mdl.assign(rec.mdl,sizeof(rec.mdl)); rtrim(stat.mdl); }
+    if (*rec.reg != ' ') { stat.reg.assign(rec.reg,sizeof(rec.reg)); rtrim(stat.reg); }
+    return true;
+}
+
 //
 // MARK: OGN Aircraft list file
 //
@@ -258,7 +306,7 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
     
     // prepare a new record to be added to the output file
     OGNcalcAcFileRecTy rec;
-    tok[ho.deviceIdIdx].copy(rec.deviceId,  sizeof(rec.deviceId));
+    rec.devId = std::stoul(tok[ho.deviceIdIdx], nullptr, 16);
     tok[ho.mdlIdx].     copy(rec.mdl,       sizeof(rec.mdl));
     tok[ho.regIdx].     copy(rec.reg,       sizeof(rec.reg));
     tok[ho.cnIdx].      copy(rec.cn,        sizeof(rec.cn));
@@ -271,6 +319,23 @@ static size_t OGNAcListNetwCB(char *ptr, size_t, size_t nmemb, void* userdata)
     // copy buffer to our std::string
     OGNCbHandoverTy& ho = *reinterpret_cast<OGNCbHandoverTy*>(userdata);
     ho.readBuf.append(ptr, nmemb);
+    
+    // So, apparently we receive data. Latest now open the file to write to
+    // (we do that late because we truncate the file and only want to do that
+    //  when we are about sure that we can fill it up again)
+    if (!ho.f.is_open()) {
+        // open the output file in binary mode
+        const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
+        ho.f.open(sFileName, std::ios::binary | std::ios::trunc);
+        if (!ho.f) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN_W,
+                    sFileName.c_str(), sErr);
+            // this will make the transfer stop with return code CURLE_WRITE_ERROR
+            return 0;
+        }
+    }
     
     // Now process lines from the beginning of the buffer
     for (std::string::size_type pos = ho.readBuf.find('\n');
@@ -295,17 +360,6 @@ static bool OGNAcListDoDownload ()
     try {
         char curl_errtxt[CURL_ERROR_SIZE];
         OGNCbHandoverTy ho;             // hand-over structure to callback
-        
-        // open the output file in binary mode
-        const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
-        ho.f.open(sFileName, std::ios::binary | std::ios::trunc);
-        if (!ho.f) {
-            char sErr[SERR_LEN];
-            strerror_s(sErr, sizeof(sErr), errno);
-            LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN,
-                    sFileName.c_str(), sErr);
-            return false;
-        }
         
         // initialize the CURL handle
         CURL *pCurl = curl_easy_init();
@@ -353,15 +407,15 @@ static bool OGNAcListDoDownload ()
                 LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, (int)httpResponse, ERR_HTTP_NOT_OK);
             }
             else {
-                // Success: Process data
-                // TODO: Do something?
+                // Success
                 bRet = true;
                 LOG_MSG(logINFO, INFO_OGN_AC_LIST_DOWNLOADED);
             }
         }
         
         // close the file properly
-        ho.f.close();
+        if (ho.f.is_open())
+            ho.f.close();
 
         // cleanup CURL handle
         curl_easy_cleanup(pCurl);
@@ -380,6 +434,9 @@ static bool OGNAcListDoDownload ()
 //
 // MARK: Global Functions
 //
+
+/// Update a/c list every 12h at most
+constexpr time_t OGN_AC_LIST_REFRESH = 12*60*60;
 
 /// Is currently an async operation running to download a/c list?
 static std::future<bool> futAcListDownload;
@@ -456,6 +513,10 @@ void OGNDownloadAcList ()
         futAcListDownload.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
             // then stop here
             return;
+    
+    // Don't need to download more often than every 12 hours
+    if (GetFileModTime(dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE) + OGN_AC_LIST_REFRESH > time(NULL))
+        return;
 
     // start another thread to download the a/c list
     futAcListDownload = std::async(std::launch::async, OGNAcListDoDownload);

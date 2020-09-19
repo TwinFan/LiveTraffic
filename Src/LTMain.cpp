@@ -167,6 +167,81 @@ std::istream& safeGetline(std::istream& is, std::string& t)
     return is;
 }
 
+// Get file's modification time
+time_t GetFileModTime(const std::string& path)
+{
+    struct stat buffer;
+    if (stat (path.c_str(), &buffer) != 0)  // get stats...error?
+        return 0;                           // doesn't exist...no directory either
+#if APL == 1
+    return buffer.st_mtimespec.tv_sec;
+#else
+    return buffer.st_mtime;
+#endif
+}
+
+// Lookup a record by key in a sorted binary record-based file
+bool FileRecLookup (std::ifstream& f, size_t& n,
+                    unsigned long key,
+                    unsigned long& minKey, unsigned long& maxKey,
+                    void* outRec, size_t recLen)
+{
+    // determin min/max key if not yet known
+    if (f && maxKey == 0) {
+        // Read first record to determine Al
+        f.seekg(0);
+        f.read((char*)&minKey, sizeof(minKey));
+        if (!f) return false;
+        // Read last record to determine Ar
+        f.seekg(-recLen, std::ios_base::end);
+        f.read((char*)&maxKey, sizeof(maxKey));
+        if (!f) return false;
+    }
+
+    // Determine number of records if not (yet) known
+    if (f && n == 0) {
+        f.seekg(0, std::ios_base::end);
+        n = f.tellg() / recLen;
+        if (!f) return false;
+    }
+    
+    // Binary search algorithm (using linear interpolation for the key,
+    // and trying to reduce f.read operations as much as possible)
+    size_t L = 0;
+    size_t m;
+    size_t R = n-1;
+    unsigned long Al = minKey;      // key value at position L
+    unsigned long* pAm = (unsigned long*)outRec;    // key value at position m (is at the beginning of the record, using outRec as buffer)
+    unsigned long Ar = maxKey;      // key value at position R
+    while (L != R) {
+        // approximation by linear interpolation
+        m = L + (size_t)std::floor(float(key-Al)/float(Ar-Al) * (R-L));
+        
+        // test if record at m is less than the key
+        f.seekg(m * recLen);
+        f.read((char*)outRec, recLen);
+        if (!f) return false;
+        if (*pAm == key) {
+            return true;
+        }
+        else if (*pAm < key) {
+            L = m+1;                // move to _next_ record as we are too small
+            f.read((char*)outRec, recLen);
+            Al = *(unsigned long*)outRec;
+            if (Al == key)          // that next record is our value?
+                return true;
+            if (Al > key)           // that next value now is too big? Then key doesn't exist
+                return false;
+        } else {
+            R = m;
+            Ar = *pAm;
+        }
+    }
+    // not found
+    return false;
+}
+
+
 //
 // MARK: URL/Help support
 //
@@ -206,6 +281,14 @@ std::string& str_toupper(std::string& s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) -> unsigned char { return (unsigned char) toupper(c); });
     return s;
+}
+
+// return a std::string copy converted to uppercase
+std::string str_toupper_c(const std::string& s)
+{
+    std::string c(s);
+    str_toupper(c);
+    return c;
 }
 
 bool str_isalnum(const std::string& s)

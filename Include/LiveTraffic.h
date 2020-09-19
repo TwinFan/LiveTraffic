@@ -174,6 +174,24 @@ std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly 
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);
 
+/// Get file's modification time (0 in case of errors)
+time_t GetFileModTime(const std::string& path);
+
+/// @brief Lookup a record by key in a sorted binary record-based file
+/// @param f File to search, must have been opened in binary input mode
+/// @param[in,out] n File size in number of records, will be determined and returned if `0`
+/// @param key Key to find, expected to be at the record's beginning
+/// @param[in,out] minKey is the lowest key in the file (record 0)
+/// @param[in,out] maxKey is the highest key in the file (last record), determined if `0`
+/// @param[out] outRec points to an output buffer, which is used as temporary and in the end contains the found record
+/// @param recLen Length of each record and (minimum) size of the buffer `outRec` points to
+/// @see https://en.wikipedia.org/wiki/Binary_search_algorithm
+/// @details Linear interpolation is applied to the key
+bool FileRecLookup (std::ifstream& f, size_t& n,
+                    unsigned long key,
+                    unsigned long& minKey, unsigned long& maxKey,
+                    void* outRec, size_t recLen);
+
 // MARK: URL/Help support
 
 void LTOpenURL  (const std::string url);
@@ -183,6 +201,8 @@ void LTOpenHelp (const std::string path);
 
 // change a std::string to uppercase
 std::string& str_toupper(std::string& s);
+/// return a std::string copy converted to uppercase
+std::string str_toupper_c(const std::string& s);
 // are all chars alphanumeric?
 bool str_isalnum(const std::string& s);
 // format timestamp

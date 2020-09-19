@@ -2,6 +2,7 @@ TODO
 ===
 
 OGN
+- When reading from a/c was successful use the info for a model_typecode lookup
 - Show Category in A/C Info Wnd
 
 Add Nose-wheel steering angle

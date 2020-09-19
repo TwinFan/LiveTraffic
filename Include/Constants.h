@@ -102,6 +102,7 @@ constexpr double MDL_TIRE_MAX_RPM = 2000;   ///< [rpm] max tire rotation speed
 constexpr double MDL_TIRE_CF_M      = 3.2;  ///< [m] tire circumfence (3.2m for a 40-inch tire)
 constexpr double MDL_GEAR_DEFL_TIME = 0.5;  ///< [s] time for gear deflection (one direction...up down is twice this value)
 constexpr double MDL_CAR_MAX_TAXI = 80.0;   ///< [kn] Maximum allowed taxi speed for ground vehicles (before they turn into planes)
+constexpr double MDL_GLIDER_STOP_ROLL=7.0;  ///< [°] a stopped glider is tilted to rest on one of its wings
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
 constexpr int COLOR_RED         = 0xFF0000;
@@ -147,7 +148,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
 #define LT_CFG_VER_DEL_IMGUI    "1.1"        // cfg file version, for which we need to remove imgui config file (as we added a column into the aircraft list)
 #define LT_CFG_VERSION          "2.2"        // current version of config file format
-#define LT_FM_VERSION           "2.0"        // version of flight model file format
+#define LT_FM_VERSION           "2.2"        // expected version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"

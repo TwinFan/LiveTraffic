@@ -94,6 +94,8 @@ class OpenGliderConnection : public LTOnlineChannel, LTFlightDataChannel
 public:
     /// Constructor
     OpenGliderConnection ();
+    /// Destructor closes the a/c list file
+    virtual ~OpenGliderConnection ();
     /// Returns URL to fetch current data from live.glidernet.org
     virtual std::string GetURL (const positionTy& pos);
     /// @brief Processes the fetched data
@@ -102,6 +104,14 @@ public:
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual const char* ChName() const { return OPGLIDER_NAME; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
+    
+protected:
+    std::ifstream ifAcList;                 ///< Handle to the a/c list file
+    size_t numRecAcList = 0;                ///< number of records in the file
+    unsigned long minKeyAcList = 0;         ///< minimum key value in the file
+    unsigned long maxKeyAcList = 0;         ///< maximum key value in the file
+    /// Tries reading aircraft information from the OGN a/c list
+    bool LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat);
 };
 
 //
@@ -111,14 +121,10 @@ public:
 /// @brief Record structure of a record in the OGN Aircraft list file
 /// @details Data is stored in binary format so we can use seek to search in the file
 struct OGNcalcAcFileRecTy {
-    char deviceId[6] = {' ',' ',' ',' ',' ',' '};   ///< device id (6 hex chars)
-    char del1        = '|';
-    char mdl[25]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',};  ///< aircraft model (text)
-    char del2        = '|';
+    unsigned long   devId = 0;          ///< device id
+    char mdl[27]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};  ///< aircraft model (text)
     char reg[10]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',};  ///< registration
-    char del3        = '|';
-    char cn[3]       = {' ',' ',' '};               ///< CN (3 chars plus terminating zero)
-    char del4        = '\n';
+    char cn[3]       = {' ',' ',' '};               ///< CN
 };
 
 /// Hand-over structure to callback
