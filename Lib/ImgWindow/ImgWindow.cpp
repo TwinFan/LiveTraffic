@@ -567,7 +567,7 @@ ImgWindow::HandleKeyFuncCB(
         }
         else
             // in all normal cases: save the up/down flag as it comes from XP
-            io.KeysDown[inVirtualKey] = (inFlags & xplm_DownFlag) == xplm_DownFlag;
+            io.KeysDown[int(inVirtualKey)] = (inFlags & xplm_DownFlag) == xplm_DownFlag;
 		io.KeyShift = (inFlags & xplm_ShiftFlag) == xplm_ShiftFlag;
 		io.KeyAlt = (inFlags & xplm_OptionAltFlag) == xplm_OptionAltFlag;
 		io.KeyCtrl = (inFlags & xplm_ControlFlag) == xplm_ControlFlag;
