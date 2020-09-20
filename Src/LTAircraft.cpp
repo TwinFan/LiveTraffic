@@ -1244,7 +1244,11 @@ LTAircraft::~LTAircraft()
 void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 {
     std::string s (statDat.acId(""));
-    labelInternal = key() + " (" + statDat.acTypeIcao;
+    labelInternal = fd.key().GetKeyTypeText();
+    labelInternal += ' ';
+    labelInternal += key();
+    labelInternal += " (";
+    labelInternal += statDat.acTypeIcao;
     if (!s.empty()) {
         labelInternal += ' ';
         labelInternal += s;

@@ -193,7 +193,7 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
         f.read((char*)&minKey, sizeof(minKey));
         if (!f) return false;
         // Read last record to determine Ar
-        f.seekg(-recLen, std::ios_base::end);
+        f.seekg(-std::streamoff(recLen), std::ios_base::end);
         f.read((char*)&maxKey, sizeof(maxKey));
         if (!f) return false;
     }
@@ -559,6 +559,8 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     }
     // We don't want clamping to the ground, we take care of the ground ourselves
     if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    // We want XPMP2 to assign unique modeS_ids if we feed duplicates (which can happen due to different id systems in use, especially ICAO vs FLARM)
+    if (!strcmp(key, XPMP_CFG_ITM_HANDLE_DUP_ID)) return 1;
     // Copying .obj files is an advanced setting
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))

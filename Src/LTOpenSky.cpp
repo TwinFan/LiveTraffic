@@ -237,7 +237,9 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         // fetch request from front of list and remove
         info = listAc.front();
         listAc.pop_front();
-        if (info.acKey.icao.empty())        // empty or -more specifically- no ICAO code?
+        // empty or not an ICAO code? -> skip
+        if (info.acKey.eKeyType != LTFlightData::KEY_ICAO ||
+            info.acKey.key.empty())
             continue;
         
         // delay subsequent requests
@@ -253,10 +255,10 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         pos.f.onGrnd = GND_ON;                          // flag for: master data
         
         // skip icao of which we know they will come back invalid
-        if ( std::find(invIcaos.cbegin(),invIcaos.cend(),info.acKey.icao) == invIcaos.cend() )
+        if ( std::find(invIcaos.cbegin(),invIcaos.cend(),info.acKey.key) == invIcaos.cend() )
         {
             // set key (transpIcao) so that other functions (GetURL) can access it
-            currKey = info.acKey.icao;
+            currKey = info.acKey.key;
             
             // make use of LTOnlineChannel's capability of reading online data
             --maxNumRequ;                               // count down the number of requests in this period
@@ -268,7 +270,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         bChannelOK = true;
                         break;
                     case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                        invIcaos.emplace_back(info.acKey.icao);
+                        invIcaos.emplace_back(info.acKey.key);
                         bChannelOK = true;              // but technically a valid response
                         break;
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again

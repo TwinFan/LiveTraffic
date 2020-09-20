@@ -781,7 +781,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
             
             // did we find another line for this a/c earlier in this file?
-            mapFDSelectionTy::iterator selIter = selMap.find(fdKey.icao);
+            mapFDSelectionTy::iterator selIter = selMap.find(fdKey.key);
             
             // if so we have to compare qualities, the better one survives
             if ( selIter != selMap.end() )
@@ -794,7 +794,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 }
             } else {
                 // first time we see this a/c in this file -> add to map
-                selMap.emplace(std::make_pair(fdKey.icao, FDSelection {qual, std::move(ln)} ));
+                selMap.emplace(std::make_pair(fdKey.key, FDSelection {qual, std::move(ln)} ));
             }
             
             // done with interpreting this line

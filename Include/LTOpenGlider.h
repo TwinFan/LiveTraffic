@@ -110,8 +110,9 @@ protected:
     size_t numRecAcList = 0;                ///< number of records in the file
     unsigned long minKeyAcList = 0;         ///< minimum key value in the file
     unsigned long maxKeyAcList = 0;         ///< maximum key value in the file
-    /// Tries reading aircraft information from the OGN a/c list
-    bool LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat);
+    /// @brief Tries reading aircraft information from the OGN a/c list
+    /// @return Key type of a/c found (KEY_OGN, KEY_FLARM, or KEY_ICAO) or KEY_UNKNOWN if no a/c found
+    LTFlightData::FDKeyType LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat);
 };
 
 //
@@ -122,14 +123,16 @@ protected:
 /// @details Data is stored in binary format so we can use seek to search in the file
 struct OGNcalcAcFileRecTy {
     unsigned long   devId = 0;          ///< device id
-    char mdl[27]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};  ///< aircraft model (text)
+    char devType     = ' ';             ///< device type (F, O, I)
+    char mdl[26]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};  ///< aircraft model (text)
     char reg[10]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',};  ///< registration
     char cn[3]       = {' ',' ',' '};               ///< CN
 };
 
 /// Hand-over structure to callback
 struct OGNCbHandoverTy {
-    int deviceIdIdx = 1;                ///< which field is the DEVICE_ID field?
+    int devIdIdx = 1;                   ///< which field is the DEVICE_ID field?
+    int devTypeIdx = 0;                 ///< which field is the DEVICE_TYPE field?
     int mdlIdx = 2;                     ///< which field is the AIRCRAFT_MODEL field?
     int regIdx = 3;                     ///< which field is the REGISTRATION field?
     int cnIdx = 4;                      ///< which field is the CN field?

@@ -131,11 +131,25 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         const long age_s = std::abs(std::stol(tok[GNF_AGE_S]));
         if (age_s >= dataRefs.GetAcOutdatedIntvl())
             continue;
-        
-        // the key: flarm id (which is persistent, but not always included),
-        //          or alternatively the OGN id (which is assigned daily, so good enough to track a flight)
-        LTFlightData::FDKeyTy fdKey (tok[GNF_FLARM_DEVICE_ID].size() == 6 ? LTFlightData::KEY_FLARM  : LTFlightData::KEY_OGN,
-                                     tok[GNF_FLARM_DEVICE_ID].size() == 6 ? tok[GNF_FLARM_DEVICE_ID] : tok[GNF_OGN_REG_ID]);
+
+        // They key: if no 6-digit FLARM device id is available then we use the
+        //           OGN id, which is assigned daily, but good enough to track a flight
+        LTFlightData::FDKeyTy fdKey;
+        LTFlightData::FDStaticData stat;
+        if (tok[GNF_FLARM_DEVICE_ID].size() != 6) {
+            // use the OGN Registration
+            fdKey.SetKey(LTFlightData::KEY_OGN, tok[GNF_OGN_REG_ID]);
+        } else {
+            // otherwise we look up the 6-digit key in the a/c list to learn more details about the type
+            LTFlightData::FDKeyType keyType = LookupAcList(std::stoul(tok[GNF_FLARM_DEVICE_ID], nullptr, 16), stat);
+            if (keyType != LTFlightData::KEY_UNKNOWN)       // found in the a/c list!
+                // also look up a good ICAO a/c type by the model text
+                stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
+            else
+                // not found in a/c list: Assume the key is FLARM
+                keyType = LTFlightData::KEY_FLARM;
+            fdKey.SetKey(keyType, tok[GNF_FLARM_DEVICE_ID]);
+        }
         
         // key not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
@@ -161,36 +175,27 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             if ( fd.empty() ) {
                 fd.SetKey(fdKey);
             
-                // fill static data
-                LTFlightData::FDStaticData stat;
-                
                 // Call Sign: We use the CN, don't have a proper call sign,
                 // makes it easier to match a/c to what live.glidernet.org shows
                 stat.call = tok[GNF_CN];
                 // We assume that GNF_REG holds a (more or less)
                 // proper reg in case it is not just the generated OGN_REG_ID
-                if (tok[GNF_REG] != tok[GNF_OGN_REG_ID])
-                    stat.reg = tok[GNF_REG];
-                else
-                    // otherwise (again) the CN
-                    stat.reg = tok[GNF_CN];
+                if (stat.reg.empty()) {
+                    if (tok[GNF_REG] != tok[GNF_OGN_REG_ID])
+                        stat.reg = tok[GNF_REG];
+                    else
+                        // otherwise (again) the CN
+                        stat.reg = tok[GNF_CN];
+                }
                 // Aircraft type converted from Flarm AcftType
-                FlarmAircraftTy acTy = (FlarmAircraftTy)clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
-                                                                   FAT_UNKNOWN, FAT_STATIC_OBJ);
-                stat.acTypeIcao = OGNGetIcaoAcType(acTy);
+                const FlarmAircraftTy acTy = (FlarmAircraftTy)clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
+                                                                         FAT_UNKNOWN, FAT_STATIC_OBJ);
                 stat.catDescr   = OGNGetAcTypeName(acTy);
-                stat.man        = "-";
-                stat.mdl        = stat.catDescr;
                 
-                // Try finding more a/c master data in the a/c list file
-                if (tok[GNF_FLARM_DEVICE_ID].size() == 6) {
-                    if (LookupAcList(std::stoul(tok[GNF_FLARM_DEVICE_ID], nullptr, 16), stat))
-                    {
-                        // found something! So we can try to feed that into the model_typecode lookup
-                        const std::string& acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
-                        if (!acTypeIcao.empty())            // found something!
-                            stat.acTypeIcao = acTypeIcao;
-                    }
+                // If we still have no accurate ICAO type then we need to fall back to some configured defaults
+                if (stat.acTypeIcao.empty()) {
+                    stat.acTypeIcao = OGNGetIcaoAcType(acTy);
+                    stat.mdl        = stat.catDescr;
                 }
 
                 fd.UpdateData(std::move(stat));
@@ -237,7 +242,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 }
 
 // Tries reading aircraft information from the OGN a/c list
-bool OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat)
+LTFlightData::FDKeyType OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat)
 {
     // If needed open the file
     if (!ifAcList.is_open()) {
@@ -248,7 +253,7 @@ bool OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDS
             char sErr[SERR_LEN];
             strerror_s(sErr, sizeof(sErr), errno);
             LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN_R, sFileName.c_str(), sErr);
-            return false;
+            return LTFlightData::KEY_UNKNOWN;
         }
     }
     
@@ -257,12 +262,15 @@ bool OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDS
     if (!FileRecLookup (ifAcList, numRecAcList,
                         uDevId, minKeyAcList, maxKeyAcList,
                         &rec, sizeof(rec)))
-        return false;
+        return LTFlightData::KEY_UNKNOWN;
     
     // copy some information into the stat structure
     if (*rec.mdl != ' ') { stat.mdl.assign(rec.mdl,sizeof(rec.mdl)); rtrim(stat.mdl); }
     if (*rec.reg != ' ') { stat.reg.assign(rec.reg,sizeof(rec.reg)); rtrim(stat.reg); }
-    return true;
+    return
+    rec.devType == 'F' ? LTFlightData::KEY_FLARM    :
+    rec.devType == 'I' ? LTFlightData::KEY_ICAO     :
+    rec.devType == 'O' ? LTFlightData::KEY_OGN      : LTFlightData::KEY_UNKNOWN;
 }
 
 //
@@ -284,13 +292,15 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
     
     // is this the very first line telling the field positions?
     if (tok[0][0] == '#') {
+        tok[0].erase(0,1);              // remove the #
         for (int i = 0; i < (int)tok.size(); i++) {
-            if (tok[i] == "DEVICE_ID") ho.deviceIdIdx = i;
+            if (tok[i] == "DEVICE_ID") ho.devIdIdx = i;
+            else if (tok[i] == "DEVICE_TYPE") ho.devTypeIdx = i;
             else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
             else if (tok[i] == "REGISTRATION") ho.regIdx = i;
             else if (tok[i] == "CN") ho.cnIdx = i;
         }
-        ho.maxIdx = std::max({ho.deviceIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx});
+        ho.maxIdx = std::max({ho.devIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx});
         return;
     }
     
@@ -306,7 +316,8 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
     
     // prepare a new record to be added to the output file
     OGNcalcAcFileRecTy rec;
-    rec.devId = std::stoul(tok[ho.deviceIdIdx], nullptr, 16);
+    rec.devId = std::stoul(tok[ho.devIdIdx], nullptr, 16);
+    rec.devType = tok[ho.devTypeIdx][0];
     tok[ho.mdlIdx].     copy(rec.mdl,       sizeof(rec.mdl));
     tok[ho.regIdx].     copy(rec.reg,       sizeof(rec.reg));
     tok[ho.cnIdx].      copy(rec.cn,        sizeof(rec.cn));
@@ -484,7 +495,7 @@ void OGNFillDefaultFlarmAcTypes ()
     const std::array<const char*, FAT_UAV+1> DEFAULT_FLARM_ACTY = {
         "GLID",     // FAT_UNKNOWN     = 0,        ///< unknown
         "GLID",     // FAT_GLIDER      = 1,        ///< Glider / Sailplane / Motor-Glider
-        "PA25",     // FAT_TOW_PLANE   = 2,        ///< Tow / Tug Plane (usually a L1P type of plane)
+        "DR40",     // FAT_TOW_PLANE   = 2,        ///< Tow / Tug Plane (usually a L1P type of plane, on OGN the RObin DR-400 is the most often seen L1P plane so I picked this model as a default)
         "EC35",     // FAT_HELI_ROTOR  = 3,        ///< Helicopter, Rotorcraft
         "GLID",     // FAT_PARACHUTE   = 4,        ///< Parachute
         "C208",     // FAT_DROP_PLANE  = 5,        ///< Drop Plane for parachutes (not rarely a L2T type of plane)

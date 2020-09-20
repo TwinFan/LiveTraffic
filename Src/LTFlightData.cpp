@@ -199,7 +199,23 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
 {
     eKeyType = _eType;
     num = _num;
-    return key = SetVal(eKeyType,num);
+
+    // convert to uppercase hex string
+    char buf[50];
+    switch(_eType) {
+        case KEY_ICAO:
+        case KEY_FLARM:
+            snprintf(buf, sizeof(buf), "%06lX", _num);
+            break;
+        case KEY_OGN:
+        case KEY_RT:
+            snprintf(buf, sizeof(buf), "%08lX", _num);
+            break;
+        default:
+            // must not happen
+            LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
+    }
+    return key = buf;
 }
 
 std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, const std::string _key, int base)
@@ -208,45 +224,10 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, const std::string _
 }
 
 
-// FDKeyTy: Set any value
-std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, unsigned long _num)
-{
-    // convert to uppercase hex string
-    char buf[50];
-    switch(_eType) {
-        case KEY_OGN:
-            snprintf(buf, sizeof(buf), "%08lX", _num);
-            return ogn = buf;
-        case KEY_RT:
-            snprintf(buf, sizeof(buf), "%08lX", _num);
-            return rtId = buf;
-        case KEY_FLARM:
-            snprintf(buf, sizeof(buf), "%06lX", _num);
-            return flarm = buf;
-        case KEY_ICAO:
-            snprintf(buf, sizeof(buf), "%06lX", _num);
-            return icao = buf;
-        default:
-            // must not happen
-            LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
-            return "";
-    }
-
-}
-
-std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, const std::string _val, int base)
-{
-    return SetVal(_eType, std::stoul(_val, nullptr, base));
-}
-
-// matches any string?
+// matches the key?
 bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
 {
-    return (t == key ||
-            t == icao ||
-            t == flarm ||
-            t == rtId ||
-            t == ogn);
+    return t == key;
 }
 
 // return the type of key (as string)

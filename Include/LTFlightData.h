@@ -162,18 +162,10 @@ public:
         std::string             key;            // the primary key in use
         unsigned long           num = 0;        // primary key's numeric representation
         
-        std::string             icao;           // 24bit transponder address
-        std::string             flarm;          // FLARM id is 24bit (like ICAO)
-        std::string             rtId;           // RealTraffic's id is 32bit
-        std::string             ogn;            // OGN id is 32bit
-        
-        // setting keys and values
+        // setting keys
         std::string SetKey (FDKeyType _eType, unsigned long _num);
         std::string SetKey (FDKeyType _eType, const std::string _key, int base=16);
         
-        std::string SetVal (FDKeyType _eType, unsigned long _num);
-        std::string SetVal (FDKeyType _eType, const std::string _val, int base=16);
-
         // construction
         FDKeyTy() {}
         FDKeyTy(FDKeyType _eType, unsigned long _num)                   { SetKey(_eType,_num); }
@@ -276,8 +268,6 @@ public:
     void SetKey    (const FDKeyTy& _key);
     void SetKey    (FDKeyType eType, unsigned long _num)                    { acKey.SetKey(eType, _num); }
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
-    void SetKeyVal (FDKeyType eType, unsigned long _num)                    { acKey.SetVal(eType, _num); }
-    void SetKeyVal (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetVal(eType, _key, base); }
     const FDKeyTy& key() const                              { return acKey; }
     std::string keyDbg() const                              { return key().key + ' ' + statData.acId("-"); }
 
