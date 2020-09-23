@@ -704,8 +704,8 @@ double LTAircraft::FlightModel::maxHeadChange (bool bOnGnd, double time_s) const
 // Is this modelling a glider?
 bool LTAircraft::FlightModel::isGlider () const
 {
-    // not quite exact...but have nothing better at the moment
-    return modelName == "LightAC";
+    // The flight model [Glider] has to be mapped to gliders...
+    return modelName == "Glider";
 }
 
 // list of flight models as read from FlightModel.prf file
@@ -785,6 +785,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(VSI_FINAL);
     else FM_ASSIGN(VSI_INIT_CLIMB);
     else FM_ASSIGN(SPEED_INIT_CLIMB);
+    else FM_ASSIGN(VSI_MAX);
     else FM_ASSIGN(AGL_GEAR_DOWN);
     else FM_ASSIGN(AGL_GEAR_UP);
     else FM_ASSIGN(AGL_FLARE);
@@ -794,8 +795,10 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(FLIGHT_TURN_TIME);
     else FM_ASSIGN_MIN(ROLL_MAX_BANK,1.0);  // avoid zero - this is a moving parameter
     else FM_ASSIGN_MIN(ROLL_RATE, 1.0);     // avoid zero - this becomes a divisor
+    else FM_ASSIGN(MIN_FLIGHT_SPEED);
     else FM_ASSIGN(FLAPS_UP_SPEED);
     else FM_ASSIGN(FLAPS_DOWN_SPEED);
+    else FM_ASSIGN(MAX_FLIGHT_SPEED);
     else FM_ASSIGN(CRUISE_HEIGHT);
     else FM_ASSIGN(ROLL_OUT_DECEL);
     else FM_ASSIGN(PITCH_MIN);
@@ -806,13 +809,6 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN_MIN(PITCH_RATE, 1.0);    // avoid zero - this becomes a divisor
     else FM_ASSIGN(PROP_RPM_MAX);
-    else if (name == "LIGHT_PATTERN") {
-        if ((int)val < 0 || (int)val > 2) {
-            LOG_MSG(logWARN, ERR_CFG_VAL_INVALID, fileName, ln, text.c_str());
-            return false;
-        }
-        fm.LIGHT_PATTERN = (int)val;
-    }
     else FM_ASSIGN(LIGHT_LL_ALT);
     else FM_ASSIGN(EXT_CAMERA_LON_OFS);
     else FM_ASSIGN(EXT_CAMERA_LAT_OFS);
@@ -1973,7 +1969,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         surfaces.lights.bcnLights  = 1;
         surfaces.lights.strbLights = 0;
         surfaces.lights.navLights  = 1;
-        surfaces.lights.flashPattern = (XPMPLightsPattern)mdl.LIGHT_PATTERN;
+        surfaces.lights.flashPattern = xpmp_Lights_Pattern_Default;
         
         gear.down();
         gearDeflection.half();

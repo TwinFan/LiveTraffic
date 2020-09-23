@@ -88,7 +88,8 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Flaps",            40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Lights",          140,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"TCAS Idx",         25,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
-    
+    {"Flight Model",    150,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+
     // This stays last
     {"Actions",         100,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_NoSort},
 }};
@@ -183,18 +184,29 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
             vf[ACT_COL_TCAS_IDX] = NAN;
             v[ACT_COL_TCAS_IDX].clear();
         }
+        v[ACT_COL_FLIGHTMDL]    = pAc->mdl.modelName;
             
     }
-    // if there is no a/c, but there previously was, then we need to clear a lot of fields
-    else if (!v[ACT_COL_POS].empty()) {
-        for (int idx: {
-            ACT_COL_POS, ACT_COL_LAT, ACT_COL_LON, ACT_COL_ALT, ACT_COL_AGL,
-            ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
-            ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
-            ACT_COL_CSLMDL, ACT_COL_PHASE, ACT_COL_GEAR, ACT_COL_FLAPS,
-            ACT_COL_LIGHTS, ACT_COL_TCAS_IDX
-        })
-        { vf[idx] = NAN; v[idx].clear(); }
+    else {
+        // if there is no a/c, but there previously was, then we need to clear a lot of fields
+        if (!v[ACT_COL_POS].empty()) {
+            for (int idx: {
+                ACT_COL_POS, ACT_COL_LAT, ACT_COL_LON, ACT_COL_ALT, ACT_COL_AGL,
+                ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
+                ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
+                ACT_COL_CSLMDL, ACT_COL_PHASE, ACT_COL_GEAR, ACT_COL_FLAPS,
+                ACT_COL_LIGHTS, ACT_COL_TCAS_IDX, ACT_COL_FLIGHTMDL
+            })
+            { vf[idx] = NAN; v[idx].clear(); }
+        }
+        
+        // We can try finding some positional information in the pos deque
+        const dequePositionTy& posDeque = fd.GetPosDeque();
+        if (!posDeque.empty()) {
+            v_f(ACT_COL_LAT,    "%.4f",     posDeque.front().lat());
+            v_f(ACT_COL_LON,    "%.4f",     posDeque.front().lon());
+            v_f(ACT_COL_ALT,    "%.f",      posDeque.front().alt_ft());
+        }
     }
     
     // Have we successfully updated?

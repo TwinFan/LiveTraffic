@@ -1512,17 +1512,16 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     
     // Too much of a turn? VSI/speed out of range?
     if (-maxTurn > hDiff || hDiff > maxTurn   ||
-        v.vsi_ft() < -3 * mdl.VSI_INIT_CLIMB   ||
-        v.vsi_ft() > 3 * mdl.VSI_INIT_CLIMB    ||
-        (!std::isnan(v.speed_kn()) && v.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED) ||
+        v.vsi_ft() < -mdl.VSI_MAX || v.vsi_ft() > mdl.VSI_MAX    ||
+        (!std::isnan(v.speed_kn()) && v.speed_kn() > mdl.MAX_FLIGHT_SPEED) ||
         // too slow speed up in the air?
         ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
-         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MAX_TAXI_SPEED) )
+         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MIN_FLIGHT_SPEED) )
     {
         LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f°)",
                 keyDbg().c_str(),
                 std::string(v).c_str(), hDiff,
-                3 * mdl.VSI_INIT_CLIMB, 4 * mdl.FLAPS_DOWN_SPEED, mdl.MAX_TAXI_SPEED, maxTurn);
+                mdl.VSI_MAX, mdl.MAX_FLIGHT_SPEED, mdl.MIN_FLIGHT_SPEED, maxTurn);
         return false;
     }
     

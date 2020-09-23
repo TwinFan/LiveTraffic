@@ -210,6 +210,7 @@ public:
         double VSI_FINAL =        -800;   // [ft/min] assumed vsi for final if vector unavailable
         double VSI_INIT_CLIMB =   1500;   // [ft/min] assumed vsi if take-off-vector not available
         double SPEED_INIT_CLIMB = 150;    // [kt] initial climb speed if take-off-vector not available
+        double VSI_MAX =          3000;   // [ft/min] maximum vertical speed, beyond this considered invalid data
         double AGL_GEAR_DOWN =    1600;   // height AGL at which to lower the gear during approach
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
@@ -219,8 +220,10 @@ public:
         double FLIGHT_TURN_TIME = 120;    // seconds for a 360° turn in flight
         double ROLL_MAX_BANK =    30;     // [°] max bank angle
         double ROLL_RATE =        10;     // [°/s] roll rate in normal turns
+        double MIN_FLIGHT_SPEED =100;     // [kn] minimum flight speed, below that not considered valid data
         double FLAPS_UP_SPEED =  180;     // below that: initial climb, above that: climb
         double FLAPS_DOWN_SPEED =  200;   // above that: descend, below that: approach
+        double MAX_FLIGHT_SPEED =500;     // [kn] maximum flight speed, above that not considered valid data
         double CRUISE_HEIGHT =    15000;  // above that height AGL we consider level flight 'cruise'
         double ROLL_OUT_DECEL =  -2.0;    // [m/s²] deceleration during roll-out
         double PITCH_MIN =        -2;     // [°] minimal pitch angle (aoa)
@@ -231,7 +234,6 @@ public:
         double PITCH_FLARE =      10;     // [°] pitch during flare
         double PITCH_RATE =       5;      // [°/s] pitch rate of change
         double PROP_RPM_MAX =     1200;   // [rpm] maximum propeller revolutions per minute
-        int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
         double EXT_CAMERA_LON_OFS =-45;   // longitudinal external camera offset

@@ -63,6 +63,7 @@ enum ACTColumnsTy {
     ACT_COL_FLAPS,          ///< flap deployment ratio
     ACT_COL_LIGHTS,         ///< which lights are on?
     ACT_COL_TCAS_IDX,       ///< TCAS Idx (1-63) of plane - if any
+    ACT_COL_FLIGHTMDL,      ///< Flight model name
     
     // these must stay last
     ACT_COL_ACTIONS,        ///< actions like a/c info wnd, camera, visibility
