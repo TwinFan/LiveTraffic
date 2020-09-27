@@ -173,7 +173,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v_f(ACT_COL_DIST,   "%.1f",     pAc->GetCameraDist() / M_per_NM);
         
         v[ACT_COL_CSLMDL]       = pAc->GetModelName();
-        v[ACT_COL_PHASE]        = pAc->GetFlightPhaseString();
+        v[ACT_COL_PHASE]        = pAc->GetFlightPhaseRwyString();
         vf[ACT_COL_PHASE]       = float(pAc->GetFlightPhase()); // sort flight phase by its index
         v_f(ACT_COL_GEAR,   "%.f%%",    pAc->GetGearPos() * 100.0);
         v_f(ACT_COL_FLAPS,  "%.f%%",    pAc->GetFlapsPos() * 100.0);

@@ -210,10 +210,10 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Resources\Doc8643.txt">
+    <Text Include="docs\Notes.txt">
       <Filter>Resources</Filter>
     </Text>
-    <Text Include="Resources\related.txt">
+    <Text Include="Resources\model_typecode.txt">
       <Filter>Resources</Filter>
     </Text>
   </ItemGroup>
@@ -224,10 +224,5 @@
     <None Include="docs\readme.html">
       <Filter>Resources</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Resources\lights.png">
-      <Filter>Resources</Filter>
-    </Image>
   </ItemGroup>
 </Project>

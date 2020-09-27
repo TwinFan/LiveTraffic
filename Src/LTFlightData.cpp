@@ -388,14 +388,16 @@ bool LTFlightData::outdated (double simTime) const
     
     // cover the special case of finishing landing and roll-out without live positions
     // i.e. during approach and landing we don't destroy the aircraft
+    //      if it is approaching some runway
     //      until it finally stopped on the runway
     if (pAc &&
-        pAc->GetFlightPhase() >= FPH_APPROACH &&
-        pAc->GetFlightPhase() <  FPH_STOPPED_ON_RWY)
+        (pAc->GetFlightPhase() >= FPH_LANDING ||
+            (pAc->GetFlightPhase() >= FPH_APPROACH && posRwy.isNormal())) &&
+        pAc->GetFlightPhase() < FPH_STOPPED_ON_RWY)
     {
         return false;
     }
-    
+
     // youngestTS longer ago than allowed? -> remove
     return
     youngestTS + dataRefs.GetAcOutdatedIntvl() < (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime);
@@ -498,14 +500,15 @@ void LTFlightData::DataCleansing (bool& bChanged)
         positionTy& last = posDeque.back();
         const positionTy& prev = *std::prev(posDeque.cend(),2);
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
-        if (!std::isnan(last.alt_m()) &&            // do we have an altitude at all?
+        if (!last.IsOnGnd() && !prev.IsOnGnd() &&   // too late? ;-) position shall not already be on the ground
+            !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
             last.alt_m() <= KEEP_ABOVE_MAX_ALT &&   // not way too high (this skips planes which are just cruising
             (std::isnan(terrain_alt_m) || (last.alt_m() - terrain_alt_m) < KEEP_ABOVE_MAX_AGL) && // pos not too high AGL
-            prev.vsi_ft(last) < -mdl.VSI_STABLE)    // sinking considerably (this also skips taxiing on the ground as during taxiing we aren't sinking)
+            prev.vsi_ft(last) < -mdl.VSI_STABLE)    // sinking considerably
         {
             // Try to find a rwy this plane might be headed for
             // based on the last known position
-            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last));
+            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last), rwyId);
             if (posRwy.isNormal()) {            // found a suitable runway?
                 // Now, with this runway, check/correct all previous positions
                 for (positionTy& pos: posDeque) {
@@ -899,7 +902,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 if (pAc->GetVSI_ft() < -pAc->mdl.VSI_STABLE)
                 {
                     const positionTy& acTo = pAc->GetToPos();
-                    posRwy = LTAptFindRwy(*pAc, dataRefs.GetDebugAcPos(key()));
+                    posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
                     if (posRwy.isNormal()) {
                         // found a landing spot!
                         // If it is 'far' away in terms of time then we don't add it
@@ -1518,7 +1521,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
          !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MIN_FLIGHT_SPEED) )
     {
-        LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f°)",
+        LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f)",
                 keyDbg().c_str(),
                 std::string(v).c_str(), hDiff,
                 mdl.VSI_MAX, mdl.MAX_FLIGHT_SPEED, mdl.MIN_FLIGHT_SPEED, maxTurn);

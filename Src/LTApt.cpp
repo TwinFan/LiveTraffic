@@ -2472,12 +2472,13 @@ void LTAptRefresh ()
 positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
                          const positionTy& _from,
                          double _speed_m_s,
+                         std::string& _rwyId,
                          const std::string& _logTxt)
 {
     // --- Preparation of aircraft-related data ---
     // allowed VSI range depends on aircraft model, converted to m/s
-    const double vsi_min = _mdl.VSI_FINAL * ART_RWY_MAX_VSI_F * Ms_per_FTm;
-    const double vsi_max = _mdl.VSI_FINAL / ART_RWY_MAX_VSI_F * Ms_per_FTm;
+    const double vsi_min = -_mdl.VSI_MAX * Ms_per_FTm;
+    const double vsi_max =  _mdl.VSI_FINAL * ART_RWY_MAX_VSI_F * Ms_per_FTm;
     
     // The speed to use: cut off at a reasonable approach speed:
     if (_speed_m_s > _mdl.FLAPS_DOWN_SPEED * ART_APPR_SPEED_F / KT_per_M_per_S)
@@ -2553,9 +2554,10 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
     // Didn't find a suitable runway?
     if (!bestRwyEndPt || !bestApt) {
         if (!_logTxt.empty())
-            LOG_MSG(logDEBUG, "Didn't find runway for %s with heading %.0f°",
+            LOG_MSG(logDEBUG, "Didn't find runway for %s with heading %.0f",
                     _logTxt.c_str(),
                     _from.heading());
+        _rwyId.clear();
         return positionTy();
     }
     
@@ -2572,10 +2574,12 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
                                    FPH_TOUCH_DOWN);
     retPos.f.bHeadFixed = true;
     retPos.f.specialPos = SPOS_RWY;
+    _rwyId = bestApt->GetId();
+    _rwyId += '/';
+    _rwyId += bestRwyEndPt->id;
     if (!_logTxt.empty())
-        LOG_MSG(logDEBUG, "Found runway %s/%s at %s for %s",
-                bestApt->GetId().c_str(),
-                bestRwyEndPt->id.c_str(),
+        LOG_MSG(logDEBUG, "Found runway %s at %s for %s",
+                _rwyId.c_str(),
                 std::string(retPos).c_str(),
                 _logTxt.c_str());
     return retPos;

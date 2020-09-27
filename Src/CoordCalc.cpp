@@ -422,8 +422,10 @@ positionTy& positionTy::normalize()
     if ( lon() < -180 ) lon() = lon()+360;      // crossed 180° meridian west-bound
     
     // heading
-    while ( heading() >= 360 ) heading() -= 360;
-    while ( heading() <    0 ) heading() += 360;
+    if (heading() >= 360.0 || heading() <= -360.0)  // normalize to -360 < head < 360
+        heading() = std::fmod(heading(), 360.0);
+    if (heading() < 0.0)                            // normalize to 0 <= head < 360
+        heading() += 360.0;
     
     // return myself
     return *this;

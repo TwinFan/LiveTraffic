@@ -427,7 +427,7 @@ void ACIWnd::buildInterface()
             else
                 buildRow("Tracking Data", pChannel ? pChannel->ChName() : "?", pFD);
 
-            buildRow("Flight Phase", pAc ? pAc->GetFlightPhaseString() : "", pAc);
+            buildRow("Flight Phase", pAc ? pAc->GetFlightPhaseRwyString() : "", pAc);
             buildRowLabel("Gear | Flaps");
             if (pAc && ImGui::BeginTable("##GearFlpas", 2)) {
                 ImGui::TableNextRow();

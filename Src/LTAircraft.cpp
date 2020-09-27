@@ -1347,6 +1347,15 @@ std::string LTAircraft::RelativePositionText ()
 }
 
 
+// GetFlightPhaseString() plus rwy id in case of approach
+std::string LTAircraft::GetFlightPhaseRwyString() const
+{
+    if (phase < FPH_APPROACH || fd.GetRwyId().empty())
+        return GetFlightPhaseString();
+    else
+        return GetFlightPhaseString() + ' ' + fd.GetRwyId();
+}
+
 
 // is the aircraft on a rwy (on ground and at least on pos on rwy)
 bool LTAircraft::IsOnRwy() const
@@ -1548,9 +1557,10 @@ bool LTAircraft::CalcPPos()
     }
     
     // Need next position for speed or Bezier determination?
+    // (We don't need a next position if the next is "STOPPED", because then we know the target speed is zero.)
     positionTy nextPos;
     vectorTy nextVec;
-    if (bNeedSpeed || bNeedCCBezier)
+    if ((bNeedSpeed || bNeedCCBezier) && to.f.flightPhase != FPH_STOPPED_ON_RWY)
     {
         // Do we happen to have a next vector already in posList?
         if (posList.size() >= 3) {
@@ -1581,13 +1591,14 @@ bool LTAircraft::CalcPPos()
         }
     }
     
-    // *** acceleration / decelartion ***
-    if (bNeedSpeed && nextVec.isValid())
+    // *** acceleration / deceleration ***
+    if (bNeedSpeed && (nextVec.isValid() || to.f.flightPhase == FPH_STOPPED_ON_RWY))
     {
         // Target speed: Weighted average of current and next vector
         const double toSpeed =
-        (vec.speed * nextVec.dist + nextVec.speed * vec.dist) /
-        (vec.dist + nextVec.dist);
+            to.f.flightPhase == FPH_STOPPED_ON_RWY ? 0.0 :              // if we are to STOP, then target speed is zero
+            (vec.speed * nextVec.dist + nextVec.speed * vec.dist) /     // otherwise we consider this and the next leg
+            (vec.dist + nextVec.dist);
         
         // initiate speed control (if speed valid, could be NAN if both distances ae zero)
         if (!std::isnan(toSpeed)) {

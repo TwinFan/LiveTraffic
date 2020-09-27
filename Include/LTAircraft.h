@@ -357,6 +357,7 @@ public:
     // current a/c configuration
     inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
+    std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
     inline bool IsOnGrnd() const { return bOnGrnd; }
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
     inline double GetHeading() const { return ppos.heading(); }

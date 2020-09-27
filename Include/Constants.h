@@ -116,7 +116,7 @@ constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle toler
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
 constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [°] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
-constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
+constexpr double ART_RWY_MAX_VSI_F = 0.5;       ///< [-] descend rate: factor applied to VSI_FINAL to calc max VSI (which, as we are sinking and value are negative, is the shallowest approach allowed)
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
@@ -167,7 +167,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
-#define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f°, %.2f°)"
+#define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f / %.2f)"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"

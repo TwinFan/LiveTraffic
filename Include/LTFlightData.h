@@ -216,7 +216,8 @@ protected:
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
-    positionTy              posRwy;     ///< determined rwy (likely) to land on
+    positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
+    std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
@@ -331,6 +332,13 @@ public:
     /// @param[out] pos Receives the position if found
     /// @return Indicates if the call was successful
     tryResult TryGetNextPos (double ts, positionTy& pos) const;
+
+    /// Has a determined rwy position?
+    bool HasRwyPos() const { return posRwy.isNormal(); }
+    /// Get determined rwy position
+    const positionTy& GetRwyPos() const { return posRwy; }
+    /// Get determined rwy id
+    const std::string& GetRwyId() const { return rwyId; }
     
     // stringify all position information - mainly for debugging purposes
     std::string Positions2String () const;
