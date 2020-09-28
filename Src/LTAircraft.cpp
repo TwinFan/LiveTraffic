@@ -584,12 +584,59 @@ void BezierCurve::Define (const positionTy& _start,
     
 #ifdef DEBUG
     if (gSelAcCalc)
-        LOG_MSG(logDEBUG, "Quadratic cut-corner Bezier defined:\n%s",
+        LOG_MSG(logDEBUG, "Quadratic Bezier defined:\n%s",
                 dbgTxt().c_str());
 #endif
 
     // Convert all coordinates to meter
     ConvertToMeter();
+}
+
+// Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+bool BezierCurve::Define (const positionTy& _start,
+                          const positionTy& _end)
+{
+    // Find the mid point as the intersection of the vectors
+    // defined by the two positions and their headings
+    start = _start;                     // A = start = (0|0)
+    const positionTy posB = _start.destPos(vectorTy(_start.heading(), 1000.0));
+    ptTy b (posB.lon(), posB.lat());    // B = A + vector along A-heading
+    ConvertToMeter(b);
+    
+    // End point and its vector
+    ptTy c (_end.lon(), _end.lat());    // C = _end
+    const positionTy posD = _end.destPos(vectorTy(_end.heading(), 1000.0));
+    ptTy d (posD.lon(), posD.lat());    // D = _end + vector along C-heading
+    ConvertToMeter(c);
+    ConvertToMeter(d);
+
+    // find the intersection
+    ptTy mid = CoordIntersect(ptTy(0,0), b, c, d);
+    ConvertToGeographic(mid);
+    
+    // This intersection serves our Bezier curve purposes only if a few conditions
+    // are met:
+    Clear();                            // reset, just in case we bail
+    // 1. Must be in start-heading direction relative to start
+    if (std::abs(HeadingDiff(_start.angle(mid), _start.heading())) > 15.0)
+        return false;
+    // 2. Must be in reverse end-heading direction relative to end
+    if (std::abs(HeadingDiff(_end.angle(mid), _end.heading())) < 165.0)
+        return false;
+    // 3. Each leg (distance from _start/_end to mid) should be longer than, say,
+    //    twice the direct distance _start/_end
+    const double dist = _start.dist(_end);
+    const double startDist = _start.dist(mid);
+    const double endDist = _end.dist(mid);
+    if (startDist > 2.0*dist || endDist > 2.0*dist)
+        return false;
+    // Not too short legs either, otherwise progress along the line is too non-linear
+    if (startDist < 0.25*dist || endDist < 0.25*dist)
+        return false;
+    
+    // Define the Bezier curve
+    Define(_start, mid, _end);
+    return true;
 }
 
 // Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
@@ -673,10 +720,10 @@ std::string BezierCurve::dbgTxt() const
 {
     if (isDefined()) {
         char s[250];
-        snprintf(s, sizeof(s), "(%.5f %.5f) {%.5f %.5f} (%.5f %.5f)",
-                 start.lat(), start.lon(),
+        snprintf(s, sizeof(s), "(%.5f / %.5f / %.1f @ %.1f) {%.5f %.5f} (%.5f / %.5f / %.1f @ %.1f)",
+                 start.lat(), start.lon(), start.heading(), start.ts(),
                  ptCtrl.y, ptCtrl.x,
-                 end.lat(), end.lon());
+                 end.lat(), end.lon(), end.heading(), end.ts());
         return s;
     } else {
         return "<undefined>";
@@ -1156,6 +1203,7 @@ phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
 bOnGrnd(false), bArtificalPos(false),
+heading(mdl.TAXI_TURN_TIME, 360, 0, true),
 gear(mdl.GEAR_DURATION),
 flaps(mdl.FLAPS_DURATION),
 pitch((mdl.PITCH_MAX-mdl.PITCH_MIN)/mdl.PITCH_RATE, mdl.PITCH_MAX, mdl.PITCH_MIN),
@@ -1491,6 +1539,9 @@ bool LTAircraft::CalcPPos()
             
             // avg of the current vector
             speed.SetSpeed(vec.speed);
+            
+            // point to some reasonable heading
+            heading.SetVal(ppos.heading() = from.heading());
         }
         
         // *** ground status starts with that one of 'from'
@@ -1538,10 +1589,30 @@ bool LTAircraft::CalcPPos()
         bNeedSpeed = from.IsOnGnd() || !to.IsOnGnd();
         if (!bNeedSpeed)
             speed.SetSpeed(vec.speed);
-        
-        // Clear an outdated turn
-        if (!turn.isTsInbetween(currCycle.simTime))
+
+        // Not already controlled by a cut-corner Bezier curve
+        if (!turn.isTsInbetween(currCycle.simTime)) {
+            // Clear an outdated turn
             turn.Clear();
+        
+            // *** Heading ***
+            
+            // Try a Bezier curve first, if that doesn't work...
+            if (to.f.bCutCorner ||                                      // next position is to use a cut-corner curve?
+                vec.dist <= SIMILAR_POS_DIST ||                         // no reasonable leg distance and turn amount?
+                std::abs(HeadingDiff(ppos.heading(), to.heading())) < BEZIER_MIN_HEAD_DIFF ||
+                !turn.Define(ppos, to))                                 // or defining the Bezier failed for some other reason?
+            {
+                // ...start the turn from the initial heading to the vector heading
+                heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
+                heading.moveQuickestToBy(ppos.heading(),
+                                         vec.dist > SIMILAR_POS_DIST ?  // if vector long enough:
+                                         vec.angle :                    // turn to vector heading
+                                         HeadingAvg(from.heading(),to.heading()),   // otherwise only turn to avg between from- and target-heading
+                                         NAN, from.ts()+duration/2,     // by half the vector flight time
+                                         true);                         // start immediately
+            }
+        }
         
         // output debug info on request
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1612,9 +1683,9 @@ bool LTAircraft::CalcPPos()
         bNeedSpeed = false;
     }
     
-    // *** Bezier Curves ***
-    // Will always cut the corner. We define them only if both legs are
-    // long enough. (Very short legs indicate a plane standing still waiting,
+    // *** Cut Corner Bezier Curve ***
+    // We define them only if both legs are long enough.
+    // (Very short legs indicate a plane standing still waiting,
     // we don't want such a plane to turn at all.)
     if (bNeedCCBezier && nextVec.isValid())
     {
@@ -1690,59 +1761,20 @@ bool LTAircraft::CalcPPos()
         ppos.roll() = saveRoll;
         // (this also computes standard values for heading, pitch, roll.)
         
-        // Heading: Significant heading changes will be goverend by a Bezier
-        //          curve, potentially by an upcoming cut-corner Bezier.
-        //          No Bezier curve will be defined for too short segements:
-        if (vec.dist <= SIMILAR_POS_DIST)
-        {
-            const double headDiff = HeadingDiff(from.heading(), to.heading());
-            ppos.heading() = HeadingNormalize(from.heading() + f * headDiff);
-        }
-        else
-        {
-            // There will probably be a Bezier curve coming up.
-            // Usually, here will be f < 0.5, but in exceptional cases
-            // (no nextVec found) also f >= 0.5
-            
-            // Heading: In first half turn towards vec.angle
-            //          (or, if vec is too short, to average between from and to-heading)
-            if (f < 0.5) {
-                const double headDiff = HeadingDiff(prevHead, vec.angle);
-                // how long would the remaining turn take?
-                const double turnTime = std::abs(headDiff) * (IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME)/360.0;
-                // Do we still have that much time?
-                const double whenToBeDone = from.ts() + duration/2.0;
-                if (whenToBeDone - currCycle.simTime > turnTime)
-                {
-                    // with regular turn rate, how much would we turn?
-                    const double maxTurnInCycle = currCycle.diffTime*360.0/(IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME);
-                    if (std::abs(headDiff) > maxTurnInCycle)    // turn a bit
-                        ppos.heading() = prevHead + std::copysign(maxTurnInCycle, headDiff);
-                    else                                        // done turning
-                        ppos.heading() = vec.angle;
-                }
-                // Not enough time for regular turn rate:
-                // We just turn as fast as needed to reach vec.angle at f=0.5
-                else
-                {
-                    ppos.heading() = from.heading() * (1 - f*2) + vec.angle * f*2;
-                }
-            }
-            // in second half just stay at vec.angle
-            else
-                ppos.heading() = vec.angle;
-        }
-/*
-#warning Remove this
-        LOG_MSG(logDEBUG,"_clcTs=%.1f,   f=%.4f, p={%s}, head=%.1f -> %.1f",
-                _calcTs, f, ppos.dbgTxt().c_str(), prevHead, ppos.heading());
-*/
+        // Get heading from moving param
+        ppos.heading() = heading.get();
     }
     
     // calculate timestamp can be a bit off, especially when acceleration is in progress,
     // overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
-    
+/*
+#warning Remove this
+    if (bIsSelected) {
+        LOG_MSG(logDEBUG,"f=%.4f, p={%s}, head=%.1f -> %.1f",
+                f, ppos.dbgTxt().c_str(), prevHead, ppos.heading());
+    }
+*/
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
     // catch that case...likely the a/c is to be removed due to outdated data
     // soon anyway, we just speed up things a bit here
@@ -1755,15 +1787,26 @@ bool LTAircraft::CalcPPos()
         return false;
     }
     
-    // half-way through prepare a quadratic curve to cut the corner...if needed
-    if (!bNeedCCBezier &&                              // flag not already set?
-        f >= 0.5 && f < 1.0 &&                         // half-way through
-        !turn.isTsBeforeEnd(currCycle.simTime) &&      // Bezier not already defined?
-        vec.dist > SIMILAR_POS_DIST &&                 // reasonable leg distance and turn amount?
-        std::abs(HeadingDiff(ppos.heading(), to.heading())) >= BEZIER_MIN_HEAD_DIFF)
+    // *** Half-way through preparations ***
+    if (f >= 0.5 && f < 1.0)
     {
-        // set the flag to fetch the next leg. All the rest is done above
-        bNeedCCBezier = true;
+        // Cut Corner: half-way through prepare a quadratic curve to cut the corner...if needed
+        if (to.f.bCutCorner &&                             // only for cut-corner positions
+            !bNeedCCBezier &&                              // flag not already set?
+            !turn.isTsBeforeEnd(currCycle.simTime) &&      // Bezier not already defined?
+            vec.dist > SIMILAR_POS_DIST &&                 // reasonable leg distance and turn amount?
+            std::abs(HeadingDiff(ppos.heading(), to.heading())) >= BEZIER_MIN_HEAD_DIFF)
+        {
+            // set the flag to fetch the next leg. All the rest is done above
+            bNeedCCBezier = true;
+        }
+        // otherwise prepare turning heading to final heading (if not done already)
+        else if (!dequal(heading.toVal(), to.heading())) {
+            heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
+            heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
+                                     NAN, to.ts(),      // by target timestamp
+                                     false);            // start as late as possible
+        }
     }
 
     // *** Attitude ***

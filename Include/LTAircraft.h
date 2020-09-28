@@ -161,6 +161,13 @@ public:
                  const positionTy& _mid,
                  const positionTy& _end);
     
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+    /// @param _start Start position of the Bezier curve
+    /// @param _end End position of the curve
+    /// @return Could a reasonable mid point be derived and hence a Bezier curve be set up?
+    bool Define (const positionTy& _start,
+                 const positionTy& _end);
+    
     /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
     /// This is needed for accurate angle calculations
     void ConvertToMeter ();
@@ -298,6 +305,7 @@ protected:
     bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
     AccelParam          speed;          // current speed [m/s] and acceleration control
     BezierCurve         turn;           ///< position, heading, roll while flying a turn
+    MovingParam         heading;        ///< heading movement if not using a Bezier curve
     MovingParam         gear;
     MovingParam         flaps;
     MovingParam         pitch;

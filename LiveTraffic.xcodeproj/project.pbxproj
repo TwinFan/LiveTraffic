@@ -776,7 +776,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1010;
+				LastUpgradeCheck = 1200;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -892,6 +892,7 @@
 					"XPLM303=1",
 					CURL_STATICLIB,
 					"DEBUG=1",
+					"APT_DUMP=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -925,7 +926,7 @@
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
-				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane 11";
+				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/Release";
 			};
 			name = Debug;
 		};
@@ -1015,7 +1016,7 @@
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
-				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane 11";
+				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/Release";
 			};
 			name = Release;
 		};

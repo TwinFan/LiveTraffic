@@ -1,7 +1,7 @@
 TODO
 ===
 
-- Bezier curve: Position jumps as "next" pos is not always the one actually used next, might be removed before used
+- KLAX: Initially a lot of aircraft are added without saying which channel they drive
 
 - InfoListWnd::lastBegin is initialized with gLog.cbegin, but that is not stable, cbegin could change so that lastBegin would become invalid
   Find another way to remember till which message we displayed already

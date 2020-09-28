@@ -779,6 +779,9 @@ bool DataRefs::Init ()
     if (!LoadConfigFile())
         return false;
     
+    // *** Flarm ac type definitions - Defaults ***
+    OGNFillDefaultFlarmAcTypes();
+
     // *** CSL path defaults ***
     // We'll try making this fool-proof but expert-changeable:
     // There are two paths under LiveTraffic that in all normal
@@ -1854,9 +1857,6 @@ bool DataRefs::LoadConfigFile()
         }
     }
     
-    // set defaults for missing Flarm ac type definitions
-    OGNFillDefaultFlarmAcTypes();
-
     // *** [CSLPaths] ***
     // maybe there's a [CSLPath] section?
     if (fIn && errCnt <= ERR_CFG_FILE_MAXWARN &&

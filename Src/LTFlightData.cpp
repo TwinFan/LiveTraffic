@@ -1799,6 +1799,13 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             // move that next position to the a/c
             acPosList.emplace_back(std::move(posDeque.front()));
             posDeque.pop_front();
+            
+            // Was that position one that is _not_ to be reached because the corner is to be cut?
+            // In that case we also need the _next_ position to properly calculate the required Bezier curve:
+            if (acPosList.back().f.bCutCorner && !posDeque.empty()) {
+                acPosList.emplace_back(std::move(posDeque.front()));
+                posDeque.pop_front();
+            }
         }
         
         // store rotate timestamp if there is one (never overwrite with NAN!)
