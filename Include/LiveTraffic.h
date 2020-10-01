@@ -207,6 +207,8 @@ std::string str_toupper_c(const std::string& s);
 bool str_isalnum(const std::string& s);
 // format timestamp
 std::string ts2string (time_t t);
+/// format timestamp (
+std::string ts2string (float t);
 // limits text to m characters, replacing the last ones with ... if too long
 inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
@@ -263,6 +265,16 @@ inline std::string GetNearestAirportId (float lat, float lon)
 
 /// Which plugin has control of AI?
 std::string GetAIControlPluginName ();
+
+/// Returns timezone difference between local and GMT in seconds
+int timeOffsetUTC();
+
+/// Converts date/time (UTC) to epoch value
+inline time_t mktime_utc (std::tm& tm)
+{ return mktime(&tm) + timeOffsetUTC(); }
+
+/// Converts a UTC time to epoch value, assuming today's date
+time_t mktime_utc (int h, int min, int s);
 
 /// Convert an XP network time float to a string
 std::string NetwTimeString (float _runS);

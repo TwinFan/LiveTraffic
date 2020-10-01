@@ -486,6 +486,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     
     // channel configuration options
+    {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -553,6 +554,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
             
         // channel configuration options
+        case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
@@ -590,27 +592,6 @@ struct cmdRefDescrTy {
 
 static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,
               "cmdRefsLT and CMD_REFS_LT[] differ in number of elements");
-
-// returns offset to UTC in seconds
-// https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
-int timeOffsetUTC()
-{
-	static int cachedOffset = INT_MIN;
-
-	if (cachedOffset > INT_MIN)
-		return cachedOffset;
-	else {
-		time_t gmt, rawtime = time(NULL);
-		struct tm gbuf;
-		gmtime_s(&gbuf, &rawtime);
-
-        // Request that mktime() looksup dst in timezone database
-		gbuf.tm_isdst = -1;
-		gmt = mktime(&gbuf);
-
-		return cachedOffset = (int)difftime(rawtime, gmt);
-	}
-}
 
 // MARK: CSLPathCfgTy
 
@@ -694,16 +675,11 @@ ILWrect (0, 400, 965, 0)
         tm.tm_mday = 1;                             // 1st of
         tm.tm_mon = 0;                              // January
         tm.tm_isdst = 0;                            // no DST
-        tStartThisYear = mktime(&tm);
-        
-        // now adjust for timezone: current value is midnight as per local time
-        // but for our calculations we need midnight UTC
-        tStartThisYear += timeOffsetUTC();
+        tStartThisYear = mktime_utc(tm);
         
         // previous year
         tm.tm_year--;
-        tStartPrevYear = mktime(&tm);
-        tStartPrevYear += timeOffsetUTC();
+        tStartPrevYear = mktime_utc(tm);
     }
 }
 

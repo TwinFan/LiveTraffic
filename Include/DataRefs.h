@@ -368,6 +368,7 @@ enum dataRefsLT {
     DR_DBG_MODEL_MATCHING,
     
     // channel configuration options
+    DR_CFG_OGN_USE_REQUREPL,
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
@@ -620,6 +621,7 @@ protected:
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
 
     // channel config options
+    int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49003;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info

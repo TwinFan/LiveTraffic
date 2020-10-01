@@ -397,6 +397,40 @@ std::string GetNearestAirportId (const positionTy& _pos,
     return airportId;
 }
 
+// returns offset to UTC in seconds
+/// @see https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
+int timeOffsetUTC()
+{
+    static int cachedOffset = INT_MIN;
+
+    if (cachedOffset > INT_MIN)
+        return cachedOffset;
+    else {
+        time_t gmt, rawtime = time(NULL);
+        struct tm gbuf;
+        gmtime_s(&gbuf, &rawtime);
+
+        // Request that mktime() looks up dst in timezone database
+        gbuf.tm_isdst = -1;
+        gmt = mktime(&gbuf);
+
+        return cachedOffset = (int)difftime(rawtime, gmt);
+    }
+}
+
+// Converts a UTC time to epoch value, assuming today's date
+time_t mktime_utc (int h, int min, int s)
+{
+    time_t rawtime = time(NULL);
+    struct tm gbuf;
+    gmtime_s(&gbuf, &rawtime);
+    gbuf.tm_hour = h;
+    gbuf.tm_min  = min;
+    gbuf.tm_sec  = s;
+    gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
+    return mktime_utc(gbuf);
+}
+
 // Convert an XP network time float to a string
 std::string NetwTimeString (float runS)
 {

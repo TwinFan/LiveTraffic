@@ -64,7 +64,6 @@
 /* Begin PBXFileReference section */
 		250C2B5923BD4BF70059AA14 /* scenery_packs.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = scenery_packs.ini; path = "../../../Applications/X-Plane 11/Custom Scenery/scenery_packs.ini"; sourceTree = "<group>"; };
 		251414822512AB780066818B /* APRS_Test.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = APRS_Test.py; sourceTree = "<group>"; };
-		251414832512AB780066818B /* OGN.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OGN.txt; sourceTree = "<group>"; };
 		251414842512AB780066818B /* ddb.glidernet.org.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ddb.glidernet.org.txt; sourceTree = "<group>"; };
 		251531BE21B867F900B5968A /* Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = Log.txt; path = "../../../Applications/X-Plane 11/Log.txt"; sourceTree = "<group>"; };
 		2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui_stdlib.h; sourceTree = "<group>"; };
@@ -206,7 +205,6 @@
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
-		25B4427923EF674B0040F67A /* MapIcons.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MapIcons.png; sourceTree = "<group>"; };
 		25BBD2F921EA0F8300AEAA4B /* OpenSky_Routes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Routes.json; sourceTree = "<group>"; };
 		25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Metadata_Routes_combined.json; sourceTree = "<group>"; };
 		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
@@ -269,7 +267,6 @@
 			isa = PBXGroup;
 			children = (
 				251414822512AB780066818B /* APRS_Test.py */,
-				251414832512AB780066818B /* OGN.txt */,
 				251414842512AB780066818B /* ddb.glidernet.org.txt */,
 			);
 			path = OGN;
@@ -426,7 +423,6 @@
 		2577B6A0216A9397004B432D /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				25B4427923EF674B0040F67A /* MapIcons.png */,
 				25D59F4B23106A79002D81CF /* model_typecode.txt */,
 				2577B6A1216A93D1004B432D /* FlightModels.prf */,
 			);

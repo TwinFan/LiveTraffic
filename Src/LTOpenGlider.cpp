@@ -1,9 +1,16 @@
-/// @file       LTOpenSky.cpp
-/// @brief      OpenSky Network: Requests and processes live tracking and aircraft master data
-/// @see        https://opensky-network.org/
-/// @details    Implements OpenSkyConnection and OpenSkyAcMasterdata:\n
-///             - Provides a proper REST-conform URL\n
-///             - Interprets the response and passes the tracking data on to LTFlightData.
+/// @file       LTOpenGlider.cpp
+/// @brief      Open Glider Network: Requests and processes live tracking data
+/// @see        http://wiki.glidernet.org/
+/// @see        https://github.com/glidernet/ogn-live#backend
+/// @see        http://live.glidernet.org/
+/// @details    Defines OpenGliderConnection:\n
+///             - Direct TCP connection to aprs.glidernet.org:14580 (preferred)
+///               - connects to the server
+///               - sends a dummy login for read-only access
+///               - listens to incoming tracking data
+///             - Request/Reply Interface (alternatively)
+///               - Provides a proper REST-conform URL\n
+///               - Interprets the response and passes the tracking data on to LTFlightData.\n
 /// @details    Also downloads and performs searches in the aircraft list
 /// @see        http://ddb.glidernet.org/download/
 /// @author     Birger Hoppe
@@ -27,6 +34,14 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+#if APL == 1 || LIN == 1
+#include <unistd.h>         // for self-pipe functionality
+#include <fcntl.h>
+#endif
+
+/// Reference to the global map of flight data
+extern mapLTFlightDataTy mapFd;
+
 //
 // MARK: Open Glider Network
 //
@@ -40,9 +55,21 @@
 #define ERR_OGN_ACL_FILE_OPEN_R     "Could not open '%s' for reading: %s"
 #define INFO_OGN_AC_LIST_DOWNLOADED "Aircraft list downloaded from ddb.glidernet.org"
 
+#define ERR_OGN_TCP_CONNECTED       "Connected to OGN Server %s"
+#define ERR_OGN_TCP_ERROR           "OGN Server returned error: %s"
+#define WARN_OGN_NOT_MATCHED        "A message could be tracking data, but didn't match: %s"
+
+// Request Reply
 constexpr const char* OGN_MARKER_BEGIN = "<m a=\""; ///< beginning of a marker in the XML response
 constexpr const char* OGN_MARKER_END   = "\"/>";    ///< end of a marker in the XML response
 constexpr size_t OGN_MARKER_BEGIN_LEN = 6;          ///< strlen(OGN_MARKER_BEGIN)
+
+// Direct TCP connection
+constexpr const char* OGN_TCP_SERVER    = "aprs.glidernet.org";
+constexpr int         OGN_TCP_PORT      = 14580;
+constexpr size_t      OGN_TCP_BUF_SIZE  = 1024;
+constexpr const char* OGN_TCP_LOGIN     = "user LiveTrffc pass -1 vers " LIVE_TRAFFIC " %.2f filter r/%.3f/%.3f/%u -p/oimqstunw\r\n";
+constexpr const char* OGN_TCP_LOGIN_GOOD= "# logresp LiveTrffc unverified, server ";
 
 // Constructor
 OpenGliderConnection::OpenGliderConnection () :
@@ -59,6 +86,13 @@ LTFlightDataChannel()
 // Destructor closes the a/c list file
 OpenGliderConnection::~OpenGliderConnection ()
 {
+    Cleanup();
+}
+
+// All the cleanup we usually need
+void OpenGliderConnection::Cleanup ()
+{
+    TCPClose();
     if (ifAcList.is_open())
         ifAcList.close();
 }
@@ -66,15 +100,22 @@ OpenGliderConnection::~OpenGliderConnection ()
 // put together the URL to fetch based on current view position
 std::string OpenGliderConnection::GetURL (const positionTy& pos)
 {
-    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
-    char url[128] = "";
-    snprintf(url, sizeof(url),
-             OPGLIDER_URL,
-             box.nw.lat(),              // lamax
-             box.se.lat(),              // lamin
-             box.se.lon(),              // lomax
-             box.nw.lon());             // lomin
-    return std::string(url);
+    // We only return a URL if we are to use the request/reply procedure
+    if (DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL)) {
+        boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
+        char url[128] = "";
+        snprintf(url, sizeof(url),
+                 OPGLIDER_URL,
+                 box.nw.lat(),              // lamax
+                 box.se.lat(),              // lamin
+                 box.se.lon(),              // lomax
+                 box.nw.lon());             // lomin
+        return std::string(url);
+    } else {
+        // otherwise we are to use the direct TCP connection
+        TCPStartUpdate(pos, dataRefs.GetFdStdDistance_km());
+        return std::string();
+    }
 }
 
 /// @details Returned data is XML style looking like this:
@@ -241,6 +282,370 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     return true;
 }
 
+
+/// Main function for TCP connection, expected to be started in a thread
+void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
+{
+    // This is a thread main function, set thread's name
+    SET_THREAD_NAME("LT_OGN_TCP");
+    
+    try {
+        // open a TCP connection to glidernet.org
+        tcpRcvr.Connect(OGN_TCP_SERVER, OGN_TCP_PORT, OGN_TCP_BUF_SIZE);
+        int maxSock = tcpRcvr.getSocket() + 1;
+#if APL == 1 || LIN == 1
+        // the self-pipe to shut down the TCP socket gracefully
+        if (pipe(tcpPipe) < 0)
+            throw NetRuntimeError("Couldn't create pipe");
+        fcntl(tcpPipe[0], F_SETFL, O_NONBLOCK);
+        maxSock = std::max(maxSock, tcpPipe[0]+1);
+#endif
+        
+        // Login
+        if (!TCPDoLogin(pos, dist_km)) {
+            SetValid(false, true);
+            bStopTcp = true;
+        }
+        
+        // *** Main Loop ***
+        while (!bStopTcp && tcpRcvr.isOpen())
+        {
+            // wait for a UDP datagram on either socket (traffic, weather)
+            fd_set sRead;
+            FD_ZERO(&sRead);
+            FD_SET(tcpRcvr.getSocket(), &sRead);     // check our socket
+#if APL == 1 || LIN == 1
+            FD_SET(tcpPipe[0], &sRead);
+#endif
+            int retval = select(maxSock, &sRead, NULL, NULL, NULL);
+            
+            // short-cut if we are to shut down (return from 'select' due to closed socket)
+            if (bStopTcp)
+                break;
+
+            // select call failed???
+            if(retval == -1)
+                throw NetRuntimeError("'select' failed");
+
+            // select successful - traffic data
+            if (retval > 0 && FD_ISSET(tcpRcvr.getSocket(), &sRead))
+            {
+                // read UDP datagram
+                long rcvdBytes = tcpRcvr.recv();
+                
+                // received something?
+                if (rcvdBytes > 0)
+                {
+                    // have it processed
+                    if (!TCPProcessData(tcpRcvr.getBuf())) {
+                        SetValid(false, true);
+                        break;
+                    }
+                }
+                else
+                    retval = -1;
+            }
+            
+            // short-cut if we are to shut down
+            if (bStopTcp)
+                break;
+            
+            // handling of errors, both from select and from recv
+            if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
+                // not just a normal timeout?
+                char sErr[SERR_LEN];
+                strerror_s(sErr, sizeof(sErr), errno);
+                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
+                        sErr);
+                // increase error count...bail out if too bad
+                if (!IncErrCnt()) {
+                    SetValid(false, true);
+                    break;
+                }
+            }
+        }
+        
+    }
+    catch (std::runtime_error& e) {
+        LOG_MSG(logERR, ERR_TCP_LISTENACCEPT, ChName(),
+                OGN_TCP_SERVER, std::to_string(OGN_TCP_PORT).c_str(),
+                e.what());
+        // invalidate the channel
+        SetValid(false, true);
+    }
+    
+    // make sure the socket is closed
+    tcpRcvr.Close();
+}
+
+// Send the login
+bool OpenGliderConnection::TCPDoLogin (const positionTy& pos, unsigned dist_km)
+{
+    std::string logTxt;
+    
+    // Prepare login string like "user LiveTrffc pass -1 vers LiveTraffic 2.20 filter r/43.3/-80.2/50 -p/oimqstunw"
+    char sLogin[120];
+    snprintf(sLogin, sizeof(sLogin), OGN_TCP_LOGIN, VERSION_NR,
+             pos.lat(), pos.lon(), dist_km);
+    return tcpRcvr.send(sLogin);
+}
+
+/// Process received data
+bool OpenGliderConnection::TCPProcessData (const char* buffer)
+{
+    // save the data to our processing buffer
+    DebugLogRaw(buffer);
+    tcpData += buffer;
+    if (tcpData.empty())            // weird...but not an error if there's nothing to process
+        return true;
+    
+    // process the input line by line, expected a line to be ended by \r\n
+    // (If CR/LF is yet missing then the received data is yet incomplete and will be completed with the next received data)
+    for (size_t lnEnd = tcpData.find("\r\n");
+         lnEnd != std::string::npos;
+         tcpData.erase(0,lnEnd+2), lnEnd = tcpData.find("\r\n"))
+    {
+        if (!TCPProcessLine(tcpData.substr(0,lnEnd)))
+            return false;
+    }
+    return true;
+}
+
+/// @brief Process one line of received data
+/// @see https://github.com/svoop/ogn_client-ruby/wiki/SenderBeacon
+bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
+{
+    // Sanity check
+    if (ln.empty()) return true;
+    
+    // Special processing for lines beginning with a hash mark
+    if (ln[0] == '#')
+    {
+        // Test for login error
+        if (ln.find("Invalid") != std::string::npos) {
+            LOG_MSG(logERR, ERR_OGN_TCP_ERROR, ln.c_str());
+            return false;
+        }
+        
+        // Test for successful login
+        if (ln.find(OGN_TCP_LOGIN_GOOD) != std::string::npos)
+            LOG_MSG(logINFO, ERR_OGN_TCP_CONNECTED, str_last_word(ln).c_str());
+        
+        // Otherwise ignore all lines starting with '#' as comments
+        return true;
+    }
+    
+    // Try to match the line with an expected pattern
+    static std::regex re (":/(\\d\\d)(\\d\\d)(\\d\\d)h"     // timestamp, 3 matches: h, min, sec
+                          "(\\d\\d)(\\d\\d.\\d\\d)(N|S)"    // latitude, 3 matches: degree, minutes incl. decimals, N or S
+                          "(?:/|\\\\)"                      // display symbol, not stored
+                          "(\\d\\d\\d)(\\d\\d.\\d\\d)(E|W)" // longitude, 3 matches: degree, minutes incl. decimals, E or W
+                          "."                               // display symbol
+                          "(\\d\\d\\d)/(\\d\\d\\d)"         // heading/speed, 2 matches (optional, "000/000" indicates no data)
+                          "/A=(\\d{6}) "                    // altitude in feet, 1 match
+                          "!W(\\d)(\\d)! "                  // position precision enhancement, 2 matches: latitude, longitude
+                          "id([0-9A-Z]{2})([0-9A-Z]{6,8}) " // sender details and address, 2 matches
+                          "([-+]\\d\\d\\d)fpm "            // vertical speed, 1 match
+                          );
+    // Indexes for the above matches
+    enum mIdx {
+        M_ALL = 0,
+        M_TS_H, M_TS_MIN, M_TS_S,
+        M_LAT_DEG, M_LAT_MIN, M_LAT_NS,
+        M_LON_DEG, M_LON_MIN, M_LON_EW,
+        M_HEAD, M_SPEED,
+        M_ALT,
+        M_LAT_PREC, M_LON_PREC,
+        M_SEND_DETAILS, M_SEND_ID,
+        M_VSI
+    };
+    std::smatch m;
+    std::regex_search(ln, m, re);
+    
+    // We expect 17 matches. Size is one more because element 0 is the complete matched string:
+    if (m.size() != 18) {
+        // didn't match. But if we think this _could_ be a valid message then we should warn, maybe there's still a flaw in the regex above
+        if (ln.find("! id") != std::string::npos) {
+            LOG_MSG(logWARN, WARN_OGN_NOT_MATCHED, ln.c_str());
+        }
+        // but otherwise no issue...there are some message in the stream that we just don't need
+        return true;
+    }
+    
+    // Matches:        0                                                        1    2    3    4    5       6   7     8       9   10    11    12       13  14  15   16       17
+    // :/215957h5000.42N\00839.32En000/000/A=000502 !W38! id3ED0075F -019fpm  | 21 | 59 | 57 | 50 | 00.42 | N | 008 | 39.32 | E | 000 | 000 | 000502 | 3 | 8 | 3E | D0075F | -019 |
+    
+    // We silently skip all static objects and those who do not want to be tracked
+    APRSSenderDetailsTy senderDetails;
+    senderDetails.u = (uint8_t)std::stoul(m.str(M_SEND_DETAILS), nullptr, 16);
+    if (senderDetails.b.bNoTracking || senderDetails.b.bStealthMode ||
+        senderDetails.b.acTy == FAT_STATIC_OBJ)
+        return true;
+    
+    // Timestamp - skip too old records
+    time_t ts = mktime_utc(std::stoi(m.str(M_TS_H)),
+                           std::stoi(m.str(M_TS_MIN)),
+                           std::stoi(m.str(M_TS_S)));
+    if (time(NULL) - ts > dataRefs.GetAcOutdatedIntvl())
+        return true;
+    
+    // They key: if no 6-digit FLARM device id is available then we use the
+    //           OGN id, which is assigned daily, but good enough to track a flight
+    LTFlightData::FDKeyTy fdKey;
+    LTFlightData::FDStaticData stat;
+    if (m.str(M_SEND_ID).size() != 6) {
+        // use the OGN Registration
+        fdKey.SetKey(LTFlightData::KEY_OGN, m.str(M_SEND_ID));
+    } else {
+        // otherwise we look up the 6-digit key in the a/c list to learn more details about the a/c
+        LTFlightData::FDKeyType keyType = LookupAcList(std::stoul(m.str(M_SEND_ID), nullptr, 16), stat);
+        if (keyType != LTFlightData::KEY_UNKNOWN)       // found in the a/c list!
+            // also look up a good ICAO a/c type by the model text
+            stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
+        else {
+            // use the type specified in the message
+            keyType =
+            senderDetails.b.addrTy == APRS_ADDR_ICAO  ? LTFlightData::KEY_ICAO :
+            senderDetails.b.addrTy == APRS_ADDR_FLARM ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN;
+        }
+        fdKey.SetKey(keyType, m.str(M_SEND_ID));
+    }
+    
+    // key not matching a/c filter? -> skip it
+    std::string s ( dataRefs.GetDebugAcFilter() );
+    if ((!s.empty() && (fdKey != s)) )
+        return true;
+    
+    try {
+        // from here on access to fdMap guarded by a mutex
+        // until FD object is inserted and updated
+        std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+        
+        // get the fd object from the map
+        // this fetches an existing or, if not existing, creates a new one
+        LTFlightData& fd = mapFd[fdKey];
+        
+        // also get the data access lock once and for all
+        // so following fetch/update calls only make quick recursive calls
+        std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+        
+        // completely new? fill key fields and define static data
+        // (for OGN we only define static data initially,
+        //  it has no changing elements, and ICAO a/c type derivation
+        //  has a random element (if more than one ICAO type is defined))
+        if ( fd.empty() ) {
+            fd.SetKey(fdKey);
+        
+            // Aircraft type converted from Flarm AcftType
+            stat.catDescr   = OGNGetAcTypeName(senderDetails.b.acTy);
+            
+            // If we still have no accurate ICAO type then we need to fall back to some configured defaults
+            if (stat.acTypeIcao.empty()) {
+                stat.acTypeIcao = OGNGetIcaoAcType(senderDetails.b.acTy);
+                stat.mdl        = stat.catDescr;
+            }
+
+            fd.UpdateData(std::move(stat));
+        }
+        
+        // dynamic data
+        {   // unconditional...block is only for limiting local variables
+            LTFlightData::FDDynamicData dyn;
+            
+            // position time: zulu time is given in the data, but it is even easier
+            //                when using the age, which is always given relative to the query time
+            dyn.ts = double(ts);
+            
+            // non-positional dynamic data
+            dyn.gnd =               false;      // there is no GND indicator in OGN data
+            dyn.heading =           std::stod(m.str(M_HEAD));
+            dyn.spd =               std::stod(m.str(M_SPEED));
+            dyn.vsi =               std::stod(m.str(M_VSI));
+            dyn.pChannel =          this;
+            
+            // position
+            double lat = std::stod(m.str(M_LAT_DEG));       // degree
+            s = m.str(M_LAT_MIN);                           // minutes
+            s += m.str(M_LAT_PREC);                         // plus additional precision digit
+            lat += std::stod(s) / 60.0;                     // added to degrees
+            if (m.str(M_LAT_NS)[0] == 'S')                  // negative in the southern hemisphere
+                lat = -lat;
+            double lon = std::stod(m.str(M_LON_DEG));       // degree
+            s = m.str(M_LON_MIN);                           // minutes
+            s += m.str(M_LON_PREC);                         // plus additional precision digit
+            lon += std::stod(s) / 60.0;                     // added to degrees
+            if (m.str(M_LON_EW)[0] == 'W')                  // negative in the western hemisphere
+                lon = -lon;
+            positionTy pos (lat, lon,
+                            std::stod(m.str(M_ALT)) * M_per_FT,
+// no weather correction, OGN delivers geo altitude?   dataRefs.WeatherAltCorr_m(std::stod(tok[GNF_ALT_M])),
+                            dyn.ts,
+                            dyn.heading);
+            pos.f.onGrnd = GND_UNKNOWN;         // there is no GND indicator in OGN data
+            
+            // position is rather important, we check for validity
+            // (we do allow alt=NAN if on ground)
+            if ( pos.isNormal(true) )
+                fd.AddDynData(dyn, 0, 0, &pos);
+            else
+                LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+    }
+
+    return true;
+}
+
+// Start or restart a new thread for connecting to aprs.glidernet.org
+void OpenGliderConnection::TCPStartUpdate (const positionTy& pos, unsigned dist_km)
+{
+    // Is there already a TCP thread running?
+    if (thrTcp.joinable()) {
+        // If the position has not moved too much (20% of dist_km), then we leave the connection as is
+        if (tcpPos.dist(pos) / M_per_KM < 0.2 * double(dist_km))
+            return;
+        // Otherwise we stop the current thread first (will block till stopped)
+        TCPClose();
+    }
+    
+    // Stat the TCP connection thread
+    bStopTcp = false;
+    tcpPos = pos;
+    thrTcp = std::thread(&OpenGliderConnection::TCPMain, this, pos, dist_km);
+}
+
+
+// Closes the TCP connection
+void OpenGliderConnection::TCPClose ()
+{
+    if (thrTcp.joinable()) {
+        bStopTcp = true;
+#if APL == 1 || LIN == 1
+        // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+        if (tcpPipe[1] == INVALID_SOCKET ||
+            write(tcpPipe[1], "STOP", 4) < 0)
+        {
+            // if the self-pipe didn't work:
+#endif
+            // close the connection, this will also break out of all
+            // blocking calls for receiving message and hence terminate the threads
+            tcpRcvr.Close();
+#if APL == 1 || LIN == 1
+        }
+#endif
+        
+        // wait for thread to finish if I'm not this thread myself
+        if (std::this_thread::get_id() != thrTcp.get_id()) {
+            if (thrTcp.joinable())
+                thrTcp.join();
+            thrTcp = std::thread();
+        }
+    }
+}
+
+
+
 // Tries reading aircraft information from the OGN a/c list
 LTFlightData::FDKeyType OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat)
 {
@@ -267,6 +672,7 @@ LTFlightData::FDKeyType OpenGliderConnection::LookupAcList (unsigned long uDevId
     // copy some information into the stat structure
     if (*rec.mdl != ' ') { stat.mdl.assign(rec.mdl,sizeof(rec.mdl)); rtrim(stat.mdl); }
     if (*rec.reg != ' ') { stat.reg.assign(rec.reg,sizeof(rec.reg)); rtrim(stat.reg); }
+    if (*rec.cn  != ' ') { stat.call.assign(rec.cn,sizeof(rec.cn));  rtrim(stat.call); }
     return
     rec.devType == 'F' ? LTFlightData::KEY_FLARM    :
     rec.devType == 'I' ? LTFlightData::KEY_ICAO     :

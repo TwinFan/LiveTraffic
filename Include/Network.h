@@ -77,10 +77,15 @@ public:
                      unsigned _timeOut_ms = 0, bool _bBroadcast = false);
     virtual ~SocketNetworking();
 
-    // opens/closes the socket
+    // Opens the socket for listening
     virtual void Open(const std::string& _addr, int _port, size_t _bufSize,
                       unsigned _timeOut_ms = 0, bool _bBroadcast = false);
+    // Connect to a server
+    virtual void Connect(const std::string& _addr, int _port, size_t _bufSize,
+                         unsigned _timeOut_ms = 0);
+    // Close the connection(s)
     virtual void Close();
+    
     inline bool isOpen() const { return (f_socket != INVALID_SOCKET); }
     
     void SetBufSize (size_t _bufSize);

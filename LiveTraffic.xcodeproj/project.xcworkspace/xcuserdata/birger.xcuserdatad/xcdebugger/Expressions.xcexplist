@@ -37,15 +37,15 @@
          contextName = "Apt::ShortestPath(unsigned long, unsigned long, double):LTApt.cpp">
       </ContextState>
       <ContextState
-         contextName = "GetLogString(LogMsgTy const&amp;):TextIO.cpp">
-      </ContextState>
-      <ContextState
          contextName = "FileRecLookup(std::__1::basic_ifstream&lt;char, std::__1::char_traits&lt;char&gt; &gt;&amp;, unsigned long&amp;, unsigned long, unsigned long&amp;, unsigned long&amp;, void*, unsigned long):LTOpenGlider.cpp">
          <PersistentStrings>
             <PersistentString
                value = "float(key-Al)/float(Ar-Al)*(R-L)">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "GetLogString(LogMsgTy const&amp;):TextIO.cpp">
       </ContextState>
       <ContextState
          contextName = "RealTrafficConnection::SendPos(positionTy const&amp;, double):LTRealTraffic.cpp">
@@ -59,13 +59,13 @@
          contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
+               value = "vecTaxiEdges[222]">
+            </PersistentString>
+            <PersistentString
                value = "lst[1385]">
             </PersistentString>
             <PersistentString
                value = "vecTaxiEdgesIdxHead[3321]">
-            </PersistentString>
-            <PersistentString
-               value = "vecTaxiEdges[222]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -106,10 +106,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -237,10 +237,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -405,13 +405,13 @@
          contextName = "GLOBAL">
          <PersistentStrings>
             <PersistentString
-               value = "gLog">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "currCycle.simTime">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "gLog">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -422,7 +422,7 @@
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "turn">
+               value = "from">
             </PersistentString>
             <PersistentString
                value = "to">
@@ -434,7 +434,7 @@
                value = "ppos">
             </PersistentString>
             <PersistentString
-               value = "from">
+               value = "turn">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -540,10 +540,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -557,10 +557,10 @@
          contextName = "LTFlightData::AircraftMaintenance(double):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "posDeque">
+               value = "posDeque[0].v[3]">
             </PersistentString>
             <PersistentString
-               value = "posDeque[0].v[3]">
+               value = "posDeque">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -1009,6 +1009,14 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "OpenGliderConnection::TCPProcessLine(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;):LTOpenGlider.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ln">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "BezierCurve::GetPos(positionTy&amp;, double, double, double, double) const:LTAircraft.cpp">
       </ContextState>
       <ContextState
@@ -1067,10 +1075,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

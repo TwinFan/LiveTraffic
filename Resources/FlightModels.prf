@@ -155,6 +155,7 @@ PITCH_FLAP_ADD         1    # [°] to add if flaps extended
 PITCH_FLARE            3    # [°] pitch during flare
 PITCH_RATE             1    # [°/s] pitch rate of change
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
+LABEL_COLOR       00FF00    # green labels for GA and smaller
 PROP_RPM_MAX        1200    # [rpm] maximum propeller revolutions per minute
 EXT_CAMERA_LON_OFS   -20    # longitudinal external camera offset
 EXT_CAMERA_LAT_OFS     0    # lateral...
