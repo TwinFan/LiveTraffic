@@ -42,8 +42,9 @@ constexpr SOCKET INVALID_SOCKET = -1;
 #define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
 #define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
 #define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
+#define ERR_NETW_TECH_ERROR     "%s: Technical network error: %s"
 
-#define ERR_UDP_RCVR_OPEN       "%s: Error creating UDP socket for %s:%d: %s"
+#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s:%d: %s"
 #define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
 
 

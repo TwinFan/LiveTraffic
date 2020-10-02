@@ -888,7 +888,6 @@
 					"XPLM303=1",
 					CURL_STATICLIB,
 					"DEBUG=1",
-					"APT_DUMP=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";

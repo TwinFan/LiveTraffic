@@ -292,7 +292,7 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
     try {
         // open a TCP connection to glidernet.org
         tcpRcvr.Connect(OGN_TCP_SERVER, OGN_TCP_PORT, OGN_TCP_BUF_SIZE);
-        int maxSock = tcpRcvr.getSocket() + 1;
+        int maxSock = (int)tcpRcvr.getSocket() + 1;
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the TCP socket gracefully
         if (pipe(tcpPipe) < 0)
@@ -355,10 +355,10 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
                 // not just a normal timeout?
                 char sErr[SERR_LEN];
                 strerror_s(sErr, sizeof(sErr), errno);
-                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
-                        sErr);
+                LOG_MSG(logERR, ERR_NETW_TECH_ERROR, ChName(), sErr);
                 // increase error count...bail out if too bad
                 if (!IncErrCnt()) {
+                    bStopTcp = true;
                     SetValid(false, true);
                     break;
                 }
@@ -371,8 +371,17 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
                 OGN_TCP_SERVER, std::to_string(OGN_TCP_PORT).c_str(),
                 e.what());
         // invalidate the channel
+        bStopTcp = true;
         SetValid(false, true);
     }
+    
+#if APL == 1 || LIN == 1
+    // close the self-pipe sockets
+    for (SOCKET &s: tcpPipe) {
+        if (s != INVALID_SOCKET) close(s);
+        s = INVALID_SOCKET;
+    }
+#endif
     
     // make sure the socket is closed
     tcpRcvr.Close();
@@ -445,7 +454,7 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
                           "/A=(\\d{6}) "                    // altitude in feet, 1 match
                           "!W(\\d)(\\d)! "                  // position precision enhancement, 2 matches: latitude, longitude
                           "id([0-9A-Z]{2})([0-9A-Z]{6,8}) " // sender details and address, 2 matches
-                          "([-+]\\d\\d\\d)fpm "            // vertical speed, 1 match
+                          "(?:([-+]\\d+)fpm)?"              // vertical speed (optional), 1 match
                           );
     // Indexes for the above matches
     enum mIdx {
@@ -462,8 +471,8 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
     std::smatch m;
     std::regex_search(ln, m, re);
     
-    // We expect 17 matches. Size is one more because element 0 is the complete matched string:
-    if (m.size() != 18) {
+    // We expect 16 matches, 17 if fpm is given. Size is one more because element 0 is the complete matched string:
+    if (m.size() < 17) {
         // didn't match. But if we think this _could_ be a valid message then we should warn, maybe there's still a flaw in the regex above
         if (ln.find("! id") != std::string::npos) {
             LOG_MSG(logWARN, WARN_OGN_NOT_MATCHED, ln.c_str());
@@ -560,7 +569,8 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
             dyn.gnd =               false;      // there is no GND indicator in OGN data
             dyn.heading =           std::stod(m.str(M_HEAD));
             dyn.spd =               std::stod(m.str(M_SPEED));
-            dyn.vsi =               std::stod(m.str(M_VSI));
+            if (m.size() > M_VSI)
+                dyn.vsi =           std::stod(m.str(M_VSI));
             dyn.pChannel =          this;
             
             // position
@@ -620,18 +630,22 @@ void OpenGliderConnection::TCPStartUpdate (const positionTy& pos, unsigned dist_
 void OpenGliderConnection::TCPClose ()
 {
     if (thrTcp.joinable()) {
-        bStopTcp = true;
 #if APL == 1 || LIN == 1
         // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+        bStopTcp = true;
         if (tcpPipe[1] == INVALID_SOCKET ||
             write(tcpPipe[1], "STOP", 4) < 0)
         {
             // if the self-pipe didn't work:
-#endif
             // close the connection, this will also break out of all
             // blocking calls for receiving message and hence terminate the threads
             tcpRcvr.Close();
-#if APL == 1 || LIN == 1
+        }
+#else
+        // In windows avoid rare race conditions be avoiding to call .Close twice
+        if (!bStopTcp) {
+            bStopTcp = true;
+            tcpRcvr.Close();
         }
 #endif
         
