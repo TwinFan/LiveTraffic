@@ -100,17 +100,6 @@ enum APRSAddressTy : unsigned {
     APRS_ADDR_OGN,              ///< OGN tracker's hardware address
 };
 
-/// Structured type for sender details in APRS message, which are bit-encoded
-union APRSSenderDetailsTy {
-    uint8_t     u = 0;              ///< complete 8 bit value
-    struct BitsTy {
-        APRSAddressTy addrTy : 2;   ///< address type
-        FlarmAircraftTy acTy : 4;   ///< aircraft type
-        bool bNoTracking     : 1;   ///< no-tracking boolean (must ignore if "1")
-        bool bStealthMode    : 1;   ///< stealth mode boolean (should never be "1")
-    } b;                            ///< structure to break down the bits
-};
-
 //
 // MARK: OpenGliderConnection
 //

@@ -137,8 +137,8 @@ AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during 
 AGL_FLARE              5    # [ft] height AGL to start flare
 MAX_TAXI_SPEED        20    # [kt] below that: taxi, above that: take-off/roll-out
 MIN_REVERS_SPEED      50    # [kt] use reversers down to this speed
-TAXI_TURN_TIME        15    # [s] time for a 360° turn on the ground
-FLIGHT_TURN_TIME      25    # [s] time for a 360° turn in flight
+TAXI_TURN_TIME        10    # [s] time for a 360° turn on the ground
+FLIGHT_TURN_TIME      10    # [s] time for a 360° turn in flight
 ROLL_MAX_BANK         45    # [°] max bank angle
 ROLL_RATE              5    # [°/s] roll rate in normal turns
 MIN_FLIGHT_SPEED      10    # [kn] minimum flight speed, below that not considered valid data
