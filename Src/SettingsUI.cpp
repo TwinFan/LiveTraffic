@@ -353,6 +353,10 @@ void LTSettingsUI::buildInterface()
                         ImGui::PopID();
                     } // if Flarm type visible
                 } // for all Flarm types
+                
+                // User alternate Request/Reply way of requesting tracking data
+                ImGui::FilteredCfgCheckbox("Use alternate connection", sFilter, DR_CFG_OGN_USE_REQUREPL, "Switches to requesting OGN tracking data via HTTP requests instead of receiving push information from an APRS connection.");
+                
                 if (!*sFilter) ImGui::TreePop();
             }
             

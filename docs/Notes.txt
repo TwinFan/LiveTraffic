@@ -1,9 +1,6 @@
 TODO
 ===
 
-- OGN TCP
-  - Settings: Provide switch between APRS and Request / Reply
-  
 - OGN/RealTraffic: Duplicate detection
 
 - KLAX and others: Initially a lot of aircraft are added without saying which channel they drive

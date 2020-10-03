@@ -1,16 +1,22 @@
 /// @file       LTOpenGlider.h
 /// @brief      Open Glider Network: Requests and processes live tracking data
-/// @see        http://wiki.glidernet.org/
-/// @see        https://github.com/glidernet/ogn-live#backend
 /// @see        http://live.glidernet.org/
-/// @details    Defines OpenGliderConnection:\n
+/// @details    Defines OpenGliderConnection:
 ///             - Direct TCP connection to aprs.glidernet.org:14580 (preferred)
 ///               - connects to the server
 ///               - sends a dummy login for read-only access
 ///               - listens to incoming tracking data
-///             - Request/Reply Interface (alternatively)
-///               - Provides a proper REST-conform URL\n
-///               - Interprets the response and passes the tracking data on to LTFlightData.\n
+///
+/// @see        http://wiki.glidernet.org/wiki:subscribe-to-ogn-data
+///
+/// @details    - Request/Reply Interface (alternatively, and as a fallback if APRS fails)
+///               - Provides a proper REST-conform URL
+///               - Interprets the response and passes the tracking data on to LTFlightData.
+///
+/// @see        https://github.com/glidernet/ogn-live#backend
+///
+/// @details    Also downloads and performs searches in the aircraft list
+/// @see        http://ddb.glidernet.org/download/
 /// @author     Birger Hoppe
 /// @copyright  (c) 2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -106,18 +112,18 @@ enum APRSAddressTy : unsigned {
 class OpenGliderConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 protected:
-    // tcp connection to receives tracking data
-    std::thread thrTcp;             ///< thread for the TCP receiver
-    TCPConnection tcpRcvr;          ///< TCP connection to aprs.glidernet.org
-    volatile bool bStopTcp = false; ///< stop signal to the thread
-    positionTy tcpPos;              ///< the search position with which we are connected to the tcp server
+    // APRS connection to receives tracking data
+    std::thread thrAprs;            ///< thread for the APRS/TCP receiver
+    TCPConnection tcpAprs;          ///< TCP connection to aprs.glidernet.org
+    volatile bool bStopAprs=false;  ///< stop signal to the thread
+    positionTy aprsPos;             ///< the search position with which we are connected to the tcp server
 #if APL == 1 || LIN == 1
-    /// the self-pipe to shut down the TCP thread gracefully
-    SOCKET tcpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
+    /// the self-pipe to shut down the APRS thread gracefully
+    SOCKET aprsPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
 #endif
-    std::string tcpData;            ///< received/unprocessed data
-    float tcpLastData = NAN;        ///< last time (XP network time) we received _any_ TCP data
-    bool bFailoverToHttp = false;   ///< set if we had too much trouble on the TCP channel, then we try the HTTP R/R channel
+    std::string aprsData;           ///< received/unprocessed APRS data
+    float aprsLastData = NAN;       ///< last time (XP network time) we received _any_ APRS data
+    bool bFailoverToHttp = false;   ///< set if we had too much trouble on the APRS channel, then we try the HTTP R/R channel
 
 public:
     /// Constructor
@@ -126,7 +132,7 @@ public:
     ~OpenGliderConnection () override;
     /// All the cleanup we usually need
     void Cleanup ();
-    /// Returns URL to fetch current data from live.glidernet.org
+    /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
     std::string GetURL (const positionTy& pos) override;
     /// @brief Processes the fetched data
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
@@ -138,21 +144,21 @@ public:
     void DoDisabledProcessing() override { Cleanup(); }
     void Close () override               { Cleanup(); }
 
-    // TCP connection
+    // APRS connection
 protected:
-    /// Main function for TCP connection, expected to be started in a thread
-    void TCPMain (const positionTy& pos, unsigned dist_km);
-    /// Handle the login protocol
-    bool TCPDoLogin (const positionTy& pos, unsigned dist_km);
+    /// Main function for APRS connection, expected to be started in a thread
+    void APRSMain (const positionTy& pos, unsigned dist_km);
+    /// Send the APRS login message
+    bool APRSDoLogin (const positionTy& pos, unsigned dist_km);
     /// Process received data
-    bool TCPProcessData (const char* buffer);
+    bool APRSProcessData (const char* buffer);
     /// Process one line of received data
-    bool TCPProcessLine (const std::string& ln);
+    bool APRSProcessLine (const std::string& ln);
     
     /// Start or restart a new thread for connecting to aprs.glidernet.org
-    void TCPStartUpdate (const positionTy& pos, unsigned dist_km);
-    /// Closes the TCP connection
-    void TCPClose ();
+    void APRSStartUpdate (const positionTy& pos, unsigned dist_km);
+    /// Closes the APRS TCP connection
+    void APRSClose ();
     
     // Aircraft List (Master Data)
 protected:
