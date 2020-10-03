@@ -1,16 +1,20 @@
 /// @file       LTOpenGlider.cpp
 /// @brief      Open Glider Network: Requests and processes live tracking data
-/// @see        http://wiki.glidernet.org/
-/// @see        https://github.com/glidernet/ogn-live#backend
 /// @see        http://live.glidernet.org/
-/// @details    Defines OpenGliderConnection:\n
+/// @details    Defines OpenGliderConnection:
 ///             - Direct TCP connection to aprs.glidernet.org:14580 (preferred)
 ///               - connects to the server
 ///               - sends a dummy login for read-only access
 ///               - listens to incoming tracking data
-///             - Request/Reply Interface (alternatively)
-///               - Provides a proper REST-conform URL\n
-///               - Interprets the response and passes the tracking data on to LTFlightData.\n
+///
+/// @see        http://wiki.glidernet.org/wiki:subscribe-to-ogn-data
+///
+/// @details    - Request/Reply Interface (alternatively, and as a fallback if APRS fails)
+///               - Provides a proper REST-conform URL
+///               - Interprets the response and passes the tracking data on to LTFlightData.
+///
+/// @see        https://github.com/glidernet/ogn-live#backend
+///
 /// @details    Also downloads and performs searches in the aircraft list
 /// @see        http://ddb.glidernet.org/download/
 /// @author     Birger Hoppe
@@ -57,6 +61,7 @@ extern mapLTFlightDataTy mapFd;
 
 #define ERR_OGN_TCP_CONNECTED       "Connected to OGN Server %s"
 #define ERR_OGN_TCP_ERROR           "OGN Server returned error: %s"
+#define WARN_OGN_TIMEOUT            "%s: Timeout waiting for any message"
 #define WARN_OGN_NOT_MATCHED        "A message could be tracking data, but didn't match: %s"
 
 // Request Reply
@@ -68,6 +73,7 @@ constexpr size_t OGN_MARKER_BEGIN_LEN = 6;          ///< strlen(OGN_MARKER_BEGIN
 constexpr const char* OGN_TCP_SERVER    = "aprs.glidernet.org";
 constexpr int         OGN_TCP_PORT      = 14580;
 constexpr size_t      OGN_TCP_BUF_SIZE  = 1024;
+constexpr int         OGN_TCP_TIMEOUT_S = 60;       ///< there's a keep alive every 20s, so if we didn't receive anything in 60s there's something wrong
 constexpr const char* OGN_TCP_LOGIN     = "user LiveTrffc pass -1 vers " LIVE_TRAFFIC " %.2f filter r/%.3f/%.3f/%u -p/oimqstunw\r\n";
 constexpr const char* OGN_TCP_LOGIN_GOOD= "# logresp LiveTrffc unverified, server ";
 
@@ -95,13 +101,15 @@ void OpenGliderConnection::Cleanup ()
     TCPClose();
     if (ifAcList.is_open())
         ifAcList.close();
+    tcpLastData = NAN;
+    bFailoverToHttp = false;
 }
 
 // put together the URL to fetch based on current view position
 std::string OpenGliderConnection::GetURL (const positionTy& pos)
 {
     // We only return a URL if we are to use the request/reply procedure
-    if (DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL)) {
+    if (bFailoverToHttp || DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL)) {
         boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
         char url[128] = "";
         snprintf(url, sizeof(url),
@@ -127,8 +135,8 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
 ///             <m a="49.052521,9.494550,DRF,D-HDSG,1013,20:47:51,21,125,230,0.4,3,Voelklesh,3DDC66,c2b8cf7"/>
 ///             </markers>
 ///          @endcode
-///          We are not doing full XML parsing, but just search for <m a="
-///          and process everything till we find "/>
+///          We are not doing full XML parsing, but just search for `<m a=""`
+///          and process everything till we find `""/>`
 bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 {
     // any a/c filter defined for debugging purposes?
@@ -283,6 +291,22 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 }
 
 
+// return a human-readable staus
+std::string OpenGliderConnection::GetStatusText () const
+{
+    // Let's start with the standard text
+    std::string s (LTChannel::GetStatusText());
+    // if we have a latest TCP timestamp then we add age of last TCP message
+    if (!std::isnan(tcpLastData)) {
+        char buf[50];
+        snprintf(buf, sizeof(buf), ", last message %.1fs ago",
+                 dataRefs.GetMiscNetwTime() - tcpLastData);
+        s += buf;
+    }
+    return s;
+}
+
+
 /// Main function for TCP connection, expected to be started in a thread
 void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
 {
@@ -291,7 +315,8 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
     
     try {
         // open a TCP connection to glidernet.org
-        tcpRcvr.Connect(OGN_TCP_SERVER, OGN_TCP_PORT, OGN_TCP_BUF_SIZE);
+        tcpLastData = NAN;
+        tcpRcvr.Connect(OGN_TCP_SERVER, OGN_TCP_PORT, OGN_TCP_BUF_SIZE, unsigned(OGN_TCP_TIMEOUT_S * 1000));
         int maxSock = (int)tcpRcvr.getSocket() + 1;
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the TCP socket gracefully
@@ -308,6 +333,7 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
         }
         
         // *** Main Loop ***
+        struct timeval timeout = { OGN_TCP_TIMEOUT_S, 0 };
         while (!bStopTcp && tcpRcvr.isOpen())
         {
             // wait for a UDP datagram on either socket (traffic, weather)
@@ -317,51 +343,33 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
 #if APL == 1 || LIN == 1
             FD_SET(tcpPipe[0], &sRead);
 #endif
-            int retval = select(maxSock, &sRead, NULL, NULL, NULL);
+            int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
             if (bStopTcp)
                 break;
 
             // select call failed???
-            if(retval == -1)
+            if (retval == -1)
                 throw NetRuntimeError("'select' failed");
+            else if (retval == 0)
+                throw NetRuntimeError("'select' ran into a timeout");
 
             // select successful - traffic data
             if (retval > 0 && FD_ISSET(tcpRcvr.getSocket(), &sRead))
             {
-                // read UDP datagram
+                // read TCP message
                 long rcvdBytes = tcpRcvr.recv();
                 
                 // received something?
                 if (rcvdBytes > 0)
                 {
                     // have it processed
-                    if (!TCPProcessData(tcpRcvr.getBuf())) {
-                        SetValid(false, true);
-                        break;
-                    }
+                    if (!TCPProcessData(tcpRcvr.getBuf()))
+                        throw NetRuntimeError("TCPProcessData failed");
                 }
                 else
-                    retval = -1;
-            }
-            
-            // short-cut if we are to shut down
-            if (bStopTcp)
-                break;
-            
-            // handling of errors, both from select and from recv
-            if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
-                // not just a normal timeout?
-                char sErr[SERR_LEN];
-                strerror_s(sErr, sizeof(sErr), errno);
-                LOG_MSG(logERR, ERR_NETW_TECH_ERROR, ChName(), sErr);
-                // increase error count...bail out if too bad
-                if (!IncErrCnt()) {
-                    bStopTcp = true;
-                    SetValid(false, true);
-                    break;
-                }
+                    throw NetRuntimeError("Read no data from TCP socket ");
             }
         }
         
@@ -370,9 +378,13 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
         LOG_MSG(logERR, ERR_TCP_LISTENACCEPT, ChName(),
                 OGN_TCP_SERVER, std::to_string(OGN_TCP_PORT).c_str(),
                 e.what());
-        // invalidate the channel
+        // Stop this connection attempt
         bStopTcp = true;
-        SetValid(false, true);
+        if (GetErrCnt() == CH_MAC_ERR_CNT) {         // too bad already?
+            bFailoverToHttp = true; // we fail over to the HTTP way of things
+            SetValid(true);         // this resets the error count
+        } else
+            IncErrCnt();
     }
     
 #if APL == 1 || LIN == 1
@@ -408,6 +420,10 @@ bool OpenGliderConnection::TCPProcessData (const char* buffer)
     if (tcpData.empty())            // weird...but not an error if there's nothing to process
         return true;
     
+    // So we just received something
+    tcpLastData = dataRefs.GetMiscNetwTime();
+    DecErrCnt();
+
     // process the input line by line, expected a line to be ended by \r\n
     // (If CR/LF is yet missing then the received data is yet incomplete and will be completed with the next received data)
     for (size_t lnEnd = tcpData.find("\r\n");
@@ -612,8 +628,9 @@ void OpenGliderConnection::TCPStartUpdate (const positionTy& pos, unsigned dist_
 {
     // Is there already a TCP thread running?
     if (thrTcp.joinable()) {
-        // If the position has not moved too much (20% of dist_km), then we leave the connection as is
-        if (tcpPos.dist(pos) / M_per_KM < 0.2 * double(dist_km))
+        // If we are actively running and the position has not moved too much
+        // (20% of dist_km), then we leave the connection as is
+        if (!bStopTcp && (tcpPos.dist(pos) / M_per_KM < 0.2 * double(dist_km)))
             return;
         // Otherwise we stop the current thread first (will block till stopped)
         TCPClose();
@@ -630,24 +647,22 @@ void OpenGliderConnection::TCPStartUpdate (const positionTy& pos, unsigned dist_
 void OpenGliderConnection::TCPClose ()
 {
     if (thrTcp.joinable()) {
-#if APL == 1 || LIN == 1
-        // Mac/Lin: Try writing something to the self-pipe to stop gracefully
-        bStopTcp = true;
-        if (tcpPipe[1] == INVALID_SOCKET ||
-            write(tcpPipe[1], "STOP", 4) < 0)
-        {
-            // if the self-pipe didn't work:
-            // close the connection, this will also break out of all
-            // blocking calls for receiving message and hence terminate the threads
-            tcpRcvr.Close();
-        }
-#else
-        // In windows avoid rare race conditions be avoiding to call .Close twice
         if (!bStopTcp) {
             bStopTcp = true;
+#if APL == 1 || LIN == 1
+            // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+            if (tcpPipe[1] == INVALID_SOCKET ||
+                write(tcpPipe[1], "STOP", 4) < 0)
+            {
+                // if the self-pipe didn't work:
+                // close the connection, this will also break out of all
+                // blocking calls for receiving message and hence terminate the threads
+                tcpRcvr.Close();
+            }
+#else
             tcpRcvr.Close();
-        }
 #endif
+        }
         
         // wait for thread to finish if I'm not this thread myself
         if (std::this_thread::get_id() != thrTcp.get_id()) {
@@ -655,6 +670,8 @@ void OpenGliderConnection::TCPClose ()
                 thrTcp.join();
             thrTcp = std::thread();
         }
+        // reset last data timestamp
+        tcpLastData = NAN;
     }
 }
 

@@ -127,24 +127,27 @@ protected:
     SOCKET tcpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
 #endif
     std::string tcpData;            ///< received/unprocessed data
+    float tcpLastData = NAN;        ///< last time (XP network time) we received _any_ TCP data
+    bool bFailoverToHttp = false;   ///< set if we had too much trouble on the TCP channel, then we try the HTTP R/R channel
 
 public:
     /// Constructor
     OpenGliderConnection ();
     /// Destructor closes the a/c list file
-    virtual ~OpenGliderConnection ();
+    ~OpenGliderConnection () override;
     /// All the cleanup we usually need
     void Cleanup ();
     /// Returns URL to fetch current data from live.glidernet.org
-    virtual std::string GetURL (const positionTy& pos);
+    std::string GetURL (const positionTy& pos) override;
     /// @brief Processes the fetched data
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual const char* ChName() const { return OPGLIDER_NAME; }
-    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-    virtual void DoDisabledProcessing() { Cleanup(); }
-    virtual void Close ()               { Cleanup(); }
+    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
+    bool IsLiveFeed() const override { return true; }
+    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
+    const char* ChName() const override { return OPGLIDER_NAME; }
+    std::string GetStatusText () const override;  ///< return a human-readable staus
+    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
+    void DoDisabledProcessing() override { Cleanup(); }
+    void Close () override               { Cleanup(); }
 
     // TCP connection
 protected:

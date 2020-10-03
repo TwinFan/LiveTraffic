@@ -56,7 +56,9 @@ class NetRuntimeError : public std::runtime_error
 {
 public:
     std::string errTxt;
+    std::string fullWhat;
     NetRuntimeError(const char *w);
+    const char* what() const noexcept override { return fullWhat.c_str(); }
 };
 
 // Base class for socket-based networking

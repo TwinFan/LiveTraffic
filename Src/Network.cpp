@@ -49,6 +49,10 @@ std::runtime_error(w)
     char sErr[SERR_LEN];
     strerror_s(sErr, sizeof(sErr), errno);
     errTxt = sErr;              // copy
+    // And the complete message to be returned by what readily prepared:
+    fullWhat = w;
+    fullWhat += ": ";
+    fullWhat += errTxt;
 }
 
 SocketNetworking::SocketNetworking(const std::string& _addr, int _port,
@@ -532,8 +536,8 @@ bool TCPConnection::listenAccept (int numConnections)
         // if we wait for exactly one connection then we "unlisten" once we accepted that one connection:
         return accept(numConnections == 1);
     }
-    catch (NetRuntimeError& e) {
-        LOG_MSG(logERR, "%s (%s)", e.what(), e.errTxt.c_str());
+    catch (std::runtime_error& e) {
+        LOG_MSG(logERR, "%s", e.what());
     }
     return false;
 }

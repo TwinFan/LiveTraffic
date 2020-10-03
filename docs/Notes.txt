@@ -2,7 +2,6 @@ TODO
 ===
 
 - OGN TCP
-  - APRS: Send keep alive
   - Settings: Provide switch between APRS and Request / Reply
   
 - OGN/RealTraffic: Duplicate detection
