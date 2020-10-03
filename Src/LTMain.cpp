@@ -421,14 +421,22 @@ int timeOffsetUTC()
 // Converts a UTC time to epoch value, assuming today's date
 time_t mktime_utc (int h, int min, int s)
 {
-    time_t rawtime = time(NULL);
+    const time_t now = time(NULL);
     struct tm gbuf;
-    gmtime_s(&gbuf, &rawtime);
+    gmtime_s(&gbuf, &now);
     gbuf.tm_hour = h;
     gbuf.tm_min  = min;
     gbuf.tm_sec  = s;
     gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
-    return mktime_utc(gbuf);
+    time_t ret = mktime_utc(gbuf);
+    // around midnight there will be corner-cases where the "current" date
+    // might not be the right one for the given values.
+    // Make sure difference to now is less than 24h
+    while (now - ret > 86400)
+        ret += 86400;
+    while (now - ret < -86400)
+        ret -= 86400;
+    return ret;
 }
 
 // Convert an XP network time float to a string

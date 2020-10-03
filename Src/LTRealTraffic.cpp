@@ -666,9 +666,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // system time in microseconds
     double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
     // divided by 1000000 to create seconds with fractionals
-    / 1000000.0
-    // corrected by network time diff (which only works if also OpenSky or ADSBEx are active)
-    + dataRefs.GetChTsOffset();
+    / 1000000.0;
     
     // check for duplicate data
     // RealTraffic sends bursts of data every 10s, but that doesn't necessarily

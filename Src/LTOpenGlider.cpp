@@ -72,7 +72,7 @@ constexpr size_t OGN_MARKER_BEGIN_LEN = 6;          ///< strlen(OGN_MARKER_BEGIN
 // Direct APRS connection
 constexpr const char* OGN_APRS_SERVER       = "aprs.glidernet.org";
 constexpr int         OGN_APRS_PORT         = 14580;
-constexpr size_t      OGN_APRS_BUF_SIZE     = 1024;
+constexpr size_t      OGN_APRS_BUF_SIZE     = 4096;
 constexpr int         OGN_APRS_TIMEOUT_S    = 60;       ///< there's a keep alive every 20s, so if we don't receive anything in 60s there's something wrong
 constexpr const char* OGN_APRS_LOGIN        = "user LiveTrffc pass -1 vers " LIVE_TRAFFIC " %.2f filter r/%.3f/%.3f/%u -p/oimqstunw\r\n";
 constexpr const char* OGN_APRS_LOGIN_GOOD   = "# logresp LiveTrffc unverified, server ";
@@ -148,7 +148,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     if ( !netDataPos ) return true;
     
     // We need current Zulu time to interpret the timestamp in the data
-    const std::time_t tNow = std::time(nullptr);
+    const std::time_t tNow = std::time(nullptr) + std::lround(dataRefs.GetChTsOffset());
     
     // Search for all markers in the response
     for (const char* sPos = strstr(netData, OGN_MARKER_BEGIN);
@@ -427,11 +427,12 @@ bool OpenGliderConnection::APRSProcessData (const char* buffer)
 
     // process the input line by line, expected a line to be ended by \r\n
     // (If CR/LF is yet missing then the received data is yet incomplete and will be completed with the next received data)
+    const time_t tNow = time(NULL) + std::lround(dataRefs.GetChTsOffset());
     for (size_t lnEnd = aprsData.find("\r\n");
          lnEnd != std::string::npos;
          aprsData.erase(0,lnEnd+2), lnEnd = aprsData.find("\r\n"))
     {
-        if (!APRSProcessLine(aprsData.substr(0,lnEnd)))
+        if (!APRSProcessLine(aprsData.substr(0,lnEnd), tNow))
             return false;
     }
     return true;
@@ -439,7 +440,7 @@ bool OpenGliderConnection::APRSProcessData (const char* buffer)
 
 /// @brief Process one line of received data
 /// @see https://github.com/svoop/ogn_client-ruby/wiki/SenderBeacon
-bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
+bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
 {
     // Sanity check
     if (ln.empty()) return true;
@@ -456,6 +457,17 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         // Test for successful login
         if (ln.find(OGN_APRS_LOGIN_GOOD) != std::string::npos)
             LOG_MSG(logINFO, ERR_OGN_APRS_CONNECTED, str_last_word(ln).c_str());
+        
+        // Test for server time...can be quite off sometimes, and that means all tracking data timestamps are off, too
+        static std::regex reTm ("\\d+ \\w{3} \\d{4} (\\d{1,2}):(\\d{2}):(\\d{2}) GMT");
+        std::smatch mTm;
+        std::regex_search(ln, mTm, reTm);
+        if (!mTm.empty()) {
+            const time_t serverT = mktime_utc(std::stoi(mTm.str(1)),
+                                              std::stoi(mTm.str(2)),
+                                              std::stoi(mTm.str(3)));
+            aprsSrvTimDiff = long(tNow) - long(serverT);
+        }
         
         // Otherwise ignore all lines starting with '#' as comments
         return true;
@@ -513,7 +525,8 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     time_t ts = mktime_utc(std::stoi(m.str(M_TS_H)),
                            std::stoi(m.str(M_TS_MIN)),
                            std::stoi(m.str(M_TS_S)));
-    if (time(NULL) - ts > dataRefs.GetAcOutdatedIntvl())
+    ts += aprsSrvTimDiff;                       // adjust for differences between server and actual time
+    if (tNow - ts > dataRefs.GetAcOutdatedIntvl())
         return true;
     
     // They key: if no 6-digit FLARM device id is available then we use the

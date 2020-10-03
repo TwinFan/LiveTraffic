@@ -122,6 +122,7 @@ protected:
     SOCKET aprsPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
 #endif
     std::string aprsData;           ///< received/unprocessed APRS data
+    long aprsSrvTimDiff = 0;        ///< time difference between system and server time
     float aprsLastData = NAN;       ///< last time (XP network time) we received _any_ APRS data
     bool bFailoverToHttp = false;   ///< set if we had too much trouble on the APRS channel, then we try the HTTP R/R channel
 
@@ -153,7 +154,7 @@ protected:
     /// Process received data
     bool APRSProcessData (const char* buffer);
     /// Process one line of received data
-    bool APRSProcessLine (const std::string& ln);
+    bool APRSProcessLine (const std::string& ln, time_t tNow);
     
     /// Start or restart a new thread for connecting to aprs.glidernet.org
     void APRSStartUpdate (const positionTy& pos, unsigned dist_km);
