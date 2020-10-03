@@ -461,7 +461,7 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
     }
     
     // Try to match the line with an expected pattern
-    static std::regex re (":/(\\d\\d)(\\d\\d)(\\d\\d)h"     // timestamp, 3 matches: h, min, sec
+    static std::regex re (":/(\\d\\d)(\\d\\d)(\\d\\d)[hz]"  // timestamp, 3 matches: h, min, sec
                           "(\\d\\d)(\\d\\d.\\d\\d)(N|S)"    // latitude, 3 matches: degree, minutes incl. decimals, N or S
                           "(?:/|\\\\)"                      // display symbol, not stored
                           "(\\d\\d\\d)(\\d\\d.\\d\\d)(E|W)" // longitude, 3 matches: degree, minutes incl. decimals, E or W
@@ -501,11 +501,12 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
     // :/215957h5000.42N\00839.32En000/000/A=000502 !W38! id3ED0075F -019fpm  | 21 | 59 | 57 | 50 | 00.42 | N | 008 | 39.32 | E | 000 | 000 | 000502 | 3 | 8 | 3E | D0075F | -019 |
     
     // We silently skip all static objects and those who do not want to be tracked
-    APRSSenderDetailsTy senderDetails;
-    senderDetails.u = (uint8_t)std::stoul(m.str(M_SEND_DETAILS), nullptr, 16);
-    if (senderDetails.b.bNoTracking || senderDetails.b.bStealthMode ||
-        senderDetails.b.acTy == FAT_STATIC_OBJ)
-        return true;
+    uint8_t senderDetails   = (uint8_t)std::stoul(m.str(M_SEND_DETAILS), nullptr, 16);
+    FlarmAircraftTy acTy    = FlarmAircraftTy((senderDetails & 0b00111100) >> 2);
+    APRSAddressTy addrTy    = APRSAddressTy(senderDetails & 0b00000011);
+    if ((senderDetails & 0b11000000) ||         // "No tracking" or "stealth mode" set?
+        (acTy == FAT_STATIC_OBJ))               // Static object?
+        return true;                            // -> ignore
     
     // Timestamp - skip too old records
     time_t ts = mktime_utc(std::stoi(m.str(M_TS_H)),
@@ -530,8 +531,8 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
         else {
             // use the type specified in the message
             keyType =
-            senderDetails.b.addrTy == APRS_ADDR_ICAO  ? LTFlightData::KEY_ICAO :
-            senderDetails.b.addrTy == APRS_ADDR_FLARM ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN;
+            addrTy == APRS_ADDR_ICAO  ? LTFlightData::KEY_ICAO :
+            addrTy == APRS_ADDR_FLARM ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN;
         }
         fdKey.SetKey(keyType, m.str(M_SEND_ID));
     }
@@ -562,11 +563,11 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
             fd.SetKey(fdKey);
         
             // Aircraft type converted from Flarm AcftType
-            stat.catDescr   = OGNGetAcTypeName(senderDetails.b.acTy);
+            stat.catDescr   = OGNGetAcTypeName(acTy);
             
             // If we still have no accurate ICAO type then we need to fall back to some configured defaults
             if (stat.acTypeIcao.empty()) {
-                stat.acTypeIcao = OGNGetIcaoAcType(senderDetails.b.acTy);
+                stat.acTypeIcao = OGNGetIcaoAcType(acTy);
                 stat.mdl        = stat.catDescr;
             }
 
