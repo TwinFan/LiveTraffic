@@ -120,7 +120,7 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
                  box.nw.lon());             // lomin
         return std::string(url);
     } else {
-        // otherwise we are to use the direct TCP connection
+        // otherwise (and by default) we are to use the direct TCP connection
         TCPStartUpdate(pos, dataRefs.GetFdStdDistance_km());
         return std::string();
     }
@@ -314,7 +314,7 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
     SET_THREAD_NAME("LT_OGN_TCP");
     
     try {
-        // open a TCP connection to glidernet.org
+        // open a TCP connection to APRS.glidernet.org
         tcpLastData = NAN;
         tcpRcvr.Connect(OGN_TCP_SERVER, OGN_TCP_PORT, OGN_TCP_BUF_SIZE, unsigned(OGN_TCP_TIMEOUT_S * 1000));
         int maxSock = (int)tcpRcvr.getSocket() + 1;
@@ -336,12 +336,12 @@ void OpenGliderConnection::TCPMain (const positionTy& pos, unsigned dist_km)
         struct timeval timeout = { OGN_TCP_TIMEOUT_S, 0 };
         while (!bStopTcp && tcpRcvr.isOpen())
         {
-            // wait for a UDP datagram on either socket (traffic, weather)
+            // wait for some signal on either socket (APRS or self-pipe)
             fd_set sRead;
             FD_ZERO(&sRead);
             FD_SET(tcpRcvr.getSocket(), &sRead);     // check our socket
 #if APL == 1 || LIN == 1
-            FD_SET(tcpPipe[0], &sRead);
+            FD_SET(tcpPipe[0], &sRead);              // check the self-pipe
 #endif
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
@@ -578,8 +578,7 @@ bool OpenGliderConnection::TCPProcessLine (const std::string& ln)
         {   // unconditional...block is only for limiting local variables
             LTFlightData::FDDynamicData dyn;
             
-            // position time: zulu time is given in the data, but it is even easier
-            //                when using the age, which is always given relative to the query time
+            // position time: zulu time is given in the data
             dyn.ts = double(ts);
             
             // non-positional dynamic data
@@ -637,7 +636,7 @@ void OpenGliderConnection::TCPStartUpdate (const positionTy& pos, unsigned dist_
         TCPClose();
     }
     
-    // Stat the TCP connection thread
+    // Start the TCP connection thread
     bStopTcp = false;
     tcpPos = pos;
     thrTcp = std::thread(&OpenGliderConnection::TCPMain, this, pos, dist_km);
@@ -890,7 +889,7 @@ constexpr time_t OGN_AC_LIST_REFRESH = 12*60*60;
 /// Is currently an async operation running to download a/c list?
 static std::future<bool> futAcListDownload;
 
-// Return a descriptive text per flam a/c type
+// Return a descriptive text per FLARM a/c type
 const char* OGNGetAcTypeName (FlarmAircraftTy _acTy)
 {
     switch (_acTy) {
@@ -913,7 +912,7 @@ const char* OGNGetAcTypeName (FlarmAircraftTy _acTy)
     return "unknown";
 }
 
-// Return a matching ICAO type code per flarm a/c type
+// Return a matching ICAO type code per FLARM a/c type
 const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
 {
     const std::vector<std::string>& icaoTypes = dataRefs.aFlarmToIcaoAcTy[_acTy];
@@ -925,10 +924,10 @@ const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
     return icaoTypes[i];
 }
 
-// Fill defaults for Flarm aircraft types where not existing
+// Fill defaults for FLARM aircraft types were not existing
 void OGNFillDefaultFlarmAcTypes ()
 {
-    // Defaults for the FLARM aircraft types. It's of GLID, simply because
+    // Defaults for the FLARM aircraft types. It's often GLID, simply because
     // there are currently no good CSL models out there for paragliders, balloons, ships...
     const std::array<const char*, FAT_UAV+1> DEFAULT_FLARM_ACTY = {
         "GLID",     // FAT_UNKNOWN     = 0,        ///< unknown
