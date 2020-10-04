@@ -829,6 +829,7 @@ public:
     // timestamp offset network vs. system clock
     inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }
     inline double GetChTsOffset () const { return chTsOffset; }
+    bool ChTsAcceptMore () const { return cntAc == 0 && chTsOffsetCnt < CntChannelEnabled() * 2; }
     void ChTsOffsetAdd (double aNetTS);
 
     // livetraffic/dbg/ac_filter: Debug a/c filter (the integer is converted to hex as an transpIcao key)

@@ -47,6 +47,34 @@
 extern mapLTFlightDataTy mapFd;
 
 //
+// MARK: OGNAnonymousIdMapTy
+//
+
+/// The maximum "number" that can be expressed in out way of deriving a 4-char call sign for generated ids, which is using 0-9A-Z in a 36-based number system
+constexpr unsigned long OGN_MAX_ANON_CALL_SIGN = 36^4;
+/// First anonymous id when we "generate" one ("real" IDs are hex 6 digit long, so we start with 7 digits)
+constexpr unsigned long OGN_FIRST_ANONYM_ID = 0x01000000;
+/// Next anonymous id when we "generate" one ("real" IDs are hex 6 digit long, so we start with 7 digits)
+static unsigned long gOGNAnonId = OGN_FIRST_ANONYM_ID;
+
+// assigns the next anonymous id and generates also a call sign
+void OGNAnonymousIdMapTy::GenerateNextId ()
+{
+    anonymId = ++gOGNAnonId;       // assign the next anonymous id
+    // The call sign will start with a question mark to say "it is anonymous and generated"
+    // and then we just convert the anonymId to a 4 digit 36-based number,
+    // ie. a mix of digits 0-9 and characters A-Z
+    anonymCall = "?____";
+    unsigned long uCallSign = (anonymId - OGN_FIRST_ANONYM_ID) % OGN_MAX_ANON_CALL_SIGN;
+    for (size_t i = 4; i >= 1; --i) {
+        char digit = uCallSign % 36;
+        anonymCall[i] = digit < 10 ? '0' + digit :
+                        digit < 36 ? 'A' + (digit-10) : '?';
+        uCallSign /= 36;
+    }
+}
+
+//
 // MARK: Open Glider Network
 //
 
@@ -182,24 +210,12 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         if (age_s >= dataRefs.GetAcOutdatedIntvl())
             continue;
 
-        // They key: if no 6-digit FLARM device id is available then we use the
-        //           OGN id, which is assigned daily, but good enough to track a flight
+        // Look up the device in the DDB / Aircraft list.
+        // This also checks if the device wants to be tracked and sets the key accordingly
         LTFlightData::FDKeyTy fdKey;
         LTFlightData::FDStaticData stat;
-        if (tok[GNF_FLARM_DEVICE_ID].size() != 6) {
-            // use the OGN Registration
-            fdKey.SetKey(LTFlightData::KEY_OGN, tok[GNF_OGN_REG_ID]);
-        } else {
-            // otherwise we look up the 6-digit key in the a/c list to learn more details about the type
-            LTFlightData::FDKeyType keyType = LookupAcList(std::stoul(tok[GNF_FLARM_DEVICE_ID], nullptr, 16), stat);
-            if (keyType != LTFlightData::KEY_UNKNOWN)       // found in the a/c list!
-                // also look up a good ICAO a/c type by the model text
-                stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
-            else
-                // not found in a/c list: Assume the key is FLARM
-                keyType = LTFlightData::KEY_FLARM;
-            fdKey.SetKey(keyType, tok[GNF_FLARM_DEVICE_ID]);
-        }
+        if (!LookupAcList(tok[GNF_FLARM_DEVICE_ID], fdKey, stat))
+            continue;                   // device doesn't want to be tracked -> ignore!
         
         // key not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
@@ -225,28 +241,16 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             if ( fd.empty() ) {
                 fd.SetKey(fdKey);
             
-                // Call Sign: We use the CN, don't have a proper call sign,
-                // makes it easier to match a/c to what live.glidernet.org shows
-                stat.call = tok[GNF_CN];
-                // We assume that GNF_REG holds a (more or less)
-                // proper reg in case it is not just the generated OGN_REG_ID
-                if (stat.reg.empty()) {
-                    if (tok[GNF_REG] != tok[GNF_OGN_REG_ID])
-                        stat.reg = tok[GNF_REG];
-                    else
-                        // otherwise (again) the CN
-                        stat.reg = tok[GNF_CN];
-                }
                 // Aircraft type converted from Flarm AcftType
                 const FlarmAircraftTy acTy = (FlarmAircraftTy)clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
                                                                          FAT_UNKNOWN, FAT_STATIC_OBJ);
                 stat.catDescr   = OGNGetAcTypeName(acTy);
                 
                 // If we still have no accurate ICAO type then we need to fall back to some configured defaults
-                if (stat.acTypeIcao.empty()) {
+                if (stat.acTypeIcao.empty())
                     stat.acTypeIcao = OGNGetIcaoAcType(acTy);
+                if (stat.mdl.empty())
                     stat.mdl        = stat.catDescr;
-                }
 
                 fd.UpdateData(std::move(stat));
             }
@@ -458,15 +462,17 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
         if (ln.find(OGN_APRS_LOGIN_GOOD) != std::string::npos)
             LOG_MSG(logINFO, ERR_OGN_APRS_CONNECTED, str_last_word(ln).c_str());
         
-        // Test for server time...can be quite off sometimes, and that means all tracking data timestamps are off, too
-        static std::regex reTm ("\\d+ \\w{3} \\d{4} (\\d{1,2}):(\\d{2}):(\\d{2}) GMT");
-        std::smatch mTm;
-        std::regex_search(ln, mTm, reTm);
-        if (!mTm.empty()) {
-            const time_t serverT = mktime_utc(std::stoi(mTm.str(1)),
-                                              std::stoi(mTm.str(2)),
-                                              std::stoi(mTm.str(3)));
-            aprsSrvTimDiff = long(tNow) - long(serverT);
+        // Test for server time to feed into our system clock deviation calculation
+        if (dataRefs.ChTsAcceptMore()) {
+            static std::regex reTm ("\\d+ \\w{3} \\d{4} (\\d{1,2}):(\\d{2}):(\\d{2}) GMT");
+            std::smatch mTm;
+            std::regex_search(ln, mTm, reTm);
+            if (!mTm.empty()) {
+                const time_t serverT = mktime_utc(std::stoi(mTm.str(1)),
+                                                  std::stoi(mTm.str(2)),
+                                                  std::stoi(mTm.str(3)));
+                dataRefs.ChTsOffsetAdd(double(serverT));
+            }
         }
         
         // Otherwise ignore all lines starting with '#' as comments
@@ -516,7 +522,6 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
     // We silently skip all static objects and those who do not want to be tracked
     uint8_t senderDetails   = (uint8_t)std::stoul(m.str(M_SEND_DETAILS), nullptr, 16);
     FlarmAircraftTy acTy    = FlarmAircraftTy((senderDetails & 0b00111100) >> 2);
-    APRSAddressTy addrTy    = APRSAddressTy(senderDetails & 0b00000011);
     if ((senderDetails & 0b11000000) ||         // "No tracking" or "stealth mode" set?
         (acTy == FAT_STATIC_OBJ))               // Static object?
         return true;                            // -> ignore
@@ -529,28 +534,13 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
     if (tNow - ts > dataRefs.GetAcOutdatedIntvl())
         return true;
     
-    // They key: if no 6-digit FLARM device id is available then we use the
-    //           OGN id, which is assigned daily, but good enough to track a flight
+    // Look up the device in the DDB / Aircraft list.
+    // This also checks if the device wants to be tracked and sets the key accordingly
     LTFlightData::FDKeyTy fdKey;
     LTFlightData::FDStaticData stat;
-    if (m.str(M_SEND_ID).size() != 6) {
-        // use the OGN Registration
-        fdKey.SetKey(LTFlightData::KEY_OGN, m.str(M_SEND_ID));
-    } else {
-        // otherwise we look up the 6-digit key in the a/c list to learn more details about the a/c
-        LTFlightData::FDKeyType keyType = LookupAcList(std::stoul(m.str(M_SEND_ID), nullptr, 16), stat);
-        if (keyType != LTFlightData::KEY_UNKNOWN)       // found in the a/c list!
-            // also look up a good ICAO a/c type by the model text
-            stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
-        else {
-            // use the type specified in the message
-            keyType =
-            addrTy == APRS_ADDR_ICAO  ? LTFlightData::KEY_ICAO :
-            addrTy == APRS_ADDR_FLARM ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN;
-        }
-        fdKey.SetKey(keyType, m.str(M_SEND_ID));
-    }
-    
+    if (!LookupAcList(m.str(M_SEND_ID), fdKey, stat))
+        return true;                            // device doesn't want to be tracked -> ignore silently!
+
     // key not matching a/c filter? -> skip it
     std::string s ( dataRefs.GetDebugAcFilter() );
     if ((!s.empty() && (fdKey != s)) )
@@ -580,10 +570,10 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
             stat.catDescr   = OGNGetAcTypeName(acTy);
             
             // If we still have no accurate ICAO type then we need to fall back to some configured defaults
-            if (stat.acTypeIcao.empty()) {
+            if (stat.acTypeIcao.empty())
                 stat.acTypeIcao = OGNGetIcaoAcType(acTy);
+            if (stat.mdl.empty())
                 stat.mdl        = stat.catDescr;
-            }
 
             fd.UpdateData(std::move(stat));
         }
@@ -690,10 +680,14 @@ void OpenGliderConnection::APRSClose ()
 }
 
 
-
 // Tries reading aircraft information from the OGN a/c list
-LTFlightData::FDKeyType OpenGliderConnection::LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat)
+bool OpenGliderConnection::LookupAcList (const std::string& sDevId,
+                                         LTFlightData::FDKeyTy& key,
+                                         LTFlightData::FDStaticData& stat)
 {
+    // device id converted to binary number
+    unsigned long uDevId = std::stoul(sDevId, nullptr, 16);
+    
     // If needed open the file
     if (!ifAcList.is_open()) {
         // open the output file in binary mode
@@ -703,39 +697,77 @@ LTFlightData::FDKeyType OpenGliderConnection::LookupAcList (unsigned long uDevId
             char sErr[SERR_LEN];
             strerror_s(sErr, sizeof(sErr), errno);
             LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN_R, sFileName.c_str(), sErr);
-            return LTFlightData::KEY_UNKNOWN;
         }
     }
     
     // look up data in the sorted file
-    OGNcalcAcFileRecTy rec;
-    if (!FileRecLookup (ifAcList, numRecAcList,
-                        uDevId, minKeyAcList, maxKeyAcList,
-                        &rec, sizeof(rec)))
-        return LTFlightData::KEY_UNKNOWN;
+    OGN_DDB_RecTy rec;
+    if (ifAcList.is_open() &&
+        FileRecLookup (ifAcList, numRecAcList,
+                       uDevId, minKeyAcList, maxKeyAcList,
+                       &rec, sizeof(rec)))
+    {
+        // copy some information into the stat structure
+        if (*rec.mdl != ' ') { stat.mdl.assign(rec.mdl,sizeof(rec.mdl)); rtrim(stat.mdl); }
+        if (*rec.reg != ' ') { stat.reg.assign(rec.reg,sizeof(rec.reg)); rtrim(stat.reg); }
+        if (*rec.cn  != ' ') { stat.call.assign(rec.cn,sizeof(rec.cn));  rtrim(stat.call); }
+        
+        // based on the model information look up an ICAO a/c type
+        if (!stat.mdl.empty())
+            stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
+    } else {
+        // clear the record again (potentially used as buffer during lookup)
+        // This will also CLEAR the TRACKED and IDENTIFIED flags
+        // as required for a device not found in the DDB:
+        rec = OGN_DDB_RecTy();
+        rec.devType = 'O';          // treat it as an OGN id from the outset
+        rec.SetTracked();           // tracking a not-in-DDB device is OK
+    }
     
-    // copy some information into the stat structure
-    if (*rec.mdl != ' ') { stat.mdl.assign(rec.mdl,sizeof(rec.mdl)); rtrim(stat.mdl); }
-    if (*rec.reg != ' ') { stat.reg.assign(rec.reg,sizeof(rec.reg)); rtrim(stat.reg); }
-    if (*rec.cn  != ' ') { stat.call.assign(rec.cn,sizeof(rec.cn));  rtrim(stat.call); }
-    return
-    rec.devType == 'F' ? LTFlightData::KEY_FLARM    :
-    rec.devType == 'I' ? LTFlightData::KEY_ICAO     :
-    rec.devType == 'O' ? LTFlightData::KEY_OGN      : LTFlightData::KEY_UNKNOWN;
+    // If the device doesn't want to be tracked we bail
+    if (!rec.IsTracked())
+        return false;
+    
+    // *** Aircraft key type / device
+    
+    // If the device doesn't want to be identified -> map to generated anonymous id
+    if (!rec.IsIdentified()) {
+        // clear any potentially identifying information
+        stat.reg.clear();
+        stat.call.clear();
+
+        // The key into the map consists of the device id and the device type
+        std::string idKey (sDevId);             // device id string
+        idKey += '_';                           // _
+        idKey += rec.devType;                   // append device type (F or I or even O) to increase uniqueness - just in case...
+        // look up or _create_ the mapping record to the generated anonymous id
+        OGNAnonymousIdMapTy& anon = mapAnonymousId[idKey];
+        // take over the mapped anonymous id
+        key.SetKey(LTFlightData::KEY_OGN, anon.anonymId);
+        stat.call = anon.anonymCall;
+    } else {
+        // device is allowed to be identified
+        key.SetKey(rec.devType == 'F' ? LTFlightData::KEY_FLARM    :
+                   rec.devType == 'I' ? LTFlightData::KEY_ICAO     : LTFlightData::KEY_OGN,
+                   uDevId);
+    }
+    
+    // is allowed to be tracked, ie. is visible
+    return true;
 }
 
 //
-// MARK: OGN Aircraft list file
+// MARK: OGN Aircraft list file (DDB)
 //
 
 // process one line of input
 static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEndLn)
 {
     // divide the line into its tokens separate by comma
-    std::vector<std::string> tok = str_tokenize(ho.readBuf.substr(0,posEndLn), ",", false);
-    
-    // remove whatever we process now
-    ho.readBuf.erase(0,posEndLn+1);
+    std::string ln = ho.readBuf.substr(0,posEndLn);
+    ho.readBuf.erase(0,posEndLn+1);         // remove from the buffer whatever we process now
+    rtrim(ln, "\r\n");                      // remove CR/LF from the line
+    std::vector<std::string> tok = str_tokenize(ln, ",", false);
     
     // safety measure: no tokens identified?
     if (tok.empty())
@@ -744,14 +776,19 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
     // is this the very first line telling the field positions?
     if (tok[0][0] == '#') {
         tok[0].erase(0,1);              // remove the #
+        // walk the tokens and remember the column indexes per field
         for (int i = 0; i < (int)tok.size(); i++) {
             if (tok[i] == "DEVICE_ID") ho.devIdIdx = i;
             else if (tok[i] == "DEVICE_TYPE") ho.devTypeIdx = i;
             else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
             else if (tok[i] == "REGISTRATION") ho.regIdx = i;
             else if (tok[i] == "CN") ho.cnIdx = i;
+            else if (tok[i] == "TRACKED") ho.trackedIdx = i;
+            else if (tok[i] == "IDENTIFIED") ho.identifiedIdx = i;
         }
-        ho.maxIdx = std::max({ho.devIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx});
+        ho.maxIdx = std::max({
+            ho.devIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx,
+            ho.trackedIdx, ho.identifiedIdx });
         return;
     }
     
@@ -760,18 +797,20 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
         return;
     
     // Remove surrounding '
-    for (int i = 0; i <= ho.maxIdx; i++) {
+    for (unsigned i = 0; i <= ho.maxIdx; i++) {
         if (tok[i].front() == '\'') tok[i].erase(0,1);
         if (tok[i].back()  == '\'') tok[i].pop_back();
     }
     
     // prepare a new record to be added to the output file
-    OGNcalcAcFileRecTy rec;
+    OGN_DDB_RecTy rec;
     rec.devId = std::stoul(tok[ho.devIdIdx], nullptr, 16);
     rec.devType = tok[ho.devTypeIdx][0];
     tok[ho.mdlIdx].     copy(rec.mdl,       sizeof(rec.mdl));
     tok[ho.regIdx].     copy(rec.reg,       sizeof(rec.reg));
     tok[ho.cnIdx].      copy(rec.cn,        sizeof(rec.cn));
+    if (tok[ho.trackedIdx] == "Y")    rec.SetTracked();
+    if (tok[ho.identifiedIdx] == "Y") rec.SetIdentified();
     ho.f.write(reinterpret_cast<char*>(&rec), sizeof(rec));
 }
 

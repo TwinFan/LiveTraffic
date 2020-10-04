@@ -2062,8 +2062,7 @@ int DataRefs::CntChannelEnabled () const
 void DataRefs::ChTsOffsetAdd (double aNetTS)
 {
     // after some calls we keep our offset stable (each chn has the chance twice)
-    if (cntAc > 0 ||                // and no change any longer if displaying a/c!
-        chTsOffsetCnt >= CntChannelEnabled() * 2)
+    if (!ChTsAcceptMore())
         return;
     
     // for TS to become an offset we need to remove current system time;

@@ -109,6 +109,22 @@ enum APRSAddressTy : unsigned {
 //
 // MARK: OpenGliderConnection
 //
+
+/// @brief Mapping structure for ids of planes that don't want to be identified
+/// @see http://wiki.glidernet.org/opt-in-opt-out
+/// @details The idea is to create a random id, which we send to LiveTraffic,
+///          and only keep the anonymous id here in this map.
+struct OGNAnonymousIdMapTy {
+    unsigned long   anonymId = 0;   ///< anonymous id that we assign
+    std::string     anonymCall;     ///< short call sign that we assign
+    
+    /// Constructor generates id so that structure is always filled
+    OGNAnonymousIdMapTy () { GenerateNextId(); }
+    void GenerateNextId ();                     ///< assigns the next anonymous id and generates also a call sign
+};
+
+
+/// Connection to OGN via APRS or HTTP
 class OpenGliderConnection : public LTOnlineChannel, LTFlightDataChannel
 {
 protected:
@@ -125,6 +141,9 @@ protected:
     long aprsSrvTimDiff = 0;        ///< time difference between system and server time
     float aprsLastData = NAN;       ///< last time (XP network time) we received _any_ APRS data
     bool bFailoverToHttp = false;   ///< set if we had too much trouble on the APRS channel, then we try the HTTP R/R channel
+    
+    /// The map for mapping original to anonymous id
+    std::map<std::string,OGNAnonymousIdMapTy> mapAnonymousId;
 
 public:
     /// Constructor
@@ -168,32 +187,49 @@ protected:
     unsigned long minKeyAcList = 0;         ///< minimum key value in the file
     unsigned long maxKeyAcList = 0;         ///< maximum key value in the file
     /// @brief Tries reading aircraft information from the OGN a/c list
-    /// @return Key type of a/c found (KEY_OGN, KEY_FLARM, or KEY_ICAO) or KEY_UNKNOWN if no a/c found
-    LTFlightData::FDKeyType LookupAcList (unsigned long uDevId, LTFlightData::FDStaticData& stat);
+    /// @details Given the device id looks up the record in the DDB.
+    ///          Fills the key, potentially with an anonymous key
+    ///          in case the device doesn't want to be tracked.
+    /// @see http://wiki.glidernet.org/opt-in-opt-out
+    /// @param sDevId Device id to be looked up
+    /// @param[out] key key of a/c found. KEY_FLARM, or KEY_ICAO if publishable, KEY_OGN with a generated anonymous key if not to be published
+    /// @param[out] stat Filled with aircraft master data taken from DDB
+    /// @return Shall the aircraft be displayed at all? (Otherwise it is marked non-trackable and we shall not show it.)
+    bool LookupAcList (const std::string& sDevId,
+                       LTFlightData::FDKeyTy& key,
+                       LTFlightData::FDStaticData& stat);
 };
 
 //
-// MARK: OGN Aircraft list file
+// MARK: OGN Aircraft list file (DDB)
 //
 
-/// @brief Record structure of a record in the OGN Aircraft list file
+/// @brief Record structure of a record in the OGN Aircraft list file (DDB)
 /// @details Data is stored in binary format so we can use seek to search in the file
-struct OGNcalcAcFileRecTy {
+struct OGN_DDB_RecTy {
     unsigned long   devId = 0;          ///< device id
     char devType     = ' ';             ///< device type (F, O, I)
     char mdl[26]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};  ///< aircraft model (text)
-    char reg[10]     = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',};  ///< registration
-    char cn[3]       = {' ',' ',' '};               ///< CN
+    char reg[9]      = {' ',' ',' ',' ',' ',' ',' ',' ',' '};  ///< registration
+    char cn[3]       = {' ',' ',' '};   ///< CN
+    unsigned char f  = 0;               ///< bit-encoded flags TRACKED and IDENTIFIED
+    
+    void SetTracked () { f |= 0x01; }               ///< set the TRACKED flag
+    bool IsTracked () const { return f & 0x01; }    ///< is TRACKED flag set?
+    void SetIdentified () { f |= 0x02; }            ///< set the IDENTIFIED flag
+    bool IsIdentified () const { return f & 0x02; } ///< is IDENTIFIED flag set?
 };
 
 /// Hand-over structure to callback
 struct OGNCbHandoverTy {
-    int devIdIdx = 1;                   ///< which field is the DEVICE_ID field?
-    int devTypeIdx = 0;                 ///< which field is the DEVICE_TYPE field?
-    int mdlIdx = 2;                     ///< which field is the AIRCRAFT_MODEL field?
-    int regIdx = 3;                     ///< which field is the REGISTRATION field?
-    int cnIdx = 4;                      ///< which field is the CN field?
-    int maxIdx = 4;                     ///< maximum idx used? (this is the minimum length that can be processed)
+    unsigned devTypeIdx = 0;            ///< which field is the DEVICE_TYPE field?
+    unsigned devIdIdx = 1;              ///< which field is the DEVICE_ID field?
+    unsigned mdlIdx = 2;                ///< which field is the AIRCRAFT_MODEL field?
+    unsigned regIdx = 3;                ///< which field is the REGISTRATION field?
+    unsigned cnIdx = 4;                 ///< which field is the CN field?
+    unsigned trackedIdx = 5;            ///< which field is the TRACKED field?
+    unsigned identifiedIdx = 6;         ///< which field is the IDENTIFIED field?
+    unsigned maxIdx = 6;                ///< maximum idx used? (this is the minimum length that can be processed)
     std::string readBuf;                ///< read buffer collecting responses from ddb.glidernet.org
     std::ofstream f;                    ///< file to write output to
 };
