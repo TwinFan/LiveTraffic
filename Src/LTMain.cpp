@@ -296,20 +296,6 @@ bool str_isalnum(const std::string& s)
     return std::all_of(s.cbegin(), s.cend(), [](unsigned char c){return isalnum(c);});
 }
 
-// format timestamp
-std::string ts2string (time_t t)
-{
-    // format it nicely
-    char szBuf[50];
-    struct tm tm;
-    gmtime_s(&tm, &t);
-    strftime(szBuf,
-             sizeof(szBuf) - 1,
-             "%F %T",
-             &tm);
-    return std::string(szBuf);
-}
-
 // last word of a string
 std::string str_last_word (const std::string& s)
 {
@@ -366,36 +352,9 @@ std::string str_first_non_empty (const std::initializer_list<const std::string>&
     return "";
 }
 
-// MARK: Other Utility Functions
-
-// Fetch nearest airport id by location
-std::string GetNearestAirportId (const positionTy& _pos,
-                                 positionTy* outApPos)
-{
-    char airportId[33] = "";
-
-    // Find the nearest airport
-    float lat = (float)_pos.lat();
-    float lon = (float)_pos.lon();
-    XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
-                                       &lat, &lon, nullptr,
-                                       xplm_Nav_Airport);
-    if (navRef) {
-        // fetch airport info
-        float alt = 0.0f;
-        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, &alt, nullptr, nullptr,
-                          airportId, nullptr, nullptr);
-        // fill output structure
-        if (outApPos) {
-            outApPos->lat() = lat;
-            outApPos->lon() = lon;
-            outApPos->SetAltFt((double)alt);
-        }
-    }
-    
-    // return the id
-    return airportId;
-}
+//
+// MARK: Time Functions
+//
 
 // returns offset to UTC in seconds
 /// @see https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
@@ -439,6 +398,30 @@ time_t mktime_utc (int h, int min, int s)
     return ret;
 }
 
+// format timestamp
+std::string ts2string (time_t t)
+{
+    // format it nicely
+    char szBuf[50];
+    struct tm tm;
+    gmtime_s(&tm, &t);
+    strftime(szBuf,
+             sizeof(szBuf) - 1,
+             "%F %T",
+             &tm);
+    return std::string(szBuf);
+}
+
+// Converts an epoch timestamp to a Zulu time string incl. 10th of seconds
+std::string ts2string (double _zt, int secDecimals)
+{
+    char s[100];
+    snprintf(s, sizeof(s), "%s.%dZ",
+             ts2string(time_t(_zt)).c_str(),
+             int(std::fmod(_zt, 1.0f) * std::pow(10.0,secDecimals)) );
+    return std::string(s);
+}
+
 // Convert an XP network time float to a string
 std::string NetwTimeString (float runS)
 {
@@ -464,6 +447,37 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
         return true;
     }
     return false;
+}
+
+// MARK: Other Utility Functions
+
+// Fetch nearest airport id by location
+std::string GetNearestAirportId (const positionTy& _pos,
+                                 positionTy* outApPos)
+{
+    char airportId[33] = "";
+
+    // Find the nearest airport
+    float lat = (float)_pos.lat();
+    float lon = (float)_pos.lon();
+    XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr,
+                                       &lat, &lon, nullptr,
+                                       xplm_Nav_Airport);
+    if (navRef) {
+        // fetch airport info
+        float alt = 0.0f;
+        XPLMGetNavAidInfo(navRef, nullptr, &lat, &lon, &alt, nullptr, nullptr,
+                          airportId, nullptr, nullptr);
+        // fill output structure
+        if (outApPos) {
+            outApPos->lat() = lat;
+            outApPos->lon() = lon;
+            outApPos->SetAltFt((double)alt);
+        }
+    }
+    
+    // return the id
+    return airportId;
 }
 
 // comparing 2 doubles for near-equality

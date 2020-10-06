@@ -207,7 +207,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         
         // We also skip records, which are outdated by the time they arrive
         const long age_s = std::abs(std::stol(tok[GNF_AGE_S]));
-        if (age_s >= dataRefs.GetAcOutdatedIntvl())
+        if (age_s >= dataRefs.GetFdBufPeriod())
             continue;
 
         // Look up the device in the DDB / Aircraft list.
@@ -431,12 +431,11 @@ bool OpenGliderConnection::APRSProcessData (const char* buffer)
 
     // process the input line by line, expected a line to be ended by \r\n
     // (If CR/LF is yet missing then the received data is yet incomplete and will be completed with the next received data)
-    const time_t tNow = time(NULL) + std::lround(dataRefs.GetChTsOffset());
     for (size_t lnEnd = aprsData.find("\r\n");
          lnEnd != std::string::npos;
          aprsData.erase(0,lnEnd+2), lnEnd = aprsData.find("\r\n"))
     {
-        if (!APRSProcessLine(aprsData.substr(0,lnEnd), tNow))
+        if (!APRSProcessLine(aprsData.substr(0,lnEnd)))
             return false;
     }
     return true;
@@ -444,7 +443,7 @@ bool OpenGliderConnection::APRSProcessData (const char* buffer)
 
 /// @brief Process one line of received data
 /// @see https://github.com/svoop/ogn_client-ruby/wiki/SenderBeacon
-bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
+bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
 {
     // Sanity check
     if (ln.empty()) return true;
@@ -530,8 +529,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln, time_t tNow)
     time_t ts = mktime_utc(std::stoi(m.str(M_TS_H)),
                            std::stoi(m.str(M_TS_MIN)),
                            std::stoi(m.str(M_TS_S)));
-    ts += aprsSrvTimDiff;                       // adjust for differences between server and actual time
-    if (tNow - ts > dataRefs.GetAcOutdatedIntvl())
+    if (ts < time_t(dataRefs.GetSimTime()))
         return true;
     
     // Look up the device in the DDB / Aircraft list.

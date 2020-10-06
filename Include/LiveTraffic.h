@@ -205,10 +205,6 @@ std::string& str_toupper(std::string& s);
 std::string str_toupper_c(const std::string& s);
 // are all chars alphanumeric?
 bool str_isalnum(const std::string& s);
-// format timestamp
-std::string ts2string (time_t t);
-/// format timestamp (
-std::string ts2string (float t);
 // limits text to m characters, replacing the last ones with ... if too long
 inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
@@ -254,17 +250,15 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
         list.push_back(key);
 }
 
-// MARK: Other Utility Functions
+// MARK: Time Functions
 
-/// Fetch nearest airport id by location
-std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = nullptr);
-
-/// Fetch nearest airport id by location
-inline std::string GetNearestAirportId (float lat, float lon)
-{ return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
-
-/// Which plugin has control of AI?
-std::string GetAIControlPluginName ();
+/// System time in seconds with fractionals
+inline double GetSysTime ()
+{   return
+    // system time in microseconds
+    double(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+    // divided by 1000000 to create seconds with fractionals
+    / 1000000.0; }
 
 /// Returns timezone difference between local and GMT in seconds
 int timeOffsetUTC();
@@ -275,6 +269,12 @@ inline time_t mktime_utc (std::tm& tm)
 
 /// Converts a UTC time to epoch value, assuming today's date
 time_t mktime_utc (int h, int min, int s);
+
+// format timestamp
+std::string ts2string (time_t t);
+
+/// Converts an epoch timestamp to a Zulu time string incl. 10th of seconds
+std::string ts2string (double _zt, int secDecimals=1);
 
 /// Convert an XP network time float to a string
 std::string NetwTimeString (float _runS);
@@ -292,6 +292,18 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now);
 /// @return `true` if more than `_interval` time has passed since `_lastCheck`
 inline bool CheckEverySoOften (float& _lastCheck, float _interval)
 { return CheckEverySoOften(_lastCheck, _interval, dataRefs.GetMiscNetwTime()); }
+
+// MARK: Other Utility Functions
+
+/// Fetch nearest airport id by location
+std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = nullptr);
+
+/// Fetch nearest airport id by location
+inline std::string GetNearestAirportId (float lat, float lon)
+{ return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
+
+/// Which plugin has control of AI?
+std::string GetAIControlPluginName ();
 
 // convert a color value from int to float[4]
 void conv_color ( int inCol, float outCol[4] );

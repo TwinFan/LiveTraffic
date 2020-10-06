@@ -740,6 +740,7 @@ public:
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }
+    /// Current sim time as a human readable string, including 10th of seconds
     std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time

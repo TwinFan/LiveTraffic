@@ -1221,10 +1221,8 @@ void DataRefs::UpdateSimTime()
         // but lagging behind by the buffering time
         using namespace std::chrono;
         lastSimTime =
-            // system time in microseconds
-            double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
-            // divided by 1000000 to create seconds with fractionals
-            / 1000000.0
+            // system time in seconds with fractionals
+            GetSysTime()
             // minus the buffering time
             - GetFdBufPeriod()
 #ifdef DEBUG
@@ -1237,16 +1235,10 @@ void DataRefs::UpdateSimTime()
     
 }
 
-// current sim time as human readable string,
-// including 10th of seconds
+// Current sim time as a human readable string, including 10th of seconds
 std::string DataRefs::GetSimTimeString() const
 {
-    const double simTime = dataRefs.GetSimTime();
-    char s[100];
-    snprintf(s, sizeof(s), "%s.%dZ",
-             ts2string(time_t(simTime)).c_str(),
-             int(std::fmod(simTime, 1.0f)*10.0f) );
-    return std::string(s);
+    return ts2string(GetSimTime());
 }
 
 // livetraffic/sim/date and .../time

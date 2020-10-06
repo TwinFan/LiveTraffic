@@ -1,8 +1,6 @@
 TODO
 ===
 
-- OGN/RealTraffic: Duplicate detection
-
 - KLAX and others: Initially a lot of aircraft are added without saying which channel they drive
 (maybe we receive static data but for some reason don't process the dynamic?
  Probable cause: I'm running currently with very restricted distance,
