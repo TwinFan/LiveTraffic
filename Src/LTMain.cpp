@@ -246,8 +246,18 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 // MARK: URL/Help support
 //
 
-void LTOpenURL  (const std::string url)
+void LTOpenURL  (const std::string _url)
 {
+    // Transiently, we allow to add the current camera position into the URL
+    std::string url(_url);
+    if (_url.find('%') != std::string::npos) {
+        char buf[256];
+        const positionTy camPos = dataRefs.GetViewPos();
+        snprintf (buf, sizeof(buf), _url.c_str(),
+                  camPos.lat(), camPos.lon());
+        url = buf;
+    }
+    
 #if IBM
     // Windows implementation: ShellExecuteA
     // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea

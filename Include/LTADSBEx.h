@@ -35,7 +35,7 @@
 
 //MARK: ADS-B Exchange Constants
 #define ADSBEX_CHECK_NAME       "ADSBX Radar View"
-#define ADSBEX_CHECK_URL        "https://globe.adsbexchange.com/"
+#define ADSBEX_CHECK_URL        "https://globe.adsbexchange.com/?lat=%.3f&lon=%.3f"
 #define ADSBEX_CHECK_POPUP      "Check ADS-B Exchange's coverage"
 
 #define ADSBEX_NAME             "ADS-B Exchange Online"

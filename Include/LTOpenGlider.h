@@ -45,7 +45,7 @@
 //
 
 #define OPGLIDER_CHECK_NAME     "Live Glidernet"
-#define OPGLIDER_CHECK_URL      "http://live.glidernet.org/"
+#define OPGLIDER_CHECK_URL      "http://live.glidernet.org/#c=%.5f,%.5f&z=9&s=1"
 #define OPGLIDER_CHECK_POPUP    "Check Open Glider Network's coverage"
 
 #define OPGLIDER_NAME           "Open Glider Network"
