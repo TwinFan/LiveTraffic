@@ -1,17 +1,6 @@
 TODO
 ===
 
-- KLAX and others: Initially a lot of aircraft are added without saying which channel they drive
-(maybe we receive static data but for some reason don't process the dynamic?
- Probable cause: I'm running currently with very restricted distance,
- ADSBEx delivers 25nm no matter what...maybe we add stat, and then throw away the dyn data)
-
-- InfoListWnd::lastBegin is initialized with gLog.cbegin, but that is not stable, cbegin could change so that lastBegin would become invalid
-  Find another way to remember till which message we displayed already
-
-- Check coverage buttons / OpenURL:
-  Add lat/lon into URL, can probably be done generically in OpenURL()
-
 Add Nose-wheel steering angle
 
 ImGui

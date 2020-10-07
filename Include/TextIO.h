@@ -72,6 +72,7 @@ void DestroyWindow();
 
 /// A single log message
 struct LogMsgTy {
+    unsigned long                           counter = 0;    ///< monotonic counter to find new/removed messages
     std::chrono::system_clock::time_point   wallTime;       ///< system time of message
     float                                   netwTime = NAN; ///< X-Plane's network time of message
     std::string                             fileName;       ///< source file name where message was produced

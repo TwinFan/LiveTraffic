@@ -623,8 +623,9 @@ PLUGIN_API void XPluginDisable(void) {
         DestroyWindow();
         
         // deregister Settings UI, close all windows, cleanup ImGui stuff
-        LTSettingsUI::ToggleDisplay(-1);
         ACIWnd::CloseAll();
+        InfoListWnd::ToggleDisplay(-1);
+        LTSettingsUI::ToggleDisplay(-1);
         
         LOG_MSG(logMSG, MSG_DISABLED);
 
