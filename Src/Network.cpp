@@ -42,6 +42,9 @@ typedef USHORT in_port_t;
 // MARK: SocketNetworking
 //
 
+/// Mutex to ensure closing is done in one thread only to avoid race conditions on deleting the buffer
+std::recursive_mutex mtxSocketClose;
+
 NetRuntimeError::NetRuntimeError(const char *w) :
 std::runtime_error(w)
 {
@@ -226,6 +229,7 @@ void SocketNetworking::Connect(const std::string& _addr, int _port,
  */
 void SocketNetworking::Close()
 {
+    std::lock_guard<std::recursive_mutex> lock(mtxSocketClose);
     // cleanup
     if (f_socket != INVALID_SOCKET) {
         close(f_socket);
@@ -239,6 +243,7 @@ void SocketNetworking::Close()
 // allocates the receiving buffer
 void SocketNetworking::SetBufSize(size_t _bufSize)
 {
+    std::lock_guard<std::recursive_mutex> lock(mtxSocketClose);
     // remove existing buffer
     if (buf) {
         delete[] buf;
