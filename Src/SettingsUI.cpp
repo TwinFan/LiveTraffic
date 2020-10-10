@@ -333,8 +333,8 @@ void LTSettingsUI::buildInterface()
 
                         // Edit field for entering ICAO aircraft type(s)
                         ImGui::SetNextItemWidth(2 * fSmallWidth);
-                        if (ImGui::InputText("", &aFlarmAcTys[i],
-                                             ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                        ImGui::InputText("", &aFlarmAcTys[i], ImGuiInputTextFlags_CharsUppercase);
+                        if (ImGui::IsItemDeactivatedAfterEdit()) {
                             // definition changed, process it if it contains 2 chars or more
                             if (aFlarmAcTys[i].length() >= 2)
                                 // set the array of values in the dataRefs, then read it back into our edit variable, formatted with a standard space separator
@@ -657,8 +657,8 @@ void LTSettingsUI::buildInterface()
                         ImGui::TableNextCell();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
-                    if (ImGui::InputText("##DefaultAcType", &acTypeEntry,
-                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    ImGui::InputText("##DefaultAcType", &acTypeEntry, ImGuiInputTextFlags_CharsUppercase);
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
                         acTypeOK = dataRefs.SetDefaultAcIcaoType(acTypeEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) acTypeOK = 0;
@@ -675,8 +675,8 @@ void LTSettingsUI::buildInterface()
                         ImGui::TableNextCell();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
-                    if (ImGui::InputText("##CarType", &gndVehicleEntry,
-                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    ImGui::InputText("##CarType", &gndVehicleEntry, ImGuiInputTextFlags_CharsUppercase);
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
                         gndVehicleOK = dataRefs.SetDefaultCarIcaoType(gndVehicleEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) gndVehicleOK = 0;
@@ -880,7 +880,7 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
-            constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue;
+            constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank;
             if (ImGui::TreeNodeHelp("Forced Model Matching", nCol, nullptr, nullptr,
                                     sFilter, nOpCl,
                                     (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))

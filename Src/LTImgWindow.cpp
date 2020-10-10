@@ -385,9 +385,11 @@ IMGUI_API bool FilteredInputText(const char* label, const char* filter,
     if (width == 0.0f)
         width = GetContentRegionAvail().x - GetWidthIconBtn();
     SetNextItemWidth(width);
-    bool bRet = hint ?
-        InputTextWithHint("", hint, &s, flags) :
+    if (hint)
+        InputTextWithHint("", hint, &s, flags);
+    else
         InputText("", &s, flags);
+    bool bRet = IsItemDeactivatedAfterEdit();
     // Add a clear button
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_TIMES)) {
