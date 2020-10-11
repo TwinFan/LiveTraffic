@@ -224,7 +224,8 @@ public:
         double MAX_TAXI_SPEED =   50;     // below that: taxi, above that: take-off/roll-out
         double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
         double TAXI_TURN_TIME =   45;     // seconds for a 360° turn on the ground
-        double FLIGHT_TURN_TIME = 120;    // seconds for a 360° turn in flight
+        double FLIGHT_TURN_TIME = 120;    ///< seconds for a typical 360° turn in flight
+        double MIN_FLIGHT_TURN_TIME=60;   ///< [s] minimum allowable time for a 360° turn in flight
         double ROLL_MAX_BANK =    30;     // [°] max bank angle
         double ROLL_RATE =        10;     // [°/s] roll rate in normal turns
         double MIN_FLIGHT_SPEED =100;     // [kn] minimum flight speed, below that not considered valid data

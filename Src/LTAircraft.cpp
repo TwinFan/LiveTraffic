@@ -740,7 +740,7 @@ double LTAircraft::FlightModel::maxHeadChange (bool bOnGnd, double time_s) const
 {
     // max return value is 180°, so if time passed in is larger
     // than half the turn time, then we max out:
-    const double turnTime = bOnGnd ? TAXI_TURN_TIME : FLIGHT_TURN_TIME;
+    const double turnTime = bOnGnd ? TAXI_TURN_TIME : MIN_FLIGHT_TURN_TIME;
     if (time_s >= turnTime/2)
         return 180.0;
     else
@@ -838,8 +838,9 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(AGL_FLARE);
     else FM_ASSIGN(MAX_TAXI_SPEED);
     else FM_ASSIGN(MIN_REVERS_SPEED);
-    else FM_ASSIGN(TAXI_TURN_TIME);
+    else FM_ASSIGN_MIN(TAXI_TURN_TIME,1.0); // avoid zero - this becomes a divisor
     else FM_ASSIGN(FLIGHT_TURN_TIME);
+    else FM_ASSIGN_MIN(MIN_FLIGHT_TURN_TIME,1.0); // avoid zero - this becomes a divisor
     else FM_ASSIGN_MIN(ROLL_MAX_BANK,1.0);  // avoid zero - this is a moving parameter
     else FM_ASSIGN_MIN(ROLL_RATE, 1.0);     // avoid zero - this becomes a divisor
     else FM_ASSIGN(MIN_FLIGHT_SPEED);
@@ -2175,8 +2176,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 
 
 // determine roll, based on a previous and a current heading
-/// @details We assume that max bank angle (`mdl.ROLL_MAX_BANK`) is applied for a 1 minute curve
-///          (ie. for a 360° turn in _half_ the `mdl.FLIGHT_TURN_TIME`).
+/// @details We assume that max bank angle (`mdl.ROLL_MAX_BANK`) is applied for
+///          the fastest possible turn (mdl.MIN_FLIGHT_TURN_TIME).
 ///          If we are turning more slowly then we apply less bank angle.
 void LTAircraft::CalcRoll (double _prevHeading)
 {
@@ -2190,14 +2191,13 @@ void LTAircraft::CalcRoll (double _prevHeading)
         return;
     }
     
-    // For the roll we assume that max bank angle is applied for a 1 minute curve
-    // (ie. for a 360° turn in _half_ the fullTurnTime).
+    // For the roll we assume that max bank angle is applied for the tightest turn.
     // If we are turning more slowly then we apply less bank angle.
     const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
     const double timeFullCircle = currCycle.diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
     const double newRoll = (std::isnan(timeFullCircle) ? ppos.roll() :
-                            std::abs(timeFullCircle) < mdl.FLIGHT_TURN_TIME/2 ? std::copysign(mdl.ROLL_MAX_BANK,timeFullCircle) :
-                            mdl.ROLL_MAX_BANK * mdl.FLIGHT_TURN_TIME/2 / timeFullCircle);
+                            std::abs(timeFullCircle) < mdl.MIN_FLIGHT_TURN_TIME ? std::copysign(mdl.ROLL_MAX_BANK,timeFullCircle) :
+                            mdl.ROLL_MAX_BANK * mdl.MIN_FLIGHT_TURN_TIME / timeFullCircle);
     // safeguard against to harsh roll rates:
     if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * mdl.ROLL_RATE) {
         if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * mdl.ROLL_RATE;
