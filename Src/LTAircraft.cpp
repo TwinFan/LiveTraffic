@@ -2181,20 +2181,30 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 ///          If we are turning more slowly then we apply less bank angle.
 void LTAircraft::CalcRoll (double _prevHeading)
 {
-    // On the ground we should actually better be levelled...
+    // How much of a turn did we do since last frame?
+    const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
+    const double timeFullCircle = currCycle.diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
+
+    // On the ground we should actually better be levelled, but we turn the nose wheel
     if (IsOnGrnd()) {
         // except...if we are a stopped glider ;-)
         if (GetSpeed_m_s() < 0.2 && mdl.isGlider())
             ppos.roll() = MDL_GLIDER_STOP_ROLL;
         else
             ppos.roll() = 0.0;
+        
+        // Nose wheel steering: Hm...we would need to know a lot about the plane's
+        // geometry to do that exactly right...so we just guess: 30° for a standard turn:
+        SetNoseWheelAngle(std::isnan(timeFullCircle) ? 0.0f :
+                          30.0f * float(mdl.TAXI_TURN_TIME / timeFullCircle));
         return;
     }
     
+    // In the air we make sure nose wheel looks straight
+    SetNoseWheelAngle(0.0f);
+    
     // For the roll we assume that max bank angle is applied for the tightest turn.
     // If we are turning more slowly then we apply less bank angle.
-    const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
-    const double timeFullCircle = currCycle.diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
     const double newRoll = (std::isnan(timeFullCircle) ? ppos.roll() :
                             std::abs(timeFullCircle) < mdl.MIN_FLIGHT_TURN_TIME ? std::copysign(mdl.ROLL_MAX_BANK,timeFullCircle) :
                             mdl.ROLL_MAX_BANK * mdl.MIN_FLIGHT_TURN_TIME / timeFullCircle);

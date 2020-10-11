@@ -1,8 +1,6 @@
 TODO
 ===
 
-Add Nose-wheel steering angle
-
 ImGui
 - Add plane selection to A/C Info
 
