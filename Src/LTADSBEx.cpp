@@ -143,6 +143,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // until FD object is inserted and updated
             std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
             
+            // Check for duplicates with OGN/FLARM, potentially replaces the key type
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
             LTFlightData& fd = fdMap[fdKey];

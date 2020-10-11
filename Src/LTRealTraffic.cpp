@@ -710,17 +710,9 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         // until FD object is inserted and updated
         std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
         
-        // RealTraffic also seems to catch some FLARM-equipped planes, but there is no
-        // way telling if the plane at hand is one of them. To avoid duplicates with
-        // Open Glider Network we now search for the same hex code as FLARM, and if we
-        // find one (which must be relatively close by as we currently "see" it)
-        // then we assume it is the same flight and change key type to FLARM,
-        // so that both OGN and RealTraffic feed the flight:
-        if (fdKey.eKeyType == LTFlightData::KEY_ICAO) {
-            LTFlightData::FDKeyTy cpyKey(LTFlightData::KEY_FLARM, numId);
-            if (fdMap.count(cpyKey) > 0)
-                fdKey = std::move(cpyKey);
-        }
+        // Check for duplicates with OGN/FLARM, potentially replaces the key type
+        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one

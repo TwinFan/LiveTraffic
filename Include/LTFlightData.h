@@ -271,6 +271,8 @@ public:
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
     const FDKeyTy& key() const                              { return acKey; }
     std::string keyDbg() const                              { return key().key + ' ' + statData.acId("-"); }
+    /// Checks for a duplicate key on another key type and updates _key if so
+    static bool CheckDupKey(FDKeyTy& _key, FDKeyType _ty);
 
     // Search support: icao, registration, call sign, flight number matches?
     bool IsMatch (const std::string t) const;

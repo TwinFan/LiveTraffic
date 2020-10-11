@@ -101,8 +101,10 @@ constexpr size_t OGN_MARKER_BEGIN_LEN = 6;          ///< strlen(OGN_MARKER_BEGIN
 constexpr const char* OGN_APRS_SERVER       = "aprs.glidernet.org";
 constexpr int         OGN_APRS_PORT         = 14580;
 constexpr size_t      OGN_APRS_BUF_SIZE     = 4096;
-constexpr int         OGN_APRS_TIMEOUT_S    = 60;       ///< there's a keep alive every 20s, so if we don't receive anything in 60s there's something wrong
+constexpr int         OGN_APRS_TIMEOUT_S    = 60;           ///< there's a keep alive _from_ APRS every 20s, so if we don't receive anything in 60s there's something wrong
+constexpr float       OGN_APRS_SEND_KEEPALV = 10 * 60.0f;   ///< [s] how often shall _we_ send a keep alive _to_ APRS?
 constexpr const char* OGN_APRS_LOGIN        = "user LiveTrffc pass -1 vers " LIVE_TRAFFIC " %.2f filter r/%.3f/%.3f/%u -p/oimqstunw\r\n";
+constexpr const char* OGN_APRS_KEEP_ALIVE   = "# " LIVE_TRAFFIC " %.2f still alive at %sZ\r\n";
 constexpr const char* OGN_APRS_LOGIN_GOOD   = "# logresp LiveTrffc unverified, server ";
 
 // Constructor
@@ -376,6 +378,10 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
                 else
                     throw NetRuntimeError("Read no data from TCP socket ");
             }
+
+            // Send a keep-alive every 15 minutes
+            if (CheckEverySoOften(aprsLastKeepAlive, OGN_APRS_SEND_KEEPALV))
+                APRSSendKeepAlive();
         }
         
     }
@@ -407,16 +413,31 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
 // Send the login
 bool OpenGliderConnection::APRSDoLogin (const positionTy& pos, unsigned dist_km)
 {
-    std::string logTxt;
-    
     // Prepare login string like "user LiveTrffc pass -1 vers LiveTraffic 2.20 filter r/43.3/-80.2/50 -p/oimqstunw"
     char sLogin[120];
     snprintf(sLogin, sizeof(sLogin), OGN_APRS_LOGIN, VERSION_NR,
              pos.lat(), pos.lon(), dist_km);
+    aprsLastKeepAlive = dataRefs.GetMiscNetwTime();     // also counts as a message sent _to_ APRS
+    DebugLogRaw(sLogin);
     return tcpAprs.send(sLogin);
 }
 
-/// Process received data
+// Send a simple keep-alive message to APRS
+/// @details Documentation is not exactly unambigious if sending a keep-alive is needed.
+///          But I experienced connection drops after exactly 30 minutes without keep-alive.
+///          So we do send one.
+bool OpenGliderConnection::APRSSendKeepAlive()
+{
+    // Prepare login string like "user LiveTrffc pass -1 vers LiveTraffic 2.20 filter r/43.3/-80.2/50 -p/oimqstunw"
+    char sKeepAlive[120];
+    snprintf(sKeepAlive, sizeof(sKeepAlive), OGN_APRS_KEEP_ALIVE, VERSION_NR,
+             ts2string(time(nullptr)).c_str());
+    LOG_MSG(logDEBUG, "OGN: Sending keep alive: %s", sKeepAlive);
+    DebugLogRaw(sKeepAlive);
+    return tcpAprs.send(sKeepAlive);
+}
+
+// Process received data
 bool OpenGliderConnection::APRSProcessData (const char* buffer)
 {
     // save the data to our processing buffer

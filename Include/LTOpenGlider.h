@@ -139,6 +139,7 @@ protected:
 #endif
     std::string aprsData;           ///< received/unprocessed APRS data
     float aprsLastData = NAN;       ///< last time (XP network time) we received _any_ APRS data
+    float aprsLastKeepAlive = 0;    ///< last time (XP network time) we send a keep-alive to APRS
     bool bFailoverToHttp = false;   ///< set if we had too much trouble on the APRS channel, then we try the HTTP R/R channel
     
     /// The map for mapping original to anonymous id
@@ -169,6 +170,8 @@ protected:
     void APRSMain (const positionTy& pos, unsigned dist_km);
     /// Send the APRS login message
     bool APRSDoLogin (const positionTy& pos, unsigned dist_km);
+    /// Send a simple keep-alive message to APRS
+    bool APRSSendKeepAlive ();
     /// Process received data
     bool APRSProcessData (const char* buffer);
     /// Process one line of received data

@@ -326,6 +326,26 @@ void LTFlightData::SetKey (const FDKeyTy& _key)
 }
 
 
+/// @details Other channels also seem to catch some FLARM-equipped planes, but there is no
+/// way telling if the plane at hand is one of them. To avoid duplicates with
+/// Open Glider Network we now search for the same hex code as FLARM, and if we
+/// find one (which must be relatively close by as we currently "see" it)
+/// then we assume it is the same flight and change key type to FLARM,
+/// so that both OGN and RealTraffic feed the flight:
+bool LTFlightData::CheckDupKey(LTFlightData::FDKeyTy& _key, LTFlightData::FDKeyType _ty)
+{
+    LTFlightData::FDKeyTy cpyKey(_ty, _key.num);
+    if (mapFd.count(cpyKey) > 0) {
+        LOG_MSG(logDEBUG, "Handling same key %s of different types: %s replaced by %s",
+                _key.c_str(), _key.GetKeyTypeText(), cpyKey.GetKeyTypeText());
+        _key = std::move(cpyKey);
+        return true;
+    }
+    return false;
+}
+
+
+
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const
 {
