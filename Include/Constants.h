@@ -30,7 +30,7 @@
 // MARK: Version Information (CHANGE VERSION HERE)
 //
 constexpr float VERSION_NR = 2.20f;
-constexpr bool VERSION_BETA = true;
+constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -245,7 +245,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
 #define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
-#define HELP_SET_CH_OPENGLIDER  "setup/installation/openglider"
+#define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
