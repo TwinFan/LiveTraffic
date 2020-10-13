@@ -1427,6 +1427,15 @@ bool DataRefs::SetCfgValue (void* p, int val)
     int oldVal = *reinterpret_cast<int*>(p);
     *reinterpret_cast<int*>(p) = val;
     
+    // Setting the refresh interval (a value more or less likely to be touched by users)
+    // might require adapting buffering period and A/c outdated interval, too
+    if (p == &fdRefreshIntvl) {
+        if (fdBufPeriod < fdRefreshIntvl)
+            fdBufPeriod = fdRefreshIntvl;
+        if (acOutdatedIntvl < 2*fdRefreshIntvl)
+            acOutdatedIntvl = 2*fdRefreshIntvl;
+    }
+    
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
