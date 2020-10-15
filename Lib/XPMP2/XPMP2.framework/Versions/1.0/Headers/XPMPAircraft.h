@@ -212,6 +212,7 @@ protected:
     
     XPMP2::CSLModel*    pCSLMdl = nullptr;  ///< the CSL model in use
     int                 matchQuality = -1;  ///< quality of the match with the CSL model
+    int                 acRelGrp = 0;       ///< related group, ie. line in `related.txt` in which this a/c appears, if any
     
     // this is data from about a second ago to calculate cartesian velocities
     float               prev_x = 0.0f, prev_y = 0.0f, prev_z = 0.0f;
@@ -262,6 +263,10 @@ public:
     XPMPPlaneID GetModeS_ID () const { return modeS_id; }
     /// Is this object a ground vehicle?
     bool        IsGroundVehicle() const;
+    /// @brief Is this object "related" to the given ICAO code? (named in the same line in related.txt)
+    /// @param _icaoType ICAO aircraft type designator, to which `*this` is compared
+    /// @details For example, `IsRelatedTo("GLID")` returns if `*this` is a glider
+    bool        IsRelatedTo (const std::string& _icaoType) const;
     /// @brief return the current TCAS target index (into `sim/cockpit2/tcas/targets`), 1-based, `-1` if not used
     int         GetTcasTargetIdx () const { return tcasTargetIdx; }
     /// Is this plane currently also being tracked as a TCAS target, ie. will appear on TCAS?

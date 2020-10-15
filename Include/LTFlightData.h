@@ -162,18 +162,10 @@ public:
         std::string             key;            // the primary key in use
         unsigned long           num = 0;        // primary key's numeric representation
         
-        std::string             icao;           // 24bit transponder address
-        std::string             flarm;          // FLARM id is 24bit (like ICAO)
-        std::string             rtId;           // RealTraffic's id is 32bit
-        std::string             ogn;            // OGN id is 32bit
-        
-        // setting keys and values
+        // setting keys
         std::string SetKey (FDKeyType _eType, unsigned long _num);
         std::string SetKey (FDKeyType _eType, const std::string _key, int base=16);
         
-        std::string SetVal (FDKeyType _eType, unsigned long _num);
-        std::string SetVal (FDKeyType _eType, const std::string _val, int base=16);
-
         // construction
         FDKeyTy() {}
         FDKeyTy(FDKeyType _eType, unsigned long _num)                   { SetKey(_eType,_num); }
@@ -201,6 +193,9 @@ public:
         
         // matches any string?
         bool isMatch (const std::string t) const;
+        
+        /// return the type of key (as string)
+        const char* GetKeyTypeText () const;
     };
 protected:
     FDKeyTy acKey;
@@ -221,7 +216,8 @@ protected:
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
-    positionTy              posRwy;     ///< determined rwy (likely) to land on
+    positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
+    std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
@@ -273,10 +269,10 @@ public:
     void SetKey    (const FDKeyTy& _key);
     void SetKey    (FDKeyType eType, unsigned long _num)                    { acKey.SetKey(eType, _num); }
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
-    void SetKeyVal (FDKeyType eType, unsigned long _num)                    { acKey.SetVal(eType, _num); }
-    void SetKeyVal (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetVal(eType, _key, base); }
     const FDKeyTy& key() const                              { return acKey; }
     std::string keyDbg() const                              { return key().key + ' ' + statData.acId("-"); }
+    /// Checks for a duplicate key on another key type and updates _key if so
+    static bool CheckDupKey(FDKeyTy& _key, FDKeyType _ty);
 
     // Search support: icao, registration, call sign, flight number matches?
     bool IsMatch (const std::string t) const;
@@ -338,6 +334,13 @@ public:
     /// @param[out] pos Receives the position if found
     /// @return Indicates if the call was successful
     tryResult TryGetNextPos (double ts, positionTy& pos) const;
+
+    /// Has a determined rwy position?
+    bool HasRwyPos() const { return posRwy.isNormal(); }
+    /// Get determined rwy position
+    const positionTy& GetRwyPos() const { return posRwy; }
+    /// Get determined rwy id
+    const std::string& GetRwyId() const { return rwyId; }
     
     // stringify all position information - mainly for debugging purposes
     std::string Positions2String () const;

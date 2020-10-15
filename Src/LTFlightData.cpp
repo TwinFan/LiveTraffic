@@ -199,7 +199,23 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
 {
     eKeyType = _eType;
     num = _num;
-    return key = SetVal(eKeyType,num);
+
+    // convert to uppercase hex string
+    char buf[50];
+    switch(_eType) {
+        case KEY_ICAO:
+        case KEY_FLARM:
+            snprintf(buf, sizeof(buf), "%06lX", _num);
+            break;
+        case KEY_OGN:
+        case KEY_RT:
+            snprintf(buf, sizeof(buf), "%08lX", _num);
+            break;
+        default:
+            // must not happen
+            LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
+    }
+    return key = buf;
 }
 
 std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, const std::string _key, int base)
@@ -208,45 +224,23 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, const std::string _
 }
 
 
-// FDKeyTy: Set any value
-std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, unsigned long _num)
-{
-    // convert to uppercase hex string
-    char buf[50];
-    switch(_eType) {
-        case KEY_OGN:
-            snprintf(buf, sizeof(buf), "%08lX", _num);
-            return ogn = buf;
-        case KEY_RT:
-            snprintf(buf, sizeof(buf), "%08lX", _num);
-            return rtId = buf;
-        case KEY_FLARM:
-            snprintf(buf, sizeof(buf), "%06lX", _num);
-            return flarm = buf;
-        case KEY_ICAO:
-            snprintf(buf, sizeof(buf), "%06lX", _num);
-            return icao = buf;
-        default:
-            // must not happen
-            LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
-            return "";
-    }
-
-}
-
-std::string LTFlightData::FDKeyTy::SetVal (FDKeyType _eType, const std::string _val, int base)
-{
-    return SetVal(_eType, std::stoul(_val, nullptr, base));
-}
-
-// matches any string?
+// matches the key?
 bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
 {
-    return (t == key ||
-            t == icao ||
-            t == flarm ||
-            t == rtId ||
-            t == ogn);
+    return t == key;
+}
+
+// return the type of key (as string)
+const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
+{
+    switch (eKeyType) {
+        case KEY_UNKNOWN:   return "unknown";
+        case KEY_OGN:       return "OGN";
+        case KEY_RT:        return "RealTraffic";
+        case KEY_FLARM:     return "FLARM";
+        case KEY_ICAO:      return "ICAO";
+    }
+    return "unknown";
 }
 
 
@@ -332,6 +326,26 @@ void LTFlightData::SetKey (const FDKeyTy& _key)
 }
 
 
+/// @details Other channels also seem to catch some FLARM-equipped planes, but there is no
+/// way telling if the plane at hand is one of them. To avoid duplicates with
+/// Open Glider Network we now search for the same hex code as FLARM, and if we
+/// find one (which must be relatively close by as we currently "see" it)
+/// then we assume it is the same flight and change key type to FLARM,
+/// so that both OGN and RealTraffic feed the flight:
+bool LTFlightData::CheckDupKey(LTFlightData::FDKeyTy& _key, LTFlightData::FDKeyType _ty)
+{
+    LTFlightData::FDKeyTy cpyKey(_ty, _key.num);
+    if (mapFd.count(cpyKey) > 0) {
+        LOG_MSG(logDEBUG, "Handling same key %s of different types: %s replaced by %s",
+                _key.c_str(), _key.GetKeyTypeText(), cpyKey.GetKeyTypeText());
+        _key = std::move(cpyKey);
+        return true;
+    }
+    return false;
+}
+
+
+
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const
 {
@@ -394,14 +408,16 @@ bool LTFlightData::outdated (double simTime) const
     
     // cover the special case of finishing landing and roll-out without live positions
     // i.e. during approach and landing we don't destroy the aircraft
+    //      if it is approaching some runway
     //      until it finally stopped on the runway
     if (pAc &&
-        pAc->GetFlightPhase() >= FPH_APPROACH &&
-        pAc->GetFlightPhase() <  FPH_STOPPED_ON_RWY)
+        (pAc->GetFlightPhase() >= FPH_LANDING ||
+            (pAc->GetFlightPhase() >= FPH_APPROACH && posRwy.isNormal())) &&
+        pAc->GetFlightPhase() < FPH_STOPPED_ON_RWY)
     {
         return false;
     }
-    
+
     // youngestTS longer ago than allowed? -> remove
     return
     youngestTS + dataRefs.GetAcOutdatedIntvl() < (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime);
@@ -504,14 +520,15 @@ void LTFlightData::DataCleansing (bool& bChanged)
         positionTy& last = posDeque.back();
         const positionTy& prev = *std::prev(posDeque.cend(),2);
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
-        if (!std::isnan(last.alt_m()) &&            // do we have an altitude at all?
+        if (!last.IsOnGnd() && !prev.IsOnGnd() &&   // too late? ;-) position shall not already be on the ground
+            !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
             last.alt_m() <= KEEP_ABOVE_MAX_ALT &&   // not way too high (this skips planes which are just cruising
             (std::isnan(terrain_alt_m) || (last.alt_m() - terrain_alt_m) < KEEP_ABOVE_MAX_AGL) && // pos not too high AGL
-            prev.vsi_ft(last) < -mdl.VSI_STABLE)    // sinking considerably (this also skips taxiing on the ground as during taxiing we aren't sinking)
+            prev.vsi_ft(last) < -mdl.VSI_STABLE)    // sinking considerably
         {
             // Try to find a rwy this plane might be headed for
             // based on the last known position
-            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last));
+            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last), rwyId);
             if (posRwy.isNormal()) {            // found a suitable runway?
                 // Now, with this runway, check/correct all previous positions
                 for (positionTy& pos: posDeque) {
@@ -905,7 +922,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 if (pAc->GetVSI_ft() < -pAc->mdl.VSI_STABLE)
                 {
                     const positionTy& acTo = pAc->GetToPos();
-                    posRwy = LTAptFindRwy(*pAc, dataRefs.GetDebugAcPos(key()));
+                    posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
                     if (posRwy.isNormal()) {
                         // found a landing spot!
                         // If it is 'far' away in terms of time then we don't add it
@@ -1508,8 +1525,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     const vectorTy v = lastPos.between(thisPos);
     if (pHeading) *pHeading = v.angle;      // return heading from lastPos to thisPos
     // maximum turn allowed depends on 'on ground' or not
-    const double maxTurn = (thisPos.IsOnGnd() ?
-                            MDL_MAX_TURN_GND : MDL_MAX_TURN);
+    const double maxTurn = mdl.maxHeadChange(thisPos.IsOnGnd(), thisPos.ts() - lastPos.ts());
 
     // angle between last and this, i.e. turn angle at thisPos
     const double hDiff = (std::isnan(lastHead) ? 0.0 :
@@ -1519,18 +1535,16 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     
     // Too much of a turn? VSI/speed out of range?
     if (-maxTurn > hDiff || hDiff > maxTurn   ||
-        v.vsi_ft() < -3 * mdl.VSI_INIT_CLIMB   ||
-        v.vsi_ft() > 3 * mdl.VSI_INIT_CLIMB    ||
-        (!std::isnan(v.speed_kn()) && v.speed_kn() > 4 * mdl.FLAPS_DOWN_SPEED) ||
+        v.vsi_ft() < -mdl.VSI_MAX || v.vsi_ft() > mdl.VSI_MAX    ||
+        (!std::isnan(v.speed_kn()) && v.speed_kn() > mdl.MAX_FLIGHT_SPEED) ||
         // too slow speed up in the air?
         ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
-         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MAX_TAXI_SPEED) )
+         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MIN_FLIGHT_SPEED) )
     {
-        if constexpr (VERSION_BETA) {
-            LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f",
-                    keyDbg().c_str(),
-                    std::string(v).c_str(), hDiff );
-        }
+        LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f)",
+                keyDbg().c_str(),
+                std::string(v).c_str(), hDiff,
+                mdl.VSI_MAX, mdl.MAX_FLIGHT_SPEED, mdl.MIN_FLIGHT_SPEED, maxTurn);
         return false;
     }
     
@@ -1805,6 +1819,13 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             // move that next position to the a/c
             acPosList.emplace_back(std::move(posDeque.front()));
             posDeque.pop_front();
+            
+            // Was that position one that is _not_ to be reached because the corner is to be cut?
+            // In that case we also need the _next_ position to properly calculate the required Bezier curve:
+            if (acPosList.back().f.bCutCorner && !posDeque.empty()) {
+                acPosList.emplace_back(std::move(posDeque.front()));
+                posDeque.pop_front();
+            }
         }
         
         // store rotate timestamp if there is one (never overwrite with NAN!)

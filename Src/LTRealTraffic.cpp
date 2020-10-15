@@ -543,7 +543,7 @@ void RealTrafficConnection::udpListen ()
     }
     catch (std::runtime_error& e) {
         // exception...can only really happen in UDPReceiver::Open
-        LOG_MSG(logERR, ERR_UDP_RCVR_OPEN, ChName(),
+        LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
                 RT_LOCALHOST, port,
                 e.what());
         // invalidate the channel
@@ -666,9 +666,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // system time in microseconds
     double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
     // divided by 1000000 to create seconds with fractionals
-    / 1000000.0
-    // corrected by network time diff (which only works if also OpenSky or ADSBEx are active)
-    + dataRefs.GetChTsOffset();
+    / 1000000.0;
     
     // check for duplicate data
     // RealTraffic sends bursts of data every 10s, but that doesn't necessarily
@@ -681,8 +679,8 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // *** Process received data ***
 
     // key is most likely an Icao transponder code, but could also be a Realtraffic internal id
-    const LTFlightData::FDKeyTy fdKey (numId <= MAX_TRANSP_ICAO ? LTFlightData::KEY_ICAO : LTFlightData::KEY_RT,
-                                       numId);
+    LTFlightData::FDKeyTy fdKey (numId <= MAX_TRANSP_ICAO ? LTFlightData::KEY_ICAO : LTFlightData::KEY_RT,
+                                 numId);
     
     // not matching a/c filter? -> skip it
     if ((!acFilter.empty() && (fdKey != acFilter)))
@@ -711,6 +709,10 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated
         std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+        
+        // Check for duplicates with OGN/FLARM, potentially replaces the key type
+        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one

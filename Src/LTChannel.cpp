@@ -449,9 +449,11 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
     }
     
     // timestamp (numerical and human readable)
+    const double now = GetSysTime();
+    outRaw.precision(2);
     outRaw
-    << std::fixed << dataRefs.GetSimTime()
-    << " - "
+    << std::fixed << now << ' ' << ts2string(now,2)
+    << " - SimTime "
     << dataRefs.GetSimTimeString()
     << " - "
     // Channel's name
@@ -459,8 +461,8 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
     << "\n"
     // the actual given data
     << data
-    // 2 newlines + flush
-    << "\n" << std::endl;
+    // newlines + flush
+    << std::endl;
 }
 
 // fetch flight data from internet (takes time!)
@@ -587,6 +589,7 @@ bool LTFlightDataEnable()
         listFDC.emplace_back(new RealTrafficConnection(mapFd));
         listFDC.emplace_back(new OpenSkyConnection);
         listFDC.emplace_back(new ADSBExchangeConnection);
+        listFDC.emplace_back(new OpenGliderConnection);
         // load online master data connections
         listFDC.emplace_back(new OpenSkyAcMasterdata);
         // load other channels

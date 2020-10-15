@@ -126,7 +126,7 @@ void ForeFlightSender::udpSend()
         }
         catch (std::runtime_error& e) {
             // exception...can only really happen in UDPReceiver::Open
-            LOG_MSG(logERR, ERR_UDP_RCVR_OPEN, ChName(),
+            LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
                     FF_LOCALHOST, port,
                     e.what());
         }

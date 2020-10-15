@@ -42,8 +42,9 @@ constexpr SOCKET INVALID_SOCKET = -1;
 #define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
 #define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
 #define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
+#define ERR_NETW_TECH_ERROR     "%s: Technical network error: %s"
 
-#define ERR_UDP_RCVR_OPEN       "%s: Error creating UDP socket for %s:%d: %s"
+#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s:%d: %s"
 #define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
 
 
@@ -55,7 +56,9 @@ class NetRuntimeError : public std::runtime_error
 {
 public:
     std::string errTxt;
+    std::string fullWhat;
     NetRuntimeError(const char *w);
+    const char* what() const noexcept override { return fullWhat.c_str(); }
 };
 
 // Base class for socket-based networking
@@ -77,10 +80,15 @@ public:
                      unsigned _timeOut_ms = 0, bool _bBroadcast = false);
     virtual ~SocketNetworking();
 
-    // opens/closes the socket
+    // Opens the socket for listening
     virtual void Open(const std::string& _addr, int _port, size_t _bufSize,
                       unsigned _timeOut_ms = 0, bool _bBroadcast = false);
+    // Connect to a server
+    virtual void Connect(const std::string& _addr, int _port, size_t _bufSize,
+                         unsigned _timeOut_ms = 0);
+    // Close the connection(s)
     virtual void Close();
+    
     inline bool isOpen() const { return (f_socket != INVALID_SOCKET); }
     
     void SetBufSize (size_t _bufSize);

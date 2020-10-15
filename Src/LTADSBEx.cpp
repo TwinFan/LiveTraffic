@@ -143,6 +143,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // until FD object is inserted and updated
             std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
             
+            // Check for duplicates with OGN/FLARM, potentially replaces the key type
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
             LTFlightData& fd = fdMap[fdKey];
@@ -781,7 +784,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
             
             // did we find another line for this a/c earlier in this file?
-            mapFDSelectionTy::iterator selIter = selMap.find(fdKey.icao);
+            mapFDSelectionTy::iterator selIter = selMap.find(fdKey.key);
             
             // if so we have to compare qualities, the better one survives
             if ( selIter != selMap.end() )
@@ -794,7 +797,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 }
             } else {
                 // first time we see this a/c in this file -> add to map
-                selMap.emplace(std::make_pair(fdKey.icao, FDSelection {qual, std::move(ln)} ));
+                selMap.emplace(std::make_pair(fdKey.key, FDSelection {qual, std::move(ln)} ));
             }
             
             // done with interpreting this line

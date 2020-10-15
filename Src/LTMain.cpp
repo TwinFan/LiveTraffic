@@ -167,12 +167,97 @@ std::istream& safeGetline(std::istream& is, std::string& t)
     return is;
 }
 
+// Get file's modification time
+time_t GetFileModTime(const std::string& path)
+{
+    struct stat buffer;
+    if (stat (path.c_str(), &buffer) != 0)  // get stats...error?
+        return 0;                           // doesn't exist...no directory either
+#if APL == 1
+    return buffer.st_mtimespec.tv_sec;
+#else
+    return buffer.st_mtime;
+#endif
+}
+
+// Lookup a record by key in a sorted binary record-based file
+bool FileRecLookup (std::ifstream& f, size_t& n,
+                    unsigned long key,
+                    unsigned long& minKey, unsigned long& maxKey,
+                    void* outRec, size_t recLen)
+{
+    // determin min/max key if not yet known
+    if (f && maxKey == 0) {
+        // Read first record to determine Al
+        f.seekg(0);
+        f.read((char*)&minKey, sizeof(minKey));
+        if (!f) return false;
+        // Read last record to determine Ar
+        f.seekg(-std::streamoff(recLen), std::ios_base::end);
+        f.read((char*)&maxKey, sizeof(maxKey));
+        if (!f) return false;
+    }
+
+    // Determine number of records if not (yet) known
+    if (f && n == 0) {
+        f.seekg(0, std::ios_base::end);
+        n = f.tellg() / recLen;
+        if (!f) return false;
+    }
+    
+    // Binary search algorithm (using linear interpolation for the key,
+    // and trying to reduce f.read operations as much as possible)
+    size_t L = 0;
+    size_t m;
+    size_t R = n-1;
+    unsigned long Al = minKey;      // key value at position L
+    unsigned long* pAm = (unsigned long*)outRec;    // key value at position m (is at the beginning of the record, using outRec as buffer)
+    unsigned long Ar = maxKey;      // key value at position R
+    while (L != R) {
+        // approximation by linear interpolation
+        m = L + (size_t)std::floor(float(key-Al)/float(Ar-Al) * (R-L));
+        
+        // test if record at m is less than the key
+        f.seekg(m * recLen);
+        f.read((char*)outRec, recLen);
+        if (!f) return false;
+        if (*pAm == key) {
+            return true;
+        }
+        else if (*pAm < key) {
+            L = m+1;                // move to _next_ record as we are too small
+            f.read((char*)outRec, recLen);
+            Al = *(unsigned long*)outRec;
+            if (Al == key)          // that next record is our value?
+                return true;
+            if (Al > key)           // that next value now is too big? Then key doesn't exist
+                return false;
+        } else {
+            R = m;
+            Ar = *pAm;
+        }
+    }
+    // not found
+    return false;
+}
+
+
 //
 // MARK: URL/Help support
 //
 
-void LTOpenURL  (const std::string url)
+void LTOpenURL  (const std::string _url)
 {
+    // Transiently, we allow to add the current camera position into the URL
+    std::string url(_url);
+    if (_url.find('%') != std::string::npos) {
+        char buf[256];
+        const positionTy camPos = dataRefs.GetViewPos();
+        snprintf (buf, sizeof(buf), _url.c_str(),
+                  camPos.lat(), camPos.lon());
+        url = buf;
+    }
+    
 #if IBM
     // Windows implementation: ShellExecuteA
     // https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutea
@@ -208,27 +293,21 @@ std::string& str_toupper(std::string& s) {
     return s;
 }
 
+// return a std::string copy converted to uppercase
+std::string str_toupper_c(const std::string& s)
+{
+    std::string c(s);
+    str_toupper(c);
+    return c;
+}
+
 bool str_isalnum(const std::string& s)
 {
     return std::all_of(s.cbegin(), s.cend(), [](unsigned char c){return isalnum(c);});
 }
 
-// format timestamp
-std::string ts2string (time_t t)
-{
-    // format it nicely
-    char szBuf[50];
-    struct tm tm;
-    gmtime_s(&tm, &t);
-    strftime(szBuf,
-             sizeof(szBuf) - 1,
-             "%F %T",
-             &tm);
-    return std::string(szBuf);
-}
-
 // last word of a string
-std::string str_last_word (const std::string s)
+std::string str_last_word (const std::string& s)
 {
     std::string::size_type p = s.find_last_of(' ');
     return (p == std::string::npos ? s :    // space not found? -> entire string
@@ -236,8 +315,8 @@ std::string str_last_word (const std::string s)
 }
 
 // separates string into tokens
-std::vector<std::string> str_tokenize (const std::string s,
-                                       const std::string tokens,
+std::vector<std::string> str_tokenize (const std::string& s,
+                                       const std::string& tokens,
                                        bool bSkipEmpty)
 {
     std::vector<std::string> v;
@@ -258,13 +337,126 @@ std::vector<std::string> str_tokenize (const std::string s,
     return v;
 }
 
+// concatenates a vector of strings into one string (reverse of str_tokenize)
+std::string str_concat (const std::vector<std::string>& vs, const std::string& separator)
+{
+    // empty? return empty string
+    if (vs.empty()) return "";
+    
+    // put together the return string, start with the first element
+    std::string s = vs.front();
+    for (auto iter = std::next(vs.begin()); iter != vs.end(); ++iter)
+    {
+        s += separator;
+        s += *iter;
+    }
+    return s;
+}
+
 // returns first non-empty string, and "" in case all are empty
-std::string str_first_non_empty ( std::initializer_list<const std::string> l)
+std::string str_first_non_empty (const std::initializer_list<const std::string>& l)
 {
     for (const std::string& s: l)
         if (!s.empty())
             return s;
     return "";
+}
+
+//
+// MARK: Time Functions
+//
+
+// returns offset to UTC in seconds
+/// @see https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
+int timeOffsetUTC()
+{
+    static int cachedOffset = INT_MIN;
+
+    if (cachedOffset > INT_MIN)
+        return cachedOffset;
+    else {
+        time_t gmt, rawtime = time(NULL);
+        struct tm gbuf;
+        gmtime_s(&gbuf, &rawtime);
+
+        // Request that mktime() looks up dst in timezone database
+        gbuf.tm_isdst = -1;
+        gmt = mktime(&gbuf);
+
+        return cachedOffset = (int)difftime(rawtime, gmt);
+    }
+}
+
+// Converts a UTC time to epoch value, assuming today's date
+time_t mktime_utc (int h, int min, int s)
+{
+    const time_t now = time(NULL);
+    struct tm gbuf;
+    gmtime_s(&gbuf, &now);
+    gbuf.tm_hour = h;
+    gbuf.tm_min  = min;
+    gbuf.tm_sec  = s;
+    gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
+    time_t ret = mktime_utc(gbuf);
+    // around midnight there will be corner-cases where the "current" date
+    // might not be the right one for the given values.
+    // Make sure difference to now is less than 24h
+    while (now - ret > 86400)
+        ret += 86400;
+    while (now - ret < -86400)
+        ret -= 86400;
+    return ret;
+}
+
+// format timestamp
+std::string ts2string (time_t t)
+{
+    // format it nicely
+    char szBuf[50];
+    struct tm tm;
+    gmtime_s(&tm, &t);
+    strftime(szBuf,
+             sizeof(szBuf) - 1,
+             "%F %T",
+             &tm);
+    return std::string(szBuf);
+}
+
+// Converts an epoch timestamp to a Zulu time string incl. 10th of seconds
+std::string ts2string (double _zt, int secDecimals)
+{
+    char s[100];
+    snprintf(s, sizeof(s), "%s.%dZ",
+             ts2string(time_t(_zt)).c_str(),
+             int(std::fmod(_zt, 1.0f) * std::pow(10.0,secDecimals)) );
+    return std::string(s);
+}
+
+// Convert an XP network time float to a string
+std::string NetwTimeString (float runS)
+{
+    // Extract hours, minutes, and seconds (incl. fractions) from runS
+    const unsigned runH = unsigned(runS / 3600.0f);
+    runS -= runH * 3600.0f;
+    const unsigned runM = unsigned(runS / 60.0f);
+    runS -= runM * 60.0f;
+
+    // Convert to string
+    char s[20];
+    snprintf(s, sizeof(s), "%u:%02u:%06.3f",
+             runH, runM, runS);
+    return std::string(s);
+}
+
+// Convenience function to check on something at most every x seconds
+bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
+{
+    if (_lastCheck < 0.00001f ||
+        _now >= _lastCheck + _interval) {
+        _lastCheck = _now;
+        return true;
+    }
+    return false;
 }
 
 // MARK: Other Utility Functions
@@ -296,33 +488,6 @@ std::string GetNearestAirportId (const positionTy& _pos,
     
     // return the id
     return airportId;
-}
-
-// Convert an XP network time float to a string
-std::string NetwTimeString (float runS)
-{
-    // Extract hours, minutes, and seconds (incl. fractions) from runS
-    const unsigned runH = unsigned(runS / 3600.0f);
-    runS -= runH * 3600.0f;
-    const unsigned runM = unsigned(runS / 60.0f);
-    runS -= runM * 60.0f;
-
-    // Convert to string
-    char s[20];
-    snprintf(s, sizeof(s), "%u:%02u:%06.3f",
-             runH, runM, runS);
-    return std::string(s);
-}
-
-// Convenience function to check on something at most every x seconds
-bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
-{
-    if (_lastCheck < 0.00001f ||
-        _now >= _lastCheck + _interval) {
-        _lastCheck = _now;
-        return true;
-    }
-    return false;
 }
 
 // comparing 2 doubles for near-equality
@@ -460,6 +625,8 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     }
     // We don't want clamping to the ground, we take care of the ground ourselves
     if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    // We want XPMP2 to assign unique modeS_ids if we feed duplicates (which can happen due to different id systems in use, especially ICAO vs FLARM)
+    if (!strcmp(key, XPMP_CFG_ITM_HANDLE_DUP_ID)) return 1;
     // Copying .obj files is an advanced setting
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))

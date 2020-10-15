@@ -1,13 +1,8 @@
 TODO
 ===
 
-Add Nose-wheel steering angle
-
 ImGui
-- A/c info has too short initial length for when data is shown
-- Implement a generic searchable plane list
 - Add plane selection to A/C Info
-- Add new status window
 
 - In Later version reduce ERR_CFG_FILE_MAXWARN to 5 again
 

@@ -114,6 +114,9 @@
     <ClCompile Include="Src\LTWeather.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\LTOpenGlider.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ACInfoWnd.h">
@@ -197,6 +200,9 @@
     <ClInclude Include="Include\LTWeather.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Include\LTOpenGlider.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiveTraffic.rc">
@@ -204,10 +210,10 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Resources\Doc8643.txt">
+    <Text Include="docs\Notes.txt">
       <Filter>Resources</Filter>
     </Text>
-    <Text Include="Resources\related.txt">
+    <Text Include="Resources\model_typecode.txt">
       <Filter>Resources</Filter>
     </Text>
   </ItemGroup>
@@ -218,10 +224,5 @@
     <None Include="docs\readme.html">
       <Filter>Resources</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Resources\lights.png">
-      <Filter>Resources</Filter>
-    </Image>
   </ItemGroup>
 </Project>

@@ -486,6 +486,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     
     // channel configuration options
+    {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -553,6 +554,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
             
         // channel configuration options
+        case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
@@ -591,27 +593,6 @@ struct cmdRefDescrTy {
 static_assert(sizeof(CMD_REFS_LT) / sizeof(CMD_REFS_LT[0]) == CNT_CMDREFS_LT,
               "cmdRefsLT and CMD_REFS_LT[] differ in number of elements");
 
-// returns offset to UTC in seconds
-// https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
-int timeOffsetUTC()
-{
-	static int cachedOffset = INT_MIN;
-
-	if (cachedOffset > INT_MIN)
-		return cachedOffset;
-	else {
-		time_t gmt, rawtime = time(NULL);
-		struct tm gbuf;
-		gmtime_s(&gbuf, &rawtime);
-
-        // Request that mktime() looksup dst in timezone database
-		gbuf.tm_isdst = -1;
-		gmt = mktime(&gbuf);
-
-		return cachedOffset = (int)difftime(rawtime, gmt);
-	}
-}
-
 // MARK: CSLPathCfgTy
 
 DataRefs::CSLPathCfgTy::CSLPathCfgTy (bool b, const std::string& p) :
@@ -645,7 +626,7 @@ const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
 //MARK: DataRefs Constructor - just plain variable init, no API calls
 
 /// Mutex guarding updates to cached values
-static std::mutex mutexDrUpdate;
+static std::recursive_mutex mutexDrUpdate;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel),
@@ -669,9 +650,10 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable OpenSky and ADSBEx by default
-    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
-    SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+    // enable OpenSky and OGN by default
+    bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));
@@ -693,16 +675,11 @@ ILWrect (0, 400, 965, 0)
         tm.tm_mday = 1;                             // 1st of
         tm.tm_mon = 0;                              // January
         tm.tm_isdst = 0;                            // no DST
-        tStartThisYear = mktime(&tm);
-        
-        // now adjust for timezone: current value is midnight as per local time
-        // but for our calculations we need midnight UTC
-        tStartThisYear += timeOffsetUTC();
+        tStartThisYear = mktime_utc(tm);
         
         // previous year
         tm.tm_year--;
-        tStartPrevYear = mktime(&tm);
-        tStartPrevYear += timeOffsetUTC();
+        tStartPrevYear = mktime_utc(tm);
     }
 }
 
@@ -778,6 +755,9 @@ bool DataRefs::Init ()
     if (!LoadConfigFile())
         return false;
     
+    // *** Flarm ac type definitions - Defaults ***
+    OGNFillDefaultFlarmAcTypes();
+
     // *** CSL path defaults ***
     // We'll try making this fool-proof but expert-changeable:
     // There are two paths under LiveTraffic that in all normal
@@ -906,7 +886,7 @@ positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) co
         return lastUsersPlanePos;
     } else {
         // in a worker thread, we need to have the lock, and copy before release
-        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
         positionTy ret = lastUsersPlanePos;
         trueAirspeed_m = lastUsersTrueAirspeed;
         track = lastUsersTrack;
@@ -950,14 +930,14 @@ float   DataRefs::LTGetFloat(void* p)   { return *reinterpret_cast<float*>(p); }
 
 void    DataRefs::LTSetBool(void* p, int i)
 {
+    // If any channel changed we forward
+    if (dataRefs.bChannel <= p && p <= &dataRefs.bChannel[CNT_DR_CHANNELS-1]) {
+        dataRefs.SetChannelEnabled(dataRefsLT(DR_CHANNEL_FIRST + ((int*)(p)-dataRefs.bChannel)), i != 0);
+        return;
+    }
+
+    // otherwise just do it
     *reinterpret_cast<int*>(p) = i != 0;
-    
-    // also enable OpenSky Master data if OpenSky tracking data is now enabled
-    if (((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_ONLINE - DR_CHANNEL_FIRST]) && i) ||
-        // override OpenSky Master if OpenSky tracking active
-        ((p == &dataRefs.bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST]) &&
-         dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) )
-        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
     
     // If label config changes we need to tell XPMP2
     if (p == &dataRefs.bLabelVisibilityCUtOff)
@@ -1241,10 +1221,8 @@ void DataRefs::UpdateSimTime()
         // but lagging behind by the buffering time
         using namespace std::chrono;
         lastSimTime =
-            // system time in microseconds
-            double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
-            // divided by 1000000 to create seconds with fractionals
-            / 1000000.0
+            // system time in seconds with fractionals
+            GetSysTime()
             // minus the buffering time
             - GetFdBufPeriod()
 #ifdef DEBUG
@@ -1257,16 +1235,10 @@ void DataRefs::UpdateSimTime()
     
 }
 
-// current sim time as human readable string,
-// including 10th of seconds
+// Current sim time as a human readable string, including 10th of seconds
 std::string DataRefs::GetSimTimeString() const
 {
-    const double simTime = dataRefs.GetSimTime();
-    char s[100];
-    snprintf(s, sizeof(s), "%s.%dZ",
-             ts2string(time_t(simTime)).c_str(),
-             int(std::fmod(simTime, 1.0f)*10.0f) );
-    return std::string(s);
+    return ts2string(GetSimTime());
 }
 
 // livetraffic/sim/date and .../time
@@ -1454,6 +1426,15 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // ...we just set it, validate all of them, and reset in case validation fails
     int oldVal = *reinterpret_cast<int*>(p);
     *reinterpret_cast<int*>(p) = val;
+    
+    // Setting the refresh interval (a value more or less likely to be touched by users)
+    // might require adapting buffering period and A/c outdated interval, too
+    if (p == &fdRefreshIntvl) {
+        if (fdBufPeriod < fdRefreshIntvl)
+            fdBufPeriod = fdRefreshIntvl;
+        if (acOutdatedIntvl < 2*fdRefreshIntvl)
+            acOutdatedIntvl = 2*fdRefreshIntvl;
+    }
     
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
@@ -1691,10 +1672,14 @@ int DataRefs::DecNumAc()
 
 //MARK: Config File
 
+
 bool DataRefs::LoadConfigFile()
 {
+    /// GNF_COUNT is not available in DataRefs.h (due to order of include files), make _now_ sure that aFlarmToIcaoAcTy has the correct size
+    assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
+
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM, CFG_DEL_IMGUI_CFG } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1713,8 +1698,7 @@ bool DataRefs::LoadConfigFile()
     }
     
     // *** VERSION ***
-    // first line is supposed to be the version - and we know of exactly one:
-    // read entire line
+    // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
     if (!safeGetline(fIn, lnBuf) ||                     // read a line
@@ -1728,10 +1712,15 @@ bool DataRefs::LoadConfigFile()
     // 2. is version / test for older version for which a conversion is to be done?
     if (ln[1] == LT_CFG_VERSION)            conv = CFG_NO_CONV;
     else if (ln[1] == LT_CFG_VER_NM_CONV)   conv = CFG_KM_2_NM;
+    else if (ln[1] == LT_CFG_VER_DEL_IMGUI) conv = CFG_DEL_IMGUI_CFG;
     else {
         SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
         return false;
     }
+    
+    // *** Delete LiveTraffic_imgui.prf? ***
+    if (conv == CFG_DEL_IMGUI_CFG)
+        std::remove(IMGUI_INI_PATH);
     
     // *** DataRefs ***
     // then follow the config entries
@@ -1743,13 +1732,13 @@ bool DataRefs::LoadConfigFile()
     while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN) {
         // read line and break into tokens, delimited by spaces
         safeGetline(fIn, lnBuf);
-        ln = str_tokenize(lnBuf, " ");
-        
-        // break out of loop if reading [CSLPaths]
-        if (ln.size() == 1 && ln[0] == CFG_CSL_SECTION)
-            break;
+        // skip empty lines without warning
+        if (lnBuf.empty()) continue;
+        // break out of loop if reading the start of another section indicated by [ ]
+        if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
 
         // otherwise should be 2 tokens
+        ln = str_tokenize(lnBuf, " ");
         if (ln.size() != 2) {
             // wrong number of words in that line
             LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf.c_str());
@@ -1780,6 +1769,7 @@ bool DataRefs::LoadConfigFile()
                                                   double(M_per_KM) / double(M_per_NM)));
                         }
                         break;
+                    case CFG_DEL_IMGUI_CFG: break;
                 }
                 
                 // *** valid config entry, now process it ***
@@ -1812,10 +1802,10 @@ bool DataRefs::LoadConfigFile()
         
     }
     
-    // *** [CSLPaths] ***
-    // maybe there's a [CSLPath] section?
+    // *** [FlarmAcTypes] ***
+    // maybe there's a [FlarmAcTypes] section?
     if (fIn && errCnt <= ERR_CFG_FILE_MAXWARN &&
-        ln.size() == 1 && ln[0] == CFG_CSL_SECTION)
+        lnBuf == CFG_FLARM_ACTY_SECTION)
     {
         
         // loop until EOF
@@ -1823,11 +1813,43 @@ bool DataRefs::LoadConfigFile()
         {
             // read line and break into tokens, delimited by spaces
             safeGetline(fIn, lnBuf);
-
             // skip empty lines without warning
-            if (lnBuf.empty())
+            if (lnBuf.empty()) continue;
+            // break out of loop if reading the start of another section indicated by [ ]
+            if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
+
+            // line has to start with a reasonable number, followed by =, followed by a string
+            ln = str_tokenize(lnBuf, "=");
+            if (ln.size() != 2 ||
+                !between<int>(std::stoi(ln[0]), FAT_UNKNOWN, FAT_UAV) ||
+                ln[1].size() < 2)
+            {
+                LOG_MSG(logWARN, ERR_CFG_CSL_INVALID, sFileName.c_str(), lnBuf.c_str());
+                errCnt++;
                 continue;
+            }
             
+            // the second part is again an array of icao types, separated by space or comma or so
+            aFlarmToIcaoAcTy[std::stoi(ln[0])] = str_tokenize(ln[1], " ,;/");
+        }
+    }
+    
+    // *** [CSLPaths] ***
+    // maybe there's a [CSLPath] section?
+    if (fIn && errCnt <= ERR_CFG_FILE_MAXWARN &&
+        lnBuf == CFG_CSL_SECTION)
+    {
+        
+        // loop until EOF
+        while (fIn && errCnt <= ERR_CFG_FILE_MAXWARN)
+        {
+            // read line and break into tokens, delimited by spaces
+            safeGetline(fIn, lnBuf);
+            // skip empty lines without warning
+            if (lnBuf.empty()) continue;
+            // break out of loop if reading the start of another section indicated by [ ]
+            if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
+
             // line has to start with 0 or 1 and | to separate "enabled?" from path
             ln = str_tokenize(lnBuf, "|");
             if (ln.size() != 2 ||
@@ -1905,11 +1927,20 @@ bool DataRefs::SaveConfigFile()
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << dataRefs.GetDefaultCarIcaoType() << '\n';
     if (!dataRefs.GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << dataRefs.GetADSBExAPIKey() << '\n';
+    
+    // *** [FlarmAcTypes] ***
+    fOut << '\n' << CFG_FLARM_ACTY_SECTION << '\n';
+    for (size_t i = 0; i < dataRefs.aFlarmToIcaoAcTy.size(); i++) {
+        fOut << i << " =";
+        for (const std::string& s: dataRefs.aFlarmToIcaoAcTy[i])
+            fOut << ' ' << s;
+        fOut << '\n';
+    }
 
     // *** [CSLPatchs] ***
     // add section of CSL paths to the end
     if (!vCSLPaths.empty()) {
-        fOut << CFG_CSL_SECTION << '\n';
+        fOut << '\n' << CFG_CSL_SECTION << '\n';
         for (const DataRefs::CSLPathCfgTy& cslPath: vCSLPaths)
             if (!cslPath.empty())
                 fOut << (cslPath.enabled() ? "1|" : "0|") <<
@@ -2001,11 +2032,20 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
 void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
 {
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
+    
+    // If OpenSky Tracking is enabled then make sure OpenSky Master is also
+    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE))
+        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
+    
+    // if OGN just got enabled download a fresh a/c list from OGN
+    if (bEnable && ch == DR_CHANNEL_OPEN_GLIDER_NET)
+        OGNDownloadAcList();
+    
     // if a channel got disabled check if any tracking data channel is left
-    if (!bEnable && AreAircraftDisplayed() &&   // just diabled? Activated for aircraft display?
+    if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
         !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
     {
-        LOG_MSG(logERR, ERR_CH_NONE_ACTIVE);
+        SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
     }
 }
 
@@ -2023,8 +2063,7 @@ int DataRefs::CntChannelEnabled () const
 void DataRefs::ChTsOffsetAdd (double aNetTS)
 {
     // after some calls we keep our offset stable (each chn has the chance twice)
-    if (cntAc > 0 ||                // and no change any longer if displaying a/c!
-        chTsOffsetCnt >= CntChannelEnabled() * 2)
+    if (!ChTsAcceptMore())
         return;
     
     // for TS to become an offset we need to remove current system time;
@@ -2050,7 +2089,7 @@ void DataRefs::ChTsOffsetAdd (double aNetTS)
 // update all cached values for thread-safe access
 void DataRefs::UpdateCachedValues ()
 {
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
     lastVREnabled =                         // is VR enabled?
@@ -2100,7 +2139,7 @@ positionTy DataRefs::GetViewPos()
     else
     {
         // calling from another thread: safely copy the cached value
-        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
         positionTy camPos = lastCamPos;
         lock.unlock();
         return camPos;
@@ -2116,7 +2155,7 @@ double DataRefs::GetViewHeading()
     else
     {
         // calling from another thread: safely copy the cached value
-        std::unique_lock<std::mutex> lock(mutexDrUpdate);
+        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
         double h = lastCamPos.heading();
         lock.unlock();
         return h;
@@ -2152,27 +2191,33 @@ bool DataRefs::ToggleLabelDraw()
 // MARK: Weather
 //
 
-/// Weather to be updated this period
-constexpr float WEATHER_UPD_PERIOD = 600.0f;
-constexpr double WEATHER_UPD_DIST = 25.0 * M_per_NM;
+constexpr float WEATHER_TRY_PERIOD = 20.0f;             ///< [s] Don't _try_ to read weather more often than this
+constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
+constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be updated if moved more than this far from last weather update position
+constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
 
 // check if weather updated needed, then do
 bool DataRefs::WeatherUpdate ()
 {
     // protected against updates from the weather thread
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     // Our current camera position
     positionTy camPos = GetViewPos();
     camPos.LocalToWorld();
     
     // So...do we need an update?
-    if (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
-        lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime() ||  // waited long enough?
-        camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST)             // travelled far enough?
+    if (// highest prio: we moved far away from last pos
+        (!std::isnan(lastWeatherPos.lat()) &&
+         camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M) ||
+        // otherwise: don't try more often than try period
+        ((lastWeatherAttempt + WEATHER_TRY_PERIOD < GetMiscNetwTime()) &&
+         (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
+          lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime())))  // waited long enough?
     {
         // Trigger a weather update; this is an asynch operation
-        return ::WeatherUpdate(camPos, WEATHER_UPD_DIST/M_per_NM);  // travel distances [m] doubles as weather search distance [nm]
+        lastWeatherAttempt = GetMiscNetwTime();
+        return ::WeatherUpdate(camPos, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
     }
     return false;
 }
@@ -2183,39 +2228,19 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
                            const std::string& METAR)
 {
     // protected against reads from the main thread
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
     
     // Compute the new altitude correction and save its position and time
     altPressCorr_ft = (hPa - HPA_STANDARD) * FT_per_HPA;
-    lastWeatherUpd = GetMiscNetwTime();
+    lastWeatherPos = GetViewPos();              // here and...
+    lastWeatherUpd = GetMiscNetwTime();         // ...now
     lastWeatherStationId = stationId;
     lastWeatherMETAR = METAR;
     
-    // if no position is given we have two options:
-    if (std::isnan(lat) || std::isnan(lon)) {
-        // try finding the coordinates from XP's navigation database
-        XPLMNavRef hRef =
-        stationId.empty() ? 0 :
-        XPLMFindNavAid(nullptr, stationId.c_str(),
-                       nullptr, nullptr, nullptr,
-                       xplm_Nav_Airport);
-        if (hRef) {
-            XPLMGetNavAidInfo(hRef, nullptr, &lat, &lon, nullptr, nullptr, nullptr,
-                              nullptr, nullptr, nullptr);
-            lastWeatherPos.lat() = (double)lat;
-            lastWeatherPos.lon() = (double)lon;
-        } else
-            // last resort: current camera position
-            lastWeatherPos = GetViewPos();
-    } else {
-        // if given we use passed-in position
-        lastWeatherPos.lat() = (double)lat;
-        lastWeatherPos.lon() = (double)lon;
-    }
-    
     // If we didn't get a station id we can find a matching airport now
-    if (lastWeatherStationId.empty())
-        lastWeatherStationId = GetNearestAirportId(lastWeatherPos);
+    if (lastWeatherStationId.empty() && !std::isnan(lat) && !std::isnan(lon)) {
+        lastWeatherStationId = GetNearestAirportId(lat, lon);
+    }
     
     // Did weather change?
     if (!dequal(lastWeatherHPA, hPa)) {
@@ -2232,7 +2257,7 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
 void DataRefs::GetWeather (float& hPa, std::string& stationId, std::string& METAR)
 {
     // protected against reads from the main thread
-    std::lock_guard<std::mutex> lock(mutexDrUpdate);
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
     
     hPa = lastWeatherHPA;
     stationId = lastWeatherStationId;

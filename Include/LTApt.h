@@ -34,22 +34,25 @@ void LTAptRefresh ();
 /// @param _mdl flight model definitions to use for calculations
 /// @param _from Start pos/heading for seach
 /// @param _speed_m_s Speed during approach
+/// @param[out] _rwyId receives a human-readable rwy id
 /// @param _logTxt (optional) Shall decision be logged? If yes, with which id text?
 /// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway); positionTy() if nothing found
 /// @note Call from separate thread, like from CalcNextPos
 positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
                          const positionTy& _from,
                          double _speed_m_s,
+                         std::string& _rwyId,
                          const std::string& _logTxt = "");
 
 /// @brief Return the best possible runway to auto-land at based on current pos/heading/speed of `_ac`
 /// @param _ac Aircraft in search for a landing spot. It's last go-to position and VSI as well as its model are of importance
+/// @param[out] _rwyId receives a human-readable rwy id
 /// @param bDoLogging (optional) Shall decision be logged?
 /// @return Position of matching runway touch-down point, incl. timestamp and heading (of runway)
 /// @note Call from separate thread, like from CalcNextPos
-inline positionTy LTAptFindRwy (const LTAircraft& _ac, bool bDoLogging = false)
+inline positionTy LTAptFindRwy (const LTAircraft& _ac, std::string& _rwyId, bool bDoLogging = false)
 {
-    return LTAptFindRwy (_ac.mdl, _ac.GetToPos(), _ac.GetSpeed_m_s(),
+    return LTAptFindRwy (_ac.mdl, _ac.GetToPos(), _ac.GetSpeed_m_s(), _rwyId,
                          bDoLogging ? std::string(_ac) : "");
 }
 

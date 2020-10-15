@@ -129,6 +129,7 @@ extern DataRefs dataRefs;
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
+#include "LTOpenGlider.h"
 
 //MARK: Global Control functions
 bool LTMainInit ();
@@ -173,6 +174,24 @@ std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly 
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);
 
+/// Get file's modification time (0 in case of errors)
+time_t GetFileModTime(const std::string& path);
+
+/// @brief Lookup a record by key in a sorted binary record-based file
+/// @param f File to search, must have been opened in binary input mode
+/// @param[in,out] n File size in number of records, will be determined and returned if `0`
+/// @param key Key to find, expected to be at the record's beginning
+/// @param[in,out] minKey is the lowest key in the file (record 0)
+/// @param[in,out] maxKey is the highest key in the file (last record), determined if `0`
+/// @param[out] outRec points to an output buffer, which is used as temporary and in the end contains the found record
+/// @param recLen Length of each record and (minimum) size of the buffer `outRec` points to
+/// @see https://en.wikipedia.org/wiki/Binary_search_algorithm
+/// @details Linear interpolation is applied to the key
+bool FileRecLookup (std::ifstream& f, size_t& n,
+                    unsigned long key,
+                    unsigned long& minKey, unsigned long& maxKey,
+                    void* outRec, size_t recLen);
+
 // MARK: URL/Help support
 
 void LTOpenURL  (const std::string url);
@@ -182,10 +201,10 @@ void LTOpenHelp (const std::string path);
 
 // change a std::string to uppercase
 std::string& str_toupper(std::string& s);
+/// return a std::string copy converted to uppercase
+std::string str_toupper_c(const std::string& s);
 // are all chars alphanumeric?
 bool str_isalnum(const std::string& s);
-// format timestamp
-std::string ts2string (time_t t);
 // limits text to m characters, replacing the last ones with ... if too long
 inline std::string strAtMost(const std::string s, size_t m) {
     return s.length() <= m ? s :
@@ -213,13 +232,15 @@ inline std::string& trim(std::string& s, const char* t = WHITESPACE)
 }
 
 // last word of a string
-std::string str_last_word (const std::string s);
+std::string str_last_word (const std::string& s);
 // separates string into tokens
-std::vector<std::string> str_tokenize (const std::string s,
-                                       const std::string tokens,
+std::vector<std::string> str_tokenize (const std::string& s,
+                                       const std::string& tokens,
                                        bool bSkipEmpty = true);
+/// concatenates a vector of strings into one string (reverse of str_tokenize)
+std::string str_concat (const std::vector<std::string>& vs, const std::string& separator);
 // returns first non-empty string, and "" in case all are empty
-std::string str_first_non_empty ( std::initializer_list<const std::string> l);
+std::string str_first_non_empty (const std::initializer_list<const std::string>& l);
 
 // push a new item to the end only if it doesn't exist yet
 template< class ContainerT>
@@ -229,17 +250,31 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
         list.push_back(key);
 }
 
-// MARK: Other Utility Functions
+// MARK: Time Functions
 
-/// Fetch nearest airport id by location
-std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = nullptr);
+/// System time in seconds with fractionals
+inline double GetSysTime ()
+{   return
+    // system time in microseconds
+    double(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+    // divided by 1000000 to create seconds with fractionals
+    / 1000000.0; }
 
-/// Fetch nearest airport id by location
-inline std::string GetNearestAirportId (float lat, float lon)
-{ return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
+/// Returns timezone difference between local and GMT in seconds
+int timeOffsetUTC();
 
-/// Which plugin has control of AI?
-std::string GetAIControlPluginName ();
+/// Converts date/time (UTC) to epoch value
+inline time_t mktime_utc (std::tm& tm)
+{ return mktime(&tm) + timeOffsetUTC(); }
+
+/// Converts a UTC time to epoch value, assuming today's date
+time_t mktime_utc (int h, int min, int s);
+
+// format timestamp
+std::string ts2string (time_t t);
+
+/// Converts an epoch timestamp to a Zulu time string incl. 10th of seconds
+std::string ts2string (double _zt, int secDecimals=1);
 
 /// Convert an XP network time float to a string
 std::string NetwTimeString (float _runS);
@@ -257,6 +292,18 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now);
 /// @return `true` if more than `_interval` time has passed since `_lastCheck`
 inline bool CheckEverySoOften (float& _lastCheck, float _interval)
 { return CheckEverySoOften(_lastCheck, _interval, dataRefs.GetMiscNetwTime()); }
+
+// MARK: Other Utility Functions
+
+/// Fetch nearest airport id by location
+std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = nullptr);
+
+/// Fetch nearest airport id by location
+inline std::string GetNearestAirportId (float lat, float lon)
+{ return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
+
+/// Which plugin has control of AI?
+std::string GetAIControlPluginName ();
 
 // convert a color value from int to float[4]
 void conv_color ( int inCol, float outCol[4] );
@@ -289,6 +336,11 @@ constexpr bool between( const T& v, const T& lo, const T& hi )
 
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 );
+
+/// @brief random long between too given values invlusive
+/// @see https://stackoverflow.com/a/7560171
+inline long randoml (long min, long max)
+{ return long(((double) rand() / (RAND_MAX+1.0)) * (max-min+1)) + min; }
 
 // gets latest version info from X-Plane.org
 bool FetchXPlaneOrgVersion ();

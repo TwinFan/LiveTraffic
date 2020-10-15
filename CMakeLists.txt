@@ -3,7 +3,7 @@
 #               Set up to be used in a Visual Studio environment to build win (File > Open > Folder, then VS recognized the CMAKE configuration)
 
 cmake_minimum_required(VERSION 3.16)
-project(LiveTraffic VERSION 2.10 DESCRIPTION "LiveTraffic X-Plane plugin" LANGUAGES C CXX)
+project(LiveTraffic VERSION 2.20 DESCRIPTION "LiveTraffic X-Plane plugin" LANGUAGES C CXX)
 
 # By default, use optimized release configuration.
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -66,6 +66,7 @@ set(Header_Files
     Include/LTFlightData.h
     Include/LTForeFlight.h
     Include/LTImgWindow.h
+    Include/LTOpenGlider.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/LTWeather.h
@@ -107,6 +108,7 @@ set(Source_Files
     Src/LTForeFlight.cpp
     Src/LTImgWindow.cpp
     Src/LTMain.cpp
+    Src/LTOpenGlider.cpp
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp
     Src/LTVersion.cpp
@@ -196,10 +198,11 @@ target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
 # Link OpenGL and OpenAL related libraries.
 set (OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
+find_package(OpenGL REQUIRED COMPONENTS OpenGL)  # apt install freeglut3-dev
 if ( OpenGL_FOUND )
+    add_dependencies( LiveTraffic OpenGL::OpenGL )
     include_directories( ${OpenGL_INCLUDE_DIRS} )
-    target_link_libraries( LiveTraffic ${OpenGL_LIBRARIES} )
+    target_link_libraries( LiveTraffic OpenGL::OpenGL )
 endif( OpenGL_FOUND )
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.

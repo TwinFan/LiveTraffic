@@ -261,6 +261,7 @@ constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 #define XPMP_CFG_ITM_REPLDATAREFS    "replace_datarefs"     ///< Config key: Replace dataRefs in OBJ8 files upon load, creating new OBJ8 files for XPMP2 (defaults to OFF!)
 #define XPMP_CFG_ITM_REPLTEXTURE     "replace_texture"      ///< Config key: Replace textures in OBJ8 files upon load if needed (specified on the OBJ8 line in xsb_aircraft.txt), creating new OBJ8 files
 #define XPMP_CFG_ITM_CLAMPALL        "clamp_all_to_ground"  ///< Config key: Ensure no plane sinks below ground, no matter of XPMP2::Aircraft::bClampToGround
+#define XPMP_CFG_ITM_HANDLE_DUP_ID   "handle_dup_id"        ///< Config key: Boolean: If XPMP2::Aircraft::modeS_id already exists then assign a new unique one, overwrites XPMP2::Aircraft::modeS_id
 #define XPMP_CFG_ITM_LOGLEVEL        "log_level"            ///< Config key: General level of logging into `Log.txt` (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)
 #define XPMP_CFG_ITM_MODELMATCHING   "model_matching"       ///< Config key: Write information on model matching into `Log.txt`
 
@@ -272,7 +273,8 @@ constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 /// `------- | ------------------- | ---- | ------- | -------------------------------------------------------------------------`\n
 /// `models  | replace_datarefs    | int  |    0    | Replace dataRefs in OBJ8 files upon load, creating new OBJ8 files for XPMP2 (defaults to OFF!)`\n
 /// `models  | replace_texture     | int  |    1    | Replace textures in OBJ8 files upon load if needed (specified on the OBJ8 line in xsb_aircraft.txt), creating new OBJ8 files`\n
-/// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of Aircraft::bClampToGround`\n
+/// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of XPMP2::Aircraft::bClampToGround`\n
+/// `planes  | handle_dup_id       | int  |    0    | Boolean: If XPMP2::Aircraft::modeS_id already exists then assign a new unique one, overwrites XPMP2::Aircraft::modeS_id`\n
 /// `debug   | log_level           | int  |    2    | General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)`\n
 /// `debug   | model_matching      | int  |    0    | Write information on model matching into Log.txt`\n
 /// @note There is no immediate requirement to check the value of `_section` in your implementation.

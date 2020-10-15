@@ -57,9 +57,7 @@ static InfoListWnd* gpILW = nullptr;
 // Constructor shows a window for the given a/c key
 InfoListWnd::InfoListWnd(WndMode _mode) :
 LTImgWindow(_mode, WND_STYLE_HUD, dataRefs.ILWrect),
-wndTitle(LIVE_TRAFFIC),
-// initialize these references with something which definitely evaluates false later if there are any messages
-lastBegin(gLog.cend()), lastEnd(gLog.cend())
+wndTitle(LIVE_TRAFFIC)
 {
     // Set up window basics
     SetWindowTitle(GetWndTitle());
@@ -205,30 +203,31 @@ void InfoListWnd::buildInterface()
                 // Set up / update list of messages to show
                 
                 // generally, we only need to check for new messages added to the global list
-                LogMsgListTy::const_iterator readTo = lastBegin;
+                unsigned long msgCounterReadTo = msgCounterLastDisp;
                 
                 // Figure out if messages were purged from the back of the message list
                 if (gLog.empty() ||
-                    std::prev(gLog.cend()) != lastEnd)
+                    gLog.back().counter != msgCounterEnd)
                     bFilterChanged = true;
                 // Redo the entire list?
                 if (bFilterChanged) {
                     // start over
                     msgIterList.clear();
-                    readTo = gLog.cend();
+                    msgCounterReadTo = 0;
                 }
                 
                 // Messages are added to the beginning of the list
                 const LogMsgIterListTy::iterator insBefore = msgIterList.begin();
                     
                 // Access to static buffer and list guarded by a lock
+                if (!gLog.empty())
                 {
                     // We lock once here to avoid re-locking with every match attempt
                     std::lock_guard<std::recursive_mutex> lock(gLogMutex);
                     
                     // Loop all messages and remember those which match
                     for (LogMsgListTy::const_iterator iMsg = gLog.cbegin();
-                         iMsg != readTo;
+                         iMsg != gLog.cend() && iMsg->counter != msgCounterReadTo;
                          ++iMsg)
                     {
                         // apply filter on message levels first
@@ -242,8 +241,12 @@ void InfoListWnd::buildInterface()
                     }
                     
                     // remember based on what we made up the list
-                    lastBegin = gLog.cbegin();
-                    lastEnd = gLog.empty() ? gLog.cend() : std::prev(gLog.cend());
+                    msgCounterLastDisp = gLog.front().counter;
+                    msgCounterEnd = gLog.back().counter;
+                }
+                else {
+                    msgCounterLastDisp = 0;
+                    msgCounterEnd = 0;
                 }
                 
                 // Add rows from the pre-filtered list of iterators

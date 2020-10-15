@@ -81,11 +81,11 @@ public:
     virtual void SetValid (bool _valid, bool bMsg = true);
     virtual bool IncErrCnt();               // increases error counter, returns if (still) valid
     virtual void DecErrCnt();               // decreases error counter
+    int GetErrCnt () const { return errCnt; }
     virtual bool IsEnabled () const;
     virtual void SetEnable (bool bEnable);
-    std::string GetStatusText () const;     ///< return a human-readable staus
-    virtual int GetNumAcServed () const     ///< how many a/c do we feed?
-    { return 0; }
+    virtual std::string GetStatusText () const;  ///< return a human-readable staus
+    virtual int GetNumAcServed () const = 0;     ///< how many a/c do we feed?
     
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
     virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
@@ -170,7 +170,8 @@ public:
 	LTACMasterdataChannel () {}
     virtual bool UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
                                    const LTFlightData::FDStaticData& dat);
-    
+    int GetNumAcServed () const override { return 0; }  ///< how many a/c do we feed?
+
     // request to fetch master data
     static void RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                    const std::string callSign);

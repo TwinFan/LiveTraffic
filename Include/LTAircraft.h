@@ -161,6 +161,13 @@ public:
                  const positionTy& _mid,
                  const positionTy& _end);
     
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+    /// @param _start Start position of the Bezier curve
+    /// @param _end End position of the curve
+    /// @return Could a reasonable mid point be derived and hence a Bezier curve be set up?
+    bool Define (const positionTy& _start,
+                 const positionTy& _end);
+    
     /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
     /// This is needed for accurate angle calculations
     void ConvertToMeter ();
@@ -210,17 +217,21 @@ public:
         double VSI_FINAL =        -800;   // [ft/min] assumed vsi for final if vector unavailable
         double VSI_INIT_CLIMB =   1500;   // [ft/min] assumed vsi if take-off-vector not available
         double SPEED_INIT_CLIMB = 150;    // [kt] initial climb speed if take-off-vector not available
+        double VSI_MAX =          3000;   // [ft/min] maximum vertical speed, beyond this considered invalid data
         double AGL_GEAR_DOWN =    1600;   // height AGL at which to lower the gear during approach
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
         double MAX_TAXI_SPEED =   50;     // below that: taxi, above that: take-off/roll-out
         double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
         double TAXI_TURN_TIME =   45;     // seconds for a 360° turn on the ground
-        double FLIGHT_TURN_TIME = 120;    // seconds for a 360° turn in flight
+        double FLIGHT_TURN_TIME = 120;    ///< seconds for a typical 360° turn in flight
+        double MIN_FLIGHT_TURN_TIME=60;   ///< [s] minimum allowable time for a 360° turn in flight
         double ROLL_MAX_BANK =    30;     // [°] max bank angle
         double ROLL_RATE =        10;     // [°/s] roll rate in normal turns
+        double MIN_FLIGHT_SPEED =100;     // [kn] minimum flight speed, below that not considered valid data
         double FLAPS_UP_SPEED =  180;     // below that: initial climb, above that: climb
         double FLAPS_DOWN_SPEED =  200;   // above that: descend, below that: approach
+        double MAX_FLIGHT_SPEED =500;     // [kn] maximum flight speed, above that not considered valid data
         double CRUISE_HEIGHT =    15000;  // above that height AGL we consider level flight 'cruise'
         double ROLL_OUT_DECEL =  -2.0;    // [m/s²] deceleration during roll-out
         double PITCH_MIN =        -2;     // [°] minimal pitch angle (aoa)
@@ -231,7 +242,6 @@ public:
         double PITCH_FLARE =      10;     // [°] pitch during flare
         double PITCH_RATE =       5;      // [°/s] pitch rate of change
         double PROP_RPM_MAX =     1200;   // [rpm] maximum propeller revolutions per minute
-        int    LIGHT_PATTERN =    0;      // Flash: 0 - Jet, 1 - Airbus, 2 - GA (see XPMPMultiplayer.h:124)
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
         double EXT_CAMERA_LON_OFS =-45;   // longitudinal external camera offset
@@ -244,7 +254,11 @@ public:
         bool operator <  (const FlightModel& o) const { return modelName <  o.modelName; }
         bool operator >  (const FlightModel& o) const { return modelName >  o.modelName; }
         operator bool () const { return !modelName.empty(); }
-
+        /// Calculate max possible heading change in the time given [s] based on turn speed (max return: 180.0)
+        double maxHeadChange (bool bOnGnd, double time_s) const;
+        /// Is this modelling a glider?
+        bool isGlider () const;
+        
     public:
         static bool ReadFlightModelFile ();
         static const FlightModel& FindFlightModel (const std::string& acTypeIcao);
@@ -292,6 +306,7 @@ protected:
     bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
     AccelParam          speed;          // current speed [m/s] and acceleration control
     BezierCurve         turn;           ///< position, heading, roll while flying a turn
+    MovingParam         heading;        ///< heading movement if not using a Bezier curve
     MovingParam         gear;
     MovingParam         flaps;
     MovingParam         pitch;
@@ -351,6 +366,7 @@ public:
     // current a/c configuration
     inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
+    std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
     inline bool IsOnGrnd() const { return bOnGrnd; }
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
     inline double GetHeading() const { return ppos.heading(); }

@@ -324,8 +324,11 @@ void DestroyWindow()
 // MARK: Log message storage
 //
 
-// The global list of log messages
+/// The global list of log messages
 LogMsgListTy gLog;
+
+/// The global counter
+static unsigned long gLogCnt = 0;
 
 /// Controls access to the log list
 std::recursive_mutex gLogMutex;
@@ -343,6 +346,7 @@ const char* GetLogString (const LogMsgTy& l);
 // Constructor fills all fields
 LogMsgTy::LogMsgTy (const char* _fn, int _ln, const char* _func,
                     logLevelTy _lvl, const char* _msg) :
+counter(++gLogCnt),
 wallTime(std::chrono::system_clock::now()),
 netwTime(dataRefs.GetMiscNetwTime()),
 fileName(_fn), ln(_ln), func(_func), lvl(_lvl), msg(_msg), bFlushed(false)

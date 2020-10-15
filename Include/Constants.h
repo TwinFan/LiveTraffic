@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.10f;
+constexpr float VERSION_NR = 2.20f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -48,6 +48,7 @@ constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a
 constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
 constexpr int M_per_KM      = 1000;
 constexpr double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
+constexpr double NM_per_KM  = 1000.0 / double(M_per_NM);
 constexpr int SEC_per_M     = 60;       // 60 seconds per minute
 constexpr int SEC_per_H     = 3600;     // 3600 seconds per hour
 constexpr int H_per_D       = 24;       // 24 hours per day
@@ -85,8 +86,6 @@ constexpr double BEZIER_MIN_HEAD_DIFF = 5.0;    ///< [°] turns of less than thi
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
 constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
 constexpr double MDL_CLOSE_TO_GND =     0.5;    // feet height considered "on ground"
-constexpr double MDL_MAX_TURN       =    90;    // max turn in flight at a position
-constexpr double MDL_MAX_TURN_GND   =   120;    // max turn on the ground
 constexpr double MDL_TO_LOOK_AHEAD  =    60.0;  // [s] to look ahead for take off prediction
 constexpr float  MDL_EXT_CAMERA_PITCH  = -5;    // initial pitch
 constexpr float  MDL_EXT_STEP_MOVE =      0.5f; // [m] to move with one command
@@ -103,6 +102,7 @@ constexpr double MDL_TIRE_MAX_RPM = 2000;   ///< [rpm] max tire rotation speed
 constexpr double MDL_TIRE_CF_M      = 3.2;  ///< [m] tire circumfence (3.2m for a 40-inch tire)
 constexpr double MDL_GEAR_DEFL_TIME = 0.5;  ///< [s] time for gear deflection (one direction...up down is twice this value)
 constexpr double MDL_CAR_MAX_TAXI = 80.0;   ///< [kn] Maximum allowed taxi speed for ground vehicles (before they turn into planes)
+constexpr double MDL_GLIDER_STOP_ROLL=7.0;  ///< [°] a stopped glider is tilted to rest on one of its wings
 
 constexpr int COLOR_YELLOW      = 0xFFFF00;
 constexpr int COLOR_RED         = 0xFF0000;
@@ -116,7 +116,7 @@ constexpr double ART_EDGE_ANGLE_EXT_DIST=5.0;   ///< [m] Second prio angle toler
 constexpr double ART_RWY_TD_POINT_F = 0.10;     ///< [-] Touch-down point is this much into actual runway (so we don't touch down at its actual beginning)
 constexpr double ART_RWY_MAX_HEAD_DIFF = 15.0;  ///< [°] maximum heading difference between flight and runway
 constexpr double ART_RWY_MAX_DIST = 20.0 * M_per_NM; ///< [m] maximum distance to a runway when searching for one
-constexpr double ART_RWY_MAX_VSI_F = 2.0;       ///< [-] descend rate: maximum allowed factor applied to VSI_FINAL
+constexpr double ART_RWY_MAX_VSI_F = 0.5;       ///< [-] descend rate: factor applied to VSI_FINAL to calc max VSI (which, as we are sinking and value are negative, is the shallowest approach allowed)
 constexpr double ART_RWY_ALIGN_DIST = 500.0;    ///< [m] distance before touch down to be fully aligned with rwy
 constexpr double ART_APPR_SPEED_F = 0.8;        ///< [-] ratio of FLAPS_DOWN_SPEED to use as max approach speed
 constexpr double ART_FINAL_SPEED_F = 0.7;       ///< [-] ratio of FLAPS_DOWN_SPEED to use as max final speed
@@ -146,8 +146,9 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LIVE_TRAFFIC_XPMP2      "   LT"      ///< short form for logging by XPMP2, so that log entries are aligned
 #define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
-#define LT_CFG_VERSION          "1.1"        // current version of config file format
-#define LT_FM_VERSION           "2.0"        // version of flight model file format
+#define LT_CFG_VER_DEL_IMGUI    "1.1"        // cfg file version, for which we need to remove imgui config file (as we added a column into the aircraft list)
+#define LT_CFG_VERSION          "2.2"        // current version of config file format
+#define LT_FM_VERSION           "2.2"        // expected version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
@@ -166,7 +167,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
-#define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f°, %.2f°)"
+#define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f / %.2f)"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
 #define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
@@ -191,6 +192,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
+#define CFG_FLARM_ACTY_SECTION  "[FlarmAcTypes]"
 #define CFG_WNDPOS_SUI          "SettingsWndPos"
 #define CFG_WNDPOS_ACI          "ACInfoWndPos"
 #define CFG_WNDPOS_ILW          "InfoListWndPos"
@@ -243,6 +245,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
 #define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
+#define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"

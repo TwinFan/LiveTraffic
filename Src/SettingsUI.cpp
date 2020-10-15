@@ -56,6 +56,13 @@ txtFixAcType    (dataRefs.cslFixAcIcaoType),
 txtFixOp        (dataRefs.cslFixOpIcao),
 txtFixLivery    (dataRefs.cslFixLivery)
 {
+    /// GNF_COUNT is not available in SettingsUI.h (due to order of include files), make _now_ sure that aFlarmAcTys has the correct size
+    assert (aFlarmAcTys.size() == size_t(FAT_UAV)+1);
+    
+    // Fill Flarm aircraft types with current values
+    for (size_t i = 0; i < aFlarmAcTys.size(); i++)
+        aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
+
     // Set up window basics
     SetWindowTitle(SUI_WND_TITLE);
     SetWindowResizingLimits(SUI_RESIZE_LIMITS.tl.x, SUI_RESIZE_LIMITS.tl.y,
@@ -297,6 +304,62 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
 
+            // --- Open Glider Network ---
+            if (ImGui::TreeNodeCbxLinkHelp("Open Glider Network", nCol,
+                                           DR_CHANNEL_OPEN_GLIDER_NET, "Enable OGN tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " "  OPGLIDER_CHECK_NAME,
+                                           OPGLIDER_CHECK_URL,
+                                           OPGLIDER_CHECK_POPUP,
+                                           HELP_SET_CH_OPENGLIDER, "Open Help on Open Glider Network in Browser",
+                                           sFilter, nOpCl))
+            {
+                ImGui::TextUnformatted("Flarm A/c Types");
+                ImGui::TableNextCell();
+                ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
+                ImGui::TableNextCell();
+                    
+                // One edit field for each Flarm aircraft type
+                for (size_t i = 0; i < aFlarmAcTys.size(); i++) {
+                    // Flarm Aircraft Type in human readable text
+                    if (ImGui::FilteredLabel(OGNGetAcTypeName(FlarmAircraftTy(i)), sFilter)) {
+                        ImGui::PushID(int(i));
+                        
+                        // Warning if text entry too short
+                        if (aFlarmAcTys[i].length() < 2) {
+                            ImGui::TablePrevCell();
+                            ImGui::Indicator(false, "", "Too short a text to serve as ICAO aircraft type");
+                            ImGui::TableNextCell();
+                        }
+
+                        // Edit field for entering ICAO aircraft type(s)
+                        ImGui::SetNextItemWidth(2 * fSmallWidth);
+                        ImGui::InputText("", &aFlarmAcTys[i], ImGuiInputTextFlags_CharsUppercase);
+                        if (ImGui::IsItemDeactivatedAfterEdit()) {
+                            // definition changed, process it if it contains 2 chars or more
+                            if (aFlarmAcTys[i].length() >= 2)
+                                // set the array of values in the dataRefs, then read it back into our edit variable, formatted with a standard space separator
+                                dataRefs.aFlarmToIcaoAcTy[i] = str_tokenize(aFlarmAcTys[i], " ,;/");
+                        }
+                        
+                        // Undo change if not confirmed with Enter, also refreshes after Enter
+                        if (ImGui::IsItemDeactivatedAfterEdit())
+                            aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
+                        else if (ImGui::IsItemActive()) {
+                            ImGui::SameLine();
+                            ImGui::TextUnformatted("Press [Enter] to save");
+                        }
+                        
+                        ImGui::TableNextCell();
+                        ImGui::PopID();
+                    } // if Flarm type visible
+                } // for all Flarm types
+                
+                // User alternate Request/Reply way of requesting tracking data
+                ImGui::FilteredCfgCheckbox("Use alternate connection", sFilter, DR_CFG_OGN_USE_REQUREPL, "Switches to requesting OGN tracking data via HTTP requests instead of receiving push information from an APRS connection.");
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
             // --- RealTraffic ---
             const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
@@ -594,8 +657,8 @@ void LTSettingsUI::buildInterface()
                         ImGui::TableNextCell();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
-                    if (ImGui::InputText("##DefaultAcType", &acTypeEntry,
-                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    ImGui::InputText("##DefaultAcType", &acTypeEntry, ImGuiInputTextFlags_CharsUppercase);
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
                         acTypeOK = dataRefs.SetDefaultAcIcaoType(acTypeEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) acTypeOK = 0;
@@ -612,8 +675,8 @@ void LTSettingsUI::buildInterface()
                         ImGui::TableNextCell();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
-                    if (ImGui::InputText("##CarType", &gndVehicleEntry,
-                                         ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    ImGui::InputText("##CarType", &gndVehicleEntry, ImGuiInputTextFlags_CharsUppercase);
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
                         gndVehicleOK = dataRefs.SetDefaultCarIcaoType(gndVehicleEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) gndVehicleOK = 0;
@@ -817,7 +880,7 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
-            constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue;
+            constexpr ImGuiInputTextFlags flags = ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank;
             if (ImGui::TreeNodeHelp("Forced Model Matching", nCol, nullptr, nullptr,
                                     sFilter, nOpCl,
                                     (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))

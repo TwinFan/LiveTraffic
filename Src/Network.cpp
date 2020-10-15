@@ -42,6 +42,9 @@ typedef USHORT in_port_t;
 // MARK: SocketNetworking
 //
 
+/// Mutex to ensure closing is done in one thread only to avoid race conditions on deleting the buffer
+std::recursive_mutex mtxSocketClose;
+
 NetRuntimeError::NetRuntimeError(const char *w) :
 std::runtime_error(w)
 {
@@ -49,6 +52,10 @@ std::runtime_error(w)
     char sErr[SERR_LEN];
     strerror_s(sErr, sizeof(sErr), errno);
     errTxt = sErr;              // copy
+    // And the complete message to be returned by what readily prepared:
+    fullWhat = w;
+    fullWhat += ": ";
+    fullWhat += errTxt;
 }
 
 SocketNetworking::SocketNetworking(const std::string& _addr, int _port,
@@ -152,12 +159,77 @@ void SocketNetworking::Open(const std::string& _addr, int _port,
     }
 }
 
+// Connect to a server
+void SocketNetworking::Connect(const std::string& _addr, int _port,
+                               size_t _bufSize, unsigned _timeOut_ms)
+{
+    struct addrinfo *   addrinfo      = NULL;
+    try {
+        // store member values
+        f_port = _port;
+        f_addr = _addr;
+        const std::string decimal_port(std::to_string(f_port));
+
+        // get a valid address based on inAddr/port
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        GetAddrHints(hints);            // ask subclasses, but then overwrite some stuff
+        hints.ai_flags &= ~AI_PASSIVE;
+        
+        int r = getaddrinfo(f_addr.c_str(), decimal_port.c_str(), &hints, &addrinfo);
+        if(r != 0 || addrinfo == NULL)
+            throw NetRuntimeError(("invalid address or port for socket: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+        
+        // get a socket
+        f_socket = socket(addrinfo->ai_family, addrinfo->ai_socktype, addrinfo->ai_protocol);
+        if(f_socket == INVALID_SOCKET)
+            throw NetRuntimeError(("could not create socket for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+        
+        // define receive timeout
+#if IBM
+        DWORD wsTimeout = _timeOut_ms;
+        if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&wsTimeout, sizeof(wsTimeout)) < 0)
+            throw NetRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+#else
+        struct timeval timeout;
+        timeout.tv_sec = _timeOut_ms / 1000;
+        timeout.tv_usec = (_timeOut_ms % 1000) * 1000;
+        if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+            throw NetRuntimeError(("could not setsockopt SO_RCVTIMEO for: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+#endif
+        
+        // actually connect
+        r = connect(f_socket, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
+        if(r != 0)
+            throw NetRuntimeError(("could not connect to: \"" + f_addr + ":" + decimal_port + "\"").c_str());
+
+        // free adress info
+        freeaddrinfo(addrinfo);
+        addrinfo = NULL;
+
+        // reserve receive buffer
+        SetBufSize(_bufSize);
+    }
+    catch (...) {
+        // free adress info
+        if (addrinfo) {
+            freeaddrinfo(addrinfo);
+            addrinfo = NULL;
+        }
+        // make sure everything is closed
+        Close();
+        // re-throw
+        throw;
+    }
+}
+
 /** \brief Clean up the UDP server.
  *
  // Close: This function frees the address info structures and close the socket.
  */
 void SocketNetworking::Close()
 {
+    std::lock_guard<std::recursive_mutex> lock(mtxSocketClose);
     // cleanup
     if (f_socket != INVALID_SOCKET) {
         close(f_socket);
@@ -171,6 +243,7 @@ void SocketNetworking::Close()
 // allocates the receiving buffer
 void SocketNetworking::SetBufSize(size_t _bufSize)
 {
+    std::lock_guard<std::recursive_mutex> lock(mtxSocketClose);
     // remove existing buffer
     if (buf) {
         delete[] buf;
@@ -468,8 +541,8 @@ bool TCPConnection::listenAccept (int numConnections)
         // if we wait for exactly one connection then we "unlisten" once we accepted that one connection:
         return accept(numConnections == 1);
     }
-    catch (NetRuntimeError& e) {
-        LOG_MSG(logERR, "%s (%s)", e.what(), e.errTxt.c_str());
+    catch (std::runtime_error& e) {
+        LOG_MSG(logERR, "%s", e.what());
     }
     return false;
 }
@@ -477,10 +550,14 @@ bool TCPConnection::listenAccept (int numConnections)
 // write a message out
 bool TCPConnection::send(const char* msg)
 {
+    // prefer the session socket set after waiting for a connection,
+    // but try the main socket if session socket not set
+    SOCKET f = f_session_socket == INVALID_SOCKET ? f_socket : f_session_socket;
+    
     int index=0;
     int length = (int)strlen(msg);
     while (index<length) {
-        int count = (int)::send(f_session_socket, msg + index, (int)(length - index), 0);
+        int count = (int)::send(f, msg + index, (int)(length - index), 0);
         if (count<0) {
             if (errno==EINTR) continue;
             LOG_MSG(logERR, "%s (%s)",

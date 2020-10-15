@@ -368,6 +368,7 @@ enum dataRefsLT {
     DR_DBG_MODEL_MATCHING,
     
     // channel configuration options
+    DR_CFG_OGN_USE_REQUREPL,
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
@@ -620,6 +621,7 @@ protected:
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
 
     // channel config options
+    int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49003;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
@@ -643,6 +645,7 @@ protected:
     
     // Weather
     double      altPressCorr_ft = 0.0;  ///< [ft] barometric correction for pressure altitude, in meter
+    float       lastWeatherAttempt = 0.0f;  ///< last time we _tried_ to update the weather
     float       lastWeatherUpd = 0.0f;  ///< last time the weather was updated? (in XP's network time)
     float       lastWeatherHPA = HPA_STANDARD; ///< last barometric pressure received
     positionTy  lastWeatherPos;         ///< last position for which weather was retrieved
@@ -654,6 +657,12 @@ public:
     std::string cslFixAcIcaoType;       // set of fixed values to use for...
     std::string cslFixOpIcao;           // ...newly created aircraft for...
     std::string cslFixLivery;           // ...CSL model package testing
+    
+// MARK: Public members
+public:
+    /// once per Flarm a/c type: matching it to one or more ICAO types
+    std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
+    
     RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
@@ -731,6 +740,7 @@ public:
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }
+    /// Current sim time as a human readable string, including 10th of seconds
     std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time
@@ -804,8 +814,8 @@ public:
     const vecCSLPaths& GetCSLPaths() const { return vCSLPaths; }
     vecCSLPaths& GetCSLPaths()             { return vCSLPaths; }
     bool LoadCSLPackage(const std::string& _path);
-    std::string GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
-    std::string GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
+    const std::string& GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
+    const std::string& GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
     bool SetDefaultAcIcaoType(const std::string type);
     bool SetDefaultCarIcaoType(const std::string type);
     
@@ -820,6 +830,7 @@ public:
     // timestamp offset network vs. system clock
     inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }
     inline double GetChTsOffset () const { return chTsOffset; }
+    bool ChTsAcceptMore () const { return cntAc == 0 && chTsOffsetCnt < CntChannelEnabled() * 2; }
     void ChTsOffsetAdd (double aNetTS);
 
     // livetraffic/dbg/ac_filter: Debug a/c filter (the integer is converted to hex as an transpIcao key)

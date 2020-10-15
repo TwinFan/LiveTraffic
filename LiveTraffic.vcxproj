@@ -159,8 +159,7 @@
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\11\Resources\plugins\LiveTraffic\win_x64"
-copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\11\Resources\plugins\LiveTraffic\win_x64"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Copying win.xpl into my X-Plane plugin paths</Message>
@@ -206,8 +205,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\11\Resources\plugins\LiveTraffic\win_x64"
-copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugins\LiveTraffic\win_x64"</Command>
+      <Command>copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\11\Resources\plugins\LiveTraffic\win_x64"</Command>
       <Message>Copying win.xpl into my X-Plane plugin paths</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -289,6 +287,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4232;4127;4634;4635</DisableSpecificWarnings>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4232;4127</DisableSpecificWarnings>
+      <GenerateXMLDocumentationFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</GenerateXMLDocumentationFiles>
     </ClCompile>
     <ClCompile Include="src\ACInfoWnd.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -307,6 +306,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
     <ClCompile Include="Src\LTForeFlight.cpp" />
     <ClCompile Include="Src\LTImgWindow.cpp" />
     <ClCompile Include="src\LTMain.cpp" />
+    <ClCompile Include="Src\LTOpenGlider.cpp" />
     <ClCompile Include="Src\LTOpenSky.cpp" />
     <ClCompile Include="Src\LTRealTraffic.cpp" />
     <ClCompile Include="src\LTVersion.cpp" />
@@ -330,6 +330,7 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
     <ClInclude Include="include\LTFlightData.h" />
     <ClInclude Include="Include\LTForeFlight.h" />
     <ClInclude Include="Include\LTImgWindow.h" />
+    <ClInclude Include="Include\LTOpenGlider.h" />
     <ClInclude Include="Include\LTOpenSky.h" />
     <ClInclude Include="Include\LTRealTraffic.h" />
     <ClInclude Include="Include\LTWeather.h" />
@@ -348,15 +349,12 @@ copy /Y "$(TargetDir)$(TargetName)$(TargetExt)" "C:\X-Plane\BETA\Resources\plugi
     <ResourceCompile Include="LiveTraffic.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Resources\Doc8643.txt" />
-    <Text Include="Resources\related.txt" />
+    <Text Include="docs\Notes.txt" />
+    <Text Include="Resources\model_typecode.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="docs\readme.html" />
     <None Include="Resources\FlightModels.prf" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Resources\lights.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
