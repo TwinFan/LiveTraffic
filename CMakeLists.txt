@@ -198,11 +198,10 @@ target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
 # Link OpenGL and OpenAL related libraries.
 set (OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL REQUIRED COMPONENTS OpenGL)  # apt install freeglut3-dev
+find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
 if ( OpenGL_FOUND )
-    add_dependencies( LiveTraffic OpenGL::OpenGL )
     include_directories( ${OpenGL_INCLUDE_DIRS} )
-    target_link_libraries( LiveTraffic OpenGL::OpenGL )
+    target_link_libraries( LiveTraffic ${OpenGL_LIBRARIES} )
 endif( OpenGL_FOUND )
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
