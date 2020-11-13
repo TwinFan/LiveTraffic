@@ -51,6 +51,8 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
 #define ERR_RT_WEATHER_QNH      "RealTraffic reports unreasonable QNH %ld - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
+#define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
+#define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
 
 // Traffic data format and fields
 #define RT_TRAFFIC_AITFC        "AITFC"

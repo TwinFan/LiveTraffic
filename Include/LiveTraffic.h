@@ -372,14 +372,10 @@ inline struct tm *localtime_s(struct tm * result, const time_t * time)
 #define STRCPY_S(dest,src) strncpy_s(dest,sizeof(dest),src,sizeof(dest)-1)
 #define STRCPY_ATMOST(dest,src) strncpy_s(dest,sizeof(dest),strAtMost(src,sizeof(dest)-1).c_str(),sizeof(dest)-1)
 
-#if APL == 1
+#if APL == 1 or LIN == 1
 // XCode/Linux don't provide the _s functions, not even with __STDC_WANT_LIB_EXT1__ 1
 inline int strerror_s( char *buf, size_t bufsz, int errnum )
 { return strerror_r(errnum, buf, bufsz); }
-#endif
-#if LIN == 1
-inline int strerror_s( char *buf, size_t bufsz, int errnum )
-{ strncpy_s(buf,bufsz,strerror(errnum),bufsz-1); return 0; }
 #endif
 
 // MARK: Thread names

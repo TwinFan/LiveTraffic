@@ -131,7 +131,7 @@ ImgWindow::ImgWindow(
             mFontTexture = (GLuint)texNum;
 
             // upload texture.
-            XPLMBindTexture2d(mFontTexture, 0);
+            XPLMBindTexture2d((int)mFontTexture, 0);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
@@ -295,7 +295,7 @@ ImgWindow::RenderImGui(ImDrawData *draw_data)
 			if (pcmd->UserCallback)	{
 				pcmd->UserCallback(cmd_list, pcmd);
 			} else {
-			    XPLMBindTexture2d((GLuint)(intptr_t)pcmd->TextureId, 0);
+			    XPLMBindTexture2d((int)(intptr_t)pcmd->TextureId, 0);
 
 				// Scissors work in viewport space - must translate the coordinates from ImGui -> Boxels, then Boxels -> Native.
 				//FIXME: it must be possible to apply the scale+transform manually to the projection matrix so we don't need to doublestep.

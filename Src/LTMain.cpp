@@ -201,7 +201,7 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
     // Determine number of records if not (yet) known
     if (f && n == 0) {
         f.seekg(0, std::ios_base::end);
-        n = f.tellg() / recLen;
+        n = size_t(f.tellg()) / recLen;
         if (!f) return false;
     }
     
@@ -218,15 +218,15 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
         m = L + (size_t)std::floor(float(key-Al)/float(Ar-Al) * (R-L));
         
         // test if record at m is less than the key
-        f.seekg(m * recLen);
-        f.read((char*)outRec, recLen);
+        f.seekg((long long)(m * recLen));
+        f.read((char*)outRec, (std::streamsize)recLen);
         if (!f) return false;
         if (*pAm == key) {
             return true;
         }
         else if (*pAm < key) {
             L = m+1;                // move to _next_ record as we are too small
-            f.read((char*)outRec, recLen);
+            f.read((char*)outRec, (std::streamsize)recLen);
             Al = *(unsigned long*)outRec;
             if (Al == key)          // that next record is our value?
                 return true;

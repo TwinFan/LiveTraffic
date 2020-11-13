@@ -583,7 +583,6 @@ bool LTFlightDataEnable()
     if ( dataRefs.GetUseHistData() ) {
         // load historic data readers
         listFDC.emplace_back(new ADSBExchangeHistorical);
-        // TODO: master data readers for historic data, like reading CSV file
     } else {
         // load live feed readers (in order of priority)
         listFDC.emplace_back(new RealTrafficConnection(mapFd));

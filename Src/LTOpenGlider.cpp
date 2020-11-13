@@ -152,7 +152,7 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
         return std::string(url);
     } else {
         // otherwise (and by default) we are to use the direct APRS connection
-        APRSStartUpdate(pos, dataRefs.GetFdStdDistance_km());
+        APRSStartUpdate(pos, (unsigned)dataRefs.GetFdStdDistance_km());
         return std::string();
     }
 }
@@ -196,7 +196,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
         
         // then this is the marker definition to work on
-        const std::string sMarker (sPos, sEnd-sPos);
+        const std::string sMarker (sPos, std::string::size_type(sEnd-sPos));
         std::vector<std::string> tok = str_tokenize(sMarker, ",", false);
         if (tok.size() != GNF_COUNT) {
             LOG_MSG(logERR, ERR_OGN_WRONG_NUM_FIELDS, sMarker.c_str());
@@ -796,7 +796,7 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
     if (tok[0][0] == '#') {
         tok[0].erase(0,1);              // remove the #
         // walk the tokens and remember the column indexes per field
-        for (int i = 0; i < (int)tok.size(); i++) {
+        for (unsigned i = 0; i < (unsigned)tok.size(); i++) {
             if (tok[i] == "DEVICE_ID") ho.devIdIdx = i;
             else if (tok[i] == "DEVICE_TYPE") ho.devTypeIdx = i;
             else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
@@ -991,7 +991,7 @@ const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
     if (icaoTypes.empty()) return dataRefs.GetDefaultAcIcaoType();
     if (icaoTypes.size() == 1) return icaoTypes.front();
     // more than one type defined, take a random pick
-    const size_t i = randoml(0, long(icaoTypes.size())-1);
+    const size_t i = (size_t)randoml(0, long(icaoTypes.size())-1);
     assert(0 <= i && i < icaoTypes.size());
     return icaoTypes[i];
 }

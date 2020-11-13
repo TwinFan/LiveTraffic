@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -41,7 +41,7 @@
 		25C59465207ABDC700E52073 /* LTMain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59464207ABDC700E52073 /* LTMain.cpp */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
 		25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25EFC76D24959662005DB0A6 /* ApplicationServices.framework */; };
-		25F3471C24D2C7DE004574E7 /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471B24D2C7DE004574E7 /* parson.c */; };
+		25F3471C24D2C7DE004574E7 /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471B24D2C7DE004574E7 /* parson.c */; settings = {COMPILER_FLAGS = "-Wno-sign-conversion"; }; };
 		25F3471F24D2CB20004574E7 /* ACTable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471E24D2CB20004574E7 /* ACTable.cpp */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
@@ -519,6 +519,7 @@
 			buildPhases = (
 				D607B19609A556E400699BC3 /* Sources */,
 				D607B19709A556E400699BC3 /* Frameworks */,
+				255C337E2544DA0C002C166F /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -538,7 +539,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1200;
+				LastUpgradeCheck = 1210;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -557,6 +558,27 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		255C337E2544DA0C002C166F /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "TAGS=\"TODO:|FIXME:\"\necho \"searching ${SRCROOT} for ${TAGS}\"\nfind {\"${SRCROOT}/Include\",\"${SRCROOT}/Src\"} \\( -name \"*.cpp\" -or -name \"*.h\" \\) -print0 | xargs -0 egrep --with-filename --line-number --only-matching \"($TAGS).*\\$\" | perl -p -e \"s/($TAGS)/ warning: \\$1/\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D607B19609A556E400699BC3 /* Sources */ = {
@@ -614,6 +636,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
@@ -707,6 +730,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;

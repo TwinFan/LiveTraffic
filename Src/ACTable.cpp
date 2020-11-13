@@ -190,7 +190,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
     else {
         // if there is no a/c, but there previously was, then we need to clear a lot of fields
         if (!v[ACT_COL_POS].empty()) {
-            for (int idx: {
+            for (size_t idx: {
                 ACT_COL_POS, ACT_COL_LAT, ACT_COL_LON, ACT_COL_ALT, ACT_COL_AGL,
                 ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
                 ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
@@ -311,8 +311,8 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
         // Fill the data into the list
         for (const FDInfo& fdi: vecFDI) {
             ImGui::TableNextRow();
-            for (int col = 0; col < ACT_COL_ACTIONS; ++col) {
-                if (ImGui::TableSetColumnIndex(col)) {
+            for (size_t col = 0; col < ACT_COL_ACTIONS; ++col) {
+                if (ImGui::TableSetColumnIndex(int(col))) {
                     ImGui::TextAligned(gCols[col].colAlign, fdi.v[col]);
                 }
             }

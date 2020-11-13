@@ -1012,9 +1012,9 @@ int DataRefs::LTGetBulkAc (void* inRefcon, void * outData,
         // copy data of the current aircraft
         const LTAircraft& ac = *fdIter->second.GetAircraft();
         if (dr == DR_AC_BULK_QUICK)
-            ac.CopyBulkData ((LTAPIAircraft::LTAPIBulkData*)pOut, size);
+            ac.CopyBulkData ((LTAPIAircraft::LTAPIBulkData*)pOut, (size_t)size);
         else
-            ac.CopyBulkData((LTAPIAircraft::LTAPIBulkInfoTexts*)pOut, size);
+            ac.CopyBulkData((LTAPIAircraft::LTAPIBulkInfoTexts*)pOut, (size_t)size);
     }
     
     // how many bytes copied?
@@ -1830,7 +1830,7 @@ bool DataRefs::LoadConfigFile()
             }
             
             // the second part is again an array of icao types, separated by space or comma or so
-            aFlarmToIcaoAcTy[std::stoi(ln[0])] = str_tokenize(ln[1], " ,;/");
+            aFlarmToIcaoAcTy[std::stoul(ln[0])] = str_tokenize(ln[1], " ,;/");
         }
     }
     

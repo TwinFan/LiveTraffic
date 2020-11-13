@@ -419,7 +419,7 @@ public:
         double bestDist2 = HUGE_VAL;
         const vecTaxiNodesTy::const_iterator dontIter =
         dontCombineWith == ULONG_MAX ? vecTaxiNodes.cend() :
-                                       std::next(vecTaxiNodes.cbegin(),dontCombineWith);
+                                       std::next(vecTaxiNodes.cbegin(),(long)dontCombineWith);
         vecTaxiNodesTy::const_iterator bestIter = vecTaxiNodes.cend();
         for (auto iter = vecTaxiNodes.cbegin(); iter != vecTaxiNodes.cend(); ++iter)
         {
@@ -439,7 +439,7 @@ public:
         
         // Found something?
         return (bestIter != vecTaxiNodes.cend() ?
-                std::distance(vecTaxiNodes.cbegin(), bestIter) :
+                (size_t)std::distance(vecTaxiNodes.cbegin(), bestIter) :
                 ULONG_MAX);
     }
     

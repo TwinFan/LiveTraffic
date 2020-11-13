@@ -159,8 +159,8 @@ protected:
 #define ADSBEX_HIST_NAME        "ADS-B Exchange Historic"
 constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line
 constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneous line we stop reading
-#define ADSBEX_HIST_PATH        "Custom Data/ADSB"  // TODO: Move to options: relative to XP main
-#define ADSBEX_HIST_PATH_2      "Custom Data/ADSB2" // TODO: Move to options: fallback, if first one doesn't work
+#define ADSBEX_HIST_PATH        "Custom Data/ADSB"  // TODO : Move to options: relative to XP main
+#define ADSBEX_HIST_PATH_2      "Custom Data/ADSB2" // TODO : Move to options: fallback, if first one doesn't work
 #define ADSBEX_HIST_DATE_PATH   "%c%04d-%02d-%02d"
 #define ADSBEX_HIST_FILE_NAME   "%c%04d-%02d-%02d-%02d%02dZ.json"
 #define ADSBEX_HIST_PATH_EMPTY  "Historic Data Path doesn't exist or folder empty at %s"

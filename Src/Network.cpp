@@ -25,6 +25,7 @@
 
 // All includes are collected in one header
 #include "LiveTraffic.h"
+
 #if IBM
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -32,6 +33,7 @@
 #define errno WSAGetLastError()     // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
 #define close closesocket
 typedef USHORT in_port_t;
+typedef int socklen_t;              // in Winsock, an int is passed as length argument
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -135,7 +137,7 @@ void SocketNetworking::Open(const std::string& _addr, int _port,
         }
 
         // bind the socket to the address:port
-        r = bind(f_socket, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
+        r = bind(f_socket, addrinfo->ai_addr, (socklen_t)addrinfo->ai_addrlen);
         if(r != 0)
             throw NetRuntimeError(("could not bind UDP socket with: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
@@ -199,7 +201,7 @@ void SocketNetworking::Connect(const std::string& _addr, int _port,
 #endif
         
         // actually connect
-        r = connect(f_socket, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
+        r = connect(f_socket, addrinfo->ai_addr, (socklen_t)addrinfo->ai_addrlen);
         if(r != 0)
             throw NetRuntimeError(("could not connect to: \"" + f_addr + ":" + decimal_port + "\"").c_str());
 
@@ -303,7 +305,7 @@ long SocketNetworking::recv()
         return -1;
     }
     
-    long ret = ::recv(f_socket, buf, (int)bufSize-1, 0);
+    long ret = ::recv(f_socket, buf, (socklen_t)bufSize-1, 0);
     if (ret >= 0)  {                    // we did receive something
         buf[ret] = 0;                   // zero-termination
     } else {
@@ -383,7 +385,7 @@ bool SocketNetworking::broadcast (const char* msg)
     s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
     
     while (index<length) {
-        int count = (int)::sendto(f_socket, msg + index, (int)(length - index), 0,
+        int count = (int)::sendto(f_socket, msg + index, (socklen_t)(length - index), 0,
                                   (struct sockaddr *)&s, sizeof(s));
         if (count<0) {
             if (errno==EINTR) continue;
@@ -557,7 +559,7 @@ bool TCPConnection::send(const char* msg)
     int index=0;
     int length = (int)strlen(msg);
     while (index<length) {
-        int count = (int)::send(f, msg + index, (int)(length - index), 0);
+        int count = (int)::send(f, msg + index, (socklen_t)(length - index), 0);
         if (count<0) {
             if (errno==EINTR) continue;
             LOG_MSG(logERR, "%s (%s)",

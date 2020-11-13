@@ -698,7 +698,7 @@ void LTSettingsUI::buildInterface()
                 DataRefs::vecCSLPaths& vec = dataRefs.GetCSLPaths();
                 for (int i = 0; (size_t)i < vec.size(); ++i)
                 {
-                    DataRefs::CSLPathCfgTy& pathCfg = vec[i];
+                    DataRefs::CSLPathCfgTy& pathCfg = vec[size_t(i)];
                     ImGui::PushID(pathCfg.getPath().c_str());
                     
                     // Enable Checkbox / Load Button

@@ -507,7 +507,7 @@ public:
         
         // this is a bit ugly but avoids a wrapper union with an int
         inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
-        inline void SetUInt(int i) { *reinterpret_cast<unsigned*>(this) = i; }
+        inline void SetUInt(unsigned i) { *reinterpret_cast<unsigned*>(this) = i; }
         inline bool operator != (const LabelCfgTy& o) const
         { return GetUInt() != o.GetUInt(); }
     };

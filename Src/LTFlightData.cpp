@@ -786,7 +786,7 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     }
     // we went one too far...so how far did we go into the deque?
     --itLast;
-    const size_t numPos = std::distance(posDeque.begin(), itLast);
+    const long numPos = std::distance(posDeque.begin(), itLast);
     
     // not far enough for any smoothing?
     if (numPos < 2)
@@ -1687,7 +1687,7 @@ void LTFlightData::AppendNewPos()
                     // and for that we need 2 positions before insert
                     const positionTy* pBefore = nullptr;
                     double heading = NAN;
-                    size_t idx = std::distance(posDeque.begin(), i);
+                    size_t idx = (size_t)std::distance(posDeque.begin(), i);
                     if (idx >= 2) {
                         pBefore = &(posDeque[idx-1]);
                         heading = posDeque[idx-2].angle(*pBefore);

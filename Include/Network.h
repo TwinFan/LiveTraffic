@@ -32,36 +32,29 @@
 #else
 #include <sys/socket.h>
 #include <netdb.h>
-typedef int SOCKET;             // Windows defines SOCKET, so we define it for non-Windows manually
-constexpr SOCKET INVALID_SOCKET = -1;
 #endif
 #include <stdexcept>
 
-// error messages used in derived classes
-#define ERR_TCP_LISTENACCEPT    "%s: Error opening the TCP port on %s:%s: %s"
-#define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
-#define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
-#define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
-#define ERR_NETW_TECH_ERROR     "%s: Technical network error: %s"
+#if not IBM
+typedef int SOCKET;             ///< Windows defines SOCKET, so we define it for non-Windows manually
+constexpr SOCKET INVALID_SOCKET = -1;
+#endif
 
-#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s:%d: %s"
-#define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
-
-
-// The UDPRuntimeError exception is raised when the address
-// and port combinaison cannot be resolved or if the socket cannot be
-// opened.
-
+/// @brief Exception raised by XPMP2::SocketNetworking objects
+/// @details This exception is raised when the address
+///          and port combinaison cannot be resolved or if the socket cannot be
+///          opened.
 class NetRuntimeError : public std::runtime_error
 {
 public:
-    std::string errTxt;
-    std::string fullWhat;
-    NetRuntimeError(const char *w);
+    std::string errTxt;             ///< OS text for what `errno` says, output of strerror_s()
+    std::string fullWhat;           ///< combines `w` and `errTxt`
+    NetRuntimeError(const char *w); ///< Constructor sets the above texts
+    /// Return the full message, ie. `fullWhat`
     const char* what() const noexcept override { return fullWhat.c_str(); }
 };
 
-// Base class for socket-based networking
+/// Base class for any socket-based networking
 class SocketNetworking
 {
 protected:
@@ -74,94 +67,101 @@ protected:
     size_t              bufSize         = 512;
 
 public:
-    // The address is a string and it can represent an IPv4 or IPv6 address.
+    /// Default constructor is not doing anything
     SocketNetworking() {}
-    SocketNetworking(const std::string& _addr, int _port, size_t _bufSize,
+    /// Constructor creates a socket and binds it to the given address
+    SocketNetworking(const std::string& _addr, int _port, size_t _bufSize = 512,
                      unsigned _timeOut_ms = 0, bool _bBroadcast = false);
+    /// Destructor makes sure the socket is closed
     virtual ~SocketNetworking();
 
-    // Opens the socket for listening
-    virtual void Open(const std::string& _addr, int _port, size_t _bufSize,
+    /// Creates a socket and binds it to the given local address
+    virtual void Open(const std::string& _addr, int _port, size_t _bufSize = 512,
                       unsigned _timeOut_ms = 0, bool _bBroadcast = false);
-    // Connect to a server
+    /// Creates a socket and connects it to the given remote server
     virtual void Connect(const std::string& _addr, int _port, size_t _bufSize,
                          unsigned _timeOut_ms = 0);
-    // Close the connection(s)
+    /// Thread-safely close the connection(s) and frees the buffer
     virtual void Close();
-    
+    /// Is a socket open?
     inline bool isOpen() const { return (f_socket != INVALID_SOCKET); }
-    
+    /// (Re)Sets the buffer size (or clears it if `_bufSize==0`)
     void SetBufSize (size_t _bufSize);
-    std::string GetLastErr();
+    /// Returns a human-readable text for the last error
+    static std::string GetLastErr();
     
     // attribute access
-    inline SOCKET       getSocket() const   { return f_socket; }
-    inline int          getPort() const     { return f_port; }
-    inline std::string  getAddr() const     { return f_addr; }
+    SOCKET       getSocket() const   { return f_socket; }   ///< the socket
+    int          getPort() const     { return f_port; }     ///< the port
+    std::string  getAddr() const     { return f_addr; }     ///< the interface address
 
-    // return the buffer
+    /// returna the buffer
     const char* getBuf () const  { return buf ? buf : ""; }
     
-    // receive messages
+    /// Waits to receive a message, ensures zero-termination in the buffer
     long                recv();
+    /// Waits to receive a message with timeout, ensures zero-termination in the buffer
     long                timedRecv(int max_wait_ms);
     
-    // send broadcast message
+    /// Sends a broadcast message
     bool broadcast (const char* msg);
     
-    // convert addresses to string
+    /// Convert addresses to string
     static std::string GetAddrString (const struct sockaddr* addr);
     
 protected:
-    // subclass tell which addresses to look for
+    /// Subclass to tell which addresses to look for
     virtual void GetAddrHints (struct addrinfo& hints) = 0;
 };
 
-// Receives UDP messages
 
+/// Receives UDP messages
 class UDPReceiver : public SocketNetworking
 {
 public:
-    // The address is a string and it can represent an IPv4 or IPv6 address.
+    /// Default constructor is not doing anything
     UDPReceiver() : SocketNetworking() {}
-    UDPReceiver(const std::string& _addr, int _port, size_t _bufSize,
+    /// Constructor creates a socket and binds it to the given address
+    UDPReceiver(const std::string& _addr, int _port, size_t _bufSize = 512,
                 unsigned _timeOut_ms = 0) :
         SocketNetworking(_addr,_port,_bufSize,_timeOut_ms) {}
     
 protected:
+    /// Sets flags to AI_PASSIVE, AF_INET, SOCK_DGRAM, IPPROTO_UDP
     virtual void GetAddrHints (struct addrinfo& hints);
 };
 
-// Receives TCP connections
 
+/// Listens to TCP connections and opens a session socket upon connect
 class TCPConnection : public SocketNetworking
 {
 protected:
-    SOCKET              f_session_socket = INVALID_SOCKET;
-    struct sockaddr_in  f_session_addr;
+    SOCKET              f_session_socket = INVALID_SOCKET;  ///< session socket, ie. the socket opened when a counterparty connects
+    struct sockaddr_in  f_session_addr;                     ///< address of the connecting counterparty
 #if APL == 1 || LIN == 1
-    // the self-pipe to shut down the TCP listener gracefully
+    /// the self-pipe to shut down the TCP listener gracefully
     SOCKET selfPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
 #endif
 
 public:
-    // The address is a string and it can represent an IPv4 or IPv6 address.
+    /// Default constructor is not doing anything
     TCPConnection() : SocketNetworking() {}
-    TCPConnection(const std::string& _addr, int _port, size_t _bufSize,
+    /// Constructor creates a socket and binds it to the given address
+    TCPConnection(const std::string& _addr, int _port, size_t _bufSize = 512,
                   unsigned _timeOut_ms = 0) :
         SocketNetworking(_addr,_port,_bufSize,_timeOut_ms) {}
     
-    virtual void Close();       // also close session connection
-    void CloseListenerOnly();   // only closes the listening socket, but not a session connection
+    virtual void Close();       ///< also close session connection
+    void CloseListenerOnly();   ///< only closes the listening socket, but not a connected session
 
-    // Listen for and accept connections
-    void listen (int numConnections = 1);
-    bool accept (bool bUnlisten = false);
-    bool listenAccept (int numConnections = 1);
+    void listen (int numConnections = 1);       ///< listen for incoming connections
+    bool accept (bool bUnlisten = false);       ///< accept an incoming connections, optinally stop listening
+    bool listenAccept (int numConnections = 1); ///< combines listening and accepting
     
+    /// Connected to a counterparty?
     bool IsConnected () const { return f_session_socket != INVALID_SOCKET; };
     
-    // send messages on session connection
+    /// send messages on session connection
     bool send(const char* msg);
 
 protected:

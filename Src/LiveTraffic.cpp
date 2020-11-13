@@ -578,8 +578,18 @@ PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * /*i
     if (inMsg == XPLM_MSG_RELEASE_PLANES)
     {
         char who[256] = "?";
-        XPLMGetPluginInfo(inFrom, who, NULL, NULL, NULL);
-        SHOW_MSG(logINFO, INFO_REQU_AI_RELEASE, who);
+        char signature[256] = "";
+        XPLMGetPluginInfo(inFrom, who, NULL, signature, NULL);
+        
+        // We do cease control to the XPMP2 Remote Control plugin
+        // because that one will display our traffic, too:
+        if (strncmp(signature, REMOTE_SIGNATURE, sizeof(signature)) == 0) {
+            LOG_MSG(logINFO, INFO_REQU_AI_REMOTE);
+            LTMainReleaseAIAircraft();
+            MenuUpdateAllItemStatus();
+        } else {
+            SHOW_MSG(logINFO, INFO_REQU_AI_RELEASE, who);
+        }
         return;
     }
 
