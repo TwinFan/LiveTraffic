@@ -32,13 +32,10 @@
 #else
 #include <sys/socket.h>
 #include <netdb.h>
-#endif
-#include <stdexcept>
-
-#if not IBM
 typedef int SOCKET;             ///< Windows defines SOCKET, so we define it for non-Windows manually
 constexpr SOCKET INVALID_SOCKET = -1;
 #endif
+#include <stdexcept>
 
 /// @brief Exception raised by XPMP2::SocketNetworking objects
 /// @details This exception is raised when the address

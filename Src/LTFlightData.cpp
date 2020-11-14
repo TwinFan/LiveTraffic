@@ -786,10 +786,8 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     }
     // we went one too far...so how far did we go into the deque?
     --itLast;
-    const long numPos = std::distance(posDeque.begin(), itLast);
-    
     // not far enough for any smoothing?
-    if (numPos < 2)
+    if (std::distance(posDeque.begin(), itLast) < 2)
         return;
     
     // what is the total distance travelled between first and last?
