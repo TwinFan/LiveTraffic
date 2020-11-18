@@ -209,7 +209,8 @@ public:
     
 protected:
     bool bValid                 = true;     ///< is this object valid? (Will be reset in case of exceptions)
-    bool bVisible               = true;     ///< Shall this plane be drawn at the moment?
+    bool bVisible               = true;     ///< Shall this plane be drawn at the moment and be visible to TCAS/interfaces?
+    bool bRender                = true;     ///< Shall the CSL model be drawn in 3D world? (if !bRender && bVivile then still visible on TCAS/interfaces, Remote Client uses this for local senders' planes to take over TCAS but not drawing)
     
     XPMP2::CSLModel*    pCSLMdl = nullptr;  ///< the CSL model in use
     int                 matchQuality = -1;  ///< quality of the match with the CSL model
@@ -344,6 +345,11 @@ public:
     virtual void SetVisible (bool _bVisible);
     /// Is the plane visible?
     bool IsVisible () const { return bVisible && bValid; }
+    
+    /// Switch rendering of the CSL model on or off
+    virtual void SetRender (bool _bRender);
+    /// Is this plane to be rendered?
+    bool IsRendered () const { return bRender && IsVisible(); }
     
     /// Distance to camera [m]
     float GetCameraDist () const { return camDist; }

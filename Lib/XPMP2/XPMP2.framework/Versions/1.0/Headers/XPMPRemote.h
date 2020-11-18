@@ -60,17 +60,6 @@ CSLModel* CSLModelByPkgShortId (std::uint16_t _pkgHash,
 // MARK: Network Data Definitions
 //
 
-// To ensure best network capacity usage as well as identical alignment across platform we enforce tightly packed structures.
-// The approach is very different between Visual C++ and clang / gcc, though:
-#ifdef _MSC_VER                                 // Visual C++
-#pragma pack(push,1)                            // set packing once (ie. not per struct)
-#define PACKED
-#elif defined(__clang__) || defined(__GNUC__)   // Clang (Mac XCode etc) or GNU (Linux)
-#define PACKED __attribute__ ((__packed__)) 
-#else
-#error Unhandled Compiler!
-#endif
-
 /// Message type
 enum RemoteMsgTy : std::uint8_t {
     RMT_MSG_INTEREST_BEACON = 0,    ///< beacon sent by a remote client to signal interest in data
@@ -103,11 +92,23 @@ extern const std::array<RemoteDataRefPackTy,V_COUNT> REMOTE_DR_DEF;
 // MARK: Message Header (Base)
 //
 
+// To ensure best network capacity usage as well as identical alignment across platform we enforce tightly packed structures.
+// The approach is very different between Visual C++ and clang / gcc, though:
+#ifdef _MSC_VER                                 // Visual C++
+#pragma pack(push,1)                            // set packing once (ie. not per struct)
+#define PACKED
+#elif defined(__clang__) || defined(__GNUC__)   // Clang (Mac XCode etc) or GNU (Linux)
+#define PACKED __attribute__ ((__packed__))
+#else
+#error Unhandled Compiler!
+#endif
+
 /// Message header, identical for all message types
 struct RemoteMsgBaseTy {
     RemoteMsgTy  msgTy  : 4;        ///< message type
     std::uint8_t msgVer : 4;        ///< message version
-    std::uint8_t filler1   = 0;     ///< yet unsed
+    bool         bLocalSender : 1;  ///< is the sender "local", ie. on same machine?
+    std::uint8_t filler1      : 7;  ///< yet unsed
     std::uint16_t pluginId = 0;     ///< lower 16 bit of the sending plugin's id
     std::uint32_t filler2 = 0;      ///< yet unused, fills up to size 8
     /// Constructor just sets the values
@@ -184,7 +185,8 @@ struct RemoteAcDetailTy {
     std::uint16_t   dTime;              ///< [0.0001s] time difference to previous position in 1/10000s
     bool            bValid : 1;         ///< is this object valid? (Will be reset in case of exceptions)
     bool            bVisible : 1;       ///< Shall this plane be drawn at the moment?
-    
+    bool            bRender : 1;        ///< Shall the CSL model be drawn in 3D world?
+
     std::uint8_t    filler[3];          ///< yet unused
     
     ///< Array of _packed_ dataRef values for CSL model animation
@@ -385,20 +387,20 @@ struct RemoteCBFctTy {
     /// Called in flight loop after processing last aircraft
     void (*pfAfterLastAc)() = nullptr;
     /// Callback for processing Settings messages
-    void (*pfMsgSettings) (std::uint32_t from[4],
+    void (*pfMsgSettings) (const std::uint32_t from[4],
                            const std::string& sFrom,
                            const RemoteMsgSettingsTy&) = nullptr;
     /// Callback for processing A/C Details messages
-    void (*pfMsgACDetails) (std::uint32_t from[4], size_t msgLen,
+    void (*pfMsgACDetails) (const std::uint32_t from[4], size_t msgLen,
                             const RemoteMsgAcDetailTy&) = nullptr;
     /// Callback for processing A/C Details messages
-    void (*pfMsgACPosUpdate) (std::uint32_t from[4], size_t msgLen,
+    void (*pfMsgACPosUpdate) (const std::uint32_t from[4], size_t msgLen,
                               const RemoteMsgAcPosUpdateTy&) = nullptr;
     /// Callback for processing A/C Animation dataRef messages
-    void (*pfMsgACAnim) (std::uint32_t from[4], size_t msgLen,
+    void (*pfMsgACAnim) (const std::uint32_t from[4], size_t msgLen,
                          const RemoteMsgAcAnimTy&) = nullptr;
     /// Callback for processing A/C Removal messages
-    void (*pfMsgACRemove) (std::uint32_t from[4], size_t msgLen,
+    void (*pfMsgACRemove) (const std::uint32_t from[4], size_t msgLen,
                            const RemoteMsgAcRemoveTy&) = nullptr;
 };
 
