@@ -38,6 +38,9 @@
 
 namespace XPMP2 {
 
+/// The signature of the XPMP2 Remote Client
+constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
+
 //
 // MARK: Global Helpers
 //
@@ -374,6 +377,7 @@ static_assert(sizeof(RemoteAcPosUpdateTy)   ==  20,     "RemoteAcPosUpdateTy doe
 static_assert(sizeof(RemoteMsgAcPosUpdateTy)==  28,     "RemoteMsgAcPosUpdateTy doesn't have expected size");
 static_assert(sizeof(RemoteAcAnimTy)        ==   8,     "RemoteAcAnimTy doesn't have expected size");
 static_assert(RemoteAcAnimTy::msgSize(V_COUNT) == 90,   "RemoteAcAnimTy for V_COUNT dataRefs doesn't have expected size");
+static_assert(sizeof(RemoteMsgAcAnimTy)     ==  16,     "RemoteMsgAcAnimTy doesn't have expected size");
 static_assert(sizeof(RemoteMsgAcRemoveTy)   ==  12,     "RemoteMsgAcRemoveTy doesn't have expected size");
 
 //
