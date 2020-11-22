@@ -279,14 +279,6 @@
          contextName = "TFWidget::Show(bool):TFWidgets.cpp">
       </ContextState>
       <ContextState
-         contextName = "RealTrafficConnection::ProcessRecvedTrafficData(char const*):LTRealTraffic.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "tfc">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
          contextName = "ADSBExchangeHistorical::FetchAllData(positionTy const&amp;):LTChannel.cpp">
       </ContextState>
       <ContextState
@@ -906,6 +898,9 @@
       </ContextState>
       <ContextState
          contextName = "DistResultToBaseLoc(double, double, double, double, distToLineTy const&amp;, double&amp;, double&amp;):CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "FDInfo::UpdateFrom(LTFlightData const&amp;):ACTable.cpp">
       </ContextState>
       <ContextState
          contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
