@@ -44,7 +44,8 @@ LTFlightDataChannel()
 // put together the URL to fetch based on current view position
 std::string OpenSkyConnection::GetURL (const positionTy& pos)
 {
-    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
+    // we add 10% to the bounding box to have some data ready once the plane is close enough for display
+    boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
     char url[128] = "";
     snprintf(url, sizeof(url),
              OPSKY_URL_ALL,

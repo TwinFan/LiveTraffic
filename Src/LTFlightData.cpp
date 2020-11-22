@@ -385,43 +385,21 @@ bool LTFlightData::validForAcCreate(double simTime) const
     if (std::isnan(simTime))
         simTime = dataRefs.GetSimTime();
 
-    // so we have two positions...one in the past, one in the future?
-    return
-    posDeque.front().ts() <= simTime && simTime < posDeque[1].ts();
-}
-
-// is the data outdated (considered too old to be useful)?
-bool LTFlightData::outdated (double simTime) const
-{
-    // general re-init necessary?
-    if (dataRefs.IsReInitAll())
-        return true;
-    
-    // a/c turned invalid (due to exceptions)?
-    if (pAc && !pAc->IsValid())
-        return true;
-    
-    // flown out of sight? -> outdated, remove
-    if (pAc &&
-        pAc->GetVecView().dist > dataRefs.GetFdStdDistance_m())
-        return true;
-    
-    // cover the special case of finishing landing and roll-out without live positions
-    // i.e. during approach and landing we don't destroy the aircraft
-    //      if it is approaching some runway
-    //      until it finally stopped on the runway
-    if (pAc &&
-        (pAc->GetFlightPhase() >= FPH_LANDING ||
-            (pAc->GetFlightPhase() >= FPH_APPROACH && posRwy.isNormal())) &&
-        pAc->GetFlightPhase() < FPH_STOPPED_ON_RWY)
-    {
+    // so we have two positions...
+    // if it is _not_ one in the past, one in the future, then bail
+    if (!(posDeque.front().ts() <= simTime && simTime < posDeque[1].ts()))
         return false;
-    }
+    
+    // So first pos is in the past, second in the future, great...
+    // both are within limits in terms of distance?
+    if (CoordDistance(dataRefs.GetViewPos(), posDeque.front()) > dataRefs.GetFdStdDistance_m() ||
+        CoordDistance(dataRefs.GetViewPos(), posDeque[1]     ) > dataRefs.GetFdStdDistance_m())
+        return false;
 
-    // youngestTS longer ago than allowed? -> remove
-    return
-    youngestTS + dataRefs.GetAcOutdatedIntvl() < (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime);
+    // All checks passed
+    return true;
 }
+
 
 #define ADD_LABEL(b,txt) if (b && !txt.empty()) { labelStat += txt; labelStat += ' '; }
 // update static data parts of the a/c label for reuse for performance reasons
@@ -2286,32 +2264,62 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
         if ( !lock )                // we didn't get the lock, just return w/o deletion
             return false;
         
-        // if the a/c became invalid then remove the aircraft object,
-        // but retain the remaining flight data
-        if (pAc && !pAc->IsValid())
-            DestroyAircraft();
-        
-        // if outdated just return 'delete me'
-        if ( outdated(simTime) )
-            return true;
-        
         // do we need to recalc the static part of the a/c label due to config change?
         if (dataRefs.GetLabelCfg() != labelCfg)
             UpdateStaticLabel();
         
-        // doesn't yet have an associated aircraft but two positions?
-        if ( !hasAc() && posDeque.size() >= 2 ) {
-            // is already valid for a/c creation?
-            if ( validForAcCreate(simTime) )
-                // then do create the aircraft
-                CreateAircraft(simTime);
-            else // not yet valid
-                // but the oldest position is at or before current simTime?
-                // then chances are good that we can calculate positions
-                if ( posDeque.front().ts() <= simTime)
-                    // start thread for position calculation...next time we might be valid for creation
-                    TriggerCalcNewPos(NAN);
+        // general re-init necessary?
+        if (dataRefs.IsReInitAll())
+            return true;
+
+        // Tests on an existing aircraft object
+        if (hasAc())
+        {
+            // if the a/c became invalid or has flown out of sight
+            // then remove the aircraft object,
+            // but retain the remaining flight data
+            if (!pAc->IsValid() ||
+                pAc->GetVecView().dist > dataRefs.GetFdStdDistance_m())
+                DestroyAircraft();
+            else {
+                // cover the special case of finishing landing and roll-out without live positions
+                // i.e. during approach and landing we don't destroy the aircraft
+                //      if it is approaching some runway
+                //      until it finally stopped on the runway
+                if ((pAc->GetFlightPhase() >= FPH_LANDING ||
+                        (pAc->GetFlightPhase() >= FPH_APPROACH && posRwy.isNormal())) &&
+                    pAc->GetFlightPhase() < FPH_STOPPED_ON_RWY)
+                {
+                    return false;
+                }
+            }
         }
+        // Tests when not (yet) having an aircraft object
+        else {
+            // Remove position from the beginning for as long as there is past data,
+            // i.e.: Only the .front pos may be in the past
+            while (posDeque.size() >= 2 && posDeque[1].ts() < simTime)
+                posDeque.pop_front();
+
+            // Have at least two positions?
+            if (posDeque.size() >= 2 ) {
+                // is already valid for a/c creation?
+                if ( validForAcCreate(simTime) )
+                    // then do create the aircraft
+                    CreateAircraft(simTime);
+                else // not yet valid
+                    // but the oldest position is at or before current simTime?
+                    // then chances are good that we can calculate positions
+                    if ( posDeque.front().ts() <= simTime)
+                        // start thread for position calculation...next time we might be valid for creation
+                        TriggerCalcNewPos(NAN);
+            }
+        }
+            
+        // youngestTS longer ago than allowed? -> remove the entire FD object
+        if (youngestTS + dataRefs.GetAcOutdatedIntvl() <
+            (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime))
+            return true;
         
         // don't delete me
         return false;
@@ -2390,49 +2398,50 @@ bool LTFlightData::DetermineAcModel()
 
 // checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
 /// @warning Caller must own `mapFdMutex`!
-bool LTFlightData::AcSlotAvailable (double simTime)
+bool LTFlightData::AcSlotAvailable ()
 {
     // time we had shown the "Too many a/c" warning last:
-    static double tTooManyAcMsgShown = 0.0;
+    static float tTooManyAcMsgShown = 0.0;
 
-    // Haven't reach the limit in terms of number of a/c yet?
-    if (dataRefs.GetNumAc() < dataRefs.GetMaxNumAc())
-        return true;
-    
     // Have no positions? (Need one to determine distance to camera)
     if (posDeque.empty())
         return false;
     
-    // Now we need to see if we are closer to the camera than other a/c.
-    // If so remove the farest a/c to make room for us.
-    LTFlightData* pFarestAc = nullptr;
+    // If we have too many aircraft show message (at most every 5 minutes)
+    if (dataRefs.GetNumAc() >= dataRefs.GetMaxNumAc()) {
+        if (CheckEverySoOften(tTooManyAcMsgShown, 300.0f))
+            SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
+    }
 
-    // NOTE: We can loop mapFd without lock only because we assume that
-    //       calling function owns mapFdMutex already!
-    // find the farest a/c...if it is further away than us:
-    double farestDist = CoordDistance(dataRefs.GetViewPos(), posDeque.front());
-    for (mapLTFlightDataTy::value_type& p: mapFd)
+    // As long as there are too many a/c remove the ones farest away
+    while (dataRefs.GetNumAc() >= dataRefs.GetMaxNumAc())
     {
-        LTFlightData& fd = p.second;
-        if (fd.hasAc() && fd.pAc->GetVecView().dist > farestDist) {
-            farestDist = fd.pAc->GetVecView().dist;
-            pFarestAc = &fd;
-        }
-    }
-    
-    // So we definitely have too many aircraft!
-    if (tTooManyAcMsgShown + 180.0 < simTime) {     // Show message at most every 3 minutes
-        SHOW_MSG(logWARN,MSG_TOO_MANY_AC,dataRefs.GetMaxNumAc());
-        tTooManyAcMsgShown = simTime;
-    }
+        // Now we need to see if we are closer to the camera than other a/c.
+        // If so remove the farest a/c to make room for us.
+        LTFlightData* pFarestAc = nullptr;
 
-    // If we didn't find an active a/c farther away than us then bail with message
-    if (!pFarestAc) {
-        return false;
+        // NOTE: We can loop mapFd without lock only because we assume that
+        //       calling function owns mapFdMutex already!
+        // find the farest a/c...if it is further away than us:
+        double farestDist = CoordDistance(dataRefs.GetViewPos(), posDeque.front());
+        for (mapLTFlightDataTy::value_type& p: mapFd)
+        {
+            LTFlightData& fd = p.second;
+            if (fd.hasAc() && fd.pAc->GetVecView().dist > farestDist) {
+                farestDist = fd.pAc->GetVecView().dist;
+                pFarestAc = &fd;
+            }
+        }
+    
+        // If we didn't find an active a/c farther away than us then bail
+        if (!pFarestAc)
+            return false;
+    
+        // We found the a/c farest away...remove it to make room for us!
+        pFarestAc->DestroyAircraft();
     }
     
-    // We found the a/c farest away...remove it!
-    pFarestAc->DestroyAircraft();
+    // There is a slot now - either there was already or we made room
     return true;
 }
 
@@ -2445,7 +2454,7 @@ bool LTFlightData::CreateAircraft ( double simTime )
     if ( hasAc() ) return true;
     
     // exit if too many a/c shown and this one wouldn't be one of the nearest ones
-    if (!AcSlotAvailable(simTime))
+    if (!AcSlotAvailable())
         return false;
     
     try {

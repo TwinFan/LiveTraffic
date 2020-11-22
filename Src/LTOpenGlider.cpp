@@ -141,7 +141,8 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
     // We only return a URL if we are to use the request/reply procedure
     if (bFailoverToHttp || DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL)) {
         APRSClose();                         // make sure the ARPS connection is off, will return quickly if not even running
-        boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
+        // Bounding box the size of the configured distance...plus 10% so we have data in hand once the plane comes close enough
+        boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10 );
         char url[128] = "";
         snprintf(url, sizeof(url),
                  OPGLIDER_URL,
@@ -608,7 +609,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
             dyn.gnd =               false;      // there is no GND indicator in OGN data
             dyn.heading =           std::stod(m.str(M_HEAD));
             dyn.spd =               std::stod(m.str(M_SPEED));
-            if (m.size() > M_VSI)
+            if (m.size() > M_VSI && !m.str(M_VSI).empty())
                 dyn.vsi =           std::stod(m.str(M_VSI));
             dyn.pChannel =          this;
             

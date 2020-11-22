@@ -701,10 +701,6 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         return false;
     }
     
-    // is position close enough to current pos?
-    if (posCamera.dist(pos) > dataRefs.GetFdStdDistance_m())
-        return true;                // ignore silently, no error
-    
     try {
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated

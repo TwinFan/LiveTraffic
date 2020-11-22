@@ -25,39 +25,11 @@
             </li>
             <li>
                 and, certainly,
-                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation"><b>do the setup</b></a>.
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step"><b>do the setup</b></a>,
+                which includes not only copying the plugin itself,
+                but also the installation of CSL models.
             </li>
         </ul>
-    </P>
-
-    <h2>Upgrade from v1.5 to v2.0</h2>
-
-    <P>Please follow
-        <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
-        for upgrading an existing LiveTraffic installation to version 2.0.
-    </P>
-
-    <h2>Essential Installation</h2>
-
-    <h3>LiveTraffic plugin</h3>
-
-    <P>
-        The <code>LiveTraffic</code> plugin folder is to be copied into X-Plane's
-        <code>Resources/plugins</code> folder, the same as with other plugins.
-    </P>
-
-    <h3>CSL Packages</h3>
-    <P>
-        You must install CSL packages, otherwise there will be no
-        aircraft models to display and LiveTraffic will fail to
-        start up.
-    </P>
-    <P>
-        Recommendation is the "Bluebell" OBJ8 CSL packages by Oktalist found at the
-        <a href="https://forums.x-plane.org/index.php?/files/file/37041-bluebell-obj8-csl-packages/">X-Plane.org forums</a>.
-        Follow their instructions. Also download and install the
-        <code>BB_IVAO_vert_offsets_*</code> files in the downloads as recommended
-        for the X-IvAp users. LiveTraffic can handle them, too.
     </P>
 
     <h3>Resulting Directory Structure</h3>
@@ -82,7 +54,39 @@
 
     <h1>Release Notes</h1>
 
-    <p>The number-link refers to the issue in GitHub with (often technical) details.</p>
+    <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
+    
+    <h2>v2.3</h2>
+    
+    <h3>v2.30</h3>
+
+    <P>For updating coming from v2.20
+        <ul>
+            <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>ADDED support for XPMP2 Remote Client and TCAS Concentrator (XPMP2 issues
+            <a href="https://github.com/TwinFan/XPMP2/issues/22">#22</a> and
+            <a href="https://github.com/TwinFan/XPMP2/issues/16">#16</a>):<br>
+            After installing XPMP2 Remote Client, LiveTraffic's planes are
+            synchronized across X-Plane instances in the network, e.g. supporting
+            External Visuals, Networked Multiplayer.<br>
+            Locally installed, the Remote Client combines planes from several
+            XPMP2-based clients for one combined view on TCAS.<br>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/xpmp2-remote-client">See documentation</a>
+            for more.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/201">issue #201</a>,
+            avoiding creation and immediate destruction of planes when max number
+            of configured planes is reached. Also, available tracking data is
+            kept in memory if plane is removed for whatever reason, so it is
+            faster available again when coming back in reach.</li>
+        <li>FIXED a potential crash related to unexpectedly formatted
+            Open Glider Network data.</li>
+    </ul>
     
     <h2>v2.2</h2>
     
