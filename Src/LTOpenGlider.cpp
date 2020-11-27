@@ -245,8 +245,8 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 fd.SetKey(fdKey);
             
                 // Aircraft type converted from Flarm AcftType
-                const FlarmAircraftTy acTy = (FlarmAircraftTy)clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
-                                                                         FAT_UNKNOWN, FAT_STATIC_OBJ);
+                const FlarmAircraftTy acTy = (FlarmAircraftTy)std::clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
+                                                                              FAT_UNKNOWN, FAT_STATIC_OBJ);
                 stat.catDescr   = OGNGetAcTypeName(acTy);
                 
                 // If we still have no accurate ICAO type then we need to fall back to some configured defaults

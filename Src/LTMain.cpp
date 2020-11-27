@@ -631,6 +631,9 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))
         return dataRefs.ShallCpyObjFiles();
+    // Support XPMP2 Remote Clinet?
+    if (!strcmp(key, XPMP_CFG_ITM_SUPPORT_REMOTE))
+        return dataRefs.GetRemoteSupport();
     
     // dont' know/care about the option, return the default value
     return iDefault;

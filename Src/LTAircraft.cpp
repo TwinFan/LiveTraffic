@@ -1564,8 +1564,8 @@ bool LTAircraft::CalcPPos()
         // nearly no drag, so try calculating the flight path angle and use
         // it also as pitch
         if ( vsi > mdl.VSI_STABLE ) {
-            toPitch = clamp(vsi2deg(vec.speed, vec.vsi),
-                            mdl.PITCH_MIN, mdl.PITCH_MAX);
+            toPitch = std::clamp<double>(vsi2deg(vec.speed, vec.vsi),
+                                         mdl.PITCH_MIN, mdl.PITCH_MAX);
         }
         
         // add some degrees in case flaps will be set
