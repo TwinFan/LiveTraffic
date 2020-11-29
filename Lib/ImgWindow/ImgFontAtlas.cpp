@@ -46,7 +46,7 @@ ImgFontAtlas::ImgFontAtlas():
 ImgFontAtlas::~ImgFontAtlas()
 {
     if (mTextureBound) {
-        GLuint glTexNum = mGLTextureNum;
+        GLuint glTexNum = (GLuint)mGLTextureNum;
         glDeleteTextures(1, &glTexNum);
         mTextureBound = false;
     }

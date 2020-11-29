@@ -271,7 +271,7 @@ IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
         if (v_step > 1)
             iV = (iV+(v_step/2))/v_step * v_step;
         // When entering manually [Ctrl+Click], values aren't clamped, so we take care of it
-        cfgSet(idx, clamp(iV, v_min, v_max));               // set dataRef value
+        cfgSet(idx, std::clamp<int>(iV, v_min, v_max));     // set dataRef value
         return true;
     }
     else

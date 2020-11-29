@@ -27,6 +27,7 @@
 #include "XPLMCamera.h"
 #include "XPLMMap.h"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -48,7 +49,7 @@ constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
 constexpr int M_per_NM      = 1852;     // meter per one nautical mile
 
 /// The dataRefs provided by XPMP2 to the CSL models
-enum DR_VALS {
+enum DR_VALS : std::uint8_t {
     V_CONTROLS_GEAR_RATIO = 0,                  ///< `libxplanemp/controls/gear_ratio` and \n`sim/cockpit2/tcas/targets/position/gear_deploy`
     V_CONTROLS_NWS_RATIO,                       ///< `libxplanemp/controls/nws_ratio`, the nose wheel angle, actually in degrees
     V_CONTROLS_FLAP_RATIO,                      ///< `libxplanemp/controls/flap_ratio` and \n`sim/cockpit2/tcas/targets/position/flap_ratio` and `...flap_ratio2`
@@ -208,7 +209,8 @@ public:
     
 protected:
     bool bValid                 = true;     ///< is this object valid? (Will be reset in case of exceptions)
-    bool bVisible               = true;     ///< Shall this plane be drawn at the moment?
+    bool bVisible               = true;     ///< Shall this plane be drawn at the moment and be visible to TCAS/interfaces?
+    bool bRender                = true;     ///< Shall the CSL model be drawn in 3D world? (if !bRender && bVivile then still visible on TCAS/interfaces, Remote Client uses this for local senders' planes to take over TCAS but not drawing)
     
     XPMP2::CSLModel*    pCSLMdl = nullptr;  ///< the CSL model in use
     int                 matchQuality = -1;  ///< quality of the match with the CSL model
@@ -244,20 +246,42 @@ private:
     bool bDestroyInst           = false;    ///< Instance to be destroyed in next flight loop callback?
     
 public:
-    /// Constructor creates a new aircraft object, which will be managed and displayed
+    /// @brief Constructor creates a new aircraft object, which will be managed and displayed
     /// @exception XPMP2::XPMP2Error Mode S id invalid or duplicate, no model found during model matching
     /// @param _icaoType ICAO aircraft type designator, like 'A320', 'B738', 'C172'
     /// @param _icaoAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
     /// @param _livery Special livery designator, can be an empty string
     /// @param _modeS_id (optional) **Unique** identification of the plane [0x01..0xFFFFFF], e.g. the 24bit mode S transponder code. XPMP2 assigns an arbitrary unique number of not given
-    /// @param _modelId (optional) specific model id to be used (no folder/package name, just the id as defined in the `OBJ8_AIRCRAFT` line)
+    /// @param _cslId (optional) specific unique model id to be used (package name/short id, as defined in the `OBJ8_AIRCRAFT` line)
     Aircraft (const std::string& _icaoType,
               const std::string& _icaoAirline,
               const std::string& _livery,
               XPMPPlaneID _modeS_id = 0,
-              const std::string& _modelId = "");
+              const std::string& _cslId = "");
+    /// Default constructor creates an empty, invalid(!) and invisible shell; call XPMP2::Aircraft::Create() to actually create a plane
+    Aircraft ();
     /// Destructor cleans up all resources acquired
     virtual ~Aircraft();
+    
+    /// Aircraft must not be copied as they reference non-copyable resources like XP instances
+    Aircraft (const Aircraft&) = delete;
+    /// Aircraft must not be copied as they reference non-copyable resources like XP instances
+    Aircraft& operator=(const Aircraft&) = delete;
+
+    /// @brief Creates a plane, only a valid operation if object was created using the default constructor
+    /// @exception Tried on already defined object; XPMP2::XPMP2Error Mode S id invalid or duplicate, no model found during model matching
+    /// @param _icaoType ICAO aircraft type designator, like 'A320', 'B738', 'C172'
+    /// @param _icaoAirline ICAO airline code, like 'BAW', 'DLH', can be an empty string
+    /// @param _livery Special livery designator, can be an empty string
+    /// @param _modeS_id (optional) **Unique** identification of the plane [0x01..0xFFFFFF], e.g. the 24bit mode S transponder code. XPMP2 assigns an arbitrary unique number of not given
+    /// @param _cslId (optional) specific unique model id to be used (package name/short id, as defined in the `OBJ8_AIRCRAFT` line)
+    /// @param _pCSLModel (optional) The actual model to use (no matching or search by `_cslId` if model is given this way)
+    void Create (const std::string& _icaoType,
+                 const std::string& _icaoAirline,
+                 const std::string& _livery,
+                 XPMPPlaneID _modeS_id = 0,
+                 const std::string& _cslId = "",
+                 CSLModel* _pCSLModel = nullptr);
 
     /// return the XPMP2 plane id
     XPMPPlaneID GetModeS_ID () const { return modeS_id; }
@@ -295,8 +319,12 @@ public:
     /// @return match quality, the lower the better
     int ReMatchModel () { return ChangeModel(acIcaoType,acIcaoAirline,acLivery); }
 
-    /// Assigns the given model per name, returns if successful
-    bool AssignModel (const std::string& _modelName);
+    /// @brief Assigns the given model
+    /// @param _cslId Search for this id (package/short)
+    /// @param _pCSLModel (optional) If given use this model and don't search
+    /// @return Successfuly found and assigned a model?
+    bool AssignModel (const std::string& _cslId,
+                      CSLModel* _pCSLModel = nullptr);
     /// return a pointer to the CSL model in use (Note: The CSLModel structure is not public.)
     XPMP2::CSLModel* GetModel () const { return pCSLMdl; }
     /// return the name of the CSL model in use
@@ -317,6 +345,11 @@ public:
     virtual void SetVisible (bool _bVisible);
     /// Is the plane visible?
     bool IsVisible () const { return bVisible && bValid; }
+    
+    /// Switch rendering of the CSL model on or off
+    virtual void SetRender (bool _bRender);
+    /// Is this plane to be rendered?
+    bool IsRendered () const { return bRender && IsVisible(); }
     
     /// Distance to camera [m]
     float GetCameraDist () const { return camDist; }

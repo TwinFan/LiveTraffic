@@ -243,9 +243,16 @@ std::string RealTrafficConnection::GetStatusWithTimeStr() const
     std::string s (GetStatusStr());
     if (IsConnected() && lastReceivedTime > 0.0) {
         char sIntvl[50];
+        // add when the last msg was received
         long intvl = std::lround(dataRefs.GetSimTime() - lastReceivedTime);
         snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,intvl);
         s += sIntvl;
+        // if receiving historic traffic say so
+        if (tsAdjust > 1.0) {
+            snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
+                     GetAdjustTSText().c_str());
+            s += sIntvl;
+        }
     }
     return s;
 }
@@ -303,6 +310,9 @@ bool RealTrafficConnection::StopConnections()
     // stop both TCP and UDP
     StopTcpConnection();
     StopUdpConnection();
+    
+    // Clear the list of historic time stamp differences
+    dequeTS.clear();
 
     // stopped
     SetStatus(RT_STATUS_NONE);
@@ -649,32 +659,37 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     if (numId == 0)
         return true;            // ignore silently
     
+    // RealTraffic sends bursts of data every 10s, but that doesn't necessarily
+    // mean that anything really moved. Data could be stale.
+    // So here we just completely ignore data which looks exactly like the previous datagram
+    if (IsDatagramDuplicate(numId, traffic))
+        return true;            // ignore silently
+
     // *** position time ***
-    using namespace std::chrono;
     // There are 2 possibilities:
     // 1. As of v7.0.55 RealTraffic can send a timestamp (when configured
     //    to use the "LiveTraffic" as Simulator in use, I assume)
     // 2. Before that or with other settings there is no timestamp
-    //    so we assume 'now', corrected by network time offset
+    //    so we assume 'now'
     
-    const double posTime =
+    double posTime;
     // Timestamp included?
-    (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC &&
-     tfc.size() >= RT_TFC_TIMESTAMP+1) ?
-    // use that delivered timestamp
-    std::stod(tfc[RT_TFC_TIMESTAMP]) :
-    // system time in microseconds
-    double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
-    // divided by 1000000 to create seconds with fractionals
-    / 1000000.0;
-    
-    // check for duplicate data
-    // RealTraffic sends bursts of data every 10s, but that doesn't necessarily
-    // mean that anything really moved. Data could be stale.
-    // But as data doesn't come with a timestamp we have no means of identifying it.
-    // So here we just completely ignore data which looks exactly like the previous datagram
-    if (IsDatagramDuplicate(numId, posTime, traffic))
-        return true;            // ignore silently
+    if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC && tfc.size() >= RT_TFC_TIMESTAMP+1)
+    {
+        // use that delivered timestamp and (potentially) adjust it if it is in the past
+        posTime = std::stod(tfc[RT_TFC_TIMESTAMP]);
+        AdjustTimestamp(posTime);
+    }
+    else
+    {
+        // No Timestamp provided: assume 'now'
+        using namespace std::chrono;
+        posTime =
+        // system time in microseconds
+        double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
+        // divided by 1000000 to create seconds with fractionals
+        / 1000000.0;
+    }
 
     // *** Process received data ***
 
@@ -700,10 +715,6 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
         return false;
     }
-    
-    // is position close enough to current pos?
-    if (posCamera.dist(pos) > dataRefs.GetFdStdDistance_m())
-        return true;                // ignore silently, no error
     
     try {
         // from here on access to fdMap guarded by a mutex
@@ -807,9 +818,77 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
 }
 
 
+// Determine timestamp adjustment necessairy in case of historic data
+void RealTrafficConnection::AdjustTimestamp (double& ts)
+{
+    // the assumed 'now' is simTime + buffering period
+    const double now = dataRefs.GetSimTime() + dataRefs.GetFdBufPeriod();
+    
+    // *** Keep the rolling list of timestamps diffs, max length: 11 ***
+    dequeTS.push_back(now - ts);
+    while (dequeTS.size() > 11)
+        dequeTS.pop_front();
+    
+    // *** Determine Median of timestamp differences ***
+    double medianTs;
+    if (dequeTS.size() >= 3)
+    {
+        // To find the (lower) Median while at the same time preserve the deque in its order,
+        // we do a partial sort into another array
+        std::vector<double> v((dequeTS.size()+1)/2);
+        std::partial_sort_copy(dequeTS.cbegin(), dequeTS.cend(),
+                               v.begin(), v.end());
+        medianTs = v.back();
+    }
+    // with less than 3 sample we just pick the last
+    else {
+        medianTs = dequeTS.back();
+    }
+    
+    // *** Need to change the timestamp adjustment?
+    // Priority has to change back to zero if we are half the buffering period away from "now"
+    const int halfBufPeriod = dataRefs.GetFdBufPeriod()/2;
+    if (medianTs < 0.0 ||
+        std::abs(medianTs) <= halfBufPeriod) {
+        if (tsAdjust > 0.0) {
+            tsAdjust = 0.0;
+            SHOW_MSG(logINFO, INFO_RT_REAL_TIME);
+        }
+    }
+    // ...if that median is more than half the buffering period away from current adjustment
+    else if (std::abs(medianTs - tsAdjust) > halfBufPeriod)
+    {
+        // new adjustment is that median, rounded to 10 seconds
+        tsAdjust = std::round(medianTs / 10.0) * 10.0;
+        SHOW_MSG(logINFO, INFO_RT_ADJUST_TS, GetAdjustTSText().c_str());
+    }
+
+    // Adjust the passed-in timestamp by the determined adjustment
+    ts += tsAdjust;
+}
+
+
+// Return a string describing the current timestamp adjustment
+std::string RealTrafficConnection::GetAdjustTSText () const
+{
+    char timeTxt[25];
+    if (tsAdjust < 300.0)               // less than 5 minutes: tell seconds
+        snprintf(timeTxt, sizeof(timeTxt), "%.0fs", tsAdjust);
+    else if (tsAdjust < 86400.0)        // less than 1 day
+        snprintf(timeTxt, sizeof(timeTxt), "%ld:%02ldh",
+                 long(tsAdjust/3600.0),         // hours
+                 long(tsAdjust/60.0) % 60);     // minutes
+    else
+        snprintf(timeTxt, sizeof(timeTxt), "%ldd %ld:%02ldh",
+                 long(tsAdjust/86400),          // days
+                 long(tsAdjust/3600.0) % 24,    // hours
+                 long(tsAdjust/60.0) % 60);     // minutes
+    return std::string(timeTxt);
+}
+
+
 // Is it a duplicate? (if not datagram is copied into a map)
 bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
-                                                 double posTime,
                                                  const char* datagram)
 {
     // access is guarded by a lock
@@ -819,7 +898,9 @@ bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
     auto it = mapDatagrams.find(numId);
     if (it == mapDatagrams.end()) {
         // add the datagram the first time for this plane
-        mapDatagrams.emplace(numId, RTUDPDatagramTy(posTime,datagram));
+        mapDatagrams.emplace(std::piecewise_construct,
+                             std::forward_as_tuple(numId),
+                             std::forward_as_tuple(dataRefs.GetSimTime(),datagram));
         // no duplicate
         return false;
     }
@@ -830,7 +911,7 @@ bool RealTrafficConnection::IsDatagramDuplicate (unsigned long numId,
         return true;
         
     // plane known, but data different, replace data in map
-    d.posTime = posTime;
+    d.posTime = dataRefs.GetSimTime();
     d.datagram = datagram;
     
     // no duplicate

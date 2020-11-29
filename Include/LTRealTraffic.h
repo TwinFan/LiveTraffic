@@ -47,10 +47,15 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_LAST_RCVD        " | last: %lds ago"
+#define MSG_RT_ADJUST           " | historic traffic from %s ago"
 
+#define INFO_RT_REAL_TIME       "RealTraffic: Tracking data is real-time again."
+#define INFO_RT_ADJUST_TS       "RealTraffic: Detected tracking data from %s in the past, will adjust them to display now."
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
 #define ERR_RT_WEATHER_QNH      "RealTraffic reports unreasonable QNH %ld - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
+#define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
+#define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
 
 // Traffic data format and fields
 #define RT_TRAFFIC_AITFC        "AITFC"
@@ -142,6 +147,10 @@ protected:
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     // weather, esp. current barometric pressure to correct altitude values
     std::string lastWeather;            // for duplicate detection
+    /// rolling list of timestamp (diff to now) for detecting historic sending
+    std::deque<double> dequeTS;
+    /// current timestamp adjustment
+    double tsAdjust = 0.0;
 
 public:
     RealTrafficConnection (mapLTFlightDataTy& _fdMap);
@@ -200,10 +209,14 @@ protected:
     bool ProcessRecvedTrafficData (const char* traffic);
     bool ProcessRecvedWeatherData (const char* weather);
     
+    /// Determine timestamp adjustment necessairy in case of historic data
+    void AdjustTimestamp (double& ts);
+    /// Return a string describing the current timestamp adjustment
+    std::string GetAdjustTSText () const;
+    
     // UDP datagram duplicate check
     // Is it a duplicate? (if not datagram is copied into a map)
     bool IsDatagramDuplicate (unsigned long numId,
-                              double posTime,
                               const char* datagram);
     // remove outdated entries from mapDatagrams
     void CleanupMapDatagrams();

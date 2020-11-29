@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.20f;
+constexpr float VERSION_NR = 2.30f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -151,6 +151,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define LT_FM_VERSION           "2.2"        // expected version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
+constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
 #define LT_DOWNLOAD_CH          "X-Plane.org"
 #define MSG_DISABLED            "Disabled"
@@ -175,6 +176,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define INFO_AC_REMOVED         "Removed aircraft %s"
 #define INFO_AC_ALL_REMOVED     "Removed all aircraft"
 #define INFO_REQU_AI_RELEASE    "%s requested us to release TCAS / AI control. Switch off '" MENU_HAVE_TCAS "' if you want so."
+#define INFO_REQU_AI_REMOTE     "XPMP2 Remote Client requested us to release TCAS / AI control, so we do."
 #define INFO_GOT_AI_CONTROL     LIVE_TRAFFIC " has TCAS / AI control now"
 #define INFO_RETRY_GET_AI       "Another plugin released AI control, will try again to get control..."
 #define INFO_AC_HIDDEN          "A/c %s hidden"
@@ -354,6 +356,10 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_FM_UNKNOWN_PARENT   "Parent section missing in '%s', line %d: %s"
 #define ERR_FM_REGEX            "%s in '%s', line %d: %s"
 #define ERR_FM_NOT_FOUND        "Found no flight model for ICAO %s/match-string %s: will use default"
+#define ERR_TCP_LISTENACCEPT    "%s: Error opening the TCP port on %s:%s: %s"
+#define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
+#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s:%d: %s"
+#define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
 constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while reading config file, then: dead
 
 //MARK: Debug Texts

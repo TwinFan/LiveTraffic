@@ -359,6 +359,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_COPY_OBJ_FILES,
+    DR_CFG_REMOTE_SUPPORT,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -507,7 +508,7 @@ public:
         
         // this is a bit ugly but avoids a wrapper union with an int
         inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
-        inline void SetUInt(int i) { *reinterpret_cast<unsigned*>(this) = i; }
+        inline void SetUInt(unsigned i) { *reinterpret_cast<unsigned*>(this) = i; }
         inline bool operator != (const LabelCfgTy& o) const
         { return GetUInt() != o.GetUInt(); }
     };
@@ -612,13 +613,14 @@ protected:
     int fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;     ///< how often to fetch new flight data
     int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
     int acOutdatedIntvl = DEF_AC_OUTDATED_INTVL;    ///< a/c considered outdated if latest flight data more older than this compare to 'now'
-    int netwTimeout     = 90;           // [s] of network request timeout
+    int netwTimeout     = DEF_NETW_TIMEOUT;         ///< [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
+    int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
 
     // channel config options
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
@@ -807,6 +809,7 @@ public:
     { return hideBelowAGL > 0  || hideTaxiing != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0; }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
+    int GetRemoteSupport () const { return remoteSupport; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

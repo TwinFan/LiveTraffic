@@ -141,7 +141,8 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
     // We only return a URL if we are to use the request/reply procedure
     if (bFailoverToHttp || DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL)) {
         APRSClose();                         // make sure the ARPS connection is off, will return quickly if not even running
-        boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
+        // Bounding box the size of the configured distance...plus 10% so we have data in hand once the plane comes close enough
+        boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10 );
         char url[128] = "";
         snprintf(url, sizeof(url),
                  OPGLIDER_URL,
@@ -152,7 +153,7 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
         return std::string(url);
     } else {
         // otherwise (and by default) we are to use the direct APRS connection
-        APRSStartUpdate(pos, dataRefs.GetFdStdDistance_km());
+        APRSStartUpdate(pos, (unsigned)dataRefs.GetFdStdDistance_km());
         return std::string();
     }
 }
@@ -196,7 +197,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
         
         // then this is the marker definition to work on
-        const std::string sMarker (sPos, sEnd-sPos);
+        const std::string sMarker (sPos, std::string::size_type(sEnd-sPos));
         std::vector<std::string> tok = str_tokenize(sMarker, ",", false);
         if (tok.size() != GNF_COUNT) {
             LOG_MSG(logERR, ERR_OGN_WRONG_NUM_FIELDS, sMarker.c_str());
@@ -244,8 +245,8 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 fd.SetKey(fdKey);
             
                 // Aircraft type converted from Flarm AcftType
-                const FlarmAircraftTy acTy = (FlarmAircraftTy)clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
-                                                                         FAT_UNKNOWN, FAT_STATIC_OBJ);
+                const FlarmAircraftTy acTy = (FlarmAircraftTy)std::clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
+                                                                              FAT_UNKNOWN, FAT_STATIC_OBJ);
                 stat.catDescr   = OGNGetAcTypeName(acTy);
                 
                 // If we still have no accurate ICAO type then we need to fall back to some configured defaults
@@ -608,7 +609,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
             dyn.gnd =               false;      // there is no GND indicator in OGN data
             dyn.heading =           std::stod(m.str(M_HEAD));
             dyn.spd =               std::stod(m.str(M_SPEED));
-            if (m.size() > M_VSI)
+            if (m.size() > M_VSI && !m.str(M_VSI).empty())
                 dyn.vsi =           std::stod(m.str(M_VSI));
             dyn.pChannel =          this;
             
@@ -796,7 +797,7 @@ static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEnd
     if (tok[0][0] == '#') {
         tok[0].erase(0,1);              // remove the #
         // walk the tokens and remember the column indexes per field
-        for (int i = 0; i < (int)tok.size(); i++) {
+        for (unsigned i = 0; i < (unsigned)tok.size(); i++) {
             if (tok[i] == "DEVICE_ID") ho.devIdIdx = i;
             else if (tok[i] == "DEVICE_TYPE") ho.devTypeIdx = i;
             else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
@@ -991,7 +992,7 @@ const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
     if (icaoTypes.empty()) return dataRefs.GetDefaultAcIcaoType();
     if (icaoTypes.size() == 1) return icaoTypes.front();
     // more than one type defined, take a random pick
-    const size_t i = randoml(0, long(icaoTypes.size())-1);
+    const size_t i = (size_t)randoml(0, long(icaoTypes.size())-1);
     assert(0 <= i && i < icaoTypes.size());
     return icaoTypes[i];
 }

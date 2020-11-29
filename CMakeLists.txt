@@ -239,7 +239,7 @@ endif ()
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib wldap32.lib advapi32.lib crypt32.lib)
+    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib)
 elseif (APPLE)
     # X-Plane supports OS X 10.10+, so this should ensure FlyWithLua can run on
     # all supported versions.

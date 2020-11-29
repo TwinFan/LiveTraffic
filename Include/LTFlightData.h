@@ -283,8 +283,6 @@ public:
     bool validForAcCreate( double simTime = NAN ) const;
     // a/c available for this FD?
     inline bool hasAc() const       { return pAc != nullptr; }
-    // is the data outdated (considered too old to be useful)?
-    bool outdated ( double simTime = NAN ) const;
 
     // produce a/c label
     void UpdateStaticLabel();
@@ -370,7 +368,7 @@ public:
     // access/create/destroy aircraft
     bool AircraftMaintenance ( double simTime );    // returns: delete me?
     bool DetermineAcModel ();                       ///< try interpreting model text or check for ground vehicle, last resort: default a/c type
-    bool AcSlotAvailable (double simTime);          ///< checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
+    bool AcSlotAvailable ();                        ///< checks if there is a slot available to create this a/c, tries to remove the farest a/c if too many a/c rendered
     bool CreateAircraft ( double simTime );
     void DestroyAircraft ();
     LTAircraft* GetAircraft () const { return pAc; }

@@ -262,6 +262,7 @@ constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 #define XPMP_CFG_ITM_REPLTEXTURE     "replace_texture"      ///< Config key: Replace textures in OBJ8 files upon load if needed (specified on the OBJ8 line in xsb_aircraft.txt), creating new OBJ8 files
 #define XPMP_CFG_ITM_CLAMPALL        "clamp_all_to_ground"  ///< Config key: Ensure no plane sinks below ground, no matter of XPMP2::Aircraft::bClampToGround
 #define XPMP_CFG_ITM_HANDLE_DUP_ID   "handle_dup_id"        ///< Config key: Boolean: If XPMP2::Aircraft::modeS_id already exists then assign a new unique one, overwrites XPMP2::Aircraft::modeS_id
+#define XPMP_CFG_ITM_SUPPORT_REMOTE  "support_remote"       ///< Config key: Support remote connections? `<0` force off, `0` default: on if in a networked or multiplayer setup, `>0` force on
 #define XPMP_CFG_ITM_LOGLEVEL        "log_level"            ///< Config key: General level of logging into `Log.txt` (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)
 #define XPMP_CFG_ITM_MODELMATCHING   "model_matching"       ///< Config key: Write information on model matching into `Log.txt`
 
@@ -275,6 +276,7 @@ constexpr XPMPPlaneID MAX_MODE_S_ID = 0x00FFFFFF;
 /// `models  | replace_texture     | int  |    1    | Replace textures in OBJ8 files upon load if needed (specified on the OBJ8 line in xsb_aircraft.txt), creating new OBJ8 files`\n
 /// `planes  | clamp_all_to_ground | int  |    1    | Ensure no plane sinks below ground, no matter of XPMP2::Aircraft::bClampToGround`\n
 /// `planes  | handle_dup_id       | int  |    0    | Boolean: If XPMP2::Aircraft::modeS_id already exists then assign a new unique one, overwrites XPMP2::Aircraft::modeS_id`\n
+/// `planes  | support_remote      | int  |    0    | 3-state integer: Support remote connections? <0 force off, 0 default: on if in a networked or multiplayer setup, >0 force on`\n
 /// `debug   | log_level           | int  |    2    | General level of logging into Log.txt (0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal)`\n
 /// `debug   | model_matching      | int  |    0    | Write information on model matching into Log.txt`\n
 /// @note There is no immediate requirement to check the value of `_section` in your implementation.
@@ -456,12 +458,16 @@ bool            XPMPIsICAOValid(const char *                inICAO);
 ///          in your XPMP2::Aircraft::UpdatePosition() implementation.
 /// @return  The functions returns the array index you need to use in the
 ///          XPMP2::Aircraft::v array to provide the actual value.
-///          Or `0` when the function was called while planes are active.
+///          Or `0` when an error occured.
 /// @note There is a duplication check: Adding an already existing dataRef,
 ///       no matter if XPMP2-predefined or by the plugin will return the
 ///       already existing index.
 /// @note Can only be called while no plane exists as it influence the size
 ///       of important data arrays. Returns `0` if called while planes exist.
+/// @note Can only be called from XP's main thread as XPLM SDK functions are called.
+///       Returns `0` if called from a worker thread.
+/// @note User-defined dataRefs are _not_ transfered to the XPMP2 Remote Client
+///       for display on network-connected X-Plane instances.
 size_t XPMPAddModelDataRef (const std::string& dataRef);
 
 /************************************************************************************

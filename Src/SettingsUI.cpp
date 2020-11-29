@@ -175,7 +175,8 @@ void LTSettingsUI::buildInterface()
             ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
             
             // auto-open and warning if any of these values are set as they limit what's shown
-            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive();
+            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive() ||
+                                       dataRefs.GetRemoteSupport() < 0;
             if (bSomeRestrict)
                 ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
             if (ImGui::TreeNodeLinkHelp("Cooperation", nCol,
@@ -190,6 +191,14 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
                 ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
+                if (ImGui::FilteredLabel("XPMP2 Remote Client support", sFilter)) {
+                    const float cbWidth = ImGui::CalcTextSize("Auto Detect (default)_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = 1 - std::clamp<int>(dataRefs.GetRemoteSupport(),-1,1);  // this turns the order around: 0 - on, 1 - Auto, 2 - Off
+                    if (ImGui::Combo("##RemoteSupport", &n, "Always On\0Auto Detect (default)\0Off\0", 5))
+                        DATA_REFS_LT[DR_CFG_REMOTE_SUPPORT].setData(1-n);
+                    ImGui::TableNextCell();
+                }
 
                 if (!*sFilter) ImGui::TreePop();
             }
@@ -698,7 +707,7 @@ void LTSettingsUI::buildInterface()
                 DataRefs::vecCSLPaths& vec = dataRefs.GetCSLPaths();
                 for (int i = 0; (size_t)i < vec.size(); ++i)
                 {
-                    DataRefs::CSLPathCfgTy& pathCfg = vec[i];
+                    DataRefs::CSLPathCfgTy& pathCfg = vec[size_t(i)];
                     ImGui::PushID(pathCfg.getPath().c_str());
                     
                     // Enable Checkbox / Load Button
