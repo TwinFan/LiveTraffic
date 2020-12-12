@@ -29,7 +29,7 @@
 
 #include <string>
 #include "XPLMScenery.h"
-#include "XPCAircraft.h"
+#include "XPMPAircraft.h"
 #include "CoordCalc.h"
 #include "LTFlightData.h"
 
@@ -203,7 +203,7 @@ public:
 //      Represents an aircraft as displayed in XP by use of the
 //      XP Multiplayer Lib
 //
-class LTAircraft : public XPCAircraft
+class LTAircraft : public XPMP2::Aircraft
 {
 public:
     class FlightModel {
@@ -282,9 +282,6 @@ public:
     // as basis for calculating ppos per frame
     dequePositionTy      posList;
     
-    XPMPPlaneSurfaces_t surfaces;
-    XPMPPlaneRadar_t    radar;
-    char                szLabelAc[sizeof(XPMPPlanePosition_t::label)];  // label at the a/c
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
     // this is "ppos", the present simulated position,
@@ -330,8 +327,6 @@ protected:
     // visibility
     bool                bSetVisible = true;     // manually set visible?
     bool                bAutoVisible = true;    // visibility handled automatically?
-    int                 aiPrio = 0;     ///< prio for AI slotting (libxplanemp)
-    int                 multiIdx = 0;   ///< plane's multiplayer index if reported via sim/multiplayer/position dataRefs, 0 otherwise
     
     /// Nearest airport
     std::string nearestAirport;
@@ -340,16 +335,14 @@ protected:
 
 public:
     LTAircraft(LTFlightData& fd);
-    virtual ~LTAircraft();
+    ~LTAircraft() override;
     
     // key for maps
     inline const std::string& key() const { return fd.key().key; }
-    // labels to pin to aircraft on the screes
-    inline const std::string label() const { return szLabelAc; }
     void LabelUpdate();
     /// @brief Return a value for dataRef .../tcas/target/flight_id
     /// @returns "Any Id"
-    virtual std::string GetFlightId() const;
+    std::string GetFlightId() const override;
     // stringify e.g. for debugging info purposes
     operator std::string() const;
     // current position
@@ -397,7 +390,7 @@ public:
     inline void SetSendNewInfoData () { bSendNewInfoData = true; }
     // Visibility
     inline bool IsAutoVisible() const { return bAutoVisible; }
-    virtual void SetVisible (bool _bVisible);   // define visibility, overrides auto
+    void SetVisible (bool _bVisible) override;  // define visibility, overrides auto
     bool SetAutoVisible (bool b);       // returns bVisible after auto setting
     // external camera view
     void ToggleCameraView();             // start an external view on this a/c
@@ -443,11 +436,8 @@ protected:
         void *              inRefcon);
 
 protected:
-    // XPMP Aircraft Updates (callbacks)
-    virtual XPMPPlaneCallbackResult GetPlanePosition(XPMPPlanePosition_t* outPosition);
-    virtual XPMPPlaneCallbackResult GetPlaneSurfaces(XPMPPlaneSurfaces_t* outSurfaces);
-    virtual XPMPPlaneCallbackResult GetPlaneRadar(XPMPPlaneRadar_t* outRadar);
-    virtual XPMPPlaneCallbackResult GetInfoTexts(XPMPInfoTexts_t * outInfoTexts);
+    /// XPMP Aircraft Updates
+    void UpdatePosition (float, int cycle) override;
 };
 
 #endif /* LTAircraft_h */

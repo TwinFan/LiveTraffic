@@ -61,7 +61,7 @@
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
 		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
 		2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = aircraftDatabase.csv; sourceTree = "<group>"; };
-		254813772582DA6100DA9588 /* notarize_LiveTraffic.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = notarize_LiveTraffic.sh; sourceTree = "<group>"; };
+		254813772582DA6100DA9588 /* notarize.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = notarize.sh; sourceTree = "<group>"; };
 		254F278724EF22FE00CACCDA /* LTWeather.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTWeather.h; sourceTree = "<group>"; };
 		254F278824EF230400CACCDA /* LTWeather.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTWeather.cpp; sourceTree = "<group>"; };
 		2558579320950C6700816F65 /* CoordCalc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CoordCalc.cpp; sourceTree = "<group>"; };
@@ -427,7 +427,7 @@
 			isa = PBXGroup;
 			children = (
 				256CA1D2248C6137009F4AAE /* build_LiveTraffic */,
-				254813772582DA6100DA9588 /* notarize_LiveTraffic.sh */,
+				254813772582DA6100DA9588 /* notarize.sh */,
 				25DC1E2A21B72922008D0F8B /* Data */,
 				2591F9692197008C00F0D436 /* Src */,
 			);
@@ -541,7 +541,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1210;
+				LastUpgradeCheck = 1220;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";

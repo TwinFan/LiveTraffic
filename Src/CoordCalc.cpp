@@ -349,24 +349,6 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     return normalize();
 }
 
-// conversion to XPMP's type is quite straight-forward
-inline double nanToZero (double d)
-{ return std::isnan(d) ? 0.0 : d; }
-
-positionTy::operator XPMPPlanePosition_t() const
-{
-    return XPMPPlanePosition_t {
-        sizeof(XPMPPlanePosition_t),
-        lat(),lon(),alt_ft(),
-        float(nanToZero(pitch())),
-        float(nanToZero(roll())),
-        float(nanToZero(heading())),
-        "",              // can't compute label here!
-        // make sure vertical offset is applied, AI prio 0, and standard color yellow
-        1.0f, true, 0, {1, 1, 0, 1}
-    };
-}
-
 const char* positionTy::GrndE2String (onGrndE grnd)
 {
     switch (grnd) {

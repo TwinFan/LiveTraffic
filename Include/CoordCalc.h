@@ -360,9 +360,6 @@ public:
         v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll},
         f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE,false}
     {}
-    positionTy(const XPMPPlanePosition_t& x) :
-        positionTy (x.lat, x.lon, x.elevation * M_per_FT,
-                    NAN, x.heading, x.pitch, x.roll) {}
     positionTy ( const XPLMProbeInfo_t& probe ) :
         positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { f.unitCoord=UNIT_LOCAL; }
     positionTy ( const ptTy& _pt) :
@@ -373,8 +370,6 @@ public:
     
     // typecase to ptTy
     operator ptTy() const { return ptTy(lon(),lat()); }
-    // typecast to what XPMP API needs
-    operator XPMPPlanePosition_t() const;
     // standard string for any output purposes
     static const char* GrndE2String (onGrndE grnd);
     std::string dbgTxt() const;

@@ -1115,10 +1115,10 @@ int DataRefs::LTGetAcInfoI(void* p)
         case DR_AC_KEY: return (int)dataRefs.pAc->fd.key().num;
         case DR_AC_ON_GND: return dataRefs.pAc->IsOnGrnd();
         case DR_AC_PHASE: return dataRefs.pAc->GetFlightPhase();
-        case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->surfaces.lights.bcnLights;
-        case DR_AC_LIGHTS_STROBE: return dataRefs.pAc->surfaces.lights.strbLights;
-        case DR_AC_LIGHTS_NAV: return dataRefs.pAc->surfaces.lights.navLights;
-        case DR_AC_LIGHTS_LANDING: return dataRefs.pAc->surfaces.lights.landLights;
+        case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->GetLightsBeacon();
+        case DR_AC_LIGHTS_STROBE: return dataRefs.pAc->GetLightsStrobe();
+        case DR_AC_LIGHTS_NAV: return dataRefs.pAc->GetLightsNav();
+        case DR_AC_LIGHTS_LANDING: return dataRefs.pAc->GetLightsLanding();
         default:
             LOG_ASSERT(false);              // not allowed...we should handle all value types!
             return 0;
