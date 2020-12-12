@@ -59,6 +59,16 @@ std::uint16_t PJWHash16 (const char *s);
 CSLModel* CSLModelByPkgShortId (std::uint16_t _pkgHash,
                                 const std::string& _shortId);
 
+/// @brief Clamps `v` between `lo` and `hi`: `lo` if `v` < `lo`, `hi` if `hi` < `v`, otherwise `v`
+/// @see C++17, https://en.cppreference.com/w/cpp/algorithm/clamp
+/// @note Reimplemented here because Docker clang environment doesn't include it
+template<class T>
+constexpr const T& clamp( const T& v, const T& lo, const T& hi )
+{
+    assert( !(hi < lo) );
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
+
 //
 // MARK: Network Data Definitions
 //
@@ -83,7 +93,7 @@ struct RemoteDataRefPackTy {
     RemoteDataRefPackTy (float _min, float _max) : minV(_min), range(_max - _min) { assert(range != 0.0f); }
     
     /// pack afloat value to integer
-    std::uint8_t pack (float f) const   { return std::uint8_t(std::clamp<float>(f-minV,0.0f,range) * UINT8_MAX / range); }
+    std::uint8_t pack (float f) const   { return std::uint8_t(clamp<float>(f-minV,0.0f,range) * UINT8_MAX / range); }
     /// unpack an integer value to float
     float unpack (std::uint8_t i) const { return minV + range*float(i)/255.0f; }
 };
