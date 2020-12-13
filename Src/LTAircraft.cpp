@@ -2314,6 +2314,7 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
     pOut->bits.strb = GetLightsStrobe();
     pOut->bits.nav  = GetLightsNav();
     pOut->bits.filler1 = 0;
+    pOut->bits.camera = IsInCameraView();
     pOut->bits.multiIdx = tcasTargetIdx;
     pOut->bits.filler2 = 0;
     pOut->bits.filler3 = 0;

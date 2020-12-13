@@ -117,7 +117,8 @@ public:
             bool        bcn        : 1;     ///< beacon light
             bool        strb       : 1;     ///< strobe light
             bool        nav        : 1;     ///< navigaton lights
-            unsigned    filler1    : 2;     ///< unused, fills up to byte alignment
+            unsigned    filler1    : 1;     ///< unused
+            bool        camera     : 1;     ///< is LiveTraffic's camera on this aircraft?
             // Misc
             int         multiIdx    : 8;    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
             // Filler for 8-byte alignment
@@ -254,6 +255,7 @@ public:
     float           getGear()           const { return bulk.gear; }             ///< gear position: 0.0 retracted, 1.0 fully extended
     float           getReversers()      const { return bulk.reversers; }        ///< reversers position: 0.0 closed, 1.0 fully opened
     LTLights        getLights()         const { return bulk.bits; }             ///< all plane's lights
+    bool            isOnCamera()        const { return bulk.bits.camera; }      ///< is currently seen on LiveTraffic's internal camera view?
     // simulation
     float           getBearing()        const { return bulk.bearing; }          ///< [°] to current camera position
     float           getDistNm()         const { return bulk.dist_nm; }          ///< [nm] distance to current camera
@@ -411,6 +413,10 @@ public:
     /// @param multiIdx The multiplayer index to look for
     /// @return Pointer to aircraft in slot `multiIdx`, is empty if not found
     SPtrLTAPIAircraft getAcByMultIdx (int multiIdx) const;
+
+    /// @brief Returns the aircraft being viewed in LiveTraffic's camera view, if any
+    /// @return Pointer to aircraft in camera view, is empty if none is being viewed
+    SPtrLTAPIAircraft getAcInCameraView () const;
     
 protected:
     /// @brief fetch bulk data and create/update aircraft objects
