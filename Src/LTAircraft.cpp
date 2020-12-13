@@ -2359,9 +2359,13 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
     STRCPY_ATMOST(pOut->destination,    stat.destAp);
     STRCPY_ATMOST(pOut->trackedBy,      dyn.pChannel ? dyn.pChannel->ChName() : "-");
     
-    // v1.22 additions
-    if (size >= LTAPIBulkInfoTexts_v122) {
-        STRCPY_ATMOST(pOut->cslModel,   GetModelName());
+    // v2.40 additions (cslModel field extended to 40 chars)
+    if (size >= LTAPIBulkInfoTexts_v240) {
+        STRCPY_ATMOST(pOut->cslModel, GetModelName());
+    }
+    // v1.22 additions (cslModel field had 24 chars only)
+    else if (size >= LTAPIBulkInfoTexts_v122) {
+        strncpy_s(pOut->cslModel, 24, GetModelName().c_str(), 23);
     }
 }
 

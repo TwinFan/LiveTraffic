@@ -1,28 +1,31 @@
-//
-//  LiveTraffic API
-//
-
-/*
- * Copyright (c) 2019, Birger Hoppe
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+/// @file       LTAPI.h
+/// @brief      LiveTraffic API
+/// @details    API to access LiveTraffic's aircraft information.
+///             Data transfer from LiveTraffic to your plugin is by dataRefs
+///             in a fast, efficient way:
+///             LiveTraffic copies data of several planes combined into
+///             defined structures. LTAPI handles all that in the background
+///             and provides you with an array of aircraft information with
+///             numerical info like position, heading, speed and
+///             textual info like type, registration, call sign, flight number.
+/// @see        https://twinfan.github.io/LTAPI/
+/// @author     Birger Hoppe
+/// @copyright  (c) 2019-2020 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
 
 #ifndef LTAPI_h
 #define LTAPI_h
@@ -157,8 +160,8 @@ public:
         char            destination[8];     ///< destination airport (IATA or ICAO) like "FRA" or "EDDF"
         char            trackedBy[24];      ///< name of channel deliverying the underlying tracking data
 
-        // V1.22 additions
-        char            cslModel[24];       ///< name of CSL model used for actual rendering of plane
+        // V1.22 additions, in V2.40 extended from 24 to 40 chars
+        char            cslModel[40];       ///< name of CSL model used for actual rendering of plane
 
         /// Constructor initializes all data with zeroes
         LTAPIBulkInfoTexts()
@@ -347,7 +350,26 @@ public:
     
     /// Is LiveTraffic available? (checks via XPLMFindPluginBySignature)
     static bool isLTAvail ();
-    
+
+    /// @brief LiveTraffic's version number
+    /// @details Version number became available with v2.01 only. This is why 150 is returned in case
+    ///          LiveTraffic is available, but not the dataRef to fetch the number from.
+    /// @note    Calling this function from your XPluginStart or XPluginEnable is not guaranteed
+    ///          to return proper results. Call from a flight loop callback,
+    ///          e.g. create a one-time late-init flight loop callback function for this purpose.
+    ///          LTAPIExample.cpp demonstrates this.\n
+    ///          Depending on startup order, LiveTraffic might or might not have been started yet.
+    ///          This note is basically true for all requests accessing LiveTraffic data.
+    ///          It is noted here only because it is tempting to fetch the version number once only during startup.
+    /// @return Version (like 201 for v2.01), or constant 150 if unknown, or 0 if LiveTraffic is unavailable
+    static int getLTVerNr();
+
+    /// @brief LiveTraffic's version date
+    /// @details Version date became available with v2.01 only. This is why 20191231 is returned in case
+    ///          LiveTraffic is available, but not the dataRef to fetch the date from.
+    /// @return Version date (like 20200430 for 30-APR-2020), or constant 20191231 if unknown, or 0 if LiveTraffic is unavailable
+    static int getLTVerDate();
+
     /// @brief Does LiveTraffic display aircrafts? (Is it activated?)
     ///
     /// This is the only function which checks again and again if LiveTraffic's
@@ -467,9 +489,10 @@ constexpr size_t LTAPIBulkData_v120 = 80;
 /// Size of current bulk structure
 constexpr size_t LTAPIBulkData_v122 = sizeof(LTAPIAircraft::LTAPIBulkData);
 
-/// Size of original bulk info structure as per LiveTraffic v1.20
+/// Size of original bulk info structure as per previous versions of LiveTraffic
 constexpr size_t LTAPIBulkInfoTexts_v120 = 264;
+constexpr size_t LTAPIBulkInfoTexts_v122 = 288;
 /// Size of current bulk info structure
-constexpr size_t LTAPIBulkInfoTexts_v122 = sizeof(LTAPIAircraft::LTAPIBulkInfoTexts);
+constexpr size_t LTAPIBulkInfoTexts_v240 = sizeof(LTAPIAircraft::LTAPIBulkInfoTexts);
 
 #endif /* LTAPI_h */
