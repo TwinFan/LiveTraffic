@@ -320,6 +320,9 @@ enum dataRefsLT {
     
     DR_SIM_DATE,
     DR_SIM_TIME,
+    
+    DR_CAMERA_TCAS_IDX,             ///< If LiveTraffic's camera is on, then on which aircraft? Here: TCAS index
+    DR_CAMERA_AC_ID,                ///< If LiveTraffic's camera is on, then on which aircraft? Here: aircraft id (usually ICAO hex code)
 
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
@@ -739,6 +742,8 @@ public:
     static void LTSetAcKey(void*p, int i);
     static int LTGetAcInfoI(void* p);
     static float LTGetAcInfoF(void* p);
+    
+    static int LTGetCameraAc(void* p);  ///< return info about which a/c is on camera view
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }

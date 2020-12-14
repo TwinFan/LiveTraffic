@@ -439,6 +439,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)1, false },
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, DataRefs::LTSetSimDateTime, (void*)2, false },
 
+    {"livetraffic/camera/tcas_idx",                 DataRefs::LTGetCameraAc, NULL,                   (void*)DR_CAMERA_TCAS_IDX, false },
+    {"livetraffic/camera/ac_id",                    DataRefs::LTGetCameraAc, NULL,                   (void*)DR_CAMERA_AC_ID, false },
+
     {"livetraffic/ver/nr",                          GetLTVerNum,  NULL, NULL, false },
     {"livetraffic/ver/date",                        GetLTVerDate, NULL, NULL, false },
     
@@ -1149,6 +1152,22 @@ float DataRefs::LTGetAcInfoF(void* p)
             LOG_ASSERT(false);              // not allowed...we should handle all value types!
             return 0.0;
     }
+}
+
+// return info about which a/c is on camera view
+int DataRefs::LTGetCameraAc(void* p)
+{
+    // which kind of info to return? (TCAS idx or aircraft id)
+    const dataRefsLT whichInfo = (dataRefsLT)reinterpret_cast<long long>(p);
+    
+    // Which a/c is being shown in camera view?
+    const LTAircraft* pCamAc = LTAircraft::GetCameraAc();
+    if (!pCamAc)
+        return 0;                               // none -> 0
+    else if (whichInfo == DR_CAMERA_TCAS_IDX)
+        return pCamAc->GetTcasTargetIdx();      // TCAS idx, -1 if not on TCAS
+    else
+        return (int)pCamAc->fd.key().num;       // numeric key...whatever it happens to be
 }
 
 //

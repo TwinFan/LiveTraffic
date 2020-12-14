@@ -397,6 +397,7 @@ public:
     void CalcCameraViewPos();
     inline bool IsInCameraView() const { return pExtViewAc == this; }
     static bool IsCameraViewOn() { return pExtViewAc != NULL; }
+    static LTAircraft* GetCameraAc() { return pExtViewAc; }
 
 protected:
     void CalcLabelInternal (const LTFlightData::FDStaticData& statDat);
