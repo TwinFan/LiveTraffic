@@ -2482,6 +2482,7 @@ LTAircraft* LTAircraft::pExtViewAc = nullptr;
 positionTy  LTAircraft::posExt;
 XPViewTypes LTAircraft::prevView = VIEW_UNKNOWN;
 XPLMCameraPosition_t  LTAircraft::extOffs;
+float       LTAircraft::tsExtViewStart = NAN;
 
 // start an outside camery view
 void LTAircraft::ToggleCameraView()
@@ -2494,34 +2495,42 @@ void LTAircraft::ToggleCameraView()
     // starting a new external view?
     if (!pExtViewAc) {
         pExtViewAc = this;                          // remember ourself as the aircraft to show        
-        CalcCameraViewPos();                        // calc first position
-        
-        // we shall ensure to set an external view first,
-        // so that sound and 2D stuff is handled correctly
-        if (!dataRefs.IsViewExternal()) {
-            prevView = dataRefs.GetViewType();
-            dataRefs.SetViewType(VIEW_FREE_CAM);
+        tsExtViewStart = dataRefs.GetMiscNetwTime();
+        if (!dataRefs.ShallUseExternalCamera()) {
+            CalcCameraViewPos();                    // calc first position
+
+            // we shall ensure to set an external view first,
+            // so that sound and 2D stuff is handled correctly
+            if (!dataRefs.IsViewExternal()) {
+                prevView = dataRefs.GetViewType();
+                dataRefs.SetViewType(VIEW_FREE_CAM);
+            }
+            else
+                prevView = VIEW_UNKNOWN;
+
+            XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, nullptr);
+            CameraRegisterCommands(true);
         }
-        else
-            prevView = VIEW_UNKNOWN;
-        
-        XPLMControlCamera(xplm_ControlCameraUntilViewChanges, CameraCB, nullptr);
-        CameraRegisterCommands(true);
     }
     else if (pExtViewAc == this) {      // me again? -> switch off
         pExtViewAc = nullptr;
-        CameraRegisterCommands(false);
-        XPLMDontControlCamera();
-        
-        // if a previous view is known we make sure we go back there
-        if (prevView) {
-            dataRefs.SetViewType(prevView);
-            prevView = VIEW_UNKNOWN;
+        tsExtViewStart = NAN;
+        if (!dataRefs.ShallUseExternalCamera()) {
+            CameraRegisterCommands(false);
+            XPLMDontControlCamera();
+
+            // if a previous view is known we make sure we go back there
+            if (prevView) {
+                dataRefs.SetViewType(prevView);
+                prevView = VIEW_UNKNOWN;
+            }
         }
     }
     else {                              // view another plane
         pExtViewAc = this;
-        CalcCameraViewPos();
+        tsExtViewStart = dataRefs.GetMiscNetwTime();
+        if (!dataRefs.ShallUseExternalCamera())
+            CalcCameraViewPos();
     }
     
 }
@@ -2530,17 +2539,27 @@ void LTAircraft::ToggleCameraView()
 void LTAircraft::CalcCameraViewPos()
 {
     if (IsInCameraView()) {
-        posExt = ppos;
-        
-        // move position back along the longitudinal axes
-        posExt += vectorTy (GetHeading(), mdl.EXT_CAMERA_LON_OFS + extOffs.x);
-        // move position a bit to the side
-        posExt += vectorTy (GetHeading()+90, mdl.EXT_CAMERA_LAT_OFS + extOffs.z);
-        // and move a bit up
-        posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS + extOffs.y;
+        if (dataRefs.ShallUseExternalCamera()) {
+            // We cannot know when the 3rd party plugin stops viewing the plane...
+            // so we just let go after 10s.
+            if (!std::isnan(tsExtViewStart) &&
+                tsExtViewStart + 10.0f <= dataRefs.GetMiscNetwTime())
+            {
+                ToggleCameraView();
+            }
+        } else {
+            posExt = ppos;
 
-        // convert to local
-        posExt.WorldToLocal();
+            // move position back along the longitudinal axes
+            posExt += vectorTy(GetHeading(), mdl.EXT_CAMERA_LON_OFS + extOffs.x);
+            // move position a bit to the side
+            posExt += vectorTy(GetHeading() + 90, mdl.EXT_CAMERA_LAT_OFS + extOffs.z);
+            // and move a bit up
+            posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS + extOffs.y;
+
+            // convert to local
+            posExt.WorldToLocal();
+        }
     }
 }
 

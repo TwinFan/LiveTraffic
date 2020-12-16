@@ -176,12 +176,12 @@ void LTSettingsUI::buildInterface()
             
             // auto-open and warning if any of these values are set as they limit what's shown
             const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive() ||
-                                       dataRefs.GetRemoteSupport() < 0;
+                                       dataRefs.ShallUseExternalCamera() || dataRefs.GetRemoteSupport() < 0;
             if (bSomeRestrict)
                 ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
             if (ImGui::TreeNodeLinkHelp("Cooperation", nCol,
                                         bSomeRestrict ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
-                                        "Some options are active, restricting displayed traffic or TCAS!",
+                                        "Some options are active, restricting displayed traffic, TCAS, or functionality!",
                                         HELP_SET_BASICS, "Open Help on Basics in Browser",
                                         sFilter, nOpCl, ImGuiTreeNodeFlags_SpanFullWidth))
             {
@@ -191,6 +191,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
                 ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
+                ImGui::FilteredCfgCheckbox("Use 3rd party camera", sFilter, DR_CFG_EXTERNAL_CAMERA, "Don't activate LiveTraffic's camera view when clicking the camera button\nbut expect a 3rd party camera plugin to spring on instead");
                 if (ImGui::FilteredLabel("XPMP2 Remote Client support", sFilter)) {
                     const float cbWidth = ImGui::CalcTextSize("Auto Detect (default)_____").x;
                     ImGui::SetNextItemWidth(cbWidth);

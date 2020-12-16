@@ -481,6 +481,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -550,6 +551,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
         case DR_CFG_REMOTE_SUPPORT:         return &remoteSupport;
+        case DR_CFG_EXTERNAL_CAMERA:        return &bUseExternalCamera;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options

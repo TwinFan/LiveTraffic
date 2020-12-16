@@ -423,6 +423,7 @@ protected:
     static positionTy   posExt;                 // external camera position
     static XPViewTypes  prevView;               // View before activating camera
     static XPLMCameraPosition_t extOffs;        // Camera offset from initial tail position
+    static float        tsExtViewStart;         ///< Network time stamp when camera view started in case using a 3rd party camera plugin
 
     // callback for external camera view
     static int CameraCB (XPLMCameraPosition_t* outCameraPosition,    /* Can be NULL */

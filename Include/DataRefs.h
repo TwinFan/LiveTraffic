@@ -363,6 +363,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_COPY_OBJ_FILES,
     DR_CFG_REMOTE_SUPPORT,
+    DR_CFG_EXTERNAL_CAMERA,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -624,6 +625,7 @@ protected:
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
+    bool bUseExternalCamera  = false;   ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
     // channel config options
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
@@ -815,6 +817,7 @@ public:
              hideNearbyGnd > 0 || hideNearbyAir > 0; }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
     int GetRemoteSupport () const { return remoteSupport; }
+    bool ShallUseExternalCamera () const { return bUseExternalCamera; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();
