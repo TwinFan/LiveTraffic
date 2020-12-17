@@ -307,6 +307,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
 #define ERR_NO_AC_TYPE          "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, can't derive type -> will be rendered with standard a/c %s"
 #define ERR_NO_AC_TYPE_BUT_MDL  "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, but derived %s from mdl text"
+#define ERR_SHARED_DATAREF      "Could not created shared dataRef for livetraffic/camera/..., 3rd party camera plugins will not be able to take over camera view automatically"
 #define ERR_DATAREF_FIND        "Could not find DataRef/CmdRef: %s"
 #define ERR_DATAREF_ACCESSOR    "Could not register accessor for DataRef: %s"
 #define ERR_CREATE_COMMAND      "Could not create command %s"

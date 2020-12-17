@@ -2482,7 +2482,6 @@ LTAircraft* LTAircraft::pExtViewAc = nullptr;
 positionTy  LTAircraft::posExt;
 XPViewTypes LTAircraft::prevView = VIEW_UNKNOWN;
 XPLMCameraPosition_t  LTAircraft::extOffs;
-float       LTAircraft::tsExtViewStart = NAN;
 
 // start an outside camery view
 void LTAircraft::ToggleCameraView()
@@ -2494,8 +2493,7 @@ void LTAircraft::ToggleCameraView()
 
     // starting a new external view?
     if (!pExtViewAc) {
-        pExtViewAc = this;                          // remember ourself as the aircraft to show        
-        tsExtViewStart = dataRefs.GetMiscNetwTime();
+        pExtViewAc = this;                          // remember ourself as the aircraft to show
         if (!dataRefs.ShallUseExternalCamera()) {
             CalcCameraViewPos();                    // calc first position
 
@@ -2514,7 +2512,6 @@ void LTAircraft::ToggleCameraView()
     }
     else if (pExtViewAc == this) {      // me again? -> switch off
         pExtViewAc = nullptr;
-        tsExtViewStart = NAN;
         if (!dataRefs.ShallUseExternalCamera()) {
             CameraRegisterCommands(false);
             XPLMDontControlCamera();
@@ -2528,38 +2525,28 @@ void LTAircraft::ToggleCameraView()
     }
     else {                              // view another plane
         pExtViewAc = this;
-        tsExtViewStart = dataRefs.GetMiscNetwTime();
-        if (!dataRefs.ShallUseExternalCamera())
-            CalcCameraViewPos();
+        CalcCameraViewPos();
     }
     
+    // Inform 3rd party camera plugins
+    dataRefs.SetCameraAc(pExtViewAc);
 }
 
 // calculate the correct external camera position
 void LTAircraft::CalcCameraViewPos()
 {
-    if (IsInCameraView()) {
-        if (dataRefs.ShallUseExternalCamera()) {
-            // We cannot know when the 3rd party plugin stops viewing the plane...
-            // so we just let go after 10s.
-            if (!std::isnan(tsExtViewStart) &&
-                tsExtViewStart + 10.0f <= dataRefs.GetMiscNetwTime())
-            {
-                ToggleCameraView();
-            }
-        } else {
-            posExt = ppos;
+    if (IsInCameraView() && !dataRefs.ShallUseExternalCamera()) {
+        posExt = ppos;
 
-            // move position back along the longitudinal axes
-            posExt += vectorTy(GetHeading(), mdl.EXT_CAMERA_LON_OFS + extOffs.x);
-            // move position a bit to the side
-            posExt += vectorTy(GetHeading() + 90, mdl.EXT_CAMERA_LAT_OFS + extOffs.z);
-            // and move a bit up
-            posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS + extOffs.y;
+        // move position back along the longitudinal axes
+        posExt += vectorTy(GetHeading(), mdl.EXT_CAMERA_LON_OFS + extOffs.x);
+        // move position a bit to the side
+        posExt += vectorTy(GetHeading() + 90, mdl.EXT_CAMERA_LAT_OFS + extOffs.z);
+        // and move a bit up
+        posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS + extOffs.y;
 
-            // convert to local
-            posExt.WorldToLocal();
-        }
+        // convert to local
+        posExt.WorldToLocal();
     }
 }
 

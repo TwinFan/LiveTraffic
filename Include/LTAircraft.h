@@ -397,7 +397,7 @@ public:
     void CalcCameraViewPos();
     inline bool IsInCameraView() const { return pExtViewAc == this; }
     static bool IsCameraViewOn() { return pExtViewAc != NULL; }
-    static LTAircraft* GetCameraAc() { return pExtViewAc; }
+    static void TurnCameraOff () { if (pExtViewAc) pExtViewAc->ToggleCameraView(); }
 
 protected:
     void CalcLabelInternal (const LTFlightData::FDStaticData& statDat);
@@ -423,7 +423,6 @@ protected:
     static positionTy   posExt;                 // external camera position
     static XPViewTypes  prevView;               // View before activating camera
     static XPLMCameraPosition_t extOffs;        // Camera offset from initial tail position
-    static float        tsExtViewStart;         ///< Network time stamp when camera view started in case using a 3rd party camera plugin
 
     // callback for external camera view
     static int CameraCB (XPLMCameraPosition_t* outCameraPosition,    /* Can be NULL */

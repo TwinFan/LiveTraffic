@@ -208,6 +208,10 @@ enum dataRefsXP {
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
     DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
+
+    DR_CAMERA_TCAS_IDX,                 ///< Shared data ref created by us: If LiveTraffic's camera is on, then on which aircraft? Here: TCAS index
+    DR_CAMERA_AC_ID,                    ///< Shared data ref created by us: If LiveTraffic's camera is on, then on which aircraft? Here: aircraft id (usually ICAO hex code)
+
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
@@ -321,9 +325,6 @@ enum dataRefsLT {
     DR_SIM_DATE,
     DR_SIM_TIME,
     
-    DR_CAMERA_TCAS_IDX,             ///< If LiveTraffic's camera is on, then on which aircraft? Here: TCAS index
-    DR_CAMERA_AC_ID,                ///< If LiveTraffic's camera is on, then on which aircraft? Here: aircraft id (usually ICAO hex code)
-
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
     
@@ -563,7 +564,7 @@ public:
     
 //MARK: DataRefs
 protected:
-    XPLMDataRef adrXP[CNT_DATAREFS_XP];                 // array of XP data refs to read from
+    XPLMDataRef adrXP[CNT_DATAREFS_XP];                 ///< array of XP data refs to read from and shared dataRefs to provide
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
 public:
     XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
@@ -693,6 +694,7 @@ public:
 public:
     DataRefs ( logLevelTy initLogLevel );               // Constructor doesn't do much
     bool Init();                                        // Init DataRefs, return "OK?"
+    void InformDataRefEditors();                        ///< tell DRE and DRT our dataRefs
     void Stop();                                        // unregister what's needed
     
 protected:
@@ -745,7 +747,8 @@ public:
     static int LTGetAcInfoI(void* p);
     static float LTGetAcInfoF(void* p);
     
-    static int LTGetCameraAc(void* p);  ///< return info about which a/c is on camera view
+    void SetCameraAc(const LTAircraft* pCamAc); ///< sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
+    static void ClearCameraAc(void*);           ///< shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }
