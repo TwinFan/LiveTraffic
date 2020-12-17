@@ -735,7 +735,7 @@ bool DataRefs::Init ()
     
     // Create the two shared dataRefs for aircraft under camera
     if (!XPLMShareData(DATA_REFS_XP[DR_CAMERA_TCAS_IDX], xplmType_Int, ClearCameraAc, nullptr) ||
-        !XPLMShareData(DATA_REFS_XP[DR_CAMERA_AC_ID],    xplmType_Int, ClearCameraAc, nullptr))
+        !XPLMShareData(DATA_REFS_XP[DR_CAMERA_AC_ID],    xplmType_Int, nullptr, nullptr))
     {
         LOG_MSG(logERR,ERR_SHARED_DATAREF);
     }
@@ -855,7 +855,7 @@ void DataRefs::Stop ()
     
     // Unshare shared dataRefs
     XPLMUnshareData(DATA_REFS_XP[DR_CAMERA_TCAS_IDX], xplmType_Int, ClearCameraAc, nullptr);
-    XPLMUnshareData(DATA_REFS_XP[DR_CAMERA_AC_ID],    xplmType_Int, ClearCameraAc, nullptr);
+    XPLMUnshareData(DATA_REFS_XP[DR_CAMERA_AC_ID],    xplmType_Int, nullptr, nullptr);
 
     // save config file
     SaveConfigFile();    
@@ -1233,8 +1233,22 @@ void DataRefs::SetCameraAc(const LTAircraft* pCamAc)
 // shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
 void DataRefs::ClearCameraAc(void*)
 {
-    if (!gbIgnoreItsMe)                         // only if it's somebody else!
-        LTAircraft::TurnCameraOff();
+    if (gbIgnoreItsMe)                      // only if it's somebody else!
+        return;
+    
+    // if camera is controlled externally anyway, then we can try finding
+    // that aircraft and _make_ it the a/c under the camera...LiveTraffic will
+    // not switch on the camera but will displayer the active camera button
+    if (dataRefs.ShallUseExternalCamera() && dataRefs.adrXP[DR_CAMERA_AC_ID]) {
+        char keyHex[10];
+        snprintf ( keyHex, sizeof(keyHex), "%06X",
+                  (unsigned int)XPLMGetDatai(dataRefs.adrXP[DR_CAMERA_AC_ID]) );
+        mapLTFlightDataTy::iterator iter = mapFdSearchAc(keyHex);
+        LTAircraft::SetCameraAcExternally(iter != mapFd.end() ? iter->second.GetAircraft() : nullptr);
+    }
+    else
+        // Clear our aircraft under the camera
+        LTAircraft::SetCameraAcExternally(nullptr);
 }
 
 //
