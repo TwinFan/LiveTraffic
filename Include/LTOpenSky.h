@@ -89,6 +89,7 @@ constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 
 #define OPSKY_MD_AC_TYPE_ICAO   "typecode"
 #define OPSKY_MD_CAT_DESCR      "categoryDescription"
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
+constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
 #define OPSKY_MD_TEXT_NO_CAT    "No  ADS-B Emitter Category Information"
 #define OPSKY_MD_MDL_UNKNOWN    "[?]"
 

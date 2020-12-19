@@ -110,6 +110,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(adsbxTime);
     
+    // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
+    const double tsCutOff = dataRefs.GetSimTime();
+    
     // let's cycle the aircraft
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, ADSBEX_AIRCRAFT_ARR);
@@ -138,6 +141,23 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             continue;
         }
         
+        // ADS-B returns Java tics, that is milliseconds, we use seconds
+        const double posTime = jog_sn(pJAc, ADSBEX_POS_TIME) / 1000.0;
+        // skip stale data
+        if (posTime <= tsCutOff)
+            continue;
+        
+        // ADSBEx, especially the RAPID API version, returns
+        // aircraft regardless of distance. To avoid planes
+        // created and immediately removed due to distanced settings
+        // we continue only if pos is within wanted range
+        positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
+                        jog_sn_nan(pJAc, ADSBEX_LON),
+                        NAN,
+                        posTime);
+        if ( pos.dist(viewPos) > dataRefs.GetFdStdDistance_m() )
+            continue;
+
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
@@ -171,9 +191,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // -- dynamic data --
             LTFlightData::FDDynamicData dyn;
             
-            // ADS-B returns Java tics, that is milliseconds, we use seconds
-            double posTime = jog_sn(pJAc, ADSBEX_POS_TIME) / 1000.0;
-            
             // non-positional dynamic data
             dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
             dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
@@ -186,12 +203,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // altitude, if airborne; fetch barometric altitude here
             const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
 
-            // position and its ground status
-            positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
-                            jog_sn_nan(pJAc, ADSBEX_LON),
-                            dataRefs.WeatherAltCorr_ft(alt_ft) * M_per_FT,  // correct altitude for pressure
-                            posTime,
-                            dyn.heading);
+            // position: altitude, heading, ground status
+            pos.SetAltFt(dataRefs.WeatherAltCorr_ft(alt_ft));
+            pos.heading() = dyn.heading;
             pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
             
             // -- Ground vehicle identification --
@@ -212,12 +226,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // position is rather important, we check for validity
             if ( pos.isNormal(true) ) {
-                // ADSBEx, especially the RAPID API version, returns
-                // aircraft regardless of distance. To avoid planes
-                // created and immediately removed due to distanced settings
-                // we continue only if pos is within wanted range
-                if ( pos.dist(viewPos) <= dataRefs.GetFdStdDistance_m() )
-                    fd.AddDynData(dyn, 0, 0, &pos);
+                fd.AddDynData(dyn, 0, 0, &pos);
             }
             else
                 LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());

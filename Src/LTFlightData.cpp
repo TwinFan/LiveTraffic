@@ -70,7 +70,8 @@ std::string LTFlightData::FDDynamicData::GetSquawk() const
 }
 
 // Merges data, i.e. copy only filled fields from 'other'
-bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
+bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
+                                        bool bIsMasterChData)
 {
     // Have matching-relevant fields changed?
     bool bRet = false;
@@ -84,8 +85,10 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
         acTypeIcao != other.acTypeIcao)
     {
         // Accept anything if we are currently empty (unknown/default) or a car, can't be worse...
+        // or if this is proper master data channel's data
         if (acTypeIcao.empty() ||
-            acTypeIcao == dataRefs.GetDefaultCarIcaoType())
+            acTypeIcao == dataRefs.GetDefaultCarIcaoType() ||
+            bIsMasterChData)
         {
             acTypeIcao = other.acTypeIcao;
             bRet = true;
@@ -97,9 +100,13 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
     // a/c details
     if (!other.country.empty()) country = other.country;
     if (!other.man.empty()) man = other.man;
-    if (other.mdl.length() > mdl.length()) {
-        mdl = other.mdl;
-        bRet = true;
+    if (other.mdl.length() > mdl.length() ||    // the longer model text wins
+        (bIsMasterChData && !other.mdl.empty()))// or what a proper master data channel delivers
+    {
+        if (mdl != other.mdl) {
+            mdl = other.mdl;
+            bRet = true;
+        }
     }
     if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
@@ -111,6 +118,8 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
     
     // little trick for priority: we trust the info with the longer flight number
     if (other.flight.length() > flight.length() ||
+        // or certainly data of a proper master data channel
+        bIsMasterChData ||
         // or no flight number info at all...
         (other.flight.empty() && flight.empty())) {
         if (!other.originAp.empty()) originAp = other.originAp;
@@ -120,20 +129,27 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other)
     
     // operator / Airline
     if (!other.op.empty()) op = other.op;
-    // operator ICAO: we only accept a change from nothing to something
-    if (opIcao.empty() && !other.opIcao.empty()) {
+    // operator ICAO: we only accept a change from nothing to something,
+    //                or the data of a proper master data channel
+    if ((opIcao.empty() || bIsMasterChData) && !other.opIcao.empty() &&
+        opIcao != other.opIcao)
+    {
         opIcao = other.opIcao;
         bRet = true;
     }
     
-    // registration: we only accept a change from nothing to something
-    if (reg.empty() && !other.reg.empty()) {
+    // registration: we only accept a change from nothing to something,
+    //               or the data of a proper master data channel
+    if ((reg.empty() || bIsMasterChData) && !other.reg.empty() &&
+        reg != other.reg)
+    {
         reg = other.reg;
         bRet = true;
     }
 
-    // now initialized
-    bInit = true;
+    // now initialized from a proper master channel?
+    if (bIsMasterChData)
+        bFilledFromMasterCh = true;
 
     // find DOC8643 and fill man/mdl from there if needed
     pDoc8643 = &(Doc8643::get(acTypeIcao));
@@ -2142,18 +2158,19 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
 //
 
 // update static data
-void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
+void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
+                               bool bIsMasterChData)
 {
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
         // decide if we need more master data to be fetched by
-        // master data channels. If statData is not initialized at all
-        // (first call is always by dynamic data fetch), or
+        // master data channels. If statData is not initialized
+        // from a master channel yet, or
         // if the callSign changes (which includes if it changes from empty to something)
         // as the callSign is the source for route information
-        if (!statData.isInit() ||
+        if ((!bIsMasterChData && !statData.hasMasterChData()) ||
             (!inStat.call.empty() && inStat.call != statData.call))
         {
             LTACMasterdataChannel::RequestMasterData (key(), inStat.call);
@@ -2188,7 +2205,7 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat)
         }
         
         // merge inStat into our statData and save if matching-relevant stuff changed
-        if (statData.merge(inStat))
+        if (statData.merge(inStat, bIsMasterChData))
             bMdlInfoChange = true;
         
         // Re-determine a/c model (only if it was determined before:

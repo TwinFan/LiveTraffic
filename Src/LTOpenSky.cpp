@@ -81,6 +81,9 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(opSkyTime);
     
+    // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
+    const double tsCutOff = dataRefs.GetSimTime();
+
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
     if (!pJAcList) {
@@ -117,6 +120,11 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             continue;
         }
         
+        // position time
+        const double posTime = jag_n(pJAc, OPSKY_POS_TIME);
+        if (posTime <= tsCutOff)
+            continue;
+        
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
@@ -151,9 +159,6 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // dynamic data
             {   // unconditional...block is only for limiting local variables
                 LTFlightData::FDDynamicData dyn;
-                
-                // position time
-                double posTime = jag_n(pJAc, OPSKY_POS_TIME);
                 
                 // non-positional dynamic data
                 dyn.radar.code =  (long)jag_sn(pJAc, OPSKY_RADAR_CODE);
@@ -225,18 +230,16 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     CopyGlobalRequestList();
     
     // cycle all a/c's that need master data
+    int iNeedToWait = 0;                // will be >0 once we had _not_ waited once
     bool bChannelOK = true;
-    positionTy pos;                                 // no position needed, but we use the GND flag to tell the URL callback if we need master or route request
+    positionTy pos;                     // no position needed, but we use the GND flag to tell the URL callback if we need master or route request
     acStatUpdateTy info;
-    
-    // In order not to overload OpenSky with master data requests
-    // we pause for 0.5s between two requests.
-    // So we shall not do more than dataRefs.GetFdRefreshIntvl / 0.5 requests
-    int maxNumRequ = int(dataRefs.GetFdRefreshIntvl() / OPSKY_WAIT_BETWEEN) - 2;
-    
-    for (int i = 0;
-         maxNumRequ > 0 && bChannelOK && !listAc.empty() && !bFDMainStop;
-         i++)
+    while (bChannelOK && !listAc.empty() && !bFDMainStop &&
+           // We might have many requests in the list and we must pause
+           // between two of them. We check in the loop that we don't exceed the
+           // next wakeup time for the global request/reply loop so that regular
+           // tracking request lookup can happen in time.
+           std::chrono::steady_clock::now() <= gNextWakeup - 2 * std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)))
     {
         // fetch request from front of list and remove
         info = listAc.front();
@@ -245,12 +248,6 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         if (info.acKey.eKeyType != LTFlightData::KEY_ICAO ||
             info.acKey.key.empty())
             continue;
-        
-        // delay subsequent requests
-        if (i > 0) {
-            // delay between 2 requests to not overload OpenSky
-            std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
-        }
         
         // beginning of a JSON object
         std::string data("{");
@@ -264,8 +261,11 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             // set key (transpIcao) so that other functions (GetURL) can access it
             currKey = info.acKey.key;
             
+            // Potentially need to wait a bit between two subsequent requests
+            if (iNeedToWait++)
+                std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
+
             // make use of LTOnlineChannel's capability of reading online data
-            --maxNumRequ;                               // count down the number of requests in this period
             if (LTOnlineChannel::FetchAllData(pos)) {
                 switch (httpResponse) {
                     case HTTP_OK:                       // save response
@@ -314,10 +314,10 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
             currKey = info.callSign;
             
             // delay between 2 requests to not overload OpenSky
-            std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
+            if (iNeedToWait++)
+                std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
             
             // make use of LTOnlineChannel's capability of reading online data
-            --maxNumRequ;                               // count down the number of requests in this period
             if (LTOnlineChannel::FetchAllData(pos)) {
                 switch (httpResponse) {
                     case HTTP_OK:                       // save response
@@ -446,6 +446,15 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
             {
                 // we assume ground vehicle
                 statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+                // The category description usually is something like
+                // "Surface Vehicle – Service Vehicle"
+                // Save the latter part if we have no model info yet
+                if (statDat.mdl.empty() &&
+                    statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos &&
+                    statDat.catDescr.length() > OPSKY_MD_TEXT_VEHICLE_LEN)
+                {
+                    statDat.mdl = statDat.catDescr.c_str() + OPSKY_MD_TEXT_VEHICLE_LEN;
+                }
             }
         }
         

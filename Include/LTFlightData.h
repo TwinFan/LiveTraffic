@@ -126,7 +126,8 @@ public:
         std::string     opIcao;         // XPMP API: "Airline"                          BER
 
     protected:
-        bool            bInit    = false;   // has been initialized?
+        /// Has this static data object already been filled from a proper master data channel?
+        bool            bFilledFromMasterCh = false;
 
     public:
         FDStaticData() {}
@@ -137,7 +138,7 @@ public:
         FDStaticData& operator=(FDStaticData&&) = default;
         /// @brief  Merges data, i.e. copy only filled fields from 'other'
         /// @return Have matching-relevant fields now changed?
-        bool merge (const FDStaticData& other);
+        bool merge (const FDStaticData& other, bool bIsMasterChData);
         // returns flight, call sign, registration, or provieded _default (e.g. transp hex code)
         std::string acId (const std::string _default) const;
         // route (this is "originAp-destAp", but considers empty txt)
@@ -149,8 +150,8 @@ public:
             { return opIcao.empty() ? call.substr(0,3) : opIcao; }
         /// is this a ground vehicle?
         bool isGrndVehicle() const;
-        // has been initialized at least once?
-        bool isInit() const { return bInit; }
+        /// has been initialized from a proper master data channel?
+        bool hasMasterChData() const { return bFilledFromMasterCh; }
     };
     
     // KEY (protected, can be set only once, no mutex-control)
@@ -354,7 +355,7 @@ public:
     inline int GetRcvr() const { return rcvr; }
     
     // access static data
-    void UpdateData ( const FDStaticData& inStat );
+    void UpdateData ( const FDStaticData& inStat, bool bIsMasterChData = false );
     bool TryGetSafeCopy ( FDStaticData& outStat ) const;
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!

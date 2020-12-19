@@ -48,6 +48,7 @@ std::thread CalcPosThread;              // the thread for pos calc (TriggerCalcN
 std::mutex  FDThreadSynchMutex;         // supports wake-up and stop synchronization
 std::condition_variable FDThreadSynchCV;
 volatile bool bFDMainStop = true;       // will be reset once the main thread starts
+std::chrono::time_point<std::chrono::steady_clock> gNextWakeup;  ///< when to wake up next for network requests
 
 // the global vector of all flight and master data connections
 listPtrLTChannelTy    listFDC;
@@ -251,7 +252,7 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
             return false;                   // not found
         
         // do the actual update
-        fdIter->second.UpdateData(dat);
+        fdIter->second.UpdateData(dat, true);
         return true;
         
     } catch(const std::system_error& e) {
@@ -631,7 +632,7 @@ void LTFlightDataSelectAc ()
     while ( !bFDMainStop )
     {
         // basis for determining when to be called next
-        auto nextWakeup = std::chrono::steady_clock::now();
+        gNextWakeup = std::chrono::steady_clock::now();
         
         // LiveTraffic Top Level Exception Handling
         try {
@@ -644,7 +645,7 @@ void LTFlightDataSelectAc ()
                 // Next wakeup is "refresh interval" from _now_
                 // (calls to network requests might take a long time,
                 //  see wait in OpenSkyAcMasterdata::FetchAllData)
-                nextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                gNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
 
                 // cycle all flight data connections
                 for ( ptrLTChannelTy& p: listFDC )
@@ -684,7 +685,7 @@ void LTFlightDataSelectAc ()
             }
             else {
                 // Camera position is yet invalid, retry in a second
-                nextWakeup += std::chrono::seconds(1);
+                gNextWakeup += std::chrono::seconds(1);
             }
             
         } catch (const std::exception& e) {
@@ -700,7 +701,7 @@ void LTFlightDataSelectAc ()
         // by condition variable trigger
         {
             std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
-            FDThreadSynchCV.wait_until(lk, nextWakeup,
+            FDThreadSynchCV.wait_until(lk, gNextWakeup,
                                        []{return bFDMainStop;});
             lk.unlock();
         }

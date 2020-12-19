@@ -2807,8 +2807,7 @@ void LTAircraft::UpdatePosition (float, int cycle)
         {
             // fetch new data if available
             LTFlightData::FDStaticData statCopy;
-            if (fd.TryGetSafeCopy(statCopy) &&
-                statCopy.isInit())
+            if (fd.TryGetSafeCopy(statCopy))
             {
                 // copy data over to libxplanemp
                 STRCPY_S     (acInfoTexts.tailNum,      statCopy.reg.c_str());
