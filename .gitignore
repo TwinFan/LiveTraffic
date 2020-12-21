@@ -2,6 +2,7 @@
 .localized
 .image
 .vs/
+.vscode/
 
 # Build directories
 build/
@@ -19,5 +20,3 @@ xcuserdata/
 *.mode2v3
 *.perspectivev3
 *.pbxuser
-
-.vscode/

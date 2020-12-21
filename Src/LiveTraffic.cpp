@@ -467,7 +467,7 @@ PLUGIN_API int XPluginStart(
          srand((unsigned int)time(NULL));
         
         // tell X-Plane who we are
-        strncpy_s(outName, 255, LIVE_TRAFFIC,       100);
+        std::snprintf(outName, 255, "%s %.2f", LIVE_TRAFFIC, VERSION_NR);
         strncpy_s(outSig,  255, PLUGIN_SIGNATURE,   100);
         strncpy_s(outDesc, 255, PLUGIN_DESCRIPTION, 100);
 
