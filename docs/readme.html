@@ -56,6 +56,47 @@
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
+    <h2>v2.4</h2>
+    
+    <h3>v2.40</h3>
+
+    <P>For updating coming from v2.30
+        <ul>
+            <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</li>
+            <li>If you use the
+                <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">XPMP2 Remote Client</a>
+                you need to upgrade it to v1.10 as one network message format changed.</li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/196">#196</a>
+            support for having 3rd party camera plugins take over LiveTraffic's camera view.</li>
+        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/204">#204</a>:
+            OpenSky Master data is preferred as it can be
+            <a href="https://opensky-network.org/aircraft-database">maintained by everybody</a>.</li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/203">#203</a>
+            signature and notarization to the Mac version.</li>
+        <li>ADDED <a href="https://github.com/TwinFan/XPMP2/issues/27">XPMP2 #27</a>
+            remote support for the set of
+            <a href="https://twinfan.github.io/XPMP2/SharedDataRefs.html">textual shared dataRefs</a>.</li>
+        <li>MODERNIZED <a href="https://github.com/TwinFan/LiveTraffic/issues/179">#179</a>
+            how LiveTraffic uses the XPMP2 library, shall slightly reduce performance impact.</li>
+        <li>For 3rd party plugin developers:
+            <ul>
+                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/196">#196</a>
+                    two shared dataRefs to be notified when a LiveTraffic user
+                    activates the camera and to learn on which aircraft.</li>
+                <li>CHANGED <a href="https://github.com/TwinFan/LTAPI/issues/4">LTAPI issue #4</a>:
+                    LTAPI can now return up to 40 chars in <code>info.cslModel</code>.</li>
+                <li>ADDED <a href="https://github.com/TwinFan/XPMP2/issues/26">XPMP2 Issue #26</a>
+                    a shared dataRef per plane holding the CSL Model used to render the plane.</li>
+            </ul>
+        </li>
+    </ul>
+
     <h2>v2.3</h2>
     
     <h3>v2.30</h3>

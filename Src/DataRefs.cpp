@@ -311,6 +311,10 @@ const char* DATA_REFS_XP[] = {
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
     "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
+
+    "sim/multiplayer/camera/tcas_idx",          // Shared data refs filled by LiveTraffic with aircraft under camera
+    "sim/multiplayer/camera/modeS_id",          // Shared data refs filled by LiveTraffic with aircraft under camera
+
     "sim/flightmodel/position/latitude",
     "sim/flightmodel/position/longitude",
     "sim/flightmodel/position/elevation",
@@ -378,6 +382,17 @@ const char* CMD_REFS_XP[] = {
 
 static_assert(sizeof(CMD_REFS_XP) / sizeof(CMD_REFS_XP[0]) == CNT_CMDREFS_XP,
     "cmdRefsXP and CMD_REFS_XP[] differ in number of elements");
+
+// For informing dataRe Editor and tool see
+// http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
+// https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp
+
+// DataRef editors, which we inform about our dataRefs
+#define MSG_ADD_DATAREF 0x01000000
+const char* DATA_REF_EDITORS[] = {
+    "xplanesdk.examples.DataRefEditor",
+    "com.leecbaker.datareftool"
+};
 
 /// Map view types to view commands
 struct mapViewTypesTy {
@@ -478,6 +493,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -547,6 +563,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
         case DR_CFG_REMOTE_SUPPORT:         return &remoteSupport;
+        case DR_CFG_EXTERNAL_CAMERA:        return &bUseExternalCamera;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
 
         // debug options
@@ -629,6 +646,8 @@ const std::string& DataRefs::CSLPathCfgTy::operator= (const std::string& _p)
 
 /// Mutex guarding updates to cached values
 static std::recursive_mutex mutexDrUpdate;
+/// Flag to ignore this sharedDataref callback
+static bool gbIgnoreItsMe = false;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel),
@@ -714,6 +733,13 @@ bool DataRefs::Init ()
     LOG_ASSERT(pos != std::string::npos);
     LTPluginPath.erase(pos+1);
     
+    // Create the two shared dataRefs for aircraft under camera
+    if (!XPLMShareData(DATA_REFS_XP[DR_CAMERA_TCAS_IDX], xplmType_Int, ClearCameraAc, nullptr) ||
+        !XPLMShareData(DATA_REFS_XP[DR_CAMERA_AC_ID],    xplmType_Int, nullptr, nullptr))
+    {
+        LOG_MSG(logERR,ERR_SHARED_DATAREF);
+    }
+    
     // Fetch all XP-provided data refs and verify if OK
     for ( int i=0; i < CNT_DATAREFS_XP; i++ )
     {
@@ -722,7 +748,9 @@ bool DataRefs::Init ()
             // for XP10 compatibility we accept if we don't find a few,
             // all else stays an error
             if (i != DR_VR_ENABLED &&
-                i != DR_MODERN_DRIVER) {
+                i != DR_MODERN_DRIVER &&
+                i != DR_CAMERA_TCAS_IDX &&      // don't insist on publishing the a/c under camera
+                i != DR_CAMERA_AC_ID) {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
             }
@@ -789,6 +817,33 @@ bool DataRefs::Init ()
     return true;
 }
 
+// tell DRE and DRT our dataRefs
+void DataRefs::InformDataRefEditors ()
+{
+    // loop over all available data ref editor signatures
+    for (const char* szDREditor: DATA_REF_EDITORS) {
+        // find the plugin by signature
+        XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
+        if (PluginID != XPLM_NO_PLUGIN_ID) {
+            // send message regarding each dataRef we offer
+            for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
+                XPLMSendMessageToPlugin(PluginID,
+                                        MSG_ADD_DATAREF,
+                                        (void*)def.getDataName());
+            // And then there are 2 shared dataRefs
+            if (adrXP[DR_CAMERA_TCAS_IDX] && adrXP[DR_CAMERA_AC_ID])
+            {
+                XPLMSendMessageToPlugin(PluginID,
+                                        MSG_ADD_DATAREF,
+                                        (void*)DATA_REFS_XP[DR_CAMERA_TCAS_IDX]);
+                XPLMSendMessageToPlugin(PluginID,
+                                        MSG_ADD_DATAREF,
+                                        (void*)DATA_REFS_XP[DR_CAMERA_AC_ID]);
+            }
+        }
+    }
+}
+
 // Unregister (destructor would be too late for reasonable API calls)
 void DataRefs::Stop ()
 {
@@ -797,6 +852,10 @@ void DataRefs::Stop ()
         XPLMUnregisterDataAccessor(dr);
         dr = NULL;
     }
+    
+    // Unshare shared dataRefs
+    XPLMUnshareData(DATA_REFS_XP[DR_CAMERA_TCAS_IDX], xplmType_Int, ClearCameraAc, nullptr);
+    XPLMUnshareData(DATA_REFS_XP[DR_CAMERA_AC_ID],    xplmType_Int, nullptr, nullptr);
 
     // save config file
     SaveConfigFile();    
@@ -1115,10 +1174,10 @@ int DataRefs::LTGetAcInfoI(void* p)
         case DR_AC_KEY: return (int)dataRefs.pAc->fd.key().num;
         case DR_AC_ON_GND: return dataRefs.pAc->IsOnGrnd();
         case DR_AC_PHASE: return dataRefs.pAc->GetFlightPhase();
-        case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->surfaces.lights.bcnLights;
-        case DR_AC_LIGHTS_STROBE: return dataRefs.pAc->surfaces.lights.strbLights;
-        case DR_AC_LIGHTS_NAV: return dataRefs.pAc->surfaces.lights.navLights;
-        case DR_AC_LIGHTS_LANDING: return dataRefs.pAc->surfaces.lights.landLights;
+        case DR_AC_LIGHTS_BEACON: return dataRefs.pAc->GetLightsBeacon();
+        case DR_AC_LIGHTS_STROBE: return dataRefs.pAc->GetLightsStrobe();
+        case DR_AC_LIGHTS_NAV: return dataRefs.pAc->GetLightsNav();
+        case DR_AC_LIGHTS_LANDING: return dataRefs.pAc->GetLightsLanding();
         default:
             LOG_ASSERT(false);              // not allowed...we should handle all value types!
             return 0;
@@ -1149,6 +1208,47 @@ float DataRefs::LTGetAcInfoF(void* p)
             LOG_ASSERT(false);              // not allowed...we should handle all value types!
             return 0.0;
     }
+}
+
+// sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
+void DataRefs::SetCameraAc(const LTAircraft* pCamAc)
+{
+    // requires that we could define and find the shared dataRef
+    if (!adrXP[DR_CAMERA_TCAS_IDX] ||
+        !adrXP[DR_CAMERA_AC_ID])
+        return;
+    
+    // These are shared dataRefs, so any "set" can trigger a notification.
+    // By convention, we set modeS_id first, so it is guaranteed that
+    // by the time we set tcas_id (and potentially trigger the recommended
+    // notification callback) both modeS_id and tcas_id are available and valid.
+    gbIgnoreItsMe = true;                       // don't react to the notification callbacks!
+    XPLMSetDatai(adrXP[DR_CAMERA_AC_ID],
+                 pCamAc ? (int)pCamAc->fd.key().num : 0);
+    XPLMSetDatai(adrXP[DR_CAMERA_TCAS_IDX],
+                 pCamAc ? (int)pCamAc->GetTcasTargetIdx() : 0);
+    gbIgnoreItsMe = false;
+}
+
+// shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
+void DataRefs::ClearCameraAc(void*)
+{
+    if (gbIgnoreItsMe)                      // only if it's somebody else!
+        return;
+    
+    // if camera is controlled externally anyway, then we can try finding
+    // that aircraft and _make_ it the a/c under the camera...LiveTraffic will
+    // not switch on the camera but will displayer the active camera button
+    if (dataRefs.ShallUseExternalCamera() && dataRefs.adrXP[DR_CAMERA_AC_ID]) {
+        char keyHex[10];
+        snprintf ( keyHex, sizeof(keyHex), "%06X",
+                  (unsigned int)XPLMGetDatai(dataRefs.adrXP[DR_CAMERA_AC_ID]) );
+        mapLTFlightDataTy::iterator iter = mapFdSearchAc(keyHex);
+        LTAircraft::SetCameraAcExternally(iter != mapFd.end() ? iter->second.GetAircraft() : nullptr);
+    }
+    else
+        // Clear our aircraft under the camera
+        LTAircraft::SetCameraAcExternally(nullptr);
 }
 
 //

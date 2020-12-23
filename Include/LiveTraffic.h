@@ -329,6 +329,10 @@ constexpr bool between( const T& v, const T& lo, const T& hi )
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 );
 
+/// Convert NAN to zero, otherwise pass `d`
+inline double nanToZero (double d)
+{ return std::isnan(d) ? 0.0 : d; }
+
 /// @brief random long between too given values invlusive
 /// @see https://stackoverflow.com/a/7560171
 inline long randoml (long min, long max)

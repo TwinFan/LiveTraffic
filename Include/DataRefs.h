@@ -208,6 +208,10 @@ enum dataRefsXP {
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
     DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
+
+    DR_CAMERA_TCAS_IDX,                 ///< Shared data ref created by us: If LiveTraffic's camera is on, then on which aircraft? Here: TCAS index
+    DR_CAMERA_AC_ID,                    ///< Shared data ref created by us: If LiveTraffic's camera is on, then on which aircraft? Here: aircraft id (usually ICAO hex code)
+
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
@@ -320,7 +324,7 @@ enum dataRefsLT {
     
     DR_SIM_DATE,
     DR_SIM_TIME,
-
+    
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
     
@@ -360,6 +364,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_COPY_OBJ_FILES,
     DR_CFG_REMOTE_SUPPORT,
+    DR_CFG_EXTERNAL_CAMERA,
     DR_CFG_LAST_CHECK_NEW_VER,
     
     // debug options
@@ -559,7 +564,7 @@ public:
     
 //MARK: DataRefs
 protected:
-    XPLMDataRef adrXP[CNT_DATAREFS_XP];                 // array of XP data refs to read from
+    XPLMDataRef adrXP[CNT_DATAREFS_XP];                 ///< array of XP data refs to read from and shared dataRefs to provide
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
 public:
     XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
@@ -621,6 +626,7 @@ protected:
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
+    bool bUseExternalCamera  = false;   ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
     // channel config options
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
@@ -688,6 +694,7 @@ public:
 public:
     DataRefs ( logLevelTy initLogLevel );               // Constructor doesn't do much
     bool Init();                                        // Init DataRefs, return "OK?"
+    void InformDataRefEditors();                        ///< tell DRE and DRT our dataRefs
     void Stop();                                        // unregister what's needed
     
 protected:
@@ -739,6 +746,9 @@ public:
     static void LTSetAcKey(void*p, int i);
     static int LTGetAcInfoI(void* p);
     static float LTGetAcInfoF(void* p);
+    
+    void SetCameraAc(const LTAircraft* pCamAc); ///< sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
+    static void ClearCameraAc(void*);           ///< shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }
@@ -810,6 +820,7 @@ public:
              hideNearbyGnd > 0 || hideNearbyAir > 0; }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
     int GetRemoteSupport () const { return remoteSupport; }
+    bool ShallUseExternalCamera () const { return bUseExternalCamera; }
 
     bool NeedNewVerCheck () const;
     void SetLastCheckedNewVerNow ();

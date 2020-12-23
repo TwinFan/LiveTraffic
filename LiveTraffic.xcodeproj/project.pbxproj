@@ -61,6 +61,7 @@
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
 		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
 		2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = aircraftDatabase.csv; sourceTree = "<group>"; };
+		254813772582DA6100DA9588 /* notarize.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = notarize.sh; sourceTree = "<group>"; };
 		254F278724EF22FE00CACCDA /* LTWeather.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTWeather.h; sourceTree = "<group>"; };
 		254F278824EF230400CACCDA /* LTWeather.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTWeather.cpp; sourceTree = "<group>"; };
 		2558579320950C6700816F65 /* CoordCalc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CoordCalc.cpp; sourceTree = "<group>"; };
@@ -426,6 +427,7 @@
 			isa = PBXGroup;
 			children = (
 				256CA1D2248C6137009F4AAE /* build_LiveTraffic */,
+				254813772582DA6100DA9588 /* notarize.sh */,
 				25DC1E2A21B72922008D0F8B /* Data */,
 				2591F9692197008C00F0D436 /* Src */,
 			);
@@ -539,7 +541,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1210;
+				LastUpgradeCheck = 1230;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -648,12 +650,16 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2.05;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				EXCLUDED_ARCHS = arm64;
@@ -708,6 +714,7 @@
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
@@ -743,11 +750,15 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2.05;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				EXCLUDED_ARCHS = arm64;
 				EXECUTABLE_EXTENSION = xpl;
@@ -800,6 +811,7 @@
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
 				SDKROOT = macosx;
@@ -811,7 +823,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				CODE_SIGN_IDENTITY = "-";
 				DEPLOYMENT_LOCATION = YES;
 				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
@@ -844,7 +855,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				CODE_SIGN_IDENTITY = "-";
 				DEPLOYMENT_LOCATION = YES;
 				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (

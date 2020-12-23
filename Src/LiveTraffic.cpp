@@ -390,17 +390,6 @@ void LogTimestamps ()
             dataRefs.GetSimTimeString().c_str());
 }
 
-// For informing dataRe Editor and tool see
-// http://www.xsquawkbox.net/xpsdk/mediawiki/DataRefEditor and
-// https://github.com/leecbaker/datareftool/blob/master/src/plugin_custom_dataref.cpp
-
-// DataRef editors, which we inform about our dataRefs
-#define MSG_ADD_DATAREF 0x01000000
-const char* DATA_REF_EDITORS[] = {
-    "xplanesdk.examples.DataRefEditor",
-    "com.leecbaker.datareftool"
-};
-
 /// One-Time Setup state
 static enum ONCE_CB_STATE
 { ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_WAIT_FOR_VER, ONCE_CB_DONE }
@@ -422,18 +411,9 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
 #endif
 
-            // loop over all available data ref editor signatures
-            for (const char* szDREditor: DATA_REF_EDITORS) {
-                // find the plugin by signature
-                XPLMPluginID PluginID = XPLMFindPluginBySignature(szDREditor);
-                if (PluginID != XPLM_NO_PLUGIN_ID) {
-                    // send message regarding each dataRef we offer
-                    for ( const DataRefs::dataRefDefinitionT& def: DATA_REFS_LT )
-                        XPLMSendMessageToPlugin(PluginID,
-                                                MSG_ADD_DATAREF,
-                                                (void*)def.getDataName());
-                }
-            }
+            // Inform dataRef tools about our dataRefs
+            dataRefs.InformDataRefEditors();
+            
             // next: Auto Start, but wait another 2 seconds for that
             eOneTimeState = ONCE_CB_AUTOSTART;
             return 2;
@@ -487,7 +467,7 @@ PLUGIN_API int XPluginStart(
          srand((unsigned int)time(NULL));
         
         // tell X-Plane who we are
-        strncpy_s(outName, 255, LIVE_TRAFFIC,       100);
+        std::snprintf(outName, 255, "%s %.2f", LIVE_TRAFFIC, VERSION_NR);
         strncpy_s(outSig,  255, PLUGIN_SIGNATURE,   100);
         strncpy_s(outDesc, 255, PLUGIN_DESCRIPTION, 100);
 

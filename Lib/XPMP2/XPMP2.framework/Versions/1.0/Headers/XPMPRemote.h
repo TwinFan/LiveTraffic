@@ -59,6 +59,16 @@ std::uint16_t PJWHash16 (const char *s);
 CSLModel* CSLModelByPkgShortId (std::uint16_t _pkgHash,
                                 const std::string& _shortId);
 
+/// @brief Clamps `v` between `lo` and `hi`: `lo` if `v` < `lo`, `hi` if `hi` < `v`, otherwise `v`
+/// @see C++17, https://en.cppreference.com/w/cpp/algorithm/clamp
+/// @note Reimplemented here because Docker clang environment doesn't include it
+template<class T>
+constexpr const T& clamp( const T& v, const T& lo, const T& hi )
+{
+    assert( !(hi < lo) );
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
+
 //
 // MARK: Network Data Definitions
 //
@@ -83,7 +93,7 @@ struct RemoteDataRefPackTy {
     RemoteDataRefPackTy (float _min, float _max) : minV(_min), range(_max - _min) { assert(range != 0.0f); }
     
     /// pack afloat value to integer
-    std::uint8_t pack (float f) const   { return std::uint8_t(std::clamp<float>(f-minV,0.0f,range) * UINT8_MAX / range); }
+    std::uint8_t pack (float f) const   { return std::uint8_t(clamp<float>(f-minV,0.0f,range) * UINT8_MAX / range); }
     /// unpack an integer value to float
     float unpack (std::uint8_t i) const { return minV + range*float(i)/255.0f; }
 };
@@ -166,7 +176,7 @@ struct RemoteMsgSettingsTy : public RemoteMsgBaseTy {
 //
 
 /// A/C detail message version number
-constexpr std::uint8_t RMT_VER_AC_DETAIL = 0;
+constexpr std::uint8_t RMT_VER_AC_DETAIL = 1;
 /// A/C details, packed into an array message
 struct RemoteAcDetailTy {
     std::uint32_t   modeS_id;           ///< plane's unique id at the sender side (might differ remotely in case of duplicates)
@@ -189,8 +199,17 @@ struct RemoteAcDetailTy {
     bool            bValid : 1;         ///< is this object valid? (Will be reset in case of exceptions)
     bool            bVisible : 1;       ///< Shall this plane be drawn at the moment?
     bool            bRender : 1;        ///< Shall the CSL model be drawn in 3D world?
-
-    std::uint8_t    filler[3];          ///< yet unused
+    
+    // selectively taken from XPMPInfoTexts_t and packed:
+    char            tailNum[10];        ///< registration, tail number
+    char            manufacturer[40];   ///< a/c manufacturer, human readable
+    char            model[40];          ///< a/c model, human readable
+    char            airline[40];        ///< airline, human readable
+    char            flightNum [10];     ///< flight number
+    char            aptFrom [5];        ///< Origin airport (ICAO)
+    char            aptTo [5];          ///< Destination airport (ICAO)
+    
+    std::uint8_t    filler[5];          ///< yet unused
     
     ///< Array of _packed_ dataRef values for CSL model animation
     std::uint8_t    v[XPMP2::V_COUNT];    // 42
@@ -371,8 +390,8 @@ struct RemoteMsgAcRemoveTy : public RemoteMsgBaseTy {
 // A few static validations just to make sure that no compiler fiddles with my network message layout.
 static_assert(sizeof(RemoteMsgBaseTy)       ==   8,     "RemoteMsgBaseTy doesn't have expected size");
 static_assert(sizeof(RemoteMsgSettingsTy)   ==  40,     "RemoteMsgSettingsTy doesn't have expected size");
-static_assert(sizeof(RemoteAcDetailTy)      ==  94+42,  "RemoteAcDetailTy doesn't have expected size");
-static_assert(sizeof(RemoteMsgAcDetailTy)   == 102+42,  "RemoteMsgAcDetailTy doesn't have expected size");
+static_assert(sizeof(RemoteAcDetailTy)      == 246+42,  "RemoteAcDetailTy doesn't have expected size");
+static_assert(sizeof(RemoteMsgAcDetailTy)   == 254+42,  "RemoteMsgAcDetailTy doesn't have expected size");
 static_assert(sizeof(RemoteAcPosUpdateTy)   ==  20,     "RemoteAcPosUpdateTy doesn't have expected size");
 static_assert(sizeof(RemoteMsgAcPosUpdateTy)==  28,     "RemoteMsgAcPosUpdateTy doesn't have expected size");
 static_assert(sizeof(RemoteAcAnimTy)        ==   8,     "RemoteAcAnimTy doesn't have expected size");

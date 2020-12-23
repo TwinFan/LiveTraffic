@@ -1,6 +1,24 @@
 TODO
 ===
 
+Notarization
+
+Verify signature:
+codesign -vv --display LiveTraffic.xpl
+
+Do it:
+xcrun altool --notarize-app --primary-bundle-id "TwinFan.plugin.LiveTraffic" --username "birger@sonux.net" --password "@keychain:ALTOOL_PWD" --file LiveTraffic.zip
+
+Fetch specific information:
+xcrun altool --notarization-info ffc483a1-6daf-43e6-9e28-2e371b8902cb -u "birger@sonux.net" -p "@keychain:ALTOOL_PWD"
+
+Get full history:
+xcrun altool --notarization-history 0 -u "birger@sonux.net" -p "@keychain:ALTOOL_PWD"
+
+Verify on actual plugin file:
+spctl -a -vvv -t install ./LiveTraffic.xpl
+
+
 ImGui
 - Add plane selection to A/C Info
 

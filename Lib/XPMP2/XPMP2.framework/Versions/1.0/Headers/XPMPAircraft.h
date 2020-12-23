@@ -244,7 +244,12 @@ protected:
     
 private:
     bool bDestroyInst           = false;    ///< Instance to be destroyed in next flight loop callback?
-    
+#if defined(DEBUG) || defined(DEBUG_CTD_DOMOVE)
+    /// @brief Number of dataRefs at the moment we call XPLMInstanceSetPosition
+    /// @see https://github.com/TwinFan/XPMP2/issues/23
+    /// @note Temporary validation to track down why in some rare cases X-Plane crashes later in the XPLMInstanceSetPosition call
+    size_t numDataRefsDuringCreateInstance = 0;
+#endif
 public:
     /// @brief Constructor creates a new aircraft object, which will be managed and displayed
     /// @exception XPMP2::XPMP2Error Mode S id invalid or duplicate, no model found during model matching
@@ -350,6 +355,9 @@ public:
     virtual void SetRender (bool _bRender);
     /// Is this plane to be rendered?
     bool IsRendered () const { return bRender && IsVisible(); }
+    
+    /// Are instances created for this aircraft?
+    bool IsInstanciated () const { return !listInst.empty(); }
     
     /// Distance to camera [m]
     float GetCameraDist () const { return camDist; }

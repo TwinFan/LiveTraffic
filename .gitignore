@@ -2,6 +2,7 @@
 .localized
 .image
 .vs/
+.vscode/
 
 # Build directories
 build/

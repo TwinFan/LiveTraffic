@@ -41,6 +41,7 @@ extern std::mutex  FDThreadSynchMutex;         // supports wake-up and stop sync
 extern std::condition_variable FDThreadSynchCV;
 // stop all threads?
 extern volatile bool bFDMainStop;
+extern std::chrono::time_point<std::chrono::steady_clock> gNextWakeup;  ///< when to wake up next for network requests
 
 //
 //MARK: Flight Data Connection (abstract base class)
