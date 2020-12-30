@@ -1,8 +1,6 @@
-# platforms=win mac lin
 platforms=lin
-container=lt2-cross-compile-env
+container=xplane-linux-compile-env
 
-# all: mac lin win
 all: $(platforms)
 
 .image: Dockerfile build.sh
