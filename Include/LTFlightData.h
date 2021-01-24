@@ -48,7 +48,6 @@ enum transpTy {
 //      Can be combined from multiple sources, key is transpIcao
 
 class LTAircraft;
-struct LTFlightDataList;
 class Apt;
 
 class LTFlightData
@@ -264,7 +263,7 @@ public:
     LTFlightData& operator=(const LTFlightData&);
     
     bool IsValid() const { return bValid; }
-    void SetInvalid();
+    void SetInvalid(bool bAlsoAc = true);
     
     // KEY into the map
     void SetKey    (const FDKeyTy& _key);
@@ -380,7 +379,6 @@ public:
 #ifdef DEBUG
     static void RemoveAllAcButSelected ();
 #endif
-    friend LTFlightDataList;
     
     // LTApt inserts positions during the "snap-to-taxiway" precedure
     friend Apt;
@@ -410,32 +408,5 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx);
 
 /// Find a/c by text, compares with key, call sigh, registration etc., passes pure numbers to mapFdAcByIdx()
 mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s);
-
-//
-// MARK: Ordered lists of flight data
-//       Note that included objects aren't valid for long!
-//       Usage in a flight loop callback is fine as deletion
-//       happens in a flight loop callback thread, too.
-//       Usage in other threads without mapFdMutex is not fine.
-//
-
-typedef std::vector<LTFlightData*> vecLTFlightDataRefTy;
-
-struct LTFlightDataList
-{
-    enum OrderByTy {
-        ORDR_UNKNOWN = 0,
-        // static fields
-        ORDR_REG, ORDR_AC_TYPE_ICAO, ORDR_CALL,
-        ORDR_ORIGIN_DEST, ORDR_FLIGHT, ORDR_OP_ICAO,
-        // dynamic fields
-        ORDR_DST, ORDR_SPD, ORDR_VSI, ORDR_ALT, ORDR_PHASE
-    } orderedBy = ORDR_UNKNOWN;
-    
-    vecLTFlightDataRefTy lst;
-    
-    LTFlightDataList ( OrderByTy ordrBy = ORDR_DST );
-    void ReorderBy ( OrderByTy ordrBy );
-};
 
 #endif /* LTFlightData_h */

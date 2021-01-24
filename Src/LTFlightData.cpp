@@ -326,17 +326,21 @@ LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
 }
 
 // set this FD invalid (which will cause it's removal)
-void LTFlightData::SetInvalid()
+void LTFlightData::SetInvalid(bool bAlsoAc)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     bValid = false;
     // also need to make aircraft invalid so it won't be drawn again
-    if (pAc)
+    if (bAlsoAc && pAc)
         pAc->SetInvalid();
 }
 
 // Set the object's key, usually right after creation in fdMap
 void LTFlightData::SetKey (const FDKeyTy& _key)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     acKey = _key;
 //    LOG_MSG(logDEBUG, "FD crated for %s", key().c_str());
 }
@@ -393,6 +397,9 @@ bool LTFlightData::IsMatch (const std::string t) const
 
 bool LTFlightData::validForAcCreate(double simTime) const
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // the obvious stuff first: we need basic data
     if ( empty() || dynDataDeque.empty() || posDeque.size() < 2 )
         return false;
@@ -497,6 +504,9 @@ std::string LTFlightData::ComposeLabel() const
 // Data Cleansing of the buffered positions (called from CalcNextPos)
 void LTFlightData::DataCleansing (bool& bChanged)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // nothing to cleanse?
     if (posDeque.empty())
         return;
@@ -759,6 +769,9 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     double gndRange = 0.0;
     double airbRange = 0.0;
     
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // shall we do data smoothing at all?
     const LTChannel* pChn = nullptr;
     if (!GetCurrChannel(pChn) || !pChn->DoDataSmoothing(gndRange,airbRange))
@@ -835,6 +848,9 @@ void LTFlightData::DataSmoothing (bool& bChanged)
 // shift ground positions to taxiways, insert positions at taxiway nodes
 void LTFlightData::SnapToTaxiways (bool& bChanged)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // Not enabled at all? (Or no positions at all?)
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||
         posDeque.empty())
@@ -1349,6 +1365,7 @@ void LTFlightData::CalcNextPosMain ()
                 // LiveTraffic Top Level Exception Handling:
                 // CalcNextPos can cause exceptions. If so make fd object invalid and ignore it
                 try {
+                    std::lock_guard<std::recursive_mutex> lockFD (fd.dataAccessMutex);
                     if (fd.IsValid())
                         fd.CalcNextPos(pair.second);
                 } catch (const std::exception& e) {
@@ -1427,6 +1444,9 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     if (it->f.bHeadFixed)
         return;
     
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // vectors to / from the position at "it"
     vectorTy vecTo, vecFrom;
     
@@ -1508,6 +1528,9 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                             double* pHeading,
                             bool* /*pbChanged*/)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // aircraft model to use
     const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
     LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
@@ -1591,12 +1614,17 @@ void LTFlightData::AppendAllNewPos()
             return;
         }
         
-        // look all flight data objects and check for new data to analyse
+        // loop all flight data objects and check for new data to analyse
         for (mapLTFlightDataTy::value_type& fdPair: mapFd) {
             LTFlightData& fd = fdPair.second;
             try {
-                if (fd.IsValid())
-                    fd.AppendNewPos();
+                std::unique_lock<std::recursive_mutex> lockFD (fd.dataAccessMutex, std::try_to_lock);
+                if (!lockFD) {
+                    flagNoNewPosToAdd.clear();          // need to try it again
+                } else {
+                    if (fd.IsValid())
+                        fd.AppendNewPos();
+                }
             } catch (const std::exception& e) {
                 LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
                 fd.SetInvalid();
@@ -2104,6 +2132,8 @@ LTFlightData::FDDynamicData LTFlightData::GetUnsafeDyn() const
 // returns true and set chn to the current channel if there is dynamic data
 bool LTFlightData::GetCurrChannel (const LTChannel* &pChn) const
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     if (dynDataDeque.empty()) {
         pChn = nullptr;
         return false;
@@ -2125,6 +2155,9 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
                                              LTFlightData::FDDynamicData*& pAfter,
                                              bool* pbSimilar)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // init
     pBefore = pAfter = nullptr;
     if (pbSimilar)
@@ -2286,8 +2319,10 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
             UpdateStaticLabel();
         
         // general re-init necessary?
-        if (dataRefs.IsReInitAll())
+        if (dataRefs.IsReInitAll()) {
+            SetInvalid(false);
             return true;
+        }
 
         // Tests on an existing aircraft object
         if (hasAc())
@@ -2336,21 +2371,21 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
         // youngestTS longer ago than allowed? -> remove the entire FD object
         if (youngestTS + dataRefs.GetAcOutdatedIntvl() <
             (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime))
+        {
+            SetInvalid(false);
             return true;
-        
+        }
+
         // don't delete me
         return false;
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
-        // if an exception occurs this object is declared invalid and removed
-        SetInvalid();
     } catch(...) {
-        // if an exception occurs this object is declared invalid and removed
-        SetInvalid();
     }
     
     // in case of error return 'delete me'
+    SetInvalid();
     return true;
 }
 
@@ -2358,6 +2393,9 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
 // try interpreting model text or check for ground vehicle
 bool LTFlightData::DetermineAcModel()
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     const std::string prevType = statData.acTypeIcao;
 
     // Debugging model matching: If the model is fixed, then it is what it is
@@ -2419,6 +2457,9 @@ bool LTFlightData::AcSlotAvailable ()
 {
     // time we had shown the "Too many a/c" warning last:
     static float tTooManyAcMsgShown = 0.0;
+
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
     // Have no positions? (Need one to determine distance to camera)
     if (posDeque.empty())
@@ -2537,6 +2578,8 @@ bool LTFlightData::CreateAircraft ( double simTime )
 // remove the linked aircraft
 void LTFlightData::DestroyAircraft ()
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     if ( pAc )
         delete pAc;
     pAc = nullptr;
@@ -2570,6 +2613,8 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
     const LTFlightData* ret = nullptr;
     double bestRating = std::numeric_limits<double>::max();
     
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
     // walk the map of flight data
     for ( std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd )
     {
@@ -2629,6 +2674,8 @@ void LTFlightData::RemoveAllAcButSelected ()
 // Find "i-th" aircraft, i.e. the i-th flight data with assigned pAc
 mapLTFlightDataTy::iterator mapFdAcByIdx (int idx)
 {
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
     // let's find the i-th aircraft by looping over all flight data
     // and count those objects, which have an a/c
     int i = 0;
@@ -2663,69 +2710,3 @@ mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
     }
 }
 
-//
-// MARK: LTFlightDataList
-//
-
-LTFlightDataList::LTFlightDataList ( OrderByTy ordrBy )
-{
-    // copy the entire map into a simple list
-    lst.reserve(mapFd.size());
-    for ( std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd )
-        lst.emplace_back(&fdPair.second);
-    
-    // apply the initial ordering
-    ReorderBy(ordrBy);
-}
-
-
-void LTFlightDataList::ReorderBy(OrderByTy ordrBy)
-{
-    // quick exit if already sorted that way
-    if (orderedBy == ordrBy)
-        return;
-    
-    // range to sort
-    vecLTFlightDataRefTy::iterator from = lst.begin();
-    vecLTFlightDataRefTy::iterator to   = lst.end();
-    
-#define SORT_BY_STAT(OrdrBy,cmp)                                            \
-case OrdrBy:                                                                \
-    std::sort(from, to, [](LTFlightData*const& a, LTFlightData*const& b )   \
-              { return cmp; } );                                            \
-    break;
-    
-#define SORT_BY_PAC(OrdrBy,cmp)                                             \
-case OrdrBy:                                                                \
-    std::sort(from, to, [](LTFlightData*const& a, LTFlightData*const& b )   \
-              { return                                                      \
-                  !b->pAc && !a->pAc ? a->key() < b->key() :                \
-                  !b->pAc ? true :                                          \
-                  !a->pAc ? false :                                         \
-                  (cmp); });                                                \
-    break;
-
-    
-    // static fields can always be applied
-    switch (ordrBy) {
-        case ORDR_UNKNOWN: break;
-        SORT_BY_STAT(ORDR_REG,          a->statData.reg < b->statData.reg);
-        SORT_BY_STAT(ORDR_AC_TYPE_ICAO, a->statData.acTypeIcao < b->statData.acTypeIcao);
-        SORT_BY_STAT(ORDR_CALL,         a->statData.call < b->statData.call);
-        SORT_BY_STAT(ORDR_ORIGIN_DEST,  a->statData.route() < b->statData.route());
-        SORT_BY_STAT(ORDR_FLIGHT,       a->statData.flight < b->statData.flight);
-        SORT_BY_STAT(ORDR_OP_ICAO,      a->statData.opIcao == b->statData.opIcao ?
-                                        a->key() < b->key() :
-                                        a->statData.opIcao < b->statData.opIcao);
-        SORT_BY_PAC(ORDR_DST,           a->pAc->GetVecView().dist < b->pAc->GetVecView().dist);
-        SORT_BY_PAC(ORDR_SPD,           a->pAc->GetSpeed_m_s() < b->pAc->GetSpeed_m_s());
-        SORT_BY_PAC(ORDR_VSI,           a->pAc->GetVSI_ft() < b->pAc->GetVSI_ft());
-        SORT_BY_PAC(ORDR_ALT,           a->pAc->GetAlt_m() < b->pAc->GetAlt_m());
-        SORT_BY_PAC(ORDR_PHASE,         a->pAc->GetFlightPhase() == b->pAc->GetFlightPhase() ?
-                                        a->key() < b->key() :
-                                        a->pAc->GetFlightPhase() < b->pAc->GetFlightPhase());
-    }
-    
-    // no ordered the new way
-    orderedBy = ordrBy;
-}
