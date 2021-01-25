@@ -719,7 +719,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     try {
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated
-        std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+        std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
         
         // Check for duplicates with OGN/FLARM, potentially replaces the key type
         if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
@@ -732,7 +732,9 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
         std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-        
+        // now that we have the detail lock we can release the global one
+        mapFdLock.unlock();
+
         // completely new? fill key fields
         if ( fd.empty() )
             fd.SetKey(fdKey);

@@ -1359,6 +1359,10 @@ void LTFlightData::CalcNextPosMain ()
         // there was something in the list to process? Do so!
         if (!pair.first.empty()) {
             try {
+                // To ensure a FD object stays available between mapFd.at and the
+                // call to its local mutex we prohibit removal by locking the
+                // general mapFd mutex.
+                std::unique_lock<std::mutex> lockMap (mapFdMutex);
                 // find the flight data object in the map and calc position
                 LTFlightData& fd = mapFd.at(pair.first);
                 
@@ -1366,6 +1370,7 @@ void LTFlightData::CalcNextPosMain ()
                 // CalcNextPos can cause exceptions. If so make fd object invalid and ignore it
                 try {
                     std::lock_guard<std::recursive_mutex> lockFD (fd.dataAccessMutex);
+                    lockMap.unlock();           // now that we have the detailed mutex we can release the global one
                     if (fd.IsValid())
                         fd.CalcNextPos(pair.second);
                 } catch (const std::exception& e) {
