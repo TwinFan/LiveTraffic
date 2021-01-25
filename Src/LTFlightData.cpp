@@ -264,6 +264,9 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
 //MARK: Flight Data
 //
 
+// Export file for tracking data
+std::ofstream LTFlightData::fileExport;
+
 // Constructor
 LTFlightData::LTFlightData () :
 rcvr(0),sig(0),
@@ -1572,6 +1575,84 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     return true;
 }
 
+// debug: log raw network data to a log file
+void LTFlightData::ExportFD(const FDDynamicData& inDyn,
+                            const positionTy& pos)
+{
+    // no logging? return (after closing the file if open)
+    if (!dataRefs.GetDebugExportFD()) {
+        if (fileExport.is_open()) {
+            fileExport.close();
+            SHOW_MSG(logWARN, DBG_EXPORT_FD_STOP, PATH_DEBUG_EXPORT_FD);
+        }
+        return;
+    }
+    
+    // *** Logging enabled ***
+    
+    // As there are different threads (e.g. in LTRealTraffic), which send data,
+    // we guard file writing with a lock, so that no line gets intermingled
+    // with another thread's data:
+    static std::mutex exportFdMutex;
+    std::lock_guard<std::mutex> lock(exportFdMutex);
+    
+    // Need to open the file first?
+    if (!fileExport.is_open()) {
+        // open the file, append to it
+        std::string sFileName (LTCalcFullPath(PATH_DEBUG_EXPORT_FD));
+        fileExport.open (sFileName, std::ios_base::out | std::ios_base::app);
+        if (!fileExport) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            // could not open output file: bail out, decativate logging
+            SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
+                     sFileName.c_str(), sErr);
+            dataRefs.SetDebugExportFD(false);
+            return;
+        }
+        SHOW_MSG(logWARN, DBG_EXPORT_FD_START, PATH_DEBUG_EXPORT_FD);
+        // always start with current weather
+        ExportLastWeather();
+    }
+
+    // output a tracking data record
+    char buf[256];
+    snprintf(buf, sizeof(buf), "AITFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f\n",
+             key().num,
+             pos.lat(), pos.lon(),
+             nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),
+             inDyn.vsi,
+             (pos.IsOnGnd() ? '0' : '1'),
+             inDyn.heading, inDyn.spd,
+             statData.call.c_str(),
+             statData.acTypeIcao.c_str(),
+             statData.reg.c_str(),
+             statData.originAp.c_str(),
+             statData.destAp.c_str(),
+             pos.ts());
+    fileExport << buf;
+}
+
+// Export Weather data record, based on DataRefs::GetWeather()
+void LTFlightData::ExportLastWeather ()
+{
+    // The file is expected to be open if we are actively exporting, see ExportFD
+    if (!fileExport.is_open())
+        return;
+    
+    // get latest data
+    float hPa = NAN;
+    std::string stationId, METAR;
+    dataRefs.GetWeather(hPa, stationId, METAR);
+    
+    fileExport
+    << "{\"ICAO\": \""      << stationId
+    << "\",\"QNH\": \""     << std::lround(hPa)
+    << "\", \"METAR\": \""  << METAR
+    << "\", \"NAME\": \""   << stationId        // don't have a proper name, doesn't matter
+    << "\"}\n";
+}
+
 // adds a new position to the queue of positions to analyse
 void LTFlightData::AddNewPos ( positionTy& pos )
 {
@@ -2082,9 +2163,11 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
             sig = _sig;
         }
             
-        // also store the pos (lock is held recursively)
-        if (pos)
+        // also export and store the pos (lock is held recursively)
+        if (pos) {
+            ExportFD(inDyn, *pos);
             AddNewPos(*pos);
+        }
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());

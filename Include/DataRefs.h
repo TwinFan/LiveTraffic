@@ -372,6 +372,7 @@ enum dataRefsLT {
     DR_DBG_AC_POS,
     DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
+    DR_DBG_EXPORT_FD,
     
     // channel configuration options
     DR_CFG_OGN_USE_REQUREPL,
@@ -585,6 +586,7 @@ protected:
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
+    int bDebugExportFd          = false;// export flight data to LTExportFD.csv
     int bDebugModelMatching     = false;// output debug info on model matching in xplanemp?
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
@@ -862,6 +864,9 @@ public:
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
+    inline bool GetDebugExportFD() const        { return bDebugExportFd; }
+    void SetDebugExportFD (bool bExport)        { bDebugExportFd = bExport; }
+
     // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP2)
     inline bool GetDebugModelMatching() const   { return bDebugModelMatching; }
     
@@ -911,6 +916,8 @@ public:
     double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
     /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
     double WeatherAltCorr_m (double pressureAlt_m) { return pressureAlt_m + altPressCorr_ft * M_per_FT; }
+    /// Compute pressure altitude [ft] from geometric altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    double WeatherPressureAlt_ft (double geoAlt_ft) { return geoAlt_ft - altPressCorr_ft; }
     /// Thread-safely gets current weather info
     void GetWeather (float& hPa, std::string& stationId, std::string& METAR);
 };

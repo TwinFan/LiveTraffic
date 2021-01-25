@@ -231,7 +231,10 @@ protected:
     
     // object valid? (will be re-set in case of exceptions)
     bool                bValid;
-    
+
+    /// Export file for tracking data
+    static std::ofstream fileExport;
+
 #ifdef DEBUG
 public:
     bool                bIsSelected = false;    // is selected aircraft for debugging/logging?
@@ -359,7 +362,16 @@ public:
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!
 
+    // Export of tracking data
+protected:
+    /// Export Flight Data to a file LTExportFD.csv
+    void ExportFD (const FDDynamicData& inDyn,
+                   const positionTy& pos);
+public:
+    /// Export Weather data record, based on DataRefs::GetWeather()
+    static void ExportLastWeather ();
 
+public:
     //
     // Functions which should be called from within the X-Plane drawing thread
     // as XPLM and XPMP API functions are called

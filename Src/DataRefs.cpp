@@ -501,7 +501,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    
+    {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+
     // channel configuration options
     {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -571,7 +572,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
-            
+        case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
+
         // channel configuration options
         case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
@@ -2351,8 +2353,9 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
                 lastWeatherPos.lat(), lastWeatherPos.lon());
     }
     
-    // Finally: Save the new pressure
+    // Finally: Save the new pressure and potentially export it with the tracking data
     lastWeatherHPA = hPa;
+    LTFlightData::ExportLastWeather();
 }
 
 // Thread-safely gets current weather info

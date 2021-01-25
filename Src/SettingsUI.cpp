@@ -886,6 +886,8 @@ void LTSettingsUI::buildInterface()
                                            "Logs detailed position information of currently selected aircraft (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
                                            "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
+                ImGui::FilteredCfgCheckbox("Export Tracking Data", sFilter, DR_DBG_EXPORT_FD,
+                                           "Exports all received tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
 
                 if (!*sFilter) ImGui::TreePop();
             }

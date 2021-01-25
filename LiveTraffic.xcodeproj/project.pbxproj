@@ -73,6 +73,9 @@
 		255857A32095BBB500816F65 /* 2018-04-27-1021Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1021Z.json"; sourceTree = "<group>"; };
 		255857A42095BBB500816F65 /* 2018-04-27-1020Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1020Z.json"; sourceTree = "<group>"; };
 		255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1022Z.json"; sourceTree = "<group>"; };
+		2559D72125BF227800775FFC /* edkb_10s.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = edkb_10s.csv; sourceTree = "<group>"; };
+		2559D72225BF227800775FFC /* edkb_landing.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = edkb_landing.csv; sourceTree = "<group>"; };
+		2559D72425BF2AEE00775FFC /* edkb_landing_no_rwy_pos.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = edkb_landing_no_rwy_pos.csv; sourceTree = "<group>"; };
 		25606F8D21B362790017D1EE /* readme.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = readme.html; sourceTree = "<group>"; };
 		25624BD923B014F600B899E1 /* LTApt.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTApt.cpp; sourceTree = "<group>"; };
 		25624BDB23B0150300B899E1 /* LTApt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTApt.h; sourceTree = "<group>"; };
@@ -358,6 +361,9 @@
 		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
 			isa = PBXGroup;
 			children = (
+				2559D72125BF227800775FFC /* edkb_10s.csv */,
+				2559D72425BF2AEE00775FFC /* edkb_landing_no_rwy_pos.csv */,
+				2559D72225BF227800775FFC /* edkb_landing.csv */,
 				2581210B24F091530031354F /* RTdev1.4.pdf */,
 				2581210A24F091480031354F /* SendTraffic.py */,
 				25865B0022065B8D009D5D9C /* udp_listen.py */,

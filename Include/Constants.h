@@ -30,7 +30,7 @@
 // MARK: Version Information (CHANGE VERSION HERE)
 //
 constexpr float VERSION_NR = 2.41f;
-constexpr bool VERSION_BETA = false;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -265,7 +265,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define PATH_RESOURCES_CSL      "Resources/CSL"
 #define PATH_RESOURCES_SCSL     "Resources/ShippedCSL"
 // these are under X-Plane's root dir
-#define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
+#define PATH_DEBUG_RAW_FD       "LTRawFD.log"
+#define PATH_DEBUG_EXPORT_FD    "LTExportFD.csv"
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
 // Standard path delimiter
@@ -374,6 +375,8 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_RECEIVED_BYTES      "%s: Received %ld characters"
 #define DBG_RAW_FD_START        "DEBUG Starting to log raw flight data to %s"
 #define DBG_RAW_FD_STOP         "DEBUG Stopped logging raw flight data to %s"
+#define DBG_EXPORT_FD_START     "Starting to export tracking data to %s"
+#define DBG_EXPORT_FD_STOP      "Stopped exporting tracking data to %s"
 #define DBG_RAW_FD_ERR_OPEN_OUT "DEBUG Could not open output file %s: %s"
 #define DBG_FILTER_AC           "DEBUG Filtering for a/c '%s'"
 #define DBG_FILTER_AC_REMOVED   "DEBUG Filtering for a/c REMOVED"
