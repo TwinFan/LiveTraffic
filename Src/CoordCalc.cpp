@@ -312,24 +312,20 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     // take into account how many other objects made up the current pos! ("* count")
 
     // Special handling for possible NAN values: If NAN on either side then the other wins
-    double _alt = std::isnan(alt_m()) ? pos.alt_m() : alt_m();
-    double _ptc = std::isnan(pitch()) ? pos.pitch() : pitch();
-    double _rol = std::isnan(roll())  ? pos.roll()  : roll();
+    double prev_alt = std::isnan(alt_m()) ? pos.alt_m() : alt_m();
+    double prev_ptc = std::isnan(pitch()) ? pos.pitch() : pitch();
+    double prev_rol = std::isnan(roll())  ? pos.roll()  : roll();
 
 	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
-	for (double &d : v) d *= mergeCount;						// (v * mergeCount           (VS doesn't compile v.apply with lambda function)
-	v += pos.v;													//                 + pos.v)
-	for (double &d : v) d /= (mergeCount + 1);					//                          / (mergeCount+1)
+    ((*this *= mergeCount) += pos) *= (1.0 / (++mergeCount));
 
     heading() = h;
     
     // Handle NAN cases
-    if (std::isnan(alt_m())) alt_m() = _alt;
-    if (std::isnan(pitch())) pitch() = _ptc;
-    if (std::isnan(roll()))  roll()  = _rol;
+    if (std::isnan(alt_m())) alt_m() = prev_alt;
+    if (std::isnan(pitch())) pitch() = prev_ptc;
+    if (std::isnan(roll()))  roll()  = prev_rol;
 
-    mergeCount++;               // one more position object making up this position
-    
     // any special flight phase? shall survive
     // (if both pos have special flight phases then ours survives)
     if (!f.flightPhase)
@@ -347,6 +343,32 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     edgeIdx      = EDGE_UNKNOWN;
     
     return normalize();
+}
+
+//< adds o._lat to _lat and so on...till o._roll to _roll
+positionTy& positionTy::operator+= (const positionTy& o)
+{
+    _lat   += o._lat;
+    _lon   += o._lon;
+    _alt   += o._alt;
+    _ts    += o._ts;
+    _head  += o._head;
+    _pitch += o._pitch;
+    _roll  += o._roll;
+    return *this;
+}
+
+//< multiplies _lat,...,_roll with f
+positionTy& positionTy::operator*= (double d)
+{
+    _lat   *= d;
+    _lon   *= d;
+    _alt   *= d;
+    _ts    *= d;
+    _head  *= d;
+    _pitch *= d;
+    _roll  *= d;
+    return *this;
 }
 
 const char* positionTy::GrndE2String (onGrndE grnd)

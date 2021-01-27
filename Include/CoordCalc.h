@@ -24,7 +24,6 @@
 #define CoordCalc_h
 
 #include "XPLMScenery.h"
-#include <valarray>
 #include <deque>
 
 // positions and angles are in degrees
@@ -304,13 +303,6 @@ inline const char* SpecialPosE2String (specialPosE sp)
 //MARK: Data Structures
 //
 
-// MARK: std::valarray validation in support of analysis for issue TwinFan/LiveTraffic#207
-#ifdef _MSC_VER
-#define ASSERT_VALARRAY(va) LOG_ASSERT(&(va.operator[](0)) != nullptr)
-#else
-#define ASSERT_VALARRAY(v)
-#endif
-
 // a vector
 struct vectorTy {
     double  angle;                      // degrees
@@ -338,9 +330,10 @@ constexpr size_t EDGE_UNAVAIL = EDGE_UNKNOWN-1; ///< tried finding a taxiway, bu
 
 // a position: latitude (Z), longitude (X), altitude (Y), timestamp
 struct positionTy {
-    enum positionTyE { LAT=0, LON, ALT, TS, HEADING, PITCH, ROLL };
-    std::valarray<double> v;
-    
+protected:
+    double  _lat, _lon, _alt, _ts, _head, _pitch, _roll;
+
+public:
     int mergeCount = 1;      /// for posList use only: when merging positions this counts how many flight data objects made up this position
         
     /// collection of defining flags
@@ -357,14 +350,14 @@ struct positionTy {
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
     size_t edgeIdx = EDGE_UNKNOWN;
 public:
-    positionTy () : v{NAN,NAN,NAN,NAN,NAN,NAN,NAN},
+    positionTy () : _lat(NAN), _lon(NAN), _alt(NAN), _ts(NAN), _head(NAN), _pitch(NAN), _roll(NAN),
     f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE,false}
     {}
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
                 flightPhaseE fPhase = FPH_UNKNOWN) :
-        v{dLat, dLon, dAlt_m, dTS, dHead, dPitch, dRoll},
+        _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead), _pitch(dPitch), _roll(dRoll),
         f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE,false}
     {}
     positionTy ( const XPLMProbeInfo_t& probe ) :
@@ -374,7 +367,11 @@ public:
     
     // merge with the given position
     positionTy& operator |= (const positionTy& pos);
-    
+
+    // Operations on the double values only (_lat through _roll)
+    positionTy& operator+= (const positionTy& o);           ///< adds o._lat to _lat and so on...till o._roll to _roll
+    positionTy& operator*= (double d);                      ///< multiplies _lat,...,_roll with f
+
     // typecase to ptTy
     operator ptTy() const { return ptTy(lon(),lat()); }
     // standard string for any output purposes
@@ -414,24 +411,24 @@ public:
     positionTy& rad2deg();
     
     // named element access
-    inline double lat()     const { return v[LAT]; }
-    inline double lon()     const { return v[LON]; }
-    inline double alt_m()   const { return v[ALT]; }                    // in meter
+    inline double lat()     const { return _lat; }
+    inline double lon()     const { return _lon; }
+    inline double alt_m()   const { return _alt; }                    // in meter
     inline double alt_ft()  const { return alt_m()/M_per_FT; }   // in feet
-    inline double ts()      const { ASSERT_VALARRAY(v); return v[TS]; }
-    inline double heading() const { return v[HEADING]; }
-    inline double pitch()   const { return v[PITCH]; }
-    inline double roll()    const { return v[ROLL]; }
+    inline double ts()      const { return _ts; }
+    inline double heading() const { return _head; }
+    inline double pitch()   const { return _pitch; }
+    inline double roll()    const { return _roll; }
 
     inline bool   IsOnGnd() const { return f.onGrnd == GND_ON; }
 
-    inline double& lat()        { return v[LAT]; }
-    inline double& lon()        { return v[LON]; }
-    inline double& alt_m()      { return v[ALT]; }
-    inline double& ts()         { return v[TS]; }
-    inline double& heading()    { return v[HEADING]; }
-    inline double& pitch()      { return v[PITCH]; }
-    inline double& roll()       { return v[ROLL]; }
+    inline double& lat()        { return _lat; }
+    inline double& lon()        { return _lon; }
+    inline double& alt_m()      { return _alt; }
+    inline double& ts()         { return _ts; }
+    inline double& heading()    { return _head; }
+    inline double& pitch()      { return _pitch; }
+    inline double& roll()       { return _roll; }
     
     inline void SetAltFt (double ft) { alt_m() = ft * M_per_FT; }
 
@@ -439,12 +436,12 @@ public:
     // latitude and Z go north/south
     // longitude and X go east/west
     // altitude and Y go up/down
-    inline double Z() const { return v[LAT]; }
-    inline double X() const { return v[LON]; }
-    inline double Y() const { return v[ALT]; }
-    inline double& Z() { return v[LAT]; }
-    inline double& X() { return v[LON]; }
-    inline double& Y() { return v[ALT]; }
+    inline double Z() const { return lat(); }
+    inline double X() const { return lon(); }
+    inline double Y() const { return alt_m(); }
+    inline double& Z() { return lat(); }
+    inline double& X() { return lon(); }
+    inline double& Y() { return alt_m(); }
 
     // short-cuts to coord functions
     inline double angle (const positionTy& pos2 ) const       { return CoordAngle ( *this, pos2); }

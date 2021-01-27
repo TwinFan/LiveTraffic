@@ -1348,7 +1348,6 @@ std::string LTAircraft::GetFlightId() const
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
 const positionTy& LTAircraft::GetToPos() const
 {
-    ASSERT_VALARRAY(ppos.v);
     if ( posList.size() >= 2 )
         return ppos < posList.back() ? posList.back() : ppos;
     else
@@ -1695,8 +1694,9 @@ bool LTAircraft::CalcPPos()
 
         // Legs long enough?
         if (vec.dist > SIMILAR_POS_DIST && nextVec.dist > SIMILAR_POS_DIST) {
-            positionTy _end;
-            _end.v = to.v * 0.5 + nextPos.v * 0.5;  // end point is half-way down the nextVec
+            positionTy _end = to;
+            to.mergeCount = nextPos.mergeCount = 1;
+            to |= nextPos;                          // effectively calculates mid-point between to and nextPos, taking care of proper heading, too
             turn.Define(ppos,                       // start is right here and now
                         to,                         // mid-point is end of current leg
                         _end);
@@ -1756,12 +1756,12 @@ bool LTAircraft::CalcPPos()
         // Now we apply the factor so that with time we move from 'from' to 'to'.
         // Note that this calculation also works if we passed 'to' already
         // (due to no newer 'to' available): we just keep going the same way.
-        // Here now valarray comes in handy as we can write the calculation
-        // with simple vector notation:
-        const double saveRoll = ppos.roll();            // we handle roll later separately
-        ppos.v = from.v * (1-f) + to.v * f;
-        ppos.roll() = saveRoll;
-        // (this also computes standard values for heading, pitch, roll.)
+        // This is effectively a scaled vector sum, broken down into its components:
+        ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
+        ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
+        ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
+        ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
+        // we handle roll later separately
         
         // Get heading from moving param
         ppos.heading() = heading.get();
