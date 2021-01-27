@@ -1377,7 +1377,7 @@ void LTFlightData::CalcNextPosMain ()
                     if (fd.IsValid())
                         fd.CalcNextPos(pair.second);
                 } catch (const std::exception& e) {
-                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION " - on aircraft %s", e.what(), pair.first.c_str());
                     fd.SetInvalid();
                 } catch (...) {
                     fd.SetInvalid();
@@ -1385,6 +1385,9 @@ void LTFlightData::CalcNextPosMain ()
                 
             } catch(const std::out_of_range&) {
                 // just ignore exception...fd object might have gone in the meantime
+                if constexpr (VERSION_BETA) {
+                    LOG_MSG(logWARN, "No longer found aircraft %s", pair.first.c_str());
+                }
             }
         }
             

@@ -346,7 +346,7 @@ public:
     // stringify e.g. for debugging info purposes
     operator std::string() const;
     // current position
-    inline const positionTy& GetPPos() const { return ppos; }
+    inline const positionTy& GetPPos() const { ASSERT_VALARRAY(ppos.v); return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
     // position heading to (usually posList[1], ppos if ppos > posList[1])
     const positionTy& GetToPos() const;

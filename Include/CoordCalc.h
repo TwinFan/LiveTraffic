@@ -304,6 +304,13 @@ inline const char* SpecialPosE2String (specialPosE sp)
 //MARK: Data Structures
 //
 
+// MARK: std::valarray validation in support of analysis for issue TwinFan/LiveTraffic#207
+#ifdef _MSC_VER
+#define ASSERT_VALARRAY(va) LOG_ASSERT(&(va.operator[](0)) != nullptr)
+#else
+#define ASSERT_VALARRAY(v)
+#endif
+
 // a vector
 struct vectorTy {
     double  angle;                      // degrees
@@ -411,7 +418,7 @@ public:
     inline double lon()     const { return v[LON]; }
     inline double alt_m()   const { return v[ALT]; }                    // in meter
     inline double alt_ft()  const { return alt_m()/M_per_FT; }   // in feet
-    inline double ts()      const { return v[TS]; }
+    inline double ts()      const { ASSERT_VALARRAY(v); return v[TS]; }
     inline double heading() const { return v[HEADING]; }
     inline double pitch()   const { return v[PITCH]; }
     inline double roll()    const { return v[ROLL]; }

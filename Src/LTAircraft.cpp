@@ -1348,6 +1348,7 @@ std::string LTAircraft::GetFlightId() const
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
 const positionTy& LTAircraft::GetToPos() const
 {
+    ASSERT_VALARRAY(ppos.v);
     if ( posList.size() >= 2 )
         return ppos < posList.back() ? posList.back() : ppos;
     else
