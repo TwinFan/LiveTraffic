@@ -63,6 +63,10 @@
     <P>For updating coming from v2.40
         <ul>
             <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</li>
+            <li><i>Linux users</i>: There are two versions now:<br>
+                <code>LiveTraffic.xpl</code> is built on Ubuntu 20.04,<br>
+                <code>LiveTraffic-bionic.xpl</code> is built on Ubuntu 18.04.<br>
+                In case you need the Bionic version rename it to <code>LiveTraffic.xpl</code>.</li>
         </ul>
     </p>
 
@@ -73,7 +77,12 @@
             ability to export flight tracking data to a <code>.csv</code> file
             for analysis or for feeding back into LiveTraffic.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/207">#207</a>
-            race conditions that might have led to rare CTDs.<li>
+            race conditions that might have led to rare CTDs.</li>
+        <li>ADDED two Linux builds: The default is now built on Ubuntu 20.04 Focal Fossa.
+            Previously, LiveTraffic was built on Ubuntu 18.04 Bionic Beaver.
+            This is still provided as <code>LiveTraffic-bionic.xpl</code>. If the default
+            doesn't work for you then rename the Bionic version to
+            <code>LiveTraffic.xpl</code>.</li>
     </ul>
 
     <h3>v2.40</h3>

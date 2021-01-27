@@ -638,11 +638,9 @@ public:
         // So we can more quickly find potential matches by
         // looking in that range of edges only around our target heading pos.heading()
         // "Normalize" search heading even further to [0..180)
-        bool bHeadInverted = false;
-        if (_headSearch >= 180.0) {
+        if (_headSearch >= 180.0)
             _headSearch -= 180.0;
-            bHeadInverted = true;
-        }
+
         // We allow for some tolerance
         const double headBegin = _headSearch - _angleTolerance;     // might now be < 0 !
         const double headEnd   = _headSearch + _angleTolerance;     // might now be >= 180 !

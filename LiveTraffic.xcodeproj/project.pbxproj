@@ -108,6 +108,10 @@
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
 		2581210A24F091480031354F /* SendTraffic.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = SendTraffic.py; sourceTree = "<group>"; };
 		2581210B24F091530031354F /* RTdev1.4.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.4.pdf; sourceTree = "<group>"; };
+		2582235225C209C2000A0903 /* Toolchain-ubuntu-osxcross.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-ubuntu-osxcross.cmake"; sourceTree = "<group>"; };
+		2582235325C209C2000A0903 /* Toolchain-mingw-w64-x86-64.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-mingw-w64-x86-64.cmake"; sourceTree = "<group>"; };
+		2582235625C20A95000A0903 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		2582235725C22635000A0903 /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
 		25850BF623F7605500905D9F /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		25865B0022065B8D009D5D9C /* udp_listen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_listen.py; sourceTree = "<group>"; };
 		258790A823020C5700129569 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = Lib/CURL/libcurl.framework; sourceTree = "<group>"; };
@@ -146,12 +150,7 @@
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
 		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
 		25D59F4B23106A79002D81CF /* model_typecode.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = model_typecode.txt; sourceTree = "<group>"; };
-		25D810FE2402D60A00A8723B /* Dockerfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Dockerfile; sourceTree = "<group>"; };
-		25D810FF2402D60A00A8723B /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		25D811002402D60A00A8723B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		25D811012402D60A00A8723B /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
-		25D811022402D60A00A8723B /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		25D811032402D60A00A8723B /* Toolchain-ubuntu-osxcross-10.11.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-ubuntu-osxcross-10.11.cmake"; sourceTree = "<group>"; };
 		25DC1E2A21B72922008D0F8B /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = "<group>"; };
 		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
@@ -443,12 +442,11 @@
 		25D810FD2402D60A00A8723B /* docker */ = {
 			isa = PBXGroup;
 			children = (
-				25D811022402D60A00A8723B /* .gitignore */,
-				25D811012402D60A00A8723B /* build.sh */,
-				25D810FE2402D60A00A8723B /* Dockerfile */,
-				25D810FF2402D60A00A8723B /* Makefile */,
+				2582235725C22635000A0903 /* build.sh */,
+				2582235625C20A95000A0903 /* Makefile */,
 				25D811002402D60A00A8723B /* README.md */,
-				25D811032402D60A00A8723B /* Toolchain-ubuntu-osxcross-10.11.cmake */,
+				2582235325C209C2000A0903 /* Toolchain-mingw-w64-x86-64.cmake */,
+				2582235225C209C2000A0903 /* Toolchain-ubuntu-osxcross.cmake */,
 			);
 			path = docker;
 			sourceTree = "<group>";

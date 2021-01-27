@@ -1,14 +1,11 @@
 .DS_Store
 .localized
-.image
+.image*
 .vs/
 .vscode/
 
 # Build directories
-build/
-build-lin/
-build-win/
-build-mac/
+build*/
 
 # Generated documentation
 docs/html/

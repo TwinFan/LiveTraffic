@@ -317,7 +317,9 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     double prev_rol = std::isnan(roll())  ? pos.roll()  : roll();
 
 	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
-    ((*this *= mergeCount) += pos) *= (1.0 / (++mergeCount));
+    (*this *= mergeCount) += pos;
+    ++mergeCount;
+    *this *= 1.0 / mergeCount;
 
     heading() = h;
     
@@ -345,7 +347,7 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     return normalize();
 }
 
-//< adds o._lat to _lat and so on...till o._roll to _roll
+// adds o._lat to _lat and so on...till o._roll to _roll
 positionTy& positionTy::operator+= (const positionTy& o)
 {
     _lat   += o._lat;
@@ -358,7 +360,7 @@ positionTy& positionTy::operator+= (const positionTy& o)
     return *this;
 }
 
-//< multiplies _lat,...,_roll with f
+// multiplies _lat,...,_roll with f
 positionTy& positionTy::operator*= (double d)
 {
     _lat   *= d;
