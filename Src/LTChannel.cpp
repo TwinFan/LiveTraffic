@@ -814,12 +814,6 @@ void LTFlightDataAcMaintenance()
         }
         // now remove all outdated fd objects remembered for deletion
         for ( const mapLTFlightDataTy::key_type& key: vFdKeysToErase ) {
-            // Lock without helper object as the entire FD object including mutex
-            // is now going to be destroyed, which is "undefined behaviour"
-            // according to C++ specs. We want as few as possible objects
-            // involved now, but we need the lock to prevent others to access
-            // the data while we remove the object.
-            mapFd.at(key).dataAccessMutex.lock();
             mapFd.erase(key);
         }
         

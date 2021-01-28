@@ -142,7 +142,7 @@
       <DisableSpecificWarnings>4127;4634;4635</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>Lib/XPMP2/win;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;iphlpapi.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>
@@ -192,7 +192,7 @@
       <DisableSpecificWarnings>4127</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Lib/XPMP2;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>Lib/XPMP2/win;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;iphlpapi.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
