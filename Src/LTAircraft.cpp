@@ -58,9 +58,6 @@ static FrameLenArrTy::iterator gFrameLenIter;
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
 bool NextCycle (int newCycle)
 {
-    // All regular updates are collected here
-    LTRegularUpdates();
-    
     if ( currCycle.num >= 0 )    // not the very very first cycle?
         prevCycle = currCycle;
     else
@@ -79,15 +76,6 @@ bool NextCycle (int newCycle)
     // the time that has passed since the last cycle
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
 
-    // tell multiplayer lib if we want to see labels
-    // (these are very quick calls only setting a variable)
-    // as the user can change between views any frame
-    // Tell XPMP if we need labels
-    if (dataRefs.ShallDrawLabels())
-        XPMPEnableAircraftLabels();
-    else
-        XPMPDisableAircraftLabels();
-    
 #ifdef DEBUG
     // When debugging we want to step through the data and don't mind if
     // we de-synch with reality, so if we notice too long a wait between
@@ -130,6 +118,18 @@ bool NextCycle (int newCycle)
         return false;
     }
 #endif
+    
+    // All regular updates are collected here
+    LTRegularUpdates();
+    
+    // tell multiplayer lib if we want to see labels
+    // (these are very quick calls only setting a variable)
+    // as the user can change between views any frame
+    // Tell XPMP if we need labels
+    if (dataRefs.ShallDrawLabels())
+        XPMPEnableAircraftLabels();
+    else
+        XPMPDisableAircraftLabels();
     
     return true;
 }

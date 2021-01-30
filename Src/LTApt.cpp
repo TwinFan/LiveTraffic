@@ -1051,13 +1051,11 @@ public:
     /// @param _endN End node in Apt::vecTaxiNodes
     /// @param _maxLen Maximum path length, no longer paths will be pursued or returned
     /// @param _headingAtStart The current heading at the start node, affects how the start leg may be picked to avoid sharp turns
-    /// @param _generalHeading General heading the plane shall follow, typically heading from start to end node. Affects which turns are allowed along that returned path.
     /// @param _headingAtEnd The expected heading at the end node, affects how the final leg to the endN may be picked
     /// @return List of node indexes _including_ `_end` and `_start` in _reverse_ order,
     ///         or an empty list if no path of suitable length was found
     vecIdxTy ShortestPath (size_t _startN, size_t _endN, double _maxLen,
                            double _headingAtStart,
-                           double _generalHeading,
                            double _headingAtEnd)
     {
         // Sanity check: _start and _end should differ
@@ -1083,7 +1081,6 @@ public:
         // General heading between start and end (reversed)
         // defines first heading (how we leave _startN) and
         // how far the plane is allowed to turn
-        const double _headReverse = std::fmod(_generalHeading + 180.0, 360.0);
         
         // outer loop controls currently visited node and checks if end already found
         while (!vecVisit.empty() && endN.prevIdx == ULONG_MAX)
@@ -1140,10 +1137,6 @@ public:
                                          eAngle)) > APT_MAX_PATH_TURN)
                     continue;
                 
-                // Don't allow to turn backwards compared to initial heading
-                if (std::abs(HeadingDiff(_headReverse, eAngle)) < ART_EDGE_ANGLE_TOLERANCE)
-                    continue;
-                
                 // If the node being analyzed is the end node, then we also
                 // need to verify if the heading from end node to actual a/c position
                 // would not again cause too sharp a turn:
@@ -1198,7 +1191,7 @@ public:
         // 1. --- Try to match pos with a startup location
         double distStartup = NAN;
         const StartupLoc* pStartLoc = FindStartupLoc(pos,
-                                                     dataRefs.GetFdSnapTaxiDist_m() * 2,
+                                                     dataRefs.GetFdSnapTaxiDist_m() * 3,
                                                      &distStartup);
         if (pStartLoc)
         {
@@ -1210,7 +1203,24 @@ public:
         
         // 2. --- Find any edge ---
         // Find the closest edge and right away move pos there
-        const TaxiEdge* pEdge = FindClosestEdge(pos, pos,
+        // For searching an edge we trust the heading sent by the channel
+        // more than our preliminary calculation. This is because on the ground
+        // while taxiing a plane can do 180 degree turns rather quickly,
+        // for example when turning off a runway to roll back to terminal.
+        // Our heading calculation assumes no quick turns and will overwrite
+        // heading with "forward" while in reality plane is already going "back".
+        // So for searching the edge's heading we here trust the channel...huh...
+        positionTy posForSearching = pos;
+        if (!pStartLoc)
+        {
+            LTFlightData::FDDynamicData *pDynDat = nullptr, *pDynAfter = nullptr;
+            bool bSimilar = false;
+            fd.dequeFDDynFindAdjacentTS(posForSearching.ts(), pDynDat, pDynAfter, &bSimilar);
+            if (bSimilar && pDynDat)
+                posForSearching.heading() = pDynDat->heading;
+            
+        }
+        const TaxiEdge* pEdge = FindClosestEdge(posForSearching, pos,
                                                 dataRefs.GetFdSnapTaxiDist_m(),
                                                 ART_EDGE_ANGLE_TOLERANCE,
                                                 ART_EDGE_ANGLE_TOLERANCE_EXT);
@@ -1362,34 +1372,83 @@ public:
             maxLen *= 3.0;
         
         // let's try finding a shortest path
-        const double headGeneral = prevPos.angle(pos);
         vecIdxTy vecPath = ShortestPath(prevErelN,
                                         currEstartN,
                                         maxLen,
-                                        prevE.GetAngleByHead(headGeneral),
-                                        headGeneral,
-                                        pEdge->GetAngleByHead(headGeneral));
+                                        prevE.GetAngleByHead(prevPos.heading()),
+                                        pEdge->GetAngleByHead(pos.heading()));
+        
+        // We might skip front/start nodes, remove them now if so
+        if (vecPath.size() >= 2 && bSkipEnd)
+            vecPath.erase(vecPath.begin());             // vecPath is in reverse order, so last element is at begin
+        if (vecPath.size() >= 2 && bSkipStart)
+            vecPath.pop_back();                         // vecPath is in reverse order!
+        
+        // Special handling for rwy nodes at beginning of path:
+        // We don't need several rwy nodes, a rwy is a straight line anyway,
+        // and without intermediate nodes calculation of proper decelaration
+        // becomes possible
+        while (vecPath.size() >= 2)
+        {
+            // vecPath is in reverse order, so use reverse iterator
+            // edge between the first two nodes
+            size_t eIdx = GetEdgeBetweenNodes(*vecPath.crbegin(), *std::next(vecPath.crbegin()));
+            LOG_ASSERT(eIdx != EDGE_UNAVAIL);
+            // stop processing if not a rwy
+            if (vecTaxiEdges[eIdx].GetType() != TaxiEdge::RUN_WAY)
+                break;
+            // it is a runway, so remove the first node (which, as vecPath is in reverse order, happens to be the back node)
+            vecPath.pop_back();
+        }
+        
+        // if we removed nodes from the start of the path then we need to adjust path len in the nodes now:
+        // The start node has to have pathLen == 0.0
+        if (vecPath.size() >= 2 && vecTaxiNodes[vecPath.back()].pathLen > 0.0) {
+            const double adjust = vecTaxiNodes[vecPath.back()].pathLen;
+            for (size_t nIdx: vecPath)
+                vecTaxiNodes[nIdx].pathLen -= adjust;
+        }
 
-        // Some path found?
+        // Some path left?
         if (vecPath.size() >= 2)
         {
-            // length of total path as returned (this excludes the distance from prevPos to start, and from end to pos)
-            // Add the end leg, ie. from end of path to pos
-            const TaxiNode& endN = vecTaxiNodes[vecPath.front()];  // end of path
-            const double pathLen = vecTaxiNodes[currEstartN].pathLen
-            + DistLatLon(endN.lat, endN.lon, pos.lat(), pos.lon());
+            const TaxiNode& endN = vecTaxiNodes[vecPath.front()];   // end of path
+            const TaxiNode& startN = vecTaxiNodes[vecPath.back()];  // start of path
+
+            // distance from prevPos to path's start
+            const double distToStart = DistLatLon(prevPos.lat(), prevPos.lon(), startN.lat, startN.lon);
+            // length of total path as defined in vecPath
+            const double pathLen = endN.pathLen;
+            // distane from path's end to pos
+            const double distFromEnd = DistLatLon(endN.lat, endN.lon, pos.lat(), pos.lon());
+            // end-2-end distance including all segments
+            const double distE2E = distToStart + pathLen + distFromEnd;
             
-            // Adjust the startTS (as prevPos is not equal to start of path,
-            // we need time to travel that short distance)
-            const TaxiNode& startN = vecTaxiNodes[vecPath.back()];       // start of path
-            const double prevToStartDist = DistLatLon(prevPos.lat(), prevPos.lon(), startN.lat, startN.lon);
-            const double speed = (prevToStartDist + pathLen) / (pos.ts() - prevPos.ts());
-            // Allow for some time to go from prevPos to start of path:
-            const double startTS = prevPos.ts() + prevToStartDist / speed;
-            
-            // the time we have from start of the path to pos
-            const double pathTime = pos.ts() - startTS;
-            
+            // average speed for the complete end-2-end distance
+            double speed = distE2E / (pos.ts() - prevPos.ts());
+            // ts for first path node: Allow for some time to go from prevPos to start of path:
+            double startTS = prevPos.ts() + distToStart / speed;
+
+            // Special handling if we are coming from a rwy:
+            // We allow for high speed on the path from prevPos to the start of
+            // the path, which supposingly is the point turning off from the rwy
+            // (we had removed all other rwy nodes just a few lines above)
+            if (prevE.GetType() == TaxiEdge::RUN_WAY &&
+                speed > mdl.MAX_TAXI_SPEED * 0.60 / KT_per_M_per_S)
+            {
+                // Average speed was higher than what we would taxi with,
+                // so we reduce the speed to reasonable taxiing speed
+                // and make sure that all the path is executed with taxiing speed,
+                // which allows for higher speed from prevPos to the start of the path:
+                speed = mdl.MAX_TAXI_SPEED * 0.60 / KT_per_M_per_S;
+                startTS = pos.ts() - (pathLen + distFromEnd) / speed;
+            }
+
+            // remaining time from first path's node to pos
+            const double timeStartToPos = pos.ts() - startTS;
+            // remaining distance from first path's node to pos
+            const double distStartToPos = pathLen + distFromEnd;
+
             // path is returned in reverse order, so work on it reversely
             size_t prevIdxN = ULONG_MAX;
             bool bFirstNode = true;
@@ -1398,19 +1457,13 @@ public:
                  iter != vecPath.crend();
                  ++iter)
             {
-                // Skip artificially moved positions
-                if ((bSkipStart && iter == vecPath.crbegin()) ||
-                    (bSkipEnd   && std::next(iter) == vecPath.crend()))
-                    continue;
-                
                 // Is this (going to be) the last node?
-                const bool bLastNode =  std::next(iter) == vecPath.crend() ||
-                                       (bSkipEnd && std::next(iter,2) == vecPath.crend());
+                const bool bLastNode = std::next(iter) == vecPath.crend();
 
                 // create a proper position and insert it into fd's posDeque
                 const TaxiNode& n = vecTaxiNodes[*iter];
                 positionTy insPos (n.lat, n.lon, NAN,   // lat, lon, altitude
-                                   startTS + pathTime * n.pathLen / pathLen,
+                                   startTS + timeStartToPos * n.pathLen / distStartToPos,
                                    NAN,                 // heading will be populated later
                                    0.0, 0.0,            // on the ground no pitch/roll
                                    GND_ON,

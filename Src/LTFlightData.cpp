@@ -522,10 +522,10 @@ void LTFlightData::DataCleansing (bool& bChanged)
     // Relevant if:
     // - airborne
     // - descending
-    if (posDeque.size() >= 2)
+    if ((pAc && !posDeque.empty()) || (posDeque.size() >= 2))
     {
         positionTy& last = posDeque.back();
-        const positionTy& prev = *std::prev(posDeque.cend(),2);
+        const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetToPos();
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
         if (!last.IsOnGnd() && !prev.IsOnGnd() &&   // too late? ;-) position shall not already be on the ground
             !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
@@ -1073,7 +1073,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 if (timeToTouchDown > TIME_REQU_POS &&
                     tsOfTouchDown + TIME_REQU_POS < next.ts())
                 {
-                    vectorTy vecTouch(toPos_ac.angle(next),                      // angle: as per last leg
+                    vectorTy vecTouch(pAc->GetTrack(),                          // touch down is straight ahead, don't turn last second
                                       timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
                                       pAc->GetVSI_m_s(),                         // vsi
                                       pAc->GetSpeed_m_s());                      // speed
@@ -1091,6 +1091,19 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
+                    }
+                    
+                    // If the touch-down point snapped to a rwy AND
+                    // the next position in the deque is a TAXI position (and not also a RWY)
+                    // then snap the TXI position again so that the (shortest)
+                    // path from touch-down to taxi pos is inserted along
+                    // proper taxi routes
+                    if (iter->f.specialPos == SPOS_RWY &&
+                        std::next(iter) != posDeque.end() &&
+                        std::next(iter)->f.specialPos == SPOS_TAXI)
+                    {
+                        dequePositionTy::iterator txiIter = std::next(iter);
+                        LTAptSnap(*this, txiIter, true);
                     }
                 }
                 else
@@ -1541,6 +1554,10 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
 {
     // access guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // only compare positions which are either both on the ground or both in the air
+    if (thisPos.IsOnGnd() != lastPos.IsOnGnd())
+        return true;
 
     // aircraft model to use
     const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
@@ -1559,18 +1576,31 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                           v.dist <= SIMILAR_POS_DIST ? 0.0 :
                           HeadingDiff(lastHead, v.angle));
     
-    // Too much of a turn? VSI/speed out of range?
-    if (-maxTurn > hDiff || hDiff > maxTurn   ||
-        v.vsi_ft() < -mdl.VSI_MAX || v.vsi_ft() > mdl.VSI_MAX    ||
-        (!std::isnan(v.speed_kn()) && v.speed_kn() > mdl.MAX_FLIGHT_SPEED) ||
-        // too slow speed up in the air?
-        ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
-         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MIN_FLIGHT_SPEED) )
-    {
-        LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f)",
-                keyDbg().c_str(),
+    // Speed limits
+    const bool bRwy = (thisPos.f.specialPos == SPOS_RWY) || (lastPos.f.specialPos == SPOS_RWY);
+    const double minSpeed = !thisPos.IsOnGnd() ? mdl.MIN_FLIGHT_SPEED : 0.0;
+    const double maxSpeed = !thisPos.IsOnGnd() ? mdl.MAX_FLIGHT_SPEED : // airborne
+                            bRwy ? mdl.MAX_FLIGHT_SPEED :               // rwy involved
+                            mdl.MAX_TAXI_SPEED;                         // purely taxiing
+    
+    // --- Validations ---
+    const char* szViolTxt = nullptr;
+    
+    if (-maxTurn > hDiff || hDiff > maxTurn)
+        szViolTxt = "Turn too far";
+    else if (v.vsi_ft() < -mdl.VSI_MAX || mdl.VSI_MAX < v.vsi_ft())
+        szViolTxt = "VSI too high";
+    else if (!std::isnan(v.speed_kn()) && v.speed_kn() > maxSpeed)
+        szViolTxt = "Speed too high";
+    else if (!std::isnan(v.speed_kn()) && v.speed_kn() < minSpeed)
+        szViolTxt = "Speed too low";
+        
+    // Any problem found?
+    if (szViolTxt) {
+        LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, )",
+                keyDbg().c_str(), szViolTxt,
                 std::string(v).c_str(), hDiff,
-                mdl.VSI_MAX, mdl.MAX_FLIGHT_SPEED, mdl.MIN_FLIGHT_SPEED, maxTurn);
+                minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX);
         return false;
     }
     

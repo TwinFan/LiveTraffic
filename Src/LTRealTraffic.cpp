@@ -277,6 +277,9 @@ bool RealTrafficConnection::StartConnections()
     if (status == RT_STATUS_NONE)
         SetStatus(RT_STATUS_STARTING);
     
+    // Make sure weather is cleared
+    InitWeather();
+    
     // *** TCP server for RealTraffic to connect to ***
     if (!thrTcpRunning && !tcpPosSender.IsConnected()) {
         if (thrTcpServer.joinable())

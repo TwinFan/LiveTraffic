@@ -22,7 +22,7 @@ VSI_MAX             3000    # [ft/min] maximum vertical speed, beyond this consi
 AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             25    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        30    # [kt] below that: taxi, above that: take-off/roll-out
+MAX_TAXI_SPEED        45    # [kt] below that: taxi, above that: take-off/roll-out
 MIN_REVERS_SPEED      80    # [kt] use reversers down to this speed
 TAXI_TURN_TIME        30    # [s] time for a 360° turn on the ground
 FLIGHT_TURN_TIME     120    # [s] time for a typical 360° turn in flight
@@ -101,7 +101,7 @@ VSI_MAX             2500    # [ft/min] maximum vertical speed, beyond this consi
 AGL_GEAR_DOWN        300    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             15    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        25    # [kt] below that: taxi, above that: take-off/roll-out
+MAX_TAXI_SPEED        35    # [kt] below that: taxi, above that: take-off/roll-out
 TAXI_TURN_TIME        15    # [s] time for a 360° turn on the ground
 FLIGHT_TURN_TIME      75    # [s] time for a typical 360° turn in flight
 MIN_FLIGHT_TURN_TIME  45    # [s] minimum allowable time for a 360° turn in flight
@@ -139,7 +139,7 @@ VSI_MAX             2500    # [ft/min] maximum vertical speed, beyond this consi
 AGL_GEAR_DOWN        200    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE              5    # [ft] height AGL to start flare
-MAX_TAXI_SPEED        20    # [kt] below that: taxi, above that: take-off/roll-out
+MAX_TAXI_SPEED        30    # [kt] below that: taxi, above that: take-off/roll-out
 MIN_REVERS_SPEED      50    # [kt] use reversers down to this speed
 TAXI_TURN_TIME        10    # [s] time for a 360° turn on the ground
 FLIGHT_TURN_TIME      60    # [s] time for a typical 360° turn in flight
