@@ -323,7 +323,11 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/true_psi",
     "sim/flightmodel/position/hpath",
     "sim/flightmodel/position/true_airspeed",
+    "sim/flightmodel/position/vh_ind",          // float n meters/second VVI (vertical velocity in meters per second)"
     "sim/flightmodel/failures/onground_any",
+    "sim/aircraft/view/acf_tailnum",            // byte[40] y string    Tail number
+    "sim/aircraft/view/acf_modeS_id",           // int      y integer   24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
+    "sim/aircraft/view/acf_ICAO",               // byte[40] y string    ICAO code for aircraft (a string) entered by author
     "sim/graphics/VR/enabled",
 };
 
@@ -502,6 +506,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/export_user_ac",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
 
     // channel configuration options
     {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -573,6 +578,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
         case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
+        case DR_DBG_EXPORT_USER_AC:         return &bDebugExportUserAc;
 
         // channel configuration options
         case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
@@ -849,6 +855,12 @@ void DataRefs::InformDataRefEditors ()
 // Unregister (destructor would be too late for reasonable API calls)
 void DataRefs::Stop ()
 {
+    // Stop all file writing
+    if (AnyExportData()) {
+        SetAllExportData(false);
+        LTFlightData::ExportOpenClose();
+    }
+    
     // unregister our dataRefs
     for (XPLMDataRef& dr: adrLT) {
         XPLMUnregisterDataAccessor(dr);
@@ -982,6 +994,37 @@ void DataRefs::UpdateUsersPlanePos ()
     // also fetch true airspeed and track
     lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
+}
+
+void DataRefs::ExportUserAcData()
+{
+    // only if enabled and even then only every few seconds earliest
+    if (!LTFlightData::ExportOpenClose() ||
+        !GetDebugExportUserAc() ||
+        GetMiscNetwTime() - lastExportUserAc < EXPORT_USER_AC_PERIOD)
+        return;
+    lastExportUserAc = GetMiscNetwTime();
+    
+    // get user plane's ICAO and tail number
+    char userIcao[41], userReg[41];
+    XPLMGetDatab(adrXP[DR_PLANE_ICAO], userIcao, 0, sizeof(userIcao)-1);
+    XPLMGetDatab(adrXP[DR_PLANE_REG],  userReg,  0, sizeof(userReg)-1);
+    userIcao[sizeof(userIcao)-1] = 0;           // I trust nobody: zero-termination
+    userReg[sizeof(userReg)-1] = 0;
+
+    // output a tracking data record
+    char buf[256];
+    snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
+             XPLMGetDatai(adrXP[DR_PLANE_MODES_ID]),
+             lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),
+             nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())),
+             XPLMGetDataf(adrXP[DR_PLANE_VVI]),
+             (lastUsersPlanePos.IsOnGnd() ? '0' : '1'),
+             lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,
+             EXPORT_USER_CALL,
+             userIcao, userReg,
+             lastUsersPlanePos.ts());
+    LTFlightData::ExportAddOutput((unsigned long)std::lround(lastUsersPlanePos.ts()), buf);
 }
 
 //
@@ -2206,6 +2249,7 @@ void DataRefs::UpdateCachedValues ()
     UpdateSimTime();
     UpdateViewPos();
     UpdateUsersPlanePos();
+    ExportUserAcData();
 }
 
 

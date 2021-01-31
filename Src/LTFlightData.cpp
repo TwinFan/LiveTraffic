@@ -49,12 +49,7 @@ gnd(false),                             // positional
 spd(0.0), vsi(0.0),                     // movement
 ts(0),
 pChannel(nullptr)
-{
-    // radar
-    memset(&radar, 0, sizeof(radar));
-    radar.size = sizeof(radar);
-    radar.mode = xpmpTransponderMode_ModeC;
-}
+{}
 
 // formatted Squawk Code
 std::string LTFlightData::FDDynamicData::GetSquawk() const
@@ -266,6 +261,11 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
 
 // Export file for tracking data
 std::ofstream LTFlightData::fileExport;
+std::string LTFlightData::fileExportName;   // current export file's name
+// the priority queue holding data to be exported for sorting
+LTFlightData::quExportTy LTFlightData::quExport;
+// Coordinates writing into the export file to avoid lines overwriting
+std::recursive_mutex LTFlightData::exportFdMutex;
 
 // Constructor
 LTFlightData::LTFlightData () :
@@ -1608,46 +1608,91 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     return true;
 }
 
-// debug: log raw network data to a log file
-void LTFlightData::ExportFD(const FDDynamicData& inDyn,
-                            const positionTy& pos)
+// Static: Open/Close the tracking data export file as needed
+bool LTFlightData::ExportOpenClose ()
 {
     // no logging? return (after closing the file if open)
-    if (!dataRefs.GetDebugExportFD()) {
+    if (!dataRefs.AnyExportData()) {
         if (fileExport.is_open()) {
+            std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+            // write remaining lines before close
+            while (!quExport.empty()) {
+                fileExport << quExport.top().s;
+                quExport.pop();
+            }
             fileExport.close();
-            SHOW_MSG(logWARN, DBG_EXPORT_FD_STOP, PATH_DEBUG_EXPORT_FD);
+            SHOW_MSG(logWARN, DBG_EXPORT_FD_STOP, fileExportName.c_str());
         }
-        return;
+        return false;
     }
-    
-    // *** Logging enabled ***
+    // Logging on: Need to open the file first?
+    else if (!fileExport.is_open()) {
+        std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+        // previous test was unsafe, not locked, so with lock once again:
+        if (!fileExport.is_open()) {
+            // Create the file name from a fixed part and a date/time stamp
+            // much like X-Plane names screenshots
+            char currFileName[100];
+            const std::time_t t = std::time(nullptr);
+            const std::tm tm = *std::localtime(&t);
+            std::strftime(currFileName, sizeof(currFileName),
+                          PATH_DEBUG_EXPORT_FD, &tm);
+            fileExportName = currFileName;
+            
+            // open the file, append to it
+            fileExport.open (fileExportName, std::ios_base::out | std::ios_base::app);
+            if (!fileExport) {
+                char sErr[SERR_LEN];
+                strerror_s(sErr, sizeof(sErr), errno);
+                // could not open output file: bail out, decativate logging
+                SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
+                         fileExportName.c_str(), sErr);
+                dataRefs.SetAllExportData(false);
+                return false;
+            }
+            else {
+                SHOW_MSG(logWARN, DBG_EXPORT_FD_START, fileExportName.c_str());
+                // always start with current weather
+                ExportLastWeather();
+            }
+        }
+    }
+    return fileExport.is_open();
+}
+
+// Moves a line to the export priority queue, flushes data which is ready to be written
+void LTFlightData::ExportAddOutput (unsigned long ts, const char* s)
+{
+    // make sure a file is open before continuing
+    if (!ExportOpenClose())
+        return;
     
     // As there are different threads (e.g. in LTRealTraffic), which send data,
     // we guard file writing with a lock, so that no line gets intermingled
     // with another thread's data:
-    static std::mutex exportFdMutex;
-    std::lock_guard<std::mutex> lock(exportFdMutex);
-    
-    // Need to open the file first?
-    if (!fileExport.is_open()) {
-        // open the file, append to it
-        std::string sFileName (LTCalcFullPath(PATH_DEBUG_EXPORT_FD));
-        fileExport.open (sFileName, std::ios_base::out | std::ios_base::app);
-        if (!fileExport) {
-            char sErr[SERR_LEN];
-            strerror_s(sErr, sizeof(sErr), errno);
-            // could not open output file: bail out, decativate logging
-            SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
-                     sFileName.c_str(), sErr);
-            dataRefs.SetDebugExportFD(false);
-            return;
-        }
-        SHOW_MSG(logWARN, DBG_EXPORT_FD_START, PATH_DEBUG_EXPORT_FD);
-        // always start with current weather
-        ExportLastWeather();
-    }
+    std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
 
+    // add the line to the queue
+    quExport.emplace(ts, s);
+    
+    // flush all lines to the file that are due for writing
+    const unsigned long now = (unsigned long)(dataRefs.GetSimTime()) + 5;
+    while (!quExport.empty() && quExport.top().ts < now) {
+        fileExport << quExport.top().s;
+        quExport.pop();
+    }
+    fileExport.flush();
+}
+
+// debug: log raw network data to a log file
+void LTFlightData::ExportFD(const FDDynamicData& inDyn,
+                            const positionTy& pos)
+{
+    // We are to log tracking data?
+    if (!ExportOpenClose() ||
+        !dataRefs.GetDebugExportFD())
+        return;
+    
     // output a tracking data record
     char buf[256];
     snprintf(buf, sizeof(buf), "AITFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f\n",
@@ -1663,16 +1708,20 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
              statData.originAp.c_str(),
              statData.destAp.c_str(),
              pos.ts());
-    fileExport << buf;
+    ExportAddOutput((unsigned long)std::lround(pos.ts()), buf);
 }
 
 // Export Weather data record, based on DataRefs::GetWeather()
 void LTFlightData::ExportLastWeather ()
 {
     // The file is expected to be open if we are actively exporting, see ExportFD
-    if (!fileExport.is_open())
+    // We are to log tracking data? And export file is open?
+    if (!ExportOpenClose())
         return;
-    
+
+    // make sure no other thread is writing to the file right now
+    std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+
     // get latest data
     float hPa = NAN;
     std::string stationId, METAR;

@@ -15,7 +15,6 @@
 		25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25624BD923B014F600B899E1 /* LTApt.cpp */; };
 		2564042621AAC914001E2F2A /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042521AAC914001E2F2A /* Security.framework */; };
 		2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042921AAC9B5001E2F2A /* GSS.framework */; };
-		2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */; };
 		256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */; };
 		256CA1C4248C458D009F4AAE /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BF248C458D009F4AAE /* imgui.cpp */; };
 		256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1C2248C458D009F4AAE /* imgui_draw.cpp */; };
@@ -28,8 +27,6 @@
 		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
 		2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2575F44823ECC2C000747524 /* XPMP2.framework */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
-		25850BF723F7605500905D9F /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25850BF623F7605500905D9F /* libz.tbd */; };
-		258790A923020C5700129569 /* libcurl.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 258790A823020C5700129569 /* libcurl.framework */; };
 		259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 259EC47925057815009B86F3 /* LTOpenGlider.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
@@ -39,8 +36,9 @@
 		25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59459207A2B7500E52073 /* DataRefs.cpp */; };
 		25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59461207AB4D800E52073 /* LTAircraft.cpp */; };
 		25C59465207ABDC700E52073 /* LTMain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59464207ABDC700E52073 /* LTMain.cpp */; };
+		25D293F725C625710007C72E /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D293F625C625710007C72E /* Cocoa.framework */; };
+		25D293FD25C625C10007C72E /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 25D293FC25C625C10007C72E /* libcurl.tbd */; };
 		25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */; };
-		25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25EFC76D24959662005DB0A6 /* ApplicationServices.framework */; };
 		25F3471C24D2C7DE004574E7 /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471B24D2C7DE004574E7 /* parson.c */; settings = {COMPILER_FLAGS = "-Wno-sign-conversion"; }; };
 		25F3471F24D2CB20004574E7 /* ACTable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471E24D2CB20004574E7 /* ACTable.cpp */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
@@ -73,16 +71,11 @@
 		255857A32095BBB500816F65 /* 2018-04-27-1021Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1021Z.json"; sourceTree = "<group>"; };
 		255857A42095BBB500816F65 /* 2018-04-27-1020Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1020Z.json"; sourceTree = "<group>"; };
 		255857A52095BBB500816F65 /* 2018-04-27-1022Z.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "2018-04-27-1022Z.json"; sourceTree = "<group>"; };
-		2559D72125BF227800775FFC /* edkb_10s.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = edkb_10s.csv; sourceTree = "<group>"; };
-		2559D72225BF227800775FFC /* edkb_landing.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = edkb_landing.csv; sourceTree = "<group>"; };
-		2559D72425BF2AEE00775FFC /* edkb_landing_no_rwy_pos.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = edkb_landing_no_rwy_pos.csv; sourceTree = "<group>"; };
 		25606F8D21B362790017D1EE /* readme.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = readme.html; sourceTree = "<group>"; };
 		25624BD923B014F600B899E1 /* LTApt.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTApt.cpp; sourceTree = "<group>"; };
 		25624BDB23B0150300B899E1 /* LTApt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTApt.h; sourceTree = "<group>"; };
 		2564042521AAC914001E2F2A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
-		2564042721AAC937001E2F2A /* LDAP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LDAP.framework; path = System/Library/Frameworks/LDAP.framework; sourceTree = SDKROOT; };
 		2564042921AAC9B5001E2F2A /* GSS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GSS.framework; path = System/Library/Frameworks/GSS.framework; sourceTree = SDKROOT; };
-		2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libgssapi_krb5.tbd; path = usr/lib/libgssapi_krb5.tbd; sourceTree = SDKROOT; };
 		256CA1BC248C458D009F4AAE /* imgui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui.h; sourceTree = "<group>"; };
 		256CA1BD248C458D009F4AAE /* imconfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imconfig.h; sourceTree = "<group>"; };
 		256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_widgets.cpp; sourceTree = "<group>"; };
@@ -106,15 +99,12 @@
 		2575F44823ECC2C000747524 /* XPMP2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPMP2.framework; path = Lib/XPMP2/XPMP2.framework; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
-		2581210A24F091480031354F /* SendTraffic.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = SendTraffic.py; sourceTree = "<group>"; };
 		2581210B24F091530031354F /* RTdev1.4.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.4.pdf; sourceTree = "<group>"; };
 		2582235225C209C2000A0903 /* Toolchain-ubuntu-osxcross.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-ubuntu-osxcross.cmake"; sourceTree = "<group>"; };
 		2582235325C209C2000A0903 /* Toolchain-mingw-w64-x86-64.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-mingw-w64-x86-64.cmake"; sourceTree = "<group>"; };
 		2582235625C20A95000A0903 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		2582235725C22635000A0903 /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
-		25850BF623F7605500905D9F /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		25865B0022065B8D009D5D9C /* udp_listen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_listen.py; sourceTree = "<group>"; };
-		258790A823020C5700129569 /* libcurl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libcurl.framework; path = Lib/CURL/libcurl.framework; sourceTree = "<group>"; };
 		2588A8AA21AB4B37000B8126 /* MacOSX-Framework64Lib */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "MacOSX-Framework64Lib"; sourceTree = "<group>"; };
 		258B581723BBFFC300753C82 /* MainPage.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = MainPage.md; sourceTree = "<group>"; };
 		258B581823BBFFC300753C82 /* LiveTraffic.doxygen */ = {isa = PBXFileReference; lastKnownFileType = text; path = LiveTraffic.doxygen; sourceTree = "<group>"; };
@@ -149,14 +139,15 @@
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
 		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
+		25D293EB25C58C6A0007C72E /* SendTraffic.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = SendTraffic.py; sourceTree = "<group>"; };
+		25D293F625C625710007C72E /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		25D293FC25C625C10007C72E /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
 		25D59F4B23106A79002D81CF /* model_typecode.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = model_typecode.txt; sourceTree = "<group>"; };
 		25D811002402D60A00A8723B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		25DC1E2A21B72922008D0F8B /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = "<group>"; };
-		25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.1.2.11.tbd; path = usr/lib/libz.1.2.11.tbd; sourceTree = SDKROOT; };
 		25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTFlightData.cpp; sourceTree = "<group>"; };
 		25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IconsFontAwesome5.h; sourceTree = "<group>"; };
 		25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = "fa-solid-900.inc"; sourceTree = "<group>"; };
-		25EFC76D24959662005DB0A6 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		25F3471A24D2C7DE004574E7 /* parson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
 		25F3471B24D2C7DE004574E7 /* parson.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = parson.c; sourceTree = "<group>"; };
 		25F3471D24D2CB15004574E7 /* ACTable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ACTable.h; sourceTree = "<group>"; };
@@ -175,15 +166,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				25850BF723F7605500905D9F /* libz.tbd in Frameworks */,
-				25EFC76E24959662005DB0A6 /* ApplicationServices.framework in Frameworks */,
+				25D293F725C625710007C72E /* Cocoa.framework in Frameworks */,
 				D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */,
-				250F59C82530ECA100EF095C /* XPLM.framework in Frameworks */,
 				2564042621AAC914001E2F2A /* Security.framework in Frameworks */,
-				256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */,
 				2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */,
-				2564042C21AACB05001E2F2A /* libgssapi_krb5.tbd in Frameworks */,
-				258790A923020C5700129569 /* libcurl.framework in Frameworks */,
+				256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */,
+				25D293FD25C625C10007C72E /* libcurl.tbd in Frameworks */,
+				250F59C82530ECA100EF095C /* XPLM.framework in Frameworks */,
 				2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -351,6 +340,7 @@
 		2577B6A0216A9397004B432D /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				25D293EB25C58C6A0007C72E /* SendTraffic.py */,
 				25D59F4B23106A79002D81CF /* model_typecode.txt */,
 				2577B6A1216A93D1004B432D /* FlightModels.prf */,
 			);
@@ -360,11 +350,7 @@
 		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
 			isa = PBXGroup;
 			children = (
-				2559D72125BF227800775FFC /* edkb_10s.csv */,
-				2559D72425BF2AEE00775FFC /* edkb_landing_no_rwy_pos.csv */,
-				2559D72225BF227800775FFC /* edkb_landing.csv */,
 				2581210B24F091530031354F /* RTdev1.4.pdf */,
-				2581210A24F091480031354F /* SendTraffic.py */,
 				25865B0022065B8D009D5D9C /* udp_listen.py */,
 				25D09096222D7F0700D52057 /* udp_send.py */,
 			);
@@ -500,14 +486,10 @@
 		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				25EFC76D24959662005DB0A6 /* ApplicationServices.framework */,
+				25D293F625C625710007C72E /* Cocoa.framework */,
 				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
 				2564042921AAC9B5001E2F2A /* GSS.framework */,
-				2564042721AAC937001E2F2A /* LDAP.framework */,
-				258790A823020C5700129569 /* libcurl.framework */,
-				2564042B21AACB05001E2F2A /* libgssapi_krb5.tbd */,
-				25E9C2A8207D4F0D00D3C642 /* libz.1.2.11.tbd */,
-				25850BF623F7605500905D9F /* libz.tbd */,
+				25D293FC25C625C10007C72E /* libcurl.tbd */,
 				D6A7BDA916A1DEA200D1426A /* OpenGL.framework */,
 				2564042521AAC914001E2F2A /* Security.framework */,
 				250F59C72530ECA100EF095C /* XPLM.framework */,
@@ -671,7 +653,6 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/SDK/Libraries/Mac",
-					"$(PROJECT_DIR)/Lib/CURL",
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				GCC_C_LANGUAGE_STANDARD = c11;
@@ -686,7 +667,6 @@
 					"XPLM300=1",
 					"XPLM301=1",
 					"XPLM303=1",
-					CURL_STATICLIB,
 					"DEBUG=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
@@ -769,7 +749,6 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/SDK/Libraries/Mac",
-					"$(PROJECT_DIR)/Lib/CURL",
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				GCC_C_LANGUAGE_STANDARD = c11;
@@ -784,7 +763,6 @@
 					"XPLM300=1",
 					"XPLM301=1",
 					"XPLM303=1",
-					CURL_STATICLIB,
 					"NDEBUG=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;

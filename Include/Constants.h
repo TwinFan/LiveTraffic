@@ -81,6 +81,8 @@ constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum alt
 constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), slope ratio for keeping a plane above the approach to a runway
 constexpr double BEZIER_MIN_HEAD_DIFF = 5.0;    ///< [°] turns of less than this will not be modeled with Bezier curves
+constexpr float  EXPORT_USER_AC_PERIOD = 15.0f; ///< [s] how often to write user's aircraft data into the export file
+constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's plabe
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -266,7 +268,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define PATH_RESOURCES_SCSL     "Resources/ShippedCSL"
 // these are under X-Plane's root dir
 #define PATH_DEBUG_RAW_FD       "LTRawFD.log"
-#define PATH_DEBUG_EXPORT_FD    "LTExportFD.csv"
+#define PATH_DEBUG_EXPORT_FD    "Output/LTExportFD - %Y-%m-%d %H.%M.%S.csv"
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
 // Standard path delimiter

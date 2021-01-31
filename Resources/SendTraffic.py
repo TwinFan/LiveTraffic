@@ -100,13 +100,18 @@ def sendWeatherData(ln: str) -> int:
 """ === MAIN === """
 
 # --- Handling command line argumens ---
-parser = argparse.ArgumentParser(description='SendTraffic 0.2.0: Sends air traffic tracking data from a file out on a UDP port for LiveTraffic to receive it on the RealTraffic channel',fromfile_prefix_chars='@')
+parser = argparse.ArgumentParser(description='SendTraffic 1.0: Sends air traffic tracking data from a file out on a UDP port for LiveTraffic to receive it on the RealTraffic channel. '
+    'In LiveTraffic, activate the "RealTraffic" channel to receive the data and have it displayed as moving planes. '
+    'From LiveTraffic, you can also export tracking data in a matching format using the Debug options "Export Tracking Data" and/or "Export User Aircraft". '
+    'The latter allows you to fly yourself and have your aircraft\'s movements written as tracking data. '
+    'Data is written to \'Output/LTExportFD - <timestamp>.csv\'.',fromfile_prefix_chars='@')
 parser.add_argument('inFile', help='Tracking data file: records in CSV format holding air traffic data in RealTraffic\'s AITraffic format and weather data.\n<stdin> by default', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
-parser.add_argument('-a', '--aircraft', metavar='HEX_LIST', help='List of aircraft to read, others skipped. Add one or several transponder hex id codes, separate by comma.')
+parser.add_argument('-a', '--aircraft', metavar='HEX_LIST', help='List of aircraft to read and send, others skipped. Add one or several transponder hex id codes, separate by comma.')
 parser.add_argument('-d', '--aircraftDecimal', metavar='NUM_LIST', help='Same as -a, but specify decimal values (as used in the CSV file).')
-parser.add_argument('-b', '--bufPeriod', metavar='NUM', help='Buffering period: Number of seconds the first record is pushed into the past so that LiveTraffic\'s buffer fills more quickly. Recommended to be slightly less than LiveTraffic\'s buffering period.', type=int, default=0)
+parser.add_argument('-b', '--bufPeriod', metavar='NUM', help='Buffering period: Number of seconds the first record is pushed into the past so that LiveTraffic\'s buffer fills more quickly. '
+    'Recommended to be slightly less than _half of_ LiveTraffic\'s buffering period. (More than half of buf period triggers historic data processing.)', type=int, default=0)
 parser.add_argument('--historic', metavar='NUM', help='Send historic data, ie. reduce included timestamp by this many seconds', type=int, default=0)
-parser.add_argument('-l', '--loop', help='Endless loop: restart from the beginning when reaching end of file. Will only work if data contains loop with last position(s) being roughly equal to first position(s).', action='store_true')
+parser.add_argument('-l', '--loop', help='Endless loop: restart from the beginning when reaching end of file. Will work best if data contains loop with last position(s) being roughly equal to first position(s).', action='store_true')
 parser.add_argument('--host', metavar='NAME_OR_IP', help='UDP target host or ip to send the data to, defaults to \'localhost\'', default='localhost')
 parser.add_argument('--port', metavar='NUM', help='UDP port to send traffic data to, defaults to 49003', type=int, default=49003)
 parser.add_argument('--weatherPort', metavar='NUM', help='UDP port to send weather data to, defaults to 49004', type=int, default=49004)

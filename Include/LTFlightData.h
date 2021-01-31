@@ -232,9 +232,6 @@ protected:
     // object valid? (will be re-set in case of exceptions)
     bool                bValid;
 
-    /// Export file for tracking data
-    static std::ofstream fileExport;
-
 #ifdef DEBUG
 public:
     bool                bIsSelected = false;    // is selected aircraft for debugging/logging?
@@ -242,7 +239,12 @@ public:
 public:
     // the lock we use to update / fetch data for thread safety
     mutable std::recursive_mutex   dataAccessMutex;
-    
+    /// Export file for tracking data
+    static std::ofstream fileExport;
+
+protected:
+    static std::string fileExportName;      ///< current export file's name
+
 protected:
     // find two positions around given timestamp ts (before <= ts < after)
     // pBefore and pAfter can come back NULL!
@@ -364,12 +366,29 @@ public:
 
     // Export of tracking data
 protected:
+    /// Temporary storage for data to be written to the export file
+    struct ExportDataTy {
+        unsigned long ts = 0;
+        std::string s;
+        ExportDataTy (unsigned long _ts, const char* _s) : ts(_ts), s(_s) {}
+        bool operator> (const ExportDataTy& o) const { return ts > o.ts; }
+    };
+    /// Export data needs to be sorted by timestampe, written out only when that timestamp passed
+    typedef std::priority_queue<ExportDataTy, std::deque<ExportDataTy>, std::greater<ExportDataTy> > quExportTy;
+    static quExportTy quExport;             ///< the priority queue holding data to be exported for sorting
+    /// Coordinates writing into the export file to avoid lines overwriting
+    static std::recursive_mutex exportFdMutex;
     /// Export Flight Data to a file LTExportFD.csv
     void ExportFD (const FDDynamicData& inDyn,
                    const positionTy& pos);
 public:
+    /// Moves a line to the export priority queue, flushes data which is ready to be written
+    static void ExportAddOutput (unsigned long ts, const char* s);
     /// Export Weather data record, based on DataRefs::GetWeather()
     static void ExportLastWeather ();
+    /// @brief Open/Close the tracking data export file as needed
+    /// @return if file is now open
+    static bool ExportOpenClose ();
 
 public:
     //

@@ -3,6 +3,14 @@
    version = "1.0">
    <ContextStates>
       <ContextState
+         contextName = "LTFlightData::ExportAddOutput(unsigned long, char const*):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "LTFlightData::quExport">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::AddNewPos(positionTy&amp;):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
@@ -62,13 +70,13 @@
          contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
+               value = "vecTaxiEdges[222]">
+            </PersistentString>
+            <PersistentString
                value = "vecTaxiEdgesIdxHead[3321]">
             </PersistentString>
             <PersistentString
                value = "lst[1385]">
-            </PersistentString>
-            <PersistentString
-               value = "vecTaxiEdges[222]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -109,10 +117,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -240,10 +248,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -302,6 +310,9 @@
                value = "(char*)outValue">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::FDDynamicData::FDDynamicData():LTFlightData.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::GetSimTime():DataRefs.cpp">
@@ -422,7 +433,7 @@
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "turn">
+               value = "from">
             </PersistentString>
             <PersistentString
                value = "to">
@@ -434,7 +445,7 @@
                value = "ppos">
             </PersistentString>
             <PersistentString
-               value = "from">
+               value = "turn">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -532,10 +543,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -658,18 +669,18 @@
          contextName = "Apt::AddTaxiTmpPath(TaxiTmpPath&amp;&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
-         contextName = "LTSettingsUI::Show(bool):SettingsUI.cpp">
-         <PersistentStrings>
-            <PersistentString
-               value = "widgetIds[0]">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
          contextName = "Apt::SnapToTaxiway(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 56l&gt;&amp;, bool):LTApt.cpp">
          <PersistentStrings>
             <PersistentString
                value = "prevPos">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTSettingsUI::Show(bool):SettingsUI.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "widgetIds[0]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -1078,10 +1089,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

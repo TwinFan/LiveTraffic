@@ -342,6 +342,12 @@ curl_errtxt{0}, httpResponse(HTTP_OK)
 
 LTOnlineChannel::~LTOnlineChannel ()
 {
+    // close the raw output file
+    if (outRaw.is_open()) {
+        outRaw.close();
+        SHOW_MSG(logWARN, DBG_RAW_FD_STOP, PATH_DEBUG_RAW_FD);
+    }
+
     CleanupCurl();
     if ( netData )
         free ( netData );

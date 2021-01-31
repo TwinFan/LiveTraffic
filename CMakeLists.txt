@@ -208,7 +208,6 @@ PROPERTIES
 
 # Specify library search locations.
 if (APPLE)
-    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Mac")
 elseif (UNIX)
@@ -221,14 +220,14 @@ endif ()
 
 # Link the XPMP2 library
 find_library(XPMP2_LIBRARY XPMP2 REQUIRED)
-message ("XPMP2_LIBRARY = ${XPMP2_LIBRARY}")
+message ("   XPMP2_LIBRARY = ${XPMP2_LIBRARY}")
 target_link_libraries(LiveTraffic ${XPMP2_LIBRARY})
 
 # Link libcurl
 find_package(CURL REQUIRED)
 message("   CURL_INCLUDE_DIRS    = ${CURL_INCLUDE_DIRS}")
 message("   CURL_LIBRARIES       = ${CURL_LIBRARIES}")
-if (WIN32 OR APPLE)
+if (WIN32)
     # We have built a static up-to-date version of CURL just for ourselves, compile/link it statically
     add_compile_definitions(CURL_STATICLIB)
 endif ()
@@ -262,7 +261,13 @@ elseif (APPLE)
     find_library(Security_LIBRARY Security REQUIRED)
     find_library(GSS_LIBRARY GSS REQUIRED)
     find_library(OpenGL_LIBRARY OpenGL REQUIRED)
-    target_link_libraries(LiveTraffic ${CORE_FOUNDATION_LIBRARY} ${Cocoa_LIBRARY} ${Security_LIBRARY} ${GSS_LIBRARY} ${OpenGL_LIBRARY})
+    target_link_libraries(LiveTraffic
+        ${CORE_FOUNDATION_LIBRARY}
+        ${Cocoa_LIBRARY}
+        ${Security_LIBRARY}
+        ${GSS_LIBRARY}
+        ${OpenGL_LIBRARY}
+    )
 
     # Restrict set of symbols exported from the plugin to the ones required by XPLM:
     target_link_libraries(LiveTraffic "-exported_symbols_list ${CMAKE_SOURCE_DIR}/Src/LiveTraffic.sym_mac")

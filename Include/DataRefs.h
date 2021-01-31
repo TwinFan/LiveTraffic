@@ -220,7 +220,11 @@ enum dataRefsXP {
     DR_PLANE_HEADING,
     DR_PLANE_TRACK,
     DR_PLANE_TRUE_AIRSPEED,
+    DR_PLANE_VVI,                       ///< sim/flightmodel/position/vh_ind    float    n    meters/second    VVI (vertical velocity in meters per second)
     DR_PLANE_ONGRND,
+    DR_PLANE_REG,                       ///< sim/aircraft/view/acf_tailnum    byte[40]    y    string    Tail number
+    DR_PLANE_MODES_ID,                  ///< sim/aircraft/view/acf_modeS_id    int    y    integer    24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
+    DR_PLANE_ICAO,                      ///< sim/aircraft/view/acf_ICAO    byte[40]    y    string    ICAO code for aircraft (a string) entered by author
     DR_VR_ENABLED,                      // VR stuff
     CNT_DATAREFS_XP                     // always last, number of elements
 };
@@ -373,7 +377,8 @@ enum dataRefsLT {
     DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
     DR_DBG_EXPORT_FD,
-    
+    DR_DBG_EXPORT_USER_AC,
+
     // channel configuration options
     DR_CFG_OGN_USE_REQUREPL,
     DR_CFG_RT_LISTEN_PORT,
@@ -587,6 +592,8 @@ protected:
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
     int bDebugExportFd          = false;// export flight data to LTExportFD.csv
+    int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
+    float lastExportUserAc      = 0.0f; ///< last time user's aircraft data has been written to export file
     int bDebugModelMatching     = false;// output debug info on model matching in xplanemp?
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
@@ -713,7 +720,7 @@ protected:
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
-    double      lastUsersTrueAirspeed = 0.0;    ///< cached user's plane's air speed
+    double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
     double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
@@ -864,8 +871,14 @@ public:
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
-    inline bool GetDebugExportFD() const        { return bDebugExportFd; }
+    bool GetDebugExportFD() const               { return bDebugExportFd; }
     void SetDebugExportFD (bool bExport)        { bDebugExportFd = bExport; }
+    bool GetDebugExportUserAc() const           { return bDebugExportUserAc; }
+    void SetDebugExportUserAc (bool bExport)    { bDebugExportUserAc = bExport; }
+    void ExportUserAcData ();                   ///< Write out a
+    
+    bool AnyExportData() const                  { return GetDebugExportFD() || GetDebugExportUserAc(); }
+    void SetAllExportData (bool bExport)        { SetDebugExportFD(bExport); SetDebugLogRawFD(bExport); }
 
     // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP2)
     inline bool GetDebugModelMatching() const   { return bDebugModelMatching; }
