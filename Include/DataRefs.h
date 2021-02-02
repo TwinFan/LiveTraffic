@@ -378,6 +378,7 @@ enum dataRefsLT {
     DR_DBG_MODEL_MATCHING,
     DR_DBG_EXPORT_FD,
     DR_DBG_EXPORT_USER_AC,
+    DR_DBG_EXPORT_NORMALIZE_TS,
 
     // channel configuration options
     DR_CFG_OGN_USE_REQUREPL,
@@ -594,6 +595,7 @@ protected:
     int bDebugExportFd          = false;// export flight data to LTExportFD.csv
     int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
     float lastExportUserAc      = 0.0f; ///< last time user's aircraft data has been written to export file
+    int bDebugExportNormTS      = true; ///< normalize the timestamp when writing LTExportFD.csv, starting at 0 by the time exporting starts
     int bDebugModelMatching     = false;// output debug info on model matching in xplanemp?
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
@@ -875,7 +877,8 @@ public:
     void SetDebugExportFD (bool bExport)        { bDebugExportFd = bExport; }
     bool GetDebugExportUserAc() const           { return bDebugExportUserAc; }
     void SetDebugExportUserAc (bool bExport)    { bDebugExportUserAc = bExport; }
-    void ExportUserAcData ();                   ///< Write out a
+    void ExportUserAcData ();                   ///< Write out an export record for the user aircraft
+    bool ShallExportNormalizeTS () const        { return bDebugExportNormTS; }
     
     bool AnyExportData() const                  { return GetDebugExportFD() || GetDebugExportUserAc(); }
     void SetAllExportData (bool bExport)        { SetDebugExportFD(bExport); SetDebugLogRawFD(bExport); }

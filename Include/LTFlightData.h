@@ -241,6 +241,7 @@ public:
     mutable std::recursive_mutex   dataAccessMutex;
     /// Export file for tracking data
     static std::ofstream fileExport;
+    static double fileExportTsBase;         ///< when normalizing timestamps this is the base
 
 protected:
     static std::string fileExportName;      ///< current export file's name

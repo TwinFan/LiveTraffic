@@ -261,7 +261,8 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
 
 // Export file for tracking data
 std::ofstream LTFlightData::fileExport;
-std::string LTFlightData::fileExportName;   // current export file's name
+std::string LTFlightData::fileExportName;       // current export file's name
+double LTFlightData::fileExportTsBase = NAN;    // when normalizing timestamps this is the base
 // the priority queue holding data to be exported for sorting
 LTFlightData::quExportTy LTFlightData::quExport;
 // Coordinates writing into the export file to avoid lines overwriting
@@ -1652,6 +1653,8 @@ bool LTFlightData::ExportOpenClose ()
             }
             else {
                 SHOW_MSG(logWARN, DBG_EXPORT_FD_START, fileExportName.c_str());
+                // In case we are to normalize timestamps we'll do it against NOW
+                fileExportTsBase = dataRefs.ShallExportNormalizeTS() ? dataRefs.GetSimTime() : NAN;
                 // always start with current weather
                 ExportLastWeather();
             }
@@ -1707,7 +1710,7 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
              statData.reg.c_str(),
              statData.originAp.c_str(),
              statData.destAp.c_str(),
-             pos.ts());
+             pos.ts() - nanToZero(fileExportTsBase));       // if requested normalize timestamp in output
     ExportAddOutput((unsigned long)std::lround(pos.ts()), buf);
 }
 

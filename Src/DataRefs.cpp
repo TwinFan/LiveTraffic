@@ -507,6 +507,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/export_user_ac",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/export_normalize_ts",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
 
     // channel configuration options
     {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -579,6 +580,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
         case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
         case DR_DBG_EXPORT_USER_AC:         return &bDebugExportUserAc;
+        case DR_DBG_EXPORT_NORMALIZE_TS:    return &bDebugExportNormTS;
 
         // channel configuration options
         case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
@@ -1023,7 +1025,7 @@ void DataRefs::ExportUserAcData()
              lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,
              EXPORT_USER_CALL,
              userIcao, userReg,
-             lastUsersPlanePos.ts());
+             lastUsersPlanePos.ts() - nanToZero(LTFlightData::fileExportTsBase));
     LTFlightData::ExportAddOutput((unsigned long)std::lround(lastUsersPlanePos.ts()), buf);
 }
 
