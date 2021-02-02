@@ -1695,11 +1695,11 @@ bool LTAircraft::CalcPPos()
         // Legs long enough?
         if (vec.dist > SIMILAR_POS_DIST && nextVec.dist > SIMILAR_POS_DIST) {
             positionTy _end = to;
-            to.mergeCount = nextPos.mergeCount = 1;
-            to |= nextPos;                          // effectively calculates mid-point between to and nextPos, taking care of proper heading, too
+            _end.mergeCount = nextPos.mergeCount = 1;
+            _end |= nextPos;                        // effectively calculates mid-point between to and nextPos, taking care of proper heading, too
             turn.Define(ppos,                       // start is right here and now
                         to,                         // mid-point is end of current leg
-                        _end);
+                        _end);                      // end-point is the mid between to and nextPos
         }
     }
 
