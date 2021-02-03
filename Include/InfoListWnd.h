@@ -51,6 +51,7 @@ protected:
     float weatherHPA = HPA_STANDARD;///< Weather: QNH
     std::string weatherStationId;   ///< Weather: reporting station
     std::string weatherMETAR;       ///< Weather: full METAR
+    int numCSLModels = -1;          ///< Number of installed CSL models
 
 public:
     /// Constructor shows the window

@@ -413,23 +413,6 @@ float LoopCBOneTimeSetup (float, float, int, void*)
 #ifdef DEBUG
             SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
 #endif
-            // Verify number of installed CSL models...if it is 0 or 1 it's fishy!
-            const int numModels = XPMPGetNumberOfInstalledModels();
-            if (numModels <= 1) {
-                if (numModels <= 0) {
-                    SHOW_MSG(logFATAL, ERR_CFG_CSL_ZERO_MODELS);
-                } else {
-                    // Exactly one model loaded...does this happen to be the car?
-                    std::string mdlName, mdlIcao, mdlAirline, mdlLivery;
-                    XPMPGetModelInfo2(0, mdlName, mdlIcao, mdlAirline, mdlLivery);
-                    if (mdlIcao == dataRefs.GetDefaultCarIcaoType())
-                        SHOW_MSG(logERR, ERR_CFG_CSL_ONLY_CAR)
-                    else
-                        SHOW_MSG(logWARN, ERR_CFG_CSL_ONLY_ONE, mdlName.c_str(), mdlIcao.c_str());
-                }
-                SHOW_MSG(logMSG, MSG_CFG_CSL_INSTALL);
-            }
-
             // Inform dataRef tools about our dataRefs
             dataRefs.InformDataRefEditors();
             
