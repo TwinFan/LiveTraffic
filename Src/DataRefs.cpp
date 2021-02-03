@@ -2341,7 +2341,7 @@ bool DataRefs::ToggleLabelDraw()
 // MARK: Weather
 //
 
-constexpr float WEATHER_TRY_PERIOD = 20.0f;             ///< [s] Don't _try_ to read weather more often than this
+constexpr float WEATHER_TRY_PERIOD = 120.0f;            ///< [s] Don't _try_ to read weather more often than this
 constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
 constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be updated if moved more than this far from last weather update position
 constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
@@ -2357,13 +2357,15 @@ bool DataRefs::WeatherUpdate ()
     camPos.LocalToWorld();
     
     // So...do we need an update?
-    if (// highest prio: we moved far away from last pos
-        (!std::isnan(lastWeatherPos.lat()) &&
-         camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M) ||
-        // otherwise: don't try more often than try period
-        ((lastWeatherAttempt + WEATHER_TRY_PERIOD < GetMiscNetwTime()) &&
-         (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
-          lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime())))  // waited long enough?
+    if (// never try more often than TRY_PERIOD says to avoid flooding
+        (lastWeatherAttempt + WEATHER_TRY_PERIOD < GetMiscNetwTime()) &&
+        (   // had no weather yet at all?
+            std::isnan(lastWeatherPos.lat()) ||
+            // moved far away from last weather pos?
+            camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M ||
+            // enough time passed since last weather update?
+            lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime()
+        ))
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();

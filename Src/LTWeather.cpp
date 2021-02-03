@@ -83,10 +83,14 @@ constexpr float ADD_WEATHER_RADIUS_NM = 100.0f;
 /// How often to add up ADD_WEATHER_RADIUS_NM before giving up?
 constexpr long  MAX_WEATHER_RADIUS_FACTOR = 5;
 
+/// suppress further error message as we had enough already?
+bool gbSuppressWeatherErrMsg = false;
+
 // Error messages
 #define ERR_WEATHER_ERROR       "Weather request returned with error: %s"
-#define WARN_NO_WEATHER         "Found no weather in a %.fnm radius"
+#define INFO_NO_NEAR_WEATHER    "Found no nearby weather in a %.fnm radius"
 #define ERR_NO_WEATHER          "Found no weather in a %.fnm radius, giving up"
+#define INFO_FOUND_WEATHER_AGAIN "Successfully updated weather again from %s"
 
 /// return the value between two xml tags
 std::string GetXMLValue (const std::string& _r, const std::string& _tag,
@@ -153,6 +157,14 @@ bool WeatherProcessResponse (const std::string& _r)
         
         // tell ourselves what we found
         dataRefs.SetWeather(hPa, lat, lon, stationId, METAR);
+
+        // found again weather after we had started to suppress messages?
+        if (gbSuppressWeatherErrMsg) {
+            // say hooray and report again
+            LOG_MSG(logINFO, INFO_FOUND_WEATHER_AGAIN, stationId.c_str());
+            gbSuppressWeatherErrMsg = false;
+        }
+
         return true;
     }
 
@@ -245,11 +257,13 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
                         // How often did we apply ADD_WEATHER_RADIUS_NM already?
                         const long nRadiusFactor = std::lround(_radius_nm/ADD_WEATHER_RADIUS_NM);
                         if (nRadiusFactor < MAX_WEATHER_RADIUS_FACTOR) {
-                            LOG_MSG(logWARN, WARN_NO_WEATHER, _radius_nm);
+                            if (!gbSuppressWeatherErrMsg)
+                                LOG_MSG(logINFO, INFO_NO_NEAR_WEATHER, _radius_nm);
                             _radius_nm = (nRadiusFactor+1) * ADD_WEATHER_RADIUS_NM;
                             bRepeat = true;
-                        } else {
+                        } else if (!gbSuppressWeatherErrMsg) {
                             LOG_MSG(logERR, ERR_NO_WEATHER, _radius_nm);
+                            gbSuppressWeatherErrMsg = true;
                         }
                     }
                 }
