@@ -41,6 +41,7 @@ extern int verDateXPlaneOrg;        // and its date
 #define WIN_FROM_RIGHT    0
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
+constexpr int WIN_TIME_DISP_ERR=12;     // duration of displaying an error/fatal message
 constexpr float WIN_TIME_REMAIN=1.0f;   // seconds to keep the msg window after last message
 
 //MARK: Unit conversions
@@ -228,6 +229,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_INFO_LIST_WND "Status / Info Window"
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
+#define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
 #define MENU_NEWVER             "New Version %01.2f available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
@@ -244,6 +246,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_ILW_STATUS         "using-lt/info-list-window/status-about"
 #define HELP_ILW_SETTINGS       "using-lt/info-list-window/ui-settings"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
+#define HELP_INSTALL_CSL        "setup/installation/step-by-step#csl-model-installation"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
@@ -350,6 +353,10 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_CSL_DISABLED    "CSL Path '%s' disabled, skipping"
 #define ERR_CFG_CSL_EMPTY       "CSL Path '%s' does not exist or is empty, skipping"
 #define ERR_CFG_CSL_NONE        "No valid CSL Paths configured, verify Settings > CSL!"
+#define ERR_CFG_CSL_ZERO_MODELS "No CSL Model has been (successfully) loaded, LiveTraffic cannot display planes!"
+#define ERR_CFG_CSL_ONLY_CAR    "Only the follow-me car has been (successfully) loaded as CSL model. LiveTraffic can only draw cars!"
+#define ERR_CFG_CSL_ONLY_ONE    "Only one CSL model has been (successfully) loaded. LiveTraffic can only draw %s (%s)!"
+#define MSG_CFG_CSL_INSTALL     "For help see menu: Plugins > LiveTraffic > Help > " MENU_HELP_INSTALL_CSL
 #define ERR_CFG_AC_DEFAULT      "A/c default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_CAR_DEFAULT     "Car default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_TYPE_INVALID    "%s, line %d: ICAO type designator '%s' unknown"

@@ -38,18 +38,22 @@
 
     <P>
         <code>LiveTraffic/</code><br>
-        <code>LiveTraffic/lin_x64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/mac_x64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/win_x64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
-        <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
-        <code>LiveTraffic/Resources/Doc8643.txt</code><br>
-        <code>LiveTraffic/Resources/FlightModels.prf</code><br>
-        <code>LiveTraffic/Resources/MapIcons.png</code><br>
-        <code>LiveTraffic/Resources/model_typecode.txt</code><br>
-        <code>LiveTraffic/Resources/Obj8DataRefs.txt</code><br>
-        <code>LiveTraffic/Resources/related.txt</code><br>
-        <code>LiveTraffic/Resources/RestoreOrig.py</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;lin_x64/LiveTraffic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LiveTraffic-bionic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;mac_x64/LiveTraffic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;win_x64/LiveTraffic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;Resources/</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CSL/...</code> (here you can install CSL packages)<br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Doc8643.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FlightModels.prf</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MapIcons.png</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;model_typecode.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Obj8DataRefs.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;related.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RestoreOrig.py</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;LICENSE</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;readme.html</code><br>
     </P>
 
     <h1>Release Notes</h1>
@@ -82,13 +86,19 @@
         <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/209">#209</a>
             export of flight tracking data and/or tracking data based
             on the user's aircraft to <code>Output/LTExportFD - &lt;timestamp&gt;.csv</code>
-            for analysis or for feeding back into LiveTraffic.<br>
+            for analysis or for feeding back into LiveTraffic,
+            see <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Settings > Debug > Logging</a>.<br>
             The Python script <code>Resources/SendTraffic.py</code>, with which this
             data can be fed back into LiveTraffic, is now part of the
             LiveTraffic distribution. Try <code>SendTraffic.py -h</code> for help.</li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/211">#211</a>
+            validation of number of available CSL Models to warn specifically
+            if only the included car is available.
+            Added Help menu item for
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step#csl-model-installation">CSL Model installation</a>.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/210">#210</a>
-            landing planes turning upon touch down, short-cutting
-            the way to the next taxiway position;
+            landing planes turning sideways immediately upon touch down,
+            short-cutting the way to the next taxiway position;
             they should now more often follow runway exits.</li>
         <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/207">#207</a>
             race conditions that might have led to rare CTDs.</li>
