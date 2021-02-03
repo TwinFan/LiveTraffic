@@ -30,7 +30,7 @@
 // MARK: Version Information (CHANGE VERSION HERE)
 //
 constexpr float VERSION_NR = 2.41f;
-constexpr bool VERSION_BETA = true;
+constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -353,7 +353,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_CSL_DISABLED    "CSL Path '%s' disabled, skipping"
 #define ERR_CFG_CSL_EMPTY       "CSL Path '%s' does not exist or is empty, skipping"
 #define ERR_CFG_CSL_NONE        "No valid CSL Paths configured, verify Settings > CSL!"
-#define ERR_CFG_CSL_ZERO_MODELS "No CSL Model has been (successfully) loaded, LiveTraffic cannot display planes!"
+#define ERR_CFG_CSL_ZERO_MODELS "No CSL Model has been (successfully) loaded, LiveTraffic cannot activate!"
 #define ERR_CFG_CSL_ONLY_CAR    "Only the follow-me car has been (successfully) loaded as CSL model. LiveTraffic can only draw cars!"
 #define ERR_CFG_CSL_ONLY_ONE    "Only one CSL model has been (successfully) loaded. LiveTraffic can only draw %s (%s)!"
 #define MSG_CFG_CSL_INSTALL     "For help see menu: Plugins > LiveTraffic > Help > " MENU_HELP_INSTALL_CSL

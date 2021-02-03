@@ -106,10 +106,10 @@ enum {
 typedef unsigned int XPMPLightsPattern;     ///< Light flash pattern (unused in XPMP2)
 
 
-#if LIN
+#if __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic" // because we don't want to change the anonymous structure following here as that would require code change in legacy plugins
-#elif IBM
+#elif _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4202 4201)
 #endif
@@ -131,9 +131,9 @@ union xpmp_LightStatus {
         XPMPLightsPattern flashPattern   : 4;
     };
 };
-#if LIN
+#if __GNUC__
 #pragma GCC diagnostic pop
-#elif IBM
+#elif _MSC_VER
 #pragma warning(pop)
 #endif
 
