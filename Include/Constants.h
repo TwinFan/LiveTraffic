@@ -81,7 +81,7 @@ constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude fo
 constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), slope ratio for keeping a plane above the approach to a runway
-constexpr double BEZIER_MIN_HEAD_DIFF = 5.0;    ///< [°] turns of less than this will not be modeled with Bezier curves
+constexpr double BEZIER_MIN_HEAD_DIFF = 2.5;    ///< [°] turns of less than this will not be modeled with Bezier curves
 constexpr float  EXPORT_USER_AC_PERIOD = 15.0f; ///< [s] how often to write user's aircraft data into the export file
 constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's plabe
 
