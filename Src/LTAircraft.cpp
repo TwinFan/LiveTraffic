@@ -1750,9 +1750,12 @@ bool LTAircraft::CalcPPos()
     
     // Try getting our current position from the Bezier curve
     const double _calcTs = from.ts() * (1-f) + to.ts() * f;
-    if (!turn.GetPos(ppos, _calcTs))
-    {
-        // No Bezier curve currently active:
+    if (turn.GetPos(ppos, _calcTs)) {
+        // sync the changing heading between Bezier curve and MovingParam
+        heading.SetVal(ppos.heading());
+    }
+    // No Bezier curve currently active:
+    else {
         // Now we apply the factor so that with time we move from 'from' to 'to'.
         // Note that this calculation also works if we passed 'to' already
         // (due to no newer 'to' available): we just keep going the same way.
