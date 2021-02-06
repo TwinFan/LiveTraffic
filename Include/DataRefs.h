@@ -436,34 +436,38 @@ public:
         XPLMGetDatab_f bfRead       = NULL;
         void* refCon                = NULL;
         bool bCfgFile               = false;
+        bool bDebugLog              = false;    ///< log this setting in case of DEBUG logging?
         
     public:
         // constructor for xplmType_Int
         dataRefDefinitionT (const char* name,
                             XPLMGetDatai_f _ifRead, XPLMSetDatai_f _ifWrite = NULL,
                             void* _refCon = NULL,
-                            bool _bCfg = false) :
+                            bool _bCfg = false,
+                            bool _bDebugLog = false) :
         dataName(name), dataType(xplmType_Int),
         ifRead(_ifRead), ifWrite(_ifWrite),
-        refCon(_refCon), bCfgFile(_bCfg) {}
+        refCon(_refCon), bCfgFile(_bCfg), bDebugLog(_bDebugLog) {}
 
         // constructor for xplmType_Float
         dataRefDefinitionT (const char* name,
                             XPLMGetDataf_f _ffRead, XPLMSetDataf_f _ffWrite = NULL,
                             void* _refCon = NULL,
-                            bool _bCfg = false) :
+                            bool _bCfg = false,
+                            bool _bDebugLog = false) :
         dataName(name), dataType(xplmType_Float),
         ffRead(_ffRead), ffWrite(_ffWrite),
-        refCon(_refCon), bCfgFile(_bCfg) {}
+        refCon(_refCon), bCfgFile(_bCfg), bDebugLog(_bDebugLog) {}
 
         // constructor for xplmType_Data
         dataRefDefinitionT (const char* name,
                             XPLMGetDatab_f _bfRead, XPLMSetDataf_f /*_bfWrite*/ = NULL,
                             void* _refCon = NULL,
-                            bool _bCfg = false) :
+                            bool _bCfg = false,
+                            bool _bDebugLog = false) :
         dataName(name), dataType(xplmType_Data),
         bfRead(_bfRead), 
-        refCon(_refCon), bCfgFile(_bCfg) {}
+        refCon(_refCon), bCfgFile(_bCfg), bDebugLog(_bDebugLog) {}
         
         // allows using the object in string context -> dataName
         inline const std::string getDataNameStr() const { return dataName; }
@@ -484,6 +488,7 @@ public:
         inline void* getRefCon() const { return refCon; }
         inline void setRefCon (void* _refCon) { refCon = _refCon; }
         inline bool isCfgFile() const { return bCfgFile; }
+        bool isDebugLogging() const { return bDebugLog; }
         
         // get the actual current value (by calling the getData?_f function)
         int getDatai () const;
@@ -750,6 +755,10 @@ public:
                             int inStartIdx, int inNumAc);
 
 protected:
+    /// Find dataRef definition based on the pointer to its member variable
+    static const dataRefDefinitionT* FindDRDef (void* p);
+    /// Save config(change) info to the log
+    static void LogCfgSetting (void* p, int val);
     // a/c info
     bool FetchPAc ();
 
