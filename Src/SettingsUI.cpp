@@ -583,6 +583,17 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
 
+            if (ImGui::TreeNodeHelp("Export", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgCheckbox("Export Tracking Data", sFilter, DR_DBG_EXPORT_FD,
+                                           "Exports all received tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
+                ImGui::FilteredCfgCheckbox("Export User Aircraft", sFilter, DR_DBG_EXPORT_USER_AC,
+                                           "Exports user's aircraft positions as tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
+                ImGui::FilteredCfgCheckbox("Export: Normalize Time", sFilter, DR_DBG_EXPORT_NORMALIZE_TS,
+                                           "In each export file, have all timestamps start at zero.\nMakes it easier to combine data from different files later.");
+            }
+
             if (ImGui::TreeNodeHelp("User Interface", nCol, nullptr, nullptr, sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
             {
@@ -886,12 +897,6 @@ void LTSettingsUI::buildInterface()
                                            "Logs detailed position information of currently selected aircraft (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
                                            "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
-                ImGui::FilteredCfgCheckbox("Export Tracking Data", sFilter, DR_DBG_EXPORT_FD,
-                                           "Exports all received tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
-                ImGui::FilteredCfgCheckbox("Export User Aircraft", sFilter, DR_DBG_EXPORT_USER_AC,
-                                           "Exports user's aircraft positions as tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
-                ImGui::FilteredCfgCheckbox("Export: Normalize Time", sFilter, DR_DBG_EXPORT_NORMALIZE_TS,
-                                           "In each export file, have all timestamps start at zero.\nMakes it easier to combine data from different files later.");
 
                 if (!*sFilter) ImGui::TreePop();
             }
