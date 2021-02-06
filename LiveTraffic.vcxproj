@@ -143,7 +143,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>Lib/XPMP2/win;Lib/SDK/Libraries/Win;Lib/CURL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPMP2.lib;libcurl.lib;ws2_32.lib;iphlpapi.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Opengl32.lib;XPLM_64.lib;XPMP2.lib.debug;libcurl.lib;ws2_32.lib;iphlpapi.lib;wldap32.lib;advapi32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
