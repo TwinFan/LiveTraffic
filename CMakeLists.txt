@@ -84,7 +84,7 @@ endif()
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_SOURCE_DIR}/Include")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/parson")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/Current/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
@@ -131,9 +131,9 @@ set(Header_Files
     Lib/ImgWindow/SystemGL.h
     Lib/Font/IconsFontAwesome5.h
     Lib/Font/fa-solid-900.inc
-    Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPCAircraft.h
-    Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPMultiplayer.h
-    Lib/XPMP2/XPMP2.framework/Versions/1.0/Headers/XPMPPlaneRenderer.h
+    Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPCAircraft.h
+    Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPMPMultiplayer.h
+    Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPMPPlaneRenderer.h
 )
 source_group("Header Files" FILES ${Header_Files})
 
