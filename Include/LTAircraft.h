@@ -27,12 +27,6 @@
 #ifndef LTAircraft_h
 #define LTAircraft_h
 
-#include <string>
-#include "XPLMScenery.h"
-#include "XPMPAircraft.h"
-#include "CoordCalc.h"
-#include "LTFlightData.h"
-
 //
 //MARK: MovingParam
 //      Represents a parameter which changes over time, like e.g.
@@ -261,7 +255,8 @@ public:
         
     public:
         static bool ReadFlightModelFile ();
-        static const FlightModel& FindFlightModel (const std::string& acTypeIcao);
+        /// Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
+        static const FlightModel& FindFlightModel (const LTFlightData& fd);
         static const FlightModel* GetFlightModel (const std::string& modelName);
         /// Tests if the given call sign matches typical call signs of ground vehicles
         static bool MatchesCar (const std::string& _callSign);
@@ -348,8 +343,9 @@ public:
     // current position
     inline const positionTy& GetPPos() const { return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
-    // position heading to (usually posList[1], ppos if ppos > posList[1])
-    const positionTy& GetToPos() const;
+    /// @brief position heading to (usually posList[1], ppos if ppos > posList[1])
+    /// @param[out] pHeading Receives heading towards to-position
+    const positionTy& GetToPos (double* pHeading = nullptr) const;
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     /// periodically find the nearest airport and return a nice position string relative to it

@@ -592,6 +592,7 @@ void LTSettingsUI::buildInterface()
                                            "Exports user's aircraft positions as tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
                 ImGui::FilteredCfgCheckbox("Export: Normalize Time", sFilter, DR_DBG_EXPORT_NORMALIZE_TS,
                                            "In each export file, have all timestamps start at zero.\nMakes it easier to combine data from different files later.");
+                if (!*sFilter) ImGui::TreePop();
             }
 
             if (ImGui::TreeNodeHelp("User Interface", nCol, nullptr, nullptr, sFilter, nOpCl,

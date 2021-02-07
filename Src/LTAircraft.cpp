@@ -1099,15 +1099,35 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     return true;
 }
 
-// based on an aircraft type find a matching flight model
-const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
-        (const std::string& acTypeIcao)
+/// Returns the best possible a/c type to use based on given LTFlightData
+const std::string& DetermineIcaoType (const LTFlightData& fd)
 {
-    // 1. find aircraft type specification in the Doc8643
+    if (fd.hasAc())                                 // 1. choice: aircraft
+        return fd.GetAircraft()->acIcaoType;
+    
+    const LTFlightData::FDStaticData& stat = fd.GetUnsafeStat();
+    if (!stat.acTypeIcao.empty())                   // 2. choice: FD's static data
+        return stat.acTypeIcao;
+                                                    // 3. choice: Derived from model text
+    const std::string& s = ModelIcaoType::getIcaoType(stat.mdl);
+    if (!s.empty())
+        return s;
+    
+    return dataRefs.GetDefaultAcIcaoType();         // 4. choice: configured default type
+}
+
+// Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
+const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
+        (const LTFlightData& fd)
+{
+    // 1. find an aircraft ICAO type based on input
+    const std::string& acTypeIcao = DetermineIcaoType(fd);
+    
+    // 2. find aircraft type specification in the Doc8643
     const Doc8643& acType = Doc8643::get(acTypeIcao);
     const std::string acSpec (acType);      // the string to match
     
-    // 2. walk through the Flight Model map list and try each regEx pattern
+    // 3. walk through the Flight Model map list and try each regEx pattern
     for (const auto& mapIt: listFMRegex) {
         std::smatch m;
         std::regex_search(acSpec, m, mapIt.first);
@@ -1196,7 +1216,7 @@ XPMP2::Aircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafe
                 inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0),      // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
 // class members
 fd(inFd),
-mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
+mdl(FlightModel::FindFlightModel(inFd)),   // find matching flight model
 doc8643(Doc8643::get(inFd.WaitForSafeCopyStat().acTypeIcao)),
 tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
@@ -1346,10 +1366,21 @@ std::string LTAircraft::GetFlightId() const
 //
 
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
-const positionTy& LTAircraft::GetToPos() const
+const positionTy& LTAircraft::GetToPos(double* pHeading) const
 {
-    if ( posList.size() >= 2 )
-        return ppos < posList.back() ? posList.back() : ppos;
+    // posList contains more than just the _current_ to-position, but even a future one (temporary state)
+    if ( posList.size() >= 3 ) {
+        if (pHeading)
+            *pHeading = posList[posList.size()-2].angle(posList.back());
+        return posList.back();
+    }
+    
+    // posList contains the _current_ to-position...and maybe we even passed it already
+    // but heading is same in both cases
+    if (pHeading)
+        *pHeading = GetTrack();
+    if ( posList.size() >= 2 && ppos < posList.back() )
+        return posList.back();
     else
         return ppos;
 }

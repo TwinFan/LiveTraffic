@@ -983,9 +983,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                             {
                                 // aircraft model to use
                                 const LTAircraft::FlightModel& mdl =
-                                fd.hasAc() ? fd.GetAircraft()->mdl :
-                                LTAircraft::FlightModel::FindFlightModel(fd.GetUnsafeStat().acTypeIcao);
-                                
+                                LTAircraft::FlightModel::FindFlightModel(fd);
                                 
                                 // this is the Landing case
                                 // we look for the VSI of the last two already

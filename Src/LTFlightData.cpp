@@ -154,6 +154,19 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     if (mdl.empty())
         mdl = pDoc8643->model;
     
+    // Some string trimming
+    trim(reg);
+    trim(country);
+    trim(man);
+    trim(mdl);
+    trim(catDescr);
+    trim(call);
+    trim(originAp);
+    trim(destAp);
+    trim(flight);
+    trim(op);
+    trim(opIcao);
+    
     return bRet;
 }
 
@@ -516,8 +529,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
         return;
     
     // The flight model to use
-    const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
-    LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this);
 
     // *** Keep last pos in posDeque above 2.5° ILS path
     // Relevant if:
@@ -569,19 +581,17 @@ void LTFlightData::DataCleansing (bool& bChanged)
         (!pAc && posDeque.size() >= 3))
     {
         positionTy pos1;
-        vectorTy v2;
         double h1 = NAN;
         dequePositionTy::iterator iter = posDeque.begin();
         
         // position _before_ the first position in the deque
         if (pAc) {
-            pos1 = pAc->GetToPos();
-            h1 = pAc->GetTrack();       // and the heading towards pos1
+            pos1 = pAc->GetToPos(&h1);
             // if (still) the to-Pos is current iter pos then increment
             // (could be that plane's current 'to' is still the first
             //  in out queue)
             while (iter != posDeque.end() &&
-                   pos1.cmp(*iter) == 0)
+                   pos1.cmp(*iter) >= 0)
                 ++iter;
         } else {
             // in this case we have at least 3 positions
@@ -638,6 +648,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
                         // break out of search loop
                         // (iter now points to where 'next' was before, but with updated iterators)
                         LOG_ASSERT_FD(*this, iter != posDeque.end() && dequal(iter->ts(),rmTsTo));
+                        h1 = h2;            // this is heading from pos1 to *next
                         break;
                     } // if found valid next pos
                 } // for searching valid next pos
@@ -696,7 +707,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
             else
             {
                 // just move on to next position in deque
-                h1 = v2.angle;
+                // (heading h1 has been updated by IsPosOK to heading from pos1 to iter already
                 pos1 = *iter;
                 ++iter;
             }
@@ -896,8 +907,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
         // *** maintenance of flight data deque ***
-        const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
-        LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
+        const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this);
 
         // if no simTime given use a/c's 'to' position, or current sim time
         if (std::isnan(simTime)) {
@@ -1000,9 +1010,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     positionTy stopPos = pAc->GetToPos();
                     if (stopPos.IsOnGnd() &&
                         stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
-                        stopPos.f.flightPhase != FPH_STOPPED_ON_RWY)    // avoid adding several stops
+                        stopPos.f.flightPhase != FPH_STOPPED_ON_RWY &&  // avoid adding several stops
+                        stopPos.ts() <= simTime + 3.0)                  // and time's running out for the plane's to-position
                     {
-                        stopPos.ts() = simTime + 10.0;                  // just assume _some_ time
+                        stopPos.ts() += 5.0;                            // just set some time after to-position
                         stopPos.f.flightPhase = FPH_STOPPED_ON_RWY;     // indicator for aritifical stop (not only on rwy now...)
                         if (dataRefs.GetDebugAcPos(key()))
                             LOG_MSG(logDEBUG, "%s: Added stop-position %s",
@@ -1019,6 +1030,14 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     if (dataRefs.GetDebugAcPos(key()))
                         LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
                     return false;
+                }
+                else {
+                    // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
+                    LOG_ASSERT_FD(*this,
+                                  std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
+                                                     [](const positionTy& a, const positionTy& b)
+                                                     {return a > b;}
+                                                     ) == posDeque.cend());
                 }
             }
         } else {
@@ -1290,6 +1309,13 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     }
                 } // (take off case)
             } // loop over szenarios
+
+            // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
+            LOG_ASSERT_FD(*this,
+                          std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
+                                             [](const positionTy& a, const positionTy& b)
+                                             {return a > b;}
+                                             ) == posDeque.cend());
         } // (has a/c and do landing / take-off detection)
         
         // *** Snap any newly inserted positions to taxiways ***
@@ -1561,8 +1587,8 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         return true;
 
     // aircraft model to use
-    const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
-    LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this);
+    
     // if pHeading not given we assume we can take it from lastPos
     const double lastHead = pHeading ? *pHeading : lastPos.heading();
     // vector from last to this
@@ -1578,11 +1604,8 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                           HeadingDiff(lastHead, v.angle));
     
     // Speed limits
-    const bool bRwy = (thisPos.f.specialPos == SPOS_RWY) || (lastPos.f.specialPos == SPOS_RWY);
-    const double minSpeed = !thisPos.IsOnGnd() ? mdl.MIN_FLIGHT_SPEED : 0.0;
-    const double maxSpeed = !thisPos.IsOnGnd() ? mdl.MAX_FLIGHT_SPEED : // airborne
-                            bRwy ? mdl.MAX_FLIGHT_SPEED :               // rwy involved
-                            mdl.MAX_TAXI_SPEED;                         // purely taxiing
+    const double minSpeed = thisPos.IsOnGnd() ? 0.0                          : mdl.MIN_FLIGHT_SPEED;
+    const double maxSpeed = thisPos.IsOnGnd() ? (mdl.SPEED_INIT_CLIMB * 1.2) : mdl.MAX_FLIGHT_SPEED;
     
     // --- Validations ---
     const char* szViolTxt = nullptr;
@@ -1598,10 +1621,12 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         
     // Any problem found?
     if (szViolTxt) {
-        LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, )",
+        const std::string& icaoType = pAc ? pAc->acIcaoType : statData.acTypeIcao;
+        LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, mdl %s, type %s)",
                 keyDbg().c_str(), szViolTxt,
                 std::string(v).c_str(), hDiff,
-                minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX);
+                minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
+                mdl.modelName.c_str(), icaoType.c_str());
         return false;
     }
     
@@ -2213,8 +2238,7 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                     const positionTy& lastPos = (posDeque.empty() ?
                                                  pAc->GetToPos() :
                                                  posDeque.back());
-                    if (pos->ts() + dataRefs.GetFdRefreshIntvl() <=
-                        lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
+                    if (pos->ts() <= lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
                         // not big enough a difference in timestamps yet
                         return;
                     
@@ -2583,9 +2607,7 @@ bool LTFlightData::DetermineAcModel()
         return false;
     
     // Try finding a CSL model by interpreting the human-readable model text
-    std::string mdl (statData.mdl);
-    str_toupper(trim(mdl));
-    statData.acTypeIcao = ModelIcaoType::getIcaoType(mdl);
+    statData.acTypeIcao = ModelIcaoType::getIcaoType(statData.mdl);
     if ( !statData.acTypeIcao.empty() )
     {
         // yea, found something by mdl!
@@ -2757,6 +2779,8 @@ void LTFlightData::DestroyAircraft ()
         delete pAc;
     pAc = nullptr;
 }
+
+
 
 // static function to
 // update the CSL model of all aircraft (e.g. after loading new CSL models)

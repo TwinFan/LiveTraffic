@@ -18,7 +18,7 @@ ROTATE_TIME            4    # [s] to rotate, half before lift off, half after
 VSI_FINAL           -800    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB      1500    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB     150    # [kt] initial climb speed if take-off-vector not available
-VSI_MAX             3000    # [ft/min] maximum vertical speed, beyond this considered invalid data
+VSI_MAX             4000    # [ft/min] maximum vertical speed, beyond this considered invalid data
 AGL_GEAR_DOWN       1600    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             25    # [ft] height AGL to start flare
@@ -97,7 +97,7 @@ ROTATE_TIME            3    # [s] to rotate, half before lift off, half after
 VSI_FINAL           -400    # [ft/min] assumed vsi for final if vector unavailable
 VSI_INIT_CLIMB       500    # [ft/min] assumed vsi if take-off-vector not available
 SPEED_INIT_CLIMB      75    # [kt] initial climb speed if take-off-vector not available
-VSI_MAX             2500    # [ft/min] maximum vertical speed, beyond this considered invalid data
+VSI_MAX             3000    # [ft/min] maximum vertical speed, beyond this considered invalid data
 AGL_GEAR_DOWN        300    # [ft] height AGL at which to lower the gear during approach
 AGL_GEAR_UP          100    # [ft] height AGL at which to raise the gear during take off
 AGL_FLARE             15    # [ft] height AGL to start flare

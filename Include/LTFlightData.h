@@ -25,10 +25,6 @@
 #ifndef LTFlightData_h
 #define LTFlightData_h
 
-#include <mutex>
-#include <deque>
-#include "CoordCalc.h"
-
 // from LTChannel.h
 class LTChannel;
 

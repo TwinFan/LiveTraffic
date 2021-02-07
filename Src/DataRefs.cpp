@@ -265,7 +265,7 @@ namespace ModelIcaoType
     {
         try {
             // lookup a value on the map, throws std::out_of_range if nothing found
-            return mapModelIcaoType.at(_model);
+            return mapModelIcaoType.at(str_toupper_c(_model));
         }
         catch (...) {
             // caught exception -> nothing found in map, return something empty

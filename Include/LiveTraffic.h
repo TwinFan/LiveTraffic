@@ -99,6 +99,7 @@
 
 // XP Multiplayer API (XPMP2)
 #include "XPMPMultiplayer.h"
+#include "XPMPAircraft.h"
 
 // LTAPI Includes, this defines the bulk transfer structure
 #include "LTAPI.h"
@@ -112,8 +113,8 @@ extern DataRefs dataRefs;
 
 #include "CoordCalc.h"
 #include "TextIO.h"
-#include "LTAircraft.h"
 #include "LTFlightData.h"
+#include "LTAircraft.h"
 #include "LTImgWindow.h"
 #include "SettingsUI.h"
 #include "ACInfoWnd.h"

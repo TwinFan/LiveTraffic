@@ -738,7 +738,7 @@ bool OpenGliderConnection::LookupAcList (const std::string& sDevId,
         
         // based on the model information look up an ICAO a/c type
         if (!stat.mdl.empty())
-            stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
+            stat.acTypeIcao = ModelIcaoType::getIcaoType(stat.mdl);
     } else {
         // clear the record again (potentially used as buffer during lookup)
         // This will also CLEAR the TRACKED and IDENTIFIED flags
