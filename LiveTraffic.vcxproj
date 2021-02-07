@@ -121,7 +121,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\2.1\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -169,7 +169,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\1.0\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\2.1\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
