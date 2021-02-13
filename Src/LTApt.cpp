@@ -1317,6 +1317,9 @@ public:
         if (!bInsertTaxiTurns || !pPrevPos)
             return true;
         
+        // Direct distance from pos to *pPrevPos, used in some sanity checks
+        const double distPrevPosPos = pPrevPos->dist(pos);
+        
         // That pos must be on an edge, too
         if (!pPrevPos->HasTaxiEdge() ||
             // That previous edge isn't by chance the same we just now found? Then the shortest path is to go straight...
@@ -1343,6 +1346,16 @@ public:
                 prevErelN = prevE.otherNode(prevErelN);
                 bSkipStart = true;      // this node is now _before_ prevPos, don't add that to the deque!
             }
+            else
+            {
+                // Sanity check: if the distance to reaching the first node
+                // is more than we shall travel in total we're making a mistake
+                const TaxiNode& prevErelNode = vecTaxiNodes[prevErelN];
+                if (DistLatLon(pPrevPos->lat(), pPrevPos->lon(),
+                               prevErelNode.lat, prevErelNode.lon) > distPrevPosPos)
+                    // Then it is simpler to just go straight without any taxiway path
+                    return true;
+            }
         }
         
         // current edge's relevant node
@@ -1353,6 +1366,16 @@ public:
             if (DistLatLonSqr(othN.lat, othN.lon, pos.lat(), pos.lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M)) {
                 currEstartN = pEdge->otherNode(currEstartN);
                 bSkipEnd = true;      // this node is now _beyond_ pos, don't add that to the deque!
+            }
+            else
+            {
+                // Sanity check: if the distance to reaching the last node
+                // is more than we shall travel in total we're making a mistake
+                const TaxiNode& currErelNode = vecTaxiNodes[currEstartN];
+                if (DistLatLon(pos.lat(), pos.lon(),
+                               currErelNode.lat, currErelNode.lon) > distPrevPosPos)
+                    // Then it is simpler to just go straight without any taxiway path
+                    return true;
             }
         }
         
