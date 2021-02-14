@@ -631,6 +631,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
                         // Make use of the fact that the deque is sorted by timestamp.
                         const double rmTsFrom = iter->ts();
                         const double rmTsTo = next->ts();
+                        LOG_ASSERT_FD(*this, rmTsFrom < rmTsTo);    // to form valid loop conditions 'from' must be less than (and not equal to) 'to'
                         while (iter != posDeque.end() && iter->ts() < rmTsTo)
                         {
                             // if current iter falls into the to-be-deleted range
@@ -1196,8 +1197,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     double climbSpeed = mdl.SPEED_INIT_CLIMB / KT_per_M_per_S;
                     if (posDeque.size() >= i+2) {     // take the data from the vector _after_ to
                         vectorTy climbVec (to_i.between(posDeque[i+1]));
-                        climbVsi = climbVec.vsi;
-                        climbSpeed = climbVec.speed;
+                        if (climbVec.vsi > mdl.VSI_STABLE) {                // make sure it's really a climb!
+                            climbVsi = climbVec.vsi;
+                            climbSpeed = climbVec.speed;
+                        }
                     }
                     
                     // Determine how much before 'to' is that take-off point
