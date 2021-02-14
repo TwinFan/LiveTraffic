@@ -381,7 +381,6 @@ public:
     
     // timestamp-based comparison
     inline bool hasSimilarTS (const positionTy& p) const { return std::abs(ts()-p.ts()) <= SIMILAR_TS_INTVL; }
-    inline bool canBeMergedWith (const positionTy& p) const { return hasSimilarTS(p); }
     inline int cmp (const positionTy& p)        const { return ts() < p.ts() ? -1 : (ts() > p.ts() ? 1 : 0); }
     inline bool operator<< (const positionTy& p) const { return ts() < p.ts() - SIMILAR_TS_INTVL; }
     inline bool operator<  (const positionTy& p) const { return ts() < p.ts(); }

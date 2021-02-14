@@ -389,7 +389,6 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_RAW_FD_ERR_OPEN_OUT "DEBUG Could not open output file %s: %s"
 #define DBG_FILTER_AC           "DEBUG Filtering for a/c '%s'"
 #define DBG_FILTER_AC_REMOVED   "DEBUG Filtering for a/c REMOVED"
-#define DBG_MERGED_POS          "DEBUG MERGED POS %s into updated TS %.1f"
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
 #define DBG_KEEP_ABOVE          "DEBUG POS LIFTED TO 2.5deg GLIDESCOPE from %.0fft: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"

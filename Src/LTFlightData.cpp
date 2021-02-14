@@ -1773,9 +1773,15 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
-        // if there is an a/c then we shall no longer add positions
-        // before the current 'to' position of the a/c
-        if (pAc && pos <= pAc->GetToPos()) {
+        // We only consider data that is newer than what we have already
+        const positionTy* pLatestPos =
+        !posToAdd.empty() ? &(posToAdd.back()) :
+        !posDeque.empty() ? &(posDeque.back()) :
+        hasAc()           ? &(pAc->GetToPos()) : nullptr;
+        
+        if (pLatestPos &&
+            pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+        {
             // pos is before or close to 'to'-position: don't add!
             if (dataRefs.GetDebugAcPos(key()))
                 LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
@@ -1860,112 +1866,48 @@ void LTFlightData::AppendNewPos()
             positionTy pos = posToAdd.front();
             posToAdd.pop_front();
             
-            // *** ground status *** (plays a role in merge determination)
-            // will set ground altitude if on ground
+            // Once again a final check: We only add data after the last known position
+            // We only consider data that is newer than what we have already
+            const positionTy* pLatestPos =
+            !posDeque.empty() ? &(posDeque.back()) :
+            hasAc()           ? &(pAc->GetToPos()) : nullptr;
+            if (pLatestPos &&
+                pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+            {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
+                continue;                   // skip
+            }
+            
+            // ground status: will set ground altitude if on ground
             TryDeriveGrndStatus(pos);
             
-            // *** insert/merge position ***
-            
-            // based on timestamp find possible "similar" position
-            // or insert position.
-            // and if so merge with that position to avoid too many position in
-            // a very short time frame, as that leads to zick-zack courses in a
-            // matter of meters only as can happen when merging different data streams
-            dequePositionTy::iterator i =   // first: find a merge partner
-            std::find_if(posDeque.begin(), posDeque.end(),
-                         [&pos](const positionTy& p){return p.canBeMergedWith(pos);});
-            if (i != posDeque.end()) {      // found merge partner!
-                // make sure we don't overlap with predecessor/successor position
-                if (((i == posDeque.begin()) || (*std::prev(i) < pos)) &&
-                    ((std::next(i) == posDeque.end()) || (*std::next(i) > pos)) &&
-                    !i->IsPostProcessed())      // don't merge with optimized positions...rather throw the new one away
-                {
-                    *i |= pos;                  // merge them (if pos.heading is nan then i.heading prevails)
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,DBG_MERGED_POS,pos.dbgTxt().c_str(),i->ts());
-                }
-                else
-                {
-                    // pos would overlap with surrounding positions
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
-                    continue;                   // skip
-                }
-            }
+            // *** pitch ***
+            // just a rough value, LTAircraft::CalcPPos takes care of the details
+            if (pos.IsOnGnd())
+                pos.pitch() = 0;
             else
-            {
-                // second: find insert-before position
-                i = std::find_if(posDeque.begin(), posDeque.end(),
-                                 [&pos](const positionTy& p){return p > pos;});
-                
-                // *** Sanity Check if we have valid vectors already ***
-                if (pAc || !posDeque.empty())
-                {
-                    // We only insert if we don't cause invalid vector
-                    // for perfect heading calc we need the _vector_ before insert pos,
-                    // and for that we need 2 positions before insert
-                    const positionTy* pBefore = nullptr;
-                    double heading = NAN;
-                    size_t idx = (size_t)std::distance(posDeque.begin(), i);
-                    if (idx >= 2) {
-                        pBefore = &(posDeque[idx-1]);
-                        heading = posDeque[idx-2].angle(*pBefore);
-                    } else if (idx == 1) {
-                        pBefore = &(posDeque[0]);
-                        if (pAc)
-                            heading = pAc->GetToPos().angle(*pBefore);
-                    } else if (pAc) {            // idx == 0 -> insert at beginning
-                        pBefore = &(pAc->GetToPos());
-                        heading = pAc->GetTrack();
-                    }
- 
-                    // now check if OK
-                    if (pBefore && !IsPosOK(*pBefore, pos, &heading)) {
-                        if (dataRefs.GetDebugAcPos(key()))
-                            LOG_MSG(logDEBUG,ERR_IGNORE_POS,keyDbg().c_str(),pos.dbgTxt().c_str());
-                        continue;                   // skip
-                    }
-                }
-                
-                // pos is OK, add/insert it
-                if (i == posDeque.end()) {      // new pos is to be added at end
-                    posDeque.emplace_back(pos);
-                    i = std::prev(posDeque.end());
-                }
-                else {                          // found real insert position: before i
-                    i = posDeque.emplace(i, pos);
-                }
-            }
+                pos.pitch() = 2;
             
-            // i now points to the inserted/merged element
-            positionTy& p = *i;
+            // *** roll ***
+            // LTAircraft::CalcPPos takes care of the details
+            pos.roll() = 0;
             
+            // add to the end of the deque
+            posDeque.emplace_back(pos);
+            dequePositionTy::iterator i = std::prev(posDeque.end());
+
             // *** heading ***
             
             // Recalc heading of adjacent positions: before p, p itself, and after p
             if (i != posDeque.begin())              // is there anything before i?
                 CalcHeading(std::prev(i));
-            
             CalcHeading(i);                         // i itself, latest here a nan heading is rectified
-            
-            if (std::next(i) != posDeque.end())     // is there anything after i?
-                CalcHeading(std::next(i));
-            
-            // *** pitch ***
-            // just a rough value, LTAircraft::CalcPPos takes care of the details
-            if (p.IsOnGnd())
-                p.pitch() = 0;
-            else
-                p.pitch() = 2;
-            
-            // *** roll ***
-            // LTAircraft::CalcPPos takes care of the details
-            p.roll() = 0;
             
             // *** last checks ***
             
             // should be fully valid position now
-            LOG_ASSERT_FD(*this, p.isFullyValid());
+            LOG_ASSERT_FD(*this, i->isFullyValid());
         }
         
         // posDeque should be sorted, i.e. no two adjacent positions a,b should be a > b
@@ -2212,49 +2154,36 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
         // or in other words: new ts + refresh period > old ts + outdated period
         if (!dynDataDeque.empty()) {
             const FDDynamicData& last = dynDataDeque.back();
-            if (last.pChannel != inDyn.pChannel &&
-                last.pChannel && inDyn.pChannel) {
+            if (inDyn.pChannel && last.pChannel != inDyn.pChannel)
+            {
                 // Firstly, if no a/c yet created, then we prioritize with
                 // which channel an a/c is created. The higher the channel
                 // number the better.
-                if (!pAc)
-                {
-                    if (inDyn.pChannel->GetChannel() <= last.pChannel->GetChannel())
-                        // lower prio -> ignore data
-                        return;
-                    
-                    // so we throw away the lower prio channel's data
-                    const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
-                    dynDataDeque.clear();
-                    posDeque.clear();
-                    LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
-                            keyDbg().c_str(),
-                            pLstChn ? pLstChn->ChName() : "<null>",
-                            inDyn.pChannel ? inDyn.pChannel->ChName() : "<null>")
-                }
-                else
-                {
-                    // We compare timestamps of the actual positions and as a safeguard
-                    // accept positions only pointing roughly in the same direction
-                    // as we don't want a/c to turn back and forth due to channel switch.
-                    if (!pos) return;
-                    const positionTy& lastPos = (posDeque.empty() ?
-                                                 pAc->GetToPos() :
-                                                 posDeque.back());
-                    if (pos->ts() <= lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
-                        // not big enough a difference in timestamps yet
-                        return;
-                    
-                    // check for weird heading changes, wrong speed etc.);
-                    if (!IsPosOK(lastPos, *pos))
-                        return;
+                if (!hasAc() &&
+                    last.pChannel &&
+                    inDyn.pChannel->GetChannel() <= last.pChannel->GetChannel())
+                    // lower prio -> ignore data
+                    return;
+                
+                // If there is an aircraft then we only switch if there are
+                // no positions waiting any longer, ie. we run into danger to run out of positions
+                if (hasAc() &&
+                    !posDeque.empty() &&
+                    // new position must be significantly _after_ current 'to' pos
+                    // so that current channel _really_ had its chance to sent an update:
+                    inDyn.ts > pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2)
+                    // there still is data waiting -> ignore other channel's data
+                    return;
 
-                    // accept channel switch!
-                    LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
-                            keyDbg().c_str(),
-                            last.pChannel ? last.pChannel->ChName() : "<null>",
-                            inDyn.pChannel ? inDyn.pChannel->ChName() : "<null>")
-                }
+                // We accept the channel switch...clear out any old channel's data
+                // so we throw away the lower prio channel's data
+                const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
+                dynDataDeque.clear();
+                posDeque.clear();
+                LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
+                        keyDbg().c_str(),
+                        pLstChn ? pLstChn->ChName() : "<null>",
+                        inDyn.pChannel->ChName());
             }
         }
         
