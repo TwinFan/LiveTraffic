@@ -7,6 +7,8 @@ LiveTraffic 2.2
 # The last section has the defined name [Map] and maps these flight models
 # with actual aircraft types.
 
+# All speeds are Ground Speeds.
+
 [MediumJets]
 # These values are also the hard-coded defaults in case
 # the entire config file went missing.
@@ -32,7 +34,7 @@ ROLL_RATE              5    # [°/s] roll rate in normal turns
 MIN_FLIGHT_SPEED     100    # [kn] minimum flight speed, below that not considered valid data
 FLAPS_UP_SPEED       180    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     200    # [kt] above that: descend, below that: approach
-MAX_FLIGHT_SPEED     500    # [kn] maximum flight speed, above that not considered valid data
+MAX_FLIGHT_SPEED     600    # [kn] maximum flight speed, above that not considered valid data
 CRUISE_HEIGHT      15000    # [ft] above that height AGL we consider level flight 'cruise'
 ROLL_OUT_DECEL        -2.0  # [m/s²] deceleration during roll-out if no live position available
 PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
@@ -56,7 +58,7 @@ VSI_MAX             4000    # [ft/min] maximum vertical speed, beyond this consi
 AGL_FLARE             30    # [ft] height AGL to start flare
 ROLL_RATE              3    # [°/s] roll rate in normal turns
 MIN_FLIGHT_SPEED     120    # [kn] minimum flight speed, below that not considered valid data
-MAX_FLIGHT_SPEED     500    # [kn] maximum flight speed, above that not considered valid data
+MAX_FLIGHT_SPEED     600    # [kn] maximum flight speed, above that not considered valid data
 PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_RATE             2    # [°/s] pitch rate of change
@@ -109,7 +111,7 @@ ROLL_RATE              8    # [°/s] roll rate in normal turns
 MIN_FLIGHT_SPEED      50    # [kn] minimum flight speed, below that not considered valid data
 FLAPS_UP_SPEED        90    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED     100    # [kt] above that: descend, below that: approach
-MAX_FLIGHT_SPEED     280    # [kn] maximum flight speed, above that not considered valid data
+MAX_FLIGHT_SPEED     300    # [kn] maximum flight speed, above that not considered valid data
 CRUISE_HEIGHT        800    # [ft] above that height AGL we consider level flight 'cruise'
 PITCH_MIN             -2    # [°] minimal pitch angle (aoa)
 PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
@@ -239,7 +241,7 @@ MediumProps    ^M;L\dT;
 BizJet         ^L;L\dJ;
 Glider         ;(GLID|A20J|ARCE|ARCP|AS14|AS16|AS20|AS21|AS22|AS24|AS25|AS26|AS28|AS29|AS30|AS31|DG1T|DG40|DG50|DG60|DG80|DIMO|DISC|DUOD|G103|G109|HU1|HU2|JANU|L13M|LAE1|LK17|LK19|LK20|LS8|LS9|NIMB|PISI|PITE|PITA|PIT4|PK15|PK20|S10S|S32M|S32E|SF24|SF25|SF27|SF28|SF31|SZ45|SZ9M|TS1J|VENT);
 LightAC        ^-;
-GA             ^L;L\dP;
+GA             ^L;L\d(P|T);
 Heli           ^.;H
 
 # This last line matches anything and serves as a default:
