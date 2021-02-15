@@ -852,7 +852,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // no positions left?
             if (posDeque.empty()) {
                 // If descending: Try finding a runway to land on
-                if (pAc->GetVSI_ft() < -pAc->mdl.VSI_STABLE)
+                if (pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
                 {
                     const positionTy& acTo = pAc->GetToPos();
                     posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
@@ -892,7 +892,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                               ART_RWY_ALIGN_DIST,                           // distance
                                               -vecRwy.vsi,                                  // VSI (reversed!)
                                               std::min(vecRwy.speed,                        // speed (capped at max final speed)
-                                                       pAc->mdl.FLAPS_DOWN_SPEED * ART_FINAL_SPEED_F / KT_per_M_per_S));
+                                                       pAc->pMdl->FLAPS_DOWN_SPEED * ART_FINAL_SPEED_F / KT_per_M_per_S));
                             // Timestamp is now beyond posRwy.ts() as time always moves forward,
                             // but posBefore is _before_ posRwy:
                             posBefore.ts() -= 2 * (posBefore.ts() - posRwy.ts());
@@ -1500,7 +1500,10 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         return true;
 
     // aircraft model to use
-    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this);
+    const std::string* pIcaoType = nullptr;
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, &pIcaoType);
+    if (!pIcaoType)     // if we can't really determine a model we can't really validate
+        return true;
     
     // if pHeading not given we assume we can take it from lastPos
     const double lastHead = pHeading ? *pHeading : lastPos.heading();
@@ -1534,12 +1537,11 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         
     // Any problem found?
     if (szViolTxt) {
-        const std::string& icaoType = pAc ? pAc->acIcaoType : statData.acTypeIcao;
         LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, mdl %s, type %s)",
                 keyDbg().c_str(), szViolTxt,
                 std::string(v).c_str(), hDiff,
                 minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
-                mdl.modelName.c_str(), icaoType.c_str());
+                mdl.modelName.c_str(), pIcaoType->c_str());
         return false;
     }
     
@@ -1697,14 +1699,6 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
                 return;
             }
-            
-            // pos would not be OK after latest pos: don't add!
-            double head = NAN;                          // we're not validating heading at this point
-            if (!IsPosOK(*pLatestPos, pos, &head)) {
-                if (dataRefs.GetDebugAcPos(key()))
-                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_NOK,pos.dbgTxt().c_str());
-                return;
-            }
         }
 
         // add pos to the queue of data to be added
@@ -1787,9 +1781,26 @@ void LTFlightData::AppendNewPos()
             
             // Once again a final check: We only add data after the last known position
             // We only consider data that is newer than what we have already
-            const positionTy* pLatestPos =
-            !posDeque.empty() ? &(posDeque.back()) :
-            hasAc()           ? &(pAc->GetToPos()) : nullptr;
+            const positionTy* pLatestPos = nullptr;
+            double headToLatest = NAN;          // heading/track when flying to that latest pos, relevant for turn validation
+            
+            // There are positions waiting in the deque
+            if (!posDeque.empty())
+            {
+                pLatestPos = &(posDeque.back());
+                if (posDeque.size() >= 2)
+                    headToLatest = posDeque[posDeque.size()-2].angle(*pLatestPos);
+                else if (hasAc())
+                    headToLatest = pAc->GetToPos().angle(*pLatestPos);
+            }
+            // no deque positions, but an aircraft?
+            else if (hasAc())
+            {
+                pLatestPos = &(pAc->GetToPos());
+                headToLatest = pAc->GetTrack();
+            }
+
+            // Is the new position _after_ the latest known position?
             if (pLatestPos &&
                 pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
             {
@@ -1800,6 +1811,13 @@ void LTFlightData::AppendNewPos()
             
             // ground status: will set ground altitude if on ground
             TryDeriveGrndStatus(pos);
+            
+            // Now that we have a proper Grnd status we can test the pos for validty
+            if (pLatestPos && !IsPosOK(*pLatestPos, pos, &headToLatest)) {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_NOK,pos.dbgTxt().c_str());
+                return;
+            }
             
             // *** pitch ***
             // just a rough value, LTAircraft::CalcPPos takes care of the details

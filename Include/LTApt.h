@@ -52,7 +52,7 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
 /// @note Call from separate thread, like from CalcNextPos
 inline positionTy LTAptFindRwy (const LTAircraft& _ac, std::string& _rwyId, bool bDoLogging = false)
 {
-    return LTAptFindRwy (_ac.mdl, _ac.GetToPos(), _ac.GetSpeed_m_s(), _rwyId,
+    return LTAptFindRwy (*_ac.pMdl, _ac.GetToPos(), _ac.GetSpeed_m_s(), _rwyId,
                          bDoLogging ? std::string(_ac) : "");
 }
 

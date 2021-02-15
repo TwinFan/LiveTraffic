@@ -207,34 +207,34 @@ public:
         double GEAR_DEFLECTION =  0.5;    // [m] main gear deflection on meters during touch down
         double FLAPS_DURATION =   5;      // time for full flaps extension from 0% to 100%
         double VSI_STABLE =       100;    // [ft/min] less than this VSI is considered 'stable'
-        double ROTATE_TIME =      3;      // [s] to rotate before lift off
+        double ROTATE_TIME =      4;      // [s] to rotate before lift off
         double VSI_FINAL =        -800;   // [ft/min] assumed vsi for final if vector unavailable
         double VSI_INIT_CLIMB =   1500;   // [ft/min] assumed vsi if take-off-vector not available
         double SPEED_INIT_CLIMB = 150;    // [kt] initial climb speed if take-off-vector not available
-        double VSI_MAX =          3000;   // [ft/min] maximum vertical speed, beyond this considered invalid data
+        double VSI_MAX =          4000;   // [ft/min] maximum vertical speed, beyond this considered invalid data
         double AGL_GEAR_DOWN =    1600;   // height AGL at which to lower the gear during approach
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
-        double MAX_TAXI_SPEED =   50;     // below that: taxi, above that: take-off/roll-out
+        double MAX_TAXI_SPEED =   45;     // below that: taxi, above that: take-off/roll-out
         double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
-        double TAXI_TURN_TIME =   45;     // seconds for a 360° turn on the ground
+        double TAXI_TURN_TIME =   30;     // seconds for a 360° turn on the ground
         double FLIGHT_TURN_TIME = 120;    ///< seconds for a typical 360° turn in flight
         double MIN_FLIGHT_TURN_TIME=60;   ///< [s] minimum allowable time for a 360° turn in flight
         double ROLL_MAX_BANK =    30;     // [°] max bank angle
-        double ROLL_RATE =        10;     // [°/s] roll rate in normal turns
-        double MIN_FLIGHT_SPEED =100;     // [kn] minimum flight speed, below that not considered valid data
-        double FLAPS_UP_SPEED =  180;     // below that: initial climb, above that: climb
-        double FLAPS_DOWN_SPEED =  200;   // above that: descend, below that: approach
-        double MAX_FLIGHT_SPEED =500;     // [kn] maximum flight speed, above that not considered valid data
+        double ROLL_RATE =        5;      // [°/s] roll rate in normal turns
+        double MIN_FLIGHT_SPEED = 100;    // [kn] minimum flight speed, below that not considered valid data
+        double FLAPS_UP_SPEED =   180;    // below that: initial climb, above that: climb
+        double FLAPS_DOWN_SPEED = 200;    // above that: descend, below that: approach
+        double MAX_FLIGHT_SPEED = 600;    // [kn] maximum flight speed, above that not considered valid data
         double CRUISE_HEIGHT =    15000;  // above that height AGL we consider level flight 'cruise'
         double ROLL_OUT_DECEL =  -2.0;    // [m/s²] deceleration during roll-out
         double PITCH_MIN =        -2;     // [°] minimal pitch angle (aoa)
         double PITCH_MIN_VSI =    -1000;  // [ft/min] minimal vsi below which pitch is MDL_PITCH_MIN
-        double PITCH_MAX =        18;     // [°] maximum pitch angle (aoa)
+        double PITCH_MAX =        15;     // [°] maximum pitch angle (aoa)
         double PITCH_MAX_VSI =    2000;   // [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
         double PITCH_FLAP_ADD =   4;      // [°] to add if flaps extended
         double PITCH_FLARE =      10;     // [°] pitch during flare
-        double PITCH_RATE =       5;      // [°/s] pitch rate of change
+        double PITCH_RATE =       3;      // [°/s] pitch rate of change
         double PROP_RPM_MAX =     1200;   // [rpm] maximum propeller revolutions per minute
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
@@ -255,8 +255,11 @@ public:
         
     public:
         static bool ReadFlightModelFile ();
-        /// Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
-        static const FlightModel& FindFlightModel (const LTFlightData& fd);
+        /// @brief Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
+        /// @param fd Flight Data of the plane in question
+        /// @param[out] pIcaoType (optional) receives determined ICAO type, empty if none could be determined
+        static const FlightModel& FindFlightModel (const LTFlightData& fd,
+                                                   const std::string** pIcaoType = nullptr);
         static const FlightModel* GetFlightModel (const std::string& modelName);
         /// Tests if the given call sign matches typical call signs of ground vehicles
         static bool MatchesCar (const std::string& _callSign);
@@ -268,10 +271,10 @@ public:
 public:
     // reference to the defining flight data
     LTFlightData& fd;
-    // reference to the flight model being used
-    const FlightModel& mdl;
-    // reference to the matching Doc8643
-    const Doc8643& doc8643;
+    /// Pointer to the flight model being used
+    const FlightModel* pMdl;
+    // pointer to the matching Doc8643
+    const Doc8643* pDoc8643;
     
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame

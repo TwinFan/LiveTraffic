@@ -1456,8 +1456,17 @@ public:
                 // so we reduce the speed to reasonable taxiing speed
                 // and make sure that all the path is executed with taxiing speed,
                 // which allows for higher speed from prevPos to the start of the path:
-                speed = mdl.MAX_TAXI_SPEED * 0.60 / KT_per_M_per_S;
-                startTS = pos.ts() - (pathLen + distFromEnd) / speed;
+                const double taxiSpeed = mdl.MAX_TAXI_SPEED * 0.60 / KT_per_M_per_S;
+                const double newStartTaxiTS = pos.ts() - (pathLen + distFromEnd) / taxiSpeed;
+                const double rwySpeed = distToStart / (newStartTaxiTS - pPrevPos->ts());
+                // Validate the above new values otherwise we might start the
+                // new path before pPrevPos, which would be bad...
+                if (newStartTaxiTS > pPrevPos->ts() &&      // taxiing must start after pPrevPos (on rwy)
+                    rwySpeed <= mdl.SPEED_INIT_CLIMB * 1.5) // speed on rwy must still be reasonable
+                {
+                    speed = taxiSpeed;
+                    startTS = newStartTaxiTS;
+                }
             }
 
             // remaining time from first path's node to pos
