@@ -606,104 +606,14 @@ void LTFlightData::DataCleansing (bool& bChanged)
         while (iter != posDeque.end())
         {
             // is pos not OK compared to previous one?
+            const double tempH = h1;
             if (!IsPosOK(pos1, *iter, &h1, &bChanged))
             {
-                // is there any valid pos to go to after iter?
-                bool bFoundValidNext = false;
-                for (dequePositionTy::iterator next = std::next(iter);
-                     next != posDeque.end();
-                     ++next)
-                {
-                    double h2 = h1;
-                    if (IsPosOK(pos1, *next, &h2, &bChanged))
-                    {
-                        bFoundValidNext = true;
-//                        if constexpr (VERSION_BETA) {
-//                            LOG_MSG(logDEBUG, "%s:   Valid next pos: %s",
-//                                    keyDbg().c_str(),
-//                                    next->dbgTxt().c_str() );
-//                            LOG_MSG(logDEBUG, Positions2String().c_str() );
-//                        }
-                        // that means we need to remove all positions from
-                        // 'iter' to _before_ next.
-                        // BUT because std::deque::erase can invalidate _all_ iterators
-                        // (including next and cend!) we cannot do it in one go...after the first erase all iterators are invalid.
-                        // Make use of the fact that the deque is sorted by timestamp.
-                        const double rmTsFrom = iter->ts();
-                        const double rmTsTo = next->ts();
-                        LOG_ASSERT_FD(*this, rmTsFrom < rmTsTo);    // to form valid loop conditions 'from' must be less than (and not equal to) 'to'
-                        while (iter != posDeque.end() && iter->ts() < rmTsTo)
-                        {
-                            // if current iter falls into the to-be-deleted range
-                            if (rmTsFrom <= iter->ts() && iter->ts() < rmTsTo) {
-                                posDeque.erase(iter);               // now all iterators are invalid!
-                                bChanged = true;
-                                iter = posDeque.begin();
-                            }
-                            else {
-                                // otherwise just try next
-                                ++iter;
-                            }
-                        }
-                        
-                        // break out of search loop
-                        // (iter now points to where 'next' was before, but with updated iterators)
-                        LOG_ASSERT_FD(*this, iter != posDeque.end() && dequal(iter->ts(),rmTsTo));
-                        h1 = h2;            // this is heading from pos1 to *next
-                        break;
-                    } // if found valid next pos
-                } // for searching valid next pos
-                
-                // did we find nothing???
-                if (!bFoundValidNext)
-                {
-                    // Well...let's hope some better data is coming later
-                    // from the network -> stop cleansing here.
-                    
-                    // There is just one thing we want to avoid:
-                    // That the non-continguous data is the next to be picked
-                    // by the aircraft. That would make rocket/sliding
-                    // planes.
-                    if (pAc && iter == posDeque.begin()) {
-                        // The incontiguous data is right the next one
-                        // to be picked...from here we have 2 choices:
-                        // - remove the plane (if there are at least 2 pos
-                        //   in the deque as we assume that this starts a
-                        //   new stretch of continuous data)
-                        // - remove the data (if this is the only pos in the
-                        //   deque as a single pos wouldn't allow the plane
-                        //   to reappear)
-                        if (posDeque.size() <= 1) {
-                            // that's the only pos: remove it
-                            if (dataRefs.GetDebugAcPos(key())) {
-                                LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
-                                        keyDbg().c_str(),
-                                        iter->dbgTxt().c_str());
-                            }
-                            posDeque.clear();
-                            iter = posDeque.end();
-                            bChanged = true;
-                            if (dataRefs.GetDebugAcPos(key()))
-                                LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
-                        } else {
-                            // there are at least 2 pos in the deque
-                            // -> remove the aircraft, will be recreated at
-                            //    the new pos later automatically
-                            pAc->SetInvalid();
-//                            if constexpr (VERSION_BETA) {
-//                                LOG_MSG(logDEBUG, Positions2String().c_str());
-//                            }
-                            LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
-                                    keyDbg().c_str());
-                        }
-                    }
-                    
-                    // stop cleansing
-                    break;
-                } // if not found any valid next position
-//                else if constexpr (VERSION_BETA) {
-//                    LOG_MSG(logDEBUG, Positions2String().c_str() );
-//                }
+                // remove pos and move on to next one
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_REMOVED_NOK_POS,iter->dbgTxt().c_str());
+                iter = posDeque.erase(iter);
+                h1 = tempH;
             } // if invalid pos
             else
             {
@@ -1779,13 +1689,22 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         !posDeque.empty() ? &(posDeque.back()) :
         hasAc()           ? &(pAc->GetToPos()) : nullptr;
         
-        if (pLatestPos &&
-            pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
-        {
+        if (pLatestPos) {
             // pos is before or close to 'to'-position: don't add!
-            if (dataRefs.GetDebugAcPos(key()))
-                LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
-            return;
+            if (pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+            {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
+                return;
+            }
+            
+            // pos would not be OK after latest pos: don't add!
+            double head = NAN;                          // we're not validating heading at this point
+            if (!IsPosOK(*pLatestPos, pos, &head)) {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_NOK,pos.dbgTxt().c_str());
+                return;
+            }
         }
 
         // add pos to the queue of data to be added
@@ -1875,7 +1794,7 @@ void LTFlightData::AppendNewPos()
                 pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
             {
                 if (dataRefs.GetDebugAcPos(key()))
-                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
                 continue;                   // skip
             }
             
