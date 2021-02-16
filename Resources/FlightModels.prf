@@ -256,7 +256,7 @@ EXT_CAMERA_VERT_OFS    5    # vertical...
 # It is possible, allowed, and propably helpful to list a
 # flight model name several times at different positions in the list
 # with different patterns.
-HugeJets       ^H;L\dJ;
+HugeJets       ^(H|J);L\dJ;
 HugeJets       ^M;L4J;
 
 # many many BizJets are cateogized M;L2J just like A320 or B737
@@ -293,5 +293,6 @@ MediumJets     .*
 ^AGL[[:digit:]]*$
 ^SAFE[[:digit:]]*$
 ^MEDIC[[:digit:]]*$
+^FIRE[[:digit:]]*$
 ^ARFF[[:digit:]]*$
 ^MICC$

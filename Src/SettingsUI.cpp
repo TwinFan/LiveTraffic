@@ -571,7 +571,7 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeHelp("Aircraft Selection", nCol, nullptr, nullptr, sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
             {
-                ImGui::FilteredCfgNumber("Max number of aircraft", sFilter, DR_CFG_MAX_NUM_AC,        5, 100, 5);
+                ImGui::FilteredCfgNumber("Max number of aircraft", sFilter, DR_CFG_MAX_NUM_AC,        5, MAX_NUM_AIRCRAFT, 5);
                 ImGui::FilteredCfgNumber("Search distance",        sFilter, DR_CFG_FD_STD_DISTANCE,   5, 100, 5, "%d nm");
                 ImGui::FilteredCfgNumber("Snap to taxiway",        sFilter, DR_CFG_FD_SNAP_TAXI_DIST, 0,  50, 1, "%d m");
                 

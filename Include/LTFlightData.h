@@ -352,6 +352,7 @@ public:
     FDDynamicData WaitForSafeCopyDyn(bool bFirst = true) const;  // waits for lock and returns a copy
     FDDynamicData GetUnsafeDyn() const;                     // no lock, potentially inconsistent!
     bool GetCurrChannel (const LTChannel* &pChn) const;
+    dataRefsLT GetCurrChannel () const;                     ///< Current channel's id
     
     inline int GetRcvr() const { return rcvr; }
     

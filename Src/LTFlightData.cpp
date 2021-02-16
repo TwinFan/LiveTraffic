@@ -1963,8 +1963,8 @@ bool LTFlightData::TryDeriveGrndStatus (positionTy& pos)
             // If position already says itself: I'm on the ground, then keep it like that
             // Otherwise decide based on altitude _if_ it's on the ground
             if (!pos.IsOnGnd() &&
-                // say it's on the ground if below terrain+10m
-                pos.alt_m() < terrainAlt + FD_GND_AGL)
+                // say it's on the ground if below terrain+10m (or 20m in case of RealTraffic)
+                pos.alt_m() < terrainAlt + (GetCurrChannel() == DR_CHANNEL_REAL_TRAFFIC_ONLINE ? FD_GND_AGL_EXT : FD_GND_AGL))
                 pos.f.onGrnd = GND_ON;
 
             // if it was or now is on the ground correct the altitue to terrain altitude
@@ -2207,6 +2207,16 @@ bool LTFlightData::GetCurrChannel (const LTChannel* &pChn) const
 
     pChn = dynDataDeque.front().pChannel;
     return pChn != nullptr;
+}
+
+// Current channel's id
+dataRefsLT LTFlightData::GetCurrChannel () const
+{
+    const LTChannel* pChn = nullptr;
+    if (GetCurrChannel(pChn) && pChn)
+        return pChn->GetChannel();
+    else
+        return DR_AC_KEY;           // == 0
 }
 
 

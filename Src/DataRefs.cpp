@@ -102,7 +102,7 @@ bool Doc8643::ReadDoc8643File ()
                         "([^\\t]+)\\t"                    // model
                         "([[:alnum:]]{2,4})\\t"           // type designator
                         "(-|[AGHLST][C1-8][EJPRT])\\t"    // classification
-                        "(-|[HLM]|L/M)");                 // wtc
+                        "(-|[HLMJ]|L/M)");                // wtc
 
     // loop over lines of the file
     std::string text;
@@ -1590,9 +1590,9 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
-        maxNumAc        < 1                 || maxNumAc         > 100   ||
+        maxNumAc        < 1                 || maxNumAc         > MAX_NUM_AIRCRAFT   ||
 #else
-        maxNumAc        < 5                 || maxNumAc         > 100   ||
+        maxNumAc        < 5                 || maxNumAc         > MAX_NUM_AIRCRAFT   ||
 #endif
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||

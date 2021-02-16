@@ -69,12 +69,14 @@ constexpr double FT_per_HPA     = (100/PA_per_M)/M_per_FT;
 
 //MARK: Flight Data-related
 constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)
+constexpr int    MAX_NUM_AIRCRAFT   = 200;      ///< maximum number of aircraft allowed to be rendered
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
+constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
