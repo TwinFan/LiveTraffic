@@ -719,6 +719,12 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         return false;
     }
     
+    // RealTraffic always sends data of 100km or so around current pos
+    // Filter data that the user didn't want based on settings
+    const positionTy viewPos = dataRefs.GetViewPos();
+    if ( pos.dist(viewPos) > dataRefs.GetFdStdDistance_m() )
+        return true;            // silently
+    
     try {
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated
