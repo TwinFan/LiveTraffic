@@ -54,6 +54,7 @@ enum menuItems {
     MENU_ID_HELP_INFO_LIST_WND,
     MENU_ID_HELP_AC_INFO_WND,
     MENU_ID_HELP_SETTINGS,
+    MENU_ID_HELP_INSTALL_CSL,
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -311,7 +312,8 @@ bool RegisterMenuItem ()
     aMenuItems[MENU_ID_HELP_INFO_LIST_WND]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_INFO_LIST_WND, (void*)HELP_ILW,1);
     aMenuItems[MENU_ID_HELP_AC_INFO_WND] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_AC_INFO_WND,   (void*)HELP_AC_INFO_WND,1);
     aMenuItems[MENU_ID_HELP_SETTINGS] =     XPLMAppendMenuItem(menuHelpID, MENU_HELP_SETTINGS,      (void*)HELP_SETTINGS,1);
-    
+    aMenuItems[MENU_ID_HELP_INSTALL_CSL] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_INSTALL_CSL,   (void*)HELP_INSTALL_CSL,1);
+
 #ifdef DEBUG
     // Separator
     XPLMAppendMenuSeparator(menuID);
@@ -403,6 +405,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
     
     switch (eOneTimeState) {
         case ONCE_CB_ADD_DREFS:
+        {
             // Create a message window and say hello
             SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
             if constexpr (VERSION_BETA)
@@ -410,14 +413,13 @@ float LoopCBOneTimeSetup (float, float, int, void*)
 #ifdef DEBUG
             SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
 #endif
-
             // Inform dataRef tools about our dataRefs
             dataRefs.InformDataRefEditors();
             
             // next: Auto Start, but wait another 2 seconds for that
             eOneTimeState = ONCE_CB_AUTOSTART;
             return 2;
-            
+        }
         case ONCE_CB_AUTOSTART:
             // Log a timestamp to synch timing for analysis purposes
             LogTimestamps ();

@@ -102,7 +102,7 @@ bool Doc8643::ReadDoc8643File ()
                         "([^\\t]+)\\t"                    // model
                         "([[:alnum:]]{2,4})\\t"           // type designator
                         "(-|[AGHLST][C1-8][EJPRT])\\t"    // classification
-                        "(-|[HLM]|L/M)");                 // wtc
+                        "(-|[HLMJ]|L/M)");                // wtc
 
     // loop over lines of the file
     std::string text;
@@ -265,7 +265,7 @@ namespace ModelIcaoType
     {
         try {
             // lookup a value on the map, throws std::out_of_range if nothing found
-            return mapModelIcaoType.at(_model);
+            return mapModelIcaoType.at(str_toupper_c(_model));
         }
         catch (...) {
             // caught exception -> nothing found in map, return something empty
@@ -323,7 +323,11 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/true_psi",
     "sim/flightmodel/position/hpath",
     "sim/flightmodel/position/true_airspeed",
+    "sim/flightmodel/position/vh_ind",          // float n meters/second VVI (vertical velocity in meters per second)"
     "sim/flightmodel/failures/onground_any",
+    "sim/aircraft/view/acf_tailnum",            // byte[40] y string    Tail number
+    "sim/aircraft/view/acf_modeS_id",           // int      y integer   24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
+    "sim/aircraft/view/acf_ICAO",               // byte[40] y string    ICAO code for aircraft (a string) entered by author
     "sim/graphics/VR/enabled",
 };
 
@@ -479,21 +483,21 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/msg_area_level",              DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
     {"livetraffic/cfg/log_list_len",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/use_historic_data",           DataRefs::LTGetInt, DataRefs::LTSetUseHistData, GET_VAR, false },
-    {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/max_num_ac",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_snap_taxi_dist",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // debug options
@@ -501,7 +505,10 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    
+    {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/export_user_ac",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/export_normalize_ts",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+
     // channel configuration options
     {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -514,13 +521,13 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
-    {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
-    {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
 // returns the actual address of the variable within DataRefs, which stores the value of interest as per dataRef definition
@@ -571,7 +578,10 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
-            
+        case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
+        case DR_DBG_EXPORT_USER_AC:         return &bDebugExportUserAc;
+        case DR_DBG_EXPORT_NORMALIZE_TS:    return &bDebugExportNormTS;
+
         // channel configuration options
         case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
@@ -847,6 +857,12 @@ void DataRefs::InformDataRefEditors ()
 // Unregister (destructor would be too late for reasonable API calls)
 void DataRefs::Stop ()
 {
+    // Stop all file writing
+    if (AnyExportData()) {
+        SetAllExportData(false);
+        LTFlightData::ExportOpenClose();
+    }
+    
     // unregister our dataRefs
     for (XPLMDataRef& dr: adrLT) {
         XPLMUnregisterDataAccessor(dr);
@@ -982,6 +998,37 @@ void DataRefs::UpdateUsersPlanePos ()
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
 }
 
+void DataRefs::ExportUserAcData()
+{
+    // only if enabled and even then only every few seconds earliest
+    if (!LTFlightData::ExportOpenClose() ||
+        !GetDebugExportUserAc() ||
+        GetMiscNetwTime() - lastExportUserAc < EXPORT_USER_AC_PERIOD)
+        return;
+    lastExportUserAc = GetMiscNetwTime();
+    
+    // get user plane's ICAO and tail number
+    char userIcao[41], userReg[41];
+    XPLMGetDatab(adrXP[DR_PLANE_ICAO], userIcao, 0, sizeof(userIcao)-1);
+    XPLMGetDatab(adrXP[DR_PLANE_REG],  userReg,  0, sizeof(userReg)-1);
+    userIcao[sizeof(userIcao)-1] = 0;           // I trust nobody: zero-termination
+    userReg[sizeof(userReg)-1] = 0;
+
+    // output a tracking data record
+    char buf[256];
+    snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
+             XPLMGetDatai(adrXP[DR_PLANE_MODES_ID]),
+             lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),
+             nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())),
+             XPLMGetDataf(adrXP[DR_PLANE_VVI]),
+             (lastUsersPlanePos.IsOnGnd() ? '0' : '1'),
+             lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,
+             EXPORT_USER_CALL,
+             userIcao, userReg,
+             lastUsersPlanePos.ts() - nanToZero(LTFlightData::fileExportTsBase));
+    LTFlightData::ExportAddOutput((unsigned long)std::lround(lastUsersPlanePos.ts()), buf);
+}
+
 //
 //MARK: Generic Callbacks
 //
@@ -1003,6 +1050,8 @@ void    DataRefs::LTSetBool(void* p, int i)
     // If label config changes we need to tell XPMP2
     if (p == &dataRefs.bLabelVisibilityCUtOff)
         XPMPSetAircraftLabelDist(float(dataRefs.labelMaxDist), dataRefs.bLabelVisibilityCUtOff);
+    
+    LogCfgSetting(p, i);
 }
 
 //
@@ -1541,9 +1590,9 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
-        maxNumAc        < 1                 || maxNumAc         > 100   ||
+        maxNumAc        < 1                 || maxNumAc         > MAX_NUM_AIRCRAFT   ||
 #else
-        maxNumAc        < 5                 || maxNumAc         > 100   ||
+        maxNumAc        < 5                 || maxNumAc         > MAX_NUM_AIRCRAFT   ||
 #endif
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
@@ -1581,6 +1630,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         XPMPSetAircraftLabelDist(float(labelMaxDist), bLabelVisibilityCUtOff);
     
     // success
+    LogCfgSetting(p, val);
     return true;
 }
 
@@ -1600,6 +1650,29 @@ float DataRefs::GetCfgFloat (dataRefsLT dr)
 {
     assert(0 <= dr && dr < CNT_DATAREFS_LT);
     return DATA_REFS_LT[dr].getDataf();
+}
+
+
+// Find dataRef definition based on the pointer to its member variable
+const DataRefs::dataRefDefinitionT* DataRefs::FindDRDef (void* p)
+{
+    for (const DataRefs::dataRefDefinitionT& dr: DATA_REFS_LT)
+        if (dr.getRefCon() == p)
+            return &dr;
+    return nullptr;
+}
+
+// Save config(change) info to the log
+void DataRefs::LogCfgSetting (void* p, int val)
+{
+    // only if logging set to DEBUG
+    if (dataRefs.GetLogLevel() > logDEBUG)
+        return;
+    
+    // Find the dataRef definition
+    const dataRefDefinitionT* pDR = FindDRDef(p);
+    if (pDR && pDR->isDebugLogging())
+        LOG_MSG(logDEBUG, "%s = %d", pDR->getDataName(), val);
 }
 
 
@@ -2204,6 +2277,7 @@ void DataRefs::UpdateCachedValues ()
     UpdateSimTime();
     UpdateViewPos();
     UpdateUsersPlanePos();
+    ExportUserAcData();
 }
 
 
@@ -2293,7 +2367,7 @@ bool DataRefs::ToggleLabelDraw()
 // MARK: Weather
 //
 
-constexpr float WEATHER_TRY_PERIOD = 20.0f;             ///< [s] Don't _try_ to read weather more often than this
+constexpr float WEATHER_TRY_PERIOD = 120.0f;            ///< [s] Don't _try_ to read weather more often than this
 constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
 constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be updated if moved more than this far from last weather update position
 constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
@@ -2309,13 +2383,15 @@ bool DataRefs::WeatherUpdate ()
     camPos.LocalToWorld();
     
     // So...do we need an update?
-    if (// highest prio: we moved far away from last pos
-        (!std::isnan(lastWeatherPos.lat()) &&
-         camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M) ||
-        // otherwise: don't try more often than try period
-        ((lastWeatherAttempt + WEATHER_TRY_PERIOD < GetMiscNetwTime()) &&
-         (std::isnan(lastWeatherPos.lat()) ||                         // weather position invalid?
-          lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime())))  // waited long enough?
+    if (// never try more often than TRY_PERIOD says to avoid flooding
+        (lastWeatherAttempt + WEATHER_TRY_PERIOD < GetMiscNetwTime()) &&
+        (   // had no weather yet at all?
+            std::isnan(lastWeatherPos.lat()) ||
+            // moved far away from last weather pos?
+            camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M ||
+            // enough time passed since last weather update?
+            lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime()
+        ))
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();
@@ -2351,8 +2427,9 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
                 lastWeatherPos.lat(), lastWeatherPos.lon());
     }
     
-    // Finally: Save the new pressure
+    // Finally: Save the new pressure and potentially export it with the tracking data
     lastWeatherHPA = hPa;
+    LTFlightData::ExportLastWeather();
 }
 
 // Thread-safely gets current weather info

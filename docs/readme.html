@@ -38,24 +38,103 @@
 
     <P>
         <code>LiveTraffic/</code><br>
-        <code>LiveTraffic/lin_x64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/mac_x64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/win_x64/LiveTraffic.xpl</code><br>
-        <code>LiveTraffic/Resources/CSL/...</code> (here follow the CSL package folders)<br>
-        <code>LiveTraffic/Resources/ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
-        <code>LiveTraffic/Resources/Doc8643.txt</code><br>
-        <code>LiveTraffic/Resources/FlightModels.prf</code><br>
-        <code>LiveTraffic/Resources/MapIcons.png</code><br>
-        <code>LiveTraffic/Resources/model_typecode.txt</code><br>
-        <code>LiveTraffic/Resources/Obj8DataRefs.txt</code><br>
-        <code>LiveTraffic/Resources/related.txt</code><br>
-        <code>LiveTraffic/Resources/RestoreOrig.py</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;lin_x64/LiveTraffic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LiveTraffic-bionic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;mac_x64/LiveTraffic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;win_x64/LiveTraffic.xpl</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;Resources/</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CSL/...</code> (here you can install CSL packages)<br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Doc8643.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FlightModels.prf</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MapIcons.png</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;model_typecode.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Obj8DataRefs.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;related.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RestoreOrig.py</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;LICENSE</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;readme.html</code><br>
     </P>
 
     <h1>Release Notes</h1>
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
+    <h2>v2.5</h2>
+    
+    <h3>v2.50</h3>
+    
+    <P>Update: In case of doubt you can always just copy all files from the archive
+    over the files of your existing installation.</P>
+
+    <P>At least copy the following files, which have changed compared to v2.40:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,
+                <ul>
+                    <li><i>Linux users</i>: There are two versions now:<br>
+                        <code>LiveTraffic.xpl</code> is built on Ubuntu 20.04,<br>
+                        <code>LiveTraffic-bionic.xpl</code> is built on Ubuntu 18.04.
+                        In case you need the Bionic version rename it to <code>LiveTraffic.xpl</code>.</li>
+                </ul>
+            </li>
+            <li><code>Resources/</code>
+                <ul>
+                    <li><code>Doc8643.txt</code>,</li>
+                    <li><code>FlightModels.prf</code>,</li>
+                    <li><code>model_typecode.txt</code>,</li>
+                    <li><code>related.txtt</code>,</li>
+                    <li><code>SendTraffic.py</code> (new file).</li>
+                </ul>
+            </li>
+        </ul>
+        
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/209">#209</a>
+            export of flight tracking data and/or tracking data based
+            on the user's aircraft to <code>Output/LTExportFD - &lt;timestamp&gt;.csv</code>
+            for analysis or for feeding back into LiveTraffic,
+            see <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#logging">Settings > Advanced > Export</a>.<br>
+            The Python script <code>Resources/SendTraffic.py</code>, with which this
+            data can be fed back into LiveTraffic, is now part of the
+            LiveTraffic distribution. Try <code>SendTraffic.py -h</code> for help.</li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/211">#211</a>
+            validation of number of available CSL Models to warn specifically
+            if only the included car is available.
+            Added Help menu item for
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step#csl-model-installation">CSL Model installation</a>.
+            Added display of number of available CSL Models on Status page.</li>
+        <li>CHANGED maximum number of aircraft from 100 to 200.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/206">#206</a>
+            log filling up with weather-related error messages when no weather
+            can be found (like during a cross-ocean flight)</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/210">#210</a>
+            landing planes turning sideways immediately upon touch down,
+            short-cutting the way to the next taxiway position;
+            they should now more often follow runway exits.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/208">#208</a>
+            auto-land planes disappearing at the moment of touch-down;
+            they shall now roll out to a complete stop again before
+            being removed.
+        <li>FIXED validation of tracking data of planes for which ICAO aircraft
+            type could be determined from model text only, reducing amount of
+            discarded data, increasing number of displayed GA / Business planes
+            with no aircraft record at OpenSky.</li>
+        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/207">#207</a>
+            race conditions that might have led to rare CTDs.</li>
+        <li>Added a WORKAROUND to limit the impact the still unsolved
+            <a href="https://github.com/TwinFan/XPMP2/issues/23">XPMP2 Issue 23</a> has,
+            reducing the likelihood of crashes.</li>
+        <li>ADDED two Linux builds: The default is now built on Ubuntu 20.04 Focal Fossa.
+            Previously, LiveTraffic was built on Ubuntu 18.04 Bionic Beaver.
+            This is still provided as <code>LiveTraffic-bionic.xpl</code>. If the default
+            doesn't work for you then rename the Bionic version to
+            <code>LiveTraffic.xpl</code>.</li>
+    </ul>
+
     <h2>v2.4</h2>
     
     <h3>v2.40</h3>

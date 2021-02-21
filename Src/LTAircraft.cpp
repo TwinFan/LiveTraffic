@@ -58,9 +58,6 @@ static FrameLenArrTy::iterator gFrameLenIter;
 // returns true if new cycle looks valid, false indicates: re-init all a/c!
 bool NextCycle (int newCycle)
 {
-    // All regular updates are collected here
-    LTRegularUpdates();
-    
     if ( currCycle.num >= 0 )    // not the very very first cycle?
         prevCycle = currCycle;
     else
@@ -79,15 +76,6 @@ bool NextCycle (int newCycle)
     // the time that has passed since the last cycle
     currCycle.diffTime  = currCycle.simTime - prevCycle.simTime;
 
-    // tell multiplayer lib if we want to see labels
-    // (these are very quick calls only setting a variable)
-    // as the user can change between views any frame
-    // Tell XPMP if we need labels
-    if (dataRefs.ShallDrawLabels())
-        XPMPEnableAircraftLabels();
-    else
-        XPMPDisableAircraftLabels();
-    
 #ifdef DEBUG
     // When debugging we want to step through the data and don't mind if
     // we de-synch with reality, so if we notice too long a wait between
@@ -130,6 +118,18 @@ bool NextCycle (int newCycle)
         return false;
     }
 #endif
+    
+    // All regular updates are collected here
+    LTRegularUpdates();
+    
+    // tell multiplayer lib if we want to see labels
+    // (these are very quick calls only setting a variable)
+    // as the user can change between views any frame
+    // Tell XPMP if we need labels
+    if (dataRefs.ShallDrawLabels())
+        XPMPEnableAircraftLabels();
+    else
+        XPMPDisableAircraftLabels();
     
     return true;
 }
@@ -1099,15 +1099,41 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
     return true;
 }
 
-// based on an aircraft type find a matching flight model
-const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
-        (const std::string& acTypeIcao)
+/// Returns the best possible a/c type to use based on given LTFlightData
+const std::string& DetermineIcaoType (const LTFlightData& fd,
+                                      bool& bDefaulted)
 {
-    // 1. find aircraft type specification in the Doc8643
+    bDefaulted = false;
+    if (fd.hasAc())                                 // 1. choice: aircraft
+        return fd.GetAircraft()->acIcaoType;
+    
+    const LTFlightData::FDStaticData& stat = fd.GetUnsafeStat();
+    if (!stat.acTypeIcao.empty())                   // 2. choice: FD's static data
+        return stat.acTypeIcao;
+                                                    // 3. choice: Derived from model text
+    const std::string& s = ModelIcaoType::getIcaoType(stat.mdl);
+    if (!s.empty())
+        return s;
+    
+    bDefaulted = true;                              // 4. choice: configured default type
+    return dataRefs.GetDefaultAcIcaoType();
+}
+
+// Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
+const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
+        (const LTFlightData& fd, const std::string** pIcaoType)
+{
+    // 1. find an aircraft ICAO type based on input
+    bool bDefaulted;
+    const std::string& acTypeIcao = DetermineIcaoType(fd, bDefaulted);
+    if (pIcaoType)
+        *pIcaoType = bDefaulted ? nullptr : &acTypeIcao;
+    
+    // 2. find aircraft type specification in the Doc8643
     const Doc8643& acType = Doc8643::get(acTypeIcao);
     const std::string acSpec (acType);      // the string to match
     
-    // 2. walk through the Flight Model map list and try each regEx pattern
+    // 3. walk through the Flight Model map list and try each regEx pattern
     for (const auto& mapIt: listFMRegex) {
         std::smatch m;
         std::regex_search(acSpec, m, mapIt.first);
@@ -1196,21 +1222,21 @@ XPMP2::Aircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafe
                 inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0),      // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
 // class members
 fd(inFd),
-mdl(FlightModel::FindFlightModel(inFd.WaitForSafeCopyStat().acTypeIcao)),   // find matching flight model
-doc8643(Doc8643::get(inFd.WaitForSafeCopyStat().acTypeIcao)),
+pMdl(&FlightModel::FindFlightModel(inFd)),      // find matching flight model
+pDoc8643(&Doc8643::get(acIcaoType)),
 tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
 bOnGrnd(false), bArtificalPos(false),
-heading(mdl.TAXI_TURN_TIME, 360, 0, true),
-gear(mdl.GEAR_DURATION),
-flaps(mdl.FLAPS_DURATION),
-pitch((mdl.PITCH_MAX-mdl.PITCH_MIN)/mdl.PITCH_RATE, mdl.PITCH_MAX, mdl.PITCH_MIN),
+heading(pMdl->TAXI_TURN_TIME, 360, 0, true),
+gear(pMdl->GEAR_DURATION),
+flaps(pMdl->FLAPS_DURATION),
+pitch((pMdl->PITCH_MAX-pMdl->PITCH_MIN)/pMdl->PITCH_RATE, pMdl->PITCH_MAX, pMdl->PITCH_MIN),
 reversers(MDL_REVERSERS_TIME),
 spoilers(MDL_SPOILERS_TIME),
 tireRpm(MDL_TIRE_SLOW_TIME, MDL_TIRE_MAX_RPM),
-gearDeflection(MDL_GEAR_DEFL_TIME, mdl.GEAR_DEFLECTION),
+gearDeflection(MDL_GEAR_DEFL_TIME, pMdl->GEAR_DEFLECTION),
 probeNextTs(0), terrainAlt_m(0.0)
 {
     // for some calcs we need correct timestamps _before_ first draw already
@@ -1259,7 +1285,7 @@ probeNextTs(0), terrainAlt_m(0.0)
                 labelInternal.c_str(),
                 statCopy.opIcao.c_str(),
                 GetModelName().c_str(),
-                mdl.modelName.c_str(),
+                pMdl->modelName.c_str(),
                 vecView.angle, vecView.dist/M_per_NM,
                 dynCopy.pChannel ? dynCopy.pChannel->ChName() : "?");
         
@@ -1287,7 +1313,7 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
     labelInternal += ' ';
     labelInternal += key();
     labelInternal += " (";
-    labelInternal += statDat.acTypeIcao;
+    labelInternal += acIcaoType;
     if (!s.empty()) {
         labelInternal += ' ';
         labelInternal += s;
@@ -1329,7 +1355,7 @@ void LTAircraft::LabelUpdate()
     
     // color depends on setting and maybe model
     if (dataRefs.IsLabelColorDynamic())
-        memmove(colLabel, mdl.LABEL_COLOR, sizeof(colLabel));
+        memmove(colLabel, pMdl->LABEL_COLOR, sizeof(colLabel));
     else
         dataRefs.GetLabelColor(colLabel);
 }
@@ -1346,10 +1372,21 @@ std::string LTAircraft::GetFlightId() const
 //
 
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
-const positionTy& LTAircraft::GetToPos() const
+const positionTy& LTAircraft::GetToPos(double* pHeading) const
 {
-    if ( posList.size() >= 2 )
-        return ppos < posList.back() ? posList.back() : ppos;
+    // posList contains more than just the _current_ to-position, but even a future one (temporary state)
+    if ( posList.size() >= 3 ) {
+        if (pHeading)
+            *pHeading = posList[posList.size()-2].angle(posList.back());
+        return posList.back();
+    }
+    
+    // posList contains the _current_ to-position...and maybe we even passed it already
+    // but heading is same in both cases
+    if (pHeading)
+        *pHeading = GetTrack();
+    if ( posList.size() >= 2 && ppos < posList.back() )
+        return posList.back();
     else
         return ppos;
 }
@@ -1553,26 +1590,26 @@ bool LTAircraft::CalcPPos()
         // Fairly simplistic...in the range -2 to +18 depending linearly on vsi only
         double toPitch =
         (from.IsOnGnd() && to.IsOnGnd()) ? 0 :
-        vsi < mdl.PITCH_MIN_VSI ? mdl.PITCH_MIN :
-        vsi > mdl.PITCH_MAX_VSI ? mdl.PITCH_MAX :
-        (mdl.PITCH_MIN +
-         (vsi-mdl.PITCH_MIN_VSI)/(mdl.PITCH_MAX_VSI-mdl.PITCH_MIN_VSI)*
-         (mdl.PITCH_MAX-mdl.PITCH_MIN));
+        vsi < pMdl->PITCH_MIN_VSI ? pMdl->PITCH_MIN :
+        vsi > pMdl->PITCH_MAX_VSI ? pMdl->PITCH_MAX :
+        (pMdl->PITCH_MIN +
+         (vsi-pMdl->PITCH_MIN_VSI)/(pMdl->PITCH_MAX_VSI-pMdl->PITCH_MIN_VSI)*
+         (pMdl->PITCH_MAX-pMdl->PITCH_MIN));
         
         // another approach for climbing phases:
         // a/c usually flies more or less with nose pointing upward toward climb,
         // nearly no drag, so try calculating the flight path angle and use
         // it also as pitch
-        if ( vsi > mdl.VSI_STABLE ) {
+        if ( vsi > pMdl->VSI_STABLE ) {
             toPitch = std::clamp<double>(vsi2deg(vec.speed, vec.vsi),
-                                         mdl.PITCH_MIN, mdl.PITCH_MAX);
+                                         pMdl->PITCH_MIN, pMdl->PITCH_MAX);
         }
         
         // add some degrees in case flaps will be set
-        if (!bOnGrnd && vec.speed_kn() < std::max(mdl.FLAPS_DOWN_SPEED,mdl.FLAPS_UP_SPEED)) {
-            toPitch += mdl.PITCH_FLAP_ADD;
-            if (toPitch > mdl.PITCH_MAX)
-                toPitch = mdl.PITCH_MAX;
+        if (!bOnGrnd && vec.speed_kn() < std::max(pMdl->FLAPS_DOWN_SPEED,pMdl->FLAPS_UP_SPEED)) {
+            toPitch += pMdl->PITCH_FLAP_ADD;
+            if (toPitch > pMdl->PITCH_MAX)
+                toPitch = pMdl->PITCH_MAX;
         }
         
         // set destination pitch and move there in a controlled way
@@ -1605,7 +1642,7 @@ bool LTAircraft::CalcPPos()
                 !turn.Define(ppos, to))                                 // or defining the Bezier failed for some other reason?
             {
                 // ...start the turn from the initial heading to the vector heading
-                heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
+                heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
                 heading.moveQuickestToBy(ppos.heading(),
                                          vec.dist > SIMILAR_POS_DIST ?  // if vector long enough:
                                          vec.angle :                    // turn to vector heading
@@ -1694,11 +1731,12 @@ bool LTAircraft::CalcPPos()
 
         // Legs long enough?
         if (vec.dist > SIMILAR_POS_DIST && nextVec.dist > SIMILAR_POS_DIST) {
-            positionTy _end;
-            _end.v = to.v * 0.5 + nextPos.v * 0.5;  // end point is half-way down the nextVec
+            positionTy _end = to;
+            _end.mergeCount = nextPos.mergeCount = 1;
+            _end |= nextPos;                        // effectively calculates mid-point between to and nextPos, taking care of proper heading, too
             turn.Define(ppos,                       // start is right here and now
                         to,                         // mid-point is end of current leg
-                        _end);
+                        _end);                      // end-point is the mid between to and nextPos
         }
     }
 
@@ -1727,7 +1765,7 @@ bool LTAircraft::CalcPPos()
         // init deceleration down to zero
         speed.StartAccel(speed.m_s(),
                          0,
-                         mdl.ROLL_OUT_DECEL);
+                         pMdl->ROLL_OUT_DECEL);
         
         // the vector to the stopping point
         vectorTy vecStop(ppos.heading(),            // keep current heading
@@ -1749,18 +1787,21 @@ bool LTAircraft::CalcPPos()
     
     // Try getting our current position from the Bezier curve
     const double _calcTs = from.ts() * (1-f) + to.ts() * f;
-    if (!turn.GetPos(ppos, _calcTs))
-    {
-        // No Bezier curve currently active:
+    if (turn.GetPos(ppos, _calcTs)) {
+        // sync the changing heading between Bezier curve and MovingParam
+        heading.SetVal(ppos.heading());
+    }
+    // No Bezier curve currently active:
+    else {
         // Now we apply the factor so that with time we move from 'from' to 'to'.
         // Note that this calculation also works if we passed 'to' already
         // (due to no newer 'to' available): we just keep going the same way.
-        // Here now valarray comes in handy as we can write the calculation
-        // with simple vector notation:
-        const double saveRoll = ppos.roll();            // we handle roll later separately
-        ppos.v = from.v * (1-f) + to.v * f;
-        ppos.roll() = saveRoll;
-        // (this also computes standard values for heading, pitch, roll.)
+        // This is effectively a scaled vector sum, broken down into its components:
+        ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
+        ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
+        ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
+        ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
+        // we handle roll later separately
         
         // Get heading from moving param
         ppos.heading() = heading.get();
@@ -1803,7 +1844,7 @@ bool LTAircraft::CalcPPos()
         }
         // otherwise prepare turning heading to final heading (if not done already)
         else if (!dequal(heading.toVal(), to.heading())) {
-            heading.defDuration = IsOnGrnd() ? mdl.TAXI_TURN_TIME : mdl.FLIGHT_TURN_TIME;
+            heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
             heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
                                      NAN, to.ts(),      // by target timestamp
                                      false);            // start as late as possible
@@ -1882,8 +1923,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // Vertical Direction
     enum { V_Sinking=-1, V_Stable=0, V_Climbing=1 } VertDir = V_Stable;
-    if ( vsi < -mdl.VSI_STABLE ) VertDir = V_Sinking;
-    else if ( vsi > mdl.VSI_STABLE ) VertDir = V_Climbing;
+    if ( vsi < -pMdl->VSI_STABLE ) VertDir = V_Sinking;
+    else if ( vsi > pMdl->VSI_STABLE ) VertDir = V_Climbing;
     
     // if we _are_ on the ground then height is zero and there's no VSI
     if (bOnGrnd) {
@@ -1894,7 +1935,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // *** decide the flight phase ***
     
     // on the ground with low speed
-    if ( bOnGrnd && speed.kt() <= mdl.MAX_TAXI_SPEED )
+    if ( bOnGrnd && speed.kt() <= pMdl->MAX_TAXI_SPEED )
     {
         // if not artifically reducing speed (roll-out)
         if (!bArtificalPos)
@@ -1905,7 +1946,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     }
     
     // on the ground with high speed or on a runway
-    if ( bOnGrnd && (speed.kt() > mdl.MAX_TAXI_SPEED || IsOnRwy()))
+    if ( bOnGrnd && (speed.kt() > pMdl->MAX_TAXI_SPEED || IsOnRwy()))
     {
         if ( bFPhPrev <= FPH_LIFT_OFF )     // before take off
             phase = FPH_TO_ROLL;
@@ -1918,7 +1959,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // Determine FPH_ROTATE by use of rotate timestamp
     // (set in LTFlightData::CalcNextPos)
     if ( phase < FPH_ROTATE &&
-         rotateTs <= currCycle.simTime && currCycle.simTime <= rotateTs + 2 * mdl.ROTATE_TIME ) {
+         rotateTs <= currCycle.simTime && currCycle.simTime <= rotateTs + 2 * pMdl->ROTATE_TIME ) {
         phase = FPH_ROTATE;
     }
 
@@ -1929,20 +1970,20 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // climbing but not even reached gear-up altitude
     if (VertDir == V_Climbing &&
-        PHeight < mdl.AGL_GEAR_UP) {
+        PHeight < pMdl->AGL_GEAR_UP) {
         phase = FPH_LIFT_OFF;
     }
     
     // climbing through gear-up altitude
     if (VertDir == V_Climbing &&
-        PHeight >= mdl.AGL_GEAR_UP) {
+        PHeight >= pMdl->AGL_GEAR_UP) {
         phase = FPH_INITIAL_CLIMB;
     }
     
     // climbing through flaps toggle speed
     if (VertDir == V_Climbing &&
-        PHeight >= mdl.AGL_GEAR_UP &&
-        speed.kt() >= mdl.FLAPS_UP_SPEED) {
+        PHeight >= pMdl->AGL_GEAR_UP &&
+        speed.kt() >= pMdl->FLAPS_UP_SPEED) {
         phase = FPH_CLIMB;
     }
     
@@ -1950,33 +1991,33 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // (this means that if leveling off below cruise alt while e.g. in CLIMB phase
     //  we keep CLIMB phase)
     if (VertDir == V_Stable &&
-        PHeight >= mdl.CRUISE_HEIGHT) {
+        PHeight >= pMdl->CRUISE_HEIGHT) {
         phase = FPH_CRUISE;
     }
     
     // sinking, but still above flaps toggle height
     if (VertDir == V_Sinking &&
-        speed.kt() > mdl.FLAPS_DOWN_SPEED) {
+        speed.kt() > pMdl->FLAPS_DOWN_SPEED) {
         phase = FPH_DESCEND;
     }
     
     // sinking through flaps toggle speed
     if (VertDir == V_Sinking &&
-        speed.kt() <= mdl.FLAPS_DOWN_SPEED) {
+        speed.kt() <= pMdl->FLAPS_DOWN_SPEED) {
         phase = FPH_APPROACH;
     }
     
     // sinking through gear-down height
     if (VertDir == V_Sinking &&
-        speed.kt() <= mdl.FLAPS_DOWN_SPEED &&
-        PHeight <= mdl.AGL_GEAR_DOWN) {
+        speed.kt() <= pMdl->FLAPS_DOWN_SPEED &&
+        PHeight <= pMdl->AGL_GEAR_DOWN) {
         phase = FPH_FINAL;
     }
     
     // sinking through flare height
     if (VertDir == V_Sinking &&
-        speed.kt() <= mdl.FLAPS_DOWN_SPEED &&
-        PHeight <= mdl.AGL_FLARE) {
+        speed.kt() <= pMdl->FLAPS_DOWN_SPEED &&
+        PHeight <= pMdl->AGL_FLARE) {
         phase = FPH_FLARE;
     }
     
@@ -2099,7 +2140,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // flare
     if (ENTERED(FPH_FLARE)) {
-        pitch.moveTo(mdl.PITCH_FLARE);      // flare!
+        pitch.moveTo(pMdl->PITCH_FLARE);      // flare!
     }
     
     // touch-down
@@ -2122,7 +2163,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 
     if (phase >= FPH_ROLL_OUT || phase == FPH_TAXI) {
         // stop reversers below 80kn
-        if (GetSpeed_kt() < mdl.MIN_REVERS_SPEED) {
+        if (GetSpeed_kt() < pMdl->MIN_REVERS_SPEED) {
             SetThrustRatio(0.1f);
             reversers.min();
         }
@@ -2130,9 +2171,9 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // *** landing light ***
     // is there a landing-light-altitude in the flight model?
-    if (mdl.LIGHT_LL_ALT > 0) {
+    if (pMdl->LIGHT_LL_ALT > 0) {
         // OK to turn OFF?
-        if (ppos.alt_ft() > mdl.LIGHT_LL_ALT) {
+        if (ppos.alt_ft() > pMdl->LIGHT_LL_ALT) {
             if ((phase < FPH_TAKE_OFF) || (FPH_CLIMB <= phase && phase < FPH_FINAL))
                 SetLightsLanding(false);
         } else {
@@ -2174,8 +2215,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 
 
 // determine roll, based on a previous and a current heading
-/// @details We assume that max bank angle (`mdl.ROLL_MAX_BANK`) is applied for
-///          the fastest possible turn (mdl.MIN_FLIGHT_TURN_TIME).
+/// @details We assume that max bank angle (`pMdl->ROLL_MAX_BANK`) is applied for
+///          the fastest possible turn (pMdl->MIN_FLIGHT_TURN_TIME).
 ///          If we are turning more slowly then we apply less bank angle.
 void LTAircraft::CalcRoll (double _prevHeading)
 {
@@ -2186,7 +2227,7 @@ void LTAircraft::CalcRoll (double _prevHeading)
     // On the ground we should actually better be levelled, but we turn the nose wheel
     if (IsOnGrnd()) {
         // except...if we are a stopped glider ;-)
-        if (GetSpeed_m_s() < 0.2 && mdl.isGlider())
+        if (GetSpeed_m_s() < 0.2 && pMdl->isGlider())
             ppos.roll() = MDL_GLIDER_STOP_ROLL;
         else
             ppos.roll() = 0.0;
@@ -2194,7 +2235,7 @@ void LTAircraft::CalcRoll (double _prevHeading)
         // Nose wheel steering: Hm...we would need to know a lot about the plane's
         // geometry to do that exactly right...so we just guess: 30° for a standard turn:
         SetNoseWheelAngle(std::isnan(timeFullCircle) ? 0.0f :
-                          30.0f * float(mdl.TAXI_TURN_TIME / timeFullCircle));
+                          30.0f * float(pMdl->TAXI_TURN_TIME / timeFullCircle));
         return;
     }
     
@@ -2204,12 +2245,12 @@ void LTAircraft::CalcRoll (double _prevHeading)
     // For the roll we assume that max bank angle is applied for the tightest turn.
     // If we are turning more slowly then we apply less bank angle.
     const double newRoll = (std::isnan(timeFullCircle) ? ppos.roll() :
-                            std::abs(timeFullCircle) < mdl.MIN_FLIGHT_TURN_TIME ? std::copysign(mdl.ROLL_MAX_BANK,timeFullCircle) :
-                            mdl.ROLL_MAX_BANK * mdl.MIN_FLIGHT_TURN_TIME / timeFullCircle);
+                            std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
+                            pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
     // safeguard against to harsh roll rates:
-    if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * mdl.ROLL_RATE) {
-        if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * mdl.ROLL_RATE;
-        else                       ppos.roll() += currCycle.diffTime * mdl.ROLL_RATE;
+    if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
+        if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
+        else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;
     }
     else
         ppos.roll() = newRoll;
@@ -2345,8 +2386,8 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
     STRCPY_ATMOST(pOut->registration,   stat.reg);
     // aircraft model/operator
     STRCPY_ATMOST(pOut->modelIcao,      stat.acTypeIcao);
-    STRCPY_ATMOST(pOut->acClass,        doc8643.classification);
-    STRCPY_ATMOST(pOut->wtc,            doc8643.wtc);
+    STRCPY_ATMOST(pOut->acClass,        pDoc8643->classification);
+    STRCPY_ATMOST(pOut->wtc,            pDoc8643->wtc);
     STRCPY_ATMOST(pOut->opIcao,         stat.opIcao);
     STRCPY_ATMOST(pOut->man,            stat.man);
     STRCPY_ATMOST(pOut->model,          stat.mdl);
@@ -2539,11 +2580,11 @@ void LTAircraft::CalcCameraViewPos()
         posExt = ppos;
 
         // move position back along the longitudinal axes
-        posExt += vectorTy(GetHeading(), mdl.EXT_CAMERA_LON_OFS + extOffs.x);
+        posExt += vectorTy(GetHeading(), pMdl->EXT_CAMERA_LON_OFS + extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy(GetHeading() + 90, mdl.EXT_CAMERA_LAT_OFS + extOffs.z);
+        posExt += vectorTy(GetHeading() + 90, pMdl->EXT_CAMERA_LAT_OFS + extOffs.z);
         // and move a bit up
-        posExt.alt_m() += mdl.EXT_CAMERA_VERT_OFS + extOffs.y;
+        posExt.alt_m() += pMdl->EXT_CAMERA_VERT_OFS + extOffs.y;
 
         // convert to local
         posExt.WorldToLocal();
@@ -2753,10 +2794,10 @@ void LTAircraft::UpdatePosition (float, int cycle)
         SetReversDeployRatio((float)reversers.get());   // opening reversers
 
         // for engine / prop rotation we derive a value based on flight model
-        if (doc8643.hasRotor())
-            SetEngineRotRpm(float(mdl.PROP_RPM_MAX));
+        if (pDoc8643->hasRotor())
+            SetEngineRotRpm(float(pMdl->PROP_RPM_MAX));
         else
-            SetEngineRotRpm(float(mdl.PROP_RPM_MAX/2 + GetThrustRatio() * mdl.PROP_RPM_MAX/2));
+            SetEngineRotRpm(float(pMdl->PROP_RPM_MAX/2 + GetThrustRatio() * pMdl->PROP_RPM_MAX/2));
         SetPropRotRpm(GetEngineRotRpm());
         
         // Make props and rotors move based on rotation speed and time passed since last cycle
@@ -2842,18 +2883,23 @@ void LTAircraft::ChangeModel ()
         return;
     
     // Save previous model name to identify an actual change
+    const std::string oldIcaotype(acIcaoType);
     const std::string oldModelName(GetModelName());
-    CalcLabelInternal(statData);
     XPMP2::Aircraft::ChangeModel(str_first_non_empty({dataRefs.cslFixAcIcaoType, statData.acTypeIcao}),
                                  str_first_non_empty({dataRefs.cslFixOpIcao,     statData.airlineCode()}),
                                  str_first_non_empty({dataRefs.cslFixLivery,     statData.reg}));
-    
+    CalcLabelInternal(statData);
+
     // if there was an actual change inform the log
-    if (oldModelName != GetModelName()) {
+    if (oldModelName != GetModelName() ||
+        oldIcaotype  != acIcaoType) {
+        // also update the flight model to be used
+        pMdl = &FlightModel::FindFlightModel(fd);
+        pDoc8643 = &Doc8643::get(acIcaoType);
         LOG_MSG(logINFO,INFO_AC_MDL_CHANGED,
                 labelInternal.c_str(),
                 statData.opIcao.c_str(),
-                GetModelName().c_str());
+                GetModelName().c_str(), pMdl->modelName.c_str());
     }
     
     // reset the flag that we needed to change the model

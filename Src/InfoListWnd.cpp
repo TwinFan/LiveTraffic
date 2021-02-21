@@ -310,6 +310,9 @@ void InfoListWnd::buildInterface()
                 
                 // What's the weather?
                 dataRefs.GetWeather(weatherHPA, weatherStationId, weatherMETAR);
+                
+                // How many CSL models are installed? (This being 0 or 1 is one of the most often installation errors)
+                numCSLModels = XPMPGetNumberOfInstalledModels();
             }
             
             // Child window for scrolling region
@@ -329,6 +332,21 @@ void InfoListWnd::buildInterface()
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Aircraft seen in tracking data");
                             if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%lu", mapFd.size());
                             
+                            // Warning of there's one CSL model only
+                            if (numCSLModels == 1) {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Just 1 CSL Model");
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted("With only one Model installed, all planes will look alike. Check out menu LiveTraffic > Help > " MENU_HELP_INSTALL_CSL );
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(MSG_CFG_CSL_INSTALL);
+                            }
+                            else {
+                                // Number of CSL Models available
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Number of available CSL Models");
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", numCSLModels);
+                            }
+
                             // TCAS / Multiplayer control
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("TCAS / Multiplayer");
@@ -395,6 +413,16 @@ void InfoListWnd::buildInterface()
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " LIVE_TRAFFIC " is");
                             if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                            
+                            // Additional warning if there's no CSL model
+                            if (numCSLModels == 0) {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " No CSL Models");
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(ERR_CFG_CSL_ZERO_MODELS);
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(MSG_CFG_CSL_INSTALL);
+                            }
+
                         }
                         
                         ImGui::EndTable();
@@ -426,6 +454,9 @@ void InfoListWnd::buildInterface()
                 
                 // Thanks
                 if (ImGui::TreeNode("Thanks")) {
+                    ImGui::TextUnformatted("172MC, Dozo, and Sir.Anri for continued Beta testing.");
+                    ImGui::Spacing();
+
                     ImGui::TextUnformatted("Sparker for providing"); ImGui::SameLine();
                     ImGui::ButtonURL("imgui4xp", "https://github.com/sparker256/imgui4xp", nullptr, true); ImGui::SameLine();
                     ImGui::TextUnformatted("as a testbed for ImGui integration and for accepting my additions to it;");

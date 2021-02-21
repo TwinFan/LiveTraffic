@@ -342,6 +342,12 @@ curl_errtxt{0}, httpResponse(HTTP_OK)
 
 LTOnlineChannel::~LTOnlineChannel ()
 {
+    // close the raw output file
+    if (outRaw.is_open()) {
+        outRaw.close();
+        SHOW_MSG(logWARN, DBG_RAW_FD_STOP, PATH_DEBUG_RAW_FD);
+    }
+
     CleanupCurl();
     if ( netData )
         free ( netData );
@@ -813,8 +819,9 @@ void LTFlightDataAcMaintenance()
                 vFdKeysToErase.push_back(fdPair.first);
         }
         // now remove all outdated fd objects remembered for deletion
-        for ( const mapLTFlightDataTy::key_type& key: vFdKeysToErase )
+        for ( const mapLTFlightDataTy::key_type& key: vFdKeysToErase ) {
             mapFd.erase(key);
+        }
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

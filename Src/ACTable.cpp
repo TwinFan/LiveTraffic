@@ -159,9 +159,9 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v_f(ACT_COL_ALT,    "%.f",      pAc->GetAlt_ft());
         v_f(ACT_COL_AGL,    "%.f",      pAc->GetPHeight_ft());
         v_f(ACT_COL_VSI,    "%.f",      pAc->GetVSI_ft());
-        if (vf[ACT_COL_VSI] < -pAc->mdl.VSI_STABLE)     // up/down arrow depending on value of VSI
+        if (vf[ACT_COL_VSI] < -pAc->pMdl->VSI_STABLE)     // up/down arrow depending on value of VSI
             v[ACT_COL_UPDOWN] = ICON_FA_CHEVRON_DOWN;
-        else if (vf[ACT_COL_VSI] > pAc->mdl.VSI_STABLE)
+        else if (vf[ACT_COL_VSI] > pAc->pMdl->VSI_STABLE)
             v[ACT_COL_UPDOWN] = ICON_FA_CHEVRON_UP;
         else
             v[ACT_COL_UPDOWN].clear();
@@ -184,7 +184,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
             vf[ACT_COL_TCAS_IDX] = NAN;
             v[ACT_COL_TCAS_IDX].clear();
         }
-        v[ACT_COL_FLIGHTMDL]    = pAc->mdl.modelName;
+        v[ACT_COL_FLIGHTMDL]    = pAc->pMdl->modelName;
             
     }
     else {

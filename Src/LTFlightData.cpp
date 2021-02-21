@@ -49,12 +49,7 @@ gnd(false),                             // positional
 spd(0.0), vsi(0.0),                     // movement
 ts(0),
 pChannel(nullptr)
-{
-    // radar
-    memset(&radar, 0, sizeof(radar));
-    radar.size = sizeof(radar);
-    radar.mode = xpmpTransponderMode_ModeC;
-}
+{}
 
 // formatted Squawk Code
 std::string LTFlightData::FDDynamicData::GetSquawk() const
@@ -158,6 +153,19 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
         man = pDoc8643->manufacturer;
     if (mdl.empty())
         mdl = pDoc8643->model;
+    
+    // Some string trimming
+    trim(reg);
+    trim(country);
+    trim(man);
+    trim(mdl);
+    trim(catDescr);
+    trim(call);
+    trim(originAp);
+    trim(destAp);
+    trim(flight);
+    trim(op);
+    trim(opIcao);
     
     return bRet;
 }
@@ -264,6 +272,15 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
 //MARK: Flight Data
 //
 
+// Export file for tracking data
+std::ofstream LTFlightData::fileExport;
+std::string LTFlightData::fileExportName;       // current export file's name
+double LTFlightData::fileExportTsBase = NAN;    // when normalizing timestamps this is the base
+// the priority queue holding data to be exported for sorting
+LTFlightData::quExportTy LTFlightData::quExport;
+// Coordinates writing into the export file to avoid lines overwriting
+std::recursive_mutex LTFlightData::exportFdMutex;
+
 // Constructor
 LTFlightData::LTFlightData () :
 rcvr(0),sig(0),
@@ -326,17 +343,21 @@ LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
 }
 
 // set this FD invalid (which will cause it's removal)
-void LTFlightData::SetInvalid()
+void LTFlightData::SetInvalid(bool bAlsoAc)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     bValid = false;
     // also need to make aircraft invalid so it won't be drawn again
-    if (pAc)
+    if (bAlsoAc && pAc)
         pAc->SetInvalid();
 }
 
 // Set the object's key, usually right after creation in fdMap
 void LTFlightData::SetKey (const FDKeyTy& _key)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     acKey = _key;
 //    LOG_MSG(logDEBUG, "FD crated for %s", key().c_str());
 }
@@ -393,6 +414,9 @@ bool LTFlightData::IsMatch (const std::string t) const
 
 bool LTFlightData::validForAcCreate(double simTime) const
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // the obvious stuff first: we need basic data
     if ( empty() || dynDataDeque.empty() || posDeque.size() < 2 )
         return false;
@@ -497,22 +521,24 @@ std::string LTFlightData::ComposeLabel() const
 // Data Cleansing of the buffered positions (called from CalcNextPos)
 void LTFlightData::DataCleansing (bool& bChanged)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // nothing to cleanse?
     if (posDeque.empty())
         return;
     
     // The flight model to use
-    const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
-    LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this);
 
     // *** Keep last pos in posDeque above 2.5° ILS path
     // Relevant if:
     // - airborne
     // - descending
-    if (posDeque.size() >= 2)
+    if ((pAc && !posDeque.empty()) || (posDeque.size() >= 2))
     {
         positionTy& last = posDeque.back();
-        const positionTy& prev = *std::prev(posDeque.cend(),2);
+        const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetToPos();
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
         if (!last.IsOnGnd() && !prev.IsOnGnd() &&   // too late? ;-) position shall not already be on the ground
             !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
@@ -555,19 +581,17 @@ void LTFlightData::DataCleansing (bool& bChanged)
         (!pAc && posDeque.size() >= 3))
     {
         positionTy pos1;
-        vectorTy v2;
         double h1 = NAN;
         dequePositionTy::iterator iter = posDeque.begin();
         
         // position _before_ the first position in the deque
         if (pAc) {
-            pos1 = pAc->GetToPos();
-            h1 = pAc->GetTrack();       // and the heading towards pos1
+            pos1 = pAc->GetToPos(&h1);
             // if (still) the to-Pos is current iter pos then increment
             // (could be that plane's current 'to' is still the first
             //  in out queue)
             while (iter != posDeque.end() &&
-                   pos1.cmp(*iter) == 0)
+                   pos1.cmp(*iter) >= 0)
                 ++iter;
         } else {
             // in this case we have at least 3 positions
@@ -582,107 +606,19 @@ void LTFlightData::DataCleansing (bool& bChanged)
         while (iter != posDeque.end())
         {
             // is pos not OK compared to previous one?
+            const double tempH = h1;
             if (!IsPosOK(pos1, *iter, &h1, &bChanged))
             {
-                // is there any valid pos to go to after iter?
-                bool bFoundValidNext = false;
-                for (dequePositionTy::iterator next = std::next(iter);
-                     next != posDeque.end();
-                     ++next)
-                {
-                    double h2 = h1;
-                    if (IsPosOK(pos1, *next, &h2, &bChanged))
-                    {
-                        bFoundValidNext = true;
-//                        if constexpr (VERSION_BETA) {
-//                            LOG_MSG(logDEBUG, "%s:   Valid next pos: %s",
-//                                    keyDbg().c_str(),
-//                                    next->dbgTxt().c_str() );
-//                            LOG_MSG(logDEBUG, Positions2String().c_str() );
-//                        }
-                        // that means we need to remove all positions from
-                        // 'iter' to _before_ next.
-                        // BUT because std::deque::erase can invalidate _all_ iterators
-                        // (including next and cend!) we cannot do it in one go...after the first erase all iterators are invalid.
-                        // Make use of the fact that the deque is sorted by timestamp.
-                        const double rmTsFrom = iter->ts();
-                        const double rmTsTo = next->ts();
-                        while (iter != posDeque.end() && iter->ts() < rmTsTo)
-                        {
-                            // if current iter falls into the to-be-deleted range
-                            if (rmTsFrom <= iter->ts() && iter->ts() < rmTsTo) {
-                                posDeque.erase(iter);               // now all iterators are invalid!
-                                bChanged = true;
-                                iter = posDeque.begin();
-                            }
-                            else {
-                                // otherwise just try next
-                                ++iter;
-                            }
-                        }
-                        
-                        // break out of search loop
-                        // (iter now points to where 'next' was before, but with updated iterators)
-                        LOG_ASSERT_FD(*this, iter != posDeque.end() && dequal(iter->ts(),rmTsTo));
-                        break;
-                    } // if found valid next pos
-                } // for searching valid next pos
-                
-                // did we find nothing???
-                if (!bFoundValidNext)
-                {
-                    // Well...let's hope some better data is coming later
-                    // from the network -> stop cleansing here.
-                    
-                    // There is just one thing we want to avoid:
-                    // That the non-continguous data is the next to be picked
-                    // by the aircraft. That would make rocket/sliding
-                    // planes.
-                    if (pAc && iter == posDeque.begin()) {
-                        // The incontiguous data is right the next one
-                        // to be picked...from here we have 2 choices:
-                        // - remove the plane (if there are at least 2 pos
-                        //   in the deque as we assume that this starts a
-                        //   new stretch of continuous data)
-                        // - remove the data (if this is the only pos in the
-                        //   deque as a single pos wouldn't allow the plane
-                        //   to reappear)
-                        if (posDeque.size() <= 1) {
-                            // that's the only pos: remove it
-                            if (dataRefs.GetDebugAcPos(key())) {
-                                LOG_MSG(logDEBUG, DBG_INV_POS_REMOVED,
-                                        keyDbg().c_str(),
-                                        iter->dbgTxt().c_str());
-                            }
-                            posDeque.clear();
-                            iter = posDeque.end();
-                            bChanged = true;
-                            if (dataRefs.GetDebugAcPos(key()))
-                                LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
-                        } else {
-                            // there are at least 2 pos in the deque
-                            // -> remove the aircraft, will be recreated at
-                            //    the new pos later automatically
-                            pAc->SetInvalid();
-//                            if constexpr (VERSION_BETA) {
-//                                LOG_MSG(logDEBUG, Positions2String().c_str());
-//                            }
-                            LOG_MSG(logDEBUG, DBG_INV_POS_AC_REMOVED,
-                                    keyDbg().c_str());
-                        }
-                    }
-                    
-                    // stop cleansing
-                    break;
-                } // if not found any valid next position
-//                else if constexpr (VERSION_BETA) {
-//                    LOG_MSG(logDEBUG, Positions2String().c_str() );
-//                }
+                // remove pos and move on to next one
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_REMOVED_NOK_POS,iter->dbgTxt().c_str());
+                iter = posDeque.erase(iter);
+                h1 = tempH;
             } // if invalid pos
             else
             {
                 // just move on to next position in deque
-                h1 = v2.angle;
+                // (heading h1 has been updated by IsPosOK to heading from pos1 to iter already
                 pos1 = *iter;
                 ++iter;
             }
@@ -759,6 +695,9 @@ void LTFlightData::DataSmoothing (bool& bChanged)
     double gndRange = 0.0;
     double airbRange = 0.0;
     
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // shall we do data smoothing at all?
     const LTChannel* pChn = nullptr;
     if (!GetCurrChannel(pChn) || !pChn->DoDataSmoothing(gndRange,airbRange))
@@ -835,6 +774,9 @@ void LTFlightData::DataSmoothing (bool& bChanged)
 // shift ground positions to taxiways, insert positions at taxiway nodes
 void LTFlightData::SnapToTaxiways (bool& bChanged)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // Not enabled at all? (Or no positions at all?)
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||
         posDeque.empty())
@@ -876,8 +818,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
         
         // *** maintenance of flight data deque ***
-        const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
-        LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
+        const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this);
 
         // if no simTime given use a/c's 'to' position, or current sim time
         if (std::isnan(simTime)) {
@@ -911,7 +852,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // no positions left?
             if (posDeque.empty()) {
                 // If descending: Try finding a runway to land on
-                if (pAc->GetVSI_ft() < -pAc->mdl.VSI_STABLE)
+                if (pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
                 {
                     const positionTy& acTo = pAc->GetToPos();
                     posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
@@ -951,7 +892,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                               ART_RWY_ALIGN_DIST,                           // distance
                                               -vecRwy.vsi,                                  // VSI (reversed!)
                                               std::min(vecRwy.speed,                        // speed (capped at max final speed)
-                                                       pAc->mdl.FLAPS_DOWN_SPEED * ART_FINAL_SPEED_F / KT_per_M_per_S));
+                                                       pAc->pMdl->FLAPS_DOWN_SPEED * ART_FINAL_SPEED_F / KT_per_M_per_S));
                             // Timestamp is now beyond posRwy.ts() as time always moves forward,
                             // but posBefore is _before_ posRwy:
                             posBefore.ts() -= 2 * (posBefore.ts() - posRwy.ts());
@@ -980,9 +921,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     positionTy stopPos = pAc->GetToPos();
                     if (stopPos.IsOnGnd() &&
                         stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
-                        stopPos.f.flightPhase != FPH_STOPPED_ON_RWY)    // avoid adding several stops
+                        stopPos.f.flightPhase != FPH_STOPPED_ON_RWY &&  // avoid adding several stops
+                        stopPos.ts() <= simTime + 3.0)                  // and time's running out for the plane's to-position
                     {
-                        stopPos.ts() = simTime + 10.0;                  // just assume _some_ time
+                        stopPos.ts() += 5.0;                            // just set some time after to-position
                         stopPos.f.flightPhase = FPH_STOPPED_ON_RWY;     // indicator for aritifical stop (not only on rwy now...)
                         if (dataRefs.GetDebugAcPos(key()))
                             LOG_MSG(logDEBUG, "%s: Added stop-position %s",
@@ -999,6 +941,14 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     if (dataRefs.GetDebugAcPos(key()))
                         LOG_MSG(logDEBUG,DBG_NO_MORE_POS_DATA,Positions2String().c_str());
                     return false;
+                }
+                else {
+                    // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
+                    LOG_ASSERT_FD(*this,
+                                  std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
+                                                     [](const positionTy& a, const positionTy& b)
+                                                     {return a > b;}
+                                                     ) == posDeque.cend());
                 }
             }
         } else {
@@ -1054,7 +1004,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 if (timeToTouchDown > TIME_REQU_POS &&
                     tsOfTouchDown + TIME_REQU_POS < next.ts())
                 {
-                    vectorTy vecTouch(toPos_ac.angle(next),                      // angle: as per last leg
+                    vectorTy vecTouch(pAc->GetTrack(),                          // touch down is straight ahead, don't turn last second
                                       timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
                                       pAc->GetVSI_m_s(),                         // vsi
                                       pAc->GetSpeed_m_s());                      // speed
@@ -1072,6 +1022,19 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
+                    }
+                    
+                    // If the touch-down point snapped to a rwy AND
+                    // the next position in the deque is a TAXI position (and not also a RWY)
+                    // then snap the TXI position again so that the (shortest)
+                    // path from touch-down to taxi pos is inserted along
+                    // proper taxi routes
+                    if (iter->f.specialPos == SPOS_RWY &&
+                        std::next(iter) != posDeque.end() &&
+                        std::next(iter)->f.specialPos == SPOS_TAXI)
+                    {
+                        dequePositionTy::iterator txiIter = std::next(iter);
+                        LTAptSnap(*this, txiIter, true);
                     }
                 }
                 else
@@ -1144,8 +1107,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     double climbSpeed = mdl.SPEED_INIT_CLIMB / KT_per_M_per_S;
                     if (posDeque.size() >= i+2) {     // take the data from the vector _after_ to
                         vectorTy climbVec (to_i.between(posDeque[i+1]));
-                        climbVsi = climbVec.vsi;
-                        climbSpeed = climbVec.speed;
+                        if (climbVec.vsi > mdl.VSI_STABLE) {                // make sure it's really a climb!
+                            climbVsi = climbVec.vsi;
+                            climbSpeed = climbVec.speed;
+                        }
                     }
                     
                     // Determine how much before 'to' is that take-off point
@@ -1257,6 +1222,13 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     }
                 } // (take off case)
             } // loop over szenarios
+
+            // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
+            LOG_ASSERT_FD(*this,
+                          std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
+                                             [](const positionTy& a, const positionTy& b)
+                                             {return a > b;}
+                                             ) == posDeque.cend());
         } // (has a/c and do landing / take-off detection)
         
         // *** Snap any newly inserted positions to taxiways ***
@@ -1343,16 +1315,22 @@ void LTFlightData::CalcNextPosMain ()
         // there was something in the list to process? Do so!
         if (!pair.first.empty()) {
             try {
+                // To ensure a FD object stays available between mapFd.at and the
+                // call to its local mutex we prohibit removal by locking the
+                // general mapFd mutex.
+                std::unique_lock<std::mutex> lockMap (mapFdMutex);
                 // find the flight data object in the map and calc position
                 LTFlightData& fd = mapFd.at(pair.first);
                 
                 // LiveTraffic Top Level Exception Handling:
                 // CalcNextPos can cause exceptions. If so make fd object invalid and ignore it
                 try {
+                    std::lock_guard<std::recursive_mutex> lockFD (fd.dataAccessMutex);
+                    lockMap.unlock();           // now that we have the detailed mutex we can release the global one
                     if (fd.IsValid())
                         fd.CalcNextPos(pair.second);
                 } catch (const std::exception& e) {
-                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION " - on aircraft %s", e.what(), pair.first.c_str());
                     fd.SetInvalid();
                 } catch (...) {
                     fd.SetInvalid();
@@ -1360,6 +1338,9 @@ void LTFlightData::CalcNextPosMain ()
                 
             } catch(const std::out_of_range&) {
                 // just ignore exception...fd object might have gone in the meantime
+                if constexpr (VERSION_BETA) {
+                    LOG_MSG(logWARN, "No longer found aircraft %s", pair.first.c_str());
+                }
             }
         }
             
@@ -1427,6 +1408,9 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     if (it->f.bHeadFixed)
         return;
     
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // vectors to / from the position at "it"
     vectorTy vecTo, vecFrom;
     
@@ -1508,9 +1492,19 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                             double* pHeading,
                             bool* /*pbChanged*/)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // only compare positions which are either both on the ground or both in the air
+    if (thisPos.IsOnGnd() != lastPos.IsOnGnd())
+        return true;
+
     // aircraft model to use
-    const LTAircraft::FlightModel& mdl = pAc ? pAc->mdl :
-    LTAircraft::FlightModel::FindFlightModel(statData.acTypeIcao);
+    const std::string* pIcaoType = nullptr;
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, &pIcaoType);
+    if (!pIcaoType)     // if we can't really determine a model we can't really validate
+        return true;
+    
     // if pHeading not given we assume we can take it from lastPos
     const double lastHead = pHeading ? *pHeading : lastPos.heading();
     // vector from last to this
@@ -1525,23 +1519,163 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                           v.dist <= SIMILAR_POS_DIST ? 0.0 :
                           HeadingDiff(lastHead, v.angle));
     
-    // Too much of a turn? VSI/speed out of range?
-    if (-maxTurn > hDiff || hDiff > maxTurn   ||
-        v.vsi_ft() < -mdl.VSI_MAX || v.vsi_ft() > mdl.VSI_MAX    ||
-        (!std::isnan(v.speed_kn()) && v.speed_kn() > mdl.MAX_FLIGHT_SPEED) ||
-        // too slow speed up in the air?
-        ((!lastPos.IsOnGnd() || !thisPos.IsOnGnd()) &&
-         !std::isnan(v.speed_kn()) && v.speed_kn() < mdl.MIN_FLIGHT_SPEED) )
-    {
-        LOG_MSG(logDEBUG, "%s: Invalid vector %s with headingDiff = %.0f (max vsi = %.fft/min, max speed = %.fkn, min speed = %.fkn, max hdg diff = %.f)",
-                keyDbg().c_str(),
+    // Speed limits
+    const double minSpeed = thisPos.IsOnGnd() ? 0.0                          : mdl.MIN_FLIGHT_SPEED;
+    const double maxSpeed = thisPos.IsOnGnd() ? (mdl.SPEED_INIT_CLIMB * 1.2) : mdl.MAX_FLIGHT_SPEED;
+    
+    // --- Validations ---
+    const char* szViolTxt = nullptr;
+    
+    if (-maxTurn > hDiff || hDiff > maxTurn)
+        szViolTxt = "Turn too far";
+    else if (v.vsi_ft() < -mdl.VSI_MAX || mdl.VSI_MAX < v.vsi_ft())
+        szViolTxt = "VSI too high";
+    else if (!std::isnan(v.speed_kn()) && v.speed_kn() > maxSpeed)
+        szViolTxt = "Speed too high";
+    else if (!std::isnan(v.speed_kn()) && v.speed_kn() < minSpeed)
+        szViolTxt = "Speed too low";
+        
+    // Any problem found?
+    if (szViolTxt) {
+        LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, mdl %s, type %s)",
+                keyDbg().c_str(), szViolTxt,
                 std::string(v).c_str(), hDiff,
-                mdl.VSI_MAX, mdl.MAX_FLIGHT_SPEED, mdl.MIN_FLIGHT_SPEED, maxTurn);
+                minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
+                mdl.modelName.c_str(), pIcaoType->c_str());
         return false;
     }
     
     // all OK
     return true;
+}
+
+// Static: Open/Close the tracking data export file as needed
+bool LTFlightData::ExportOpenClose ()
+{
+    // no logging? return (after closing the file if open)
+    if (!dataRefs.AnyExportData()) {
+        if (fileExport.is_open()) {
+            std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+            // write remaining lines before close
+            while (!quExport.empty()) {
+                fileExport << quExport.top().s;
+                quExport.pop();
+            }
+            fileExport.close();
+            SHOW_MSG(logWARN, DBG_EXPORT_FD_STOP, fileExportName.c_str());
+        }
+        return false;
+    }
+    // Logging on: Need to open the file first?
+    else if (!fileExport.is_open()) {
+        std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+        // previous test was unsafe, not locked, so with lock once again:
+        if (!fileExport.is_open()) {
+            // Create the file name from a fixed part and a date/time stamp
+            // much like X-Plane names screenshots
+            char currFileName[100];
+            const std::time_t t = std::time(nullptr);
+            const std::tm tm = *std::localtime(&t);
+            std::strftime(currFileName, sizeof(currFileName),
+                          PATH_DEBUG_EXPORT_FD, &tm);
+            fileExportName = currFileName;
+            
+            // open the file, append to it
+            fileExport.open (fileExportName, std::ios_base::out | std::ios_base::app);
+            if (!fileExport) {
+                char sErr[SERR_LEN];
+                strerror_s(sErr, sizeof(sErr), errno);
+                // could not open output file: bail out, decativate logging
+                SHOW_MSG(logERR, DBG_RAW_FD_ERR_OPEN_OUT,
+                         fileExportName.c_str(), sErr);
+                dataRefs.SetAllExportData(false);
+                return false;
+            }
+            else {
+                SHOW_MSG(logWARN, DBG_EXPORT_FD_START, fileExportName.c_str());
+                // In case we are to normalize timestamps we'll do it against NOW
+                fileExportTsBase = dataRefs.ShallExportNormalizeTS() ? dataRefs.GetSimTime() : NAN;
+                // always start with current weather
+                ExportLastWeather();
+            }
+        }
+    }
+    return fileExport.is_open();
+}
+
+// Moves a line to the export priority queue, flushes data which is ready to be written
+void LTFlightData::ExportAddOutput (unsigned long ts, const char* s)
+{
+    // make sure a file is open before continuing
+    if (!ExportOpenClose())
+        return;
+    
+    // As there are different threads (e.g. in LTRealTraffic), which send data,
+    // we guard file writing with a lock, so that no line gets intermingled
+    // with another thread's data:
+    std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+
+    // add the line to the queue
+    quExport.emplace(ts, s);
+    
+    // flush all lines to the file that are due for writing
+    const unsigned long now = (unsigned long)(dataRefs.GetSimTime()) + 5;
+    while (!quExport.empty() && quExport.top().ts < now) {
+        fileExport << quExport.top().s;
+        quExport.pop();
+    }
+    fileExport.flush();
+}
+
+// debug: log raw network data to a log file
+void LTFlightData::ExportFD(const FDDynamicData& inDyn,
+                            const positionTy& pos)
+{
+    // We are to log tracking data?
+    if (!ExportOpenClose() ||
+        !dataRefs.GetDebugExportFD())
+        return;
+    
+    // output a tracking data record
+    char buf[256];
+    snprintf(buf, sizeof(buf), "AITFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f\n",
+             key().num,
+             pos.lat(), pos.lon(),
+             nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),
+             inDyn.vsi,
+             (pos.IsOnGnd() ? '0' : '1'),
+             inDyn.heading, inDyn.spd,
+             statData.call.c_str(),
+             statData.acTypeIcao.c_str(),
+             statData.reg.c_str(),
+             statData.originAp.c_str(),
+             statData.destAp.c_str(),
+             pos.ts() - nanToZero(fileExportTsBase));       // if requested normalize timestamp in output
+    ExportAddOutput((unsigned long)std::lround(pos.ts()), buf);
+}
+
+// Export Weather data record, based on DataRefs::GetWeather()
+void LTFlightData::ExportLastWeather ()
+{
+    // The file is expected to be open if we are actively exporting, see ExportFD
+    // We are to log tracking data? And export file is open?
+    if (!ExportOpenClose())
+        return;
+
+    // make sure no other thread is writing to the file right now
+    std::lock_guard<std::recursive_mutex> lock(exportFdMutex);
+
+    // get latest data
+    float hPa = NAN;
+    std::string stationId, METAR;
+    dataRefs.GetWeather(hPa, stationId, METAR);
+    
+    fileExport
+    << "{\"ICAO\": \""      << stationId
+    << "\",\"QNH\": \""     << std::lround(hPa)
+    << "\", \"METAR\": \""  << METAR
+    << "\", \"NAME\": \""   << stationId        // don't have a proper name, doesn't matter
+    << "\"}\n";
 }
 
 // adds a new position to the queue of positions to analyse
@@ -1551,13 +1685,20 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
-        // if there is an a/c then we shall no longer add positions
-        // before the current 'to' position of the a/c
-        if (pAc && pos <= pAc->GetToPos()) {
+        // We only consider data that is newer than what we have already
+        const positionTy* pLatestPos =
+        !posToAdd.empty() ? &(posToAdd.back()) :
+        !posDeque.empty() ? &(posDeque.back()) :
+        hasAc()           ? &(pAc->GetToPos()) : nullptr;
+        
+        if (pLatestPos) {
             // pos is before or close to 'to'-position: don't add!
-            if (dataRefs.GetDebugAcPos(key()))
-                LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
-            return;
+            if (pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+            {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
+                return;
+            }
         }
 
         // add pos to the queue of data to be added
@@ -1591,12 +1732,17 @@ void LTFlightData::AppendAllNewPos()
             return;
         }
         
-        // look all flight data objects and check for new data to analyse
+        // loop all flight data objects and check for new data to analyse
         for (mapLTFlightDataTy::value_type& fdPair: mapFd) {
             LTFlightData& fd = fdPair.second;
             try {
-                if (fd.IsValid())
-                    fd.AppendNewPos();
+                std::unique_lock<std::recursive_mutex> lockFD (fd.dataAccessMutex, std::try_to_lock);
+                if (!lockFD) {
+                    flagNoNewPosToAdd.clear();          // need to try it again
+                } else {
+                    if (fd.IsValid())
+                        fd.AppendNewPos();
+                }
             } catch (const std::exception& e) {
                 LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
                 fd.SetInvalid();
@@ -1633,112 +1779,72 @@ void LTFlightData::AppendNewPos()
             positionTy pos = posToAdd.front();
             posToAdd.pop_front();
             
-            // *** ground status *** (plays a role in merge determination)
-            // will set ground altitude if on ground
+            // Once again a final check: We only add data after the last known position
+            // We only consider data that is newer than what we have already
+            const positionTy* pLatestPos = nullptr;
+            double headToLatest = NAN;          // heading/track when flying to that latest pos, relevant for turn validation
+            
+            // There are positions waiting in the deque
+            if (!posDeque.empty())
+            {
+                pLatestPos = &(posDeque.back());
+                if (posDeque.size() >= 2)
+                    headToLatest = posDeque[posDeque.size()-2].angle(*pLatestPos);
+                else if (hasAc())
+                    headToLatest = pAc->GetToPos().angle(*pLatestPos);
+            }
+            // no deque positions, but an aircraft?
+            else if (hasAc())
+            {
+                pLatestPos = &(pAc->GetToPos());
+                headToLatest = pAc->GetTrack();
+            }
+
+            // Is the new position _after_ the latest known position?
+            if (pLatestPos &&
+                pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+            {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
+                continue;                   // skip
+            }
+            
+            // ground status: will set ground altitude if on ground
             TryDeriveGrndStatus(pos);
             
-            // *** insert/merge position ***
-            
-            // based on timestamp find possible "similar" position
-            // or insert position.
-            // and if so merge with that position to avoid too many position in
-            // a very short time frame, as that leads to zick-zack courses in a
-            // matter of meters only as can happen when merging different data streams
-            dequePositionTy::iterator i =   // first: find a merge partner
-            std::find_if(posDeque.begin(), posDeque.end(),
-                         [&pos](const positionTy& p){return p.canBeMergedWith(pos);});
-            if (i != posDeque.end()) {      // found merge partner!
-                // make sure we don't overlap with predecessor/successor position
-                if (((i == posDeque.begin()) || (*std::prev(i) < pos)) &&
-                    ((std::next(i) == posDeque.end()) || (*std::next(i) > pos)) &&
-                    !i->IsPostProcessed())      // don't merge with optimized positions...rather throw the new one away
-                {
-                    *i |= pos;                  // merge them (if pos.heading is nan then i.heading prevails)
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,DBG_MERGED_POS,pos.dbgTxt().c_str(),i->ts());
-                }
-                else
-                {
-                    // pos would overlap with surrounding positions
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS,pos.dbgTxt().c_str());
-                    continue;                   // skip
-                }
+            // Now that we have a proper Grnd status we can test the pos for validty
+            if (pLatestPos && !IsPosOK(*pLatestPos, pos, &headToLatest)) {
+                if (dataRefs.GetDebugAcPos(key()))
+                    LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_NOK,pos.dbgTxt().c_str());
+                return;
             }
+            
+            // *** pitch ***
+            // just a rough value, LTAircraft::CalcPPos takes care of the details
+            if (pos.IsOnGnd())
+                pos.pitch() = 0;
             else
-            {
-                // second: find insert-before position
-                i = std::find_if(posDeque.begin(), posDeque.end(),
-                                 [&pos](const positionTy& p){return p > pos;});
-                
-                // *** Sanity Check if we have valid vectors already ***
-                if (pAc || !posDeque.empty())
-                {
-                    // We only insert if we don't cause invalid vector
-                    // for perfect heading calc we need the _vector_ before insert pos,
-                    // and for that we need 2 positions before insert
-                    const positionTy* pBefore = nullptr;
-                    double heading = NAN;
-                    size_t idx = (size_t)std::distance(posDeque.begin(), i);
-                    if (idx >= 2) {
-                        pBefore = &(posDeque[idx-1]);
-                        heading = posDeque[idx-2].angle(*pBefore);
-                    } else if (idx == 1) {
-                        pBefore = &(posDeque[0]);
-                        if (pAc)
-                            heading = pAc->GetToPos().angle(*pBefore);
-                    } else if (pAc) {            // idx == 0 -> insert at beginning
-                        pBefore = &(pAc->GetToPos());
-                        heading = pAc->GetTrack();
-                    }
- 
-                    // now check if OK
-                    if (pBefore && !IsPosOK(*pBefore, pos, &heading)) {
-                        if (dataRefs.GetDebugAcPos(key()))
-                            LOG_MSG(logDEBUG,ERR_IGNORE_POS,keyDbg().c_str(),pos.dbgTxt().c_str());
-                        continue;                   // skip
-                    }
-                }
-                
-                // pos is OK, add/insert it
-                if (i == posDeque.end()) {      // new pos is to be added at end
-                    posDeque.emplace_back(pos);
-                    i = std::prev(posDeque.end());
-                }
-                else {                          // found real insert position: before i
-                    i = posDeque.emplace(i, pos);
-                }
-            }
+                pos.pitch() = 2;
             
-            // i now points to the inserted/merged element
-            positionTy& p = *i;
+            // *** roll ***
+            // LTAircraft::CalcPPos takes care of the details
+            pos.roll() = 0;
             
+            // add to the end of the deque
+            posDeque.emplace_back(pos);
+            dequePositionTy::iterator i = std::prev(posDeque.end());
+
             // *** heading ***
             
             // Recalc heading of adjacent positions: before p, p itself, and after p
             if (i != posDeque.begin())              // is there anything before i?
                 CalcHeading(std::prev(i));
-            
             CalcHeading(i);                         // i itself, latest here a nan heading is rectified
-            
-            if (std::next(i) != posDeque.end())     // is there anything after i?
-                CalcHeading(std::next(i));
-            
-            // *** pitch ***
-            // just a rough value, LTAircraft::CalcPPos takes care of the details
-            if (p.IsOnGnd())
-                p.pitch() = 0;
-            else
-                p.pitch() = 2;
-            
-            // *** roll ***
-            // LTAircraft::CalcPPos takes care of the details
-            p.roll() = 0;
             
             // *** last checks ***
             
             // should be fully valid position now
-            LOG_ASSERT_FD(*this, p.isFullyValid());
+            LOG_ASSERT_FD(*this, i->isFullyValid());
         }
         
         // posDeque should be sorted, i.e. no two adjacent positions a,b should be a > b
@@ -1857,8 +1963,8 @@ bool LTFlightData::TryDeriveGrndStatus (positionTy& pos)
             // If position already says itself: I'm on the ground, then keep it like that
             // Otherwise decide based on altitude _if_ it's on the ground
             if (!pos.IsOnGnd() &&
-                // say it's on the ground if below terrain+10m
-                pos.alt_m() < terrainAlt + FD_GND_AGL)
+                // say it's on the ground if below terrain+10m (or 20m in case of RealTraffic)
+                pos.alt_m() < terrainAlt + (GetCurrChannel() == DR_CHANNEL_REAL_TRAFFIC_ONLINE ? FD_GND_AGL_EXT : FD_GND_AGL))
                 pos.f.onGrnd = GND_ON;
 
             // if it was or now is on the ground correct the altitue to terrain altitude
@@ -1985,50 +2091,36 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
         // or in other words: new ts + refresh period > old ts + outdated period
         if (!dynDataDeque.empty()) {
             const FDDynamicData& last = dynDataDeque.back();
-            if (last.pChannel != inDyn.pChannel &&
-                last.pChannel && inDyn.pChannel) {
+            if (inDyn.pChannel && last.pChannel != inDyn.pChannel)
+            {
                 // Firstly, if no a/c yet created, then we prioritize with
                 // which channel an a/c is created. The higher the channel
                 // number the better.
-                if (!pAc)
-                {
-                    if (inDyn.pChannel->GetChannel() <= last.pChannel->GetChannel())
-                        // lower prio -> ignore data
-                        return;
-                    
-                    // so we throw away the lower prio channel's data
-                    const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
-                    dynDataDeque.clear();
-                    posDeque.clear();
-                    LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
-                            keyDbg().c_str(),
-                            pLstChn ? pLstChn->ChName() : "<null>",
-                            inDyn.pChannel ? inDyn.pChannel->ChName() : "<null>")
-                }
-                else
-                {
-                    // We compare timestamps of the actual positions and as a safeguard
-                    // accept positions only pointing roughly in the same direction
-                    // as we don't want a/c to turn back and forth due to channel switch.
-                    if (!pos) return;
-                    const positionTy& lastPos = (posDeque.empty() ?
-                                                 pAc->GetToPos() :
-                                                 posDeque.back());
-                    if (pos->ts() + dataRefs.GetFdRefreshIntvl() <=
-                        lastPos.ts() + dataRefs.GetAcOutdatedIntvl())
-                        // not big enough a difference in timestamps yet
-                        return;
-                    
-                    // check for weird heading changes, wrong speed etc.);
-                    if (!IsPosOK(lastPos, *pos))
-                        return;
+                if (!hasAc() &&
+                    last.pChannel &&
+                    inDyn.pChannel->GetChannel() <= last.pChannel->GetChannel())
+                    // lower prio -> ignore data
+                    return;
+                
+                // If there is an aircraft then we only switch if there are
+                // no positions waiting any longer, ie. we run into danger to run out of positions
+                if (hasAc() &&
+                    !posDeque.empty() &&
+                    // new position must be significantly _after_ current 'to' pos
+                    // so that current channel _really_ had its chance to sent an update:
+                    inDyn.ts > pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2)
+                    // there still is data waiting -> ignore other channel's data
+                    return;
 
-                    // accept channel switch!
-                    LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
-                            keyDbg().c_str(),
-                            last.pChannel ? last.pChannel->ChName() : "<null>",
-                            inDyn.pChannel ? inDyn.pChannel->ChName() : "<null>")
-                }
+                // We accept the channel switch...clear out any old channel's data
+                // so we throw away the lower prio channel's data
+                const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
+                dynDataDeque.clear();
+                posDeque.clear();
+                LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
+                        keyDbg().c_str(),
+                        pLstChn ? pLstChn->ChName() : "<null>",
+                        inDyn.pChannel->ChName());
             }
         }
         
@@ -2049,9 +2141,11 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
             sig = _sig;
         }
             
-        // also store the pos (lock is held recursively)
-        if (pos)
+        // also export and store the pos (lock is held recursively)
+        if (pos) {
+            ExportFD(inDyn, *pos);
             AddNewPos(*pos);
+        }
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
@@ -2104,6 +2198,8 @@ LTFlightData::FDDynamicData LTFlightData::GetUnsafeDyn() const
 // returns true and set chn to the current channel if there is dynamic data
 bool LTFlightData::GetCurrChannel (const LTChannel* &pChn) const
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     if (dynDataDeque.empty()) {
         pChn = nullptr;
         return false;
@@ -2111,6 +2207,16 @@ bool LTFlightData::GetCurrChannel (const LTChannel* &pChn) const
 
     pChn = dynDataDeque.front().pChannel;
     return pChn != nullptr;
+}
+
+// Current channel's id
+dataRefsLT LTFlightData::GetCurrChannel () const
+{
+    const LTChannel* pChn = nullptr;
+    if (GetCurrChannel(pChn) && pChn)
+        return pChn->GetChannel();
+    else
+        return DR_AC_KEY;           // == 0
 }
 
 
@@ -2125,6 +2231,9 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
                                              LTFlightData::FDDynamicData*& pAfter,
                                              bool* pbSimilar)
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     // init
     pBefore = pAfter = nullptr;
     if (pbSimilar)
@@ -2286,8 +2395,10 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
             UpdateStaticLabel();
         
         // general re-init necessary?
-        if (dataRefs.IsReInitAll())
+        if (dataRefs.IsReInitAll()) {
+            SetInvalid(false);
             return true;
+        }
 
         // Tests on an existing aircraft object
         if (hasAc())
@@ -2336,21 +2447,21 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
         // youngestTS longer ago than allowed? -> remove the entire FD object
         if (youngestTS + dataRefs.GetAcOutdatedIntvl() <
             (std::isnan(simTime) ? dataRefs.GetSimTime() : simTime))
+        {
+            SetInvalid(false);
             return true;
-        
+        }
+
         // don't delete me
         return false;
         
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
-        // if an exception occurs this object is declared invalid and removed
-        SetInvalid();
     } catch(...) {
-        // if an exception occurs this object is declared invalid and removed
-        SetInvalid();
     }
     
     // in case of error return 'delete me'
+    SetInvalid();
     return true;
 }
 
@@ -2358,6 +2469,9 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
 // try interpreting model text or check for ground vehicle
 bool LTFlightData::DetermineAcModel()
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
     const std::string prevType = statData.acTypeIcao;
 
     // Debugging model matching: If the model is fixed, then it is what it is
@@ -2372,9 +2486,7 @@ bool LTFlightData::DetermineAcModel()
         return false;
     
     // Try finding a CSL model by interpreting the human-readable model text
-    std::string mdl (statData.mdl);
-    str_toupper(trim(mdl));
-    statData.acTypeIcao = ModelIcaoType::getIcaoType(mdl);
+    statData.acTypeIcao = ModelIcaoType::getIcaoType(statData.mdl);
     if ( !statData.acTypeIcao.empty() )
     {
         // yea, found something by mdl!
@@ -2419,6 +2531,9 @@ bool LTFlightData::AcSlotAvailable ()
 {
     // time we had shown the "Too many a/c" warning last:
     static float tTooManyAcMsgShown = 0.0;
+
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
     // Have no positions? (Need one to determine distance to camera)
     if (posDeque.empty())
@@ -2537,10 +2652,14 @@ bool LTFlightData::CreateAircraft ( double simTime )
 // remove the linked aircraft
 void LTFlightData::DestroyAircraft ()
 {
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     if ( pAc )
         delete pAc;
     pAc = nullptr;
 }
+
+
 
 // static function to
 // update the CSL model of all aircraft (e.g. after loading new CSL models)
@@ -2570,6 +2689,8 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
     const LTFlightData* ret = nullptr;
     double bestRating = std::numeric_limits<double>::max();
     
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
     // walk the map of flight data
     for ( std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd )
     {
@@ -2629,6 +2750,8 @@ void LTFlightData::RemoveAllAcButSelected ()
 // Find "i-th" aircraft, i.e. the i-th flight data with assigned pAc
 mapLTFlightDataTy::iterator mapFdAcByIdx (int idx)
 {
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
     // let's find the i-th aircraft by looping over all flight data
     // and count those objects, which have an a/c
     int i = 0;
@@ -2663,69 +2786,3 @@ mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
     }
 }
 
-//
-// MARK: LTFlightDataList
-//
-
-LTFlightDataList::LTFlightDataList ( OrderByTy ordrBy )
-{
-    // copy the entire map into a simple list
-    lst.reserve(mapFd.size());
-    for ( std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd )
-        lst.emplace_back(&fdPair.second);
-    
-    // apply the initial ordering
-    ReorderBy(ordrBy);
-}
-
-
-void LTFlightDataList::ReorderBy(OrderByTy ordrBy)
-{
-    // quick exit if already sorted that way
-    if (orderedBy == ordrBy)
-        return;
-    
-    // range to sort
-    vecLTFlightDataRefTy::iterator from = lst.begin();
-    vecLTFlightDataRefTy::iterator to   = lst.end();
-    
-#define SORT_BY_STAT(OrdrBy,cmp)                                            \
-case OrdrBy:                                                                \
-    std::sort(from, to, [](LTFlightData*const& a, LTFlightData*const& b )   \
-              { return cmp; } );                                            \
-    break;
-    
-#define SORT_BY_PAC(OrdrBy,cmp)                                             \
-case OrdrBy:                                                                \
-    std::sort(from, to, [](LTFlightData*const& a, LTFlightData*const& b )   \
-              { return                                                      \
-                  !b->pAc && !a->pAc ? a->key() < b->key() :                \
-                  !b->pAc ? true :                                          \
-                  !a->pAc ? false :                                         \
-                  (cmp); });                                                \
-    break;
-
-    
-    // static fields can always be applied
-    switch (ordrBy) {
-        case ORDR_UNKNOWN: break;
-        SORT_BY_STAT(ORDR_REG,          a->statData.reg < b->statData.reg);
-        SORT_BY_STAT(ORDR_AC_TYPE_ICAO, a->statData.acTypeIcao < b->statData.acTypeIcao);
-        SORT_BY_STAT(ORDR_CALL,         a->statData.call < b->statData.call);
-        SORT_BY_STAT(ORDR_ORIGIN_DEST,  a->statData.route() < b->statData.route());
-        SORT_BY_STAT(ORDR_FLIGHT,       a->statData.flight < b->statData.flight);
-        SORT_BY_STAT(ORDR_OP_ICAO,      a->statData.opIcao == b->statData.opIcao ?
-                                        a->key() < b->key() :
-                                        a->statData.opIcao < b->statData.opIcao);
-        SORT_BY_PAC(ORDR_DST,           a->pAc->GetVecView().dist < b->pAc->GetVecView().dist);
-        SORT_BY_PAC(ORDR_SPD,           a->pAc->GetSpeed_m_s() < b->pAc->GetSpeed_m_s());
-        SORT_BY_PAC(ORDR_VSI,           a->pAc->GetVSI_ft() < b->pAc->GetVSI_ft());
-        SORT_BY_PAC(ORDR_ALT,           a->pAc->GetAlt_m() < b->pAc->GetAlt_m());
-        SORT_BY_PAC(ORDR_PHASE,         a->pAc->GetFlightPhase() == b->pAc->GetFlightPhase() ?
-                                        a->key() < b->key() :
-                                        a->pAc->GetFlightPhase() < b->pAc->GetFlightPhase());
-    }
-    
-    // no ordered the new way
-    orderedBy = ordrBy;
-}

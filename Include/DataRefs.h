@@ -220,7 +220,11 @@ enum dataRefsXP {
     DR_PLANE_HEADING,
     DR_PLANE_TRACK,
     DR_PLANE_TRUE_AIRSPEED,
+    DR_PLANE_VVI,                       ///< sim/flightmodel/position/vh_ind    float    n    meters/second    VVI (vertical velocity in meters per second)
     DR_PLANE_ONGRND,
+    DR_PLANE_REG,                       ///< sim/aircraft/view/acf_tailnum    byte[40]    y    string    Tail number
+    DR_PLANE_MODES_ID,                  ///< sim/aircraft/view/acf_modeS_id    int    y    integer    24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
+    DR_PLANE_ICAO,                      ///< sim/aircraft/view/acf_ICAO    byte[40]    y    string    ICAO code for aircraft (a string) entered by author
     DR_VR_ENABLED,                      // VR stuff
     CNT_DATAREFS_XP                     // always last, number of elements
 };
@@ -372,7 +376,10 @@ enum dataRefsLT {
     DR_DBG_AC_POS,
     DR_DBG_LOG_RAW_FD,
     DR_DBG_MODEL_MATCHING,
-    
+    DR_DBG_EXPORT_FD,
+    DR_DBG_EXPORT_USER_AC,
+    DR_DBG_EXPORT_NORMALIZE_TS,
+
     // channel configuration options
     DR_CFG_OGN_USE_REQUREPL,
     DR_CFG_RT_LISTEN_PORT,
@@ -429,34 +436,38 @@ public:
         XPLMGetDatab_f bfRead       = NULL;
         void* refCon                = NULL;
         bool bCfgFile               = false;
+        bool bDebugLog              = false;    ///< log this setting in case of DEBUG logging?
         
     public:
         // constructor for xplmType_Int
         dataRefDefinitionT (const char* name,
                             XPLMGetDatai_f _ifRead, XPLMSetDatai_f _ifWrite = NULL,
                             void* _refCon = NULL,
-                            bool _bCfg = false) :
+                            bool _bCfg = false,
+                            bool _bDebugLog = false) :
         dataName(name), dataType(xplmType_Int),
         ifRead(_ifRead), ifWrite(_ifWrite),
-        refCon(_refCon), bCfgFile(_bCfg) {}
+        refCon(_refCon), bCfgFile(_bCfg), bDebugLog(_bDebugLog) {}
 
         // constructor for xplmType_Float
         dataRefDefinitionT (const char* name,
                             XPLMGetDataf_f _ffRead, XPLMSetDataf_f _ffWrite = NULL,
                             void* _refCon = NULL,
-                            bool _bCfg = false) :
+                            bool _bCfg = false,
+                            bool _bDebugLog = false) :
         dataName(name), dataType(xplmType_Float),
         ffRead(_ffRead), ffWrite(_ffWrite),
-        refCon(_refCon), bCfgFile(_bCfg) {}
+        refCon(_refCon), bCfgFile(_bCfg), bDebugLog(_bDebugLog) {}
 
         // constructor for xplmType_Data
         dataRefDefinitionT (const char* name,
                             XPLMGetDatab_f _bfRead, XPLMSetDataf_f /*_bfWrite*/ = NULL,
                             void* _refCon = NULL,
-                            bool _bCfg = false) :
+                            bool _bCfg = false,
+                            bool _bDebugLog = false) :
         dataName(name), dataType(xplmType_Data),
         bfRead(_bfRead), 
-        refCon(_refCon), bCfgFile(_bCfg) {}
+        refCon(_refCon), bCfgFile(_bCfg), bDebugLog(_bDebugLog) {}
         
         // allows using the object in string context -> dataName
         inline const std::string getDataNameStr() const { return dataName; }
@@ -477,6 +488,7 @@ public:
         inline void* getRefCon() const { return refCon; }
         inline void setRefCon (void* _refCon) { refCon = _refCon; }
         inline bool isCfgFile() const { return bCfgFile; }
+        bool isDebugLogging() const { return bDebugLog; }
         
         // get the actual current value (by calling the getData?_f function)
         int getDatai () const;
@@ -585,6 +597,10 @@ protected:
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
+    int bDebugExportFd          = false;// export flight data to LTExportFD.csv
+    int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
+    float lastExportUserAc      = 0.0f; ///< last time user's aircraft data has been written to export file
+    int bDebugExportNormTS      = true; ///< normalize the timestamp when writing LTExportFD.csv, starting at 0 by the time exporting starts
     int bDebugModelMatching     = false;// output debug info on model matching in xplanemp?
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
@@ -711,7 +727,7 @@ protected:
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
-    double      lastUsersTrueAirspeed = 0.0;    ///< cached user's plane's air speed
+    double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
     double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
@@ -739,6 +755,10 @@ public:
                             int inStartIdx, int inNumAc);
 
 protected:
+    /// Find dataRef definition based on the pointer to its member variable
+    static const dataRefDefinitionT* FindDRDef (void* p);
+    /// Save config(change) info to the log
+    static void LogCfgSetting (void* p, int val);
     // a/c info
     bool FetchPAc ();
 
@@ -862,6 +882,16 @@ public:
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
+    bool GetDebugExportFD() const               { return bDebugExportFd; }
+    void SetDebugExportFD (bool bExport)        { bDebugExportFd = bExport; }
+    bool GetDebugExportUserAc() const           { return bDebugExportUserAc; }
+    void SetDebugExportUserAc (bool bExport)    { bDebugExportUserAc = bExport; }
+    void ExportUserAcData ();                   ///< Write out an export record for the user aircraft
+    bool ShallExportNormalizeTS () const        { return bDebugExportNormTS; }
+    
+    bool AnyExportData() const                  { return GetDebugExportFD() || GetDebugExportUserAc(); }
+    void SetAllExportData (bool bExport)        { SetDebugExportFD(bExport); SetDebugLogRawFD(bExport); }
+
     // livetraffic/dbg/model_matching: Debug Model Matching (by XPMP2)
     inline bool GetDebugModelMatching() const   { return bDebugModelMatching; }
     
@@ -911,6 +941,8 @@ public:
     double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
     /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
     double WeatherAltCorr_m (double pressureAlt_m) { return pressureAlt_m + altPressCorr_ft * M_per_FT; }
+    /// Compute pressure altitude [ft] from geometric altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    double WeatherPressureAlt_ft (double geoAlt_ft) { return geoAlt_ft - altPressCorr_ft; }
     /// Thread-safely gets current weather info
     void GetWeather (float& hPa, std::string& stationId, std::string& METAR);
 };

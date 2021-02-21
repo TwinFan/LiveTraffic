@@ -277,6 +277,9 @@ bool RealTrafficConnection::StartConnections()
     if (status == RT_STATUS_NONE)
         SetStatus(RT_STATUS_STARTING);
     
+    // Make sure weather is cleared
+    InitWeather();
+    
     // *** TCP server for RealTraffic to connect to ***
     if (!thrTcpRunning && !tcpPosSender.IsConnected()) {
         if (thrTcpServer.joinable())
@@ -716,10 +719,16 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         return false;
     }
     
+    // RealTraffic always sends data of 100km or so around current pos
+    // Filter data that the user didn't want based on settings
+    const positionTy viewPos = dataRefs.GetViewPos();
+    if ( pos.dist(viewPos) > dataRefs.GetFdStdDistance_m() )
+        return true;            // silently
+    
     try {
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated
-        std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+        std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
         
         // Check for duplicates with OGN/FLARM, potentially replaces the key type
         if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
@@ -732,7 +741,9 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
         std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-        
+        // now that we have the detail lock we can release the global one
+        mapFdLock.unlock();
+
         // completely new? fill key fields
         if ( fd.empty() )
             fd.SetKey(fdKey);

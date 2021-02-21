@@ -25,10 +25,6 @@
 #ifndef LTFlightData_h
 #define LTFlightData_h
 
-#include <mutex>
-#include <deque>
-#include "CoordCalc.h"
-
 // from LTChannel.h
 class LTChannel;
 
@@ -48,7 +44,6 @@ enum transpTy {
 //      Can be combined from multiple sources, key is transpIcao
 
 class LTAircraft;
-struct LTFlightDataList;
 class Apt;
 
 class LTFlightData
@@ -232,7 +227,7 @@ protected:
     
     // object valid? (will be re-set in case of exceptions)
     bool                bValid;
-    
+
 #ifdef DEBUG
 public:
     bool                bIsSelected = false;    // is selected aircraft for debugging/logging?
@@ -240,7 +235,13 @@ public:
 public:
     // the lock we use to update / fetch data for thread safety
     mutable std::recursive_mutex   dataAccessMutex;
-    
+    /// Export file for tracking data
+    static std::ofstream fileExport;
+    static double fileExportTsBase;         ///< when normalizing timestamps this is the base
+
+protected:
+    static std::string fileExportName;      ///< current export file's name
+
 protected:
     // find two positions around given timestamp ts (before <= ts < after)
     // pBefore and pAfter can come back NULL!
@@ -264,7 +265,7 @@ public:
     LTFlightData& operator=(const LTFlightData&);
     
     bool IsValid() const { return bValid; }
-    void SetInvalid();
+    void SetInvalid(bool bAlsoAc = true);
     
     // KEY into the map
     void SetKey    (const FDKeyTy& _key);
@@ -351,6 +352,7 @@ public:
     FDDynamicData WaitForSafeCopyDyn(bool bFirst = true) const;  // waits for lock and returns a copy
     FDDynamicData GetUnsafeDyn() const;                     // no lock, potentially inconsistent!
     bool GetCurrChannel (const LTChannel* &pChn) const;
+    dataRefsLT GetCurrChannel () const;                     ///< Current channel's id
     
     inline int GetRcvr() const { return rcvr; }
     
@@ -360,7 +362,33 @@ public:
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!
 
+    // Export of tracking data
+protected:
+    /// Temporary storage for data to be written to the export file
+    struct ExportDataTy {
+        unsigned long ts = 0;
+        std::string s;
+        ExportDataTy (unsigned long _ts, const char* _s) : ts(_ts), s(_s) {}
+        bool operator> (const ExportDataTy& o) const { return ts > o.ts; }
+    };
+    /// Export data needs to be sorted by timestampe, written out only when that timestamp passed
+    typedef std::priority_queue<ExportDataTy, std::deque<ExportDataTy>, std::greater<ExportDataTy> > quExportTy;
+    static quExportTy quExport;             ///< the priority queue holding data to be exported for sorting
+    /// Coordinates writing into the export file to avoid lines overwriting
+    static std::recursive_mutex exportFdMutex;
+    /// Export Flight Data to a file LTExportFD.csv
+    void ExportFD (const FDDynamicData& inDyn,
+                   const positionTy& pos);
+public:
+    /// Moves a line to the export priority queue, flushes data which is ready to be written
+    static void ExportAddOutput (unsigned long ts, const char* s);
+    /// Export Weather data record, based on DataRefs::GetWeather()
+    static void ExportLastWeather ();
+    /// @brief Open/Close the tracking data export file as needed
+    /// @return if file is now open
+    static bool ExportOpenClose ();
 
+public:
     //
     // Functions which should be called from within the X-Plane drawing thread
     // as XPLM and XPMP API functions are called
@@ -380,7 +408,6 @@ public:
 #ifdef DEBUG
     static void RemoveAllAcButSelected ();
 #endif
-    friend LTFlightDataList;
     
     // LTApt inserts positions during the "snap-to-taxiway" precedure
     friend Apt;
@@ -410,32 +437,5 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx);
 
 /// Find a/c by text, compares with key, call sigh, registration etc., passes pure numbers to mapFdAcByIdx()
 mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s);
-
-//
-// MARK: Ordered lists of flight data
-//       Note that included objects aren't valid for long!
-//       Usage in a flight loop callback is fine as deletion
-//       happens in a flight loop callback thread, too.
-//       Usage in other threads without mapFdMutex is not fine.
-//
-
-typedef std::vector<LTFlightData*> vecLTFlightDataRefTy;
-
-struct LTFlightDataList
-{
-    enum OrderByTy {
-        ORDR_UNKNOWN = 0,
-        // static fields
-        ORDR_REG, ORDR_AC_TYPE_ICAO, ORDR_CALL,
-        ORDR_ORIGIN_DEST, ORDR_FLIGHT, ORDR_OP_ICAO,
-        // dynamic fields
-        ORDR_DST, ORDR_SPD, ORDR_VSI, ORDR_ALT, ORDR_PHASE
-    } orderedBy = ORDR_UNKNOWN;
-    
-    vecLTFlightDataRefTy lst;
-    
-    LTFlightDataList ( OrderByTy ordrBy = ORDR_DST );
-    void ReorderBy ( OrderByTy ordrBy );
-};
 
 #endif /* LTFlightData_h */

@@ -130,7 +130,7 @@ float* LogLvlColor (logLevelTy _lvl);
 // Display AND log a message as above
 #define SHOW_MSG(lvl,...) {                                         \
     LOG_MSG(lvl,__VA_ARGS__);                                       \
-    CreateMsgWindow(WIN_TIME_DISPLAY,lvl,__VA_ARGS__);              \
+    CreateMsgWindow((lvl)==logERR || (lvl)==logFATAL ? WIN_TIME_DISP_ERR : WIN_TIME_DISPLAY,lvl,__VA_ARGS__);              \
 }
 
 // Throw in an assert-style (logging takes place in LTErrorFD constructor)

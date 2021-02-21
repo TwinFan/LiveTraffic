@@ -98,7 +98,7 @@ float COL_LVL[logMSG+1][4] = {          // text colors [RGB] depending on log le
     {0.7019607843f, 0.7137254902f, 0.7176470588f, 1.00f},       // DEBUG (very light gray)
     {1.00f, 1.00f, 1.00f, 1.00f},       // INFO (white)
     {1.00f, 1.00f, 0.00f, 1.00f},       // WARN (yellow)
-    {1.00f, 0.00f, 0.00f, 1.00f},       // ERROR (red)
+    {1.00f, .576f, 0.00f, 1.00f},       // ERROR (orange)
     {1.00f, 0.54f, 0.83f, 1.00f},       // FATAL (purple, FF8AD4)
     {1.00f, 1.00f, 1.00f, 1.00f}        // MSG (white)
 };
@@ -127,8 +127,16 @@ void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
     int l, t, r, b;
     XPLMGetWindowGeometry(in_window_id, &l, &t, &r, &b);
     
-    // Full as translucent dark box
+    // Fill as translucent dark box, in case of error messages (in not so well readable red)
+    // make the box 3 times so it appears darker
     XPLMDrawTranslucentDarkBox(l, t, r, b);
+    if (std::any_of(listTexts.cbegin(), listTexts.cend(),
+                    [](const dispTextTy& dt){return dt.lvlDisp == logERR || dt.lvlDisp == logFATAL;}))
+    {
+        XPLMDrawTranslucentDarkBox(l, t, r, b);
+        XPLMDrawTranslucentDarkBox(l, t, r, b);
+    }
+    
     
     b = WIN_WIDTH;                          // word wrap width = window width
     t -= WIN_ROW_HEIGHT;                    // move down to text's baseline

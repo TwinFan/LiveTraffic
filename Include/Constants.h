@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.40f;
+constexpr float VERSION_NR = 2.50f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -41,6 +41,7 @@ extern int verDateXPlaneOrg;        // and its date
 #define WIN_FROM_RIGHT    0
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
+constexpr int WIN_TIME_DISP_ERR=12;     // duration of displaying an error/fatal message
 constexpr float WIN_TIME_REMAIN=1.0f;   // seconds to keep the msg window after last message
 
 //MARK: Unit conversions
@@ -68,19 +69,23 @@ constexpr double FT_per_HPA     = (100/PA_per_M)/M_per_FT;
 
 //MARK: Flight Data-related
 constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)
+constexpr int    MAX_NUM_AIRCRAFT   = 200;      ///< maximum number of aircraft allowed to be rendered
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
+constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
 constexpr double PROBE_DELAY[]      = {  10,   1,0.5,    0.2};  // delay next Y-probe ... seconds.
 constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude for hover-along-the-runway detection
 constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), slope ratio for keeping a plane above the approach to a runway
-constexpr double BEZIER_MIN_HEAD_DIFF = 5.0;    ///< [°] turns of less than this will not be modeled with Bezier curves
+constexpr double BEZIER_MIN_HEAD_DIFF = 2.5;    ///< [°] turns of less than this will not be modeled with Bezier curves
+constexpr float  EXPORT_USER_AC_PERIOD = 15.0f; ///< [s] how often to write user's aircraft data into the export file
+constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's plabe
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
@@ -170,7 +175,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
 #define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f / %.2f)"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
-#define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s'"
+#define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s' (Flight model '%s')"
 #define INFO_GND_VEHICLE_APT    "Vehicle %s: Decided for ground vehicle based on operator name '%s'"
 #define INFO_GND_VEHICLE_CALL   "Vehicle %s: Decided for ground vehicle based on call sign '%s'"
 #define INFO_AC_REMOVED         "Removed aircraft %s"
@@ -226,6 +231,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_INFO_LIST_WND "Status / Info Window"
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
+#define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
 #define MENU_NEWVER             "New Version %01.2f available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
@@ -242,6 +248,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_ILW_STATUS         "using-lt/info-list-window/status-about"
 #define HELP_ILW_SETTINGS       "using-lt/info-list-window/ui-settings"
 #define HELP_AC_INFO_WND        "using-lt/aircraft-information-window"
+#define HELP_INSTALL_CSL        "setup/installation/step-by-step#csl-model-installation"
 #define HELP_SETTINGS           "setup/configuration#settings-ui"
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
@@ -265,7 +272,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define PATH_RESOURCES_CSL      "Resources/CSL"
 #define PATH_RESOURCES_SCSL     "Resources/ShippedCSL"
 // these are under X-Plane's root dir
-#define PATH_DEBUG_RAW_FD       "LTRawFD.log"   // this is under X-Plane's system dir
+#define PATH_DEBUG_RAW_FD       "LTRawFD.log"
+#define PATH_DEBUG_EXPORT_FD    "Output/LTExportFD - %Y-%m-%d %H.%M.%S.csv"
 #define PATH_RES_PLUGINS        "Resources/plugins"
 #define PATH_CONFIG_FILE        "Output/preferences/LiveTraffic.prf"
 // Standard path delimiter
@@ -347,6 +355,10 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_CSL_DISABLED    "CSL Path '%s' disabled, skipping"
 #define ERR_CFG_CSL_EMPTY       "CSL Path '%s' does not exist or is empty, skipping"
 #define ERR_CFG_CSL_NONE        "No valid CSL Paths configured, verify Settings > CSL!"
+#define ERR_CFG_CSL_ZERO_MODELS "No CSL Model has been (successfully) loaded, LiveTraffic cannot activate!"
+#define ERR_CFG_CSL_ONLY_CAR    "Only the follow-me car has been (successfully) loaded as CSL model. LiveTraffic can only draw cars!"
+#define ERR_CFG_CSL_ONLY_ONE    "Only one CSL model has been (successfully) loaded. LiveTraffic can only draw %s (%s)!"
+#define MSG_CFG_CSL_INSTALL     "For help see menu: Plugins > LiveTraffic > Help > " MENU_HELP_INSTALL_CSL
 #define ERR_CFG_AC_DEFAULT      "A/c default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_CAR_DEFAULT     "Car default ICAO type '%s' invalid, still using '%s' as default. Verify Settings > CSL!"
 #define ERR_CFG_TYPE_INVALID    "%s, line %d: ICAO type designator '%s' unknown"
@@ -374,15 +386,18 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_RECEIVED_BYTES      "%s: Received %ld characters"
 #define DBG_RAW_FD_START        "DEBUG Starting to log raw flight data to %s"
 #define DBG_RAW_FD_STOP         "DEBUG Stopped logging raw flight data to %s"
+#define DBG_EXPORT_FD_START     "Starting to export tracking data to %s"
+#define DBG_EXPORT_FD_STOP      "Stopped exporting tracking data to %s"
 #define DBG_RAW_FD_ERR_OPEN_OUT "DEBUG Could not open output file %s: %s"
 #define DBG_FILTER_AC           "DEBUG Filtering for a/c '%s'"
 #define DBG_FILTER_AC_REMOVED   "DEBUG Filtering for a/c REMOVED"
-#define DBG_MERGED_POS          "DEBUG MERGED POS %s into updated TS %.1f"
 #define DBG_POS_DATA            "DEBUG POS DATA: %s"
 #define DBG_KEEP_ABOVE          "DEBUG POS LIFTED TO 2.5deg GLIDESCOPE from %.0fft: %s"
 #define DBG_NO_MORE_POS_DATA    "DEBUG NO MORE LIVE POS DATA: %s"
-#define DBG_SKIP_NEW_POS        "DEBUG SKIPPED NEW POS: %s"
+#define DBG_SKIP_NEW_POS_TS     "DEBUG SKIPPED NEW POS (ts too close): %s"
+#define DBG_SKIP_NEW_POS_NOK    "DEBUG SKIPPED NEW POS (not OK next pos): %s"
 #define DBG_ADDED_NEW_POS       "DEBUG ADDED   NEW POS: %s"
+#define DBG_REMOVED_NOK_POS     "DEBUG REMOVED NOK POS: %s"
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"

@@ -1,18 +1,27 @@
-# platforms=win mac lin
-platforms=lin
-container=lt2-cross-compile-env
+platforms=win mac lin lin-bionic
+container_focal=twinfan/focal-win-mac-lin-compile-env:latest
+container_bionic=twinfan/bionic-lin-compile-env:latest
 
-# all: mac lin win
 all: $(platforms)
 
-.image: Dockerfile build.sh
-	docker build . -t $(container)
-	docker inspect -f "{{ .ID}}" $(container):latest > .image
+.image_bionic:
+	docker image pull $(container_bionic)
+	docker inspect -f "{{ .ID}}" $(container_bionic) > .image_bionic
 
-bash: .image
-	docker run -it --rm -v "$(realpath ..):/Src" --entrypoint bash $(container):latest
+.image_focal:
+	docker image pull $(container_focal)
+	docker inspect -f "{{ .ID}}" $(container_focal) > .image_focal
 
-$(platforms): .image
-	docker run -i --rm -v "$(realpath ..):/Src" $(container):latest $@
+bash_bionic: .image_bionic
+	docker run -it --rm -v "$(realpath ..):/build" --entrypoint bash $(container_bionic)
 
-.PHONY: $(platforms) bash
+bash_focal: .image_focal
+	docker run -it --rm -v "$(realpath ..):/build" --entrypoint bash $(container_focal)
+
+lin-bionic: .image_bionic
+	docker run -i --rm -v "$(realpath ..):/build" --entrypoint docker/build.sh $(container_bionic) $@
+
+lin win mac: .image_focal
+	docker run -i --rm -v "$(realpath ..):/build" --entrypoint docker/build.sh $(container_focal) $@
+
+.PHONY: $(platforms) bash_bionic bash_focal

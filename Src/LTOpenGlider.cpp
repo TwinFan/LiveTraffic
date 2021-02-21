@@ -227,7 +227,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
-            std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
             
             // get the fd object from the map
             // this fetches an existing or, if not existing, creates a new one
@@ -236,7 +236,9 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls
             std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-            
+            // now that we have the detail lock we can release the global one
+            mapFdLock.unlock();
+
             // completely new? fill key fields and define static data
             // (for OGN we only define static data initially,
             //  it has no changing elements, and ICAO a/c type derivation
@@ -569,7 +571,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     try {
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated
-        std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+        std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
         
         // get the fd object from the map
         // this fetches an existing or, if not existing, creates a new one
@@ -578,7 +580,9 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
         std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-        
+        // now that we have the detail lock we can release the global one
+        mapFdLock.unlock();
+
         // completely new? fill key fields and define static data
         // (for OGN we only define static data initially,
         //  it has no changing elements, and ICAO a/c type derivation
@@ -734,7 +738,7 @@ bool OpenGliderConnection::LookupAcList (const std::string& sDevId,
         
         // based on the model information look up an ICAO a/c type
         if (!stat.mdl.empty())
-            stat.acTypeIcao = ModelIcaoType::getIcaoType(str_toupper_c(stat.mdl));
+            stat.acTypeIcao = ModelIcaoType::getIcaoType(stat.mdl);
     } else {
         // clear the record again (potentially used as buffer during lookup)
         // This will also CLEAR the TRACKED and IDENTIFIED flags

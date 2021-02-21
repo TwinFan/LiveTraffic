@@ -161,7 +161,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
-            std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
             
             // Check for duplicates with OGN/FLARM, potentially replaces the key type
             LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
@@ -173,6 +173,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls
             std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+            // now that we have the detail lock we can release the global one
+            mapFdLock.unlock();
             
             // completely new? fill key fields
             if ( fd.empty() )
@@ -827,7 +829,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             try {
                 // from here on access to fdMap guarded by a mutex
                 // until FD object is inserted and updated
-                std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
+                std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
                 
                 // get the fd object from the map, key is the transpIcao
                 // this fetches an existing or, if not existing, creates a new one
@@ -838,7 +840,9 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 // also get the data access lock once and for all
                 // so following fetch/update calls only make quick recursive calls
                 std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-                
+                // now that we have the detail lock we can release the global one
+                mapFdLock.unlock();
+
                 // completely new? fill key fields
                 if ( fd.empty() )
                     fd.SetKey(fdKey);
@@ -979,9 +983,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                             {
                                 // aircraft model to use
                                 const LTAircraft::FlightModel& mdl =
-                                fd.hasAc() ? fd.GetAircraft()->mdl :
-                                LTAircraft::FlightModel::FindFlightModel(fd.GetUnsafeStat().acTypeIcao);
-                                
+                                LTAircraft::FlightModel::FindFlightModel(fd);
                                 
                                 // this is the Landing case
                                 // we look for the VSI of the last two already
