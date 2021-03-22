@@ -495,6 +495,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/hide_parking",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -568,6 +569,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_HIDE_PARKING:           return &hideParking;
         case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;

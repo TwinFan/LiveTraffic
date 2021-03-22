@@ -32,21 +32,6 @@
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "535"
                   endingLineNumber = "535"
-                  offsetFromSymbolStart = "487">
-               </Location>
-               <Location
-                  uuid = "30E9DE7F-2D41-4C3D-88CF-DF3548EA7D8A - bbf4af6fd9ba6f3c"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "LTError::LTError(char const*, int, char const*, logLevelTy, char const*, ...)"
-                  moduleName = "LiveTraffic.xpl"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/birger/Programming/XPlane/LiveTraffic/Src/TextIO.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "535"
-                  endingLineNumber = "535"
                   offsetFromSymbolStart = "478">
                </Location>
                <Location
