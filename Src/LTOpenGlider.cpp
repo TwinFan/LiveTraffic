@@ -992,13 +992,18 @@ const char* OGNGetAcTypeName (FlarmAircraftTy _acTy)
 // Return a matching ICAO type code per FLARM a/c type
 const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy)
 {
-    const std::vector<std::string>& icaoTypes = dataRefs.aFlarmToIcaoAcTy[_acTy];
-    if (icaoTypes.empty()) return dataRefs.GetDefaultAcIcaoType();
-    if (icaoTypes.size() == 1) return icaoTypes.front();
-    // more than one type defined, take a random pick
-    const size_t i = (size_t)randoml(0, long(icaoTypes.size())-1);
-    assert(0 <= i && i < icaoTypes.size());
-    return icaoTypes[i];
+    try {
+        const std::vector<std::string>& icaoTypes = dataRefs.aFlarmToIcaoAcTy.at(_acTy);
+        if (icaoTypes.empty()) return dataRefs.GetDefaultAcIcaoType();
+        if (icaoTypes.size() == 1) return icaoTypes.front();
+        // more than one type defined, take a random pick
+        const size_t i = (size_t)randoml(0, long(icaoTypes.size()) - 1);
+        assert(0 <= i && i < icaoTypes.size());
+        return icaoTypes[i];
+    }
+    catch (...) {
+        return dataRefs.GetDefaultAcIcaoType();
+    }
 }
 
 // Fill defaults for FLARM aircraft types were not existing
