@@ -2448,6 +2448,10 @@ bool LTAircraft::CalcVisible ()
     else if (dataRefs.GetHideTaxiing() &&
         (phase == FPH_TAXI || phase == FPH_STOPPED_ON_RWY))
         XPMP2::Aircraft::SetVisible(false);
+    // hide while parking at a startup position?
+    else if (dataRefs.GetHideParking() &&
+             ppos.f.specialPos == SPOS_STARTUP)
+        XPMP2::Aircraft::SetVisible(false);
     // hide below certain height...and we are below that?
     else if (dataRefs.GetHideBelowAGL() > 0 &&
              GetPHeight_ft() < dataRefs.GetHideBelowAGL())

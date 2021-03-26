@@ -295,4 +295,5 @@ MediumJets     .*
 ^MEDIC[[:digit:]]*$
 ^FIRE[[:digit:]]*$
 ^ARFF[[:digit:]]*$
+^TXLU[[:digit:]]*$
 ^MICC$

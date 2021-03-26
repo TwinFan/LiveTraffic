@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -62,12 +62,40 @@
     
     <h2>v2.5</h2>
     
-    <h3>v2.50</h3>
-    
-    <P>Update: In case of doubt you can always just copy all files from the archive
+    <h3>v2.51</h3>
+
+    <P><B>Update:</B> In case of doubt you can always just copy all files from the archive
     over the files of your existing installation.</P>
 
     <P>At least copy the following files, which have changed compared to v2.40:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+            <li><code>Resources/related.txt</code></li>
+            <li><code>Resources/FlightModels.prf</code></li>
+            <li><code>Resources/SendTraffic.py</code></li>
+        </ul>
+    </p>
+
+    <P><b>Change log:</b></P>
+
+    <ul>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/214">#214</a> an option to hide aircraft parking at gates or ramp positions to
+            Settings > Basics > <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Cooperation</a>.</li>
+        <li>ADDED Dassault 3-engine jets to <code>related.txt</code>,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/240048-fa7x-display/">see here</a></li>
+        <li>ADDED enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2160931">see here</a>.</li>
+        <li>FIXED LiveTraffic to be compatible again with XP 11.41 and before (down to XP11.10),
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/240699-just-downloaded-and-installed-v250-wont-load-plugin/">see here</a></li>
+        <li>FIXED crash when receiving unknown aircraft type with OpenGlider Network channel,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/">see here</a></li>
+        <li>FIXED <code>SendTraffic.py</code> to be compatible with Python 3.5 upwards,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/&do=findComment&comment=2148802">see here</a></li>
+    </ul>
+
+    <h3>v2.50</h3>
+
+    <P>Update: At least copy the following files, which have changed compared to v2.40:</P>
         <ul>
             <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,
                 <ul>
@@ -87,7 +115,6 @@
                 </ul>
             </li>
         </ul>
-        
     </p>
 
     <P>Change log:</P>

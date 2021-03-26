@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 project(LiveTraffic
-        VERSION 2.41
+        VERSION 2.51
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 ################################################################################

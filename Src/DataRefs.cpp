@@ -29,6 +29,8 @@
 #include <fstream>
 #include <errno.h>
 
+constexpr int DEFAULT_MODES_ID = 0xFFFF00;  ///< used if no modeS id is available for user aircraft while exporting data
+
 //
 //MARK: external references
 //
@@ -493,6 +495,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_taxiing",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/hide_parking",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -566,6 +569,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
+        case DR_CFG_HIDE_PARKING:           return &hideParking;
         case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
@@ -760,7 +764,9 @@ bool DataRefs::Init ()
             if (i != DR_VR_ENABLED &&
                 i != DR_MODERN_DRIVER &&
                 i != DR_CAMERA_TCAS_IDX &&      // don't insist on publishing the a/c under camera
-                i != DR_CAMERA_AC_ID) {
+                i != DR_CAMERA_AC_ID &&
+                i != DR_PLANE_MODES_ID)         // Came with XP 11.50 only
+            {
                 LOG_MSG(logFATAL,ERR_DATAREF_FIND,DATA_REFS_XP[i]);
                 return false;
             }
@@ -1013,11 +1019,18 @@ void DataRefs::ExportUserAcData()
     XPLMGetDatab(adrXP[DR_PLANE_REG],  userReg,  0, sizeof(userReg)-1);
     userIcao[sizeof(userIcao)-1] = 0;           // I trust nobody: zero-termination
     userReg[sizeof(userReg)-1] = 0;
+    
+    // modeS ID is only available from XP 11.50 onward
+    int modeS_ID = 0;
+    if (adrXP[DR_PLANE_MODES_ID])
+        modeS_ID = XPLMGetDatai(adrXP[DR_PLANE_MODES_ID]);
+    if (!modeS_ID)
+        modeS_ID = DEFAULT_MODES_ID;
 
     // output a tracking data record
     char buf[256];
     snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
-             XPLMGetDatai(adrXP[DR_PLANE_MODES_ID]),
+             modeS_ID,
              lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),
              nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())),
              XPLMGetDataf(adrXP[DR_PLANE_VVI]),

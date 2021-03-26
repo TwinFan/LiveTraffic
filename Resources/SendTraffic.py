@@ -10,7 +10,7 @@ For usage info call
 
 MIT License
 
-Copyright (c) 2020 B.Hoppe
+Copyright (c) 2021 B.Hoppe
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ def compWaitTS(ts_s: str) -> str:
     if not _tsDiff:
         _tsDiff = now - ts - args.bufPeriod
         if args.verbose:
-            print (f"Timestamp difference: {_tsDiff}")
+            print ("Timestamp difference: {}".format(_tsDiff))
 
     # What's the required timestamp to wait for and then return?
     ts += _tsDiff
@@ -59,7 +59,7 @@ def compWaitTS(ts_s: str) -> str:
     # if that's in the future then wait
     if (ts > now):
         if args.verbose:
-            print (f"Waiting for {ts-now} seconds...", end='\r')
+            print ("Waiting for {} seconds...".format(ts-now), end='\r')
         time.sleep (ts-now)
 
     # Adjust returned timestamp value for historic timestamp
@@ -72,9 +72,9 @@ def sendTrafficData(ln: str, doSend: int) -> int:
     # split into its fields
     fields = ln.split(',')
 
-    # should have found 16 fields!
+    # should have found 15 fields!
     if len(fields) != 15:
-        print (f"Found {len(fields)} fields, expected 16, in line {ln}")
+        print ("Found {} fields, expected 15, in line {}".format(len(fields), ln))
         return 0
 
     # Test if a selected aircraft
@@ -100,7 +100,7 @@ def sendWeatherData(ln: str) -> int:
 """ === MAIN === """
 
 # --- Handling command line argumens ---
-parser = argparse.ArgumentParser(description='SendTraffic 1.0: Sends air traffic tracking data from a file out on a UDP port for LiveTraffic to receive it on the RealTraffic channel. '
+parser = argparse.ArgumentParser(description='SendTraffic 1.0.1: Sends air traffic tracking data from a file out on a UDP port for LiveTraffic to receive it on the RealTraffic channel. '
     'In LiveTraffic, activate the "RealTraffic" channel to receive the data and have it displayed as moving planes. '
     'From LiveTraffic, you can also export tracking data in a matching format using the Debug options "Export Tracking Data" and/or "Export User Aircraft". '
     'The latter allows you to fly yourself and have your aircraft\'s movements written as tracking data. '
@@ -132,7 +132,7 @@ if args.aircraftDecimal is not None:
 
 # print list
 if _ac and args.verbose:
-    print (f"Selected aircraft: {_ac}")
+    print ("Selected aircraft: {}".format(_ac))
 
 # --- open the UDP socket ---
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
