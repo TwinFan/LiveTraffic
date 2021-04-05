@@ -296,4 +296,11 @@ MediumJets     .*
 ^FIRE[[:digit:]]*$
 ^ARFF[[:digit:]]*$
 ^TXLU[[:digit:]]*$
+^FOLLOW[[:digit:]]*$
+^POZAR[[:digit:]]*$
+^PTACNIK[[:digit:]]*$
+^AIRPORT[[:digit:]]*$
+^YELLOW[[:digit:]]*$
+^HERON[[:digit:]]*$
+^RANGER[[:digit:]]*$
 ^MICC$
