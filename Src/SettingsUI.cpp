@@ -943,6 +943,16 @@ void LTSettingsUI::buildInterface()
                     DataRefs::LTSetDebugAcFilter(NULL,0);
             }
 
+            if (ImGui::FilteredInputText("Dump apt layout", sFilter, txtAptDump, fSmallWidth,
+                                         "Dump internal airport layout data\nthat can be displayed using GPS Visualizer", flags))
+            {
+                if (LTAptDump(txtAptDump)) {
+                    SHOW_MSG(logMSG, "Dumped airport layout of %s", txtAptDump.c_str());
+                } else {
+                    SHOW_MSG(logERR, "FAILED dumping airport layout of %s! Does this airport exist?", txtAptDump.c_str());
+                }
+            }
+
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Debug ---

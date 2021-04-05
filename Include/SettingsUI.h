@@ -68,6 +68,7 @@ protected:
     std::string txtFixAcType;       ///< fixed aircraft type
     std::string txtFixOp;           ///< fixed operator
     std::string txtFixLivery;       ///< fixed livery
+    std::string txtAptDump;         ///< airport id for dumping
 public:
     /// Constructor creates and displays the window
     LTSettingsUI();
