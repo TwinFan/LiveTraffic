@@ -39,6 +39,40 @@ import argparse                     # handling command line arguments
 
 _tsDiff = 0
 
+# User's position as received from UDP 49002:
+# latitude, longitude, altitude above MSL in meters, track in degress, ground speed in meters per second
+class position(object):
+    __slots__ = ['lat', 'lon', 'alt_m', 'track', 'gndSpd_m_per_s']
+    def __init__(self):
+        self.lat = float('NaN')
+        self.lon = float('NaN')
+        self.alt_m = float('NaN')
+        self.track = float('NaN')
+        self.gndSpd_m_per_s = float('NaN')
+
+    def alt_ft(self) -> float:                      # convert altitude to feet
+        return self.alt_m * 3.28084
+
+    def gndSpd_kn(self) -> float:                   # convert speed to knots
+        return self.gndSpd_m_per_s * 1.943844
+
+    def printPos(self):
+        print("User's position: %7.6f/%7.6f, altitude = %1.0f ft, track = %3.0f deg, gnd speed = %2.1f kn" \
+            %(self.lat, self.lon, self.alt_ft(), self.track, self.gndSpd_kn()))
+
+    def updateFrom(self,ln: str):                   # update values by reading them from an XGPS line as broadcasted on port 49002
+        fields = ln.split(',')
+        if len(fields) >= 3:                        # at least lat/lon
+            self.lat = float(fields[1])
+            self.lon = float(fields[2])
+        if len(fields) >= 6:                        # also the others
+            self.alt_m = float(fields[3])
+            self.track = float(fields[4])
+            self.gndSpd_m_per_s = float(fields[5])
+
+# one global object with the user's position
+userPos = position()
+
 """ === Compute and wait for timestamp """
 def compWaitTS(ts_s: str) -> str:
     global _tsDiff
@@ -97,6 +131,30 @@ def sendWeatherData(ln: str) -> int:
         print (ln)
     return 1
 
+""" === Open listening port for user's position === """
+def openUserPosPort():
+    global sockPos
+    sockPos = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sockPos.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if sys.platform != "win32":
+	    sockPos.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    sockPos.setblocking(False)
+    sockPos.bind(('', 49002))           # 49002 is the standard port for ForeFlight GPS data
+
+""" === Read available position data from UDP === """
+def updateUserPos():
+    try:
+        while 1:                        # read all available data from the UDP buffer
+            ln = sockPos.recv(4096).decode()
+            if ln.startswith('XGPS'):   # is this actually a user's position record?
+                userPos.updateFrom(ln)
+                if args.printUserPos:
+                    userPos.printPos()  # output for debugging purposes
+
+    except:
+        return
+    return
+
 """ === MAIN === """
 
 # --- Handling command line argumens ---
@@ -116,6 +174,8 @@ parser.add_argument('--host', metavar='NAME_OR_IP', help='UDP target host or ip 
 parser.add_argument('--port', metavar='NUM', help='UDP port to send traffic data to, defaults to 49003', type=int, default=49003)
 parser.add_argument('--weatherPort', metavar='NUM', help='UDP port to send weather data to, defaults to 49004', type=int, default=49004)
 parser.add_argument('-v', '--verbose', help='Verbose output: Informs of each sent record', action='store_true')
+parser.add_argument('-u', '--getUserPos', help='Developer demo: Get user aircraft\'s position by reading from UDP port 49002; activate ForeFlight output in LiveTraffic, or "Broadcast to all third-party apps" in X-Plane\'s Network settings.', action='store_true')
+parser.add_argument('-up', '--printUserPos', help='Requires -u, then it prints each received user aircraft position to stdout.', action='store_true')
 
 args = parser.parse_args()
 
@@ -136,6 +196,8 @@ if _ac and args.verbose:
 
 # --- open the UDP socket ---
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+if args.getUserPos:
+    openUserPosPort()
 
 # Outer loop helps with endless looping
 _sendLn = 1
@@ -143,6 +205,10 @@ while 1:
     _tsDiff = 0
     # --- open and loop the input file ---
     for line in args.inFile:
+        # Update user's position if available
+        if args.getUserPos:
+            updateUserPos()
+
         # remove any whitespace at both ends
         line = line.strip()
 
@@ -160,5 +226,7 @@ while 1:
     args.inFile.seek(0, os.SEEK_SET)    # restart file from beginning
 
 # --- Cleanup ---
-args.inFile.close;
-sock.close;
+args.inFile.close
+sock.close
+if args.getUserPos:
+    sockPos.close
