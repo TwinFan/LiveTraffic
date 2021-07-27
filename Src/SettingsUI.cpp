@@ -210,12 +210,22 @@ void LTSettingsUI::buildInterface()
 
         // MARK: --- Input Channels ---
         if (ImGui::TreeNodeLinkHelp("Input Channels", nCol,
-                                    !LTFlightDataAnyTrackingChEnabled() ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
-                                    ERR_CH_NONE_ACTIVE1,
+                                    (!LTFlightDataAnyTrackingChEnabled() || LTFlightDataAnyChInvalid()) ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    LTFlightDataAnyChInvalid() ? ERR_CH_INACTIVE1 : ERR_CH_NONE_ACTIVE1,
                                     HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
                                     sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
+            // --- Restart inactive channels ---
+            if (LTFlightDataAnyChInvalid())
+            {
+                if (ImGui::FilteredLabel(ICON_FA_EXCLAMATION_TRIANGLE " There are stopped channels:", sFilter)) {
+                    if (ImGui::ButtonTooltip(ICON_FA_UNDO " Restart Stopped Channels", "Restarts all channels that got temporarily inactivated"))
+                        LTFlightDataRestartInvalidChs();
+                    ImGui::TableNextCell();
+                }
+            }
+            
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",

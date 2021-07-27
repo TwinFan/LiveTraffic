@@ -379,6 +379,18 @@ void InfoListWnd::buildInterface()
 
                             // Status of channels
                             
+                            // Are there invalid channels?
+                            if (LTFlightDataAnyChInvalid())
+                            {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(1)) {
+                                    ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " ERR_CH_INACTIVE1 " ");
+                                    ImGui::SameLine();
+                                    if (ImGui::ButtonTooltip(ICON_FA_UNDO " Restart Stopped Channels", "Restarts all channels that got temporarily inactivated"))
+                                        LTFlightDataRestartInvalidChs();
+                                }
+                            }
+                            
                             // No tracking data channel enabled?
                             if (!LTFlightDataAnyTrackingChEnabled())
                             {

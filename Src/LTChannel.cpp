@@ -142,21 +142,16 @@ void LTChannel::SetValid (bool _valid, bool bMsg)
 {
     // (re)set to valid channel
     if (_valid) {
+        if (!bValid && bMsg) {
+            LOG_MSG(logINFO, INFO_CH_RESTART, ChName());
+        }
         errCnt = 0;
         bValid = true;
     } else {
-        // set invalid, also means: disable
+        // set invalid
         bValid = false;
-        SetEnable (false);
         if (bMsg)
             SHOW_MSG(logFATAL,ERR_CH_INVALID,ChName());
-        
-        // there is no other place in the code to actually re-validate a channel
-        // so as surprising as it sounds: we do it right here:
-        // That way the user has a chance by actively reenabling the channel
-        // in the settings to try again.
-        errCnt = 0;
-        bValid = true;
     }
 }
 
@@ -336,8 +331,8 @@ netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
 netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
 curl_errtxt{0}, httpResponse(HTTP_OK)
 {
-    // initialize a CURL handle
-    SetValid(InitCurl());
+    // initialize a CURL handle (sets invalid if it fails)
+    InitCurl();
 }
 
 LTOnlineChannel::~LTOnlineChannel ()
@@ -365,7 +360,7 @@ bool LTOnlineChannel::InitCurl ()
     {
         // something went wrong
         LOG_MSG(logFATAL,ERR_CURL_EASY_INIT);
-        SetValid(false);
+        SetValid(false, false);
         return false;
     }
     
@@ -602,13 +597,6 @@ bool LTFlightDataEnable()
         listFDC.emplace_back(new ForeFlightSender(mapFd));
     }
     
-    // check for validity after construction, disable all invalid ones
-    for ( ptrLTChannelTy& p: listFDC )
-    {
-        if (!p->IsValid())
-            p->SetEnable(false);
-    }
-    
     // Success only if there are still connections left
     return listFDC.size() > 0;
 }
@@ -785,13 +773,30 @@ void LTFlightDataHideAircraft()
 // Is at least one tracking data channel enabled?
 bool LTFlightDataAnyTrackingChEnabled ()
 {
-    return (!listFDC.empty() &&
-            std::find_if(listFDC.cbegin(), listFDC.cend(),
-                         [](const ptrLTChannelTy& pCh)
-                         { return pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
-                                  pCh->IsEnabled(); }) != listFDC.cend());
+    return std::any_of(listFDC.cbegin(), listFDC.cend(),
+                       [](const ptrLTChannelTy& pCh)
+                       { return pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
+                                pCh->IsEnabled(); });
 }
                          
+
+// Is any channel invalid?
+bool LTFlightDataAnyChInvalid ()
+{
+    return std::any_of(listFDC.cbegin(), listFDC.cend(),
+                       [](const ptrLTChannelTy& pCh)
+                       { return !pCh->IsValid(); });
+}
+
+
+// Restart all invalid channels (set valid)
+void LTFlightDataRestartInvalidChs ()
+{
+    for (ptrLTChannelTy& pCh: listFDC)
+        if (!pCh->IsValid())
+            pCh->SetValid(true, true);
+}
+
 
 //
 //MARK: Aircraft Maintenance

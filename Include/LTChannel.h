@@ -69,7 +69,7 @@ private:
     int errCnt;                     // number of errors tolerated
 
 public:
-    LTChannel (dataRefsLT ch) : channel(ch), bValid(false), errCnt(0) {}
+    LTChannel (dataRefsLT ch) : channel(ch), bValid(true), errCnt(0) {}
     virtual ~LTChannel ();
     
 public:
@@ -245,8 +245,9 @@ void LTFlightDataHideAircraft();
 void LTFlightDataDisable();
 void LTFlightDataStop();
 
-/// Is at least one tracking data channel enabled?
-bool LTFlightDataAnyTrackingChEnabled ();
+bool LTFlightDataAnyTrackingChEnabled ();   ///< Is at least one tracking data channel enabled?
+bool LTFlightDataAnyChInvalid ();           ///< Is any channel invalid?
+void LTFlightDataRestartInvalidChs ();      ///< Restart all invalid channels (set valid)
 
 //
 //MARK: Aircraft Maintenance (called from flight loop callback)
