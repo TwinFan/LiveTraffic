@@ -125,7 +125,6 @@ public:
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
     virtual bool IsLiveFeed() const { return true; }
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual const char* ChName() const { return ADSBEX_NAME; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
@@ -199,7 +198,6 @@ public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual bool IsLiveFeed() const { return false; }
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual const char* ChName() const { return ADSBEX_HIST_NAME; }
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 

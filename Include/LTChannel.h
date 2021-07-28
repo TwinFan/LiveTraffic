@@ -60,20 +60,19 @@ public:
     std::string urlLink;            ///< an URL related to that channel, eg. a radar view for testing coverage, or a home page
     std::string urlName;            ///< Name for the URL, could show on link buttons
     std::string urlPopup;           ///< more detailed text, shows eg. as popup when hovering over the link button
+    const char* const pszChName;    ///< the cahnnel's name
+    const dataRefsLT channel;       ///< id of channel (see dataRef)
     
-protected:
-    dataRefsLT channel;             // id of channel (see dataRef)
-
 private:
-    bool bValid;                    // valid connection?
-    int errCnt;                     // number of errors tolerated
+    bool bValid = true;             ///< valid connection?
+    int errCnt = 0;                 ///< number of errors tolerated
 
 public:
-    LTChannel (dataRefsLT ch) : channel(ch), bValid(true), errCnt(0) {}
-    virtual ~LTChannel ();
+    LTChannel (dataRefsLT ch, const char* chName) : pszChName(chName), channel(ch) {}
+    virtual ~LTChannel () {}
     
 public:
-    virtual const char* ChName() const = 0;
+    const char* ChName() const { return pszChName; }
     inline dataRefsLT GetChannel() const { return channel; }
     
     virtual bool IsLiveFeed () const = 0;
@@ -191,6 +190,7 @@ class LTOnlineChannel : virtual public LTChannel
 {
 protected:
     CURL* pCurl;                    // handle into CURL
+    int nTimeout;                   ///< current network timeout of this channel
     char* netData;                  // where the response goes
     size_t netDataPos;              // current write pos into netData
     size_t netDataSize;             // current size of netData

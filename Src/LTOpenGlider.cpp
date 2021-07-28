@@ -109,7 +109,7 @@ constexpr const char* OGN_APRS_LOGIN_GOOD   = "# logresp LiveTrffc unverified, s
 
 // Constructor
 OpenGliderConnection::OpenGliderConnection () :
-LTChannel(DR_CHANNEL_OPEN_GLIDER_NET),
+LTChannel(DR_CHANNEL_OPEN_GLIDER_NET, OPGLIDER_NAME),
 LTOnlineChannel(),
 LTFlightDataChannel()
 {

@@ -589,7 +589,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
             
                 if (!*sFilter) ImGui::TreePop();
             }

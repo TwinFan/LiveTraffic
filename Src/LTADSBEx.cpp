@@ -35,7 +35,7 @@
 //
 
 ADSBExchangeConnection::ADSBExchangeConnection () :
-LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE),
+LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME),
 LTOnlineChannel(),
 LTFlightDataChannel()
 {
@@ -516,7 +516,7 @@ size_t ADSBExchangeConnection::DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t n
 //
 ADSBExchangeHistorical::ADSBExchangeHistorical (std::string base,
                                                 std::string fallback ) :
-LTChannel(DR_CHANNEL_ADSB_EXCHANGE_HISTORIC),
+LTChannel(DR_CHANNEL_ADSB_EXCHANGE_HISTORIC, ADSBEX_HIST_NAME),
 LTFileChannel(),
 LTFlightDataChannel()
 {

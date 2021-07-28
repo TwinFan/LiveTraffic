@@ -158,7 +158,6 @@ public:
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
     bool IsLiveFeed() const override { return true; }
     LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
-    const char* ChName() const override { return OPGLIDER_NAME; }
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
     void DoDisabledProcessing() override { Cleanup(); }

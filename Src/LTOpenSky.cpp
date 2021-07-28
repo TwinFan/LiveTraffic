@@ -31,7 +31,7 @@
 
 // Constructor
 OpenSkyConnection::OpenSkyConnection () :
-LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE),
+LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE, OPSKY_NAME),
 LTOnlineChannel(),
 LTFlightDataChannel()
 {
@@ -204,7 +204,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 
 // Constructor
 OpenSkyAcMasterdata::OpenSkyAcMasterdata () :
-LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA),
+LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME),
 LTOnlineChannel(),
 LTACMasterdataChannel()
 {
@@ -276,11 +276,8 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         bChannelOK = true;
                         break;
                     case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                        invIcaos.emplace_back(info.acKey.key);
-                        bChannelOK = true;              // but technically a valid response
-                        break;
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
-                        invCallSigns.emplace_back(info.callSign);
+                        invIcaos.emplace_back(info.acKey.key);
                         bChannelOK = true;              // but technically a valid response
                         break;
                         // in all other cases (including 503 HTTP_NOT_AVAIL)
@@ -329,10 +326,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         data += netData;                // add the response
                         bChannelOK = true;
                         break;
-                    case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                        invCallSigns.emplace_back(info.callSign);
-                        bChannelOK = true;              // but technically a valid response
-                        break;
+                    case HTTP_NOT_FOUND:                // doesn't know callsign, don't query again
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
                         invCallSigns.emplace_back(info.callSign);
                         bChannelOK = true;              // but technically a valid response

@@ -135,9 +135,6 @@ double jag_n_nan (const JSON_Array *array, size_t idx)
 //MARK: LTChannel
 //
 
-LTChannel::~LTChannel ()
-{}
-
 void LTChannel::SetValid (bool _valid, bool bMsg)
 {
     // (re)set to valid channel
@@ -327,6 +324,7 @@ std::ofstream LTOnlineChannel::outRaw;
 
 LTOnlineChannel::LTOnlineChannel () :
 pCurl(NULL),
+nTimeout(dataRefs.GetNetwTimeout()),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
 netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
 curl_errtxt{0}, httpResponse(HTTP_OK)
@@ -366,7 +364,7 @@ bool LTOnlineChannel::InitCurl ()
     
     // define the handle
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, nTimeout);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
@@ -485,44 +483,63 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // put together the REST request
     curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(pCurl, CURLOPT_BUFFERSIZE, netDataSize );
-    
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, nTimeout);
+
     // get fresh data via the internet
     // this will take a second or more...don't try in render loop ;)
     // it is assumed that this is called in a separate thread,
     // hence we can use the simple blocking curl_easy_ call
     netDataPos = 0;                 // fill buffer from beginning
     netData[0] = 0;
-    // LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
     DebugLogRaw(url.c_str());
-    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
-    {
-        // problem with querying revocation list?
-        if (IsRevocationError(curl_errtxt)) {
-            // try not to query revoke list
-            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
-            // and just give it another try
-            cc = curl_easy_perform(pCurl);
-        }
+    
+    // perform the request and take its time
+    std::chrono::time_point<std::chrono::steady_clock> tStart = std::chrono::steady_clock::now();
+    httpResponse = 0;
+    cc=curl_easy_perform(pCurl);
+    std::chrono::time_point<std::chrono::steady_clock> tEnd = std::chrono::steady_clock::now();
 
-        // if (still) error, then log error and bail out
-        if (cc != CURLE_OK) {
+    // Give it another try in case of revocation list issues
+    if ( cc != CURLE_OK && IsRevocationError(curl_errtxt)) {
+        // try not to query revoke list
+        curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+        LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
+        // and just give it another try
+        tStart = std::chrono::steady_clock::now();
+        cc = curl_easy_perform(pCurl);
+        tEnd = std::chrono::steady_clock::now();
+    }
+
+    // if (still) error, then log error and bail out
+    if (cc != CURLE_OK) {
+        
+        // In case of timeout increase the channel's timeout and don't count it as an error
+        if (cc == CURLE_OPERATION_TIMEDOUT) {
+            LOG_MSG(logWARN, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
+            nTimeout = std::min (nTimeout * 2,
+                                 dataRefs.GetNetwTimeout());
+            LOG_MSG(logWARN, "%s: Timeout increased to %ds", ChName(), nTimeout);
+        } else {
             SHOW_MSG(logERR, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
             IncErrCnt();
-            return false;
         }
+        
+        return false;
     }
-    
+
     // check HTTP response code
-    httpResponse = 0;
     curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-    
     switch (httpResponse) {
         case HTTP_OK:
-            // log number of bytes received
-            // LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+            // Based on actual time take set a new network timeout as twice the response time
+        {
+            const std::chrono::seconds d = std::chrono::duration_cast<std::chrono::seconds>(tEnd - tStart);
+            nTimeout = std::clamp<int> ((int)d.count() * 2,
+                                        std::max(MIN_NETW_TIMEOUT,nTimeout/2),  // this means the in case of a reduction we reduce to now less than half the previous value
+                                        dataRefs.GetNetwTimeout());
+//            LOG_MSG(logWARN, "%s: Timeout set to %ds", ChName(), nTimeout);
             break;
-            
+        }
         case HTTP_NOT_FOUND:
             // not found is typically handled separately, so only debug-level
             LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());

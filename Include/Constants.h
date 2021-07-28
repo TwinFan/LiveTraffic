@@ -290,7 +290,10 @@ constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
-constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
+constexpr long HTTP_BAD_GATEWAY =   502;        // typical cloudflare responses: Bad Gateway
+constexpr long HTTP_NOT_AVAIL =     503;        //                               Service not available
+constexpr long HTTP_GATEWAY_TIMEOUT=504;        //                               Gateway Timeout
+constexpr long HTTP_TIMEOUT =       524;        //                               Connection Timeout
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
