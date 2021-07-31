@@ -155,7 +155,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                         jog_sn_nan(pJAc, ADSBEX_LON),
                         NAN,
                         posTime);
-        if ( pos.dist(viewPos) > dataRefs.GetFdStdDistance_m() )
+        const double dist = pos.dist(viewPos);
+        if (dist > dataRefs.GetFdStdDistance_m() )
             continue;
 
         try {
@@ -224,7 +225,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
 
             // update the a/c's master data
-            fd.UpdateData(std::move(stat));
+            fd.UpdateData(std::move(stat), dist);
             
             // position is rather important, we check for validity
             if ( pos.isNormal(true) ) {
@@ -724,6 +725,9 @@ bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
 
 bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 {
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
+
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -848,19 +852,14 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     fd.SetKey(fdKey);
                 
                 // fill static
-                {
-                    LTFlightData::FDStaticData stat;
-                    stat.reg =        jog_s(pJAc, ADSBEX_REG);
-                    stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
-                    stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
-                    stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
-                    stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
-                    stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
-                    stat.call =       jog_s(pJAc, ADSBEX_CALL);
-
-                    // update the a/c's master data
-                    fd.UpdateData(std::move(stat));
-                }
+                LTFlightData::FDStaticData stat;
+                stat.reg =        jog_s(pJAc, ADSBEX_REG);
+                stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
+                stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
+                stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
+                stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
+                stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
+                stat.call =       jog_s(pJAc, ADSBEX_CALL);
                 
                 // dynamic data
                 LTFlightData::FDDynamicData dyn;
@@ -876,11 +875,7 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
                 dyn.ts =                posTime;
                 dyn.pChannel =          this;
-                
-                fd.AddDynData(dyn,
-                              (int)jog_sl(pJAc, ADSBEX_RCVR),
-                              (int)jog_sl(pJAc, ADSBEX_SIG));
-                
+
                 // altitude, if airborne
                 const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
                 
@@ -891,6 +886,13 @@ bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                     alt_ft * M_per_FT,
                                     posTime,
                                     dyn.heading);
+                
+                // Update flight data
+                fd.UpdateData(std::move(stat), mainPos.dist(viewPos));
+                              
+                fd.AddDynData(dyn,
+                              (int)jog_sl(pJAc, ADSBEX_RCVR),
+                              (int)jog_sl(pJAc, ADSBEX_SIG));
                 
                 // position is kinda important...we continue only with valid data
                 if ( mainPos.isNormal() )

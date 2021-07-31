@@ -84,6 +84,9 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
 
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
+
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
     if (!pJAcList) {
@@ -148,15 +151,12 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 fd.SetKey(fdKey);
             
             // fill static data
-            {
-                LTFlightData::FDStaticData stat;
-                stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
-                stat.trt     =    trt_ADS_B_unknown;
-                stat.call    =    jag_s(pJAc, OPSKY_CALL);
-                while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
-                    stat.call.pop_back();
-                fd.UpdateData(std::move(stat));
-            }
+            LTFlightData::FDStaticData stat;
+            stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
+            stat.trt     =    trt_ADS_B_unknown;
+            stat.call    =    jag_s(pJAc, OPSKY_CALL);
+            while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
+                stat.call.pop_back();
             
             // dynamic data
             {   // unconditional...block is only for limiting local variables
@@ -179,6 +179,9 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 dyn.heading);
                 pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
                 
+                // Update static data
+                fd.UpdateData(std::move(stat), pos.dist(viewPos));
+
                 // position is rather important, we check for validity
                 // (we do allow alt=NAN if on ground as this is what OpenSky returns)
                 if ( pos.isNormal(true) )
@@ -217,7 +220,7 @@ LTACMasterdataChannel()
 // OpenSkyAcMasterdata fetches two objects with two URL requests:
 // 1. Master (or Meta) data based on transpIcao
 // 2. Route information based on current call sign
-// Both keys are passed in listAcStatUpdate. Two requests are sent one after
+// Both keys are passed in vecAcStatUpdate. Two requests are sent one after
 // the other. The returning information is combined into one artifical JSON
 // object:
 //      { "MASTER": <1. response>, "ROUTE": <2. response> }
@@ -236,20 +239,23 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     bool bChannelOK = true;
     positionTy pos;                     // no position needed, but we use the GND flag to tell the URL callback if we need master or route request
     acStatUpdateTy info;
-    while (bChannelOK && !listAc.empty() && !bFDMainStop &&
+    while (bChannelOK && !vecAc.empty() && !bFDMainStop &&
            // We might have many requests in the list and we must pause
            // between two of them. We check in the loop that we don't exceed the
            // next wakeup time for the global request/reply loop so that regular
            // tracking request lookup can happen in time.
            std::chrono::steady_clock::now() <= gNextWakeup - 2 * std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)))
     {
-        // fetch request from front of list and remove
-        info = listAc.front();
-        listAc.pop_front();
+        // fetch request from back of list and remove
+        info = vecAc.back();
+        vecAc.pop_back();
         // empty or not an ICAO code? -> skip
         if (info.acKey.eKeyType != LTFlightData::KEY_ICAO ||
             info.acKey.key.empty())
             continue;
+        
+//        LOG_MSG(logDEBUG, "Requesting for %s / %s, order = %d",
+//                info.acKey.c_str(), info.callSign.c_str(), info.order);
         
         // beginning of a JSON object
         std::string data("{");
@@ -361,7 +367,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     if ( !bChannelOK ) {
         // we need to do that last request again
         if (!info.empty())
-            listAc.push_back(std::move(info));
+            vecAc.push_back(std::move(info));
         
         IncErrCnt();
         return !listMd.empty();         // return `true` if there is data to process, otherwise we wouldn't process what had been received before the error

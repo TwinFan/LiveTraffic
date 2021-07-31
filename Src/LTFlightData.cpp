@@ -2268,6 +2268,7 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
 
 // update static data
 void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
+                               double distance,
                                bool bIsMasterChData)
 {
     try {
@@ -2282,7 +2283,7 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
         if ((!bIsMasterChData && !statData.hasMasterChData()) ||
             (!inStat.call.empty() && inStat.call != statData.call))
         {
-            LTACMasterdataChannel::RequestMasterData (key(), inStat.call);
+            LTACMasterdataChannel::RequestMasterData (key(), inStat.call, distance);
         }
         
         // If no a/c type is yet known try if the call sign / operator looks like a ground vehicle

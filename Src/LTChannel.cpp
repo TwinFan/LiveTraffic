@@ -38,9 +38,9 @@ double initTimeBufFilled = 0;       // in 'simTime'
 
 // global list of a/c for which static data is yet missing
 // (reset with every network request cycle)
-listAcStatUpdateTy LTACMasterdataChannel::listAcStatUpdate;
+vecAcStatUpdateTy LTACMasterdataChannel::vecAcStatUpdate;
 // Lock controlling multi-threaded access to `listAcSTatUpdate`
-std::mutex LTACMasterdataChannel::listAcStatMutex;
+std::mutex LTACMasterdataChannel::vecAcStatMutex;
 
 // Thread synch support (specifically for stopping them)
 std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
@@ -244,7 +244,7 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
             return false;                   // not found
         
         // do the actual update
-        fdIter->second.UpdateData(dat, true);
+        fdIter->second.UpdateData(dat, NAN, true);
         return true;
         
     } catch(const std::system_error& e) {
@@ -258,16 +258,27 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
 // static function to add key/callSign to list of data,
 // for which master data shall be requested by a master data channel
 void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
-                                               const std::string callSign)
+                                               const std::string callSign,
+                                               double distance)
 {
     try {
-        // multi-threaded access guarded by listAcStatMutex
-        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (vecAcStatMutex);
         
-        // just add the request to the request list, uniquely
-        push_back_unique<listAcStatUpdateTy>
-        (listAcStatUpdate,
-         acStatUpdateTy(keyAc,callSign));
+        // just add the request to the request list, uniquely,
+        // but update the distance as it serves as a sorting order
+        const acStatUpdateTy acUpd (keyAc,callSign,std::isnan(distance) ? UINT_MAX : unsigned(distance));
+        vecAcStatUpdateTy::iterator i = std::find(vecAcStatUpdate.begin(),vecAcStatUpdate.end(),acUpd);
+        if (i == vecAcStatUpdate.end()) {
+            vecAcStatUpdate.push_back(acUpd);
+//            LOG_MSG(logDEBUG, "Request added for %s / %s, order = %d",
+//                    acUpd.acKey.c_str(), acUpd.callSign.c_str(), acUpd.order);
+        }
+        else {
+//            LOG_MSG(logDEBUG, "Request updated for %s / %s, order = %d (from %d)",
+//                    acUpd.acKey.c_str(), acUpd.callSign.c_str(), acUpd.order, i->order);
+            i->order = acUpd.order;
+        }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
     }
@@ -276,19 +287,19 @@ void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyA
 void LTACMasterdataChannel::ClearMasterDataRequests ()
 {
     try {
-        // multi-threaded access guarded by listAcStatMutex
-        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (vecAcStatMutex);
 
         // remove all processed entries as well as outdated entries,
         // for which the flight no longer exists in mapFd
         // (avoids leaking when no channel works on master data)
-        listAcStatUpdate.remove_if
-        ([](acStatUpdateTy& acStatUpd)
-        {
-            return
-            acStatUpd.HasBeenProcessed() ||
-            (mapFd.count(acStatUpd.acKey) == 0);
-        });
+        vecAcStatUpdateTy::iterator i = vecAcStatUpdate.begin();
+        while(i != vecAcStatUpdate.end()) {
+            if (i->HasBeenProcessed() || (mapFd.count(i->acKey) == 0))
+                i = vecAcStatUpdate.erase(i);
+            else
+                ++i;
+        }
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
@@ -301,18 +312,28 @@ void LTACMasterdataChannel::ClearMasterDataRequests ()
 void LTACMasterdataChannel::CopyGlobalRequestList ()
 {
     try {
-        // multi-threaded access guarded by listAcStatMutex
-        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (vecAcStatMutex);
         
-        // Copy global list into local and
+        // Copy global list into local, update order (prio) if already existing, and
         // mark the global record "processed" so it can be cleaned up
-        for (acStatUpdateTy& info: listAcStatUpdate) {
-            push_back_unique<listAcStatUpdateTy>(listAc, info);
+        for (acStatUpdateTy& info: vecAcStatUpdate) {
+            vecAcStatUpdateTy::iterator i = std::find(vecAc.begin(),vecAc.end(),info);
+            if (i == vecAc.end())
+                vecAc.push_back(info);
+            else
+                i->order = info.order;
             info.SetProcessed();
         }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
     }
+    
+    // Now sort the list descending by distance, so that the planes closest to us
+    // are located at the list's end and are fetched first by pop_back:
+    std::sort(vecAc.begin(), vecAc.end(),
+              [](const acStatUpdateTy& a, const acStatUpdateTy& b)
+              { return a.order > b.order; });
 }
 
 //
@@ -531,13 +552,13 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
     switch (httpResponse) {
         case HTTP_OK:
-            // Based on actual time take set a new network timeout as twice the response time
+        // Based on actual time take set a new network timeout as twice the response time
         {
             const std::chrono::seconds d = std::chrono::duration_cast<std::chrono::seconds>(tEnd - tStart);
             nTimeout = std::clamp<int> ((int)d.count() * 2,
                                         std::max(MIN_NETW_TIMEOUT,nTimeout/2),  // this means the in case of a reduction we reduce to now less than half the previous value
                                         dataRefs.GetNetwTimeout());
-//            LOG_MSG(logWARN, "%s: Timeout set to %ds", ChName(), nTimeout);
+            // LOG_MSG(logWARN, "%s: Timeout set to %ds", ChName(), nTimeout);
             break;
         }
         case HTTP_NOT_FOUND:

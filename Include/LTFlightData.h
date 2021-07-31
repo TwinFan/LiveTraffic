@@ -357,7 +357,7 @@ public:
     inline int GetRcvr() const { return rcvr; }
     
     // access static data
-    void UpdateData ( const FDStaticData& inStat, bool bIsMasterChData = false );
+    void UpdateData ( const FDStaticData& inStat, double distance, bool bIsMasterChData = false );
     bool TryGetSafeCopy ( FDStaticData& outStat ) const;
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!

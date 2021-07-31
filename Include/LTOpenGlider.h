@@ -9,7 +9,8 @@
 ///
 /// @see        http://wiki.glidernet.org/wiki:subscribe-to-ogn-data
 ///
-/// @details    - Request/Reply Interface (alternatively, and as a fallback if APRS fails)
+/// @details    Alternatively, and as a fallback if APRS fails:
+///             - Request/Reply Interface
 ///               - Provides a proper REST-conform URL
 ///               - Interprets the response and passes the tracking data on to LTFlightData.
 ///

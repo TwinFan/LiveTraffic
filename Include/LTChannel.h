@@ -136,13 +136,14 @@ struct acStatUpdateTy {
 public:
     LTFlightData::FDKeyTy acKey;    // to find master data
     std::string callSign;           // to query route information
+    unsigned order = UINT_MAX;      ///< processing order, lowest value first
 protected:
     bool bProcessed = false;        ///< has been processed by some master data channel?
     
 public:
     acStatUpdateTy() {}
-    acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c) :
-    acKey(k), callSign(c) {}
+    acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c, unsigned o) :
+    acKey(k), callSign(c), order(o) {}
 
     inline bool operator == (const acStatUpdateTy& o) const
     { return acKey == o.acKey && callSign == o.callSign; }
@@ -151,19 +152,19 @@ public:
     inline void SetProcessed () { bProcessed = true; }
     inline bool HasBeenProcessed () const { return bProcessed; }
 };
-typedef std::list<acStatUpdateTy> listAcStatUpdateTy;
+typedef std::vector<acStatUpdateTy> vecAcStatUpdateTy;
 
 class LTACMasterdataChannel : virtual public LTChannel
 {
 private:
-    // global list of a/c for which static data is yet missing
-    // (reset with every network request cycle)
-    static listAcStatUpdateTy listAcStatUpdate;
+    /// @brief global list of a/c for which static data is yet missing
+    /// (reset with every network request cycle)
+    static vecAcStatUpdateTy vecAcStatUpdate;
     /// Lock controlling multi-threaded access to `listAcSTatUpdate`
-    static std::mutex listAcStatMutex;
+    static std::mutex vecAcStatMutex;
 
 protected:
-    listAcStatUpdateTy listAc;      // object-private list of a/c to query
+    vecAcStatUpdateTy vecAc;        ///< object-private list of a/c to query
     std::string currKey;
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
@@ -174,11 +175,12 @@ public:
 
     // request to fetch master data
     static void RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
-                                   const std::string callSign);
+                                   const std::string callSign,
+                                   double distances);
     static void ClearMasterDataRequests ();
     
 protected:
-    // uniquely copies entries from listAcStatUpdate to listAc
+    // uniquely copies entries from listAcStatUpdate to vecAc
     void CopyGlobalRequestList ();
 };
 
