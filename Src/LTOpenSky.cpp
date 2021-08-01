@@ -66,6 +66,19 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // short-cut if there is nothing
     if ( !netDataPos ) return true;
     
+    // Only proceed in case HTTP response was OK
+    if (httpResponse != HTTP_OK) {
+        // There are a few typical responses that may happen when OpenSky
+        // is just temporarily unresponsive. But in all _other_ cases
+        // we increase the error counter.
+        if (httpResponse != HTTP_BAD_GATEWAY        &&
+            httpResponse != HTTP_NOT_AVAIL          &&
+            httpResponse != HTTP_GATEWAY_TIMEOUT    &&
+            httpResponse != HTTP_TIMEOUT)
+            IncErrCnt();
+        return false;
+    }
+    
     // now try to interpret it as JSON
     JSON_Value* pRoot = json_parse_string(netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
