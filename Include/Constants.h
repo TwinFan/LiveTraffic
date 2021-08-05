@@ -29,7 +29,7 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.51f;
+constexpr float VERSION_NR = 2.53f;
 constexpr bool VERSION_BETA = false;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
@@ -290,7 +290,10 @@ constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
-constexpr long HTTP_NOT_AVAIL =     503;        // "Service not available"
+constexpr long HTTP_BAD_GATEWAY =   502;        // typical cloudflare responses: Bad Gateway
+constexpr long HTTP_NOT_AVAIL =     503;        //                               Service not available
+constexpr long HTTP_GATEWAY_TIMEOUT=504;        //                               Gateway Timeout
+constexpr long HTTP_TIMEOUT =       524;        //                               Connection Timeout
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
@@ -308,11 +311,13 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CURL_DISABLE_REV_QU "%s: Querying revocation list failed - have set CURLSSLOPT_NO_REVOKE and am trying again"
 #define ERR_HTTP_NOT_OK         "HTTP response was not HTTP_OK"
 #define ERR_FOUND_NO_VER_INFO   "Found no version info in response"
-#define ERR_CH_NONE_ACTIVE1     "No enabled active channel for tracking data!"
+#define ERR_CH_INACTIVE1        "There are inactive (stopped) channels."
+#define ERR_CH_NONE_ACTIVE1     "No channel for tracking data enabled!"
 #define ERR_CH_NONE_ACTIVE      ERR_CH_NONE_ACTIVE1 " Check Basic Settings and enable channels."
 #define ERR_CH_UNKNOWN_NAME     "(unknown channel)"
-#define ERR_CH_INVALID          "%s: Channel invalid and disabled"
-#define ERR_CH_MAX_ERR_INV      "%s: Channel invalid and disabled after too many errors"
+#define INFO_CH_RESTART         "%s: Channel restarted"
+#define ERR_CH_INVALID          "%s: Channel invalid"
+#define ERR_CH_MAX_ERR_INV      "%s: Channel invalid after too many errors"
 #define ERR_NO_AC_TYPE          "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, can't derive type -> will be rendered with standard a/c %s"
 #define ERR_NO_AC_TYPE_BUT_MDL  "Tracking data for '%s' (man '%s', mdl '%s') lacks ICAO a/c type code, but derived %s from mdl text"
 #define ERR_SHARED_DATAREF      "Could not created shared dataRef for livetraffic/camera/..., 3rd party camera plugins will not be able to take over camera view automatically"

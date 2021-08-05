@@ -38,9 +38,9 @@ double initTimeBufFilled = 0;       // in 'simTime'
 
 // global list of a/c for which static data is yet missing
 // (reset with every network request cycle)
-listAcStatUpdateTy LTACMasterdataChannel::listAcStatUpdate;
+vecAcStatUpdateTy LTACMasterdataChannel::vecAcStatUpdate;
 // Lock controlling multi-threaded access to `listAcSTatUpdate`
-std::mutex LTACMasterdataChannel::listAcStatMutex;
+std::mutex LTACMasterdataChannel::vecAcStatMutex;
 
 // Thread synch support (specifically for stopping them)
 std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
@@ -135,28 +135,20 @@ double jag_n_nan (const JSON_Array *array, size_t idx)
 //MARK: LTChannel
 //
 
-LTChannel::~LTChannel ()
-{}
-
 void LTChannel::SetValid (bool _valid, bool bMsg)
 {
     // (re)set to valid channel
     if (_valid) {
+        if (!bValid && bMsg) {
+            LOG_MSG(logINFO, INFO_CH_RESTART, ChName());
+        }
         errCnt = 0;
         bValid = true;
     } else {
-        // set invalid, also means: disable
+        // set invalid
         bValid = false;
-        SetEnable (false);
         if (bMsg)
             SHOW_MSG(logFATAL,ERR_CH_INVALID,ChName());
-        
-        // there is no other place in the code to actually re-validate a channel
-        // so as surprising as it sounds: we do it right here:
-        // That way the user has a chance by actively reenabling the channel
-        // in the settings to try again.
-        errCnt = 0;
-        bValid = true;
     }
 }
 
@@ -252,7 +244,7 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
             return false;                   // not found
         
         // do the actual update
-        fdIter->second.UpdateData(dat, true);
+        fdIter->second.UpdateData(dat, NAN, true);
         return true;
         
     } catch(const std::system_error& e) {
@@ -266,16 +258,27 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
 // static function to add key/callSign to list of data,
 // for which master data shall be requested by a master data channel
 void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
-                                               const std::string callSign)
+                                               const std::string callSign,
+                                               double distance)
 {
     try {
-        // multi-threaded access guarded by listAcStatMutex
-        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (vecAcStatMutex);
         
-        // just add the request to the request list, uniquely
-        push_back_unique<listAcStatUpdateTy>
-        (listAcStatUpdate,
-         acStatUpdateTy(keyAc,callSign));
+        // just add the request to the request list, uniquely,
+        // but update the distance as it serves as a sorting order
+        const acStatUpdateTy acUpd (keyAc,callSign,std::isnan(distance) ? UINT_MAX : unsigned(distance));
+        vecAcStatUpdateTy::iterator i = std::find(vecAcStatUpdate.begin(),vecAcStatUpdate.end(),acUpd);
+        if (i == vecAcStatUpdate.end()) {
+            vecAcStatUpdate.push_back(acUpd);
+//            LOG_MSG(logDEBUG, "Request added for %s / %s, order = %d",
+//                    acUpd.acKey.c_str(), acUpd.callSign.c_str(), acUpd.order);
+        }
+        else {
+//            LOG_MSG(logDEBUG, "Request updated for %s / %s, order = %d (from %d)",
+//                    acUpd.acKey.c_str(), acUpd.callSign.c_str(), acUpd.order, i->order);
+            i->order = acUpd.order;
+        }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
     }
@@ -284,19 +287,19 @@ void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyA
 void LTACMasterdataChannel::ClearMasterDataRequests ()
 {
     try {
-        // multi-threaded access guarded by listAcStatMutex
-        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (vecAcStatMutex);
 
         // remove all processed entries as well as outdated entries,
         // for which the flight no longer exists in mapFd
         // (avoids leaking when no channel works on master data)
-        listAcStatUpdate.remove_if
-        ([](acStatUpdateTy& acStatUpd)
-        {
-            return
-            acStatUpd.HasBeenProcessed() ||
-            (mapFd.count(acStatUpd.acKey) == 0);
-        });
+        vecAcStatUpdateTy::iterator i = vecAcStatUpdate.begin();
+        while(i != vecAcStatUpdate.end()) {
+            if (i->HasBeenProcessed() || (mapFd.count(i->acKey) == 0))
+                i = vecAcStatUpdate.erase(i);
+            else
+                ++i;
+        }
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
@@ -309,18 +312,28 @@ void LTACMasterdataChannel::ClearMasterDataRequests ()
 void LTACMasterdataChannel::CopyGlobalRequestList ()
 {
     try {
-        // multi-threaded access guarded by listAcStatMutex
-        std::lock_guard<std::mutex> lock (listAcStatMutex);
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (vecAcStatMutex);
         
-        // Copy global list into local and
+        // Copy global list into local, update order (prio) if already existing, and
         // mark the global record "processed" so it can be cleaned up
-        for (acStatUpdateTy& info: listAcStatUpdate) {
-            push_back_unique<listAcStatUpdateTy>(listAc, info);
+        for (acStatUpdateTy& info: vecAcStatUpdate) {
+            vecAcStatUpdateTy::iterator i = std::find(vecAc.begin(),vecAc.end(),info);
+            if (i == vecAc.end())
+                vecAc.push_back(info);
+            else
+                i->order = info.order;
             info.SetProcessed();
         }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
     }
+    
+    // Now sort the list descending by distance, so that the planes closest to us
+    // are located at the list's end and are fetched first by pop_back:
+    std::sort(vecAc.begin(), vecAc.end(),
+              [](const acStatUpdateTy& a, const acStatUpdateTy& b)
+              { return a.order > b.order; });
 }
 
 //
@@ -332,12 +345,13 @@ std::ofstream LTOnlineChannel::outRaw;
 
 LTOnlineChannel::LTOnlineChannel () :
 pCurl(NULL),
+nTimeout(dataRefs.GetNetwTimeout()),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
 netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
 curl_errtxt{0}, httpResponse(HTTP_OK)
 {
-    // initialize a CURL handle
-    SetValid(InitCurl());
+    // initialize a CURL handle (sets invalid if it fails)
+    InitCurl();
 }
 
 LTOnlineChannel::~LTOnlineChannel ()
@@ -365,13 +379,13 @@ bool LTOnlineChannel::InitCurl ()
     {
         // something went wrong
         LOG_MSG(logFATAL,ERR_CURL_EASY_INIT);
-        SetValid(false);
+        SetValid(false, false);
         return false;
     }
     
     // define the handle
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, nTimeout);
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
@@ -490,44 +504,63 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // put together the REST request
     curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(pCurl, CURLOPT_BUFFERSIZE, netDataSize );
-    
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, nTimeout);
+
     // get fresh data via the internet
     // this will take a second or more...don't try in render loop ;)
     // it is assumed that this is called in a separate thread,
     // hence we can use the simple blocking curl_easy_ call
     netDataPos = 0;                 // fill buffer from beginning
     netData[0] = 0;
-    // LOG_MSG(logDEBUG,DBG_SENDING_HTTP,ChName(),url.c_str());
     DebugLogRaw(url.c_str());
-    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
-    {
-        // problem with querying revocation list?
-        if (IsRevocationError(curl_errtxt)) {
-            // try not to query revoke list
-            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
-            // and just give it another try
-            cc = curl_easy_perform(pCurl);
-        }
+    
+    // perform the request and take its time
+    std::chrono::time_point<std::chrono::steady_clock> tStart = std::chrono::steady_clock::now();
+    httpResponse = 0;
+    cc=curl_easy_perform(pCurl);
+    std::chrono::time_point<std::chrono::steady_clock> tEnd = std::chrono::steady_clock::now();
 
-        // if (still) error, then log error and bail out
-        if (cc != CURLE_OK) {
+    // Give it another try in case of revocation list issues
+    if ( cc != CURLE_OK && IsRevocationError(curl_errtxt)) {
+        // try not to query revoke list
+        curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+        LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, ChName());
+        // and just give it another try
+        tStart = std::chrono::steady_clock::now();
+        cc = curl_easy_perform(pCurl);
+        tEnd = std::chrono::steady_clock::now();
+    }
+
+    // if (still) error, then log error and bail out
+    if (cc != CURLE_OK) {
+        
+        // In case of timeout increase the channel's timeout and don't count it as an error
+        if (cc == CURLE_OPERATION_TIMEDOUT) {
+            LOG_MSG(logWARN, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
+            nTimeout = std::min (nTimeout * 2,
+                                 dataRefs.GetNetwTimeout());
+            LOG_MSG(logWARN, "%s: Timeout increased to %ds", ChName(), nTimeout);
+        } else {
             SHOW_MSG(logERR, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
             IncErrCnt();
-            return false;
         }
+        
+        return false;
     }
-    
+
     // check HTTP response code
-    httpResponse = 0;
     curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-    
     switch (httpResponse) {
         case HTTP_OK:
-            // log number of bytes received
-            // LOG_MSG(logDEBUG,DBG_RECEIVED_BYTES,ChName(),(long)netDataPos);
+        // Based on actual time take set a new network timeout as twice the response time
+        {
+            const std::chrono::seconds d = std::chrono::duration_cast<std::chrono::seconds>(tEnd - tStart);
+            nTimeout = std::clamp<int> ((int)d.count() * 2,
+                                        std::max(MIN_NETW_TIMEOUT,nTimeout/2),  // this means the in case of a reduction we reduce to now less than half the previous value
+                                        dataRefs.GetNetwTimeout());
+            // LOG_MSG(logWARN, "%s: Timeout set to %ds", ChName(), nTimeout);
             break;
-            
+        }
         case HTTP_NOT_FOUND:
             // not found is typically handled separately, so only debug-level
             LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());
@@ -600,13 +633,6 @@ bool LTFlightDataEnable()
         listFDC.emplace_back(new OpenSkyAcMasterdata);
         // load other channels
         listFDC.emplace_back(new ForeFlightSender(mapFd));
-    }
-    
-    // check for validity after construction, disable all invalid ones
-    for ( ptrLTChannelTy& p: listFDC )
-    {
-        if (!p->IsValid())
-            p->SetEnable(false);
     }
     
     // Success only if there are still connections left
@@ -785,13 +811,30 @@ void LTFlightDataHideAircraft()
 // Is at least one tracking data channel enabled?
 bool LTFlightDataAnyTrackingChEnabled ()
 {
-    return (!listFDC.empty() &&
-            std::find_if(listFDC.cbegin(), listFDC.cend(),
-                         [](const ptrLTChannelTy& pCh)
-                         { return pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
-                                  pCh->IsEnabled(); }) != listFDC.cend());
+    return std::any_of(listFDC.cbegin(), listFDC.cend(),
+                       [](const ptrLTChannelTy& pCh)
+                       { return pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
+                                pCh->IsEnabled(); });
 }
                          
+
+// Is any channel invalid?
+bool LTFlightDataAnyChInvalid ()
+{
+    return std::any_of(listFDC.cbegin(), listFDC.cend(),
+                       [](const ptrLTChannelTy& pCh)
+                       { return !pCh->IsValid(); });
+}
+
+
+// Restart all invalid channels (set valid)
+void LTFlightDataRestartInvalidChs ()
+{
+    for (ptrLTChannelTy& pCh: listFDC)
+        if (!pCh->IsValid())
+            pCh->SetValid(true, true);
+}
+
 
 //
 //MARK: Aircraft Maintenance

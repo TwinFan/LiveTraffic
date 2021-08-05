@@ -9,7 +9,8 @@
 ///
 /// @see        http://wiki.glidernet.org/wiki:subscribe-to-ogn-data
 ///
-/// @details    - Request/Reply Interface (alternatively, and as a fallback if APRS fails)
+/// @details    Alternatively, and as a fallback if APRS fails:
+///             - Request/Reply Interface
 ///               - Provides a proper REST-conform URL
 ///               - Interprets the response and passes the tracking data on to LTFlightData.
 ///
@@ -109,7 +110,7 @@ constexpr const char* OGN_APRS_LOGIN_GOOD   = "# logresp LiveTrffc unverified, s
 
 // Constructor
 OpenGliderConnection::OpenGliderConnection () :
-LTChannel(DR_CHANNEL_OPEN_GLIDER_NET),
+LTChannel(DR_CHANNEL_OPEN_GLIDER_NET, OPGLIDER_NAME),
 LTOnlineChannel(),
 LTFlightDataChannel()
 {
@@ -181,6 +182,9 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // We need current Zulu time to interpret the timestamp in the data
     const std::time_t tNow = std::time(nullptr) + std::lround(dataRefs.GetChTsOffset());
     
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
+
     // Search for all markers in the response
     for (const char* sPos = strstr(netData, OGN_MARKER_BEGIN);
          sPos != nullptr;
@@ -243,6 +247,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // (for OGN we only define static data initially,
             //  it has no changing elements, and ICAO a/c type derivation
             //  has a random element (if more than one ICAO type is defined))
+            bool bSendStaticData = false;
             if ( fd.empty() ) {
                 fd.SetKey(fdKey);
             
@@ -257,7 +262,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 if (stat.mdl.empty())
                     stat.mdl        = stat.catDescr;
 
-                fd.UpdateData(std::move(stat));
+                bSendStaticData = true;
             }
             
             // dynamic data
@@ -283,6 +288,11 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 dyn.ts,
                                 dyn.heading);
                 pos.f.onGrnd = GND_UNKNOWN;         // there is no GND indicator in OGN data
+                
+                // Update static data if requested
+                if (bSendStaticData) {
+                    fd.UpdateData(std::move(stat), pos.dist(viewPos));
+                }
                 
                 // position is rather important, we check for validity
                 // (we do allow alt=NAN if on ground)
@@ -587,6 +597,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         // (for OGN we only define static data initially,
         //  it has no changing elements, and ICAO a/c type derivation
         //  has a random element (if more than one ICAO type is defined))
+        bool bSendStaticData = false;
         if ( fd.empty() ) {
             fd.SetKey(fdKey);
         
@@ -599,7 +610,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
             if (stat.mdl.empty())
                 stat.mdl        = stat.catDescr;
 
-            fd.UpdateData(std::move(stat));
+            bSendStaticData = true;
         }
         
         // dynamic data
@@ -636,6 +647,13 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
                             dyn.ts,
                             dyn.heading);
             pos.f.onGrnd = GND_UNKNOWN;         // there is no GND indicator in OGN data
+            
+            // Send static data if requested
+            if (bSendStaticData) {
+                const positionTy viewPos = dataRefs.GetViewPos();
+                fd.UpdateData(std::move(stat),
+                              pos.dist(viewPos));
+            }
             
             // position is rather important, we check for validity
             // (we do allow alt=NAN if on ground)

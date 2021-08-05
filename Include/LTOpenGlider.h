@@ -9,7 +9,8 @@
 ///
 /// @see        http://wiki.glidernet.org/wiki:subscribe-to-ogn-data
 ///
-/// @details    - Request/Reply Interface (alternatively, and as a fallback if APRS fails)
+/// @details    Alternatively, and as a fallback if APRS fails:
+///             - Request/Reply Interface
 ///               - Provides a proper REST-conform URL
 ///               - Interprets the response and passes the tracking data on to LTFlightData.
 ///
@@ -158,7 +159,6 @@ public:
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
     bool IsLiveFeed() const override { return true; }
     LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
-    const char* ChName() const override { return OPGLIDER_NAME; }
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
     void DoDisabledProcessing() override { Cleanup(); }

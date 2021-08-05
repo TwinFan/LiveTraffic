@@ -210,12 +210,22 @@ void LTSettingsUI::buildInterface()
 
         // MARK: --- Input Channels ---
         if (ImGui::TreeNodeLinkHelp("Input Channels", nCol,
-                                    !LTFlightDataAnyTrackingChEnabled() ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
-                                    ERR_CH_NONE_ACTIVE1,
+                                    (!LTFlightDataAnyTrackingChEnabled() || LTFlightDataAnyChInvalid()) ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    LTFlightDataAnyChInvalid() ? ERR_CH_INACTIVE1 : ERR_CH_NONE_ACTIVE1,
                                     HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
                                     sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
         {
+            // --- Restart inactive channels ---
+            if (LTFlightDataAnyChInvalid())
+            {
+                if (ImGui::FilteredLabel(ICON_FA_EXCLAMATION_TRIANGLE " There are stopped channels:", sFilter)) {
+                    if (ImGui::ButtonTooltip(ICON_FA_UNDO " Restart Stopped Channels", "Restarts all channels that got temporarily inactivated"))
+                        LTFlightDataRestartInvalidChs();
+                    ImGui::TableNextCell();
+                }
+            }
+            
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
@@ -579,7 +589,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
             
                 if (!*sFilter) ImGui::TreePop();
             }
@@ -941,6 +951,16 @@ void LTSettingsUI::buildInterface()
                 }
                 else
                     DataRefs::LTSetDebugAcFilter(NULL,0);
+            }
+
+            if (ImGui::FilteredInputText("Dump apt layout", sFilter, txtAptDump, fSmallWidth,
+                                         "Dump internal airport layout data\nthat can be displayed using GPS Visualizer", flags))
+            {
+                if (LTAptDump(txtAptDump)) {
+                    SHOW_MSG(logMSG, "Dumped airport layout of %s", txtAptDump.c_str());
+                } else {
+                    SHOW_MSG(logERR, "FAILED dumping airport layout of %s! Does this airport exist?", txtAptDump.c_str());
+                }
             }
 
             

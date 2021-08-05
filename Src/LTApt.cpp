@@ -1916,13 +1916,13 @@ void Apt::AddApt (Apt&& apt)
     // (Only if we processed the 120 taxiways, not if we used the 1200 taxi routes)
     if (apt.HasTempNodesEdges()) {
         apt.PostProcessPaths();         // add nodes and edges for taxways
-#ifdef DEBUG
-        LOG_ASSERT(apt.ValidateNodesEdges(false));
-#endif
+//#ifdef DEBUG
+//        LOG_ASSERT(apt.ValidateNodesEdges(false));
+//#endif
         apt.AddRwyEdges();              // add edges for each runway
-#ifdef DEBUG
-        LOG_ASSERT(apt.ValidateNodesEdges(false));
-#endif
+//#ifdef DEBUG
+//        LOG_ASSERT(apt.ValidateNodesEdges(false));
+//#endif
     }
     
     // Prepare the indirect array, which sorts by edge angle
@@ -1957,11 +1957,6 @@ void Apt::AddApt (Apt&& apt)
     mapPos.clear();
     listPaths.clear();
     vecPathEnds.clear();
-    
-#ifdef APT_DUMP
-    if (dataRefs.GetLogLevel() == logDEBUG)
-        LTAptDump(key);
-#endif
 }
 
 /// Return the a node, ie. the starting point of the edge
@@ -2717,157 +2712,163 @@ void LTAptDisable ()
 }
 
 
-#ifdef APT_DUMP
 // Dumps the entire taxi network into a CSV file readable by GPS Visualizer
 /// @see For a suggestion of settings for display:
 /// https://www.gpsvisualizer.com/map_input?bg_map=google_openstreetmap&bg_opacity=70&form=leaflet&google_wpt_sym=diamond&trk_list=0&trk_opacity=100&trk_width=2&units=metric&width=1400&wpt_color=aqua
-void LTAptDump (const std::string& _aptId)
+bool LTAptDump (const std::string& _aptId)
 {
     // find the airport by id
-    if (gmapApt.count(_aptId) < 1) return;
-    const Apt& apt = gmapApt.at(_aptId);
-    
-    // open the output file
-    const std::string fileName (dataRefs.GetXPSystemPath() + _aptId + ".csv");
-    std::ofstream out (fileName, std::ios_base::out | std::ios_base::trunc);
-    // column headers
-    out << "type,BOT,symbol,color,rotation,latitude,longitude,time,speed,course,name,desc\n";
-    out.precision(11);               // precision is all digits, so we need something like 123.45678901
-    
-    // Dump all rwy endpoints as Waypoints
-    for (const RwyEndPt& re: apt.GetRwyEndPtVec())
-        out
-        << "W,,"                                    // type, BOT
-        << "arrow,"                                 // symbol
-        << "red,"                                   // color
-        << std::lround(re.heading) << ','           // rotation
-        << re.lat << ',' << re.lon << ','           // latitude,longitude
-        << ",,,"                                    // time,speed,course
-        << re.id << ','                             // name
-        << std::lround(re.heading) << "°,"          // desc
-        << "\n";
-    
-    // Dump all startup locations as Waypoints
-    for (const StartupLoc& loc: apt.GetStartupLocVec())
-        out
-        << "W,,"                                    // type, BOT
-        << "wedge,"                                 // symbol
-        << "orange,"                                // color
-        << std::lround(loc.heading) << ','          // rotation
-        << loc.lat << ',' << loc.lon << ','         // latitude,longitude
-        << ",,,"                                    // time,speed,course
-        << loc.id << ','                            // name
-        << std::lround(loc.heading) << "°,"         // desc
-        << "\n";
-    
-    // Dump all startup paths as tracks
-    for (const StartupLoc& loc: apt.GetStartupLocVec())
-    {
-        out
-        << "T,1,,"                                  // type, BOT, symbol
-        << "orange,"                                // color
-        << std::lround(loc.heading) << ','          // rotation
-        << loc.lat << ',' << loc.lon << ','         // latitude,longitude
-        << ",,"                                     // time,speed
-        << std::lround(loc.heading) << ','          // course
-        << "Path leaving " << loc.id << ','         // name
-        << std::lround(loc.heading) << "°,"         // desc
-        << "\n";
-
-        out
-        << "T,0,,"                                  // type, BOT, symbol
-        << "orange,"                                // color
-        << std::lround(loc.heading) << ','          // rotation
-        << loc.viaPos.y << ',' << loc.viaPos.x << ','  // latitude,longitude
-        << ",,"                                     // time,speed
-        << std::lround(loc.heading) << ','          // course
-        << ','                                      // name, desc
-        << "\n";
-
-    }
-    
-    // Dump all nodes as Waypoints
-    size_t i = 0;
-    for (const TaxiNode& n: apt.GetTaxiNodesVec()) {
-        out
-        << "W,,"                                    // type, BOT
-        << (n.vecEdges.size() == 0 ? "pin," :       // symbol
-            n.vecEdges.size() == 1 ? "circle," :
-            n.vecEdges.size() == 2 ? "square," :
-            n.vecEdges.size() == 3 ? "triangle," :
-            n.vecEdges.size() == 4 ? "diamond," : "star,")
-        << (apt.IsConnectedToRwy(i) ? "red," :        // color: red if rwy, blue if 2 edges, else auqa
-            n.vecEdges.size() == 2 ? "blue," : "aqua,")
-        << "0,"                                     // rotation
-        << n.lat << ',' << n.lon << ','             // latitude,longitude
-        << ",,,"                                    // time,speed,course
-        << "Node " << i << ','                      // name
-        << n.vecEdges.size() << " edges"            // desc
-        << "\n";
-        i++;
-    }
-    
-    // Dump all edges as Tracks
-    i = 0;
-    for (const TaxiEdge& e: apt.GetTaxiEdgeVec())
-    {
-        const TaxiNode& a = e.GetA(apt);
-        const TaxiNode& b = e.GetB(apt);
+    if (gmapApt.count(_aptId) < 1) return false;
+    try {
+        const Apt& apt = gmapApt.at(_aptId);
         
-        out
-        << "T,1,,"                                  // type, BOT, symbol
-        << (e.GetType() == TaxiEdge::RUN_WAY ? "red," : "blue,")  // color
-        << std::lround(e.angle) << ','              // rotation
-        << a.lat << ',' << a.lon << ','             // latitude,longitude
-        << ",,"                                     // time,speed
-        << std::lround(e.angle) << ','              // course
-        << "Edge " << (i++) << ','                  // name
-        << std::lround(e.angle) << "°, nodes " << e.startNode() << '-' << e.endNode() // desc
-        << "\n";
-
-        out
-        << "T,0,,"                                  // type, BOT, symbol
-        << (e.GetType() == TaxiEdge::RUN_WAY ? "red," : "blue,")  // color
-        << std::lround(e.angle) << ','              // rotation
-        << b.lat << ',' << b.lon << ','             // latitude,longitude
-        << ",,"                                     // time,speed
-        << std::lround(e.angle) << ','              // course
-        << ','                                      // name, desc
-        << "\n";
-
-    }
+        // open the output file
+        const std::string fileName (dataRefs.GetXPSystemPath() + _aptId + ".csv");
+        std::ofstream out (fileName, std::ios_base::out | std::ios_base::trunc);
+        // column headers
+        out << "type,BOT,symbol,color,rotation,latitude,longitude,time,speed,course,name,desc\n";
+        out.precision(11);               // precision is all digits, so we need something like 123.45678901
         
-    // Dump all Bezier handles
-    for (auto iter = apt.vecBezierHandles.cbegin();
-         iter != apt.vecBezierHandles.cend();
-         ++iter)
-    {
-        const TaxiNode& a = *iter;
-        const TaxiNode& b = *(++iter);
+        // Dump all rwy endpoints as Waypoints
+        for (const RwyEndPt& re: apt.GetRwyEndPtVec())
+            out
+            << "W,,"                                    // type, BOT
+            << "arrow,"                                 // symbol
+            << "red,"                                   // color
+            << std::lround(re.heading) << ','           // rotation
+            << re.lat << ',' << re.lon << ','           // latitude,longitude
+            << ",,,"                                    // time,speed,course
+            << re.id << ','                             // name
+            << std::lround(re.heading) << "°,"          // desc
+            << "\n";
         
-        out
-        << "T,1,,"                                  // type, BOT, symbol
-        << (a.bVisited ? "orange," : "magenta,")    // color (mirrored control point or not?)
-        <<  ','                                     // rotation
-        << a.lat << ',' << a.lon << ','             // latitude,longitude
-        << ",,"                                     // time,speed
-        << ','                                      // course
-        << "Bezier Handle Ln " << a.prevIdx << ','  // name
-        << (a.bVisited ? "mirrored" : "")           // desc
-        << "\n";
+        // Dump all startup locations as Waypoints
+        for (const StartupLoc& loc: apt.GetStartupLocVec())
+            out
+            << "W,,"                                    // type, BOT
+            << "wedge,"                                 // symbol
+            << "orange,"                                // color
+            << std::lround(loc.heading) << ','          // rotation
+            << loc.lat << ',' << loc.lon << ','         // latitude,longitude
+            << ",,,"                                    // time,speed,course
+            << loc.id << ','                            // name
+            << std::lround(loc.heading) << "°,"         // desc
+            << "\n";
+        
+        // Dump all startup paths as tracks
+        for (const StartupLoc& loc: apt.GetStartupLocVec())
+        {
+            out
+            << "T,1,,"                                  // type, BOT, symbol
+            << "orange,"                                // color
+            << std::lround(loc.heading) << ','          // rotation
+            << loc.lat << ',' << loc.lon << ','         // latitude,longitude
+            << ",,"                                     // time,speed
+            << std::lround(loc.heading) << ','          // course
+            << "Path leaving " << loc.id << ','         // name
+            << std::lround(loc.heading) << "°,"         // desc
+            << "\n";
 
-        out
-        << "T,0,,"                                  // type, BOT, symbol
-        << (a.bVisited ? "orange," : "magenta,")    // color (mirrored control point or not?)
-        <<  ','                                     // rotation
-        << b.lat << ',' << b.lon << ','             // latitude,longitude
-        << ",,"                                     // time,speed
-        << ','                                      // course
-        << ','                                      // name, desc
-        << "\n";
-    }
+            out
+            << "T,0,,"                                  // type, BOT, symbol
+            << "orange,"                                // color
+            << std::lround(loc.heading) << ','          // rotation
+            << loc.viaPos.y << ',' << loc.viaPos.x << ','  // latitude,longitude
+            << ",,"                                     // time,speed
+            << std::lround(loc.heading) << ','          // course
+            << ','                                      // name, desc
+            << "\n";
 
-    // Close the file
-    out.close();
-}
+        }
+        
+        // Dump all nodes as Waypoints
+        size_t i = 0;
+        for (const TaxiNode& n: apt.GetTaxiNodesVec()) {
+            out
+            << "W,,"                                    // type, BOT
+            << (n.vecEdges.size() == 0 ? "pin," :       // symbol
+                n.vecEdges.size() == 1 ? "circle," :
+                n.vecEdges.size() == 2 ? "square," :
+                n.vecEdges.size() == 3 ? "triangle," :
+                n.vecEdges.size() == 4 ? "diamond," : "star,")
+            << (apt.IsConnectedToRwy(i) ? "red," :        // color: red if rwy, blue if 2 edges, else auqa
+                n.vecEdges.size() == 2 ? "blue," : "aqua,")
+            << "0,"                                     // rotation
+            << n.lat << ',' << n.lon << ','             // latitude,longitude
+            << ",,,"                                    // time,speed,course
+            << "Node " << i << ','                      // name
+            << n.vecEdges.size() << " edges"            // desc
+            << "\n";
+            i++;
+        }
+        
+        // Dump all edges as Tracks
+        i = 0;
+        for (const TaxiEdge& e: apt.GetTaxiEdgeVec())
+        {
+            const TaxiNode& a = e.GetA(apt);
+            const TaxiNode& b = e.GetB(apt);
+            
+            out
+            << "T,1,,"                                  // type, BOT, symbol
+            << (e.GetType() == TaxiEdge::RUN_WAY ? "red," : "blue,")  // color
+            << std::lround(e.angle) << ','              // rotation
+            << a.lat << ',' << a.lon << ','             // latitude,longitude
+            << ",,"                                     // time,speed
+            << std::lround(e.angle) << ','              // course
+            << "Edge " << (i++) << ','                  // name
+            << std::lround(e.angle) << "°, nodes " << e.startNode() << '-' << e.endNode() // desc
+            << "\n";
+
+            out
+            << "T,0,,"                                  // type, BOT, symbol
+            << (e.GetType() == TaxiEdge::RUN_WAY ? "red," : "blue,")  // color
+            << std::lround(e.angle) << ','              // rotation
+            << b.lat << ',' << b.lon << ','             // latitude,longitude
+            << ",,"                                     // time,speed
+            << std::lround(e.angle) << ','              // course
+            << ','                                      // name, desc
+            << "\n";
+
+        }
+            
+#ifdef DEBUG
+        // Dump all Bezier handles
+        for (auto iter = apt.vecBezierHandles.cbegin();
+             iter != apt.vecBezierHandles.cend();
+             ++iter)
+        {
+            const TaxiNode& a = *iter;
+            const TaxiNode& b = *(++iter);
+            
+            out
+            << "T,1,,"                                  // type, BOT, symbol
+            << (a.bVisited ? "orange," : "magenta,")    // color (mirrored control point or not?)
+            <<  ','                                     // rotation
+            << a.lat << ',' << a.lon << ','             // latitude,longitude
+            << ",,"                                     // time,speed
+            << ','                                      // course
+            << "Bezier Handle Ln " << a.prevIdx << ','  // name
+            << (a.bVisited ? "mirrored" : "")           // desc
+            << "\n";
+
+            out
+            << "T,0,,"                                  // type, BOT, symbol
+            << (a.bVisited ? "orange," : "magenta,")    // color (mirrored control point or not?)
+            <<  ','                                     // rotation
+            << b.lat << ',' << b.lon << ','             // latitude,longitude
+            << ",,"                                     // time,speed
+            << ','                                      // course
+            << ','                                      // name, desc
+            << "\n";
+        }
 #endif
+        
+        // Close the file
+        out.close();
+        return true;
+    }
+    catch (...) {
+        return false;
+    }
+}

@@ -77,7 +77,6 @@ public:
     virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
     virtual bool IsLiveFeed() const { return true; }
     virtual LTChannelType GetChType() const { return CHT_TRAFFIC_SENDER; }
-    virtual const char* ChName() const { return FOREFLIGHT_NAME; }
     
     // interface called from LTChannel
     virtual bool FetchAllData(const positionTy& pos);

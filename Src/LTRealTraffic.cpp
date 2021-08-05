@@ -36,7 +36,7 @@
 
 // Constructor doesn't do much
 RealTrafficConnection::RealTrafficConnection (mapLTFlightDataTy& _fdMap) :
-LTChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE),
+LTChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME),
 LTOnlineChannel(),
 LTFlightDataChannel(),
 fdMap(_fdMap)
@@ -722,7 +722,8 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // RealTraffic always sends data of 100km or so around current pos
     // Filter data that the user didn't want based on settings
     const positionTy viewPos = dataRefs.GetViewPos();
-    if ( pos.dist(viewPos) > dataRefs.GetFdStdDistance_m() )
+    const double dist = pos.dist(viewPos);
+    if (dist > dataRefs.GetFdStdDistance_m() )
         return true;            // silently
     
     try {
@@ -814,7 +815,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         }
 
         // add the static data
-        fd.UpdateData(std::move(stat));
+        fd.UpdateData(std::move(stat), dist);
 
         // add the dynamic data
         fd.AddDynData(dyn, 0, 0, &pos);

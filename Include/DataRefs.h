@@ -43,6 +43,7 @@ const int DEF_FD_SNAP_TAXI_DIST = 15;           ///< [m]: Snapping to taxi route
 const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flight data
 const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
 const int DEF_AC_OUTDATED_INTVL = 50;           ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+const int MIN_NETW_TIMEOUT      =  5;           ///< [s] minimum network request timeout
 const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
 
 

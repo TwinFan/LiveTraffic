@@ -60,20 +60,19 @@ public:
     std::string urlLink;            ///< an URL related to that channel, eg. a radar view for testing coverage, or a home page
     std::string urlName;            ///< Name for the URL, could show on link buttons
     std::string urlPopup;           ///< more detailed text, shows eg. as popup when hovering over the link button
+    const char* const pszChName;    ///< the cahnnel's name
+    const dataRefsLT channel;       ///< id of channel (see dataRef)
     
-protected:
-    dataRefsLT channel;             // id of channel (see dataRef)
-
 private:
-    bool bValid;                    // valid connection?
-    int errCnt;                     // number of errors tolerated
+    bool bValid = true;             ///< valid connection?
+    int errCnt = 0;                 ///< number of errors tolerated
 
 public:
-    LTChannel (dataRefsLT ch) : channel(ch), bValid(false), errCnt(0) {}
-    virtual ~LTChannel ();
+    LTChannel (dataRefsLT ch, const char* chName) : pszChName(chName), channel(ch) {}
+    virtual ~LTChannel () {}
     
 public:
-    virtual const char* ChName() const = 0;
+    const char* ChName() const { return pszChName; }
     inline dataRefsLT GetChannel() const { return channel; }
     
     virtual bool IsLiveFeed () const = 0;
@@ -137,13 +136,14 @@ struct acStatUpdateTy {
 public:
     LTFlightData::FDKeyTy acKey;    // to find master data
     std::string callSign;           // to query route information
+    unsigned order = UINT_MAX;      ///< processing order, lowest value first
 protected:
     bool bProcessed = false;        ///< has been processed by some master data channel?
     
 public:
     acStatUpdateTy() {}
-    acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c) :
-    acKey(k), callSign(c) {}
+    acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c, unsigned o) :
+    acKey(k), callSign(c), order(o) {}
 
     inline bool operator == (const acStatUpdateTy& o) const
     { return acKey == o.acKey && callSign == o.callSign; }
@@ -152,19 +152,19 @@ public:
     inline void SetProcessed () { bProcessed = true; }
     inline bool HasBeenProcessed () const { return bProcessed; }
 };
-typedef std::list<acStatUpdateTy> listAcStatUpdateTy;
+typedef std::vector<acStatUpdateTy> vecAcStatUpdateTy;
 
 class LTACMasterdataChannel : virtual public LTChannel
 {
 private:
-    // global list of a/c for which static data is yet missing
-    // (reset with every network request cycle)
-    static listAcStatUpdateTy listAcStatUpdate;
+    /// @brief global list of a/c for which static data is yet missing
+    /// (reset with every network request cycle)
+    static vecAcStatUpdateTy vecAcStatUpdate;
     /// Lock controlling multi-threaded access to `listAcSTatUpdate`
-    static std::mutex listAcStatMutex;
+    static std::mutex vecAcStatMutex;
 
 protected:
-    listAcStatUpdateTy listAc;      // object-private list of a/c to query
+    vecAcStatUpdateTy vecAc;        ///< object-private list of a/c to query
     std::string currKey;
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
@@ -175,11 +175,12 @@ public:
 
     // request to fetch master data
     static void RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
-                                   const std::string callSign);
+                                   const std::string callSign,
+                                   double distances);
     static void ClearMasterDataRequests ();
     
 protected:
-    // uniquely copies entries from listAcStatUpdate to listAc
+    // uniquely copies entries from listAcStatUpdate to vecAc
     void CopyGlobalRequestList ();
 };
 
@@ -191,6 +192,7 @@ class LTOnlineChannel : virtual public LTChannel
 {
 protected:
     CURL* pCurl;                    // handle into CURL
+    int nTimeout;                   ///< current network timeout of this channel
     char* netData;                  // where the response goes
     size_t netDataPos;              // current write pos into netData
     size_t netDataSize;             // current size of netData
@@ -245,8 +247,9 @@ void LTFlightDataHideAircraft();
 void LTFlightDataDisable();
 void LTFlightDataStop();
 
-/// Is at least one tracking data channel enabled?
-bool LTFlightDataAnyTrackingChEnabled ();
+bool LTFlightDataAnyTrackingChEnabled ();   ///< Is at least one tracking data channel enabled?
+bool LTFlightDataAnyChInvalid ();           ///< Is any channel invalid?
+void LTFlightDataRestartInvalidChs ();      ///< Restart all invalid channels (set valid)
 
 //
 //MARK: Aircraft Maintenance (called from flight loop callback)

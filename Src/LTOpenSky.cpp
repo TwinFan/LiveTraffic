@@ -31,7 +31,7 @@
 
 // Constructor
 OpenSkyConnection::OpenSkyConnection () :
-LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE),
+LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE, OPSKY_NAME),
 LTOnlineChannel(),
 LTFlightDataChannel()
 {
@@ -66,6 +66,19 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // short-cut if there is nothing
     if ( !netDataPos ) return true;
     
+    // Only proceed in case HTTP response was OK
+    if (httpResponse != HTTP_OK) {
+        // There are a few typical responses that may happen when OpenSky
+        // is just temporarily unresponsive. But in all _other_ cases
+        // we increase the error counter.
+        if (httpResponse != HTTP_BAD_GATEWAY        &&
+            httpResponse != HTTP_NOT_AVAIL          &&
+            httpResponse != HTTP_GATEWAY_TIMEOUT    &&
+            httpResponse != HTTP_TIMEOUT)
+            IncErrCnt();
+        return false;
+    }
+    
     // now try to interpret it as JSON
     JSON_Value* pRoot = json_parse_string(netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
@@ -83,6 +96,9 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
+
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
 
     // fetch the aircraft array
     JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
@@ -148,15 +164,12 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 fd.SetKey(fdKey);
             
             // fill static data
-            {
-                LTFlightData::FDStaticData stat;
-                stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
-                stat.trt     =    trt_ADS_B_unknown;
-                stat.call    =    jag_s(pJAc, OPSKY_CALL);
-                while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
-                    stat.call.pop_back();
-                fd.UpdateData(std::move(stat));
-            }
+            LTFlightData::FDStaticData stat;
+            stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
+            stat.trt     =    trt_ADS_B_unknown;
+            stat.call    =    jag_s(pJAc, OPSKY_CALL);
+            while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
+                stat.call.pop_back();
             
             // dynamic data
             {   // unconditional...block is only for limiting local variables
@@ -179,6 +192,9 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 dyn.heading);
                 pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
                 
+                // Update static data
+                fd.UpdateData(std::move(stat), pos.dist(viewPos));
+
                 // position is rather important, we check for validity
                 // (we do allow alt=NAN if on ground as this is what OpenSky returns)
                 if ( pos.isNormal(true) )
@@ -204,7 +220,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 
 // Constructor
 OpenSkyAcMasterdata::OpenSkyAcMasterdata () :
-LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA),
+LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME),
 LTOnlineChannel(),
 LTACMasterdataChannel()
 {
@@ -217,7 +233,7 @@ LTACMasterdataChannel()
 // OpenSkyAcMasterdata fetches two objects with two URL requests:
 // 1. Master (or Meta) data based on transpIcao
 // 2. Route information based on current call sign
-// Both keys are passed in listAcStatUpdate. Two requests are sent one after
+// Both keys are passed in vecAcStatUpdate. Two requests are sent one after
 // the other. The returning information is combined into one artifical JSON
 // object:
 //      { "MASTER": <1. response>, "ROUTE": <2. response> }
@@ -236,20 +252,23 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     bool bChannelOK = true;
     positionTy pos;                     // no position needed, but we use the GND flag to tell the URL callback if we need master or route request
     acStatUpdateTy info;
-    while (bChannelOK && !listAc.empty() && !bFDMainStop &&
+    while (bChannelOK && !vecAc.empty() && !bFDMainStop &&
            // We might have many requests in the list and we must pause
            // between two of them. We check in the loop that we don't exceed the
            // next wakeup time for the global request/reply loop so that regular
            // tracking request lookup can happen in time.
            std::chrono::steady_clock::now() <= gNextWakeup - 2 * std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)))
     {
-        // fetch request from front of list and remove
-        info = listAc.front();
-        listAc.pop_front();
+        // fetch request from back of list and remove
+        info = vecAc.back();
+        vecAc.pop_back();
         // empty or not an ICAO code? -> skip
         if (info.acKey.eKeyType != LTFlightData::KEY_ICAO ||
             info.acKey.key.empty())
             continue;
+        
+//        LOG_MSG(logDEBUG, "Requesting for %s / %s, order = %d",
+//                info.acKey.c_str(), info.callSign.c_str(), info.order);
         
         // beginning of a JSON object
         std::string data("{");
@@ -276,11 +295,8 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         bChannelOK = true;
                         break;
                     case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                        invIcaos.emplace_back(info.acKey.key);
-                        bChannelOK = true;              // but technically a valid response
-                        break;
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
-                        invCallSigns.emplace_back(info.callSign);
+                        invIcaos.emplace_back(info.acKey.key);
                         bChannelOK = true;              // but technically a valid response
                         break;
                         // in all other cases (including 503 HTTP_NOT_AVAIL)
@@ -329,10 +345,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
                         data += netData;                // add the response
                         bChannelOK = true;
                         break;
-                    case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                        invCallSigns.emplace_back(info.callSign);
-                        bChannelOK = true;              // but technically a valid response
-                        break;
+                    case HTTP_NOT_FOUND:                // doesn't know callsign, don't query again
                     case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
                         invCallSigns.emplace_back(info.callSign);
                         bChannelOK = true;              // but technically a valid response
@@ -367,7 +380,7 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
     if ( !bChannelOK ) {
         // we need to do that last request again
         if (!info.empty())
-            listAc.push_back(std::move(info));
+            vecAc.push_back(std::move(info));
         
         IncErrCnt();
         return !listMd.empty();         // return `true` if there is data to process, otherwise we wouldn't process what had been received before the error
