@@ -1,6 +1,0 @@
-framework module XPMP2 {
-  umbrella header "XPMP2.h"
-
-  export *
-  module * { export * }
-}
