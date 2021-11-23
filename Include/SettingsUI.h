@@ -45,6 +45,12 @@ protected:
     // Channel: Open Glider Network
     /// buffers for editing of Flarm a/c type mappings
     std::array<std::string,14> aFlarmAcTys;
+    
+    // Channel: FSCharter
+    std::string sFSCUser;           ///< FSC user
+    std::string sFSCPwd;            ///< FSC password
+    bool bFSCPwdClearText = false;  ///< Is FSC pwd displayed clear text?
+    
 
     // CSL
     int cslActiveLn = -1;           ///< CSL path line currently being edited

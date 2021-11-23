@@ -362,6 +362,55 @@ std::string str_first_non_empty (const std::initializer_list<const std::string>&
     return "";
 }
 
+/// Base64 encoding
+std::string EncodeBase64 (const std::string& _clear)
+{
+    // create a buffer for the result and do the encoding
+    char* buf = new char [(unsigned)Base64encode_len((int)_clear.length())];
+    Base64encode(buf, _clear.c_str(), (int)_clear.length());
+    std::string ret (buf);
+    delete [] buf;
+    return ret;
+}
+
+/// Base64 decoding
+std::string DecodeBase64 (const std::string& _encoded)
+{
+    // create a buffer for the result and do the decoding
+    char* buf = new char [(unsigned)Base64decode_len(_encoded.c_str())];
+    const int len = Base64decode(buf, _encoded.c_str());
+    std::string ret (buf, (size_t)len);
+    delete [] buf;
+    return ret;
+}
+
+/// XOR a string with another one
+std::string str_xor (const std::string& s, const char* t)
+{
+    const char* pc = t;
+    std::string r ( s.size(), '\0');
+    for (size_t i = 0; i < s.size(); ++i, ++pc) {
+        if (!(*pc)) pc = t;                     // restart at end of string
+        r[i] = s[i] ^ *pc;
+    }
+    return r;
+}
+
+/// Obfuscate a secret string for storing in the settings file
+std::string Obfuscate (const std::string& _clear)
+{
+    // We XOR with a constant text, then base64-convert
+    return EncodeBase64(str_xor(_clear, PLUGIN_SIGNATURE));
+}
+
+/// Undo obfuscation
+std::string Cleartext (const std::string& _obfuscated)
+{
+    // We base64-decode, then XOR with a constant text
+    return str_xor(DecodeBase64(_obfuscated), PLUGIN_SIGNATURE);
+}
+
+
 //
 // MARK: Time Functions
 //

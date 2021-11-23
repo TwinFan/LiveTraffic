@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		250F59C82530ECA100EF095C /* XPLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 250F59C72530ECA100EF095C /* XPLM.framework */; };
+		251284AF274D829500B0F51A /* base64.c in Sources */ = {isa = PBXBuildFile; fileRef = 251284AE274D829500B0F51A /* base64.c */; };
 		2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */; };
 		2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41F248D022B00F18B76 /* LTImgWindow.cpp */; };
 		254F278924EF230400CACCDA /* LTWeather.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 254F278824EF230400CACCDA /* LTWeather.cpp */; };
@@ -21,6 +22,7 @@
 		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; };
 		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; };
 		256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
+		256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */; };
 		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
 		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
 		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
@@ -48,6 +50,8 @@
 
 /* Begin PBXFileReference section */
 		250F59C72530ECA100EF095C /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPLM.framework; path = Lib/SDK/Libraries/Mac/XPLM.framework; sourceTree = "<group>"; };
+		251284AD274D829500B0F51A /* base64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = base64.h; sourceTree = "<group>"; };
+		251284AE274D829500B0F51A /* base64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = base64.c; sourceTree = "<group>"; };
 		251414822512AB780066818B /* APRS_Test.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = APRS_Test.py; sourceTree = "<group>"; };
 		251414842512AB780066818B /* ddb.glidernet.org.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ddb.glidernet.org.txt; sourceTree = "<group>"; };
 		2515F41A248CF4CB00F18B76 /* imgui_stdlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = imgui_stdlib.h; sourceTree = "<group>"; };
@@ -88,6 +92,8 @@
 		256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ImgFontAtlas.cpp; sourceTree = "<group>"; };
 		256CA1D0248C511D009F4AAE /* SystemGL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SystemGL.h; sourceTree = "<group>"; };
 		256CA1D2248C6137009F4AAE /* build_LiveTraffic */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_LiveTraffic; sourceTree = "<group>"; };
+		256ECE02274AB6D300B02B8F /* LTFSCharter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFSCharter.h; sourceTree = "<group>"; };
+		256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTFSCharter.cpp; sourceTree = "<group>"; };
 		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
 		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
 		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
@@ -180,6 +186,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		251284AC274D829500B0F51A /* base64 */ = {
+			isa = PBXGroup;
+			children = (
+				251284AD274D829500B0F51A /* base64.h */,
+				251284AE274D829500B0F51A /* base64.c */,
+			);
+			path = base64;
+			sourceTree = "<group>";
+		};
 		251414812512AB770066818B /* OGN */ = {
 			isa = PBXGroup;
 			children = (
@@ -258,6 +273,7 @@
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
 				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
+				256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */,
 				2515F41F248D022B00F18B76 /* LTImgWindow.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
 				259EC47925057815009B86F3 /* LTOpenGlider.cpp */,
@@ -390,6 +406,7 @@
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
 				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
+				256ECE02274AB6D300B02B8F /* LTFSCharter.h */,
 				2515F41E248CF59C00F18B76 /* LTImgWindow.h */,
 				259EC47825057802009B86F3 /* LTOpenGlider.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
@@ -405,6 +422,7 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				251284AC274D829500B0F51A /* base64 */,
 				25F3471824D2C7DE004574E7 /* parson */,
 				25EFC76A249567BF005DB0A6 /* Font */,
 				256CA1C8248C5094009F4AAE /* ImgWindow */,
@@ -593,7 +611,9 @@
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
 				256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */,
 				2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */,
+				256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
+				251284AF274D829500B0F51A /* base64.c in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
 				25C5254424D0268700C73482 /* InfoListWnd.cpp in Sources */,
 				25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */,
@@ -687,6 +707,7 @@
 				HEADER_SEARCH_PATHS = (
 					"Lib/SDK/CHeaders/**",
 					Lib/XPMP2/XPMP2.framework/Headers,
+					Lib/base64,
 					Lib/parson,
 					Lib/LTAPI,
 					"Lib/ImGui/**",
@@ -783,6 +804,7 @@
 				HEADER_SEARCH_PATHS = (
 					"Lib/SDK/CHeaders/**",
 					Lib/XPMP2/XPMP2.framework/Headers,
+					Lib/base64,
 					Lib/parson,
 					Lib/LTAPI,
 					"Lib/ImGui/**",

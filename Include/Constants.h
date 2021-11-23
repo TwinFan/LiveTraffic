@@ -29,8 +29,8 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.53f;
-constexpr bool VERSION_BETA = false;
+constexpr float VERSION_NR = 2.60f;
+constexpr bool VERSION_BETA = true;
 extern float verXPlaneOrg;          // version on X-Plane.org
 extern int verDateXPlaneOrg;        // and its date
 
@@ -208,6 +208,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
+#define CFG_FSC_USER            "FSC_User"
+#define CFG_FSC_PWD             "FSC_Pwd"
 #define XPPRF_RENOPT_HDR        "renopt_HDR"					// XP10
 #define XPPRF_EFFECTS_04		"renopt_effects_04"				// XP11, if >= 3 then includes HDR
 #define XPPRF_RENOPT_HDR_ANTIAL "renopt_HDR_antial"
@@ -256,6 +258,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
+#define HELP_SET_CH_FSCHARTER   "setup/installation/fscharter"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
 #define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"

@@ -90,6 +90,9 @@
 #include "XPLMCamera.h"
 #include "XPLMNavigation.h"
 
+// Base64
+#include "base64.h"
+
 // ImGui / ImgWindow
 #include "imgui.h"
 #include "imgui_stdlib.h"
@@ -131,6 +134,7 @@ extern DataRefs dataRefs;
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
 #include "LTOpenGlider.h"
+#include "LTFSCharter.h"
 
 //MARK: Global Control functions
 bool LTMainInit ();
@@ -250,6 +254,17 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
     if ( std::find(list.cbegin(),list.cend(),key) == list.cend() )
         list.push_back(key);
 }
+
+/// Base64 encoding
+std::string EncodeBase64 (const std::string& _clear);
+/// Base64 decoding
+std::string DecodeBase64 (const std::string& _encoded);
+/// XOR a string s with another one t, potentially repeating the application of t if t is shorter than s
+std::string str_xor (const std::string& s, const char* t);
+/// Obfuscate a secret string for storing in the settings file
+std::string Obfuscate (const std::string& _clear);
+/// Undo obfuscation
+std::string Cleartext (const std::string& _obfuscated);
 
 // MARK: Time Functions
 

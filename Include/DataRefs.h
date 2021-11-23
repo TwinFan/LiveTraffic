@@ -383,6 +383,7 @@ enum dataRefsLT {
     DR_DBG_EXPORT_NORMALIZE_TS,
 
     // channel configuration options
+    DR_CFG_FSC_ENV,
     DR_CFG_OGN_USE_REQUREPL,
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
@@ -395,6 +396,7 @@ enum dataRefsLT {
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
     DR_CHANNEL_FORE_FLIGHT_SENDER,
+    DR_CHANNEL_FSCHARTER,
     DR_CHANNEL_OPEN_GLIDER_NET,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
@@ -648,6 +650,7 @@ protected:
     bool bUseExternalCamera  = false;   ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
     // channel config options
+    int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49003;        // UDP Port receiving traffic
@@ -661,7 +664,9 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
-    std::string sADSBExAPIKey;
+    std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
+    std::string sFSCUser;               ///< FSCharter login user
+    std::string sFSCPwd;                ///< FSCharter login password, base64-encoded
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -864,6 +869,12 @@ public:
     
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
+    
+    size_t GetFSCEnv() const { return (size_t)fscEnv; }
+    void GetFSCharterCredentials (std::string& user, std::string& pwd)
+    { user = sFSCUser; pwd = sFSCPwd; }
+    void SetFSCharterUser (const std::string& user) { sFSCUser = user; }
+    void SetFSCharterPwd (const std::string& pwd)   { sFSCPwd = pwd; }
     
     // timestamp offset network vs. system clock
     inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }
