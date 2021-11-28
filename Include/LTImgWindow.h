@@ -269,9 +269,6 @@ IMGUI_API bool FilteredRadioButton(const char* label, const char* filter,
 IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefsLT idx,
                                  int v_min, int v_max, int v_step = 1, const char* format = "%d");
 
-/// @brief Outputs up to 3 lines of RealTraffic channel status info
-IMGUI_API void TextRealTrafficStatus ();
-
 };
 
 //

@@ -85,6 +85,8 @@ public:
     virtual bool IsEnabled () const;
     virtual void SetEnable (bool bEnable);
     virtual std::string GetStatusText () const;  ///< return a human-readable staus
+    virtual std::string GetStatusTextExt () const///< optionally return an extended status
+    { return std::string(); }
     virtual int GetNumAcServed () const = 0;     ///< how many a/c do we feed?
     
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
@@ -250,6 +252,9 @@ void LTFlightDataStop();
 bool LTFlightDataAnyTrackingChEnabled ();   ///< Is at least one tracking data channel enabled?
 bool LTFlightDataAnyChInvalid ();           ///< Is any channel invalid?
 void LTFlightDataRestartInvalidChs ();      ///< Restart all invalid channels (set valid)
+
+/// Return channel object
+LTChannel* LTFlightDataGetCh (dataRefsLT ch);
 
 //
 //MARK: Aircraft Maintenance (called from flight loop callback)

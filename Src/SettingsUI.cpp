@@ -396,13 +396,17 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 // RealTraffic's connection status details
-                if (dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE) ||
-                    (dataRefs.pRTConn && dataRefs.pRTConn->IsConnecting()))
-                {
-                    if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                        ImGui::TextRealTrafficStatus();
-                        ImGui::TableNextCell();
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    const LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
+                    if (pRTCh) {
+                        ImGui::TextUnformatted(pRTCh->GetStatusText().c_str());
+                        const std::string extStatus = pRTCh->GetStatusTextExt();
+                        if (!extStatus.empty())
+                            ImGui::TextUnformatted(extStatus.c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
                     }
+                    ImGui::TableNextCell();
                 }
                 
                 if (!*sFilter) ImGui::TreePop();

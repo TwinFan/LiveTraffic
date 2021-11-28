@@ -836,6 +836,19 @@ void LTFlightDataRestartInvalidChs ()
 }
 
 
+// Return channel object
+LTChannel* LTFlightDataGetCh (dataRefsLT ch)
+{
+    listPtrLTChannelTy::iterator iter =
+    std::find_if(listFDC.begin(), listFDC.end(),
+                 [ch](const ptrLTChannelTy& pCh)
+                 { return pCh->channel == ch; });
+    if (iter == listFDC.end())
+        return nullptr;
+    else
+        return iter->get();
+}
+
 //
 //MARK: Aircraft Maintenance
 //      (called from flight loop callback!)

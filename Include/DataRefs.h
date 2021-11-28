@@ -695,7 +695,6 @@ public:
     /// once per Flarm a/c type: matching it to one or more ICAO types
     std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
     
-    RealTrafficConnection *pRTConn = nullptr;   // ptr to RealTraffic connection object
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     

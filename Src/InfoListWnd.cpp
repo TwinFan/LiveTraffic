@@ -412,10 +412,10 @@ void InfoListWnd::buildInterface()
                                 }
                                 // Channel's status
                                 if (ImGui::TableSetColumnIndex(1)) {
-                                    if (pCh.get() == dataRefs.pRTConn)  // special treatment for RealTraffic
-                                        ImGui::TextRealTrafficStatus();
-                                    else
-                                        ImGui::TextUnformatted(pCh->GetStatusText().c_str());
+                                    ImGui::TextUnformatted(pCh->GetStatusText().c_str());
+                                    const std::string extStatus = pCh->GetStatusTextExt();
+                                    if (!extStatus.empty())
+                                        ImGui::TextUnformatted(extStatus.c_str());
                                 }
                                 ImGui::PopID();
                             }
