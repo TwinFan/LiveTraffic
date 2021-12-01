@@ -194,6 +194,7 @@ class LTOnlineChannel : virtual public LTChannel
 {
 protected:
     CURL* pCurl;                    // handle into CURL
+    std::string requBody;           ///< body of a POST request
     int nTimeout;                   ///< current network timeout of this channel
     char* netData;                  // where the response goes
     size_t netDataPos;              // current write pos into netData
@@ -218,6 +219,7 @@ protected:
 public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos) = 0;
+    virtual void ComputeBody () { requBody.clear(); }   ///< in case of a POST request this call puts together its body
     virtual bool IsLiveFeed () const    { return true; }
     
     /// Is the given network error text possibly caused by problems querying the revocation list?

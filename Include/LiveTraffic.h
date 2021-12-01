@@ -216,6 +216,9 @@ inline std::string strAtMost(const std::string s, size_t m) {
     s.substr(0, m-3) + "...";
 }
 
+/// Replace all occurences of one string with another
+void str_replaceAll(std::string& str, const std::string& from, const std::string& to);
+
 // trimming of string
 // https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
 // trim from end of string (right)
@@ -246,6 +249,9 @@ std::vector<std::string> str_tokenize (const std::string& s,
 std::string str_concat (const std::vector<std::string>& vs, const std::string& separator);
 // returns first non-empty string, and "" in case all are empty
 std::string str_first_non_empty (const std::initializer_list<const std::string>& l);
+
+/// Replaces personal information in the string, like email address
+std::string& str_replPers (std::string& s);
 
 // push a new item to the end only if it doesn't exist yet
 template< class ContainerT>

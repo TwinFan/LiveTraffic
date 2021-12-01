@@ -427,6 +427,7 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_FSCHARTER, "Open Help on " FSC_NAME " in Browser",
                                            sFilter, nOpCl))
             {
+                LTChannel* pFSCCh = LTFlightDataGetCh(DR_CHANNEL_FSCHARTER);
                 const bool bFSCon = dataRefs.IsChannelEnabled(DR_CHANNEL_FSCHARTER);
                 
                 // User
@@ -471,10 +472,22 @@ void LTSettingsUI::buildInterface()
                         if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
                             dataRefs.SetFSCharterUser(sFSCUser);
                             dataRefs.SetFSCharterPwd(sFSCPwd);
+                            if (pFSCCh) pFSCCh->SetValid(true,false);
                             dataRefs.SetChannelEnabled(DR_CHANNEL_FSCHARTER, true);
                             bFSCPwdClearText = false;           // and hide the pwd now
                         }
                     }
+                    ImGui::TableNextCell();
+                }
+
+                // FSCharter's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (pFSCCh) {
+                        ImGui::TextUnformatted(pFSCCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
                 }
 
                 if (!*sFilter) ImGui::TreePop();

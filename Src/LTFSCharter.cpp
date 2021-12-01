@@ -63,21 +63,143 @@ LTFlightDataChannel()
     urlPopup = FSC_CHECK_POPUP;
 }
 
+
+// Get FSC-specific status string
+std::string FSCConnection::GetStatusStr () const
+{
+    switch (fscStatus) {
+        case FSC_STATUS_OK:             return "Connected";
+        case FSC_STATUS_NONE:           return "Starting...";
+        case FSC_STATUS_LOGIN_FAILED:   return "Login failed!";
+        case FSC_STATUS_LOGGING_IN:     return "Logging in...";
+    }
+    return "?";
+}
+
+
+// get status info, considering FSC-specific texts for login phases
+std::string FSCConnection::GetStatusText () const
+{
+    if (!IsValid() || !IsEnabled() || fscStatus == FSC_STATUS_OK)
+        return LTChannel::GetStatusText();
+    else
+        return GetStatusStr();
+}
+
+
+/// Initialize CURL, adding in FSC-required headers
+bool FSCConnection::InitCurl ()
+{
+    // Standard-init first (repeated call will just return true without effect)
+    if (!LTOnlineChannel::InitCurl())
+        return false;
+    
+    // if there is a header already remove it first
+    if (pCurlHeader)
+        curl_slist_free_all(pCurlHeader);
+    pCurlHeader = nullptr;
+    
+    // if we have a token then we add it to the header
+    if ( !token.empty() && !token_type.empty() ) {
+        char chBuf[2048];
+        snprintf(chBuf, sizeof(chBuf), FSC_HEADER_AUTHORIZATION,
+                 token_type.c_str(),
+                 token.c_str());
+        pCurlHeader = curl_slist_append(pCurlHeader, chBuf);
+    }
+    
+    // we always need to say that we send/receive JSON format
+    pCurlHeader = curl_slist_append(pCurlHeader, FSC_HEADER_JSON_SEND);
+    LOG_ASSERT(pCurlHeader);
+    pCurlHeader = curl_slist_append(pCurlHeader, FSC_HEADER_JSON_ACCEPT);
+    
+    // set the header
+    LOG_ASSERT(pCurl);
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pCurlHeader);
+    return true;
+}
+
+
+void FSCConnection::CleanupCurl ()
+{
+    LTOnlineChannel::CleanupCurl();
+    if (pCurlHeader)
+        curl_slist_free_all(pCurlHeader);
+    pCurlHeader = nullptr;
+}
+
 // put together the URL to fetch based on current view position
 std::string FSCConnection::GetURL (const positionTy& pos)
 {
-    // TODO: Replace with actual FSC URL calculation
-    // we add 10% to the bounding box to have some data ready once the plane is close enough for display
-    boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
     char url[128] = "";
-    snprintf(url, sizeof(url),
-             FSC_URL,
-             FSC_ENV[dataRefs.GetFSCEnv()].server.c_str(),
-             box.se.lat(),              // lamin
-             box.nw.lon(),              // lomin
-             box.nw.lat(),              // lamax
-             box.se.lon() );            // lomax
-    return std::string(url);
+    switch (fscStatus) {
+        // Standard operations: Return the request for fetching tracking data
+        case FSC_STATUS_OK:
+        {
+            // TODO: Replace with actual FSC URL calculation
+            // we add 10% to the bounding box to have some data ready once the plane is close enough for display
+            boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
+            snprintf(url, sizeof(url),
+                     FSC_URL,
+                     FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str(),
+                     box.se.lat(),              // lamin
+                     box.nw.lon(),              // lomin
+                     box.nw.lat(),              // lamax
+                     box.se.lon() );            // lomax
+            return std::string(url);
+        }
+            
+        // Not yet logged in, return the login request
+        case FSC_STATUS_NONE:
+        case FSC_STATUS_LOGGING_IN:
+            // Set the status
+            fscStatus = FSC_STATUS_LOGGING_IN;
+            // put together the actual URL
+            snprintf(url, sizeof(url),
+                     FSC_LOGIN,
+                     FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str());
+            return std::string(url);
+            
+        // Error: Do nothing any longer
+        case FSC_STATUS_LOGIN_FAILED:
+            return "";
+    }
+    return "";
+}
+
+
+/// Puts together the body for the oauth request if we are in that state
+void FSCConnection::ComputeBody ()
+{
+    switch (fscStatus) {
+        // just return empty if we are in a "normal" state
+        case FSC_STATUS_OK:
+        case FSC_STATUS_LOGIN_FAILED:
+            requBody.clear();
+            break;
+            
+        case FSC_STATUS_NONE:
+        case FSC_STATUS_LOGGING_IN:
+        {
+            // Credentials
+            std::string username, password;
+            dataRefs.GetFSCharterCredentials(username, password);
+            str_replaceAll(password, "\\", "\\\\");         // replace backslashes with double backslashes
+            str_replaceAll(password, "\"", "\\\"");         // escape double quotes with a backslash
+            
+            // Put together the request body
+            requBody = "{\"grant_type\": \"password\",\"client_id\": \"";
+            requBody += std::to_string(FSC_ENV.at(dataRefs.GetFSCEnv()).client_id);
+            requBody += "\",\"client_secret\": \"";
+            requBody += DecodeBase64(FSC_ENV.at(dataRefs.GetFSCEnv()).client_secrect_enc);
+            requBody += "\",\"username\": \"";
+            requBody += username;
+            requBody += "\",\"password\": \"";
+            requBody += password;
+            requBody += "\",\"scope\": \"\"}";            
+            break;
+        }
+    }
 }
 
 // update shared flight data structures with received flight data
@@ -89,6 +211,51 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // data is expected to be in netData string
     // short-cut if there is nothing
     if ( !netDataPos ) return true;
+    
+    //
+    // --- Login response ---
+    //
+    if (fscStatus == FSC_STATUS_LOGGING_IN)
+    {
+        // try parsing as JSON
+        JSON_Value* pRoot = json_parse_string(netData);
+        JSON_Object* pObj = pRoot ? json_object(pRoot) : nullptr;
+
+        // Failed?
+        if (httpResponse != HTTP_OK) {
+            fscStatus = FSC_STATUS_LOGIN_FAILED;
+            // try to get reason from response
+            std::string msg = pObj ? jog_s(pObj, "message") : "";
+            SHOW_MSG(logERR, "FSCharter login failed! %s", msg.c_str());
+            SetValid(false);
+            return false;
+        }
+        
+        // parsing as JSON OK?
+        if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
+        if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+
+        // look for and return values from the response
+        token_type      = jog_s(pObj, "token_type");
+        token           = jog_s(pObj, "access_token");
+        
+        // both must have been found!
+        if (token_type.empty() || token.empty()) {
+            fscStatus = FSC_STATUS_LOGIN_FAILED;
+            SHOW_MSG(logERR, "FSCharter login returned empty token!");
+            SetValid(false);
+            return false;
+        }
+        
+        // Success!
+        fscStatus = FSC_STATUS_OK;
+        LOG_MSG(logINFO, "FSCharter login succeeded");
+        return true;
+    }
+    
+    //
+    // --- Standard Tracking Data ---
+    //
     
     // Only proceed in case HTTP response was OK
     if (httpResponse != HTTP_OK) {
@@ -103,6 +270,7 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         return false;
     }
     
+
     // TODO: Reimplement for FSCharter
     // now try to interpret it as JSON
     JSON_Value* pRoot = json_parse_string(netData);
@@ -231,4 +399,26 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // success
     return true;
+}
+
+
+// do something while disabled?
+void FSCConnection::DoDisabledProcessing ()
+{
+    ClearLogin();
+}
+
+// (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
+void FSCConnection::Close ()
+{
+    ClearLogin();
+}
+
+
+// Remove all traces of login
+void FSCConnection::ClearLogin ()
+{
+    fscStatus = FSC_STATUS_NONE;
+    token.clear();
+    token_type.clear();
 }

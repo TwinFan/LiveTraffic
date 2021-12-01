@@ -351,14 +351,18 @@ const char* LOG_LEVEL[] = {
 const char* GetLogString (const LogMsgTy& l);
 
 
-// Constructor fills all fields
+// Constructor fills all fields and removes personal info
 LogMsgTy::LogMsgTy (const char* _fn, int _ln, const char* _func,
                     logLevelTy _lvl, const char* _msg) :
 counter(++gLogCnt),
 wallTime(std::chrono::system_clock::now()),
 netwTime(dataRefs.GetMiscNetwTime()),
 fileName(_fn), ln(_ln), func(_func), lvl(_lvl), msg(_msg), bFlushed(false)
-{}
+{
+    // Remove personal information
+    str_replPers(msg);
+
+}
 
 // does the entry match the given string (expected in upper case)?
 bool LogMsgTy::matches (const char* _s) const

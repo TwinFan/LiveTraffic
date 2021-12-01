@@ -306,6 +306,18 @@ bool str_isalnum(const std::string& s)
     return std::all_of(s.cbegin(), s.cend(), [](unsigned char c){return isalnum(c);});
 }
 
+// Replace all occurences of one string with another
+void str_replaceAll(std::string& str, const std::string& from, const std::string& to)
+{
+    if (from.empty() || str.empty())
+        return;
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Continue search only _after_ the replacement position
+    }
+}
+
 // last word of a string
 std::string str_last_word (const std::string& s)
 {
@@ -360,6 +372,24 @@ std::string str_first_non_empty (const std::initializer_list<const std::string>&
         if (!s.empty())
             return s;
     return "";
+}
+
+// Replaces personal information in the string, like email address
+std::string& str_replPers (std::string& s)
+{
+    // replace email addresses
+    static std::regex reEMail("\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", std::regex::icase);
+    s = std::regex_replace(s, reEMail, "[email@ano.nym]");
+    
+    // Replace user's directory name in Linux
+    static std::regex reHome("\\/home\\/[-_\\.a-z]+\\/", std::regex::icase);
+    s = std::regex_replace(s, reHome, "/home/[user]/");
+
+    // Replace user's directory name in MacOS or Windows
+    static std::regex reUsers("[\\/\\\\]Users[\\/\\\\][-_\\.a-z]+[\\/\\\\]", std::regex::icase);
+    s = std::regex_replace(s, reUsers, "/Users/[user]/");
+
+    return s;
 }
 
 /// Base64 encoding

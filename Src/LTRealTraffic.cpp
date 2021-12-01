@@ -239,8 +239,8 @@ std::string RealTrafficConnection::GetStatusText () const
     // Partly a copy of LTChannel's version, but we take RT-specific status into account
     
     // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
-    if (!IsValid())                         return "Invalid";
-    if (!IsEnabled())                       return "Off";
+    if (!IsValid() || !IsEnabled())
+        return LTChannel::GetStatusText();
 
     // If we are waiting to establish a connection then we return RT-specific texts
     if (status == RT_STATUS_NONE)           return "Starting...";
@@ -249,12 +249,7 @@ std::string RealTrafficConnection::GetStatusText () const
         return GetStatusStr();
     
     // An active source of tracking data...for how many aircraft?
-    char buf[50];
-    snprintf (buf, sizeof(buf), "Active, serving %d aircraft",
-              GetNumAcServed());
-    return std::string(buf);
-
-    
+    return LTChannel::GetStatusText();
 }
 
 std::string RealTrafficConnection::GetStatusTextExt() const
