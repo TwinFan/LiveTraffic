@@ -421,9 +421,21 @@ void ACIWnd::buildInterface()
 
             // last received tracking data
             const double lstDat = pFD ? (pFD->GetYoungestTS() - ts) : -99999.9;
-            if (-10000 <= lstDat && lstDat <= 10000)
-                buildRow("Tracking Data", pFD, "%+.1fs, %s",
-                         lstDat, pChannel ? pChannel->ChName() : "?");
+            if (-10000 <= lstDat && lstDat <= 10000) {
+                buildRowLabel("Tracking Data");
+                if (!stat.slug.empty()) {
+                    if (ImGui::SelectableTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT "##FlightURL",
+                                                 false,                         // selected?
+                                                 true,                          // enabled?
+                                                 "Open flight in browser",
+                                                 ImGuiSelectableFlags_None,
+                                                 ImVec2 (ImGui::GetWidthIconBtn(), 0.0f)))
+                        LTOpenURL(stat.slug);
+                    ImGui::SameLine();
+                }
+                ImGui::Text("%+.1fs, %s", lstDat,
+                            pChannel ? pChannel->ChName() : "?");
+            }
             else
                 buildRow("Tracking Data", pChannel ? pChannel->ChName() : "?", pFD);
 

@@ -172,6 +172,8 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
 ///          and process everything till we find `""/>`
 bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 {
+    char buf[100];
+
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -244,10 +246,9 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             mapFdLock.unlock();
 
             // completely new? fill key fields and define static data
-            // (for OGN we only define static data initially,
-            //  it has no changing elements, and ICAO a/c type derivation
-            //  has a random element (if more than one ICAO type is defined))
-            bool bSendStaticData = false;
+            // (for OGN some data we only define initially,
+            //  ICAO a/c type derivation has a random element
+            //  (if more than one ICAO type is defined))
             if ( fd.empty() ) {
                 fd.SetKey(fdKey);
             
@@ -261,10 +262,8 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                     stat.acTypeIcao = OGNGetIcaoAcType(acTy);
                 if (stat.mdl.empty())
                     stat.mdl        = stat.catDescr;
-
-                bSendStaticData = true;
             }
-            
+                        
             // dynamic data
             {   // unconditional...block is only for limiting local variables
                 LTFlightData::FDDynamicData dyn;
@@ -289,10 +288,12 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                                 dyn.heading);
                 pos.f.onGrnd = GND_UNKNOWN;         // there is no GND indicator in OGN data
                 
-                // Update static data if requested
-                if (bSendStaticData) {
-                    fd.UpdateData(std::move(stat), pos.dist(viewPos));
-                }
+                // Update the slug with current position
+                snprintf(buf, sizeof(buf), OPGLIDER_CHECK_URL,
+                         pos.lat(), pos.lon());
+                stat.slug = buf;
+                // Update static data
+                fd.UpdateData(std::move(stat), pos.dist(viewPos));
                 
                 // position is rather important, we check for validity
                 // (we do allow alt=NAN if on ground)
@@ -479,6 +480,8 @@ bool OpenGliderConnection::APRSProcessData (const char* buffer)
 /// @see https://github.com/svoop/ogn_client-ruby/wiki/SenderBeacon
 bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
 {
+    char buf[100];
+    
     // Sanity check
     if (ln.empty()) return true;
     
@@ -597,7 +600,6 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         // (for OGN we only define static data initially,
         //  it has no changing elements, and ICAO a/c type derivation
         //  has a random element (if more than one ICAO type is defined))
-        bool bSendStaticData = false;
         if ( fd.empty() ) {
             fd.SetKey(fdKey);
         
@@ -609,8 +611,6 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
                 stat.acTypeIcao = OGNGetIcaoAcType(acTy);
             if (stat.mdl.empty())
                 stat.mdl        = stat.catDescr;
-
-            bSendStaticData = true;
         }
         
         // dynamic data
@@ -648,12 +648,13 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
                             dyn.heading);
             pos.f.onGrnd = GND_UNKNOWN;         // there is no GND indicator in OGN data
             
+            // Update the slug with current position
+            snprintf(buf, sizeof(buf), OPGLIDER_CHECK_URL,
+                     pos.lat(), pos.lon());
+            stat.slug = buf;
             // Send static data if requested
-            if (bSendStaticData) {
-                const positionTy viewPos = dataRefs.GetViewPos();
-                fd.UpdateData(std::move(stat),
-                              pos.dist(viewPos));
-            }
+            fd.UpdateData(std::move(stat),
+                          pos.dist(dataRefs.GetViewPos()));
             
             // position is rather important, we check for validity
             // (we do allow alt=NAN if on ground)

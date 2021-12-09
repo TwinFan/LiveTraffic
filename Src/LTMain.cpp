@@ -246,7 +246,7 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 // MARK: URL/Help support
 //
 
-void LTOpenURL  (const std::string _url)
+void LTOpenURL  (const std::string& _url)
 {
     // Transiently, we allow to add the current camera position into the URL
     std::string url(_url);
@@ -276,7 +276,7 @@ void LTOpenURL  (const std::string _url)
 }
 
 // just prepend the given path with the base URL an open it
-void LTOpenHelp (const std::string path)
+void LTOpenHelp (const std::string& path)
 {
     LTOpenURL(std::string(HELP_URL)+path);
 }

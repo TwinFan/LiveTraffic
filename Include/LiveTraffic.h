@@ -199,8 +199,8 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 
 // MARK: URL/Help support
 
-void LTOpenURL  (const std::string url);
-void LTOpenHelp (const std::string path);
+void LTOpenURL  (const std::string& url);
+void LTOpenHelp (const std::string& path);
 
 // MARK: String/Text Functions
 

@@ -110,9 +110,10 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     
     // flight
     if (!other.call.empty()) call = other.call;
+    if (!other.slug.empty()) slug = other.slug;
     
     // little trick for priority: we trust the info with the longer flight number
-    if (other.flight.length() > flight.length() ||
+    if (other.flight.length() >= flight.length() ||
         // or certainly data of a proper master data channel
         bIsMasterChData ||
         // or no flight number info at all...

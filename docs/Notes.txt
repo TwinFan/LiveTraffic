@@ -1,6 +1,12 @@
 TODO
 ===
 
+
+Test a bit on OpenGlider to ensure a/c type remains stable
+Documentation including README
+
+
+
 Notarization
 
 Verify signature:
@@ -26,6 +32,12 @@ ImGui
 
 Download History
 ==========
+Download counter when providing v2.53: 136.672
+Download counter when providing v2.51: 126.069
+Download counter when providing v2.50: 122.027
+Download counter when providing v2.40: 114.909
+Download counter when providing v2.30: 111.890
+Download counter when providing v2.20: 107.460
 Download counter when providing v2.10: 102.927
 Download counter when providing v2.09: 100.534
 Download counter when providing v2.08: 97.541

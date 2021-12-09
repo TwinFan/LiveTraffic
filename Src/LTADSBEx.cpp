@@ -190,6 +190,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
             stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
             stat.call =       jog_s(pJAc, ADSBEX_CALL);
+            stat.slug       = ADSBEX_SLUG_BASE;
+            stat.slug      += fdKey.key;
 
             // -- dynamic data --
             LTFlightData::FDDynamicData dyn;
