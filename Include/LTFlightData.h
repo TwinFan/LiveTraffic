@@ -115,6 +115,7 @@ public:
         std::string     originAp;       // origin Airport
         std::string     destAp;         // destination Airport
         std::string     flight;         // flight code
+        std::string     slug;           ///< URL to flight details
         
         // operator
         std::string     op;             // operator                                     Air Berlin
@@ -152,7 +153,7 @@ public:
     // KEY (protected, can be set only once, no mutex-control)
 public:
     // in ascending order of priority
-    enum FDKeyType { KEY_UNKNOWN=0, KEY_OGN, KEY_RT, KEY_FLARM, KEY_ICAO };
+    enum FDKeyType { KEY_UNKNOWN=0, KEY_OGN, KEY_RT, KEY_FLARM, KEY_ICAO, KEY_FSC };
     struct FDKeyTy {
         FDKeyType               eKeyType = KEY_UNKNOWN;
         std::string             key;            // the primary key in use

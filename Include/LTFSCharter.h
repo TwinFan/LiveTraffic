@@ -35,13 +35,38 @@
 
 #define FSC_NAME                "FSCharter"
 
-#define FSC_URL                 "https://%s/api/get-traffic?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
-#define FSC_LOGIN               "https://%s/oauth/token"
+#define FSC_BASE_URL            "https://%s/"
+#define FSC_GET_TRAFFIC         "api/live_traffic"
+#define FSC_LOGIN               "oauth/token"
+#define FSC_CURR_FLIGHT         "flights?flight="      // + flightSlug
 
 // HTTP headers to send
 #define FSC_HEADER_JSON_SEND            "Content-Type: application/json"
 #define FSC_HEADER_JSON_ACCEPT          "Accept: application/json"
 #define FSC_HEADER_AUTHORIZATION        "Authorization: %s %s"
+
+// Response fields
+#define FSC_DATA_FLIGHTS                "data.flights"
+#define FSC_FLIGHT_ID                   "id"
+#define FSC_FLIGHT_REG_NO               "registration_number"
+#define FSC_FLIGHT_ICAO                 "aircraft_icao"
+#define FSC_FLIGHT_MANU                 "manufacturer"
+#define FSC_FLIGHT_MODEL                "model"
+#define FSC_FLIGHT_VARIANT              "variant"
+#define FSC_FLIGHT_TS                   "timestamp"
+#define FSC_FLIGHT_LAT                  "latitude"
+#define FSC_FLIGHT_LON                  "longitude"
+#define FSC_FLIGHT_HEADING              "heading"
+#define FSC_FLIGHT_ALT_FT               "altitude"
+#define FSC_FLIGHT_ON_GND               "on_gnd"
+#define FSC_FLIGHT_COMPANY              "company"
+#define FSC_FLIGHT_CO_ICAO              "company_icao"
+#define FSC_FLIGHT_PILOT                "pilot"
+#define FSC_FLIGHT_ROUTE_NO             "route_number"
+#define FSC_FLIGHT_JOB_NO               "job_number"
+#define FSC_FLIGHT_DEP                  "departure_ident"
+#define FSC_FLIGHT_ARR                  "arrival_ident"
+#define FSC_FLIGHT_SLUG                 "flight_slug"
 
 //
 //MARK: FSCharter
@@ -58,6 +83,7 @@ public:
     };
     
 protected:
+    std::string base_url;           ///< basis for all URL requests
     /// FSC-specific connection status
     FSCStatusTy fscStatus = FSC_STATUS_NONE;
     /// HTTP Header
@@ -66,6 +92,12 @@ protected:
     std::string token;
     /// The type of authentication token, typically "Bearer"
     std::string token_type;
+    
+    // error information
+    std::string error_status;       ///< text of `status` tag in response, like "success" or "error"
+    std::string error_message;      ///< text of `message` tag in error response
+    long        error_code=0;       ///< value of `code` tag in error response
+
 public:
     FSCConnection ();
     
@@ -78,13 +110,15 @@ public:
     bool InitCurl () override;
     void CleanupCurl () override;
     std::string GetURL (const positionTy& pos) override;
-    void ComputeBody () override;
+    void ComputeBody (const positionTy& pos) override;
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
 //    { gndRange = FSC_SMOOTH_GROUND; airbRange = FSC_SMOOTH_AIRBORNE; return true; }
     
+    /// Extracts all error texts from `response` into the `error*` fields
+    bool ExtractErrorTexts (const JSON_Object* pObj = nullptr);
     
     // do something while disabled?
     void DoDisabledProcessing () override;

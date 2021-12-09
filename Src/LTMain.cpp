@@ -487,6 +487,28 @@ time_t mktime_utc (int h, int min, int s)
     return ret;
 }
 
+// Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
+time_t mktime_string (const std::string& s)
+{
+    static std::regex reTm ("(\\d{4})-(\\d{2})-(\\d{2}) (\\d{1,2}):(\\d{2}):(\\d{2})");
+    std::smatch mTm;
+    std::regex_search(s, mTm, reTm);
+    if (mTm.size() != 7)
+        return 0;
+        
+    struct tm gbuf;
+    memset(&gbuf, 0, sizeof(gbuf));
+    gbuf.tm_year = std::stoi(mTm.str(1)) - 1900;
+    gbuf.tm_mon  = std::stoi(mTm.str(2)) -    1;
+    gbuf.tm_mday = std::stoi(mTm.str(3));
+    gbuf.tm_hour = std::stoi(mTm.str(4));
+    gbuf.tm_min  = std::stoi(mTm.str(5));
+    gbuf.tm_sec  = std::stoi(mTm.str(6));
+    gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
+    return mktime_utc(gbuf);
+}
+
+
 // format timestamp
 std::string ts2string (time_t t)
 {

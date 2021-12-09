@@ -7,63 +7,63 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "83DFF3D2-4CBA-4812-B9C3-721A22880C5A"
-            shouldBeEnabled = "Yes"
+            uuid = "DFA9BE5E-A65F-4EDB-A76A-5B6C71711C40"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Src/LTFSCharter.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "225"
-            endingLineNumber = "225"
+            startingLineNumber = "322"
+            endingLineNumber = "322"
             landmarkName = "FSCConnection::ProcessFetchedData(fdMap)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "83DFF3D2-4CBA-4812-B9C3-721A22880C5A - 6883f72b581a779a"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "FSCConnection::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;)"
-                  moduleName = "LiveTraffic.xpl"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/birger/Programming/XPlane/LiveTraffic/Src/LTFSCharter.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "225"
-                  endingLineNumber = "225"
-                  offsetFromSymbolStart = "260">
-               </Location>
-               <Location
-                  uuid = "83DFF3D2-4CBA-4812-B9C3-721A22880C5A - 6883f72b581a779a"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "FSCConnection::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;)"
-                  moduleName = "LiveTraffic.xpl"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/birger/Programming/XPlane/LiveTraffic/Src/LTFSCharter.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "225"
-                  endingLineNumber = "225"
-                  offsetFromSymbolStart = "231">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "CF134779-08CE-442E-8DA0-0269A11F1EB6"
+            uuid = "E368B7FD-C1B3-4F96-B4AF-824D8C369ED2"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Src/LTFSCharter.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "340"
+            endingLineNumber = "340"
+            landmarkName = "FSCConnection::ProcessFetchedData(fdMap)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "8FE2DC13-BE2C-4047-A976-CDCD9A53BDE8"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Src/LTMain.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "493"
+            endingLineNumber = "493"
+            landmarkName = "mktime_string(s)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "DF0BDF46-1D81-4176-9EF9-914DD3A744B2"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Src/LTFSCharter.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "213"
-            endingLineNumber = "213"
+            startingLineNumber = "332"
+            endingLineNumber = "332"
             landmarkName = "FSCConnection::ProcessFetchedData(fdMap)"
             landmarkType = "7">
          </BreakpointContent>

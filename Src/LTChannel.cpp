@@ -433,7 +433,7 @@ size_t LTOnlineChannel::ReceiveData(const char *ptr, size_t size, size_t nmemb, 
 }
 
 // debug: log raw network data to a log file
-void LTOnlineChannel::DebugLogRaw(const char *data)
+void LTOnlineChannel::DebugLogRaw(const char *data, bool bHeader)
 {
     // no logging? return (after closing the file if open)
     if (!dataRefs.GetDebugLogRawFD()) {
@@ -495,14 +495,16 @@ void LTOnlineChannel::DebugLogRaw(const char *data)
     // timestamp (numerical and human readable)
     const double now = GetSysTime();
     outRaw.precision(2);
+    if (bHeader)
+        outRaw
+        << std::fixed << now << ' ' << ts2string(now,2)
+        << " - SimTime "
+        << dataRefs.GetSimTimeString()
+        << " - "
+        // Channel's name
+        << ChName()
+        << "\n";
     outRaw
-    << std::fixed << now << ' ' << ts2string(now,2)
-    << " - SimTime "
-    << dataRefs.GetSimTimeString()
-    << " - "
-    // Channel's name
-    << ChName()
-    << "\n"
     // the actual given data, stripped from general personal data
     << str_replPers(dupData)
     // newlines + flush
@@ -525,7 +527,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
         return false;
     
     // ask for a body of a POST request (to be put into requBody)
-    ComputeBody();
+    ComputeBody(pos);
     
     // put together the REST request
     curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
@@ -549,7 +551,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     netData[0] = 0;
     DebugLogRaw(url.c_str());
     if (!requBody.empty())
-        DebugLogRaw(requBody.c_str());
+        DebugLogRaw(requBody.c_str(), false);
     
     // perform the request and take its time
     std::chrono::time_point<std::chrono::steady_clock> tStart = std::chrono::steady_clock::now();

@@ -225,7 +225,7 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
     num = _num;
 
     // convert to uppercase hex string
-    char buf[50];
+    char buf[50] = "";
     switch(_eType) {
         case KEY_ICAO:
         case KEY_FLARM:
@@ -235,10 +235,14 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
         case KEY_RT:
             snprintf(buf, sizeof(buf), "%08lX", _num);
             break;
+        case KEY_FSC:
+            snprintf(buf, sizeof(buf), "%lu", _num);
+            break;
         default:
             // must not happen
             LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
     }
+    LOG_ASSERT(buf[0]);
     return key = buf;
 }
 
@@ -263,6 +267,7 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
         case KEY_RT:        return "RealTraffic";
         case KEY_FLARM:     return "FLARM";
         case KEY_ICAO:      return "ICAO";
+        case KEY_FSC:       return "FSCharter";
     }
     return "unknown";
 }

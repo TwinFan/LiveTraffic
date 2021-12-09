@@ -214,12 +214,12 @@ protected:
     // CURL callback
     static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
     // logs raw data to a text file
-    void DebugLogRaw (const char* data);
+    void DebugLogRaw (const char* data, bool bHeader = true);
     
 public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos) = 0;
-    virtual void ComputeBody () { requBody.clear(); }   ///< in case of a POST request this call puts together its body
+    virtual void ComputeBody (const positionTy& /*pos*/) { requBody.clear(); }   ///< in case of a POST request this call puts together its body
     virtual bool IsLiveFeed () const    { return true; }
     
     /// Is the given network error text possibly caused by problems querying the revocation list?

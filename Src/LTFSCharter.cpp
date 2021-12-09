@@ -43,8 +43,8 @@ typedef std::array<FSCEnvTy, 2> FSCEnvArrTy;
 
 /// The list of available configurations
 static FSCEnvArrTy FSC_ENV = {
-    FSCEnvTy{"fscharter.net",        1,  "dDRCOUo4R1dUcDNpTk9SOUcyanpTNlRGclF6TFJVYnNIZnpVMHV0dA==" },
-    FSCEnvTy{"master.fscharter.net", 1,  "d2RMMzdLa25McVRoZ0ZtR2kwQUU0cnNpaHFaQjNFU0U5T0lmWk9LTg==" },
+    FSCEnvTy{"fscharter.net",        3,  "bmw2Y0pFTUJHcUJZQ3FPS1hKVUlSeWgzZkFydUN4WERrY3k5RUtEbQ==" },
+    FSCEnvTy{"master.fscharter.net", 3,  "bmw2Y0pFTUJHcUJZQ3FPS1hKVUlSeWgzZkFydUN4WERrY3k5RUtEbQ==" },
 };
 
 //
@@ -61,6 +61,13 @@ LTFlightDataChannel()
     urlName  = FSC_CHECK_NAME;
     urlLink  = FSC_CHECK_URL;
     urlPopup = FSC_CHECK_POPUP;
+    
+    // base URL depends on environment in use
+    char url[128] = "";
+    snprintf(url, sizeof(url),
+             FSC_BASE_URL,
+             FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str());
+    base_url = url;
 }
 
 
@@ -129,25 +136,12 @@ void FSCConnection::CleanupCurl ()
 }
 
 // put together the URL to fetch based on current view position
-std::string FSCConnection::GetURL (const positionTy& pos)
+std::string FSCConnection::GetURL (const positionTy& /*pos*/)
 {
-    char url[128] = "";
     switch (fscStatus) {
         // Standard operations: Return the request for fetching tracking data
         case FSC_STATUS_OK:
-        {
-            // TODO: Replace with actual FSC URL calculation
-            // we add 10% to the bounding box to have some data ready once the plane is close enough for display
-            boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
-            snprintf(url, sizeof(url),
-                     FSC_URL,
-                     FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str(),
-                     box.se.lat(),              // lamin
-                     box.nw.lon(),              // lomin
-                     box.nw.lat(),              // lamax
-                     box.se.lon() );            // lomax
-            return std::string(url);
-        }
+            return base_url + FSC_GET_TRAFFIC;
             
         // Not yet logged in, return the login request
         case FSC_STATUS_NONE:
@@ -155,10 +149,7 @@ std::string FSCConnection::GetURL (const positionTy& pos)
             // Set the status
             fscStatus = FSC_STATUS_LOGGING_IN;
             // put together the actual URL
-            snprintf(url, sizeof(url),
-                     FSC_LOGIN,
-                     FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str());
-            return std::string(url);
+            return base_url + FSC_LOGIN;
             
         // Error: Do nothing any longer
         case FSC_STATUS_LOGIN_FAILED:
@@ -169,15 +160,21 @@ std::string FSCConnection::GetURL (const positionTy& pos)
 
 
 /// Puts together the body for the oauth request if we are in that state
-void FSCConnection::ComputeBody ()
+void FSCConnection::ComputeBody (const positionTy& pos)
 {
     switch (fscStatus) {
-        // just return empty if we are in a "normal" state
+        // --- Normal request for tracking data ---
         case FSC_STATUS_OK:
-        case FSC_STATUS_LOGIN_FAILED:
-            requBody.clear();
+        {
+            char s[100];
+            snprintf (s, sizeof(s),
+                      "{\"latitude\": %.4f, \"longitude\": %.4f, \"radius\": %d}",
+                      pos.lat(), pos.lon(), dataRefs.GetFdStdDistance_nm());
+            requBody = s;
             break;
-            
+        }
+        
+        // --- Login request ---
         case FSC_STATUS_NONE:
         case FSC_STATUS_LOGGING_IN:
         {
@@ -199,6 +196,11 @@ void FSCConnection::ComputeBody ()
             requBody += "\",\"scope\": \"\"}";            
             break;
         }
+
+        // just return empty if we are in a "normal" state
+        case FSC_STATUS_LOGIN_FAILED:
+            requBody.clear();
+            break;
     }
 }
 
@@ -259,6 +261,11 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // Only proceed in case HTTP response was OK
     if (httpResponse != HTTP_OK) {
+        // Maybe there's more error information in the response...
+        if (ExtractErrorTexts())
+            LOG_MSG(logERR, "%s Error response: %s %ld, %s",
+                    ChName(), error_status.c_str(), error_code, error_message.c_str());
+        
         // There are a few typical responses that may happen when FSCharter
         // is just temporarily unresponsive. But in all _other_ cases
         // we increase the error counter.
@@ -267,11 +274,11 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             httpResponse != HTTP_GATEWAY_TIMEOUT    &&
             httpResponse != HTTP_TIMEOUT)
             IncErrCnt();
+        
         return false;
     }
     
 
-    // TODO: Reimplement for FSCharter
     // now try to interpret it as JSON
     JSON_Value* pRoot = json_parse_string(netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
@@ -281,6 +288,14 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     JSON_Object* pObj = json_object(pRoot);
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
+    // Check for additonal server-defined error information in the response
+    if (ExtractErrorTexts(pObj)) {
+        LOG_MSG(logERR, "%s: Error info in received tracking data: %s %ld, %s",
+                ChName(), error_status.c_str(), error_code, error_message.c_str());
+        IncErrCnt();
+        return false;
+    }
+    
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
 
@@ -288,14 +303,14 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     const positionTy viewPos = dataRefs.GetViewPos();
 
     // fetch the aircraft array
-    JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
+    JSON_Array* pJAcList = json_object_dotget_array(pObj, FSC_DATA_FLIGHTS);
     if (!pJAcList) {
         // a/c array not found: can just mean it is 'null' as in
-        // the empty result set: {"time":1541978120,"states":null}
-        JSON_Value* pJSONVal = json_object_get_value(pObj, OPSKY_AIRCRAFT_ARR);
+        // the empty result set
+        JSON_Value* pJSONVal = json_object_dotget_value(pObj, FSC_DATA_FLIGHTS);
         if (!pJSONVal || json_type(pJSONVal) != JSONNull) {
             // well...it is something else, so it is malformed, bail out
-            LOG_MSG(logERR,ERR_JSON_ACLIST,OPSKY_AIRCRAFT_ARR);
+            LOG_MSG(logERR,ERR_JSON_ACLIST,FSC_DATA_FLIGHTS);
             IncErrCnt();
             return false;
         }
@@ -303,10 +318,10 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // iterate all aircraft in the received flight data (can be 0)
     else for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
     {
-        // get the aircraft (which is just an array of values)
-        JSON_Array* pJAc = json_array_get_array(pJAcList,i);
+        // get the aircraft
+        JSON_Object* pJAc = json_array_get_object(pJAcList,i);
         if (!pJAc) {
-            LOG_MSG(logERR,ERR_JSON_AC,i+1,OPSKY_AIRCRAFT_ARR);
+            LOG_MSG(logERR,ERR_JSON_AC,i+1,FSC_DATA_FLIGHTS);
             if (IncErrCnt())
                 continue;
             else
@@ -314,28 +329,25 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
         
         // the key: transponder Icao code
-        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
-                                     jag_s(pJAc, OPSKY_TRANSP_ICAO));
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_FSC,
+                                     (unsigned long)jog_l(pJAc, FSC_FLIGHT_ID));
         
         // not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
-        {
             continue;
-        }
         
         // position time
-        const double posTime = jag_n(pJAc, OPSKY_POS_TIME);
+        const double posTime = (double)mktime_string(jog_s(pJAc, FSC_FLIGHT_TS));
         if (posTime <= tsCutOff)
             continue;
         
+        std::string s;
+        long l = 0;
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
             std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
             
-            // Check for duplicates with OGN/FLARM, potentially replaces the key type
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
             LTFlightData& fd = fdMap[fdKey];
@@ -352,43 +364,59 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // fill static data
             LTFlightData::FDStaticData stat;
-            stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
-            stat.trt     =    trt_ADS_B_unknown;
-            stat.call    =    jag_s(pJAc, OPSKY_CALL);
-            while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
-                stat.call.pop_back();
-            
-            // dynamic data
-            {   // unconditional...block is only for limiting local variables
-                LTFlightData::FDDynamicData dyn;
-                
-                // non-positional dynamic data
-                dyn.radar.code =  (long)jag_sn(pJAc, OPSKY_RADAR_CODE);
-                dyn.gnd =               jag_b(pJAc, OPSKY_GND);
-                dyn.heading =           jag_n_nan(pJAc, OPSKY_HEADING);
-                dyn.spd =               jag_n(pJAc, OPSKY_SPD);
-                dyn.vsi =               jag_n(pJAc, OPSKY_VSI);
-                dyn.ts =                posTime;
-                dyn.pChannel =          this;
-                
-                // position
-                positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
-                                jag_n_nan(pJAc, OPSKY_LON),
-                                dataRefs.WeatherAltCorr_m(jag_n_nan(pJAc, OPSKY_BARO_ALT)),
-                                posTime,
-                                dyn.heading);
-                pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
-                
-                // Update static data
-                fd.UpdateData(std::move(stat), pos.dist(viewPos));
-
-                // position is rather important, we check for validity
-                // (we do allow alt=NAN if on ground as this is what OpenSky returns)
-                if ( pos.isNormal(true) )
-                    fd.AddDynData(dyn, 0, 0, &pos);
-                else
-                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+            stat.reg        =   jog_s(pJAc, FSC_FLIGHT_REG_NO);
+            stat.acTypeIcao =   jog_s(pJAc, FSC_FLIGHT_ICAO);
+            stat.man        =   jog_s(pJAc, FSC_FLIGHT_MANU);
+            stat.mdl        =   jog_s(pJAc, FSC_FLIGHT_MODEL);
+            s               =   jog_s(pJAc, FSC_FLIGHT_VARIANT);
+            if (!s.empty()) {
+                stat.mdl   += ' ';
+                stat.mdl   += s;
             }
+            stat.call       =   jog_s(pJAc, FSC_FLIGHT_PILOT);
+            stat.originAp   =   jog_s(pJAc, FSC_FLIGHT_DEP);
+            stat.destAp     =   jog_s(pJAc, FSC_FLIGHT_ARR);
+            stat.flight     =   jog_s(pJAc, FSC_FLIGHT_ROUTE_NO);
+            l               =   jog_l(pJAc, FSC_FLIGHT_JOB_NO);
+            if (l > 0) {
+                stat.flight+=   '-';
+                stat.flight+=   std::to_string(l);
+            }
+            s               =   jog_s(pJAc, FSC_FLIGHT_SLUG);
+            if (!s.empty())
+                stat.slug = base_url + FSC_CURR_FLIGHT + s;
+            stat.op         =   jog_s(pJAc, FSC_FLIGHT_COMPANY);
+            stat.opIcao     =   jog_s(pJAc, FSC_FLIGHT_CO_ICAO);
+
+
+            // dynamic data
+            LTFlightData::FDDynamicData dyn;
+            
+            // non-positional dynamic data
+            dyn.gnd =               jog_b(pJAc, FSC_FLIGHT_ON_GND);
+            dyn.heading =           jog_n_nan(pJAc, FSC_FLIGHT_HEADING);
+            dyn.spd =               NAN;
+            dyn.vsi =               NAN;
+            dyn.ts =                posTime;
+            dyn.pChannel =          this;
+            
+            // position
+            positionTy pos (jog_n_nan(pJAc, FSC_FLIGHT_LAT),
+                            jog_n_nan(pJAc, FSC_FLIGHT_LON),
+                            jog_n_nan(pJAc, FSC_FLIGHT_ALT_FT) * M_per_FT,
+                            posTime,
+                            dyn.heading);
+            pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
+            
+            // Update static data
+            fd.UpdateData(std::move(stat), pos.dist(viewPos));
+
+            // position is rather important, we check for validity
+            // (we do allow alt=NAN if on ground as this is what OpenSky returns)
+            if ( pos.isNormal(true) )
+                fd.AddDynData(dyn, 0, 0, &pos);
+            else
+                LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         }
@@ -400,6 +428,38 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // success
     return true;
 }
+
+
+// Extracts all error texts from `response` into the `error*` fields
+/// @return Did we find any sign of an error?
+bool FSCConnection::ExtractErrorTexts (const JSON_Object* pObj)
+{
+    // try parsing as JSON
+    if (!pObj) {
+        const JSON_Value* pRoot = json_parse_string(netData);
+        pObj = pRoot ? json_object(pRoot) : nullptr;
+        if (!pObj)
+        {
+            // if the response is not a JSON then we just read everything into message
+            error_status  = "no JSON";
+            error_code    = HTTP_NO_JSON;
+            error_message = netData;
+            return true;
+        }
+    }
+    
+    // look for and return values from the response
+    error_status    = jog_s(pObj, "status");
+    error_code      = jog_l(pObj, "code");
+    error_message   = jog_s(pObj, "message");
+    if (error_message.empty())
+        // Some technical errors contain more info including a complete trace
+        error_message = jog_s(pObj, "data.exception");
+    
+    // did we find anything of concern?
+    return (error_status != "success") || !error_message.empty();
+}
+    
 
 
 // do something while disabled?

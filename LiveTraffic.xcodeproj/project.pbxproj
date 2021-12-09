@@ -60,6 +60,7 @@
 		2515F41F248D022B00F18B76 /* LTImgWindow.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTImgWindow.cpp; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		25364221221755B1000DC56F /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
+		253C08C92761489D0011CCEE /* FSCharter */ = {isa = PBXFileReference; lastKnownFileType = folder; path = FSCharter; sourceTree = "<group>"; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
 		2540F51A20D5B10C00DCCF45 /* OpenSky API.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "OpenSky API.js"; sourceTree = "<group>"; };
 		2540F51B20D5B1B900DCCF45 /* aircraftDatabase.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = aircraftDatabase.csv; sourceTree = "<group>"; };
@@ -250,6 +251,7 @@
 		255857972095B74300816F65 /* Data */ = {
 			isa = PBXGroup;
 			children = (
+				253C08C92761489D0011CCEE /* FSCharter */,
 				251414812512AB770066818B /* OGN */,
 				25865AFE22065B8D009D5D9C /* RealTraffic */,
 				2540F51720D5AAD900DCCF45 /* OpenSky */,

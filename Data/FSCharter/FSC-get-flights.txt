@@ -1,0 +1,81 @@
+FSCHARTER RFC
+API ENDPOINT GET-FLIGHTS
+
+Request
+=========
+
+Available to authenticated users (using the standard oauth authenticatoin method,
+or in the future potentially an API token).
+
+The RfC presents two options. Choose what better serves the server's needs:
+- Radius: Sends a mid point and a radius.
+  This might be easier for the server to limit the area by just capping the radius.
+- Rectangle: Maybe more difficult to limit the area, but easier to select
+  objects from a database.
+  Watch out for the border case of the rectangle spanning over the date line when
+  lon_min becomes greater than lon_max.
+  lon_min should be viewed as lon_west and lon_max as lon_east...
+  
+Response
+==========
+
+Selection
+-----------
+Includes all current active planes, both on the ground and in flight in the selected
+area.
+(Hm...while typing this...might even be interesting to include all _parked_ planes,
+but they might sometimes be left on the runway...so maybe a silly idea.
+Let's start with planes on an active job.)
+
+Please _exclude_ the requesting user's own flight (more specifically: the flight s/he is
+piloting).
+Otherwise LiveTraffic would be tempted to draw a plane right where the user is.
+And LiveTraffic can't easily identify the user's plane itself because LiveTraffic
+only knows the login Email, but not the FSC user name.
+
+Data and Structure
+--------------------
+
+All data, with the sole exception of the "id", is publicly available.
+The screenshot of the flight that served as example for the second array entry is attached.
+
+The suggestion tries keep the typical structure of an FSC response
+(`status` field + `data` object). And then adds a `flights` array inside the
+`data` object for consistency.
+(LiveTraffic wouldn't need all the decoration, it'd be just fine with the array on
+root level, but do it as it pleases the server architecture.)
+
+Of the fields of the array elements maybe the following are worth some remarks:
+
+"id" : 42,
+Unique identification of the plane. Can be the id used in the FSC database.
+All plane tracking IRL bases on such ids (and not on the tail number as such can change
+over time when selling cross-border), typically a 6-digit hex number, that's why
+LiveTraffic needs one.
+If FSC really can't come up with anything unique then LiveTraffic would try deriving a number
+from the "registration_number"...but that's only the second-best option.
+        
+"timestamp" : "2021-12-02 20:29:44",
+Zulu time = UTC = GMT
+Timestamp of the position data. This is highly important to correctly calculate flight
+paths. LiveTraffic needs to continuously move the plane accurately in between
+two positions, so it needs to know exactly _when_ the plane was where to properly catch up.
+
+"altitude" : 29999,
+...in feet above mean sea level (ft MSL).
+
+"pilot" : "TwinFan",
+...shall be displayed in LiveTraffic's CallSign field.
+
+"flight_slug" : "TwinFan_EDDL_61a15c08980e3"
+As it works so nicely to jump from the FSC plugin to FSC's flight page,
+I plan to bring this feature to LiveTraffic as well, so that users can open
+the flight's FSC page with a mouseclick.
+(Generically for channels that support following a flight.)
+
+Attachments
+=============
+FSC_FLO41-17.png				Screenshot serving as example for second flight
+Request Option Radius.json		Request structure for the "Radius" option
+Request Option Rectangle.json	Request structure for the "Rectangle" option
+Response.json					Response structure

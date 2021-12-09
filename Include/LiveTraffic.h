@@ -292,6 +292,9 @@ inline time_t mktime_utc (std::tm& tm)
 /// Converts a UTC time to epoch value, assuming today's date
 time_t mktime_utc (int h, int min, int s);
 
+/// Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
+time_t mktime_string (const std::string& s);
+
 // format timestamp
 std::string ts2string (time_t t);
 
