@@ -120,7 +120,7 @@ void ACIWnd::SetAuto (bool _b)
 std::string ACIWnd::GetWndTitle () const
 {
     return
-    (acKey.empty() ? std::string(ACI_WND_TITLE) : std::string(acKey)) +
+    (acKey.empty() ? std::string(ACI_WND_TITLE) : stat.acId(std::string(acKey))) +
     (bAuto ? " (AUTO)" : "");
 }
 

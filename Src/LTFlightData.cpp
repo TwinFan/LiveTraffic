@@ -230,14 +230,12 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
     switch(_eType) {
         case KEY_ICAO:
         case KEY_FLARM:
+        case KEY_FSC:
             snprintf(buf, sizeof(buf), "%06lX", _num);
             break;
         case KEY_OGN:
         case KEY_RT:
             snprintf(buf, sizeof(buf), "%08lX", _num);
-            break;
-        case KEY_FSC:
-            snprintf(buf, sizeof(buf), "%lu", _num);
             break;
         default:
             // must not happen

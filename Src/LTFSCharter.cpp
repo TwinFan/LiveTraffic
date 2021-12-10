@@ -48,6 +48,25 @@ static FSCEnvArrTy FSC_ENV = {
 };
 
 //
+// MARK: Aircraft ID mapping
+//       FSCharter's aircraft_id shall not be exposed
+//
+
+/// Structur auto-assigns the next id to `anonId`
+struct FSCAnonIdTy {
+    static unsigned long prevId;
+    unsigned long anonId;
+    FSCAnonIdTy () : anonId(++prevId) {}
+    operator unsigned long () const { return anonId; }
+};
+
+/// Starting value for anonymous FSC Ids
+unsigned long FSCAnonIdTy::prevId = 0x010000;
+
+/// The map for mapping original to anonymous id
+static std::map<unsigned long,FSCAnonIdTy> mapFSCAnonId;
+
+//
 //MARK: FSCharter
 //
 
@@ -328,18 +347,29 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 return false;
         }
         
-        // the key: transponder Icao code
-        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_FSC,
-                                     (unsigned long)jog_l(pJAc, FSC_FLIGHT_ID));
+        // the key: FSC aircraft id mapped to an anonymous id
+        // Look up or -if non-exist- create an anonymous id
+        const unsigned long acId    = (unsigned long)jog_l(pJAc, FSC_FLIGHT_ID);
+        const unsigned long anonId  = mapFSCAnonId[acId];
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_FSC, anonId);
         
         // not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
             continue;
         
         // position time
-        const double posTime = (double)mktime_string(jog_s(pJAc, FSC_FLIGHT_TS));
-        if (posTime <= tsCutOff)
-            continue;
+        double posTime = (double)mktime_string(jog_s(pJAc, FSC_FLIGHT_TS));
+        const bool bGnd = jog_b(pJAc, FSC_FLIGHT_ON_GND);
+        if (posTime <= tsCutOff) {
+            // We allow aircraft on the ground with outdated data,
+            // e.g. planes being boarded are shown then already
+            if (bGnd)
+                // if on ground then considered valid _now_
+                posTime = (double)time(nullptr);
+            else
+                // but if in the air then this is really outdated data to be skipped
+                continue;
+        }
         
         std::string s;
         long l = 0;
@@ -393,7 +423,7 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             LTFlightData::FDDynamicData dyn;
             
             // non-positional dynamic data
-            dyn.gnd =               jog_b(pJAc, FSC_FLIGHT_ON_GND);
+            dyn.gnd =               bGnd;
             dyn.heading =           jog_n_nan(pJAc, FSC_FLIGHT_HEADING);
             dyn.spd =               NAN;
             dyn.vsi =               NAN;
