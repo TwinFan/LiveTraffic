@@ -110,9 +110,10 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     
     // flight
     if (!other.call.empty()) call = other.call;
+    if (!other.slug.empty()) slug = other.slug;
     
     // little trick for priority: we trust the info with the longer flight number
-    if (other.flight.length() > flight.length() ||
+    if (other.flight.length() >= flight.length() ||
         // or certainly data of a proper master data channel
         bIsMasterChData ||
         // or no flight number info at all...
@@ -225,10 +226,11 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
     num = _num;
 
     // convert to uppercase hex string
-    char buf[50];
+    char buf[50] = "";
     switch(_eType) {
         case KEY_ICAO:
         case KEY_FLARM:
+        case KEY_FSC:
             snprintf(buf, sizeof(buf), "%06lX", _num);
             break;
         case KEY_OGN:
@@ -239,6 +241,7 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
             // must not happen
             LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
     }
+    LOG_ASSERT(buf[0]);
     return key = buf;
 }
 
@@ -263,6 +266,7 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
         case KEY_RT:        return "RealTraffic";
         case KEY_FLARM:     return "FLARM";
         case KEY_ICAO:      return "ICAO";
+        case KEY_FSC:       return "FSCharter";
     }
     return "unknown";
 }

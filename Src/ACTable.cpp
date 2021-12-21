@@ -368,6 +368,16 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                                              ImGuiSelectableFlags_None, selSize))
                     pAc->ToggleCameraView();
 
+                // Link to browser for following the flight
+                ImGui::SameLine();
+                const std::string url (pFD ? pFD->GetUnsafeStat().slug : "");
+                if (ImGui::SelectableTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT "##FlightURL",
+                                             false,                                 // selected?
+                                             !url.empty(),                          // enabled?
+                                             "Open flight in browser",
+                                             ImGuiSelectableFlags_None, selSize))
+                    LTOpenURL(url);
+                
                 // Visible
                 ImGui::SameLine();
                 if (ImGui::SelectableTooltip(ICON_FA_EYE "##Visible", &bVisible,

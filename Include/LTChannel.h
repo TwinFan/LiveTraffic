@@ -85,6 +85,8 @@ public:
     virtual bool IsEnabled () const;
     virtual void SetEnable (bool bEnable);
     virtual std::string GetStatusText () const;  ///< return a human-readable staus
+    virtual std::string GetStatusTextExt () const///< optionally return an extended status
+    { return std::string(); }
     virtual int GetNumAcServed () const = 0;     ///< how many a/c do we feed?
     
     // shall data of this channel be subject to LTFlightData::DataSmoothing?
@@ -192,6 +194,7 @@ class LTOnlineChannel : virtual public LTChannel
 {
 protected:
     CURL* pCurl;                    // handle into CURL
+    std::string requBody;           ///< body of a POST request
     int nTimeout;                   ///< current network timeout of this channel
     char* netData;                  // where the response goes
     size_t netDataPos;              // current write pos into netData
@@ -211,11 +214,12 @@ protected:
     // CURL callback
     static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
     // logs raw data to a text file
-    void DebugLogRaw (const char* data);
+    void DebugLogRaw (const char* data, bool bHeader = true);
     
 public:
     virtual bool FetchAllData (const positionTy& pos);
     virtual std::string GetURL (const positionTy& pos) = 0;
+    virtual void ComputeBody (const positionTy& /*pos*/) { requBody.clear(); }   ///< in case of a POST request this call puts together its body
     virtual bool IsLiveFeed () const    { return true; }
     
     /// Is the given network error text possibly caused by problems querying the revocation list?
@@ -250,6 +254,9 @@ void LTFlightDataStop();
 bool LTFlightDataAnyTrackingChEnabled ();   ///< Is at least one tracking data channel enabled?
 bool LTFlightDataAnyChInvalid ();           ///< Is any channel invalid?
 void LTFlightDataRestartInvalidChs ();      ///< Restart all invalid channels (set valid)
+
+/// Return channel object
+LTChannel* LTFlightDataGetCh (dataRefsLT ch);
 
 //
 //MARK: Aircraft Maintenance (called from flight loop callback)

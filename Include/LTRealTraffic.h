@@ -177,7 +177,9 @@ public:
     inline rtStatusTy GetStatus () const { return status; }
     double GetLastRcvdTime () const { return lastReceivedTime; }
     std::string GetStatusStr () const;
-    std::string GetStatusWithTimeStr () const;
+    virtual std::string GetStatusText () const;  ///< return a human-readable staus
+    virtual std::string GetStatusTextExt () const;
+
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
     void SetStatus (rtStatusTy s);

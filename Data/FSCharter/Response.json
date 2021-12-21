@@ -1,0 +1,43 @@
+{
+  "status" : "success",
+  "data" : {
+    "flights" : [
+      {
+        "id" : 42,
+        "registration_number" : "D-EVEL",
+        "timestamp" : "2021-12-02 20:29:44",
+        "latitude" : 51.294227,
+        "longitude" : 6.782507,
+        "heading" : 233,
+        "altitude" : 0,
+        "on_gnd" : true,
+        "company" : "Peanuts",
+        "company_icao" : "PNT",
+        "pilot" : "TwinFan",
+        "route_number" : "PNT1",
+        "job_number" : 18,
+        "departure_ident" : "EDLE",
+        "arrival_ident" : "EDDL",
+        "flight_slug" : "TwinFan_EDDL_61a15c08980e3"
+      },
+      {
+        "id" : 123,
+        "registration_number" : "G-FLOW",
+        "timestamp" : "2021-12-02 20:30:02",
+        "latitude" : 50.38128,
+        "longitude" : -4.08871,
+        "heading" : 6,
+        "altitude" : 29999,
+        "on_gnd" : false,
+        "company" : "FlyLo",
+        "company_icao" : "FLO",
+        "pilot" : "ChickenDipper",
+        "route_number" : "FLO41",
+        "job_number" : 17,
+        "departure_ident" : "LEPA",
+        "arrival_ident" : "EGNS",
+        "flight_slug" : "ChickenDipper_LEPA_61a8fa576db70"
+      }
+    ]
+  }
+}

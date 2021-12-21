@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 project(LiveTraffic
-        VERSION 2.51
+        VERSION 2.60
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 ################################################################################
@@ -83,6 +83,7 @@ endif()
 
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_SOURCE_DIR}/Include")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/base64")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/Current/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
@@ -109,6 +110,7 @@ set(Header_Files
     Include/LTChannel.h
     Include/LTFlightData.h
     Include/LTForeFlight.h
+    Include/LTFSCharter.h
     Include/LTImgWindow.h
     Include/LTOpenGlider.h
     Include/LTOpenSky.h
@@ -117,6 +119,7 @@ set(Header_Files
     Include/Network.h
     Include/SettingsUI.h
     Include/TextIO.h
+    Lib/base64/base64.h
     Lib/parson/parson.h
     Lib/LTAPI/LTAPI.h
     Lib/ImGui/imconfig.h
@@ -150,6 +153,7 @@ set(Source_Files
     Src/LTChannel.cpp
     Src/LTFlightData.cpp
     Src/LTForeFlight.cpp
+    Src/LTFSCharter.cpp
     Src/LTImgWindow.cpp
     Src/LTMain.cpp
     Src/LTOpenGlider.cpp
@@ -160,6 +164,7 @@ set(Source_Files
     Src/Network.cpp
     Src/SettingsUI.cpp
     Src/TextIO.cpp
+    Lib/base64/base64.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
@@ -191,6 +196,7 @@ target_precompile_headers(LiveTraffic PUBLIC Include/LiveTraffic.h)
 
 # Exclude all the non-core-LiveTraffic modules from the pch
 set_source_files_properties(
+    Lib/base64/base64.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp

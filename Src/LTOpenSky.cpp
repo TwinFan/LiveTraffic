@@ -59,6 +59,8 @@ std::string OpenSkyConnection::GetURL (const positionTy& pos)
 // update shared flight data structures with received flight data
 bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 {
+    char buf[100];
+
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -170,6 +172,10 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             stat.call    =    jag_s(pJAc, OPSKY_CALL);
             while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
                 stat.call.pop_back();
+            if (!fdKey.empty()) {
+                snprintf(buf, sizeof(buf), OPSKY_SLUG_FMT, fdKey.num);
+                stat.slug = buf;
+            }
             
             // dynamic data
             {   // unconditional...block is only for limiting local variables

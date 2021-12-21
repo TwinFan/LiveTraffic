@@ -34,6 +34,7 @@
 
 #define OPSKY_NAME              "OpenSky Live Online"
 #define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
+#define OPSKY_SLUG_FMT          "https://opensky-network.org/network/explorer?icao24=%06lx"
 #define OPSKY_TIME              "time"
 #define OPSKY_AIRCRAFT_ARR      "states"
 constexpr int OPSKY_TRANSP_ICAO   = 0;               // icao24

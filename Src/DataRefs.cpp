@@ -513,6 +513,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/export_normalize_ts",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
 
     // channel configuration options
+    {"livetraffic/channel/fscharter/environment",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/open_glider/use_requrepl",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -525,6 +526,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
@@ -587,6 +589,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_EXPORT_NORMALIZE_TS:    return &bDebugExportNormTS;
 
         // channel configuration options
+        case DR_CFG_FSC_ENV:                return &fscEnv;
         case DR_CFG_OGN_USE_REQUREPL:       return &ognUseRequRepl;
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
@@ -1619,7 +1622,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
-        ffSendPort      < 1024              || ffSendPort       > 65535
+        ffSendPort      < 1024              || ffSendPort       > 65535 ||
+        fscEnv          < 0                 || fscEnv           > 1
         )
     {
         // undo change
@@ -1974,11 +1978,15 @@ bool DataRefs::LoadConfigFile()
             
             // *** Strings ***
             else if (sDataRef == CFG_DEFAULT_AC_TYPE)
-                dataRefs.SetDefaultAcIcaoType(sVal);
+                SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
-                dataRefs.SetDefaultCarIcaoType(sVal);
+                SetDefaultCarIcaoType(sVal);
             else if (sDataRef == CFG_ADSBEX_API_KEY)
-                dataRefs.SetADSBExAPIKey(sVal);
+                SetADSBExAPIKey(sVal);
+            else if (sDataRef == CFG_FSC_USER)
+                SetFSCharterUser(sVal);
+            else if (sDataRef == CFG_FSC_PWD)
+                SetFSCharterPwd(Cleartext(sVal));
             else
             {
                 // unknown config entry, ignore
@@ -2111,11 +2119,15 @@ bool DataRefs::SaveConfigFile()
     fOut << CFG_WNDPOS_ILW << ' ' << ILWrect << '\n';
     
     // *** Strings ***
-    fOut << CFG_DEFAULT_AC_TYPE << ' ' << dataRefs.GetDefaultAcIcaoType() << '\n';
-    fOut << CFG_DEFAULT_CAR_TYPE << ' ' << dataRefs.GetDefaultCarIcaoType() << '\n';
-    if (!dataRefs.GetADSBExAPIKey().empty())
-        fOut << CFG_ADSBEX_API_KEY << ' ' << dataRefs.GetADSBExAPIKey() << '\n';
-    
+    fOut << CFG_DEFAULT_AC_TYPE << ' ' << GetDefaultAcIcaoType() << '\n';
+    fOut << CFG_DEFAULT_CAR_TYPE << ' ' << GetDefaultCarIcaoType() << '\n';
+    if (!GetADSBExAPIKey().empty())
+        fOut << CFG_ADSBEX_API_KEY << ' ' << GetADSBExAPIKey() << '\n';
+    if (!sFSCUser.empty())
+        fOut << CFG_FSC_USER << ' ' << sFSCUser << '\n';
+    if (!sFSCPwd.empty())
+        fOut << CFG_FSC_PWD << ' ' << Obfuscate(sFSCPwd) << '\n';
+
     // *** [FlarmAcTypes] ***
     fOut << '\n' << CFG_FLARM_ACTY_SECTION << '\n';
     for (size_t i = 0; i < dataRefs.aFlarmToIcaoAcTy.size(); i++) {

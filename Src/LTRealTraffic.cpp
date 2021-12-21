@@ -45,16 +45,12 @@ fdMap(_fdMap)
     urlName  = RT_CHECK_NAME;
     urlLink  = RT_CHECK_URL;
     urlPopup = RT_CHECK_POPUP;
-    
-    // this pointer makes it easier for settings UI to access status/weather
-    dataRefs.pRTConn = this;
 }
 
 // Destructor makes sure we are cleaned up
 RealTrafficConnection::~RealTrafficConnection ()
 {
     StopConnections();
-    dataRefs.pRTConn = nullptr;
 }
         
 // Does not actually fetch data (the UDP thread does that) but
@@ -238,9 +234,35 @@ std::string RealTrafficConnection::GetStatusStr() const
     return "";
 }
 
-std::string RealTrafficConnection::GetStatusWithTimeStr() const
+std::string RealTrafficConnection::GetStatusText () const
 {
+    // Partly a copy of LTChannel's version, but we take RT-specific status into account
+    
+    // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
+    if (!IsValid() || !IsEnabled())
+        return LTChannel::GetStatusText();
+
+    // If we are waiting to establish a connection then we return RT-specific texts
+    if (status == RT_STATUS_NONE)           return "Starting...";
+    if (status == RT_STATUS_STARTING ||
+        status == RT_STATUS_STOPPING)
+        return GetStatusStr();
+    
+    // An active source of tracking data...for how many aircraft?
+    return LTChannel::GetStatusText();
+}
+
+std::string RealTrafficConnection::GetStatusTextExt() const
+{
+    // Any extended status only if we are connected in any way
+    if (!IsEnabled() ||
+        status < RT_STATUS_CONNECTED_PASSIVELY ||
+        status > RT_STATUS_CONNECTED_FULL)
+        return std::string();
+    
+    // Turn the RealTraffic status into text
     std::string s (GetStatusStr());
+    
     if (IsConnected() && lastReceivedTime > 0.0) {
         char sIntvl[50];
         // add when the last msg was received
