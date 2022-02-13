@@ -28,6 +28,9 @@
     <Filter Include="Lib\parson">
       <UniqueIdentifier>{4b0a64ad-18e3-416a-bcca-def6f241d3b3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lib\base64">
+      <UniqueIdentifier>{8799618c-edc5-4348-9a25-91ea817eab34}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ACInfoWnd.cpp">
@@ -117,6 +120,12 @@
     <ClCompile Include="Src\LTOpenGlider.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\LTFSCharter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\base64\base64.c">
+      <Filter>Lib\base64</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ACInfoWnd.h">
@@ -202,6 +211,12 @@
     </ClInclude>
     <ClInclude Include="Include\LTOpenGlider.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\LTFSCharter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lib\base64\base64.h">
+      <Filter>Lib\base64</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

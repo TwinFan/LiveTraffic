@@ -121,7 +121,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\2.1\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\2.1\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;Lib\base64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -169,7 +169,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\2.1\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>Include\;Lib\XPMP2\XPMP2.framework\Versions\2.1\Headers;Lib\SDK\CHeaders\XPLM\;Lib\parson;Lib\ImGui;Lib\ImGui\misc\cpp;Lib\ImgWindow;Lib\Font;Lib\LTAPI\;Lib\CURL;Lib\base64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -214,6 +214,10 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Lib\base64\base64.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Lib\ImGui\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -308,6 +312,7 @@
     <ClCompile Include="src\LTChannel.cpp" />
     <ClCompile Include="src\LTFlightData.cpp" />
     <ClCompile Include="Src\LTForeFlight.cpp" />
+    <ClCompile Include="Src\LTFSCharter.cpp" />
     <ClCompile Include="Src\LTImgWindow.cpp" />
     <ClCompile Include="src\LTMain.cpp" />
     <ClCompile Include="Src\LTOpenGlider.cpp" />
@@ -333,6 +338,7 @@
     <ClInclude Include="include\LTChannel.h" />
     <ClInclude Include="include\LTFlightData.h" />
     <ClInclude Include="Include\LTForeFlight.h" />
+    <ClInclude Include="Include\LTFSCharter.h" />
     <ClInclude Include="Include\LTImgWindow.h" />
     <ClInclude Include="Include\LTOpenGlider.h" />
     <ClInclude Include="Include\LTOpenSky.h" />
@@ -341,6 +347,7 @@
     <ClInclude Include="Include\Network.h" />
     <ClInclude Include="include\SettingsUI.h" />
     <ClInclude Include="include\TextIO.h" />
+    <ClInclude Include="Lib\base64\base64.h" />
     <ClInclude Include="Lib\ImGui\imconfig.h" />
     <ClInclude Include="Lib\ImGui\imgui.h" />
     <ClInclude Include="Lib\ImgWindow\ImgFontAtlas.h" />
