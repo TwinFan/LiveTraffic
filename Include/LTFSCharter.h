@@ -36,7 +36,7 @@
 #define FSC_NAME                "FSCharter"
 
 #define FSC_BASE_URL            "https://%s/"
-#define FSC_GET_TRAFFIC         "api/live_traffic"
+#define FSC_GET_TRAFFIC         "api/live-traffic"
 #define FSC_LOGIN               "oauth/token"
 #define FSC_CURR_FLIGHT         "flights?flight="      // + flightSlug
 
