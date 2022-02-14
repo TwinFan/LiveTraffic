@@ -259,7 +259,7 @@ void InfoListWnd::buildInterface()
                     char buf[50];
                     if (ImGui::TableSetColumnIndex(0)) {
                         std::time_t t_c = std::chrono::system_clock::to_time_t(msg.wallTime);
-                        strftime(buf, sizeof(buf), "%T",
+                        strftime(buf, sizeof(buf), "%H:%M:%S",
                                  std::localtime(&t_c));
                         ImGui::TextUnformatted(buf);
                     }
@@ -330,7 +330,7 @@ void InfoListWnd::buildInterface()
                             if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.GetNumAc());
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Aircraft seen in tracking data");
-                            if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%lu", mapFd.size());
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%lu", (long unsigned)mapFd.size());
                             
                             // Warning of there's one CSL model only
                             if (numCSLModels == 1) {

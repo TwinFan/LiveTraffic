@@ -518,7 +518,7 @@ std::string ts2string (time_t t)
     gmtime_s(&tm, &t);
     strftime(szBuf,
              sizeof(szBuf) - 1,
-             "%F %T",
+             "%Y-%m-%d %H:%M:%S",       // %F %T
              &tm);
     return std::string(szBuf);
 }

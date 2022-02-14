@@ -547,7 +547,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1310;
+				LastUpgradeCheck = 1320;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";

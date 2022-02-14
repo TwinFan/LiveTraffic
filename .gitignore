@@ -5,7 +5,7 @@
 .vscode/
 
 # Build directories
-build*/
+build*/*
 
 # Generated documentation
 docs/html/

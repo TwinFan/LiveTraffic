@@ -1,8 +1,8 @@
 platforms=win mac lin lin-bionic
-container_focal=twinfan/focal-win-mac-lin-compile-env:latest
-container_bionic=twinfan/bionic-lin-compile-env:latest
+container_focal=twinfan/focal-win-mac-lin-compile-env:02.00
+container_bionic=twinfan/bionic-lin-compile-env:01.00
 
-all: $(platforms)
+all: doc $(platforms)
 
 .image_bionic:
 	docker image pull $(container_bionic)
@@ -24,4 +24,7 @@ lin-bionic: .image_bionic
 lin win mac: .image_focal
 	docker run -i --rm -v "$(realpath ..):/build" --entrypoint docker/build.sh $(container_focal) $@
 
-.PHONY: $(platforms) bash_bionic bash_focal
+doc:
+	cd .. && /Applications/Doxygen.app/Contents/Resources/doxygen docs/LiveTraffic.doxygen
+
+.PHONY: doc $(platforms) bash_bionic bash_focal

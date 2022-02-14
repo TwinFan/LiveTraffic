@@ -382,7 +382,7 @@ IMGUI_API bool FilteredInputText(const char* label, const char* filter,
 
     // Next cell: Draw the checkbox with a value linked to the dataRef
     PushID(label);
-    if (width == 0.0f)
+    if (between(width, -0.1f, 0.1f))    // with == 0.0f
         width = GetContentRegionAvail().x - GetWidthIconBtn();
     SetNextItemWidth(width);
     if (hint)

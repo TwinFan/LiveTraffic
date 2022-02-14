@@ -493,7 +493,8 @@ public:
         TaxiNode& b = vecTaxiNodes.at(n2);
         if (!a.HasGeoCoords() || !b.HasGeoCoords())
         {
-            LOG_MSG(logDEBUG, "apt.dat: Node %lu or %lu invalid! Edge not added.", n1, n2);
+            LOG_MSG(logDEBUG, "apt.dat: Node %lu or %lu invalid! Edge not added.",
+                    (long unsigned)n1, (long unsigned)n2);
             return ULONG_MAX;
         }
         
@@ -1298,7 +1299,7 @@ public:
                 pos.f           = pPrevPos->f;
                 if (dataRefs.GetDebugAcPos(fd.key()))
                     LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu) based on previously snapped position",
-                            old_lat, old_lon, pos.lat(), pos.lon(), pos.edgeIdx);
+                            old_lat, old_lon, pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
                 return true;
             }
             
@@ -1308,7 +1309,7 @@ public:
         // --- found a match, say hurray ---
         if (dataRefs.GetDebugAcPos(fd.key())) {
             LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
-                    old_lat, old_lon, pos.lat(), pos.lon(), pos.edgeIdx);
+                    old_lat, old_lon, pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
         }
             
         // this is now an artificially moved position, don't touch any further
@@ -1529,7 +1530,7 @@ public:
             
             if (dataRefs.GetDebugAcPos(fd.key())) {
                 LOG_MSG(logDEBUG, "Inserted %lu taxiway nodes",
-                        vecPath.size() - (size_t)bSkipStart - (size_t)bSkipEnd);
+                        (long unsigned)(vecPath.size() - (size_t)bSkipStart - (size_t)bSkipEnd));
             }
 
             // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
@@ -1944,10 +1945,10 @@ void Apt::AddApt (Apt&& apt)
     LOG_MSG(logDEBUG, "apt.dat: Added %s at %s with %lu runways (%s) and [%lu|%lu] taxi nodes|edges",
             apt.GetId().c_str(),
             std::string(apt.GetBounds()).c_str(),
-            apt.GetRwyEndPtVec().size() / 2,
+            (long unsigned)(apt.GetRwyEndPtVec().size() / 2),
             apt.GetRwysString().c_str(),
-            apt.GetTaxiNodesVec().size(),
-            apt.GetTaxiEdgeVec().size());
+            (long unsigned)apt.GetTaxiNodesVec().size(),
+            (long unsigned)apt.GetTaxiEdgeVec().size());
 
     // Access to the list of airports is guarded by a lock
     const std::string key = apt.GetId();          // make a copy of the key, as `apt` gets moved soon:
