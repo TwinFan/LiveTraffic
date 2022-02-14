@@ -1,0 +1,92 @@
+name: Build all Platforms
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:        # Can also be called manually for whatever reason
+
+# Let's set all project specific definitions globally
+env:
+  PRJ_NAME:     HelloWorld            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
+  PRJ_BUNDLEID: TwinFan.plugin.HelloWorld
+
+jobs:
+  #####################################
+  # Linux with GCC
+  build-lin:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2       # must checkout before we can use our own actions
+    - name: Build
+      uses: ./.github/actions/build-lin
+      id: build
+      with:
+        pluginName: ${{ env.PRJ_NAME }}
+    - name: Upload Artifact
+      uses: ./.github/actions/upload-plugin
+      with:
+        pluginName:   ${{ env.PRJ_NAME }}
+        archFolder:   lin_x64
+        xplFileName:  "${{ steps.build.outputs.xpl-file-name }}"
+
+  #####################################
+  # MacOS with CMake/clang and sign/notarize in self-written script
+  build-mac:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2       # must checkout before we can use our own actions
+    - name: Build
+      uses: ./.github/actions/build-mac
+      id: build
+      with:
+        pluginName: ${{ env.PRJ_NAME }}
+    - name: Check if Secrets available
+      id: checksecrets
+      env:
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      shell: bash
+      run: |
+        if [ "$MACOS_CERTIFICATE" == "" ]; then
+          echo ::set-output name=secretspresent::
+        else
+          echo ::set-output name=secretspresent::true
+        fi
+    - name: Codesign and Notarization
+      if: ${{ steps.checksecrets.outputs.secretspresent }}
+      uses: ./.github/actions/sign-notarize
+      with:
+        bundleId:       ${{ env.PRJ_BUNDLEID }}
+        xplFileName:    ${{ steps.build.outputs.xpl-file-name }}
+        certificate:    ${{ secrets.MACOS_CERTIFICATE }}
+        certPwd:        ${{ secrets.MACOS_CERT_PWD }}
+        notarizeUser:   ${{ secrets.NOTARIZATION_USERNAME }}
+        notarizeAppPwd: ${{ secrets.NOTARIZATION_PASSWORD }}
+    - name: Upload Artifact
+      uses: ./.github/actions/upload-plugin
+      with:
+        pluginName:   ${{ env.PRJ_NAME }}
+        archFolder:   mac_x64
+        xplFileName:  ${{ steps.build.outputs.xpl-file-name }}
+
+  #####################################
+  # Windows with MS Visual Studio
+  build-win:
+    runs-on: windows-2022
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2       # must checkout before we can use our own actions
+    - name: Build
+      uses: ./.github/actions/build-win
+      id: build
+      with:
+        pluginName: ${{ env.PRJ_NAME }}
+    - name: Upload Artifact
+      uses: ./.github/actions/upload-plugin
+      with:
+        pluginName:   ${{ env.PRJ_NAME }}
+        archFolder:   win_x64
+        xplFileName:  "${{ steps.build.outputs.xpl-file-name }}"

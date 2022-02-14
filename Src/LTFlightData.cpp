@@ -2048,7 +2048,7 @@ std::string LTFlightData::Positions2String () const
 
         strftime(szBuf,
                  sizeof(szBuf) - 1,
-                 "%F %T",
+                 "%Y-%m-%d %H:%M:%S",       // %F %T
                  &tm);
         ret += szBuf;
         ret += '\n';

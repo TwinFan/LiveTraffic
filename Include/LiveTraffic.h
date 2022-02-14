@@ -45,6 +45,7 @@
 
 // Windows
 #if IBM
+#include <winsock2.h>
 #include <windows.h>
 #include <processthreadsapi.h>
 // we prefer std::max/min of <algorithm>
@@ -53,13 +54,7 @@
 #endif
 
 // Open GL
-#if LIN
-#include <GL/gl.h>
-#elif __GNUC__
-#include <OpenGL/gl.h>
-#else
-#include <GL/gl.h>
-#endif
+#include "SystemGL.h"
 
 // C++
 #include <climits>

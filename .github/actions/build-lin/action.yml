@@ -1,0 +1,57 @@
+name: Build Linux / CMake
+description: Build on Linux based on a CMake setup
+author: TwinFan
+
+inputs:                       
+  pluginName:
+    description: "Plugin's name, used both as top-level folder name and as file name as required by X-Plane"
+    required: true
+  archFolder:
+    description: "Subfolder in which the executable is placed, is based on architecture like 'lin_x64'"
+    required: true
+    default: lin_x64
+
+outputs:
+  xpl-file-name:
+    description: Path to the resulting xpl file
+    value: ${{ steps.return.outputs.xpl-file-name }}
+
+runs:
+  using: "composite"
+  steps:
+  - name: Install required libs   # We want Ninja and OpenGL libs
+    shell: bash
+    run: |
+      sudo apt-get update -y
+      sudo apt-get install -y ninja-build libglu1-mesa-dev freeglut3-dev mesa-common-dev
+  - name: Prepare
+    shell: bash
+    run: |
+      mkdir build-lin
+  - name: CMake
+    shell: bash
+    run: |
+      cd build-lin
+      pwd
+      cmake -G Ninja ..
+  - name: Build
+    shell: bash
+    run: |
+      cd build-lin
+      pwd
+      ninja
+  - name: Test for Target
+    shell: bash
+    env:
+      TARGET_XPL: build-lin/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
+    run: |
+      if [[ ! -f "$TARGET_XPL" ]]; then
+        echo Expected target build not found: "$TARGET_XPL"
+        exit 1
+      fi
+  - name: Return Value
+    id: return
+    shell: bash
+    env:
+      TARGET_XPL: build-lin/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
+    run: echo "::set-output name=xpl-file-name::$(echo $TARGET_XPL)"

@@ -34,10 +34,14 @@
 #define APTDAT_SCENERY_PACKS "Custom Scenery/scenery_packs.ini"
 /// How a line in `scenery_packs.ini` file needs to start in order to be processed by us
 #define APTDAT_SCENERY_LN_BEGIN "SCENERY_PACK "
+/// XP12 Alpha introduces a special entry directing us to someplace else
+#define APTDAT_SCENERY_GLOBAL_APTS "*GLOBAL_AIRPORTS*"
 /// Path to add after the scenery pack location read from the ini file
 #define APTDAT_SCENERY_ADD_LOC "Earth nav data/apt.dat"
 /// Path to the global airports file under Resources / Default
 #define APTDAT_RESOURCES_DEFAULT "Resources/default scenery/default apt dat/"
+/// Path to the global airports file starting in XP12 under Resources / Default
+#define APTDAT_GLOBAL_AIRPORTS "Global Scenery/Global Airports/"
 
 // Log output
 #define WARN_APTDAT_NOT_OPEN "Can't open '%s': %s"
@@ -489,7 +493,8 @@ public:
         TaxiNode& b = vecTaxiNodes.at(n2);
         if (!a.HasGeoCoords() || !b.HasGeoCoords())
         {
-            LOG_MSG(logDEBUG, "apt.dat: Node %lu or %lu invalid! Edge not added.", n1, n2);
+            LOG_MSG(logDEBUG, "apt.dat: Node %lu or %lu invalid! Edge not added.",
+                    (long unsigned)n1, (long unsigned)n2);
             return ULONG_MAX;
         }
         
@@ -1294,7 +1299,7 @@ public:
                 pos.f           = pPrevPos->f;
                 if (dataRefs.GetDebugAcPos(fd.key()))
                     LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu) based on previously snapped position",
-                            old_lat, old_lon, pos.lat(), pos.lon(), pos.edgeIdx);
+                            old_lat, old_lon, pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
                 return true;
             }
             
@@ -1304,7 +1309,7 @@ public:
         // --- found a match, say hurray ---
         if (dataRefs.GetDebugAcPos(fd.key())) {
             LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
-                    old_lat, old_lon, pos.lat(), pos.lon(), pos.edgeIdx);
+                    old_lat, old_lon, pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
         }
             
         // this is now an artificially moved position, don't touch any further
@@ -1525,7 +1530,7 @@ public:
             
             if (dataRefs.GetDebugAcPos(fd.key())) {
                 LOG_MSG(logDEBUG, "Inserted %lu taxiway nodes",
-                        vecPath.size() - (size_t)bSkipStart - (size_t)bSkipEnd);
+                        (long unsigned)(vecPath.size() - (size_t)bSkipStart - (size_t)bSkipEnd));
             }
 
             // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
@@ -1940,10 +1945,10 @@ void Apt::AddApt (Apt&& apt)
     LOG_MSG(logDEBUG, "apt.dat: Added %s at %s with %lu runways (%s) and [%lu|%lu] taxi nodes|edges",
             apt.GetId().c_str(),
             std::string(apt.GetBounds()).c_str(),
-            apt.GetRwyEndPtVec().size() / 2,
+            (long unsigned)(apt.GetRwyEndPtVec().size() / 2),
             apt.GetRwysString().c_str(),
-            apt.GetTaxiNodesVec().size(),
-            apt.GetTaxiEdgeVec().size());
+            (long unsigned)apt.GetTaxiNodesVec().size(),
+            (long unsigned)apt.GetTaxiEdgeVec().size());
 
     // Access to the list of airports is guarded by a lock
     const std::string key = apt.GetId();          // make a copy of the key, as `apt` gets moved soon:
@@ -2387,6 +2392,7 @@ void AsyncReadApt (positionTy ctr, double radius)
     // --- Add new airports ---
     // Count the number of files we have accessed
     int cntFiles = 0;
+    bool bLooksLikeXP12 = false;            // XP12 Alpha introduced the *GLOBAL AIRPORTS* entry
 
     // Try opening scenery_packs.ini
     std::ifstream fScenery (LTCalcFullPath(APTDAT_SCENERY_PACKS));
@@ -2401,9 +2407,17 @@ void AsyncReadApt (positionTy ctr, double radius)
         if (lnScenery.length() <= lenSceneryLnBegin ||
             lnScenery.substr(0,lenSceneryLnBegin) != APTDAT_SCENERY_LN_BEGIN)
             continue;
-        
+
+        // Remove the SCENERY_PACK part
+        lnScenery.erase(0, lenSceneryLnBegin);
+
+        // Starting with XP12 Alpha there's a special entry we can't read right here but need to take care of later
+        if (lnScenery == APTDAT_SCENERY_GLOBAL_APTS) {
+            bLooksLikeXP12 = true;
+            continue;
+        }
+
         // the remainder is a path into X-Plane's main folder
-        lnScenery.erase(0,lenSceneryLnBegin);
         lnScenery = LTCalcFullPath(lnScenery);      // make it a full path
         lnScenery += APTDAT_SCENERY_ADD_LOC;        // add the location to the actual `apt.dat` file
         
@@ -2430,7 +2444,7 @@ void AsyncReadApt (positionTy ctr, double radius)
     // Last but not least we also process the global generic apt.dat file
     if (!bStopThread)
     {
-        const std::string sFileName = LTCalcFullPath(APTDAT_RESOURCES_DEFAULT APTDAT_SCENERY_ADD_LOC);
+        const std::string sFileName = LTCalcFullPath(bLooksLikeXP12 ? APTDAT_GLOBAL_AIRPORTS APTDAT_SCENERY_ADD_LOC : APTDAT_RESOURCES_DEFAULT APTDAT_SCENERY_ADD_LOC);
         std::ifstream fIn (sFileName);
         if (fIn.good() && fIn.is_open()) {
             LOG_MSG(logDEBUG, "Reading apt.dat from %s", sFileName.c_str());

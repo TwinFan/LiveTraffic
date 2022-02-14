@@ -1,0 +1,29 @@
+name: Upload Plugin
+description: Organizes plugin files in correct structure, then uploads as artifact
+author: TwinFan
+
+inputs:                       
+  pluginName:
+    description: "Plugin's name, used both as top-level folder name and as file name as required by X-Plane"
+    required: true
+  archFolder:
+    description: "Subfolder in which the executable is placed, is based on architecture like 'lin_x64'"
+    required: true
+  xplFileName:
+    description: "Path to just built xpl plugin"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+  - name: Prepare Deployment Structure        # moves the plugin, like "build-lin/lin_x64/MyPlugin.xpl", to a deployment structure like "deploy-MyPlugin/MyPlugin/lin_x64/MyPlugin.xpl"
+    shell: bash
+    run: |
+      mkdir -p "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
+      mv "${{ inputs.xplFileName }}" "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
+  - name: Upload plugin
+    uses: actions/upload-artifact@v2
+    with:
+      name: ${{ inputs.pluginName }}
+      path: deploy-${{ inputs.pluginName }}/*   # this way the top folder in the artifacts is "MyPlugin"
+      if-no-files-found: error

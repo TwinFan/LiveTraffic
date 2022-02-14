@@ -1,21 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
     <title>LiveTraffic Readme</title>
+    <meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
             font-family: Calibri, Arial, Helvetica, sans-serif;
             max-width: 800px;
             margin: auto;
         }
-    </style>
-</head>
+
+        header {
+        	position: -webkit-sticky; /* Safari */
+			position: sticky;
+  			top: 0;
+  			background-color: white
+        }
+
+        header h1 {
+  			background-color: white
+        	float:left
+        }
+
+        header li {
+        	float:left
+  			background-color: white
+        }
+
+        header ul {
+ 			  list-style-type: none;
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              background-color: #F5F7F9;
+            }
+
+        header li {
+          float: left;
+        }
+
+        header li a {
+          display: block;
+          color: black;
+          text-align: center;
+          text-decoration: none;
+          padding: 14px 16px;
+        }
+
+        header li a:hover {
+          background-color: #6A737B;
+        }
+
+    </style></head>
 <body>
+    <header>
+        <ul>
+            <li style="padding:14px 16px"><b>LiveTraffic Readme</b></li>
+            <li><a href="#documentation">Documentation</a></li>
+            <li><a href="#support">Support</a></li>
+            <li><a href="#release-notes">Release Notes</a></li>
+        </ul>
+    </header>
 
     <H1>LiveTraffic Readme</H1>
 
-    <h2>Documentation</h2>
+    <h2 id="documentation">Documentation</h2>
 
     <P>
         For full documentation please visit
@@ -62,11 +112,65 @@
         <code>&nbsp;&nbsp;&nbsp;&nbsp;LICENSE</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;readme.html</code><br>
     </P>
+	
+	<h1 id="support">Support</h1>
+	
+	For support turn to the <a href="https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/">LiveTraffic Support forum</a>
+	and have your <code>Log.txt</code> file ready for upload.
+	
+	<a href="https://forums.x-plane.org/index.php?/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/">This post</a>
+	explains more details how to quickly get meaningful answers.</a>
+	
 
-    <h1>Release Notes</h1>
+    <h1 id="release-notes">Release Notes</h1>
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
+    <h2>v2.6</h2>
+    
+    <h3>v2.61</h3>
+
+    <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
+    over the files of your existing installation.</P>
+
+    <P>At least copy the following files, which have changed compared to v2.53:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>
+            ADDED more potential Ground Vehicles to <code>FlightModels.prf</code>, thanks to @sawiczja and @larsras.
+        </li>
+        <li>
+            FIXED reading global airport scenery files, which got relocated in X-Plane 12.
+        </li>
+    </ul>
+
+    <h3>v2.60</h3>
+
+    <P>Update: At least copy the following files, which have changed compared to v2.53:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>
+            ADDED a new channel for <a href="https://fscharter.net">FSCharter</a> flights, usable for registered users; see <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/fscharter">documentation</a> for details.
+        </li>
+        <li>
+            ADDED links to follow a flight on the web sites of the feeding channels.
+			Find the link symbol (arrow pointing top right) in the <i>Actions</i> column of the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a>
+			as well as in the <i>Tracking Data</i> line of the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Info Window</a>.
+        </li>
+    </ul>
+
     <h2>v2.5</h2>
     
     <h3>v2.53</h3>
@@ -80,10 +184,7 @@
     is at least set to 90 seconds to provide for ample buffer for periods
     OpenSky does not respond.</P>
     
-    <P>Update: In case of doubt you can always just copy all files from the archive
-    over the files of your existing installation.</P>
-
-    <P>At least copy the following files, which have changed compared to v2.52:</P>
+    <P>Update: At least copy the following files, which have changed compared to v2.52:</P>
         <ul>
             <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
             <li><code>Resources/Doc8643.txt</code></li>

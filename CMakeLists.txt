@@ -81,9 +81,16 @@ else()
     endif()
 endif()
 
+# Mingw Threads
+if (MINGW)
+    option(MINGW_STDTHREADS_GENERATE_STDHEADERS "" ON)
+    add_subdirectory(Lib/mingw-std-threads)
+endif()
+
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_SOURCE_DIR}/Include")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/base64")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/Current/Headers")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
@@ -257,6 +264,8 @@ if (WIN32)
     # Link platform-specific libraries especially for networking
     target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib)
     if (MINGW)
+        # Include MingW threads
+        target_link_libraries(LiveTraffic mingw_stdthreads opengl32)
         # When cross-compiling we link the standard libraries statically
         target_link_options(LiveTraffic PRIVATE -static-libgcc -static-libstdc++)
     endif()

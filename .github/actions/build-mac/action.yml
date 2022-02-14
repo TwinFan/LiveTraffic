@@ -1,0 +1,56 @@
+name: Build MacOS / CMake
+description: Build a MacOS plugin based on a CMake setup
+author: TwinFan
+
+inputs:                       
+  pluginName:
+    description: "Plugin's name, used both as top-level folder name and as file name as required by X-Plane"
+    required: true
+  archFolder:
+    description: "Subfolder in which the executable is placed, is based on architecture like 'mac_x64'"
+    required: true
+    default: mac_x64
+
+outputs:
+  xpl-file-name:
+    description: Path to the resulting xpl file
+    value: ${{ steps.return.outputs.xpl-file-name }}
+
+runs:
+  using: "composite"
+  steps:
+  - name: Install required libs
+    shell: bash
+    run: |
+      brew install ninja
+  - name: Prepare
+    shell: bash
+    run: |
+      mkdir build-mac
+  - name: CMake
+    shell: bash
+    run: |
+      cd build-mac
+      pwd
+      cmake -G Ninja ..
+  - name: Build
+    shell: bash
+    run: |
+      cd build-mac
+      pwd
+      ninja
+  - name: Test for Target
+    shell: bash
+    env:
+      TARGET_XPL: build-mac/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
+    run: |
+      if [[ ! -f "$TARGET_XPL" ]]; then
+        echo Expected target build not found: "$TARGET_XPL"
+        exit 1
+      fi
+  - name: Return Value
+    id: return
+    shell: bash
+    env:
+      TARGET_XPL: build-mac/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
+    run: echo "::set-output name=xpl-file-name::$(echo $TARGET_XPL)"
