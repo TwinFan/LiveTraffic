@@ -238,7 +238,7 @@ target_link_libraries(LiveTraffic ${XPMP2_LIBRARY})
 
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
-    set(CURL_INCLUDE_DIRS       "lib/CURL")
+    set(CURL_INCLUDE_DIR        "lib/CURL")
     set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
     set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
 endif()
