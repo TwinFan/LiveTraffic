@@ -40,8 +40,8 @@ add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BO
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
-    # Deprecation warning: once is enough
-    add_compile_options(/wo4996)
+    # Deprecation warning: once is enough / provide me with actual __cplusplus
+    add_compile_options(/wo4996 /Zc:__cplusplus)
 else()
     add_compile_options(-Wall -Wshadow -Wfloat-equal -Wextra)
     if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0 AND NOT APPLE)
