@@ -9,8 +9,8 @@ on:
 
 # Let's set all project specific definitions globally
 env:
-  PRJ_NAME:     HelloWorld            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
-  PRJ_BUNDLEID: TwinFan.plugin.HelloWorld
+  PRJ_NAME:     LiveTraffic            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
+  PRJ_BUNDLEID: TwinFan.plugin.LiveTraffic
 
 jobs:
   #####################################
@@ -20,6 +20,11 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v2       # must checkout before we can use our own actions
+    - name: List all files
+      shell: bash
+      run: |
+        ls -Rl .
+        pwd
     - name: Build
       uses: ./.github/actions/build-lin
       id: build

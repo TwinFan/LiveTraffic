@@ -231,6 +231,8 @@ elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
 
+message ("   CMAKE_LIBRARY_PATH = ${CMAKE_LIBRARY_PATH}")
+
 # Link the XPMP2 library
 find_library(XPMP2_LIBRARY XPMP2 REQUIRED)
 message ("   XPMP2_LIBRARY = ${XPMP2_LIBRARY}")

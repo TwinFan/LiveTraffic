@@ -1,5 +1,7 @@
 # LiveTraffic
 
+[![Build all Platforms](https://github.com/TwinFan/LiveTraffic/actions/workflows/build.yml/badge.svg)](https://github.com/TwinFan/LiveTraffic/actions/workflows/build.yml)
+
 LiveTraffic is a plugin for the flight simulator [X-Plane](https://www.x-plane.com) to show real life traffic, based on publicly available live flight data, as additional planes within X-Plane.
 
 It came into being when I was looking at plugins simulating additional traffic in X-Plane and thinking at that time: Why do they try to simulate traffic and invent flight models when there is flight data available online which brings yet another piece of reality into the simulation? Why can't one just read the data and display the aircraft?
