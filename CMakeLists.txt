@@ -271,10 +271,10 @@ endif ()
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib)
+    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32)
     if (MINGW)
         # Include MingW threads
-        target_link_libraries(LiveTraffic mingw_stdthreads opengl32)
+        target_link_libraries(LiveTraffic mingw_stdthreads)
         # When cross-compiling we link the standard libraries statically
         target_link_options(LiveTraffic PRIVATE -static-libgcc -static-libstdc++)
     endif()
