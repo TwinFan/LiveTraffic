@@ -187,13 +187,15 @@ set(ALL_FILES  ${Header_Files} ${Source_Files})
 add_library(LiveTraffic MODULE ${ALL_FILES})
 
 # ImGui files do a lot of comparisons on floats
-set_source_files_properties(
-    Lib/ImGui/imgui_draw.cpp
-    Lib/ImGui/imgui_widgets.cpp
-    Lib/ImGui/imgui.cpp
-    Lib/ImgWindow/ImgWindow.cpp
-PROPERTIES
-    COMPILE_FLAGS -Wno-float-equal)
+if (NOT MSVC)
+    set_source_files_properties(
+        Lib/ImGui/imgui_draw.cpp
+        Lib/ImGui/imgui_widgets.cpp
+        Lib/ImGui/imgui.cpp
+        Lib/ImgWindow/ImgWindow.cpp
+    PROPERTIES
+        COMPILE_FLAGS -Wno-float-equal)
+endif()
 
 ################################################################################
 # Define pre-compiled header
