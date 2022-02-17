@@ -234,6 +234,9 @@ inline std::string& trim(std::string& s, const char* t = WHITESPACE)
     return ltrim(rtrim(s, t), t);
 }
 
+/// Cut off everything after `from` from `s`, `from` including
+std::string& cut_off(std::string& s, const std::string& from);
+
 // last word of a string
 std::string str_last_word (const std::string& s);
 // separates string into tokens

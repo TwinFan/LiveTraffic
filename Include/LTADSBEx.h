@@ -56,33 +56,24 @@
 #define ADSBEX_TRT              "trt"
 #define ADSBEX_RADAR_CODE       "sqk"           // Dynamic data
 #define ADSBEX_CALL             "call"
-// #define ADSBEX_C_MSG            "CMsgs"
 #define ADSBEX_LAT              "lat"
 #define ADSBEX_LON              "lon"
 #define ADSBEX_ELEVATION        "galt"          // geometric altitude
 #define ADSBEX_ALT              "alt"           // barometric altitude
 #define ADSBEX_HEADING          "trak"
 #define ADSBEX_GND              "gnd"
-// #define ADSBEX_IN_HG            "InHg"
 #define ADSBEX_POS_TIME         "postime"
-// #define ADSBEX_POS_STALE        "PosStale"
-// #define ADSBEX_BRNG             "Brng"
-// #define ADSBEX_DST              "Dst"
 #define ADSBEX_SPD              "spd"
 #define ADSBEX_VSI              "vsi"
 #define ADSBEX_REG              "reg"
 #define ADSBEX_COUNTRY          "cou"
 #define ADSBEX_AC_TYPE_ICAO     "type"
-// #define ADSBEX_MAN              "Man"
-// #define ADSBEX_MDL              "Mdl"
-// #define ADSBEX_YEAR             "Year"
 #define ADSBEX_MIL              "mil"
-// #define ADSBEX_OP               "Op"
 #define ADSBEX_OP_ICAO          "opicao"
-// #define ADSBEX_ENG_TYPE         "EngType"
-// #define ADSBEX_ENG_MOUNT        "EngMount"
-// #define ADSBEX_ORIGIN           "From"
-// #define ADSBEX_DESTINATION      "To"
+#define ADSBEX_ORIGIN           "from"
+#define ADSBEX_DESTINATION      "to"
+
+#define ADSBEX_TYPE_GND         "-GND"
 
 // still used in historic data code, unsure if supported:
 #define ADSBEX_RCVR             "Rcvr"

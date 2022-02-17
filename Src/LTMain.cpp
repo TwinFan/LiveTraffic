@@ -318,6 +318,15 @@ void str_replaceAll(std::string& str, const std::string& from, const std::string
     }
 }
 
+// Cut off everything after `from` from `s`, `from` including
+std::string& cut_off(std::string& s, const std::string& from)
+{
+    const size_t pos = s.find(from);
+    if (pos != std::string::npos)
+        s.erase(pos);
+    return s;
+}
+
 // last word of a string
 std::string str_last_word (const std::string& s)
 {
