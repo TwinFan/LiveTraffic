@@ -40,8 +40,8 @@ add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BO
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
-    # Deprecation warning: once is enough
-    add_compile_options(/wo4996)
+    # Deprecation warning: once is enough / provide me with actual __cplusplus
+    add_compile_options(/wo4996 /Zc:__cplusplus)
 else()
     add_compile_options(-Wall -Wshadow -Wfloat-equal -Wextra)
     if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0 AND NOT APPLE)
@@ -187,13 +187,15 @@ set(ALL_FILES  ${Header_Files} ${Source_Files})
 add_library(LiveTraffic MODULE ${ALL_FILES})
 
 # ImGui files do a lot of comparisons on floats
-set_source_files_properties(
-    Lib/ImGui/imgui_draw.cpp
-    Lib/ImGui/imgui_widgets.cpp
-    Lib/ImGui/imgui.cpp
-    Lib/ImgWindow/ImgWindow.cpp
-PROPERTIES
-    COMPILE_FLAGS -Wno-float-equal)
+if (NOT MSVC)
+    set_source_files_properties(
+        Lib/ImGui/imgui_draw.cpp
+        Lib/ImGui/imgui_widgets.cpp
+        Lib/ImGui/imgui.cpp
+        Lib/ImgWindow/ImgWindow.cpp
+    PROPERTIES
+        COMPILE_FLAGS -Wno-float-equal)
+endif()
 
 ################################################################################
 # Define pre-compiled header
@@ -227,7 +229,7 @@ elseif (UNIX)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/$ENV{platform}")
 elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/$ENV{platform}")
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/win")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
 
@@ -235,6 +237,13 @@ endif ()
 find_library(XPMP2_LIBRARY XPMP2 REQUIRED)
 message ("   XPMP2_LIBRARY = ${XPMP2_LIBRARY}")
 target_link_libraries(LiveTraffic ${XPMP2_LIBRARY})
+
+# MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
+if (MSVC)
+    set(CURL_INCLUDE_DIR        "lib/CURL")
+    set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
+    set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
+endif()
 
 # Link libcurl
 find_package(CURL REQUIRED)
@@ -262,10 +271,10 @@ endif ()
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib)
+    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32)
     if (MINGW)
         # Include MingW threads
-        target_link_libraries(LiveTraffic mingw_stdthreads opengl32)
+        target_link_libraries(LiveTraffic mingw_stdthreads)
         # When cross-compiling we link the standard libraries statically
         target_link_options(LiveTraffic PRIVATE -static-libgcc -static-libstdc++)
     endif()

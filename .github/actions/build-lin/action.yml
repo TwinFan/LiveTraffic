@@ -23,7 +23,7 @@ runs:
     shell: bash
     run: |
       sudo apt-get update -y
-      sudo apt-get install -y ninja-build libglu1-mesa-dev freeglut3-dev mesa-common-dev
+      sudo apt-get install -y ninja-build libglu1-mesa-dev freeglut3-dev mesa-common-dev libcurl4-openssl-dev
   - name: Prepare
     shell: bash
     run: |

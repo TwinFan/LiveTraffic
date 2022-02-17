@@ -2,21 +2,22 @@ name: Build all Platforms
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:        # Can also be called manually for whatever reason
 
 # Let's set all project specific definitions globally
 env:
-  PRJ_NAME:     HelloWorld            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
-  PRJ_BUNDLEID: TwinFan.plugin.HelloWorld
+  PRJ_NAME:     LiveTraffic            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
+  PRJ_BUNDLEID: TwinFan.plugin.LiveTraffic
 
 jobs:
   #####################################
   # Linux with GCC
   build-lin:
     runs-on: ubuntu-latest
+    env:
+      platform: lin
     steps:
     - name: Checkout Code
       uses: actions/checkout@v2       # must checkout before we can use our own actions
@@ -36,6 +37,8 @@ jobs:
   # MacOS with CMake/clang and sign/notarize in self-written script
   build-mac:
     runs-on: macos-latest
+    env:
+      platform: mac
     steps:
     - name: Checkout Code
       uses: actions/checkout@v2       # must checkout before we can use our own actions
@@ -76,6 +79,8 @@ jobs:
   # Windows with MS Visual Studio
   build-win:
     runs-on: windows-2022
+    env:
+      platform: win
     steps:
     - name: Checkout Code
       uses: actions/checkout@v2       # must checkout before we can use our own actions
