@@ -10,7 +10,7 @@ Well...turned out it's not *that* easy ;-)
 
 [Please see GitBook](https://twinfan.gitbook.io/livetraffic/) for further documentation on Features, Limitations, Requirements, Installation, Configuration...
 
-## Status
+## Download
 Available on [x-plane.org](https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/).
 
 ## License
@@ -40,38 +40,46 @@ Thanks go to
 
 ## Build
 
-### Mac OS
+### Github Actions
 
-This is the primary development platform and tested best. Open `LiveTraffic.xcodeproject`
-with XCode. In the project's "Build Settings" you find one User-Defined setting at the very end,
+LiveTraffic builds on Github, see
+[`.github/workflows/build.yml`](https://github.com/TwinFan/LiveTraffic/blob/master/.github/workflows/build.yml).
+
+### Docker Cross Compile Environment
+
+Locally, LiveTraffic can be build for all platforms using the Docker cross compile environment
+[`twinfan/focal-win-mac-lin-compile-env`](https://hub.docker.com/r/twinfan/focal-win-mac-lin-compile-env).
+Tested on Mac as a host, should work the same way on Linux.
+
+- Install [Docker Desktop](https://www.docker.com/products/docker-desktop) and start it.
+- `cd docker`
+- `make`
+
+In the first run only, it will download the necessary Docker image.
+The actual build takes only a few seconds. Results are written to `build-*/*_x64` folders.
+
+For more background info also see [`docker/README.md`](https://github.com/TwinFan/LiveTraffic/blob/master/docker/README.md).
+
+The `Makefile` also builds the `doc` target, ie. the Doxygen documentation.
+That will only work on a Mac. Otherwise, you may want to remove `doc` from `all`.
+
+### IDE
+
+#### Mac OS / Xcode
+
+MacOS is the primary development platform. Open `LiveTraffic.xcodeproject`
+with Xcode. In the project's "Build Settings" you find one User-Defined setting at the very end,
 that will require changing: `XPLANE11_ROOT` defines the root path to your X-Plane installation. 
 The build process will install the plugin also into `$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)`,
 so that it is right away available in your installation after build.
 
-### Windows
+#### Windows / Visual Studio
 
-Windows cannot build in the Docker environment as mingw's libraries aren't up to C++ 17 standards.
-- Install Visual Studio](https://visualstudio.microsoft.com/vs/community/)
+- Install [Visual Studio](https://visualstudio.microsoft.com/vs/community/)
 - Open the solution `LifeTraffic.sln`
-- Build from within Visual Studi
+- Build from within Visual Studio
 
 Results are in `build/x64`.
-
-### Linux (via Docker)
-
-I don't have a Linux build or test environment. The project does provide a Docker environment,
-though, with which I build the Linux binaries on a Mac OS machine. Theoretically,
-this should also work on a Windows machine, but I never tried. Feedback welcome.
-
-- Install [Docker Desktop](https://www.docker.com/products/docker-desktop) and start it.
-- `cd` to the project's `docker` folder
-- `make`
-
-In the first run only, it will create the necessary Docker image based on Ubuntu 18.04,
-which includes downloading lots of base images and packages and takes a couple
-of minutes. This is required once only.
-
-The actual build takes only a few seconds. Results are written to `build-lin`.
 
 ### Doxygen Documentation
 
