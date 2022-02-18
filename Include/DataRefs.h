@@ -206,6 +206,7 @@ enum dataRefsXP {
     DR_LOCAL_DATE_DAYS,
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
+    DR_REPLAY_MODE,                     ///< sim/operation/prefs/replay_mode    int    y    enum    Are we in replay mode?
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
     DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
@@ -735,6 +736,7 @@ protected:
     static positionTy lastCamPos;               ///< cached read camera position
     float       lastNetwTime    = 0.0f;         ///< cached network time
     double      lastSimTime     = NAN;          ///< cached simulated time
+    bool        lastReplay      = true;         ///< cached: is replay mode?
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
@@ -790,6 +792,9 @@ public:
     static void LTSetSimDateTime(void* p, int i);
     static int LTGetSimDateTime(void* p);
 
+    /// Are we in replay mode?
+    bool IsReplayMode() const { return lastReplay; }
+    
     // livetraffic/cfg/aircrafts_displayed: Aircraft Displayed
     static void LTSetAircraftDisplayed(void* p, int i);
     inline int AreAircraftDisplayed() const  { return bShowingAircraft; }

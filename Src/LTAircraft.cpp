@@ -2441,8 +2441,11 @@ bool LTAircraft::CalcVisible ()
     // possible change...save old value for comparison
     bool bPrevVisible = IsVisible();
     
+    // Hide in replay mode?
+    if (dataRefs.GetHideInReplay() && dataRefs.IsReplayMode())
+        XPMP2::Aircraft::SetVisible(false);
     // automatic is off -> take over manually given state
-    if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
+    else if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
         XPMP2::Aircraft::SetVisible(bSetVisible);
     // hide while taxiing...and we are taxiing?
     else if (dataRefs.GetHideTaxiing() &&
@@ -2473,7 +2476,7 @@ bool LTAircraft::CalcVisible ()
     
     // inform about a change
     if (bPrevVisible != IsVisible())
-        LOG_MSG(logINFO, IsVisible() ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
+        LOG_MSG(logDEBUG, IsVisible() ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
                 labelInternal.c_str());
 
     // return new visibility

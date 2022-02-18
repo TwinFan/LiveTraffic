@@ -310,6 +310,7 @@ const char* DATA_REFS_XP[] = {
     "sim/time/local_date_days",
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
+    "sim/operation/prefs/replay_mode",          //    int    y    enum    Are we in replay mode?
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
     "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
@@ -2296,6 +2297,7 @@ void DataRefs::UpdateCachedValues ()
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
+    lastReplay = XPLMGetDatai(adrXP[DR_REPLAY_MODE]);
     lastVREnabled =                         // is VR enabled?
     #ifdef DEBUG
         bSimVREntered ? true :              // simulate some aspects of VR
