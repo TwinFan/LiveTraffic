@@ -91,6 +91,7 @@ public:
     inline double dist () const     { return valDist; }
     inline double fromTS () const   { return timeFrom; }
     inline double toTS () const     { return timeTo; }
+    double percDone () const;       ///< percent done of move, returns 1.0 if not in motion
 };
 
 // mimics acceleration / deceleration
@@ -372,6 +373,7 @@ public:
     inline double GetVSI_m_s() const { return vsi * Ms_per_FTm; }           // m/s
     inline double GetPitch() const { return ppos.pitch(); }
     inline double GetRoll() const { return ppos.roll(); }
+    float GetLift() const override;     ///< Lift produced for wake system, typically mass * 9.81, but blends in during rotate and blends out while landing
     inline double GetAlt_ft() const { return ppos.alt_ft(); }
     inline double GetAlt_m() const { return ppos.alt_m(); }
     inline double GetTerrainAlt_ft() const { return terrainAlt_m / M_per_FT; }  ///< terrain alt converted to ft

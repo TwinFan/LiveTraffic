@@ -339,6 +339,16 @@ double MovingParam::get()
     return val;
 }
 
+
+double MovingParam::percDone () const
+{
+    if (!inMotion() || std::isnan(valDist) || between(valDist, -0.0001, 0.0001))
+        return 1.0;
+    else
+        return std::abs((val - valFrom) / valDist);
+}
+
+
 //
 //MARK: AccelParam
 //
@@ -1452,6 +1462,22 @@ bool LTAircraft::IsOnRwy() const
      posList[1].f.specialPos == SPOS_RWY);
 }
 
+
+// Lift produced for wake system, typically mass * 9.81, but blends in during rotate and blends out while landing
+float LTAircraft::GetLift() const
+{
+    // Are we in any phase in which we phase lift in/out?
+    if (pitch.inMotion() &&
+        (phase == FPH_TAKE_OFF || phase == FPH_ROTATE ||        // take-off
+         phase == FPH_TOUCH_DOWN || phase == FPH_ROLL_OUT))     // landing
+    {
+        // Transitioning (either rolling out or rotating)
+        return GetMass() * XPMP2::G_EARTH * (float)pitch.percDone();
+    }
+    
+    // No transition: Then it's all (airborne) or nothing (ground)
+    return IsOnGrnd() ? 0.0f : GetMass() * XPMP2::G_EARTH;
+}
 
 // The basic idea is: We are given a 'from'-position and a 'to'-position,
 // both including a timestamp. The 'from'-timestamp is in the past,

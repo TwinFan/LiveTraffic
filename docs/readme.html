@@ -126,9 +126,9 @@
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
-    <h2>v2.7</h2>
+    <h2>v3.0</h2>
     
-    <h3>v2.70</h3>
+    <h3>v3.00 X-Plane 12 Support</h3>
 
     <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
     over the files of your existing installation.</P>
@@ -136,6 +136,7 @@
     <P>At least copy the following files, which have changed compared to v2.60:</P>
         <ul>
             <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+            <li><code>Resources/Doc8643.txt</code></li>
             <li><code>Resources/FlightModels.prf</code></li>
         </ul>
     </p>
@@ -143,7 +144,14 @@
     <P>Change log:</P>
 
     <ul>
-        <li>NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/225">#225</a> Option <i>Basics > Cooperation > Hide all a/c in Reply</i>.</li>
+        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/59">#59</a>: Support for
+            <a href="https://developer.x-plane.com/article/plugin-traffic-wake-turbulence/">X-Plane 12's wake turbulence</a>,
+            which is applied to TCAS targets, ie. only if LiveTraffic has TCAS control.<br>
+            So watch out...going into the wake of an airliner with your C172
+            <a href="https://skybrary.aero/articles/accident-and-serious-incident-reports-wake">may crash you</a>!
+            For training purposes, you can have X-Plane vizualize the wakes by selecting "View &gt; Show 3-D Flight Mode" from the menu
+            or hit [Ctrl-M] eight times until "Wake Turbulence" appears on the screen.</li>
+        <li>NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/225">#225</a> Option <i>Basics &gt; Cooperation &gt; Hide all a/c in Reply</i>.</li>
         <li>ADS-B Exchange: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/223">#223</a> option to remove static objects like towers.</li>
         <li>
             ADS-B Exchange: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/224">#224</a>:
