@@ -15,6 +15,9 @@ outputs:
   xpl-file-name:
     description: Path to the resulting xpl file
     value: ${{ steps.return.outputs.xpl-file-name }}
+  pdb-file-name:
+    description: Path to the resulting pdb file (debug symbol info)
+    value: ${{ steps.return.outputs.pdb-file-name }}
 
 runs:
   using: "composite"
@@ -36,4 +39,7 @@ runs:
     shell: bash
     env:
       TARGET_XPL: build-win/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
-    run: echo "::set-output name=xpl-file-name::$(echo $TARGET_XPL)"
+      TARGET_PDB: build-win/${{ inputs.archFolder }}/${{ inputs.pluginName }}.pdb
+    run: |
+      echo "::set-output name=xpl-file-name::$(echo $TARGET_XPL)"
+      echo "::set-output name=pdb-file-name::$(echo $TARGET_PDB)"

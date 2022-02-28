@@ -12,6 +12,9 @@ inputs:
   xplFileName:
     description: "Path to just built xpl plugin"
     required: true
+  pdbFileName:
+    description: "Path to just built pdb file"
+    required: false
 
 runs:
   using: "composite"
@@ -21,6 +24,9 @@ runs:
     run: |
       mkdir -p "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
       mv "${{ inputs.xplFileName }}" "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
+      if [[ -n "${{ inputs.pdbFileName }}" ]]; then
+        mv "${{ inputs.pdbFileName }}" "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
+      fi
   - name: Upload plugin
     uses: actions/upload-artifact@v2
     with:
