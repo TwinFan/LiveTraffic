@@ -1,9 +1,22 @@
 # LiveTraffic - Set up to be used in the provided docker environment to build lin, mac, and win
 
 cmake_minimum_required(VERSION 3.16)
+
+# Need to tell early on that we want a cross platform build
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Archs to build")
+
 project(LiveTraffic
-        VERSION 2.70
+        VERSION 3.0.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
+
+# Provide compile macros from the above project version definition
+add_compile_definitions(
+    LIVETRAFFIC_VERSION_BETA=0
+    LIVETRAFFIC_VERSION="${PROJECT_VERSION}"
+    LIVETRAFFIC_VER_MAJOR=${PROJECT_VERSION_MAJOR}
+    LIVETRAFFIC_VER_MINOR=${PROJECT_VERSION_MINOR}
+    LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
+)
 
 ################################################################################
 # Target Systems
@@ -16,8 +29,7 @@ if (WIN32)
         set(ENV{platform} "win")
     endif()
 elseif(APPLE)
-    add_compile_options(-mmacosx-version-min=10.11)
-    add_link_options(-mmacosx-version-min=10.11)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
 endif()
 
 ################################################################################
@@ -56,7 +68,6 @@ else()
     # Makes symbols non-exported by default.
     add_compile_options(-fvisibility=hidden)
 endif()
-
 
 # Debug vs Release build
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
@@ -195,6 +206,15 @@ if (NOT MSVC)
         Lib/ImgWindow/ImgWindow.cpp
     PROPERTIES
         COMPILE_FLAGS -Wno-float-equal)
+endif()
+
+# Apple deprecated OpenGL...yea, we know, keep quiet
+if (APPLE)
+    set_source_files_properties(
+        Lib/ImgWindow/ImgFontAtlas.cpp
+        Lib/ImgWindow/ImgWindow.cpp
+    PROPERTIES
+        COMPILE_OPTIONS "-Wno-deprecated-declarations")
 endif()
 
 ################################################################################

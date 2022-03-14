@@ -550,7 +550,7 @@
 				LastUpgradeCheck = 1320;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
-			compatibilityVersion = "Xcode 3.2";
+			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -670,7 +670,6 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				EXCLUDED_ARCHS = arm64;
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -724,7 +723,6 @@
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				SDKROOT = macosx;
 				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/Release";
 			};
 			name = Debug;
@@ -767,7 +765,6 @@
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				EXCLUDED_ARCHS = arm64;
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -820,7 +817,6 @@
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				SDKROOT = macosx;
 				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/Release";
 			};
 			name = Release;
@@ -830,7 +826,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				DEPLOYMENT_LOCATION = YES;
-				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/XPMP2",
@@ -853,7 +848,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = TwinFan.plugin.LiveTraffic;
 				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
 				PRODUCT_NAME = "${TARGETNAME}";
-				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
 		};
@@ -862,7 +856,6 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				DEPLOYMENT_LOCATION = YES;
-				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/XPMP2",
@@ -885,7 +878,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = TwinFan.plugin.LiveTraffic;
 				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
 				PRODUCT_NAME = "${TARGETNAME}";
-				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};

@@ -19,7 +19,7 @@ FRAMEWORK_VERSION=Versions/Release-$VERSION
 # path to the XCode developer tools and to the SDK, version numbers
 DEVELOPER_PATH=`xcode-select --print-path`
 SDK_PATH="$DEVELOPER_PATH/Platforms/MacOSX.platform/Developer/SDKs"
-ARCHES64='-arch x86_64'
+ARCHES64='-arch x86_64 -arch arm64'
 SDK64=`ls -r $SDK_PATH|egrep -v "10.[0-4][^0-9]" | head -1`
 SDK64_DIR=$SDK_PATH/$SDK64
 MACVER64=`echo $SDK64|sed -e s/[a-zA-Z]//g -e s/.\$//`
@@ -28,9 +28,10 @@ MINVER64='-mmacosx-version-min='$MACVER64
 # Let's start
 if test -d $SDK64_DIR; then
     echo "----Configuring libcurl for 64 bit static library framework..."
-    ./configure --disable-dependency-tracking --disable-shared --enable-static --enable-optimize --with-gssapi --with-darwinssl \
+    ./configure --disable-dependency-tracking --disable-shared --enable-static --enable-optimize --with-gssapi --with-secure-transport \
     --disable-ldap --disable-ldaps --disable-ftp --disable-file --disable-rtsp --disable-dict --disable-telnet --disable-tftp \
     --disable-pop3 --disable-imap --disable-smb --disable-smtp --disable-gopher --disable-dict --disable-telnet --disable-tftp \
+    --without-zlib --disable-alt-svc --disable-hsts \
     CFLAGS="-Wno-deprecated-declarations -Os -isysroot $SDK64_DIR $ARCHES64" \
     LDFLAGS="-Wl,-syslibroot,$SDK64_DIR $ARCHES64 -Wl,-headerpad_max_install_names" \
     CC=$CC
