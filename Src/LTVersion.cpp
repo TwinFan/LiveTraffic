@@ -102,25 +102,14 @@ bool InitFullVersion ()
     if (buildDate[4] == ' ')
         buildDate[4] = '0';
     
-    snprintf(LT_VERSION_FULL, sizeof(LT_VERSION_FULL), "%s.%s%s%s",
+    snprintf(LT_VERSION_FULL, sizeof(LT_VERSION_FULL), "%s (%s-%s-%s)",
              LT_VERSION,
-             // year (last 2 digits)
-             buildDate + 9,
-             // month converted to digits
-             strcmp(buildDate,"Jan") == 0 ? "01" :
-             strcmp(buildDate,"Feb") == 0 ? "02" :
-             strcmp(buildDate,"Mar") == 0 ? "03" :
-             strcmp(buildDate,"Apr") == 0 ? "04" :
-             strcmp(buildDate,"May") == 0 ? "05" :
-             strcmp(buildDate,"Jun") == 0 ? "06" :
-             strcmp(buildDate,"Jul") == 0 ? "07" :
-             strcmp(buildDate,"Aug") == 0 ? "08" :
-             strcmp(buildDate,"Sep") == 0 ? "09" :
-             strcmp(buildDate,"Oct") == 0 ? "10" :
-             strcmp(buildDate,"Nov") == 0 ? "11" :
-             strcmp(buildDate,"Dec") == 0 ? "12" : "??",
              // day
-             buildDate + 4
+             buildDate + 4,
+             // month
+             buildDate,
+             // year
+             buildDate + 7
            );
     
     // tell the world we are trying to start up
