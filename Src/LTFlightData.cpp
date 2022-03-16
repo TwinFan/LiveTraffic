@@ -1342,7 +1342,7 @@ void LTFlightData::CalcNextPosMain ()
                 
             } catch(const std::out_of_range&) {
                 // just ignore exception...fd object might have gone in the meantime
-                if constexpr (VERSION_BETA) {
+                if constexpr (LIVETRAFFIC_VERSION_BETA) {
                     LOG_MSG(logWARN, "No longer found aircraft %s", pair.first.c_str());
                 }
             }
@@ -1852,7 +1852,7 @@ void LTFlightData::AppendNewPos()
         }
         
         // posDeque should be sorted, i.e. no two adjacent positions a,b should be a > b
-        if constexpr (VERSION_BETA) {
+        if constexpr (LIVETRAFFIC_VERSION_BETA) {
             LOG_ASSERT_FD(*this,
                           std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
                                              [](const positionTy& a, const positionTy& b)

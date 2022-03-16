@@ -123,7 +123,7 @@ float* LogLvlColor (logLevelTy _lvl);
 // Note: First parameter after lvl must be the message text,
 //       which can be a format string with its parameters following like in sprintf
 #define LOG_MSG(lvl,...)  {                                         \
-    if (VERSION_BETA || ((lvl) >= dataRefs.GetLogLevel()))          \
+    if (LIVETRAFFIC_VERSION_BETA || ((lvl) >= dataRefs.GetLogLevel()))          \
     {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}       \
 }
 

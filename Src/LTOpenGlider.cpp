@@ -104,8 +104,8 @@ constexpr int         OGN_APRS_PORT         = 14580;
 constexpr size_t      OGN_APRS_BUF_SIZE     = 4096;
 constexpr int         OGN_APRS_TIMEOUT_S    = 60;           ///< there's a keep alive _from_ APRS every 20s, so if we don't receive anything in 60s there's something wrong
 constexpr float       OGN_APRS_SEND_KEEPALV = 10 * 60.0f;   ///< [s] how often shall _we_ send a keep alive _to_ APRS?
-constexpr const char* OGN_APRS_LOGIN        = "user LiveTrffc pass -1 vers " LIVE_TRAFFIC " %.2f filter r/%.3f/%.3f/%u -p/oimqstunw\r\n";
-constexpr const char* OGN_APRS_KEEP_ALIVE   = "# " LIVE_TRAFFIC " %.2f still alive at %sZ\r\n";
+constexpr const char* OGN_APRS_LOGIN        = "user LiveTrffc pass -1 vers " LIVE_TRAFFIC " %s filter r/%.3f/%.3f/%u -p/oimqstunw\r\n";
+constexpr const char* OGN_APRS_KEEP_ALIVE   = "# " LIVE_TRAFFIC " %s still alive at %sZ\r\n";
 constexpr const char* OGN_APRS_LOGIN_GOOD   = "# logresp LiveTrffc unverified, server ";
 
 // Constructor
@@ -429,7 +429,7 @@ bool OpenGliderConnection::APRSDoLogin (const positionTy& pos, unsigned dist_km)
 {
     // Prepare login string like "user LiveTrffc pass -1 vers LiveTraffic 2.20 filter r/43.3/-80.2/50 -p/oimqstunw"
     char sLogin[120];
-    snprintf(sLogin, sizeof(sLogin), OGN_APRS_LOGIN, VERSION_NR,
+    snprintf(sLogin, sizeof(sLogin), OGN_APRS_LOGIN, LT_VERSION,
              pos.lat(), pos.lon(), dist_km);
     aprsLastKeepAlive = dataRefs.GetMiscNetwTime();     // also counts as a message sent _to_ APRS
     DebugLogRaw(sLogin);
@@ -444,7 +444,7 @@ bool OpenGliderConnection::APRSSendKeepAlive()
 {
     // Prepare login string like "user LiveTrffc pass -1 vers LiveTraffic 2.20 filter r/43.3/-80.2/50 -p/oimqstunw"
     char sKeepAlive[120];
-    snprintf(sKeepAlive, sizeof(sKeepAlive), OGN_APRS_KEEP_ALIVE, VERSION_NR,
+    snprintf(sKeepAlive, sizeof(sKeepAlive), OGN_APRS_KEEP_ALIVE, LT_VERSION,
              ts2string(time(nullptr)).c_str());
     LOG_MSG(logDEBUG, "OGN: Sending keep alive: %s", sKeepAlive);
     DebugLogRaw(sKeepAlive);

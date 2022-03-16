@@ -31,8 +31,7 @@ int verBuildDate = 0;
 char HTTP_USER_AGENT[50] = "";
 
 // version availble on X-Plane.org
-float verXPlaneOrg = NAN;
-int verDateXPlaneOrg = 0;
+unsigned verXPlaneOrg = 0;
 
 // BETA versions are limited for 30 days...people shall use release versions!
 time_t LT_BETA_VER_LIMIT = 0;
@@ -64,7 +63,7 @@ bool CalcBetaVerTimeLimit()
     // Save the build date in a form to be offered via dataRef, like 20200430 for 30-APR-2020
     verBuildDate = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
 
-    if constexpr (VERSION_BETA) {
+    if constexpr (LIVETRAFFIC_VERSION_BETA) {
         // Limit is: build date plus 30 days
         LT_BETA_VER_LIMIT = mktime(&tm) + 30 * SEC_per_D;
         localtime_s(&tm, &LT_BETA_VER_LIMIT);
@@ -89,7 +88,8 @@ bool CalcBetaVerTimeLimit()
 bool InitFullVersion ()
 {
     // fill char arrays
-    snprintf(LT_VERSION, sizeof(LT_VERSION), "%0.2f", VERSION_NR);
+    snprintf(LT_VERSION, sizeof(LT_VERSION), "%u.%u.%u",
+             LIVETRAFFIC_VER_MAJOR, LIVETRAFFIC_VER_MINOR, LIVETRAFFIC_VER_PATCH);
     snprintf(HTTP_USER_AGENT, sizeof(HTTP_USER_AGENT), "%s/%s", LIVE_TRAFFIC, LT_VERSION);
     
     // Example of __DATE__ string: "Nov 12 2018"
@@ -102,25 +102,14 @@ bool InitFullVersion ()
     if (buildDate[4] == ' ')
         buildDate[4] = '0';
     
-    snprintf(LT_VERSION_FULL, sizeof(LT_VERSION_FULL), "%s.%s%s%s",
+    snprintf(LT_VERSION_FULL, sizeof(LT_VERSION_FULL), "%s (%s-%s-%s)",
              LT_VERSION,
-             // year (last 2 digits)
-             buildDate + 9,
-             // month converted to digits
-             strcmp(buildDate,"Jan") == 0 ? "01" :
-             strcmp(buildDate,"Feb") == 0 ? "02" :
-             strcmp(buildDate,"Mar") == 0 ? "03" :
-             strcmp(buildDate,"Apr") == 0 ? "04" :
-             strcmp(buildDate,"May") == 0 ? "05" :
-             strcmp(buildDate,"Jun") == 0 ? "06" :
-             strcmp(buildDate,"Jul") == 0 ? "07" :
-             strcmp(buildDate,"Aug") == 0 ? "08" :
-             strcmp(buildDate,"Sep") == 0 ? "09" :
-             strcmp(buildDate,"Oct") == 0 ? "10" :
-             strcmp(buildDate,"Nov") == 0 ? "11" :
-             strcmp(buildDate,"Dec") == 0 ? "12" : "??",
              // day
-             buildDate + 4
+             buildDate + 4,
+             // month
+             buildDate,
+             // year
+             buildDate + 7
            );
     
     // tell the world we are trying to start up
@@ -136,7 +125,7 @@ bool InitFullVersion ()
 // LiveTraffic's version number as pure integer for returning in a dataRef, like 201 for v2.01
 int GetLTVerNum(void*)
 {
-    return (int)std::lround(VERSION_NR * 100.0f);
+    return (int)LT_VER_NO;
 }
 
 /// LiveTraffic's build date as pure integer for returning in a dataRef, like 20200430 for 30-APR-2020
@@ -159,7 +148,7 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
     constexpr size_t bufSizeToKeep = 100;
     
     // Have we seen the version number already? Then just return
-    if (!std::isnan(verXPlaneOrg))
+    if (verXPlaneOrg > 0)
         return nmemb;
     
     // copy buffer to our std::string
@@ -170,16 +159,14 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
     if (readBuf.find("\"softwareVersion\":") != std::string::npos) {
         // now the more expensive regex search
         // for the version number in the buffer
-        std::regex re_ver("\"softwareVersion\": \"(\\d+\\.\\d+)\\.(\\d+)\"");
+        std::regex re_ver("\"softwareVersion\": \"(\\d+)\\.(\\d+)\\.(\\d+)\"");
         std::smatch m;
         std::regex_search(readBuf, m, re_ver);
         
-        // two matches expected
-        if (m.size() == 3) {
-            std::string ver(m[1]);
-            std::string verDate(m[2]);
-            verXPlaneOrg = std::stof(ver);
-            verDateXPlaneOrg = std::stoi(verDate);
+        // 3 matches expected
+        if (m.size() == 4) {
+            int major = std::stoi(m[1]), minor = std::stoi(m[2]), patch = std::stoi(m[3]);
+            verXPlaneOrg = unsigned(10000*major + 100*minor + patch);
         }
     }
     
@@ -210,7 +197,7 @@ bool FetchXPlaneOrgVersion ()
     }
     
     // prepare the handle with the right options
-    verXPlaneOrg = NAN;
+    verXPlaneOrg = 0;
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
@@ -247,7 +234,7 @@ bool FetchXPlaneOrgVersion ()
         // not HTTP_OK?
         if (httpResponse != HTTP_OK)
             LOG_MSG(logERR, ERR_CURL_NOVERCHECK, (int)httpResponse, ERR_HTTP_NOT_OK)
-        else if (std::isnan(verXPlaneOrg))
+        else if (!verXPlaneOrg)
             // all OK but still no version number?
             LOG_MSG(logERR, ERR_CURL_NOVERCHECK, -1, ERR_FOUND_NO_VER_INFO)
     }
@@ -256,5 +243,5 @@ bool FetchXPlaneOrgVersion ()
     curl_easy_cleanup(pCurl);
     
     // return if we found something
-    return !std::isnan(verXPlaneOrg);
+    return verXPlaneOrg > 0;
 }

@@ -69,7 +69,7 @@ wndTitle(LIVE_TRAFFIC)
     
     // Compute version info text
     char buf[100];
-    if constexpr (VERSION_BETA)
+    if constexpr (LIVETRAFFIC_VERSION_BETA)
         snprintf(buf, sizeof(buf), LIVE_TRAFFIC " %s, BETA version limited to %s",
                 LT_VERSION_FULL, LT_BETA_VER_LIMIT_TXT);
     else

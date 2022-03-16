@@ -12,7 +12,6 @@ project(LiveTraffic
 # Provide compile macros from the above project version definition
 add_compile_definitions(
     LIVETRAFFIC_VERSION_BETA=0
-    LIVETRAFFIC_VERSION="${PROJECT_VERSION}"
     LIVETRAFFIC_VER_MAJOR=${PROJECT_VERSION_MAJOR}
     LIVETRAFFIC_VER_MINOR=${PROJECT_VERSION_MINOR}
     LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
