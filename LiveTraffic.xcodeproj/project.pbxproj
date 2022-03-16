@@ -19,8 +19,8 @@
 		256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */; };
 		256CA1C4248C458D009F4AAE /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BF248C458D009F4AAE /* imgui.cpp */; };
 		256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1C2248C458D009F4AAE /* imgui_draw.cpp */; };
-		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; };
-		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; };
+		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
+		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
 		256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */; };
 		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
@@ -727,7 +727,7 @@
 				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
@@ -831,7 +831,7 @@
 				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
