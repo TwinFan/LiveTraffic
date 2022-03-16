@@ -1056,7 +1056,7 @@ void LTSettingsUI::buildInterface()
         } // --- Debug ---
         
         // Version information
-        if constexpr (VERSION_BETA) {
+        if constexpr (LIVETRAFFIC_VERSION_BETA) {
             if (ImGui::FilteredLabel("BETA Version", sFilter)) {
                 ImGui::Text("%s, limited to %s",
                             LT_VERSION_FULL, LT_BETA_VER_LIMIT_TXT);

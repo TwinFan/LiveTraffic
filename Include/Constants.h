@@ -29,10 +29,10 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 3.00f;
-constexpr bool VERSION_BETA = false;
-extern float verXPlaneOrg;          // version on X-Plane.org
-extern int verDateXPlaneOrg;        // and its date
+
+/// Verson number combined as a single unsigned, like 3.2.1 = 30201
+constexpr unsigned LT_VER_NO = 10000 * LIVETRAFFIC_VER_MAJOR + 100 * LIVETRAFFIC_VER_MINOR + LIVETRAFFIC_VER_PATCH;
+extern unsigned verXPlaneOrg;       ///< version on X-Plane.org
 
 //MARK: Window Position
 #define WIN_WIDTH       400         // window width
@@ -164,7 +164,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
-#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.org!"
+#define MSG_LT_NEW_VER_AVAIL    "The new version %s of LiveTraffic is available at X-Plane.org!"
 #define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
@@ -234,7 +234,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
 #define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
-#define MENU_NEWVER             "New Version %01.2f available!"
+#define MENU_NEWVER             "New Version %s available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 #define MENU_REMOVE_ALL_BUT     "Remove all but selected a/c"

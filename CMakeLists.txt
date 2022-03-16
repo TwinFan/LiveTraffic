@@ -2,8 +2,16 @@
 
 cmake_minimum_required(VERSION 3.16)
 project(LiveTraffic
-        VERSION 2.70
+        VERSION 3.0.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
+
+# Provide compile macros from the above project version definition
+add_compile_definitions(
+    LIVETRAFFIC_VERSION_BETA=0
+    LIVETRAFFIC_VER_MAJOR=${PROJECT_VERSION_MAJOR}
+    LIVETRAFFIC_VER_MINOR=${PROJECT_VERSION_MINOR}
+    LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
+)
 
 ################################################################################
 # Target Systems
@@ -56,7 +64,6 @@ else()
     # Makes symbols non-exported by default.
     add_compile_options(-fvisibility=hidden)
 endif()
-
 
 # Debug vs Release build
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
