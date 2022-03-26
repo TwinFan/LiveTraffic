@@ -331,6 +331,8 @@ const char* DATA_REFS_XP[] = {
     "sim/aircraft/view/acf_tailnum",            // byte[40] y string    Tail number
     "sim/aircraft/view/acf_modeS_id",           // int      y integer   24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
     "sim/aircraft/view/acf_ICAO",               // byte[40] y string    ICAO code for aircraft (a string) entered by author
+    "sim/weather/wind_direction_degt",          // float    n    [0-359)    The effective direction of the wind at the plane's location.
+    "sim/weather/wind_speed_kt",                // float    n    msc    >= 0        The effective speed of the wind at the plane's location. WARNING: this dataref is in meters/second - the dataref NAME has a bug.
     "sim/graphics/VR/enabled",
 };
 
@@ -2308,9 +2310,17 @@ void DataRefs::UpdateCachedValues ()
     UpdateSimTime();
     UpdateViewPos();
     UpdateUsersPlanePos();
+    UpdateSimWind();
     ExportUserAcData();
 }
 
+
+// Local (in sim!) wind at user's plane
+void DataRefs::UpdateSimWind ()
+{
+    lastWind.angle = (double)XPLMGetDataf(adrXP[DR_WIND_DIR]);
+    lastWind.speed = (double)XPLMGetDataf(adrXP[DR_WIND_SPEED]);
+}
 
 //
 // MARK: Processed values (static functions)

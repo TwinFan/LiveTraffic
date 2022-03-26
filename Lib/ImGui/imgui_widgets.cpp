@@ -10418,7 +10418,7 @@ void ImGui::TableLoadSettings(ImGuiTable* table)
     }
     table->SettingsLoadedFlags = settings->SaveFlags;
     table->RefScale = settings->RefScale;
-    IM_ASSERT(settings->ColumnsCount == table->ColumnsCount);
+    //IM_ASSERT(settings->ColumnsCount == table->ColumnsCount);
 
     // Serialize ImGuiTableSettings/ImGuiTableColumnSettings into ImGuiTable/ImGuiTableColumn
     ImGuiTableColumnSettings* column_settings = settings->GetColumnSettings();

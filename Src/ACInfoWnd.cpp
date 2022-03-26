@@ -381,9 +381,11 @@ void ACIWnd::buildInterface()
                 ImGui::Text("%+.f ft/min", pAc->GetVSI_ft());
                 ImGui::EndTable();
             }
-            buildRowLabel("Heading | Pitch | Roll");
-            if (pAc && ImGui::BeginTable("##HdgPitchRll", 3)) {
+            buildRowLabel("Track/Head. | Pitch/Roll");
+            if (pAc && ImGui::BeginTable("##TrckPitchRll", 4)) {
                 ImGui::TableNextRow();
+                ImGui::Text("%03.0f°", pAc->GetTrack());
+                ImGui::TableNextCell();
                 ImGui::Text("%03.0f°", pAc->GetHeading());
                 ImGui::TableNextCell();
                 ImGui::Text("%.1f°", pAc->GetPitch());

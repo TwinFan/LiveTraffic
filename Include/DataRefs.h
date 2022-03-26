@@ -227,6 +227,8 @@ enum dataRefsXP {
     DR_PLANE_REG,                       ///< sim/aircraft/view/acf_tailnum    byte[40]    y    string    Tail number
     DR_PLANE_MODES_ID,                  ///< sim/aircraft/view/acf_modeS_id    int    y    integer    24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
     DR_PLANE_ICAO,                      ///< sim/aircraft/view/acf_ICAO    byte[40]    y    string    ICAO code for aircraft (a string) entered by author
+    DR_WIND_DIR,                        ///< sim/weather/wind_direction_degt    float    n    [0-359)    The effective direction of the wind at the plane's location.
+    DR_WIND_SPEED,                      ///< sim/weather/wind_speed_kt    float    n    msc    >= 0        The effective speed of the wind at the plane's location. WARNING: this dataref is in meters/second - the dataref NAME has a bug.
     DR_VR_ENABLED,                      // VR stuff
     CNT_DATAREFS_XP                     // always last, number of elements
 };
@@ -742,6 +744,7 @@ protected:
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
     double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
+    vectorTy    lastWind;                       ///< wind at user's plane's location
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
     bool IsXPThread() const { return std::this_thread::get_id() == xpThread; }
@@ -944,6 +947,7 @@ public:
 protected:
     void UpdateUsersPlanePos ();                ///< fetches user's plane position
     static void UpdateViewPos();                ///< read and cache camera position
+    void UpdateSimWind ();                      ///< Update local (in sim!) wind at user's plane
 
     
 //MARK: Processed values
@@ -970,6 +974,9 @@ public:
     double WeatherPressureAlt_ft (double geoAlt_ft) { return geoAlt_ft - altPressCorr_ft; }
     /// Thread-safely gets current weather info
     void GetWeather (float& hPa, std::string& stationId, std::string& METAR);
+    
+    /// Local (in sim!) wind at user's plane
+    const vectorTy& GetSimWind () const { return lastWind; }
 };
 
 extern DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT];

@@ -1240,6 +1240,7 @@ rotateTs(NAN),
 vsi(0.0),
 bOnGrnd(false), bArtificalPos(false),
 heading(pMdl->TAXI_TURN_TIME, 360, 0, true),
+corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false),
 gear(pMdl->GEAR_DURATION),
 flaps(pMdl->FLAPS_DURATION),
 pitch((pMdl->PITCH_MAX-pMdl->PITCH_MIN)/pMdl->PITCH_RATE, pMdl->PITCH_MAX, pMdl->PITCH_MIN),
@@ -1278,6 +1279,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         
         // init moving params where necessary
         pitch.SetVal(0);
+        corrAngle.SetVal(0);
         
         // calculate our first position, must also succeed
         if (!CalcPPos())
@@ -1678,6 +1680,9 @@ bool LTAircraft::CalcPPos()
             }
         }
         
+        // *** Correction Angle for crosswind ***
+        CalcCorrAngle();
+        
         // output debug info on request
         if (dataRefs.GetDebugAcPos(key())) {
             LOG_MSG(logDEBUG,DBG_AC_SWITCH_POS,std::string(*this).c_str());
@@ -1746,6 +1751,9 @@ bool LTAircraft::CalcPPos()
         // don't need to calc speed again
         bNeedSpeed = false;
     }
+    
+    // Update correction angle
+    corrAngle.get();
     
     // *** Cut Corner Bezier Curve ***
     // We define them only if both legs are long enough.
@@ -2120,6 +2128,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         if (gear.isDown())
             tireRpm.min();                              // "move" to 0
         gearDeflection.min();
+        CalcCorrAngle();                        // might need to correct for cross wind
     }
     
     // entered Initial Climb
@@ -2167,6 +2176,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // flare
     if (ENTERED(FPH_FLARE)) {
         pitch.moveTo(pMdl->PITCH_FLARE);      // flare!
+        corrAngle.moveTo(0.0);                // de-crab
     }
     
     // touch-down
@@ -2282,6 +2292,32 @@ void LTAircraft::CalcRoll (double _prevHeading)
         ppos.roll() = newRoll;
 }
 
+
+// determine correction angle
+/// @details Uses a simple rule of thumb, good enough for the purpose
+///          and saves on computing power:
+/// @see https://www.pilotundflugzeug.de/artikel/2005-05-29/Faustformel
+///      comment by 'defvh'
+/// @details "Windeinfallswinkel mal Windgeschwindigkeit geteilt durch IAS.
+///           Beispiel: RWY 27, Wind aus 220 Grad mit 12 kts und IAS 100.
+///           Also Vorhalten links mit 6 Grad."
+void LTAircraft::CalcCorrAngle ()
+{
+    // correction only applies to flying before flare
+    if (!IsOnGrnd() && phase != FPH_FLARE) {
+        const vectorTy& vecWind = dataRefs.GetSimWind();
+        double headDiff = HeadingDiff(vec.angle, vecWind.angle);
+        if (headDiff > 90.0)                // if wind comes from behind only consider cross-wind component
+            headDiff = 180.0 - headDiff;    // (so that if it comes straight from back (180deg) it would result in 0 correction
+        else if (headDiff < -90.0)
+            headDiff = -180.0 - headDiff;
+        const double corr = headDiff * vecWind.speed / vec.speed;
+        corrAngle.moveTo(corr);
+    } else {
+        // on the ground and while flare: no correction, or actually de-crab
+        corrAngle.moveTo(0.0);
+    }
+}
 
 // determines terrain altitude via XPLM's Y Probe
 bool LTAircraft::YProbe ()
@@ -2613,9 +2649,9 @@ void LTAircraft::CalcCameraViewPos()
         posExt = ppos;
 
         // move position back along the longitudinal axes
-        posExt += vectorTy(GetHeading(), pMdl->EXT_CAMERA_LON_OFS + extOffs.x);
+        posExt += vectorTy(ppos.heading(), pMdl->EXT_CAMERA_LON_OFS + extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy(GetHeading() + 90, pMdl->EXT_CAMERA_LAT_OFS + extOffs.z);
+        posExt += vectorTy(ppos.heading() + 90, pMdl->EXT_CAMERA_LAT_OFS + extOffs.z);
         // and move a bit up
         posExt.alt_m() += pMdl->EXT_CAMERA_VERT_OFS + extOffs.y;
 
@@ -2644,10 +2680,10 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     outCameraPosition->x =        (float)posExt.X();
     outCameraPosition->y =        (float)posExt.Y();
     outCameraPosition->z =        (float)posExt.Z();
-    outCameraPosition->heading  = (float)pExtViewAc->GetHeading() + extOffs.heading;
-    outCameraPosition->pitch =                                      extOffs.pitch;
-    outCameraPosition->roll =                                       extOffs.roll;
-    outCameraPosition->zoom =                                       extOffs.zoom;
+    outCameraPosition->heading  = (float)posExt.heading() + extOffs.heading;
+    outCameraPosition->pitch =                              extOffs.pitch;
+    outCameraPosition->roll =                               extOffs.roll;
+    outCameraPosition->zoom =                               extOffs.zoom;
     
     return 1;
 }
@@ -2813,9 +2849,9 @@ void LTAircraft::UpdatePosition (float, int cycle)
         
         // Set Position
         SetLocation(ppos.lat(), ppos.lon(), ppos.alt_ft());
-        drawInfo.pitch   = float(nanToZero(ppos.pitch()));
-        drawInfo.roll    = float(nanToZero(ppos.roll()));
-        drawInfo.heading = float(nanToZero(ppos.heading()));
+        drawInfo.pitch   = float(nanToZero(GetPitch()));
+        drawInfo.roll    = float(nanToZero(GetRoll()));
+        drawInfo.heading = float(nanToZero(GetHeading()));
         
         // *** Configuration ***
         

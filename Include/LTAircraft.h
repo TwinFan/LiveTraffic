@@ -303,6 +303,7 @@ protected:
     AccelParam          speed;          // current speed [m/s] and acceleration control
     BezierCurve         turn;           ///< position, heading, roll while flying a turn
     MovingParam         heading;        ///< heading movement if not using a Bezier curve
+    MovingParam         corrAngle;      ///< correction angle for cross wind
     MovingParam         gear;
     MovingParam         flaps;
     MovingParam         pitch;
@@ -362,7 +363,7 @@ public:
     std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
     inline bool IsOnGrnd() const { return bOnGrnd; }
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
-    inline double GetHeading() const { return ppos.heading(); }
+    inline double GetHeading() const { return ppos.heading() + corrAngle.is(); }
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
@@ -408,6 +409,9 @@ protected:
     void CalcFlightModel (const positionTy& from, const positionTy& to);
     /// determine roll, based on a previous and a current heading
     void CalcRoll (double _prevHeading);
+    /// determine correction angle
+    void CalcCorrAngle ();
+    /// determines terrain altitude via XPLM's Y Probe
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();
