@@ -46,6 +46,9 @@ protected:
     /// buffers for editing of Flarm a/c type mappings
     std::array<std::string,14> aFlarmAcTys;
     
+    // Channel: RealTraffic
+    std::string sRTPort;            ///< RealTraffic traffic port
+    
     // Channel: FSCharter
     std::string sFSCUser;           ///< FSC user
     std::string sFSCPwd;            ///< FSC password

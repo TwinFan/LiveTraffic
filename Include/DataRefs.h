@@ -372,6 +372,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_HIDE_IN_REPLAY,
+    DR_CFG_HIDE_STATIC_TWR,
     DR_CFG_COPY_OBJ_FILES,
     DR_CFG_REMOTE_SUPPORT,
     DR_CFG_EXTERNAL_CAMERA,
@@ -392,7 +393,6 @@ enum dataRefsLT {
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
-    DR_CFG_ADSBEX_SKIP_TWR,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
     DR_CFG_FF_SEND_TRAFFIC,
@@ -650,10 +650,11 @@ protected:
     int hideParking     = 0;            ///< hide a/c parking at a startup-position (gate, ramp)?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
-    bool hideInReplay   = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
+    int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
+    int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
-    bool bUseExternalCamera  = false;   ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
+    int bUseExternalCamera  = false;    ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
     // channel config options
     int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
@@ -661,7 +662,6 @@ protected:
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49003;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
-    bool adsbexSkipTwr  = true;         ///< filter out TWR objects from the ADSBEx data
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
@@ -856,6 +856,7 @@ public:
     inline int GetHideNearby(bool bGnd) const   ///< return "hide nearby" config
     { return bGnd ? hideNearbyGnd : hideNearbyAir; }
     inline bool GetHideInReplay() const { return hideInReplay; }
+    inline bool GetHideStaticTwr () const { return hideStaticTwr; }
     inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
@@ -881,7 +882,8 @@ public:
     
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
-    bool GetADSBExSkipTwr () const { return adsbexSkipTwr; }
+    
+    bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)

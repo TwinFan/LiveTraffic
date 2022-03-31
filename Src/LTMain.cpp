@@ -600,6 +600,57 @@ std::string GetNearestAirportId (const positionTy& _pos,
     return airportId;
 }
 
+// Convert ADS-B Emitter Category to text
+const char* GetADSBEmitterCat (const std::string& cat)
+{
+    // We expect 2 characters
+    if (cat.length() != 2) return cat.c_str();
+    
+    switch (cat[0]) {
+        case 'A':
+            switch (cat[1]) {
+                case '0': return "Category A - No Info";
+                case '1': return "Light (<15500 lbs)";
+                case '2': return "Small (15500-75000 lbs)";
+                case '3': return "Large (75000-300000 lbs)";
+                case '4': return "High-Vortex Large";
+                case '5': return "Heavy (>300000 lbs)";
+                case '6': return "High Performance";
+                case '7': return "Rotorcraft";
+            }
+            break;
+        case 'B':
+            switch (cat[1]) {
+                case '0': return "Category B - No Info";
+                case '1': return "Glider / Sailplane";
+                case '2': return "Lighter-than-Air";
+                case '3': return "Parachutist / Skydiver";
+                case '4': return "Ultralight / hang-glider / paraglider";
+                case '6': return "Unmanned Aerial Vehicle";
+                case '7': return "Space / Trans-atmospheric vehicle";
+            }
+            break;
+        case 'C':
+            switch (cat[1]) {
+                case '0': return "Category C - No Info";
+                case '1': return "Emergency Vehicle";
+                case '2': return "Service Vehicle";
+                case '3': return "Point Obstacle";
+                case '4': return "Cluster Obstacle";
+                case '5': return "Line Obstacle";
+            }
+            break;
+        case 'D':
+            switch (cat[1]) {
+                case '0': return "Category D - No Info";
+            }
+            break;
+    }
+    
+    // Shouldn't be here...
+    return cat.c_str();
+}
+
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 )
 {
