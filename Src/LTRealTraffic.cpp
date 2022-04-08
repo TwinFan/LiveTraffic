@@ -783,6 +783,10 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         // until FD object is inserted and updated
         std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
         
+        // There's a flag telling us if a key is an ICAO code
+        if (tfc[RT_RTTFC_ISICAOHEX] != "1")
+            fdKey.eKeyType = LTFlightData::KEY_RT;
+        
         // Check for duplicates with OGN/FLARM, potentially replaces the key type
         if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
             LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
@@ -810,9 +814,6 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.originAp       = tfc[RT_RTTFC_FROM_IATA];
         stat.destAp         = tfc[RT_RTTFC_TO_IATA];
         stat.catDescr       = GetADSBEmitterCat(sCat);
-        // Vehicle?
-        if (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2'))
-            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
 
         // -- dynamic data --
         LTFlightData::FDDynamicData dyn;
@@ -839,6 +840,12 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         }
         // don't forget gnd-flag in position
         pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
+
+        // Vehicle?
+        if (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2'))
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        else if (sCat.empty() && dyn.gnd && stat.acTypeIcao.empty() && stat.reg.empty())
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
 
         // add the static data
         fd.UpdateData(std::move(stat), dist);
