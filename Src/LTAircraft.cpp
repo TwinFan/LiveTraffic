@@ -1131,8 +1131,16 @@ const std::string& DetermineIcaoType (const LTFlightData& fd,
 
 // Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
 const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
-        (const LTFlightData& fd, const std::string** pIcaoType)
+        (LTFlightData& fd, bool bForceSearch, const std::string** pIcaoType)
 {
+    // Do we have cached data available that allows to skip all the searching?
+    if (!bForceSearch) {
+        if (fd.hasAc() && fd.GetAircraft()->pMdl)
+            return *(fd.GetAircraft()->pMdl);
+        if (fd.pMdl)
+            return *reinterpret_cast<const LTAircraft::FlightModel*>(fd.pMdl);
+    }
+    
     // 1. find an aircraft ICAO type based on input
     bool bDefaulted;
     const std::string& acTypeIcao = DetermineIcaoType(fd, bDefaulted);
@@ -1147,8 +1155,10 @@ const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
     for (const auto& mapIt: listFMRegex) {
         std::smatch m;
         std::regex_search(acSpec, m, mapIt.first);
-        if (m.size() > 0)                   // matches?
+        if (m.size() > 0) {                 // matches?
+            fd.pMdl = &(mapIt.second);      // save and...
             return mapIt.second;            // return that flight model
+        }
     }
     
     // no match: return default
@@ -1232,7 +1242,7 @@ XPMP2::Aircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafe
                 inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0),      // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
 // class members
 fd(inFd),
-pMdl(&FlightModel::FindFlightModel(inFd)),      // find matching flight model
+pMdl(&FlightModel::FindFlightModel(inFd, true)),      // find matching flight model
 pDoc8643(&Doc8643::get(acIcaoType)),
 tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
@@ -2963,7 +2973,7 @@ void LTAircraft::ChangeModel ()
     if (oldModelName != GetModelName() ||
         oldIcaotype  != acIcaoType) {
         // also update the flight model to be used
-        pMdl = &FlightModel::FindFlightModel(fd);
+        pMdl = &FlightModel::FindFlightModel(fd, true);
         pDoc8643 = &Doc8643::get(acIcaoType);
         LOG_MSG(logINFO,INFO_AC_MDL_CHANGED,
                 labelInternal.c_str(),

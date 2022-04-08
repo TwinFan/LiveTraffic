@@ -1505,7 +1505,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
 
     // aircraft model to use
     const std::string* pIcaoType = nullptr;
-    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, &pIcaoType);
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false, &pIcaoType);
     if (!pIcaoType)     // if we can't really determine a model we can't really validate
         return true;
     
@@ -2327,6 +2327,10 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
         // in LTFlightData::CreateAircraft())
         if (pAc && DetermineAcModel())
             bMdlInfoChange = true;
+
+        // Need to find a new model-match next time we need it
+        if (bMdlInfoChange)
+            pMdl = nullptr;
         
         if (pAc) {
             // if model-defining fields changed then (potentially) change the CSL model

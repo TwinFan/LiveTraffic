@@ -257,9 +257,11 @@ public:
     public:
         static bool ReadFlightModelFile ();
         /// @brief Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
-        /// @param fd Flight Data of the plane in question
+        /// @param fd Flight Data of the plane in question, might be updated with found model
+        /// @param bForceSearch (optional) If `true` then no cached values are returned but a full search in the model rules is done
         /// @param[out] pIcaoType (optional) receives determined ICAO type, empty if none could be determined
-        static const FlightModel& FindFlightModel (const LTFlightData& fd,
+        static const FlightModel& FindFlightModel (LTFlightData& fd,
+                                                   bool bForceSearch = false,
                                                    const std::string** pIcaoType = nullptr);
         static const FlightModel* GetFlightModel (const std::string& modelName);
         /// Tests if the given call sign matches typical call signs of ground vehicles
