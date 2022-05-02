@@ -227,6 +227,8 @@ enum dataRefsXP {
     DR_PLANE_REG,                       ///< sim/aircraft/view/acf_tailnum    byte[40]    y    string    Tail number
     DR_PLANE_MODES_ID,                  ///< sim/aircraft/view/acf_modeS_id    int    y    integer    24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
     DR_PLANE_ICAO,                      ///< sim/aircraft/view/acf_ICAO    byte[40]    y    string    ICAO code for aircraft (a string) entered by author
+    DR_WIND_DIR,                        ///< sim/weather/wind_direction_degt    float    n    [0-359)    The effective direction of the wind at the plane's location.
+    DR_WIND_SPEED,                      ///< sim/weather/wind_speed_kt    float    n    msc    >= 0        The effective speed of the wind at the plane's location. WARNING: this dataref is in meters/second - the dataref NAME has a bug.
     DR_VR_ENABLED,                      // VR stuff
     CNT_DATAREFS_XP                     // always last, number of elements
 };
@@ -370,6 +372,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
     DR_CFG_HIDE_IN_REPLAY,
+    DR_CFG_HIDE_STATIC_TWR,
     DR_CFG_COPY_OBJ_FILES,
     DR_CFG_REMOTE_SUPPORT,
     DR_CFG_EXTERNAL_CAMERA,
@@ -390,7 +393,6 @@ enum dataRefsLT {
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
-    DR_CFG_ADSBEX_SKIP_TWR,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
     DR_CFG_FF_SEND_TRAFFIC,
@@ -648,10 +650,11 @@ protected:
     int hideParking     = 0;            ///< hide a/c parking at a startup-position (gate, ramp)?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
-    bool hideInReplay   = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
+    int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
+    int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
-    bool bUseExternalCamera  = false;   ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
+    int bUseExternalCamera  = false;    ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
     // channel config options
     int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
@@ -659,7 +662,6 @@ protected:
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49003;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
-    bool adsbexSkipTwr  = true;         ///< filter out TWR objects from the ADSBEx data
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
@@ -742,6 +744,7 @@ protected:
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
     double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
+    vectorTy    lastWind;                       ///< wind at user's plane's location
 public:
     void ThisThreadIsXP() { xpThread = std::this_thread::get_id();  }
     bool IsXPThread() const { return std::this_thread::get_id() == xpThread; }
@@ -853,6 +856,7 @@ public:
     inline int GetHideNearby(bool bGnd) const   ///< return "hide nearby" config
     { return bGnd ? hideNearbyGnd : hideNearbyAir; }
     inline bool GetHideInReplay() const { return hideInReplay; }
+    inline bool GetHideStaticTwr () const { return hideStaticTwr; }
     inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
@@ -878,7 +882,8 @@ public:
     
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
-    bool GetADSBExSkipTwr () const { return adsbexSkipTwr; }
+    
+    bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)
@@ -944,6 +949,7 @@ public:
 protected:
     void UpdateUsersPlanePos ();                ///< fetches user's plane position
     static void UpdateViewPos();                ///< read and cache camera position
+    void UpdateSimWind ();                      ///< Update local (in sim!) wind at user's plane
 
     
 //MARK: Processed values
@@ -970,6 +976,9 @@ public:
     double WeatherPressureAlt_ft (double geoAlt_ft) { return geoAlt_ft - altPressCorr_ft; }
     /// Thread-safely gets current weather info
     void GetWeather (float& hPa, std::string& stationId, std::string& METAR);
+    
+    /// Local (in sim!) wind at user's plane
+    const vectorTy& GetSimWind () const { return lastWind; }
 };
 
 extern DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT];

@@ -190,6 +190,9 @@ set(Source_Files
     Lib/ImgWindow/ImgFontAtlas.cpp
     Lib/ImgWindow/ImgWindow.cpp
 )
+if (WIN32)
+    list(APPEND Source_Files "LiveTraffic.rc")
+endif()
 source_group("Source Files" FILES ${Source_Files})
 
 set(ALL_FILES  ${Header_Files} ${Source_Files})

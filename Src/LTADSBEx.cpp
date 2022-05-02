@@ -160,7 +160,7 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             continue;
 
         // Are we to skip static objects?
-        if (dataRefs.GetADSBExSkipTwr()) {
+        if (dataRefs.GetHideStaticTwr()) {
             if (!strcmp(jog_s(pJAc, ADSBEX_GND), "1") &&    // on the ground
                 !*jog_s(pJAc, ADSBEX_AC_TYPE_ICAO) &&       // no type
                 !*jog_s(pJAc, ADSBEX_HEADING) &&            // no `trak` heading, not even "0"

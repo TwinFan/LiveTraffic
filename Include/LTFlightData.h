@@ -240,6 +240,9 @@ public:
     static std::ofstream fileExport;
     static double fileExportTsBase;         ///< when normalizing timestamps this is the base
 
+    /// Cache for flight model in use, actually of type LTAircraft::FlightModel, but we can't forward-declare it here
+    const void* pMdl = nullptr;
+    
 protected:
     static std::string fileExportName;      ///< current export file's name
 

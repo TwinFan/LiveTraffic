@@ -79,7 +79,7 @@ def compWaitTS(ts_s: str) -> str:
 
     # current time and convert timestamp
     now = int(time.time())
-    ts = int(ts_s)
+    ts = float(ts_s)
 
     # First time called? -> compute initial timestamp difference
     if not _tsDiff:
@@ -107,8 +107,8 @@ def sendTrafficData(ln: str, doSend: int) -> int:
     fields = ln.split(',')
 
     # should have found 15 fields!
-    if len(fields) != 15:
-        print ("Found {} fields, expected 15, in line {}".format(len(fields), ln))
+    if len(fields) < 15:
+        print ("Found {} fields, expected at least 15, in line {}".format(len(fields), ln))
         return 0
 
     # Test if a selected aircraft

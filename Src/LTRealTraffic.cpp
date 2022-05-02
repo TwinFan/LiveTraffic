@@ -636,14 +636,7 @@ bool RealTrafficConnection::StopUdpConnection ()
 
 // MARK: Traffic
 // Process received traffic data.
-// We keep this a bit flexible to be able to work with both
-// AITraffic format (port 49003), which is preferred as it has more fields:
-//      AITFC,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936,BCS1,N101DU,BOS,LGA
-// and the Foreflight format (broadcasted on port 49002):
-//      XATTPSX,0.0,0.0,-0.0
-//      XGPSPSX,-73.77869444,40.63992500,0.0,0.00,0.0
-//      XTRAFFICPSX,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936(BCS1)
-//
+// We keep this a bit flexible to be able to work with different formats
 bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
 {
     // sanity check: not empty
@@ -654,42 +647,237 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     DebugLogRaw(traffic);
     lastReceivedTime = dataRefs.GetSimTime();
     
-    // any a/c filter defined for debugging purposes?
-    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
-
     // split the datagram up into its parts, keeping empty positions empty
     std::vector<std::string> tfc = str_tokenize(traffic, ",()", false);
     
-    // nothing found at all???
-    if (tfc.size() < 1)
+    // not enough fields found for any message?
+    if (tfc.size() < RT_MIN_TFC_FIELDS)
     { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
     
-    // There are two formats we are _really_ interested in: AITFC and XTRAFFICPSX
-    // Check for them and their correct number of fields
-    if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
-        if (tfc.size() < RT_AITFC_NUM_FIELDS_MIN)
-        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
-    } else if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
-        if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
-        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
-    } else
-        // other format than AITFC or XTRAFFICPSX
-        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
-
-    // *** transponder code ***
-    // comes in decimal form, convert to proper upper case hex
-    const unsigned long numId = std::stoul(tfc[RT_TFC_HEXID]);
+    // *** Duplicaton Check ***
+    
+    // comes in all 3 formats at position 1 and in decimal form
+    const unsigned long numId = std::stoul(tfc[RT_AITFC_HEXID]);
     
     // ignore aircraft, which don't want to be tracked
     if (numId == 0)
         return true;            // ignore silently
     
-    // RealTraffic sends bursts of data every 10s, but that doesn't necessarily
+    // RealTraffic sends bursts of data often, but that doesn't necessarily
     // mean that anything really moved. Data could be stale.
     // So here we just completely ignore data which looks exactly like the previous datagram
     if (IsDatagramDuplicate(numId, traffic))
         return true;            // ignore silently
 
+    // key is most likely an Icao transponder code, but could also be a Realtraffic internal id
+    LTFlightData::FDKeyTy fdKey (numId <= MAX_TRANSP_ICAO ? LTFlightData::KEY_ICAO : LTFlightData::KEY_RT,
+                                 numId);
+    
+    // not matching a/c filter? -> skip it
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+    if ((!acFilter.empty() && (fdKey != acFilter)))
+        return true;            // silently
+
+    // *** Process different formats ****
+    
+    // There are 3 formats we are _really_ interested in: RTTFC, AITFC, and XTRAFFICPSX
+    // Check for them and their correct number of fields
+    if (tfc[RT_RTTFC_REC_TYPE] == RT_TRAFFIC_RTTFC) {
+        if (tfc.size() < RT_RTTFC_MIN_TFC_FIELDS)
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
+
+        return ProcessRTTFC(fdKey, tfc);
+    }
+    else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_AITFC) {
+        if (tfc.size() < RT_AITFC_NUM_FIELDS_MIN)
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
+
+        return ProcessAITFC(fdKey, tfc);
+    }
+    else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
+        if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
+        { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
+
+        return ProcessAITFC(fdKey, tfc);
+    }
+    else {
+        // other format than AITFC or XTRAFFICPSX
+        LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic);
+        return false;
+    }
+}
+    
+
+/// Helper to return first element larger than zero from the data array
+double firstPositive (const std::vector<std::string>& tfc,
+                      std::initializer_list<size_t> li)
+{
+    for (size_t i: li) {
+        const double d = std::stod(tfc[i]);
+        if (d > 0.0)
+            return d;
+    }
+    return 0.0;
+}
+
+
+// Process a RTTFC  type message
+/// @details RTTraffic format (port 49005), introduced in v9 of RealTraffic
+///            RTTFC,hexid, lat, lon, baro_alt, baro_rate, gnd, track, gsp,
+///            cs_icao, ac_type, ac_tailno, from_iata, to_iata, timestamp,
+///            source, cs_iata, msg_type, alt_geom, IAS, TAS, Mach, track_rate,
+///            roll, mag_heading, true_heading, geom_rate, emergency, category,
+///            nav_qnh, nav_altitude_mcp, nav_altitude_fms, nav_heading,
+///            nav_modes, seen, rssi, winddir, windspd, OAT, TAT,
+///            isICAOhex,augmentation_status,authentication
+/// @details Example:
+///            RTTFC,11234042,-33.9107,152.9902,26400,1248,0,90.12,490.00,
+///            AAL72,B789, N835AN,SYD,LAX,1645144774.2,X2,AA72,adsb_icao,
+///            27575,320,474,0.780, 0.0,0.0,78.93,92.27,1280,none,A5,1012.8,
+///            35008,-1,71.02, autopilot|vnav|lnav|tcas,0.0,-21.9,223,24,
+///            -30,0,1,170124
+bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
+                                          const std::vector<std::string>& tfc)
+{
+    // *** Potentially skip static objects ***
+    const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
+    if (dataRefs.GetHideStaticTwr() &&              // shall ignore static objects?
+        (// Aircraft's category is C1 or C2?
+         (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2')) ||
+         // - OR - tail and type are 'TWR' (as in previous msg types)
+         (tfc[RT_RTTFC_AC_TAILNO] == "TWR" &&
+          tfc[RT_RTTFC_AC_TYPE] == "TWR")
+       ))
+        return true;
+    
+    // *** position time ***
+    double posTime = std::stod(tfc[RT_RTTFC_TIMESTAMP]);
+    AdjustTimestamp(posTime);
+
+    // *** Process received data ***
+
+    // *** position ***
+    // RealTraffic always provides data 100km around current position
+    // Let's check if the data falls into our configured range and discard it if not
+    positionTy pos (std::stod(tfc[RT_RTTFC_LAT]),
+                    std::stod(tfc[RT_RTTFC_LON]),
+                    0,              // we take care of altitude later
+                    posTime);
+    
+    // position is rather important, we check for validity
+    // (we do allow alt=NAN if on ground)
+    if ( !pos.isNormal(true) ) {
+        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+        return false;
+    }
+    
+    // RealTraffic always sends data of 100km or so around current pos
+    // Filter data that the user didn't want based on settings
+    const positionTy viewPos = dataRefs.GetViewPos();
+    const double dist = pos.dist(viewPos);
+    if (dist > dataRefs.GetFdStdDistance_m() )
+        return true;            // silently
+    
+    try {
+        // from here on access to fdMap guarded by a mutex
+        // until FD object is inserted and updated
+        std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+        
+        // There's a flag telling us if a key is an ICAO code
+        if (tfc[RT_RTTFC_ISICAOHEX] != "1")
+            fdKey.eKeyType = LTFlightData::KEY_RT;
+        
+        // Check for duplicates with OGN/FLARM, potentially replaces the key type
+        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+        
+        // get the fd object from the map, key is the transpIcao
+        // this fetches an existing or, if not existing, creates a new one
+        LTFlightData& fd = fdMap[fdKey];
+        
+        // also get the data access lock once and for all
+        // so following fetch/update calls only make quick recursive calls
+        std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+        // now that we have the detail lock we can release the global one
+        mapFdLock.unlock();
+
+        // completely new? fill key fields
+        if ( fd.empty() )
+            fd.SetKey(fdKey);
+        
+        // -- fill static data --
+        LTFlightData::FDStaticData stat;
+        
+        stat.acTypeIcao     = tfc[RT_RTTFC_AC_TYPE];
+        stat.call           = tfc[RT_RTTFC_CS_ICAO];
+        stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
+        stat.originAp       = tfc[RT_RTTFC_FROM_IATA];
+        stat.destAp         = tfc[RT_RTTFC_TO_IATA];
+        stat.catDescr       = GetADSBEmitterCat(sCat);
+
+        // -- dynamic data --
+        LTFlightData::FDDynamicData dyn;
+        
+        // non-positional dynamic data
+        dyn.gnd         = tfc[RT_RTTFC_GND] == "1";
+        dyn.heading     = firstPositive(tfc, {RT_RTTFC_TRUE_HEADING, RT_RTTFC_TRACK, RT_RTTFC_MAG_HEADING});
+        dyn.spd         = std::stod(tfc[RT_RTTFC_GSP]);
+        dyn.vsi         = firstPositive(tfc, {RT_RTTFC_GEOM_RATE, RT_RTTFC_BARO_RATE});
+        dyn.ts          = posTime;
+        dyn.pChannel    = this;
+        
+        // Altitude
+        if (dyn.gnd)
+            pos.alt_m() = NAN;          // ground altitude to be determined in scenery
+        else {
+            // Is geometric altitude given? Then we use it directly
+            double alt = std::stod(tfc[RT_RTTFC_ALT_GEOM]);
+            if (alt > 0.0)
+                pos.SetAltFt(alt);
+            // Otherwise we need to use barometric altitude and convert with local pressure
+            else
+                pos.SetAltFt(dataRefs.WeatherAltCorr_ft(std::stod(tfc[RT_RTTFC_ALT_BARO])));
+        }
+        // don't forget gnd-flag in position
+        pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
+
+        // Vehicle?
+        if (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2'))
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        else if (sCat.empty() && dyn.gnd && stat.acTypeIcao.empty() && stat.reg.empty())
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+
+        // add the static data
+        fd.UpdateData(std::move(stat), dist);
+
+        // add the dynamic data
+        fd.AddDynData(dyn, 0, 0, &pos);
+
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+        return false;
+    }
+
+    // success
+    return true;
+}
+
+
+// Process a AITFC or XTRAFFICPSX type message
+/// @details AITraffic format (port 49003), which has more fields:
+///            AITFC,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936,BCS1,N101DU,BOS,LGA
+///          and the Foreflight format (broadcasted on port 49002):
+///            XTRAFFICPSX,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936(BCS1)
+///
+bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
+                                          const std::vector<std::string>& tfc)
+{
+    // *** Potentially skip static objects ***
+    if (dataRefs.GetHideStaticTwr() &&
+        tfc[RT_AITFC_CS]    == "TWR" &&
+        tfc[RT_AITFC_TYPE]  == "TWR")
+        return true;
+    
     // *** position time ***
     // There are 2 possibilities:
     // 1. As of v7.0.55 RealTraffic can send a timestamp (when configured
@@ -699,10 +887,10 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     
     double posTime;
     // Timestamp included?
-    if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC && tfc.size() >= RT_TFC_TIMESTAMP+1)
+    if (tfc.size() > RT_AITFC_TIMESTAMP)
     {
         // use that delivered timestamp and (potentially) adjust it if it is in the past
-        posTime = std::stod(tfc[RT_TFC_TIMESTAMP]);
+        posTime = std::stod(tfc[RT_AITFC_TIMESTAMP]);
         AdjustTimestamp(posTime);
     }
     else
@@ -718,19 +906,11 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
 
     // *** Process received data ***
 
-    // key is most likely an Icao transponder code, but could also be a Realtraffic internal id
-    LTFlightData::FDKeyTy fdKey (numId <= MAX_TRANSP_ICAO ? LTFlightData::KEY_ICAO : LTFlightData::KEY_RT,
-                                 numId);
-    
-    // not matching a/c filter? -> skip it
-    if ((!acFilter.empty() && (fdKey != acFilter)))
-        return true;            // silently
-
     // *** position ***
     // RealTraffic always provides data 100km around current position
     // Let's check if the data falls into our configured range and discard it if not
-    positionTy pos (std::stod(tfc[RT_TFC_LAT]),
-                    std::stod(tfc[RT_TFC_LON]),
+    positionTy pos (std::stod(tfc[RT_AITFC_LAT]),
+                    std::stod(tfc[RT_AITFC_LON]),
                     0,              // we take care of altitude later
                     posTime);
     
@@ -774,23 +954,23 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         // -- fill static data --
         LTFlightData::FDStaticData stat;
         
-        stat.acTypeIcao     = tfc[RT_TFC_TYPE];
-        stat.call           = tfc[RT_TFC_CS];
+        stat.acTypeIcao     = tfc[RT_AITFC_TYPE];
+        stat.call           = tfc[RT_AITFC_CS];
         
-        if (tfc[RT_TFC_MSG_TYPE] == RT_TRAFFIC_AITFC) {
-            stat.reg            = tfc[RT_TFC_TAIL];
-            stat.originAp       = tfc[RT_TFC_FROM];
-            stat.destAp         = tfc[RT_TFC_TO];
+        if (tfc.size() > RT_AITFC_TO) {
+            stat.reg            = tfc[RT_AITFC_TAIL];
+            stat.originAp       = tfc[RT_AITFC_FROM];
+            stat.destAp         = tfc[RT_AITFC_TO];
         }
 
         // -- dynamic data --
         LTFlightData::FDDynamicData dyn;
         
         // non-positional dynamic data
-        dyn.gnd =               tfc[RT_TFC_AIRBORNE] == "0";
-        dyn.heading =           std::stoi(tfc[RT_TFC_HDG]);
-        dyn.spd =               std::stoi(tfc[RT_TFC_SPD]);
-        dyn.vsi =               std::stoi(tfc[RT_TFC_VS]);
+        dyn.gnd =               tfc[RT_AITFC_AIRBORNE] == "0";
+        dyn.spd =               std::stoi(tfc[RT_AITFC_SPD]);
+        dyn.heading =           std::stoi(tfc[RT_AITFC_HDG]);
+        dyn.vsi =               std::stoi(tfc[RT_AITFC_VS]);
         dyn.ts =                posTime;
         dyn.pChannel =          this;
         
@@ -808,7 +988,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         // If at the same time VSI is reported significantly (> +/- 100)
         // then we assume plane is already/still flying, but as we
         // don't know exact altitude we just skip this record.
-        if (tfc[RT_TFC_ALT]         == "0") {
+        if (tfc[RT_AITFC_ALT]         == "0") {
             // skip this dynamic record in case VSI is too large
             if (std::abs(dyn.vsi) > RT_VSI_AIRBORNE)
                 return true;
@@ -818,7 +998,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         } else {
             // probably not on gnd, so take care of altitude
             // altitude comes without local pressure applied
-            pos.SetAltFt(dataRefs.WeatherAltCorr_ft(std::stod(tfc[RT_TFC_ALT])));
+            pos.SetAltFt(dataRefs.WeatherAltCorr_ft(std::stod(tfc[RT_AITFC_ALT])));
         }
         
         // don't forget gnd-flag in position

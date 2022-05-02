@@ -325,6 +325,9 @@ std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = 
 inline std::string GetNearestAirportId (float lat, float lon)
 { return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
 
+/// Convert ADS-B Emitter Category to text
+const char* GetADSBEmitterCat (const std::string& cat);
+
 /// Which plugin has control of AI?
 std::string GetAIControlPluginName ();
 

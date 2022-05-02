@@ -160,11 +160,29 @@
             </ul>
         </li>
         <li>NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/225">#225</a> Option <i>Basics &gt; Cooperation &gt; Hide all a/c in Replay</i>.</li>
-        <li>ADS-B Exchange: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/223">#223</a> option to remove static objects like towers.</li>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/18">#18</a> feature: Planes correct angle for wind, crab and de-crab for take-off/landing.
+            The wind considered is taken from current simulator's weather, ie. the same that affects your own aircraft, too.
+        </li>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/223">#223</a> option
+            to remove static objects like towers from all data streams where identifiable.
+        </li>
+        <li>
+            General performance improvements, especially noticeable if many more
+            aircraft are seen in the data than can be displayed.
+        </li>
         <li>
             ADS-B Exchange: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/224">#224</a>:
             Read provided departure/arrival airport info, which comes as
             3-letter IATA codes.
+        </li>
+        <li>
+            RealTraffic: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/229">#229</a>
+            support for trafic info format "RTTFC" introduced with RT v9,
+            broadcasted on port 49005, becoming the default.
+            Older formats continue to work, too.<br>
+            Port number for traffic data is now configurable in <i>Settings &gt; Input Channels &gt; Realtraffic</i>.
         </li>
         <li>
             ADDED more potential Ground Vehicles to <code>FlightModels.prf</code>, thanks to @sawiczja and @larsras.
