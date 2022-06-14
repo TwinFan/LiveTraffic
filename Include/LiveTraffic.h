@@ -234,6 +234,9 @@ inline std::string& trim(std::string& s, const char* t = WHITESPACE)
     return ltrim(rtrim(s, t), t);
 }
 
+/// Cut off everything after `from` from `s`, `from` including
+std::string& cut_off(std::string& s, const std::string& from);
+
 // last word of a string
 std::string str_last_word (const std::string& s);
 // separates string into tokens
@@ -321,6 +324,9 @@ std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = 
 /// Fetch nearest airport id by location
 inline std::string GetNearestAirportId (float lat, float lon)
 { return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
+
+/// Convert ADS-B Emitter Category to text
+const char* GetADSBEmitterCat (const std::string& cat);
 
 /// Which plugin has control of AI?
 std::string GetAIControlPluginName ();

@@ -159,6 +159,18 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         if (dist > dataRefs.GetFdStdDistance_m() )
             continue;
 
+        // Are we to skip static objects?
+        if (dataRefs.GetHideStaticTwr()) {
+            if (!strcmp(jog_s(pJAc, ADSBEX_GND), "1") &&    // on the ground
+                !*jog_s(pJAc, ADSBEX_AC_TYPE_ICAO) &&       // no type
+                !*jog_s(pJAc, ADSBEX_HEADING) &&            // no `trak` heading, not even "0"
+                !*jog_s(pJAc, ADSBEX_CALL) &&               // no call sign
+                !*jog_s(pJAc, ADSBEX_REG) &&                // no tail number
+                !strcmp(jog_s(pJAc, ADSBEX_SPD), "0"))      // speed exactly "0"
+                // skip
+                continue;
+        }
+
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
@@ -190,8 +202,15 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
             stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
             stat.call =       jog_s(pJAc, ADSBEX_CALL);
+            stat.originAp =   jog_s(pJAc, ADSBEX_ORIGIN);
+            stat.destAp =     jog_s(pJAc, ADSBEX_DESTINATION);
             stat.slug       = ADSBEX_SLUG_BASE;
             stat.slug      += fdKey.key;
+            
+            // ADSBEx sends airport info like "LHR London Heathrow United Kingdom"
+            // That's way to long...
+            cut_off(stat.originAp, " ");
+            cut_off(stat.destAp, " ");
 
             // -- dynamic data --
             LTFlightData::FDDynamicData dyn;
@@ -214,13 +233,15 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
             
             // -- Ground vehicle identification --
-            // ADSBEx doesn't send a clear indicator, but data analysis
-            // suggests that EngType/Mount == 0 is a good indicator
+            // Sometimes we get "-GND", replace it with "ZZZC"
+            if (stat.acTypeIcao == ADSBEX_TYPE_GND)
+                stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+
+            // But often, ADSBEx doesn't send a clear indicator
             if (stat.acTypeIcao.empty() &&      // don't know a/c type yet
+                stat.reg.empty() &&             // don't have tail number
                 dyn.gnd &&                      // on the ground
-                dyn.spd < 50.0 &&               // reasonable speed
-                stat.engType == 0 &&            // no engines
-                stat.engMount == 0)
+                dyn.spd < 50.0)                 // reasonable speed
             {
                 // we assume ground vehicle
                 stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();

@@ -30,7 +30,7 @@
 
 //MARK: FSCharter Constants
 #define FSC_CHECK_NAME          "FSCharter Flight Board"
-#define FSC_CHECK_URL           "https://fscharter.net/flight_board"
+#define FSC_CHECK_URL           "https://fscharter.net/flight-board"
 #define FSC_CHECK_POPUP         "See who's flying in FSCharter just now"
 
 #define FSC_NAME                "FSCharter"

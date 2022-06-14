@@ -74,6 +74,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {ICON_FA_SORT,       15,    ImGui::IM_ALIGN_CENTER, ImGuiTableColumnFlags_NoSort},
     {"VSI",              45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"kn",               35,    ImGui::IM_ALIGN_RIGHT},
+    {"Track",            35,    ImGui::IM_ALIGN_RIGHT},
     {"Heading",          35,    ImGui::IM_ALIGN_RIGHT},
     {"Pitch",            45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Roll",             45,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
@@ -166,6 +167,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         else
             v[ACT_COL_UPDOWN].clear();
         v_f(ACT_COL_SPEED,  "%.f",      pAc->GetSpeed_kt());
+        v_f(ACT_COL_TRACK,  "%.f",      pAc->GetTrack());
         v_f(ACT_COL_HEADING,"%.f",      pAc->GetHeading());
         v_f(ACT_COL_PITCH,  "%.1f",     pAc->GetPitch());
         v_f(ACT_COL_ROLL,   "%.1f",     pAc->GetRoll());
@@ -192,7 +194,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         if (!v[ACT_COL_POS].empty()) {
             for (size_t idx: {
                 ACT_COL_POS, ACT_COL_LAT, ACT_COL_LON, ACT_COL_ALT, ACT_COL_AGL,
-                ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_HEADING,
+                ACT_COL_VSI, ACT_COL_UPDOWN, ACT_COL_SPEED, ACT_COL_TRACK, ACT_COL_HEADING,
                 ACT_COL_PITCH, ACT_COL_ROLL, ACT_COL_BEARING, ACT_COL_DIST,
                 ACT_COL_CSLMDL, ACT_COL_PHASE, ACT_COL_GEAR, ACT_COL_FLAPS,
                 ACT_COL_LIGHTS, ACT_COL_TCAS_IDX, ACT_COL_FLIGHTMDL

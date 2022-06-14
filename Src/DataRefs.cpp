@@ -310,6 +310,7 @@ const char* DATA_REFS_XP[] = {
     "sim/time/local_date_days",
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
+    "sim/operation/prefs/replay_mode",          //    int    y    enum    Are we in replay mode?
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
     "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
@@ -330,6 +331,8 @@ const char* DATA_REFS_XP[] = {
     "sim/aircraft/view/acf_tailnum",            // byte[40] y string    Tail number
     "sim/aircraft/view/acf_modeS_id",           // int      y integer   24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
     "sim/aircraft/view/acf_ICAO",               // byte[40] y string    ICAO code for aircraft (a string) entered by author
+    "sim/weather/wind_direction_degt",          // float    n    [0-359)    The effective direction of the wind at the plane's location.
+    "sim/weather/wind_speed_kt",                // float    n    msc    >= 0        The effective speed of the wind at the plane's location. WARNING: this dataref is in meters/second - the dataref NAME has a bug.
     "sim/graphics/VR/enabled",
 };
 
@@ -498,6 +501,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/hide_parking",                DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_nearby_gnd",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/hide_nearby_air",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/hide_in_replay",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/hide_static_twr",             DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -574,6 +579,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_PARKING:           return &hideParking;
         case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
+        case DR_CFG_HIDE_IN_REPLAY:         return &hideInReplay;
+        case DR_CFG_HIDE_STATIC_TWR:        return &hideStaticTwr;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
         case DR_CFG_REMOTE_SUPPORT:         return &remoteSupport;
         case DR_CFG_EXTERNAL_CAMERA:        return &bUseExternalCamera;
@@ -1871,7 +1878,7 @@ bool DataRefs::LoadConfigFile()
     assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
 
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_KM_2_NM, CFG_DEL_IMGUI_CFG } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1902,16 +1909,17 @@ bool DataRefs::LoadConfigFile()
     }
     
     // 2. is version / test for older version for which a conversion is to be done?
-    if (ln[1] == LT_CFG_VERSION)            conv = CFG_NO_CONV;
-    else if (ln[1] == LT_CFG_VER_NM_CONV)   conv = CFG_KM_2_NM;
-    else if (ln[1] == LT_CFG_VER_DEL_IMGUI) conv = CFG_DEL_IMGUI_CFG;
+    if (ln[1] == LT_VERSION)                conv = CFG_NO_CONV;
     else {
-        SHOW_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
-        return false;
+        // Version update!
+        SHOW_MSG(logMSG, MSG_LT_UPDATED, LT_VERSION);
+        // Any pre-v3 version?
+        if (ln[1][0] < '3')
+            conv = CFG_V3;
     }
     
     // *** Delete LiveTraffic_imgui.prf? ***
-    if (conv == CFG_DEL_IMGUI_CFG)
+    if (conv == CFG_V3)                 // added column to the aircraft list
         std::remove(IMGUI_INI_PATH);
     
     // *** DataRefs ***
@@ -1953,15 +1961,13 @@ bool DataRefs::LoadConfigFile()
                 // conversion of older config file formats
                 switch (conv) {
                     case CFG_NO_CONV: break;
-                    case CFG_KM_2_NM:           // distance values converted from km to nm
-                        if (*i == DATA_REFS_LT[DR_CFG_FD_STD_DISTANCE])
-                        {
-                            // distances are int values, so we have to convert, then round to int:
-                            sVal = std::to_string(std::lround(std::stoi(sVal) *
-                                                  double(M_per_KM) / double(M_per_NM)));
+                    case CFG_V3:
+                        if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
+                            // With v3 preferred port changes from 49003 to 49005
+                            if (sVal == "49003")
+                                sVal = "49005";
                         }
                         break;
-                    case CFG_DEL_IMGUI_CFG: break;
                 }
                 
                 // *** valid config entry, now process it ***
@@ -2103,9 +2109,8 @@ bool DataRefs::SaveConfigFile()
     }
     
     // *** VERSION ***
-    // save application and version first...maybe we need to know it in
-    // future versions for conversion efforts - who knows?
-    fOut << LIVE_TRAFFIC << ' ' << LT_CFG_VERSION << '\n';
+    // save application and version first
+    fOut << LIVE_TRAFFIC << ' ' << LT_VERSION << '\n';
     
     // *** DataRefs ***
     // loop over our LiveTraffic values and store those meant to be stored
@@ -2292,6 +2297,7 @@ void DataRefs::UpdateCachedValues ()
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
+    lastReplay = XPLMGetDatai(adrXP[DR_REPLAY_MODE]);
     lastVREnabled =                         // is VR enabled?
     #ifdef DEBUG
         bSimVREntered ? true :              // simulate some aspects of VR
@@ -2302,9 +2308,17 @@ void DataRefs::UpdateCachedValues ()
     UpdateSimTime();
     UpdateViewPos();
     UpdateUsersPlanePos();
+    UpdateSimWind();
     ExportUserAcData();
 }
 
+
+// Local (in sim!) wind at user's plane
+void DataRefs::UpdateSimWind ()
+{
+    lastWind.angle = (double)XPLMGetDataf(adrXP[DR_WIND_DIR]);
+    lastWind.speed = (double)XPLMGetDataf(adrXP[DR_WIND_SPEED]);
+}
 
 //
 // MARK: Processed values (static functions)

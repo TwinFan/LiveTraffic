@@ -191,15 +191,25 @@ void MenuUpdateAllItemStatus()
                       LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
 }
 
+
+std::string VerToStr (unsigned ver)
+{
+    return
+    std::to_string(ver / 10000) + '.' +
+    std::to_string((ver / 100) % 100) + '.' +
+    std::to_string(ver % 100);
+}
+
+
 void HandleNewVersionAvail ()
 {
     // not reasonable for no new version or if already added
-    if (std::isnan(verXPlaneOrg) || aMenuItems[MENU_ID_NEWVER] != 0)
+    if (!verXPlaneOrg || aMenuItems[MENU_ID_NEWVER] != 0)
         return;
     
 
     // if the X-Plane.org version is not newer don't worry either
-    if (verXPlaneOrg <= VERSION_NR) {
+    if (verXPlaneOrg <= LT_VER_NO) {
         // save the current timestamp so we don't check too often
         // (we specifically don't do this in case an update is found,
         //  this way we keep reminding the user once there really IS an update.)
@@ -210,12 +220,12 @@ void HandleNewVersionAvail ()
     // *** New version available! ***
     // add another menu item directing to the new version
     char buf[50];
-    snprintf(buf, sizeof(buf), MENU_NEWVER, verXPlaneOrg);
+    snprintf(buf, sizeof(buf), MENU_NEWVER, VerToStr(verXPlaneOrg).c_str());
     aMenuItems[MENU_ID_NEWVER] =
     XPLMAppendMenuItem(menuID, buf, (void *)MENU_ID_NEWVER,1);
 
     // make the user aware
-    SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,verXPlaneOrg);
+    SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,VerToStr(verXPlaneOrg).c_str());
 }
 
 /// append a menu item, if given with command
@@ -408,7 +418,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
         {
             // Create a message window and say hello
             SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
-            if constexpr (VERSION_BETA)
+            if constexpr (LIVETRAFFIC_VERSION_BETA)
                 SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
 #ifdef DEBUG
             SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
@@ -469,7 +479,8 @@ PLUGIN_API int XPluginStart(
          srand((unsigned int)time(NULL));
         
         // tell X-Plane who we are
-        std::snprintf(outName, 255, "%s %.2f", LIVE_TRAFFIC, VERSION_NR);
+        std::snprintf(outName, 255, "%s %u.%u.%u", LIVE_TRAFFIC,
+                      LIVETRAFFIC_VER_MAJOR, LIVETRAFFIC_VER_MINOR, LIVETRAFFIC_VER_PATCH);
         strncpy_s(outSig,  255, PLUGIN_SIGNATURE,   100);
         strncpy_s(outDesc, 255, PLUGIN_DESCRIPTION, 100);
 

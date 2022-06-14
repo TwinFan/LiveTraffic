@@ -106,7 +106,6 @@
 		2575F44823ECC2C000747524 /* XPMP2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPMP2.framework; path = Lib/XPMP2/XPMP2.framework; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
-		2581210B24F091530031354F /* RTdev1.4.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev1.4.pdf; sourceTree = "<group>"; };
 		2582235225C209C2000A0903 /* Toolchain-ubuntu-osxcross.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-ubuntu-osxcross.cmake"; sourceTree = "<group>"; };
 		2582235325C209C2000A0903 /* Toolchain-mingw-w64-x86-64.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-mingw-w64-x86-64.cmake"; sourceTree = "<group>"; };
 		2582235625C20A95000A0903 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
@@ -145,6 +144,7 @@
 		25C59459207A2B7500E52073 /* DataRefs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DataRefs.cpp; sourceTree = "<group>"; };
 		25C59461207AB4D800E52073 /* LTAircraft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAircraft.cpp; sourceTree = "<group>"; };
 		25C59464207ABDC700E52073 /* LTMain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMain.cpp; sourceTree = "<group>"; };
+		25C7674527F62C2000082BBD /* RTdev2.0.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = RTdev2.0.pdf; sourceTree = "<group>"; };
 		25D09096222D7F0700D52057 /* udp_send.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = udp_send.py; sourceTree = "<group>"; };
 		25D293EB25C58C6A0007C72E /* SendTraffic.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = SendTraffic.py; sourceTree = "<group>"; };
 		25D293F625C625710007C72E /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
@@ -368,7 +368,7 @@
 		25865AFE22065B8D009D5D9C /* RealTraffic */ = {
 			isa = PBXGroup;
 			children = (
-				2581210B24F091530031354F /* RTdev1.4.pdf */,
+				25C7674527F62C2000082BBD /* RTdev2.0.pdf */,
 				25865B0022065B8D009D5D9C /* udp_listen.py */,
 				25D09096222D7F0700D52057 /* udp_send.py */,
 			);
@@ -547,7 +547,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1320;
+				LastUpgradeCheck = 1340;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -690,6 +690,11 @@
 					"XPLM301=1",
 					"XPLM303=1",
 					"DEBUG=1",
+					"LIVETRAFFIC_VERSION=\"\"${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}\"\"",
+					"LIVETRAFFIC_VER_MAJOR=${LIVETRAFFIC_VER_MAJOR}",
+					"LIVETRAFFIC_VER_MINOR=${LIVETRAFFIC_VER_MINOR}",
+					"LIVETRAFFIC_VER_PATCH=${LIVETRAFFIC_VER_PATCH}",
+					"LIVETRAFFIC_VERSION_BETA=${LIVETRAFFIC_VERSION_BETA}",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -717,6 +722,10 @@
 					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIVETRAFFIC_VERSION_BETA = 0;
+				LIVETRAFFIC_VER_MAJOR = 3;
+				LIVETRAFFIC_VER_MINOR = 0;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
@@ -787,6 +796,11 @@
 					"XPLM301=1",
 					"XPLM303=1",
 					"NDEBUG=1",
+					"LIVETRAFFIC_VERSION=\"\"${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}\"\"",
+					"LIVETRAFFIC_VER_MAJOR=${LIVETRAFFIC_VER_MAJOR}",
+					"LIVETRAFFIC_VER_MINOR=${LIVETRAFFIC_VER_MINOR}",
+					"LIVETRAFFIC_VER_PATCH=${LIVETRAFFIC_VER_PATCH}",
+					"LIVETRAFFIC_VERSION_BETA=${LIVETRAFFIC_VERSION_BETA}",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -814,6 +828,10 @@
 					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIVETRAFFIC_VERSION_BETA = 0;
+				LIVETRAFFIC_VER_MAJOR = 3;
+				LIVETRAFFIC_VER_MINOR = 0;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
@@ -829,11 +847,27 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
 				DEPLOYMENT_LOCATION = YES;
 				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/XPMP2",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"APL=1",
+					"IBM=0",
+					"LIN=0",
+					"XPLM200=1",
+					"XPLM210=1",
+					"XPLM300=1",
+					"XPLM301=1",
+					"XPLM303=1",
+					"DEBUG=1",
+					"LIVETRAFFIC_VER_MAJOR=${LIVETRAFFIC_VER_MAJOR}",
+					"LIVETRAFFIC_VER_MINOR=${LIVETRAFFIC_VER_MINOR}",
+					"LIVETRAFFIC_VER_PATCH=${LIVETRAFFIC_VER_PATCH}",
+					"LIVETRAFFIC_VERSION_BETA=${LIVETRAFFIC_VERSION_BETA}",
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = mac_x64;
@@ -861,11 +895,27 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
 				DEPLOYMENT_LOCATION = YES;
 				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/XPMP2",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"APL=1",
+					"IBM=0",
+					"LIN=0",
+					"XPLM200=1",
+					"XPLM210=1",
+					"XPLM300=1",
+					"XPLM301=1",
+					"XPLM303=1",
+					"NDEBUG=1",
+					"LIVETRAFFIC_VER_MAJOR=${LIVETRAFFIC_VER_MAJOR}",
+					"LIVETRAFFIC_VER_MINOR=${LIVETRAFFIC_VER_MINOR}",
+					"LIVETRAFFIC_VER_PATCH=${LIVETRAFFIC_VER_PATCH}",
+					"LIVETRAFFIC_VERSION_BETA=${LIVETRAFFIC_VERSION_BETA}",
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = mac_x64;

@@ -49,6 +49,7 @@ enum ACTColumnsTy {
     ACT_COL_UPDOWN,         ///< up/down arrows
     ACT_COL_VSI,            ///< vertical speed
     ACT_COL_SPEED,          ///< speed in knots
+    ACT_COL_TRACK,          ///< track
     ACT_COL_HEADING,        ///< heading
     ACT_COL_PITCH,          ///< pitch
     ACT_COL_ROLL,           ///< roll

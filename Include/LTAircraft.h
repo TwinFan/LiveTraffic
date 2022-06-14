@@ -91,6 +91,7 @@ public:
     inline double dist () const     { return valDist; }
     inline double fromTS () const   { return timeFrom; }
     inline double toTS () const     { return timeTo; }
+    double percDone () const;       ///< percent done of move, returns 1.0 if not in motion
 };
 
 // mimics acceleration / deceleration
@@ -256,9 +257,11 @@ public:
     public:
         static bool ReadFlightModelFile ();
         /// @brief Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
-        /// @param fd Flight Data of the plane in question
+        /// @param fd Flight Data of the plane in question, might be updated with found model
+        /// @param bForceSearch (optional) If `true` then no cached values are returned but a full search in the model rules is done
         /// @param[out] pIcaoType (optional) receives determined ICAO type, empty if none could be determined
-        static const FlightModel& FindFlightModel (const LTFlightData& fd,
+        static const FlightModel& FindFlightModel (LTFlightData& fd,
+                                                   bool bForceSearch = false,
                                                    const std::string** pIcaoType = nullptr);
         static const FlightModel* GetFlightModel (const std::string& modelName);
         /// Tests if the given call sign matches typical call signs of ground vehicles
@@ -302,6 +305,7 @@ protected:
     AccelParam          speed;          // current speed [m/s] and acceleration control
     BezierCurve         turn;           ///< position, heading, roll while flying a turn
     MovingParam         heading;        ///< heading movement if not using a Bezier curve
+    MovingParam         corrAngle;      ///< correction angle for cross wind
     MovingParam         gear;
     MovingParam         flaps;
     MovingParam         pitch;
@@ -361,7 +365,7 @@ public:
     std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
     inline bool IsOnGrnd() const { return bOnGrnd; }
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
-    inline double GetHeading() const { return ppos.heading(); }
+    inline double GetHeading() const { return ppos.heading() + corrAngle.is(); }
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
@@ -372,6 +376,7 @@ public:
     inline double GetVSI_m_s() const { return vsi * Ms_per_FTm; }           // m/s
     inline double GetPitch() const { return ppos.pitch(); }
     inline double GetRoll() const { return ppos.roll(); }
+    float GetLift() const override;     ///< Lift produced for wake system, typically mass * 9.81, but blends in during rotate and blends out while landing
     inline double GetAlt_ft() const { return ppos.alt_ft(); }
     inline double GetAlt_m() const { return ppos.alt_m(); }
     inline double GetTerrainAlt_ft() const { return terrainAlt_m / M_per_FT; }  ///< terrain alt converted to ft
@@ -406,6 +411,9 @@ protected:
     void CalcFlightModel (const positionTy& from, const positionTy& to);
     /// determine roll, based on a previous and a current heading
     void CalcRoll (double _prevHeading);
+    /// determine correction angle
+    void CalcCorrAngle ();
+    /// determines terrain altitude via XPLM's Y Probe
     bool YProbe ();
     // determines if now visible
     bool CalcVisible ();

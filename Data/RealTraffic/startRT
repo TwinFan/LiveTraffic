@@ -1,0 +1,2 @@
+#!/bin/sh
+java -jar /Applications/RealTrafficLauncher.app/Contents/Resources/Jars/RealTrafficLauncher.jar

@@ -1342,7 +1342,7 @@ void LTFlightData::CalcNextPosMain ()
                 
             } catch(const std::out_of_range&) {
                 // just ignore exception...fd object might have gone in the meantime
-                if constexpr (VERSION_BETA) {
+                if constexpr (LIVETRAFFIC_VERSION_BETA) {
                     LOG_MSG(logWARN, "No longer found aircraft %s", pair.first.c_str());
                 }
             }
@@ -1505,7 +1505,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
 
     // aircraft model to use
     const std::string* pIcaoType = nullptr;
-    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, &pIcaoType);
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false, &pIcaoType);
     if (!pIcaoType)     // if we can't really determine a model we can't really validate
         return true;
     
@@ -1852,7 +1852,7 @@ void LTFlightData::AppendNewPos()
         }
         
         // posDeque should be sorted, i.e. no two adjacent positions a,b should be a > b
-        if constexpr (VERSION_BETA) {
+        if constexpr (LIVETRAFFIC_VERSION_BETA) {
             LOG_ASSERT_FD(*this,
                           std::adjacent_find(posDeque.cbegin(), posDeque.cend(),
                                              [](const positionTy& a, const positionTy& b)
@@ -2327,6 +2327,10 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
         // in LTFlightData::CreateAircraft())
         if (pAc && DetermineAcModel())
             bMdlInfoChange = true;
+
+        // Need to find a new model-match next time we need it
+        if (bMdlInfoChange)
+            pMdl = nullptr;
         
         if (pAc) {
             // if model-defining fields changed then (potentially) change the CSL model

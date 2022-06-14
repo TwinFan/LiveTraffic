@@ -29,10 +29,10 @@
 //
 // MARK: Version Information (CHANGE VERSION HERE)
 //
-constexpr float VERSION_NR = 2.61f;
-constexpr bool VERSION_BETA = false;
-extern float verXPlaneOrg;          // version on X-Plane.org
-extern int verDateXPlaneOrg;        // and its date
+
+/// Verson number combined as a single unsigned, like 3.2.1 = 30201
+constexpr unsigned LT_VER_NO = 10000 * LIVETRAFFIC_VER_MAJOR + 100 * LIVETRAFFIC_VER_MINOR + LIVETRAFFIC_VER_PATCH;
+extern unsigned verXPlaneOrg;       ///< version on X-Plane.org
 
 //MARK: Window Position
 #define WIN_WIDTH       400         // window width
@@ -74,7 +74,7 @@ constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-constexpr double SIMILAR_POS_DIST = 3;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
@@ -150,9 +150,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LIVE_TRAFFIC_XPMP2      "   LT"      ///< short form for logging by XPMP2, so that log entries are aligned
-#define LT_CFG_VER_NM_CONV      "1.0"        // version of config file format, from which to convert distances from km to nm
-#define LT_CFG_VER_DEL_IMGUI    "1.1"        // cfg file version, for which we need to remove imgui config file (as we added a column into the aircraft list)
-#define LT_CFG_VERSION          "2.2"        // current version of config file format
 #define LT_FM_VERSION           "2.2"        // expected version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
@@ -164,7 +161,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
 #define MSG_REINIT              "LiveTraffic is re-initializing itself"
 #define MSG_DISABLE_MYSELF      "LiveTraffic disables itself due to unhandable exceptions"
-#define MSG_LT_NEW_VER_AVAIL    "The new version %01.2f of LiveTraffic is available at X-Plane.org!"
+#define MSG_LT_NEW_VER_AVAIL    "The new version %s of LiveTraffic is available at X-Plane.org!"
+#define MSG_LT_UPDATED          "LiveTraffic has been updated to version %s"
 #define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
@@ -234,7 +232,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
 #define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
-#define MENU_NEWVER             "New Version %01.2f available!"
+#define MENU_NEWVER             "New Version %s available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
 #define MENU_REMOVE_ALL_BUT     "Remove all but selected a/c"

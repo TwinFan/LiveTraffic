@@ -58,33 +58,84 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
 
 // Traffic data format and fields
+#define RT_TRAFFIC_RTTFC        "RTTFC"
 #define RT_TRAFFIC_AITFC        "AITFC"
 #define RT_TRAFFIC_XTRAFFICPSX  "XTRAFFICPSX"
 #define RT_TRAFFIC_XATTPSX      "XATTPSX"
 #define RT_TRAFFIC_XGPSPSX      "XGPSPSX"
 
-enum RT_TFC_FIELDS_TY {         // fields in an AITFC message
-    RT_TFC_MSG_TYPE = 0,        // "AITFC" or "XTRAFFICPSX"
-    RT_TFC_HEXID,               // transponder hex code, converted to decimal
-    RT_TFC_LAT,                 // latitude in degrees
-    RT_TFC_LON,                 // longitude in degrees
-    RT_TFC_ALT,                 // altitude in feet (not adapted for local pressure)
-    RT_TFC_VS,                  // vertical speed in ft/min
-    RT_TFC_AIRBORNE,            // airborne: 1 or 0
-    RT_TFC_HDG,                 // heading (actually: true track)
-    RT_TFC_SPD,                 // speed in knots
-    RT_TFC_CS,                  // call sign
-    RT_TFC_TYPE,                // ICAO aircraft type (in XTRAFFICPSX: added in parentheses to call sign)
+/// Fields in a RealTraffic AITFC message (older format on port 49003)
+enum RT_AITFC_FIELDS_TY {
+    RT_AITFC_REC_TYPE = 0,      ///< "AITFC" or "XTRAFFICPSX"
+    RT_AITFC_HEXID,             ///< transponder hex code, converted to decimal
+    RT_AITFC_LAT,               ///< latitude in degrees
+    RT_AITFC_LON,               ///< longitude in degrees
+    RT_AITFC_ALT,               ///< altitude in feet (not adapted for local pressure)
+    RT_AITFC_VS,                ///< vertical speed in ft/min
+    RT_AITFC_AIRBORNE,          ///< airborne: 1 or 0
+    RT_AITFC_HDG,               ///< heading (actually: true track)
+    RT_AITFC_SPD,               ///< speed in knots
+    RT_AITFC_CS,                ///< call sign
+    RT_AITFC_TYPE,              ///< ICAO aircraft type (in XTRAFFICPSX: added in parentheses to call sign)
                                 // --- following fields only in AITFC ---
-    RT_TFC_TAIL,                // registration (tail number)
-    RT_TFC_FROM,                // origin airport (IATA code)
-    RT_TFC_TO,                  // destination airport (IATA code)
+    RT_AITFC_TAIL,              ///< registration (tail number)
+    RT_AITFC_FROM,              ///< origin airport (IATA code)
+    RT_AITFC_TO,                ///< destination airport (IATA code)
                                 // --- following field introduced in v7.0.55 only ---
-    RT_TFC_TIMESTAMP,           // timestamp for position and others above
+    RT_AITFC_TIMESTAMP,         ///< timestamp for position and others above
+                                // --- at some point in time, latest with v9, another field was added, but it is still undocumented and unused
+                                // --- count, always last
+    RT_AITFC_NUM_FIELDS_MIN     ///< (minimum) number of fields required for a AITFC type message
 };
-constexpr int RT_XTRAFFICPSX_NUM_FIELDS = RT_TFC_TYPE+1;
-constexpr int RT_AITFC_NUM_FIELDS_MIN   = RT_TFC_TO+1;
-constexpr int RT_AITFC_NUM_FIELDS_MAX   = RT_TFC_TIMESTAMP+1;
+constexpr int RT_XTRAFFICPSX_NUM_FIELDS = RT_AITFC_TYPE+1;
+constexpr int RT_MIN_TFC_FIELDS         = RT_XTRAFFICPSX_NUM_FIELDS;
+
+/// Fields in a RealTraffic RTTFC message (since v9 on port 49005)
+enum RT_RTTFC_FIELDS_TY {
+    RT_RTTFC_REC_TYPE = 0,          ///< "RTTFC"
+    RT_RTTFC_HEXID,                 ///< transponder hex code, converted to decimal
+    RT_RTTFC_LAT,                   ///< latitude in degrees
+    RT_RTTFC_LON,                   ///< longitude in degrees
+    RT_RTTFC_ALT_BARO,              ///< altitude in feet (barometric, not adapted for local pressure)
+    RT_RTTFC_BARO_RATE,             ///< barometric vertical rate
+    RT_RTTFC_GND,                   ///< ground flag
+    RT_RTTFC_TRACK,                 ///< track
+    RT_RTTFC_GSP,                   ///< ground speed
+    RT_RTTFC_CS_ICAO,               ///< ICAO call sign
+    RT_RTTFC_AC_TYPE,               ///< aircraft type
+    RT_RTTFC_AC_TAILNO,             ///< aircraft registration
+    RT_RTTFC_FROM_IATA,             ///< origin IATA code
+    RT_RTTFC_TO_IATA,               ///< destination IATA code
+    RT_RTTFC_TIMESTAMP,             ///< unix epoch timestamp when data was last updated
+    RT_RTTFC_SOURCE,                ///< data source
+    RT_RTTFC_CS_IATA,               ///< IATA call sign
+    RT_RTTFC_MSG_TYPE,              ///< type of message
+    RT_RTTFC_ALT_GEOM,              ///< geometric altitude (WGS84 GPS altitude)
+    RT_RTTFC_IAS,                   ///< indicated air speed
+    RT_RTTFC_TAS,                   ///< true air speed
+    RT_RTTFC_MACH,                  ///< Mach number
+    RT_RTTFC_TRACK_RATE,            ///< rate of change for track
+    RT_RTTFC_ROLL,                  ///< roll in degrees, negative = left
+    RT_RTTFC_MAG_HEADING,           ///< magnetic heading
+    RT_RTTFC_TRUE_HEADING,          ///< true heading
+    RT_RTTFC_GEOM_RATE,             ///< geometric vertical rate
+    RT_RTTFC_EMERGENCY,             ///< emergency status
+    RT_RTTFC_CATEGORY,              ///< category of the aircraft
+    RT_RTTFC_NAV_QNH,               ///< QNH setting navigation is based on
+    RT_RTTFC_NAV_ALTITUDE_MCP,      ///< altitude dialled into the MCP in the flight deck
+    RT_RTTFC_NAV_ALTITUDE_FMS,      ///< altitude set by the flight management system (FMS)
+    RT_RTTFC_NAV_HEADING,           ///< heading set by the MCP
+    RT_RTTFC_NAV_MODES,             ///< which modes the autopilot is currently in
+    RT_RTTFC_SEEN,                  ///< seconds since any message updated this aircraft state vector
+    RT_RTTFC_RSSI,                  ///< signal strength of the receiver
+    RT_RTTFC_WINDDIR,               ///< wind direction in degrees true north
+    RT_RTTFC_WINDSPD,               ///< wind speed in kts
+    RT_RTTFC_OAT,                   ///< outside air temperature / static air temperature
+    RT_RTTFC_TAT,                   ///< total air temperature
+    RT_RTTFC_ISICAOHEX,             ///< is this hexid an ICAO assigned ID.
+    RT_RTTFC_AUGMENTATION_STATUS,   ///< has this record been augmented from multiple sources
+    RT_RTTFC_MIN_TFC_FIELDS         ///< always last, minimum number of fields
+};
 
 // Weather JSON fields
 #define RT_WEATHER_ICAO         "ICAO"
@@ -208,6 +259,8 @@ protected:
 
     // Process received datagrams
     bool ProcessRecvedTrafficData (const char* traffic);
+    bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a RTTFC type message
+    bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a AITFC or XTRAFFICPSX type message
     bool ProcessRecvedWeatherData (const char* weather);
     
     /// Determine timestamp adjustment necessairy in case of historic data

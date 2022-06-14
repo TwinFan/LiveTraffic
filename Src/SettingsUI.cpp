@@ -63,6 +63,9 @@ txtFixLivery    (dataRefs.cslFixLivery)
     for (size_t i = 0; i < aFlarmAcTys.size(); i++)
         aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
     
+    // Fetch RealTraffic port number
+    sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
+    
     // Fetch FSC credentials
     dataRefs.GetFSCharterCredentials(sFSCUser, sFSCPwd);
 
@@ -192,9 +195,11 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgCheckbox("No TCAS/AI for ground a/c", sFilter, DR_CFG_AI_NOT_ON_GND,  "Aircraft on the ground will not be reported to TCAS or AI/multiplayer interfaces");
                 ImGui::FilteredCfgCheckbox("Hide a/c while taxiing", sFilter, DR_CFG_HIDE_TAXIING,      "Hide aircraft in phase 'Taxi'");
                 ImGui::FilteredCfgCheckbox("Hide a/c while parking", sFilter, DR_CFG_HIDE_PARKING,      "Hide aircraft parking at a gate or ramp position");
+                ImGui::FilteredCfgCheckbox("Hide all a/c in Reply", sFilter, DR_CFG_HIDE_IN_REPLAY,     "Hide all aircraft while in Replay mode");
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
                 ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
+                ImGui::FilteredCfgCheckbox("Hide static objects", sFilter, DR_CFG_HIDE_STATIC_TWR,      "Do not display static objects like towers");
                 ImGui::FilteredCfgCheckbox("Use 3rd party camera", sFilter, DR_CFG_EXTERNAL_CAMERA, "Don't activate LiveTraffic's camera view when clicking the camera button\nbut expect a 3rd party camera plugin to spring on instead");
                 if (ImGui::FilteredLabel("XPMP2 Remote Client support", sFilter)) {
                     const float cbWidth = ImGui::CalcTextSize("Auto Detect (default)_____").x;
@@ -395,6 +400,22 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_REALTRAFFIC, "Open Help on RealTraffic in Browser",
                                            sFilter, nOpCl))
             {
+                // RealTraffic traffic port number
+                if (ImGui::FilteredLabel("Traffic Port", sFilter)) {
+                    ImGui::SetNextItemWidth(fSmallWidth);
+                    ImGui::InputText("", &sRTPort, ImGuiInputTextFlags_CharsDecimal);
+                    // if changed then set (then re-read) the value
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        dataRefs.SetRTTrafficPort(std::stoi(sRTPort));
+                        sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
+                    }
+                    else if (ImGui::IsItemActive()) {
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted("[Enter] to save. Default: 49005, alternate: 49003");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 // RealTraffic's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     const LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
@@ -1052,7 +1073,7 @@ void LTSettingsUI::buildInterface()
         } // --- Debug ---
         
         // Version information
-        if constexpr (VERSION_BETA) {
+        if constexpr (LIVETRAFFIC_VERSION_BETA) {
             if (ImGui::FilteredLabel("BETA Version", sFilter)) {
                 ImGui::Text("%s, limited to %s",
                             LT_VERSION_FULL, LT_BETA_VER_LIMIT_TXT);

@@ -339,6 +339,16 @@ double MovingParam::get()
     return val;
 }
 
+
+double MovingParam::percDone () const
+{
+    if (!inMotion() || std::isnan(valDist) || between(valDist, -0.0001, 0.0001))
+        return 1.0;
+    else
+        return std::abs((val - valFrom) / valDist);
+}
+
+
 //
 //MARK: AccelParam
 //
@@ -1121,8 +1131,16 @@ const std::string& DetermineIcaoType (const LTFlightData& fd,
 
 // Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
 const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
-        (const LTFlightData& fd, const std::string** pIcaoType)
+        (LTFlightData& fd, bool bForceSearch, const std::string** pIcaoType)
 {
+    // Do we have cached data available that allows to skip all the searching?
+    if (!bForceSearch) {
+        if (fd.hasAc() && fd.GetAircraft()->pMdl)
+            return *(fd.GetAircraft()->pMdl);
+        if (fd.pMdl)
+            return *reinterpret_cast<const LTAircraft::FlightModel*>(fd.pMdl);
+    }
+    
     // 1. find an aircraft ICAO type based on input
     bool bDefaulted;
     const std::string& acTypeIcao = DetermineIcaoType(fd, bDefaulted);
@@ -1137,8 +1155,10 @@ const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
     for (const auto& mapIt: listFMRegex) {
         std::smatch m;
         std::regex_search(acSpec, m, mapIt.first);
-        if (m.size() > 0)                   // matches?
+        if (m.size() > 0) {                 // matches?
+            fd.pMdl = &(mapIt.second);      // save and...
             return mapIt.second;            // return that flight model
+        }
     }
     
     // no match: return default
@@ -1222,7 +1242,7 @@ XPMP2::Aircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafe
                 inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0),      // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
 // class members
 fd(inFd),
-pMdl(&FlightModel::FindFlightModel(inFd)),      // find matching flight model
+pMdl(&FlightModel::FindFlightModel(inFd, true)),      // find matching flight model
 pDoc8643(&Doc8643::get(acIcaoType)),
 tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
@@ -1230,6 +1250,7 @@ rotateTs(NAN),
 vsi(0.0),
 bOnGrnd(false), bArtificalPos(false),
 heading(pMdl->TAXI_TURN_TIME, 360, 0, true),
+corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false),
 gear(pMdl->GEAR_DURATION),
 flaps(pMdl->FLAPS_DURATION),
 pitch((pMdl->PITCH_MAX-pMdl->PITCH_MIN)/pMdl->PITCH_RATE, pMdl->PITCH_MAX, pMdl->PITCH_MIN),
@@ -1268,6 +1289,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         
         // init moving params where necessary
         pitch.SetVal(0);
+        corrAngle.SetVal(0);
         
         // calculate our first position, must also succeed
         if (!CalcPPos())
@@ -1452,6 +1474,22 @@ bool LTAircraft::IsOnRwy() const
      posList[1].f.specialPos == SPOS_RWY);
 }
 
+
+// Lift produced for wake system, typically mass * 9.81, but blends in during rotate and blends out while landing
+float LTAircraft::GetLift() const
+{
+    // Are we in any phase in which we phase lift in/out?
+    if (pitch.inMotion() &&
+        (phase == FPH_TAKE_OFF || phase == FPH_ROTATE ||        // take-off
+         phase == FPH_TOUCH_DOWN || phase == FPH_ROLL_OUT))     // landing
+    {
+        // Transitioning (either rolling out or rotating)
+        return GetMass() * XPMP2::G_EARTH * (float)pitch.percDone();
+    }
+    
+    // No transition: Then it's all (airborne) or nothing (ground)
+    return IsOnGrnd() ? 0.0f : GetMass() * XPMP2::G_EARTH;
+}
 
 // The basic idea is: We are given a 'from'-position and a 'to'-position,
 // both including a timestamp. The 'from'-timestamp is in the past,
@@ -1652,6 +1690,9 @@ bool LTAircraft::CalcPPos()
             }
         }
         
+        // *** Correction Angle for crosswind ***
+        CalcCorrAngle();
+        
         // output debug info on request
         if (dataRefs.GetDebugAcPos(key())) {
             LOG_MSG(logDEBUG,DBG_AC_SWITCH_POS,std::string(*this).c_str());
@@ -1720,6 +1761,9 @@ bool LTAircraft::CalcPPos()
         // don't need to calc speed again
         bNeedSpeed = false;
     }
+    
+    // Update correction angle
+    corrAngle.get();
     
     // *** Cut Corner Bezier Curve ***
     // We define them only if both legs are long enough.
@@ -2094,6 +2138,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         if (gear.isDown())
             tireRpm.min();                              // "move" to 0
         gearDeflection.min();
+        CalcCorrAngle();                        // might need to correct for cross wind
     }
     
     // entered Initial Climb
@@ -2141,6 +2186,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // flare
     if (ENTERED(FPH_FLARE)) {
         pitch.moveTo(pMdl->PITCH_FLARE);      // flare!
+        corrAngle.moveTo(0.0);                // de-crab
     }
     
     // touch-down
@@ -2256,6 +2302,32 @@ void LTAircraft::CalcRoll (double _prevHeading)
         ppos.roll() = newRoll;
 }
 
+
+// determine correction angle
+/// @details Uses a simple rule of thumb, good enough for the purpose
+///          and saves on computing power:
+/// @see https://www.pilotundflugzeug.de/artikel/2005-05-29/Faustformel
+///      comment by 'defvh'
+/// @details "Windeinfallswinkel mal Windgeschwindigkeit geteilt durch IAS.
+///           Beispiel: RWY 27, Wind aus 220 Grad mit 12 kts und IAS 100.
+///           Also Vorhalten links mit 6 Grad."
+void LTAircraft::CalcCorrAngle ()
+{
+    // correction only applies to flying before flare
+    if (!IsOnGrnd() && phase != FPH_FLARE) {
+        const vectorTy& vecWind = dataRefs.GetSimWind();
+        double headDiff = HeadingDiff(vec.angle, vecWind.angle);
+        if (headDiff > 90.0)                // if wind comes from behind only consider cross-wind component
+            headDiff = 180.0 - headDiff;    // (so that if it comes straight from back (180deg) it would result in 0 correction
+        else if (headDiff < -90.0)
+            headDiff = -180.0 - headDiff;
+        const double corr = headDiff * vecWind.speed / vec.speed;
+        corrAngle.moveTo(corr);
+    } else {
+        // on the ground and while flare: no correction, or actually de-crab
+        corrAngle.moveTo(0.0);
+    }
+}
 
 // determines terrain altitude via XPLM's Y Probe
 bool LTAircraft::YProbe ()
@@ -2441,8 +2513,11 @@ bool LTAircraft::CalcVisible ()
     // possible change...save old value for comparison
     bool bPrevVisible = IsVisible();
     
+    // Hide in replay mode?
+    if (dataRefs.GetHideInReplay() && dataRefs.IsReplayMode())
+        XPMP2::Aircraft::SetVisible(false);
     // automatic is off -> take over manually given state
-    if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
+    else if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
         XPMP2::Aircraft::SetVisible(bSetVisible);
     // hide while taxiing...and we are taxiing?
     else if (dataRefs.GetHideTaxiing() &&
@@ -2473,7 +2548,7 @@ bool LTAircraft::CalcVisible ()
     
     // inform about a change
     if (bPrevVisible != IsVisible())
-        LOG_MSG(logINFO, IsVisible() ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
+        LOG_MSG(logDEBUG, IsVisible() ? INFO_AC_SHOWN_AUTO : INFO_AC_HIDDEN_AUTO,
                 labelInternal.c_str());
 
     // return new visibility
@@ -2584,9 +2659,9 @@ void LTAircraft::CalcCameraViewPos()
         posExt = ppos;
 
         // move position back along the longitudinal axes
-        posExt += vectorTy(GetHeading(), pMdl->EXT_CAMERA_LON_OFS + extOffs.x);
+        posExt += vectorTy(ppos.heading(), pMdl->EXT_CAMERA_LON_OFS + extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy(GetHeading() + 90, pMdl->EXT_CAMERA_LAT_OFS + extOffs.z);
+        posExt += vectorTy(ppos.heading() + 90, pMdl->EXT_CAMERA_LAT_OFS + extOffs.z);
         // and move a bit up
         posExt.alt_m() += pMdl->EXT_CAMERA_VERT_OFS + extOffs.y;
 
@@ -2615,10 +2690,10 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     outCameraPosition->x =        (float)posExt.X();
     outCameraPosition->y =        (float)posExt.Y();
     outCameraPosition->z =        (float)posExt.Z();
-    outCameraPosition->heading  = (float)pExtViewAc->GetHeading() + extOffs.heading;
-    outCameraPosition->pitch =                                      extOffs.pitch;
-    outCameraPosition->roll =                                       extOffs.roll;
-    outCameraPosition->zoom =                                       extOffs.zoom;
+    outCameraPosition->heading  = (float)posExt.heading() + extOffs.heading;
+    outCameraPosition->pitch =                              extOffs.pitch;
+    outCameraPosition->roll =                               extOffs.roll;
+    outCameraPosition->zoom =                               extOffs.zoom;
     
     return 1;
 }
@@ -2784,9 +2859,9 @@ void LTAircraft::UpdatePosition (float, int cycle)
         
         // Set Position
         SetLocation(ppos.lat(), ppos.lon(), ppos.alt_ft());
-        drawInfo.pitch   = float(nanToZero(ppos.pitch()));
-        drawInfo.roll    = float(nanToZero(ppos.roll()));
-        drawInfo.heading = float(nanToZero(ppos.heading()));
+        drawInfo.pitch   = float(nanToZero(GetPitch()));
+        drawInfo.roll    = float(nanToZero(GetRoll()));
+        drawInfo.heading = float(nanToZero(GetHeading()));
         
         // *** Configuration ***
         
@@ -2898,7 +2973,7 @@ void LTAircraft::ChangeModel ()
     if (oldModelName != GetModelName() ||
         oldIcaotype  != acIcaoType) {
         // also update the flight model to be used
-        pMdl = &FlightModel::FindFlightModel(fd);
+        pMdl = &FlightModel::FindFlightModel(fd, true);
         pDoc8643 = &Doc8643::get(acIcaoType);
         LOG_MSG(logINFO,INFO_AC_MDL_CHANGED,
                 labelInternal.c_str(),
