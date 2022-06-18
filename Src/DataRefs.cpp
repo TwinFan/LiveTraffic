@@ -321,11 +321,14 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/latitude",
     "sim/flightmodel/position/longitude",
     "sim/flightmodel/position/elevation",
-    "sim/flightmodel/position/true_theta",
-    "sim/flightmodel/position/true_phi",
-    "sim/flightmodel/position/true_psi",
-    "sim/flightmodel/position/hpath",
-    "sim/flightmodel/position/true_airspeed",
+    "sim/flightmodel/position/true_theta",      // pitch
+    "sim/flightmodel/position/true_phi",        // roll
+    "sim/flightmodel/position/true_psi",        // true heading
+    "sim/flightmodel/position/mag_psi",         // magnetic heading
+    "sim/flightmodel/position/hpath",           // track
+    "sim/flightmodel/position/indicated_airspeed", // KIAS (apparently really in knots)
+    "sim/flightmodel/position/true_airspeed",   // TAS
+    "sim/flightmodel/position/groundspeed",     // GS
     "sim/flightmodel/position/vh_ind",          // float n meters/second VVI (vertical velocity in meters per second)"
     "sim/flightmodel/failures/onground_any",
     "sim/aircraft/view/acf_tailnum",            // byte[40] y string    Tail number
@@ -516,6 +519,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/export_user_ac",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/export_normalize_ts",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/dbg/export_format",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // channel configuration options
     {"livetraffic/channel/fscharter/environment",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -594,6 +598,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
         case DR_DBG_EXPORT_USER_AC:         return &bDebugExportUserAc;
         case DR_DBG_EXPORT_NORMALIZE_TS:    return &bDebugExportNormTS;
+        case DR_DBG_EXPORT_FORMAT:          return &eDebugExportFdFormat;
 
         // channel configuration options
         case DR_CFG_FSC_ENV:                return &fscEnv;
@@ -1010,7 +1015,7 @@ void DataRefs::UpdateUsersPlanePos ()
     lastUsersPlanePos = pos;
     
     // also fetch true airspeed and track
-    lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TRUE_AIRSPEED]);
+    lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TAS]);
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
 }
 
@@ -1038,17 +1043,55 @@ void DataRefs::ExportUserAcData()
         modeS_ID = DEFAULT_MODES_ID;
 
     // output a tracking data record
-    char buf[256];
-    snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
-             modeS_ID,
-             lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),
-             nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())),
-             XPLMGetDataf(adrXP[DR_PLANE_VVI]),
-             (lastUsersPlanePos.IsOnGnd() ? '0' : '1'),
-             lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,
-             EXPORT_USER_CALL,
-             userIcao, userReg,
-             lastUsersPlanePos.ts() - nanToZero(LTFlightData::fileExportTsBase));
+    char buf[1024];
+    switch (dataRefs.GetDebugExportFormat()) {
+        case EXP_FD_AITFC:
+            snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
+                     modeS_ID,                                                              // hexid
+                     lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),                      // lat, lon
+                     nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())), // alt
+                     XPLMGetDataf(adrXP[DR_PLANE_VVI]),                                     // vs
+                     (lastUsersPlanePos.IsOnGnd() ? '0' : '1'),                             // airborne
+                     lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,   // hdg, spd
+                     EXPORT_USER_CALL,                                                      // cs
+                     userIcao, userReg,                                                     // type, tail,
+                     lastUsersPlanePos.ts() - nanToZero(LTFlightData::fileExportTsBase));   // timestamp: if requested normalize timestamp in output
+            break;
+            
+        case EXP_FD_RTTFC:
+            snprintf(buf, sizeof(buf),
+                     "RTTFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f,"
+                     "%s,%s,%s,%.0f,"
+                     "%.1f,%.1f,-1,-1,%.0f,%.0f,"                                // IAS, TAS, (Mach, track_rate), roll, mag_heading
+                     "%.2f,%.0f,%s,%s,"
+                     "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,"                        // nav_qnh, nav_altitude_mcp, nav_altitude_fms, nav_heading, nav_modes, seen, rssi, winddir, windspd, OAT, TAT
+                     "0,,\n",                                                   // isICAOhex
+                     // equivalent to AITFC
+                     modeS_ID,                                                              // hexid
+                     lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),                      // lat, lon
+                     nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())), // baro_alt
+                     XPLMGetDataf(adrXP[DR_PLANE_VVI]),                                     // baro_rate
+                     (lastUsersPlanePos.IsOnGnd() ? '1' : '0'),                             // gnd
+                     lastUsersTrack, XPLMGetDataf(adrXP[DR_PLANE_GS]) * KT_per_M_per_S,     // track, gsp
+                     EXPORT_USER_CALL,                                                      // cs_icao
+                     userIcao, userReg,                                                     // ac_type, ac_tailno
+                     lastUsersPlanePos.ts() - nanToZero(LTFlightData::fileExportTsBase),    // timestamp: if requested normalize timestamp in output
+                     // additions by RTTFC
+                     "XP",                                                      // source
+                     EXPORT_USER_CALL,                                          // cs_iata (copy of cs_icao)
+                     "lt_export",                                               // msg_type
+                     nanToZero(lastUsersPlanePos.alt_ft()),                     // alt_geom
+                     XPLMGetDataf(adrXP[DR_PLANE_KIAS]),                        // IAS
+                     lastUsersTrueAirspeed * KT_per_M_per_S,                    // TAS
+                     lastUsersPlanePos.roll(),                                  // roll
+                     XPLMGetDataf(adrXP[DR_PLANE_MAG_HEADING]),                 // mag_heading
+                     lastUsersPlanePos.heading(),                               // true_heading
+                     XPLMGetDataf(adrXP[DR_PLANE_VVI]),                         // geom_rate
+                     "none",                                                    // emergency
+                     "");                                                       // category
+            break;
+    }
+
     LTFlightData::ExportAddOutput((unsigned long)std::lround(lastUsersPlanePos.ts()), buf);
 }
 

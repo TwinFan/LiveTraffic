@@ -708,6 +708,13 @@ void LTSettingsUI::buildInterface()
                                            "Exports user's aircraft positions as tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
                 ImGui::FilteredCfgCheckbox("Export: Normalize Time", sFilter, DR_DBG_EXPORT_NORMALIZE_TS,
                                            "In each export file, have all timestamps start at zero.\nMakes it easier to combine data from different files later.");
+                if (ImGui::FilteredLabel("Export file format", sFilter)) {
+                    if (ImGui::RadioButton("AITFC", dataRefs.GetDebugExportFormat() == EXP_FD_AITFC))
+                        dataRefs.SetDebugExportFormat(EXP_FD_AITFC);
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("RTTFC", dataRefs.GetDebugExportFormat() == EXP_FD_RTTFC))
+                        dataRefs.SetDebugExportFormat(EXP_FD_RTTFC);
+                }
                 if (!*sFilter) ImGui::TreePop();
             }
 

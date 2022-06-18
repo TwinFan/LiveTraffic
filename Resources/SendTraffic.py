@@ -10,7 +10,7 @@ For usage info call
 
 MIT License
 
-Copyright (c) 2021 B.Hoppe
+Copyright (c) 2022 B.Hoppe
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -106,7 +106,9 @@ def sendTrafficData(ln: str, doSend: int) -> int:
     # split into its fields
     fields = ln.split(',')
 
-    # should have found 15 fields!
+    # should have found at least 15 fields,
+    # the first 15 are by and large very similar between AITFC and RTTFC,
+    # #1 is the a/c id and #14 is the timestamp in both cases
     if len(fields) < 15:
         print ("Found {} fields, expected at least 15, in line {}".format(len(fields), ln))
         return 0
@@ -158,7 +160,7 @@ def updateUserPos():
 """ === MAIN === """
 
 # --- Handling command line argumens ---
-parser = argparse.ArgumentParser(description='SendTraffic 1.0.1: Sends air traffic tracking data from a file out on a UDP port for LiveTraffic to receive it on the RealTraffic channel. '
+parser = argparse.ArgumentParser(description='SendTraffic 1.1.0: Sends air traffic tracking data from a file out on a UDP port for LiveTraffic to receive it on the RealTraffic channel. '
     'In LiveTraffic, activate the "RealTraffic" channel to receive the data and have it displayed as moving planes. '
     'From LiveTraffic, you can also export tracking data in a matching format using the Debug options "Export Tracking Data" and/or "Export User Aircraft". '
     'The latter allows you to fly yourself and have your aircraft\'s movements written as tracking data. '
@@ -171,7 +173,7 @@ parser.add_argument('-b', '--bufPeriod', metavar='NUM', help='Buffering period: 
 parser.add_argument('--historic', metavar='NUM', help='Send historic data, ie. reduce included timestamp by this many seconds', type=int, default=0)
 parser.add_argument('-l', '--loop', help='Endless loop: restart from the beginning when reaching end of file. Will work best if data contains loop with last position(s) being roughly equal to first position(s).', action='store_true')
 parser.add_argument('--host', metavar='NAME_OR_IP', help='UDP target host or ip to send the data to, defaults to \'localhost\'', default='localhost')
-parser.add_argument('--port', metavar='NUM', help='UDP port to send traffic data to, defaults to 49003', type=int, default=49003)
+parser.add_argument('--port', metavar='NUM', help='UDP port to send traffic data to, defaults to 49005', type=int, default=49005)
 parser.add_argument('--weatherPort', metavar='NUM', help='UDP port to send weather data to, defaults to 49004', type=int, default=49004)
 parser.add_argument('-v', '--verbose', help='Verbose output: Informs of each sent record', action='store_true')
 parser.add_argument('-u', '--getUserPos', help='Developer demo: Get user aircraft\'s position by reading from UDP port 49002; activate ForeFlight output in LiveTraffic, or "Broadcast to all third-party apps" in X-Plane\'s Network settings.', action='store_true')
@@ -213,7 +215,7 @@ while 1:
         line = line.strip()
 
         # Can be traffic or weather data
-        if line.startswith('AITFC'):
+        if line.startswith('AITFC') or line.startswith('RTTFC') :
             sendTrafficData(line, _sendLn)
             _sendLn = 1                 # send all following lines
         else:
