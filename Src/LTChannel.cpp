@@ -659,21 +659,17 @@ bool LTFlightDataEnable()
 {
     // create list of flight and master data connections
     listFDC.clear();
-    if ( dataRefs.GetUseHistData() ) {
-        // load historic data readers
-        listFDC.emplace_back(new ADSBExchangeHistorical);
-    } else {
-        // load live feed readers (in order of priority)
-        listFDC.emplace_back(new RealTrafficConnection(mapFd));
-        listFDC.emplace_back(new OpenSkyConnection);
-        listFDC.emplace_back(new ADSBExchangeConnection);
-        listFDC.emplace_back(new OpenGliderConnection);
-        listFDC.emplace_back(new FSCConnection);
-        // load online master data connections
-        listFDC.emplace_back(new OpenSkyAcMasterdata);
-        // load other channels
-        listFDC.emplace_back(new ForeFlightSender(mapFd));
-    }
+
+    // load live feed readers (in order of priority)
+    listFDC.emplace_back(new RealTrafficConnection(mapFd));
+    listFDC.emplace_back(new OpenSkyConnection);
+    listFDC.emplace_back(new ADSBExchangeConnection);
+    listFDC.emplace_back(new OpenGliderConnection);
+    listFDC.emplace_back(new FSCConnection);
+    // load online master data connections
+    listFDC.emplace_back(new OpenSkyAcMasterdata);
+    // load other channels
+    listFDC.emplace_back(new ForeFlightSender(mapFd));
     
     // Success only if there are still connections left
     return listFDC.size() > 0;
@@ -802,7 +798,6 @@ bool LTFlightDataShowAircraft()
     
     // tell the user we do something in the background
     SHOW_MSG(logINFO,
-             dataRefs.GetUseHistData() ? MSG_READING_HIST_FD :
              MSG_REQUESTING_LIVE_FD);
     
     // flag for: as soon as data arrives start buffer countdown

@@ -360,7 +360,6 @@ enum dataRefsLT {
     DR_CFG_LOG_LEVEL,
     DR_CFG_MSG_AREA_LEVEL,
     DR_CFG_LOG_LIST_LEN,
-    DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_SNAP_TAXI_DIST,
@@ -625,7 +624,6 @@ protected:
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
     std::string DirSeparator;
-    int bUseHistoricData        = false;
     int bChannel[CNT_DR_CHANNELS];      // is channel enabled?
     double chTsOffset           = 0.0f; // offset of network time compared to system clock
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
@@ -803,7 +801,6 @@ public:
     std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time
-    static void LTSetSimDateTime(void* p, int i);
     static int LTGetSimDateTime(void* p);
 
     /// Are we in replay mode?
@@ -824,10 +821,8 @@ public:
     inline logLevelTy GetLogLevel()             { return iLogLevel; }
     inline logLevelTy GetMsgAreaLevel()         { return iMsgAreaLevel; }
     
-    // livetraffic/cfg/use_historic_data: Simulate history
-    static void LTSetUseHistData(void*, int i);
-    bool SetUseHistData (bool bUseHistData, bool bForceReload);
-    inline bool GetUseHistData() const           { return bUseHistoricData; }
+    /// Reinit data usage
+    void ForceDataReload ();
     
     // general config values
     static void LTSetCfgValue(void* p, int val);
