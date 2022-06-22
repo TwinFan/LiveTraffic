@@ -977,6 +977,9 @@ public:
     void SetWeather (float hPa, float lat, float lon, const std::string& stationId,
                      const std::string& METAR);
     /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    static double WeatherAltCorr_ft (double pressureAlt_ft, double hPa)
+        { return pressureAlt_ft + ((hPa - HPA_STANDARD) * FT_per_HPA); }
+    /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
     double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
     /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
     double WeatherAltCorr_m (double pressureAlt_m) { return pressureAlt_m + altPressCorr_ft * M_per_FT; }

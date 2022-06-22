@@ -40,7 +40,7 @@
 #define ADSBEX_CHECK_POPUP      "Check ADS-B Exchange's coverage"
 
 #define ADSBEX_NAME             "ADS-B Exchange Online"
-#define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/json/lat/%f/lon/%f/dist/%d/"
+#define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/v2/lat/%f/lon/%f/dist/%d/"
 #define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
 
 #define ADSBEX_RAPIDAPI_25_URL  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/%f/lon/%f/dist/25/"
@@ -50,40 +50,32 @@
 #define ADSBEX_RAPIDAPI_RREMAIN "X-RateLimit-Requests-Remaining:"
 
 #define ADSBEX_TOTAL            "total"
-#define ADSBEX_TIME             "ctime"
+#define ADSBEX_NOW              "now"
 #define ADSBEX_AIRCRAFT_ARR     "ac"
-#define ADSBEX_TRANSP_ICAO      "icao"          // Key data
-#define ADSBEX_TRT              "trt"
-#define ADSBEX_RADAR_CODE       "sqk"           // Dynamic data
-#define ADSBEX_CALL             "call"
+#define ADSBEX_TRANSP_ICAO      "hex"           // Key data
+#define ADSBEX_RADAR_CODE       "squawk"        // Dynamic data
+#define ADSBEX_FLIGHT           "flight"
 #define ADSBEX_LAT              "lat"
 #define ADSBEX_LON              "lon"
-#define ADSBEX_ELEVATION        "galt"          // geometric altitude
-#define ADSBEX_ALT              "alt"           // barometric altitude
-#define ADSBEX_HEADING          "trak"
-#define ADSBEX_GND              "gnd"
-#define ADSBEX_POS_TIME         "postime"
-#define ADSBEX_SPD              "spd"
-#define ADSBEX_VSI              "vsi"
-#define ADSBEX_REG              "reg"
-#define ADSBEX_COUNTRY          "cou"
-#define ADSBEX_AC_TYPE_ICAO     "type"
-#define ADSBEX_MIL              "mil"
-#define ADSBEX_OP_ICAO          "opicao"
-#define ADSBEX_ORIGIN           "from"
-#define ADSBEX_DESTINATION      "to"
-
-#define ADSBEX_TYPE_GND         "-GND"
-
-// still used in historic data code, unsure if supported:
-#define ADSBEX_RCVR             "Rcvr"
-#define ADSBEX_SIG              "Sig"
-#define ADSBEX_COS              "Cos"               // array of short trails
+#define ADSBEX_ALT_GEOM         "alt_geom"      // geometric altitude
+#define ADSBEX_ALT_BARO         "alt_baro"      // barometric altitude
+#define ADSBEX_NAV_QNH          "nav_qnh"       // QNH of barometric altitude
+#define ADSBEX_HEADING          "true_heading"
+#define ADSBEX_TRACK            "track"
+#define ADSBEX_SEE_POS          "seen_pos"
+#define ADSBEX_SPD              "gs"
+#define ADSBEX_VSI_GEOM         "geom_rate"
+#define ADSBEX_VSI_BARO         "baro_rate"
+#define ADSBEX_REG              "r"
+#define ADSBEX_AC_TYPE_ICAO     "t"
+#define ADSBEX_AC_CATEGORY      "category"
+#define ADSBEX_FLAGS            "dbFlags"
 
 // Testing an API key
 #define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
 #define ADSBEX_ERR              "msg"
-#define ADSBEX_NO_API_KEY       "You need a key."
+#define ADSBEX_SUCCESS          "No error"
+#define ADSBEX_NO_API_KEY       "You need an authorized API key."
 
 #define ADSBEX_VERIFY_RAPIDAPI  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/0.0/lon/0.0/dist/25/"
 #define ADSBEX_RAPID_ERR        "message"

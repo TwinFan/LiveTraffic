@@ -46,6 +46,7 @@ std::atomic_flag flagNoNewPosToAdd = ATOMIC_FLAG_INIT;
 //
 LTFlightData::FDDynamicData::FDDynamicData () :
 gnd(false),                             // positional
+heading(NAN),
 spd(0.0), vsi(0.0),                     // movement
 ts(0),
 pChannel(nullptr)
@@ -106,7 +107,6 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
-    if (other.trt) trt = other.trt;
     
     // flight
     if (!other.call.empty()) call = other.call;
@@ -231,15 +231,17 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
         case KEY_ICAO:
         case KEY_FLARM:
         case KEY_FSC:
+        case KEY_ADSBEX:
             snprintf(buf, sizeof(buf), "%06lX", _num);
             break;
         case KEY_OGN:
         case KEY_RT:
             snprintf(buf, sizeof(buf), "%08lX", _num);
             break;
-        default:
+        case KEY_UNKNOWN:
             // must not happen
             LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
+            break;
     }
     LOG_ASSERT(buf[0]);
     return key = buf;
@@ -267,6 +269,7 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
         case KEY_FLARM:     return "FLARM";
         case KEY_ICAO:      return "ICAO";
         case KEY_FSC:       return "FSCharter";
+        case KEY_ADSBEX:    return "ADSBEx";
     }
     return "unknown";
 }

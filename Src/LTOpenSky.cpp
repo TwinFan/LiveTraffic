@@ -168,7 +168,6 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             // fill static data
             LTFlightData::FDStaticData stat;
             stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
-            stat.trt     =    trt_ADS_B_unknown;
             stat.call    =    jag_s(pJAc, OPSKY_CALL);
             while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
                 stat.call.pop_back();
