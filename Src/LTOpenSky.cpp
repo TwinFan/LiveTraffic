@@ -476,6 +476,9 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
                     statDat.mdl = statDat.catDescr.c_str() + OPSKY_MD_TEXT_VEHICLE_LEN;
                 }
             }
+            // Replace type GRND with our default car type, too
+            else if (statDat.acTypeIcao == "GRND")
+                statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
         }
         
         // *** Route Information ***

@@ -130,7 +130,7 @@ def sendTrafficData(ln: str, doSend: int) -> int:
 def sendWeatherData(ln: str) -> int:
     sock.sendto(ln.encode('ascii'), (args.host, args.weatherPort))
     if args.verbose:
-        print (ln)
+        print ("Weather: {}".format(ln))
     return 1
 
 """ === Open listening port for user's position === """
