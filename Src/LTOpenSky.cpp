@@ -41,6 +41,78 @@ LTFlightDataChannel()
     urlPopup = OPSKY_CHECK_POPUP;
 }
 
+// Initialize CURL, adding OpenSky credentials
+bool OpenSkyConnection::InitCurl ()
+{
+    // Standard-init first (repeated call will just return true without effect)
+    if (!LTOnlineChannel::InitCurl())
+        return false;
+    
+    // if there are credentials then now is the moment to add them
+    std::string usr, pwd;
+    dataRefs.GetOpenSkyCredentials(usr, pwd);
+    if (!usr.empty() && !pwd.empty()) {
+        curl_easy_setopt(pCurl, CURLOPT_USERNAME, usr.data());
+        curl_easy_setopt(pCurl, CURLOPT_PASSWORD, pwd.data());
+    } else {
+        curl_easy_setopt(pCurl, CURLOPT_USERNAME, nullptr);
+        curl_easy_setopt(pCurl, CURLOPT_PASSWORD, nullptr);
+    }
+    
+    // read headers (for remaining requests info)
+    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, ReceiveHeader);
+    
+    return true;
+}
+
+// read header and parse for request remaining
+size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
+{
+    const size_t len = nitems * size;
+    static size_t lenRRemain = strlen(OPSKY_RREMAIN);
+    static size_t lenRetry = strlen(OPSKY_RETRY);
+    char num[50];
+
+    // Remaining?
+    if (len > lenRRemain &&
+        memcmp(buffer, OPSKY_RREMAIN, lenRRemain) == 0)
+    {
+        const size_t copyCnt = std::min(len-lenRRemain,sizeof(num)-1);
+        memcpy(num, buffer+lenRRemain, copyCnt);
+        num[copyCnt]=0;                 // zero termination
+        
+        long rRemain = std::atol(num);
+        // Issue a warning when coming close to the end
+        if (rRemain != dataRefs.OpenSkyRRemain) {
+            if (rRemain == 50 || rRemain == 10) {
+                SHOW_MSG(logWARN, "OpenSky: Only %ld requests left today for ca. %ld minutes of data",
+                         rRemain,
+                         (rRemain * dataRefs.GetFdRefreshIntvl()) / 60);
+            }
+            dataRefs.OpenSkyRRemain = rRemain;
+            if (rRemain > 0)
+                dataRefs.OpenSkyRetryAt.clear();
+        }
+    }
+    // Retry-after-seconds?
+    else if (len > lenRetry &&
+             memcmp(buffer, OPSKY_RETRY, lenRetry) == 0)
+    {
+        const size_t copyCnt = std::min(len-lenRetry,sizeof(num)-1);
+        memcpy(num, buffer+lenRetry, copyCnt);
+        num[copyCnt]=0;                 // zero termination
+        long secRetry = std::atol(num); // seconds till retry
+        // convert that to a local timestamp for the user to use
+        const std::time_t tRetry = std::time(nullptr) + secRetry;
+        std::strftime(num, sizeof(num), "%d-%b %H:%M", std::localtime(&tRetry));
+        dataRefs.OpenSkyRetryAt = num;
+        dataRefs.OpenSkyRRemain = 0;
+    }
+
+    // always say we processed everything, otherwise HTTP processing would stop!
+    return len;
+}
+
 // put together the URL to fetch based on current view position
 std::string OpenSkyConnection::GetURL (const positionTy& pos)
 {
@@ -57,6 +129,7 @@ std::string OpenSkyConnection::GetURL (const positionTy& pos)
 }
 
 // update shared flight data structures with received flight data
+// "a4d85d","UJC11   ","United States",1657226901,1657226901,-90.2035,38.8157,2758.44,false,128.1,269.54,-6.5,null,2895.6,"4102",false,0
 bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 {
     char buf[100];
@@ -70,6 +143,22 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // Only proceed in case HTTP response was OK
     if (httpResponse != HTTP_OK) {
+        // Unauthorized?
+        if (httpResponse == HTTP_UNAUTHORIZED) {
+            SHOW_MSG(logERR, "OpenSky: Unauthorized! Verify username/password in settings.");
+            SetValid(false,false);
+            SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
+            return false;
+        }
+        
+        // Ran out of requests?
+        if (httpResponse == HTTP_TOO_MANY_REQU) {
+            SHOW_MSG(logERR, "OpenSky: Used up request credit for today, try again on %s",
+                     dataRefs.OpenSkyRetryAt.empty() ? "<?>" : dataRefs.OpenSkyRetryAt.c_str());
+            SetValid(false,false);
+            return false;
+        }
+        
         // There are a few typical responses that may happen when OpenSky
         // is just temporarily unresponsive. But in all _other_ cases
         // we increase the error counter.
@@ -218,6 +307,31 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // success
     return true;
 }
+
+
+// get status info, including remaining requests
+std::string OpenSkyConnection::GetStatusText () const
+{
+    std::string s = LTChannel::GetStatusText();
+    if (IsValid()) {
+        if (dataRefs.OpenSkyRRemain < LONG_MAX)
+        {
+            s += ", ";
+            s += std::to_string(dataRefs.OpenSkyRRemain);
+            s += " requests left today";
+        }
+    } else {
+        if (!dataRefs.OpenSkyRetryAt.empty())
+        {
+            s += ", retry at ";
+            s += dataRefs.OpenSkyRetryAt;
+        }
+    }
+
+    return s;
+}
+
+
 
 //
 //MARK: OpenSkyAcMasterdata

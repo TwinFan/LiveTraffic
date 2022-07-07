@@ -203,6 +203,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_DEFAULT_CAR_TYPE    "DEFAULT_CAR_TYPE"
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
+#define CFG_OPENSKY_USER        "OpenSky_User"
+#define CFG_OPENSKY_PWD         "OpenSky_Pwd"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
 #define CFG_FSC_USER            "FSC_User"
 #define CFG_FSC_PWD             "FSC_Pwd"
@@ -289,6 +291,7 @@ constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
+constexpr long HTTP_TOO_MANY_REQU = 429;        ///< too many requests, e.g. OpenSky after request limit ran out
 constexpr long HTTP_BAD_GATEWAY =   502;        // typical cloudflare responses: Bad Gateway
 constexpr long HTTP_NOT_AVAIL =     503;        //                               Service not available
 constexpr long HTTP_GATEWAY_TIMEOUT=504;        //                               Gateway Timeout

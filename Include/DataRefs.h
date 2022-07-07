@@ -680,9 +680,11 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sOpenSkyUser;           ///< OpenSky Network user
+    std::string sOpenSkyPwd;            ///< OpenSky Network password
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
     std::string sFSCUser;               ///< FSCharter login user
-    std::string sFSCPwd;                ///< FSCharter login password, base64-encoded
+    std::string sFSCPwd;                ///< FSCharter login password
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -710,7 +712,9 @@ public:
 public:
     /// once per Flarm a/c type: matching it to one or more ICAO types
     std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
-    
+
+    long OpenSkyRRemain = LONG_MAX;     ///< OpenSky: Remaining number of requests per day
+    std::string OpenSkyRetryAt;         ///< OpenSky: If limit is reached, when to retry? (local time as string)
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     
@@ -886,6 +890,11 @@ public:
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
     
+    void GetOpenSkyCredentials (std::string& user, std::string& pwd)
+    { user = sOpenSkyUser; pwd = sOpenSkyPwd; }
+    void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; }
+    void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; }
+
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
     

@@ -37,6 +37,8 @@
 #define OPSKY_SLUG_FMT          "https://opensky-network.org/network/explorer?icao24=%06lx"
 #define OPSKY_TIME              "time"
 #define OPSKY_AIRCRAFT_ARR      "states"
+#define OPSKY_RREMAIN           "X-Rate-Limit-Remaining:"
+#define OPSKY_RETRY             "X-Rate-Limit-Retry-After-Seconds:"
 constexpr int OPSKY_TRANSP_ICAO   = 0;               // icao24
 constexpr int OPSKY_CALL          = 1;               // callsign
 constexpr int OPSKY_COUNTRY       = 2;               // origin_county
@@ -65,9 +67,15 @@ public:
     virtual bool IsLiveFeed() const { return true; }
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
+    virtual std::string GetStatusText () const;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
 //    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
+protected:
+    virtual bool InitCurl ();
+    // read header and parse for request remaining
+    static size_t ReceiveHeader(char *buffer, size_t size, size_t nitems, void *userdata);
+
 };
 
 //MARK: OpenSky Master Data Constats

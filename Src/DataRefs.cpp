@@ -1892,8 +1892,13 @@ bool DataRefs::LoadConfigFile()
                 SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
                 SetDefaultCarIcaoType(sVal);
+            else if (sDataRef == CFG_OPENSKY_USER)
+                SetOpenSkyUser(sVal);
+            else if (sDataRef == CFG_OPENSKY_PWD)
+                SetOpenSkyPwd(Cleartext(sVal));
             else if (sDataRef == CFG_ADSBEX_API_KEY)
-                SetADSBExAPIKey(sVal);
+                // With v3 we start obfuscating the API key
+                SetADSBExAPIKey(conv == CFG_V3 ? sVal : Cleartext(sVal));
             else if (sDataRef == CFG_FSC_USER)
                 SetFSCharterUser(sVal);
             else if (sDataRef == CFG_FSC_PWD)
@@ -2031,8 +2036,12 @@ bool DataRefs::SaveConfigFile()
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << GetDefaultAcIcaoType() << '\n';
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << GetDefaultCarIcaoType() << '\n';
+    if (!sOpenSkyUser.empty())
+        fOut << CFG_OPENSKY_USER << ' ' << sOpenSkyUser << '\n';
+    if (!sOpenSkyPwd.empty())
+        fOut << CFG_OPENSKY_PWD << ' ' << Obfuscate(sOpenSkyPwd) << '\n';
     if (!GetADSBExAPIKey().empty())
-        fOut << CFG_ADSBEX_API_KEY << ' ' << GetADSBExAPIKey() << '\n';
+        fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
     if (!sFSCUser.empty())
         fOut << CFG_FSC_USER << ' ' << sFSCUser << '\n';
     if (!sFSCPwd.empty())

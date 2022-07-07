@@ -304,6 +304,24 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     return true;
 }
 
+
+// get status info, including remaining requests
+std::string ADSBExchangeConnection::GetStatusText () const
+{
+    std::string s = LTChannel::GetStatusText();
+    if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
+    {
+        s += ", ";
+        s += std::to_string(dataRefs.ADSBExRRemain);
+        s += " / ";
+        s += std::to_string(dataRefs.ADSBExRLimit);
+        s += " RAPID API requests left";
+    }
+    return s;
+}
+
+
+
 // add/cleanup API key
 // (this is actually called prior to each request, so quite often)
 bool ADSBExchangeConnection::InitCurl ()
