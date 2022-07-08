@@ -32,6 +32,11 @@ protected:
     /// Search filter
     char sFilter[50] = {0};
 
+    // Channel: OpenSky
+    std::string sOpenSkyUser;       ///< OpenSky Network user
+    std::string sOpenSkyPwd;        ///< OpenSky Network password
+    bool bOpenSkyPwdClearText = false;  ///< Is OpenSky pwd displayed clear text?
+    
     // Channel: ADS-B Exchange
     enum {
         ADSBX_KEY_NO_ACTION = 0,    ///< no key test currently happening

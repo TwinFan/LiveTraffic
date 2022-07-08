@@ -63,6 +63,9 @@ txtFixLivery    (dataRefs.cslFixLivery)
     for (size_t i = 0; i < aFlarmAcTys.size(); i++)
         aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
     
+    // Fetch OpenSky credentials
+    dataRefs.GetOpenSkyCredentials(sOpenSkyUser, sOpenSkyPwd);
+    
     // Fetch RealTraffic port number
     sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
     
@@ -243,8 +246,81 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
                                            sFilter, nOpCl))
             {
-                ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
+                LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
+                const bool bOpenSkyOn = dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE);
 
+                ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
+                
+                // Hint that user/password increases number of allowed requests
+                if (!*sFilter && (sOpenSkyUser.empty() || sOpenSkyPwd.empty())) {
+                    ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
+                                     "https://opensky-network.org/login?view=registration",
+                                     "Opens OpenSky Network's user registration page");
+                    ImGui::TableNextCell();
+                    ImGui::TextUnformatted("Using a registered user allows for more requests to OpenSky per day ");
+                    ImGui::TableNextCell();
+                }
+
+                // User
+                if (ImGui::FilteredLabel("Username", sFilter)) {
+                    ImGui::Indent(ImGui::GetWidthIconBtn(true));
+                    ImGui::InputTextWithHint("##OpenSkyUser",
+                                             "OpenSky Network username",
+                                             &sOpenSkyUser,
+                                             // prohibit changes to the user while channel on
+                                             (bOpenSkyOn ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+                    ImGui::Unindent(ImGui::GetWidthIconBtn(true));
+
+                    ImGui::TableNextCell();
+                }
+                
+                // Password
+                if (ImGui::FilteredLabel("Password", sFilter)) {
+                    // "Eye" button changes password flag
+                    ImGui::Selectable(ICON_FA_EYE "##OpenSkyPwdVisible", &bOpenSkyPwdClearText,
+                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Show/Hide password");
+                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::InputTextWithHint("##OpenSkyPwd",
+                                             "Enter or paste OpenSky Network password",
+                                             &sOpenSkyPwd,
+                                             // clear text or password mode?
+                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
+                                             // prohibit changes to the pwd while channel on
+                                             (bOpenSkyOn ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+                    
+                    ImGui::TableNextCell();
+                }
+                
+                // Save button or hint how to change
+                if (!*sFilter) {
+                    ImGui::TableNextCell();
+                    if (bOpenSkyOn) {
+                        ImGui::TextUnformatted("Disable the channel first if you want to change user/password.");
+                    } else {
+                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
+                            dataRefs.SetOpenSkyUser(sOpenSkyUser);
+                            dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
+                            if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
+                            dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
+                            bOpenSkyPwdClearText = false;           // and hide the pwd now
+                        }
+                    }
+                    ImGui::TableNextCell();
+                }
+
+                // OpenSky's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (pOpenSkyCh) {
+                        ImGui::TextUnformatted(pOpenSkyCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 if (!*sFilter) ImGui::TreePop();
             }
             
@@ -708,6 +784,13 @@ void LTSettingsUI::buildInterface()
                                            "Exports user's aircraft positions as tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
                 ImGui::FilteredCfgCheckbox("Export: Normalize Time", sFilter, DR_DBG_EXPORT_NORMALIZE_TS,
                                            "In each export file, have all timestamps start at zero.\nMakes it easier to combine data from different files later.");
+                if (ImGui::FilteredLabel("Export file format", sFilter)) {
+                    if (ImGui::RadioButton("AITFC", dataRefs.GetDebugExportFormat() == EXP_FD_AITFC))
+                        dataRefs.SetDebugExportFormat(EXP_FD_AITFC);
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("RTTFC", dataRefs.GetDebugExportFormat() == EXP_FD_RTTFC))
+                        dataRefs.SetDebugExportFormat(EXP_FD_RTTFC);
+                }
                 if (!*sFilter) ImGui::TreePop();
             }
 

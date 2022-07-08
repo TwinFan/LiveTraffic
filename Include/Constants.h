@@ -166,11 +166,9 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MSG_TIMESTAMPS          "Current System time is %sZ, current simulated time is %s"
 #define MSG_AI_LOAD_ACF         "Changing AI control: X-Plane is now loading AI Aircraft models..."
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
-#define MSG_READING_HIST_FD     "Reading historic flight data..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircraft"
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
 #define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
-#define MSG_HIST_WITH_SYS_TIME  "When using historic data you cannot run X-Plane with 'always track system time',\ninstead, choose the historic date in X-Plane's date/time settings."
 #define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f / %.2f)"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s' (Flight model '%s')"
@@ -205,6 +203,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_DEFAULT_CAR_TYPE    "DEFAULT_CAR_TYPE"
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
+#define CFG_OPENSKY_USER        "OpenSky_User"
+#define CFG_OPENSKY_PWD         "OpenSky_Pwd"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
 #define CFG_FSC_USER            "FSC_User"
 #define CFG_FSC_PWD             "FSC_Pwd"
@@ -291,6 +291,7 @@ constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
+constexpr long HTTP_TOO_MANY_REQU = 429;        ///< too many requests, e.g. OpenSky after request limit ran out
 constexpr long HTTP_BAD_GATEWAY =   502;        // typical cloudflare responses: Bad Gateway
 constexpr long HTTP_NOT_AVAIL =     503;        //                               Service not available
 constexpr long HTTP_GATEWAY_TIMEOUT=504;        //                               Gateway Timeout

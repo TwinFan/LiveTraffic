@@ -220,8 +220,11 @@ enum dataRefsXP {
     DR_PLANE_PITCH,
     DR_PLANE_ROLL,
     DR_PLANE_HEADING,
+    DR_PLANE_MAG_HEADING,               ///< sim/flightmodel/position/mag_psi    float    n    degrees    The real magnetic heading of the aircraft
     DR_PLANE_TRACK,
-    DR_PLANE_TRUE_AIRSPEED,
+    DR_PLANE_KIAS,                      ///< sim/flightmodel/position/indicated_airspeed    float    y    kias    Air speed indicated - this takes into account air density and wind direction
+    DR_PLANE_TAS,                       ///< sim/flightmodel/position/true_airspeed    float    n    meters/sec    Air speed true - this does not take into account air density at altitude!
+    DR_PLANE_GS,                        ///< sim/flightmodel/position/groundspeed    float    n    meters/sec    The ground speed of the aircraft
     DR_PLANE_VVI,                       ///< sim/flightmodel/position/vh_ind    float    n    meters/second    VVI (vertical velocity in meters per second)
     DR_PLANE_ONGRND,
     DR_PLANE_REG,                       ///< sim/aircraft/view/acf_tailnum    byte[40]    y    string    Tail number
@@ -357,7 +360,6 @@ enum dataRefsLT {
     DR_CFG_LOG_LEVEL,
     DR_CFG_MSG_AREA_LEVEL,
     DR_CFG_LOG_LIST_LEN,
-    DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_SNAP_TAXI_DIST,
@@ -386,6 +388,7 @@ enum dataRefsLT {
     DR_DBG_EXPORT_FD,
     DR_DBG_EXPORT_USER_AC,
     DR_DBG_EXPORT_NORMALIZE_TS,
+    DR_DBG_EXPORT_FORMAT,
 
     // channel configuration options
     DR_CFG_FSC_ENV,
@@ -423,6 +426,12 @@ enum cmdRefsLT {
     CR_LABELS_TOGGLE,
     CR_SETTINGS_UI,
     CNT_CMDREFS_LT                      // always last, number of elements
+};
+
+/// Which format to use for exporting flight tracking data
+enum exportFDFormat {
+    EXP_FD_AITFC = 1,                   ///< use AITFC format, the older shorter format
+    EXP_FD_RTTFC,                       ///< user RTTFC format, introduced with RealTraffic v9
 };
 
 // first/last channel; number of channels:
@@ -606,6 +615,7 @@ protected:
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
+    exportFDFormat eDebugExportFdFormat = EXP_FD_AITFC; ///< Which format to use when exporting flight data?
     int bDebugExportFd          = false;// export flight data to LTExportFD.csv
     int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
     float lastExportUserAc      = 0.0f; ///< last time user's aircraft data has been written to export file
@@ -614,7 +624,6 @@ protected:
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
     std::string DirSeparator;
-    int bUseHistoricData        = false;
     int bChannel[CNT_DR_CHANNELS];      // is channel enabled?
     double chTsOffset           = 0.0f; // offset of network time compared to system clock
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
@@ -671,9 +680,11 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sOpenSkyUser;           ///< OpenSky Network user
+    std::string sOpenSkyPwd;            ///< OpenSky Network password
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
     std::string sFSCUser;               ///< FSCharter login user
-    std::string sFSCPwd;                ///< FSCharter login password, base64-encoded
+    std::string sFSCPwd;                ///< FSCharter login password
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -701,7 +712,9 @@ public:
 public:
     /// once per Flarm a/c type: matching it to one or more ICAO types
     std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
-    
+
+    long OpenSkyRRemain = LONG_MAX;     ///< OpenSky: Remaining number of requests per day
+    std::string OpenSkyRetryAt;         ///< OpenSky: If limit is reached, when to retry? (local time as string)
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     
@@ -792,7 +805,6 @@ public:
     std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time
-    static void LTSetSimDateTime(void* p, int i);
     static int LTGetSimDateTime(void* p);
 
     /// Are we in replay mode?
@@ -813,10 +825,8 @@ public:
     inline logLevelTy GetLogLevel()             { return iLogLevel; }
     inline logLevelTy GetMsgAreaLevel()         { return iMsgAreaLevel; }
     
-    // livetraffic/cfg/use_historic_data: Simulate history
-    static void LTSetUseHistData(void*, int i);
-    bool SetUseHistData (bool bUseHistData, bool bForceReload);
-    inline bool GetUseHistData() const           { return bUseHistoricData; }
+    /// Reinit data usage
+    void ForceDataReload ();
     
     // general config values
     static void LTSetCfgValue(void* p, int val);
@@ -880,6 +890,11 @@ public:
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
     
+    void GetOpenSkyCredentials (std::string& user, std::string& pwd)
+    { user = sOpenSkyUser; pwd = sOpenSkyPwd; }
+    void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; }
+    void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; }
+
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
     
@@ -912,6 +927,8 @@ public:
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
+    exportFDFormat GetDebugExportFormat() const { return eDebugExportFdFormat; }
+    void SetDebugExportFormat (exportFDFormat e) { eDebugExportFdFormat = e; }
     bool GetDebugExportFD() const               { return bDebugExportFd; }
     void SetDebugExportFD (bool bExport)        { bDebugExportFd = bExport; }
     bool GetDebugExportUserAc() const           { return bDebugExportUserAc; }
@@ -968,6 +985,9 @@ public:
     /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
     void SetWeather (float hPa, float lat, float lon, const std::string& stationId,
                      const std::string& METAR);
+    /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    static double WeatherAltCorr_ft (double pressureAlt_ft, double hPa)
+        { return pressureAlt_ft + ((hPa - HPA_STANDARD) * FT_per_HPA); }
     /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
     double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
     /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
