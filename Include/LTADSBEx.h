@@ -52,24 +52,51 @@
 #define ADSBEX_TOTAL            "total"
 #define ADSBEX_NOW              "now"
 #define ADSBEX_AIRCRAFT_ARR     "ac"
-#define ADSBEX_TRANSP_ICAO      "hex"           // Key data
-#define ADSBEX_RADAR_CODE       "squawk"        // Dynamic data
-#define ADSBEX_FLIGHT           "flight"
-#define ADSBEX_LAT              "lat"
-#define ADSBEX_LON              "lon"
-#define ADSBEX_ALT_GEOM         "alt_geom"      // geometric altitude
-#define ADSBEX_ALT_BARO         "alt_baro"      // barometric altitude
-#define ADSBEX_NAV_QNH          "nav_qnh"       // QNH of barometric altitude
-#define ADSBEX_HEADING          "true_heading"
-#define ADSBEX_TRACK            "track"
-#define ADSBEX_SEE_POS          "seen_pos"
-#define ADSBEX_SPD              "gs"
-#define ADSBEX_VSI_GEOM         "geom_rate"
-#define ADSBEX_VSI_BARO         "baro_rate"
-#define ADSBEX_REG              "r"
-#define ADSBEX_AC_TYPE_ICAO     "t"
-#define ADSBEX_AC_CATEGORY      "category"
-#define ADSBEX_FLAGS            "dbFlags"
+
+// Version 2 keys
+#define ADSBEX_V2_TRANSP_ICAO   "hex"           // Key data
+#define ADSBEX_V2_RADAR_CODE    "squawk"        // Dynamic data
+#define ADSBEX_V2_FLIGHT        "flight"
+#define ADSBEX_V2_LAT           "lat"
+#define ADSBEX_V2_LON           "lon"
+#define ADSBEX_V2_ALT_GEOM      "alt_geom"      // geometric altitude
+#define ADSBEX_V2_ALT_BARO      "alt_baro"      // barometric altitude
+#define ADSBEX_V2_NAV_QNH       "nav_qnh"       // QNH of barometric altitude
+#define ADSBEX_V2_HEADING       "true_heading"
+#define ADSBEX_V2_TRACK         "track"
+#define ADSBEX_V2_SEE_POS       "seen_pos"
+#define ADSBEX_V2_SPD           "gs"
+#define ADSBEX_V2_VSI_GEOM      "geom_rate"
+#define ADSBEX_V2_VSI_BARO      "baro_rate"
+#define ADSBEX_V2_REG           "r"
+#define ADSBEX_V2_AC_TYPE_ICAO  "t"
+#define ADSBEX_V2_AC_CATEGORY   "category"
+#define ADSBEX_V2_FLAGS         "dbFlags"
+
+// Version 1 keys
+#define ADSBEX_TIME             "ctime"
+#define ADSBEX_V1_TRANSP_ICAO   "icao"          // Key data
+#define ADSBEX_V1_RADAR_CODE    "sqk"           // Dynamic data
+#define ADSBEX_V1_CALL          "call"
+#define ADSBEX_V1_LAT           "lat"
+#define ADSBEX_V1_LON           "lon"
+#define ADSBEX_V1_ELEVATION     "galt"          // geometric altitude
+#define ADSBEX_V1_ALT           "alt"           // barometric altitude
+#define ADSBEX_V1_HEADING       "trak"
+#define ADSBEX_V1_GND           "gnd"
+#define ADSBEX_V1_POS_TIME      "postime"
+#define ADSBEX_V1_SPD           "spd"
+#define ADSBEX_V1_VSI           "vsi"
+#define ADSBEX_V1_REG           "reg"
+#define ADSBEX_V1_COUNTRY       "cou"
+#define ADSBEX_V1_AC_TYPE_ICAO  "type"
+#define ADSBEX_V1_MIL           "mil"
+#define ADSBEX_V1_OP_ICAO       "opicao"
+#define ADSBEX_V1_ORIGIN        "from"
+#define ADSBEX_V1_DESTINATION   "to"
+
+#define ADSBEX_V1_TYPE_GND      "-GND"
+
 
 // Testing an API key
 #define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
@@ -119,6 +146,18 @@ protected:
     // need to add/cleanup API key
     virtual bool InitCurl ();
     virtual void CleanupCurl ();
+    
+    /// Process v2 data
+    void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+                    mapLTFlightDataTy& fdMap,
+                    const double tsCutOff, const double adsbxTime,
+                    const positionTy& viewPos);
+    /// Process v1 data
+    void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+                    mapLTFlightDataTy& fdMap,
+                    const double tsCutOff, const double adsbxTime,
+                    const positionTy& viewPos);
+
     // make list of HTTP header fields
     static struct curl_slist* MakeCurlSList (keyTypeE keyTy, const std::string theKey);
     // read header and parse for request limit/remaining
