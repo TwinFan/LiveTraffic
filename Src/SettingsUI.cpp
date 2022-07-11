@@ -247,7 +247,6 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
-                const bool bOpenSkyOn = dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE);
 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
                 
@@ -266,9 +265,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::Indent(ImGui::GetWidthIconBtn(true));
                     ImGui::InputTextWithHint("##OpenSkyUser",
                                              "OpenSky Network username",
-                                             &sOpenSkyUser,
-                                             // prohibit changes to the user while channel on
-                                             (bOpenSkyOn ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+                                             &sOpenSkyUser);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
 
                     ImGui::TableNextCell();
@@ -287,26 +284,19 @@ void LTSettingsUI::buildInterface()
                                              "Enter or paste OpenSky Network password",
                                              &sOpenSkyPwd,
                                              // clear text or password mode?
-                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
-                                             // prohibit changes to the pwd while channel on
-                                             (bOpenSkyOn ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
-                    
+                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
                     ImGui::TableNextCell();
                 }
                 
-                // Save button or hint how to change
+                // Save button
                 if (!*sFilter) {
                     ImGui::TableNextCell();
-                    if (bOpenSkyOn) {
-                        ImGui::TextUnformatted("Disable the channel first if you want to change user/password.");
-                    } else {
-                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
-                            dataRefs.SetOpenSkyUser(sOpenSkyUser);
-                            dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
-                            if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
-                            dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
-                            bOpenSkyPwdClearText = false;           // and hide the pwd now
-                        }
+                    if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
+                        dataRefs.SetOpenSkyUser(sOpenSkyUser);
+                        dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
+                        if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
+                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
+                        bOpenSkyPwdClearText = false;           // and hide the pwd now
                     }
                     ImGui::TableNextCell();
                 }

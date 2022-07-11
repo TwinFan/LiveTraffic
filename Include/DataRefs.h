@@ -892,8 +892,8 @@ public:
     
     void GetOpenSkyCredentials (std::string& user, std::string& pwd)
     { user = sOpenSkyUser; pwd = sOpenSkyPwd; }
-    void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; }
-    void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; }
+    void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
+    void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
 
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
