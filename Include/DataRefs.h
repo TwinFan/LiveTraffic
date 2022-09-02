@@ -217,6 +217,7 @@ enum dataRefsXP {
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
+    DR_PLANE_AGL,                       ///< sim/flightmodel/position/y_agl    float    n    meters    AGL
     DR_PLANE_PITCH,
     DR_PLANE_ROLL,
     DR_PLANE_HEADING,
@@ -366,6 +367,8 @@ enum dataRefsLT {
     DR_CFG_FD_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_AC_OUTDATED_INTVL,
+    DR_CFG_FD_REDUCE_ALT,
+    DR_CFG_FD_REDUCE_FACTOR,
     DR_CFG_NETW_TIMEOUT,
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
@@ -652,6 +655,11 @@ protected:
     int fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;     ///< how often to fetch new flight data
     int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
     int acOutdatedIntvl = DEF_AC_OUTDATED_INTVL;    ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+    int fdReduceAlt     = 10000;                    ///< [ft] reduce flight data usage when user aircraft is flying above this altitude
+    int fdReduceFactor  = 3;                        ///< Reduce flight data usage by this factor applied to refresh interval, buffer period, and outdated interval
+    int targetFdFactor  = 1;                        ///< factor we currently aim for
+    int currFdFactor    = 1 * FD_FACTOR_CHG_TIME;   ///< factory (x 10) currently applied to flight data config values
+    int tsLastFdFactorChg = 0;                      ///< timestamp (rounded to full seconds) of last change to FD factor
     int netwTimeout     = DEF_NETW_TIMEOUT;         ///< [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
@@ -755,6 +763,7 @@ protected:
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
+    int         lastUsersAGL_ft = 0;            ///< cached user's plane height above ground
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
     double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
     vectorTy    lastWind;                       ///< wind at user's plane's location
@@ -855,9 +864,9 @@ public:
     inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
     inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }
     inline int GetFdSnapTaxiDist_m() const { return fdSnapTaxiDist; }
-    inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
-    inline int GetFdBufPeriod() const { return fdBufPeriod; }
-    inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
+    inline int GetFdRefreshIntvl() const { return fdRefreshIntvl * currFdFactor / FD_FACTOR_CHG_TIME; }
+    inline int GetFdBufPeriod() const { return fdBufPeriod * currFdFactor / FD_FACTOR_CHG_TIME; }
+    inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl * currFdFactor / FD_FACTOR_CHG_TIME; }
     inline int GetNetwTimeout() const { return netwTimeout; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }

@@ -321,6 +321,7 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/latitude",
     "sim/flightmodel/position/longitude",
     "sim/flightmodel/position/elevation",
+    "sim/flightmodel/position/y_agl",           // [m] height above ground
     "sim/flightmodel/position/true_theta",      // pitch
     "sim/flightmodel/position/true_phi",        // roll
     "sim/flightmodel/position/true_psi",        // true heading
@@ -496,6 +497,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_reduce_alt",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_reduce_factor",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
@@ -574,6 +577,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
+        case DR_CFG_FD_REDUCE_ALT:          return &fdReduceAlt;
+        case DR_CFG_FD_REDUCE_FACTOR:       return &fdReduceFactor;
         case DR_CFG_NETW_TIMEOUT:           return &netwTimeout;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
@@ -1015,6 +1020,40 @@ void DataRefs::UpdateUsersPlanePos ()
     // also fetch true airspeed and track
     lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TAS]);
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
+
+    // fetch current height AGL and convert to feet
+    lastUsersAGL_ft = (int)std::lround(XPLMGetDataf     (adrXP[DR_PLANE_AGL]) / M_per_FT);
+    
+    // *** Control if we start/end changing the FD Factor ***
+    
+    // What's the factor assigned to flight data periods?
+    const int newTarget = lastUsersAGL_ft >= fdReduceAlt ? fdReduceFactor : 1;
+    if (newTarget != targetFdFactor)                // Do we need to initiate a change to a new FdFactor?
+    {
+        LOG_MSG(logINFO, "At %dft AGL: Starting to change FD factor from %d to %d, will result in refresh interval %ds",
+                lastUsersAGL_ft, targetFdFactor, newTarget, fdRefreshIntvl * newTarget);
+        targetFdFactor = newTarget;
+    }
+    
+    // Is a change of the FD Factor underway or to be started?
+    if (currFdFactor != targetFdFactor * FD_FACTOR_CHG_TIME)
+    {
+        // time for another step in changing the FD factor?
+        const int now = (int)GetMiscNetwTime();
+        if (now != tsLastFdFactorChg) {
+            if (currFdFactor > targetFdFactor * FD_FACTOR_CHG_TIME)
+                currFdFactor--;
+            else
+                currFdFactor++;
+            tsLastFdFactorChg = now;
+        }
+    }
+    // done changing the FD factor?
+    else if (tsLastFdFactorChg) {
+        tsLastFdFactorChg = 0;
+        LOG_MSG(logDEBUG, "Reached new FD factor %d, resulting in refresh interval %ds",
+                targetFdFactor, GetFdRefreshIntvl());
+    }
 }
 
 void DataRefs::ExportUserAcData()
@@ -1526,6 +1565,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
         fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 180   ||
         acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 180   ||
+        fdReduceAlt     < 1000              || fdReduceAlt      > 100000||
+        fdReduceFactor  < 1                 || fdReduceFactor   > 10    ||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
