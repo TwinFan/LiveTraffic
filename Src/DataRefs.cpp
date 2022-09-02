@@ -495,10 +495,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_snap_taxi_dist",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_long_refresh_intvl",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
-    {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
-    {"livetraffic/cfg/fd_reduce_alt",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
-    {"livetraffic/cfg/fd_reduce_factor",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_reduce_height",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
@@ -575,10 +574,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
         case DR_CFG_FD_SNAP_TAXI_DIST:      return &fdSnapTaxiDist;
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
+        case DR_CFG_FD_LONG_REFRESH_INTVL:  return &fdLongRefrIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
-        case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
-        case DR_CFG_FD_REDUCE_ALT:          return &fdReduceAlt;
-        case DR_CFG_FD_REDUCE_FACTOR:       return &fdReduceFactor;
+        case DR_CFG_FD_REDUCE_HEIGHT:          return &fdReduceHeight;
         case DR_CFG_NETW_TIMEOUT:           return &netwTimeout;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
@@ -1025,34 +1023,19 @@ void DataRefs::UpdateUsersPlanePos ()
     lastUsersAGL_ft = (int)std::lround(XPLMGetDataf     (adrXP[DR_PLANE_AGL]) / M_per_FT);
     
     // *** Control if we start/end changing the FD Factor ***
+    const int prevRefrIntvl = fdCurrRefrIntvl;
     
-    // What's the factor assigned to flight data periods?
-    const int newTarget = lastUsersAGL_ft >= fdReduceAlt ? fdReduceFactor : 1;
-    if (newTarget != targetFdFactor)                // Do we need to initiate a change to a new FdFactor?
-    {
-        LOG_MSG(logINFO, "At %dft AGL: Starting to change FD factor from %d to %d, will result in refresh interval %ds",
-                lastUsersAGL_ft, targetFdFactor, newTarget, fdRefreshIntvl * newTarget);
-        targetFdFactor = newTarget;
-    }
+    // Currently using the lower number but now flying high?
+    if (fdCurrRefrIntvl == fdRefreshIntvl && lastUsersAGL_ft >= fdReduceHeight)
+        fdCurrRefrIntvl = fdLongRefrIntvl;
+    // Currently using the higher number but now flying low?
+    else if (fdCurrRefrIntvl == fdLongRefrIntvl && lastUsersAGL_ft <= fdReduceHeight - 250)
+        fdCurrRefrIntvl = fdRefreshIntvl;
     
-    // Is a change of the FD Factor underway or to be started?
-    if (currFdFactor != targetFdFactor * FD_FACTOR_CHG_TIME)
-    {
-        // time for another step in changing the FD factor?
-        const int now = (int)GetMiscNetwTime();
-        if (now != tsLastFdFactorChg) {
-            if (currFdFactor > targetFdFactor * FD_FACTOR_CHG_TIME)
-                currFdFactor--;
-            else
-                currFdFactor++;
-            tsLastFdFactorChg = now;
-        }
-    }
-    // done changing the FD factor?
-    else if (tsLastFdFactorChg) {
-        tsLastFdFactorChg = 0;
-        LOG_MSG(logDEBUG, "Reached new FD factor %d, resulting in refresh interval %ds",
-                targetFdFactor, GetFdRefreshIntvl());
+    // If we changed tell the user
+    if (prevRefrIntvl != fdCurrRefrIntvl) {
+        SHOW_MSG(logINFO, "At %dft AGL changed refresh interval to %ds",
+                 lastUsersAGL_ft, GetFdRefreshIntvl());
     }
 }
 
@@ -1545,15 +1528,22 @@ bool DataRefs::SetCfgValue (void* p, int val)
     int oldVal = *reinterpret_cast<int*>(p);
     *reinterpret_cast<int*>(p) = val;
     
-    // Setting the refresh interval (a value more or less likely to be touched by users)
-    // might require adapting buffering period and A/c outdated interval, too
-    if (p == &fdRefreshIntvl) {
-        if (fdBufPeriod < fdRefreshIntvl)
-            fdBufPeriod = fdRefreshIntvl;
-        if (acOutdatedIntvl < 2*fdRefreshIntvl)
-            acOutdatedIntvl = 2*fdRefreshIntvl;
+    // Setting the refresh intervals or the buffering period
+    // might require adapting the other values:
+    // refresh intvl <= long refresh intvl <= buffering period
+    if (p == &fdRefreshIntvl || p == &fdLongRefrIntvl) {
+        if (fdRefreshIntvl > fdLongRefrIntvl)   // long refresh must be at least as long as normal refresh
+            fdLongRefrIntvl = fdRefreshIntvl;
+        if (fdLongRefrIntvl > fdBufPeriod)      // buf period must be at least as long as long refresh
+            fdBufPeriod = fdLongRefrIntvl;
     }
-    
+    else if (p == &fdBufPeriod) {
+        if (fdRefreshIntvl > fdBufPeriod)       // buf period cannot be smaller than refresh interval
+            fdBufPeriod = fdRefreshIntvl;
+        if (fdLongRefrIntvl > fdBufPeriod)      // reduce long refresh to buf period
+            fdLongRefrIntvl = fdBufPeriod;
+    }
+
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
@@ -1563,10 +1553,9 @@ bool DataRefs::SetCfgValue (void* p, int val)
 #endif
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
-        fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 180   ||
-        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 180   ||
-        fdReduceAlt     < 1000              || fdReduceAlt      > 100000||
-        fdReduceFactor  < 1                 || fdReduceFactor   > 10    ||
+        fdLongRefrIntvl < fdRefreshIntvl    || fdLongRefrIntvl  > 180   ||
+        fdBufPeriod     < fdLongRefrIntvl   || fdBufPeriod      > 180   ||
+        fdReduceHeight  < 1000              || fdReduceHeight   > 100000||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
@@ -1603,6 +1592,24 @@ bool DataRefs::SetCfgValue (void* p, int val)
     LogCfgSetting(p, val);
     return true;
 }
+
+// Reset advanced config options to defaults
+void DataRefs::ResetAdvCfgToDefaults ()
+{
+    SetLogLevel(logWARN);
+    SetMsgAreaLevel(logINFO);
+    maxNumAc        = DEF_MAX_NUM_AC;
+    fdStdDistance   = DEF_FD_STD_DISTANCE;
+    fdSnapTaxiDist  = DEF_FD_SNAP_TAXI_DIST;
+    fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;
+    fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;
+    fdBufPeriod     = DEF_FD_BUF_PERIOD;
+    fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
+    netwTimeout     = DEF_NETW_TIMEOUT;
+    UIFontScale     = DEF_UI_FONT_SCALE;
+    UIopacity       = DEF_UI_OPACITY;
+}
+
 
 // generic config access (not as fast as specific access, but good for rare access)
 bool  DataRefs::GetCfgBool  (dataRefsLT dr)

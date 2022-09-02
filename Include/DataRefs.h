@@ -41,8 +41,9 @@ const int DEF_MAX_NUM_AC        = 50;           ///< how many aircraft to create
 const int DEF_FD_STD_DISTANCE   = 25;           ///< nm: miles to look for a/c around myself
 const int DEF_FD_SNAP_TAXI_DIST = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
 const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flight data
+const int DEF_FD_LONG_REFR_INTVL= 60;           ///< how often to fetch new flight data if flying high
 const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
-const int DEF_AC_OUTDATED_INTVL = 50;           ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+const int DEF_FD_REDUCE_HEIGHT  = 10000;        ///< height AGL considered "flying high"
 const int MIN_NETW_TIMEOUT      =  5;           ///< [s] minimum network request timeout
 const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
 
@@ -365,10 +366,9 @@ enum dataRefsLT {
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_SNAP_TAXI_DIST,
     DR_CFG_FD_REFRESH_INTVL,
+    DR_CFG_FD_LONG_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
-    DR_CFG_AC_OUTDATED_INTVL,
-    DR_CFG_FD_REDUCE_ALT,
-    DR_CFG_FD_REDUCE_FACTOR,
+    DR_CFG_FD_REDUCE_HEIGHT,
     DR_CFG_NETW_TIMEOUT,
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
@@ -653,13 +653,10 @@ protected:
     int fdStdDistance   = DEF_FD_STD_DISTANCE;      ///< nm: miles to look for a/c around myself
     int fdSnapTaxiDist  = DEF_FD_SNAP_TAXI_DIST;    ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;     ///< how often to fetch new flight data
+    int fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;   ///< how often to fetch new flight data when flying high
+    int fdCurrRefrIntvl = DEF_FD_REFRESH_INTVL;     ///< current value of how often to fetch new flight data
     int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
-    int acOutdatedIntvl = DEF_AC_OUTDATED_INTVL;    ///< a/c considered outdated if latest flight data more older than this compare to 'now'
-    int fdReduceAlt     = 10000;                    ///< [ft] reduce flight data usage when user aircraft is flying above this altitude
-    int fdReduceFactor  = 3;                        ///< Reduce flight data usage by this factor applied to refresh interval, buffer period, and outdated interval
-    int targetFdFactor  = 1;                        ///< factor we currently aim for
-    int currFdFactor    = 1 * FD_FACTOR_CHG_TIME;   ///< factory (x 10) currently applied to flight data config values
-    int tsLastFdFactorChg = 0;                      ///< timestamp (rounded to full seconds) of last change to FD factor
+    int fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;     ///< [ft] reduce flight data usage when user aircraft is flying above this altitude
     int netwTimeout     = DEF_NETW_TIMEOUT;         ///< [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
@@ -840,6 +837,7 @@ public:
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
+    void ResetAdvCfgToDefaults ();      ///< Reset advanced config options to defaults
     
     // generic config access (not as fast as specific access, but good for rare access)
     static bool  GetCfgBool  (dataRefsLT dr);
@@ -864,9 +862,9 @@ public:
     inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
     inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }
     inline int GetFdSnapTaxiDist_m() const { return fdSnapTaxiDist; }
-    inline int GetFdRefreshIntvl() const { return fdRefreshIntvl * currFdFactor / FD_FACTOR_CHG_TIME; }
-    inline int GetFdBufPeriod() const { return fdBufPeriod * currFdFactor / FD_FACTOR_CHG_TIME; }
-    inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl * currFdFactor / FD_FACTOR_CHG_TIME; }
+    inline int GetFdRefreshIntvl() const { return fdCurrRefrIntvl; }
+    inline int GetFdBufPeriod() const { return fdBufPeriod; }
+    inline int GetAcOutdatedIntvl() const { return 2 * GetFdBufPeriod(); }
     inline int GetNetwTimeout() const { return netwTimeout; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }

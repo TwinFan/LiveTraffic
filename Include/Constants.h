@@ -73,7 +73,6 @@ constexpr int    MAX_NUM_AIRCRAFT   = 200;      ///< maximum number of aircraft 
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
-constexpr int    FD_FACTOR_CHG_TIME  = 10;      ///< [s] How long to take for a change from one FD factor to a new target? During this time refresh interval and buffering period keep slowly changing. Also number of steps of this change
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe

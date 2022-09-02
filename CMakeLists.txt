@@ -24,8 +24,8 @@ if (WIN32)
         set(ENV{platform} "win")
     endif()
 elseif(APPLE)
-    add_compile_options(-mmacosx-version-min=10.11)
-    add_link_options(-mmacosx-version-min=10.11)
+    add_compile_options(-mmacosx-version-min=10.12)
+    add_link_options(-mmacosx-version-min=10.12)
 endif()
 
 ################################################################################

@@ -757,10 +757,9 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Search distance",        sFilter, DR_CFG_FD_STD_DISTANCE,   5, 100, 5, "%d nm");
                 ImGui::FilteredCfgNumber("Snap to taxiway",        sFilter, DR_CFG_FD_SNAP_TAXI_DIST, 0,  50, 1, "%d m");
                 ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Above height AGL of",    sFilter, DR_CFG_FD_REDUCE_HEIGHT,    1000, 100000, 1000, "%d ft");
+                ImGui::FilteredCfgNumber("increase refresh to",    sFilter, DR_CFG_FD_LONG_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Above height AGL of",    sFilter, DR_CFG_FD_REDUCE_ALT,    1000, 100000, 1000, "%d ft");
-                ImGui::FilteredCfgNumber("increase above timings", sFilter, DR_CFG_FD_REDUCE_FACTOR, 1, 10, 1, "%d-fold");
                 ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
             
                 if (!*sFilter) ImGui::TreePop();
@@ -820,19 +819,7 @@ void LTSettingsUI::buildInterface()
                 if (ImGui::BeginPopup(SUI_ADVSET_POPUP)) {
                     ImGui::TextUnformatted("Confirm: Resetting Advanced Settings to defaults");
                     if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
-                        dataRefs.SetLogLevel(logWARN);
-                        dataRefs.SetMsgAreaLevel(logINFO);
-                        cfgSet(DR_CFG_MAX_NUM_AC,           DEF_MAX_NUM_AC);
-                        cfgSet(DR_CFG_FD_STD_DISTANCE,      DEF_FD_STD_DISTANCE);
-                        cfgSet(DR_CFG_FD_SNAP_TAXI_DIST,    DEF_FD_SNAP_TAXI_DIST);
-                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);
-                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);
-                        cfgSet(DR_CFG_AC_OUTDATED_INTVL,    DEF_AC_OUTDATED_INTVL);
-                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
-                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
-                        cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
-                        dataRefs.UIFontScale    = DEF_UI_FONT_SCALE;
-                        dataRefs.UIopacity      = DEF_UI_OPACITY;
+                        dataRefs.ResetAdvCfgToDefaults();
                         ImGui::CloseCurrentPopup();
                     }
                     ImGui::SameLine();
