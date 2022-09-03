@@ -46,6 +46,7 @@ std::atomic_flag flagNoNewPosToAdd = ATOMIC_FLAG_INIT;
 //
 LTFlightData::FDDynamicData::FDDynamicData () :
 gnd(false),                             // positional
+heading(NAN),
 spd(0.0), vsi(0.0),                     // movement
 ts(0),
 pChannel(nullptr)
@@ -106,7 +107,6 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     if (!other.catDescr.empty()) catDescr = other.catDescr;
     if (other.year) year = other.year;
     if (other.mil) mil = other.mil;     // this only overwrite if 'true'...
-    if (other.trt) trt = other.trt;
     
     // flight
     if (!other.call.empty()) call = other.call;
@@ -231,15 +231,17 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
         case KEY_ICAO:
         case KEY_FLARM:
         case KEY_FSC:
+        case KEY_ADSBEX:
             snprintf(buf, sizeof(buf), "%06lX", _num);
             break;
         case KEY_OGN:
         case KEY_RT:
             snprintf(buf, sizeof(buf), "%08lX", _num);
             break;
-        default:
+        case KEY_UNKNOWN:
             // must not happen
             LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
+            break;
     }
     LOG_ASSERT(buf[0]);
     return key = buf;
@@ -267,6 +269,7 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
         case KEY_FLARM:     return "FLARM";
         case KEY_ICAO:      return "ICAO";
         case KEY_FSC:       return "FSCharter";
+        case KEY_ADSBEX:    return "ADSBEx";
     }
     return "unknown";
 }
@@ -1641,20 +1644,60 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
         return;
     
     // output a tracking data record
-    char buf[256];
-    snprintf(buf, sizeof(buf), "AITFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f\n",
-             key().num,
-             pos.lat(), pos.lon(),
-             nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),
-             inDyn.vsi,
-             (pos.IsOnGnd() ? '0' : '1'),
-             inDyn.heading, inDyn.spd,
-             statData.call.c_str(),
-             statData.acTypeIcao.c_str(),
-             statData.reg.c_str(),
-             statData.originAp.c_str(),
-             statData.destAp.c_str(),
-             pos.ts() - nanToZero(fileExportTsBase));       // if requested normalize timestamp in output
+    char buf[1024];
+    switch (dataRefs.GetDebugExportFormat()) {
+        case EXP_FD_AITFC:
+            snprintf(buf, sizeof(buf),
+                     "AITFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f\n",
+                     key().num,                                                 // hexid
+                     pos.lat(), pos.lon(),                                      // lat, lon
+                     nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),   // alt
+                     inDyn.vsi,                                                 // vs
+                     (pos.IsOnGnd() ? '0' : '1'),                               // airborne
+                     inDyn.heading, inDyn.spd,                                  // hdg,spd
+                     statData.call.c_str(),                                     // cs
+                     statData.acTypeIcao.c_str(),                               // type
+                     statData.reg.c_str(),                                      // tail
+                     statData.originAp.c_str(),                                 // from
+                     statData.destAp.c_str(),                                   // to
+                     pos.ts() - nanToZero(fileExportTsBase));                   // timestamp: if requested normalize timestamp in output
+            break;
+            
+        case EXP_FD_RTTFC:
+            snprintf(buf, sizeof(buf),
+                     "RTTFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f,"
+                     "%s,%s,%s,%.0f,"
+                     "-1,-1,-1,-1,-1,-1,"                                       // IAS, TAS, Mach, track_rate, roll, mag_heading
+                     "%.2f,%.0f,%s,%s,"
+                     "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,"                        // nav_qnh, nav_altitude_mcp, nav_altitude_fms, nav_heading, nav_modes, seen, rssi, winddir, windspd, OAT, TAT
+                     "%c,,\n",
+                     // equivalent to AITFC
+                     key().num,                                                 // hexid
+                     pos.lat(), pos.lon(),                                      // lat, lon
+                     nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),   // baro_alt
+                     inDyn.vsi,                                                 // baro_rate
+                     (pos.IsOnGnd() ? '1' : '0'),                               // gnd
+                     inDyn.heading, inDyn.spd,                                  // track, gsp
+                     statData.call.c_str(),                                     // cs_icao
+                     statData.acTypeIcao.c_str(),                               // ac_type
+                     statData.reg.c_str(),                                      // ac_tailno
+                     statData.originAp.c_str(),                                 // from_iata
+                     statData.destAp.c_str(),                                   // to_iata
+                     pos.ts() - nanToZero(fileExportTsBase),                    // timestamp: if requested normalize timestamp in output
+                     // additions by RTTFC
+                     inDyn.pChannel ? inDyn.pChannel->ChName() : "LT",          // source
+                     statData.call.c_str(),                                     // cs_iata (copy of cs_icao)
+                     "lt_export",                                               // msg_type
+                     nanToZero(pos.alt_ft()),                                   // alt_geom
+                     // -- here follows a set of 6 fields we can't fill, they are set constant already in the format string, see above
+                     pos.heading(),                                             // true_heading
+                     inDyn.vsi,                                                 // geom_rate
+                     "none",                                                    // emergency
+                     statData.isGrndVehicle() ? "C2" : "",                      // category
+                     // -- here follows a set of 11 fields we can't fill, they are set constant already in the format string, see above
+                     key().eKeyType == KEY_ICAO ? '1' : '0');                   // isICAOhex
+            break;
+    }
     ExportAddOutput((unsigned long)std::lround(pos.ts()), buf);
 }
 

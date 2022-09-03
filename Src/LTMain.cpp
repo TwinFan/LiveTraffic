@@ -725,7 +725,7 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             if (dataRefs.IsReInitAll()) {
                 // force an initialization
                 SHOW_MSG(logWARN, MSG_REINIT)
-                dataRefs.SetUseHistData(dataRefs.GetUseHistData(), true);
+                dataRefs.ForceDataReload();
                 // and reset the re-init flag
                 dataRefs.SetReInitAll(false);
                 // Log a new timestamp

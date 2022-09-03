@@ -742,8 +742,8 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
     // *** Potentially skip static objects ***
     const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
     if (dataRefs.GetHideStaticTwr() &&              // shall ignore static objects?
-        (// Aircraft's category is C1 or C2?
-         (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2')) ||
+        (// Aircraft's category is C3, C4, or C5?
+         (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '3' || sCat[1] == '4' || sCat[1] == '5')) ||
          // - OR - tail and type are 'TWR' (as in previous msg types)
          (tfc[RT_RTTFC_AC_TAILNO] == "TWR" &&
           tfc[RT_RTTFC_AC_TYPE] == "TWR")
@@ -842,7 +842,9 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
 
         // Vehicle?
-        if (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2'))
+        if (stat.acTypeIcao == "GRND")          // some vehicles come with type 'GRND'...
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        else if (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2'))
             stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
         else if (sCat.empty() && dyn.gnd && stat.acTypeIcao.empty() && stat.reg.empty())
             stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();

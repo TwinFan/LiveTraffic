@@ -73,15 +73,18 @@
          contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
+               value = "vecTaxiEdges[222]">
+            </PersistentString>
+            <PersistentString
                value = "vecTaxiEdgesIdxHead[3321]">
             </PersistentString>
             <PersistentString
                value = "lst[1385]">
             </PersistentString>
-            <PersistentString
-               value = "vecTaxiEdges[222]">
-            </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "LTACMasterdataChannel::RequestMasterData(LTFlightData::FDKeyTy const&amp;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, double):LTChannel.cpp">
       </ContextState>
       <ContextState
          contextName = "ReadOneTaxiLine(std::__1::basic_ifstream&lt;char, std::__1::char_traits&lt;char&gt; &gt;&amp;, Apt&amp;, unsigned long&amp;):LTApt.cpp">
@@ -93,9 +96,6 @@
       </ContextState>
       <ContextState
          contextName = "DataRefs::Init():DataRefs.cpp">
-      </ContextState>
-      <ContextState
-         contextName = "LTACMasterdataChannel::RequestMasterData(LTFlightData::FDKeyTy const&amp;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;, double):LTChannel.cpp">
       </ContextState>
       <ContextState
          contextName = "NextCycle(int):LTAircraft.cpp">
@@ -123,10 +123,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -254,10 +254,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -442,7 +442,7 @@
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "turn">
+               value = "from">
             </PersistentString>
             <PersistentString
                value = "to">
@@ -454,7 +454,7 @@
                value = "ppos">
             </PersistentString>
             <PersistentString
-               value = "from">
+               value = "turn">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -552,10 +552,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -592,6 +592,14 @@
       </ContextState>
       <ContextState
          contextName = "Apt::GetSimilarTaxiTmpPos(double, double, bool):LTApt.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTFlightData::ExportFD(LTFlightData::FDDynamicData const&amp;, positionTy const&amp;):LTFlightData.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "buf">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "DataRefs::LoadConfigFile()::$_0::operator()(DataRefs::dataRefDefinitionT const&amp;) const:DataRefs.cpp">
@@ -1112,10 +1120,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -1131,6 +1139,9 @@
       <ContextState
          contextName = "OpenGliderConnection::APRSProcessLine(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;):LTOpenGlider.cpp">
          <PersistentStrings>
+            <PersistentString
+               value = "fdKey">
+            </PersistentString>
             <PersistentString
                value = "ln">
             </PersistentString>

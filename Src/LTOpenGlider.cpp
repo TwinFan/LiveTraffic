@@ -211,7 +211,8 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         }
         
         // We sliently skip all static objects
-        if (std::stoi(tok[GNF_FLARM_ACFT_TYPE]) == FAT_STATIC_OBJ)
+        if (dataRefs.GetHideStaticTwr() &&
+            std::stoi(tok[GNF_FLARM_ACFT_TYPE]) == FAT_STATIC_OBJ)
             continue;
         
         // We also skip records, which are outdated by the time they arrive
@@ -558,8 +559,11 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     // We silently skip all static objects and those who do not want to be tracked
     uint8_t senderDetails   = (uint8_t)std::stoul(m.str(M_SEND_DETAILS), nullptr, 16);
     FlarmAircraftTy acTy    = FlarmAircraftTy((senderDetails & 0b00111100) >> 2);
-    if ((senderDetails & 0b11000000) ||         // "No tracking" or "stealth mode" set?
-        (acTy == FAT_STATIC_OBJ))               // Static object?
+    if (senderDetails & 0b11000000)             // "No tracking" or "stealth mode" set?
+        return true;                            // -> ignore
+    
+    if (dataRefs.GetHideStaticTwr() &&          // Shall hide static objects and it is
+        acTy == FAT_STATIC_OBJ)                 // Static object?
         return true;                            // -> ignore
     
     // Timestamp - skip too old records

@@ -126,18 +126,37 @@
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
-    <h2>v3.0</h2>
+    <h2>v3</h2>
     
-    <h3>v3.0.0 X-Plane 12 Support</h3>
+    <h3>v3.1.0</h3>
 
     <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
     over the files of your existing installation.</P>
+
+    <P>At least copy the following files, which have changed compared to v3.0.0:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+    
+    <ul>
+        <li>NEW Advanced settings for increased flight data refresh interval
+            when flying above a configurable height AGL;
+            so that your OpenSky and ADS-B budgets last longer during cruise.</li>
+        <li>Removed <i>A/c outdated timeout</i> setting, now handled automatically.</li>
+        <li>OpenSky settings: Allow to set username/password while channel is active</li>
+    </ul>
+
+    <h3>v3.0.0 X-Plane 12 Support and channel updates</h3>
 
     <P>At least copy the following files, which have changed compared to v2.60:</P>
         <ul>
             <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
             <li><code>Resources/Doc8643.txt</code></li>
             <li><code>Resources/FlightModels.prf</code></li>
+            <li><code>Resources/SendTraffic.py</code></li>
         </ul>
     </p>
 
@@ -159,30 +178,51 @@
                 </li>
             </ul>
         </li>
-        <li>NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/225">#225</a> Option <i>Basics &gt; Cooperation &gt; Hide all a/c in Replay</i>.</li>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/225">#225</a> option <i>Basics &gt; Cooperation &gt; Hide all a/c in Replay</i>
+            to have all aircraft hidden while X-Plane is in Replay mode.
+        </li>
+        <li>
+            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/223">#223</a> option <i>Basics &gt; Cooperation &gt; Hide static objects</i>
+            to remove static objects like towers from all data streams where identifiable.
+        </li>
         <li>
             NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/18">#18</a> feature: Planes correct angle for wind, crab and de-crab for take-off/landing.
             The wind considered is taken from current simulator's weather, ie. the same that affects your own aircraft, too.
-        </li>
-        <li>
-            NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/223">#223</a> option
-            to remove static objects like towers from all data streams where identifiable.
         </li>
         <li>
             General performance improvements, especially noticeable if many more
             aircraft are seen in the data than can be displayed.
         </li>
         <li>
-            ADS-B Exchange: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/224">#224</a>:
-            Read provided departure/arrival airport info, which comes as
-            3-letter IATA codes.
+            OpenSky: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/237">#237</a> option to
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/opensky">enter credentials</a>
+            of a registered user account to allow for a higher number of requests
+            per day (<a href="https://openskynetwork.github.io/opensky-api/rest.html#limitations">details</a>).<br>
+            Remaining requests per day are shown in the OpenSky status in the
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status / About page</a>
+            and in the OpenSky settings.
+        </li>
+        <li>
+            ADS-B Exchange: Prepare for version 2 data format (not yet available for the RAPID API interface).<br>
+            Provides more data for potentially better altitude and
+            type of vehicle information. Will become mandatory as the v1
+            format will be phased out by ADS-B Exchange at some point in time.
         </li>
         <li>
             RealTraffic: NEW <a href="https://github.com/TwinFan/LiveTraffic/issues/229">#229</a>
             support for trafic info format "RTTFC" introduced with RT v9,
-            broadcasted on port 49005, becoming the default.
-            Older formats continue to work, too.<br>
-            Port number for traffic data is now configurable in <i>Settings &gt; Input Channels &gt; Realtraffic</i>.
+            broadcasted on port 49005, becoming the default listening port.
+            Older formats continue to work, too, no matter the network port.<br>
+            The network port LiveTraffic listens to is now configurable in <i>Settings &gt; Input Channels &gt; RealTraffic</i>.
+        </li>
+        <li>
+            The <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#export">Export functionality</a>
+            is also extended to support RealTraffic's RTTFC format:
+            There is a new setting <i>Advanced &gt; Export &gt; Export file format</i>
+            to choose between the previous AITFC and the new RTTFC format.<br>
+            Use the updated <code>Resources/SendTraffic.py</code> to send
+            AITFC or RTTFC data back into LiveTraffic.
         </li>
         <li>
             ADDED more potential Ground Vehicles to <code>FlightModels.prf</code>, thanks to @sawiczja and @larsras.

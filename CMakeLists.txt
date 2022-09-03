@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Archs to build")
 
 project(LiveTraffic
-        VERSION 3.0.0
+        VERSION 3.1.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition

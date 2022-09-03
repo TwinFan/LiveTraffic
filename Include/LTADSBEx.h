@@ -40,7 +40,7 @@
 #define ADSBEX_CHECK_POPUP      "Check ADS-B Exchange's coverage"
 
 #define ADSBEX_NAME             "ADS-B Exchange Online"
-#define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/json/lat/%f/lon/%f/dist/%d/"
+#define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/v2/lat/%f/lon/%f/dist/%d/"
 #define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
 
 #define ADSBEX_RAPIDAPI_25_URL  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/%f/lon/%f/dist/25/"
@@ -50,40 +50,59 @@
 #define ADSBEX_RAPIDAPI_RREMAIN "X-RateLimit-Requests-Remaining:"
 
 #define ADSBEX_TOTAL            "total"
-#define ADSBEX_TIME             "ctime"
+#define ADSBEX_NOW              "now"
 #define ADSBEX_AIRCRAFT_ARR     "ac"
-#define ADSBEX_TRANSP_ICAO      "icao"          // Key data
-#define ADSBEX_TRT              "trt"
-#define ADSBEX_RADAR_CODE       "sqk"           // Dynamic data
-#define ADSBEX_CALL             "call"
-#define ADSBEX_LAT              "lat"
-#define ADSBEX_LON              "lon"
-#define ADSBEX_ELEVATION        "galt"          // geometric altitude
-#define ADSBEX_ALT              "alt"           // barometric altitude
-#define ADSBEX_HEADING          "trak"
-#define ADSBEX_GND              "gnd"
-#define ADSBEX_POS_TIME         "postime"
-#define ADSBEX_SPD              "spd"
-#define ADSBEX_VSI              "vsi"
-#define ADSBEX_REG              "reg"
-#define ADSBEX_COUNTRY          "cou"
-#define ADSBEX_AC_TYPE_ICAO     "type"
-#define ADSBEX_MIL              "mil"
-#define ADSBEX_OP_ICAO          "opicao"
-#define ADSBEX_ORIGIN           "from"
-#define ADSBEX_DESTINATION      "to"
 
-#define ADSBEX_TYPE_GND         "-GND"
+// Version 2 keys
+#define ADSBEX_V2_TRANSP_ICAO   "hex"           // Key data
+#define ADSBEX_V2_RADAR_CODE    "squawk"        // Dynamic data
+#define ADSBEX_V2_FLIGHT        "flight"
+#define ADSBEX_V2_LAT           "lat"
+#define ADSBEX_V2_LON           "lon"
+#define ADSBEX_V2_ALT_GEOM      "alt_geom"      // geometric altitude
+#define ADSBEX_V2_ALT_BARO      "alt_baro"      // barometric altitude
+#define ADSBEX_V2_NAV_QNH       "nav_qnh"       // QNH of barometric altitude
+#define ADSBEX_V2_HEADING       "true_heading"
+#define ADSBEX_V2_TRACK         "track"
+#define ADSBEX_V2_SEE_POS       "seen_pos"
+#define ADSBEX_V2_SPD           "gs"
+#define ADSBEX_V2_VSI_GEOM      "geom_rate"
+#define ADSBEX_V2_VSI_BARO      "baro_rate"
+#define ADSBEX_V2_REG           "r"
+#define ADSBEX_V2_AC_TYPE_ICAO  "t"
+#define ADSBEX_V2_AC_CATEGORY   "category"
+#define ADSBEX_V2_FLAGS         "dbFlags"
 
-// still used in historic data code, unsure if supported:
-#define ADSBEX_RCVR             "Rcvr"
-#define ADSBEX_SIG              "Sig"
-#define ADSBEX_COS              "Cos"               // array of short trails
+// Version 1 keys
+#define ADSBEX_TIME             "ctime"
+#define ADSBEX_V1_TRANSP_ICAO   "icao"          // Key data
+#define ADSBEX_V1_RADAR_CODE    "sqk"           // Dynamic data
+#define ADSBEX_V1_CALL          "call"
+#define ADSBEX_V1_LAT           "lat"
+#define ADSBEX_V1_LON           "lon"
+#define ADSBEX_V1_ELEVATION     "galt"          // geometric altitude
+#define ADSBEX_V1_ALT           "alt"           // barometric altitude
+#define ADSBEX_V1_HEADING       "trak"
+#define ADSBEX_V1_GND           "gnd"
+#define ADSBEX_V1_POS_TIME      "postime"
+#define ADSBEX_V1_SPD           "spd"
+#define ADSBEX_V1_VSI           "vsi"
+#define ADSBEX_V1_REG           "reg"
+#define ADSBEX_V1_COUNTRY       "cou"
+#define ADSBEX_V1_AC_TYPE_ICAO  "type"
+#define ADSBEX_V1_MIL           "mil"
+#define ADSBEX_V1_OP_ICAO       "opicao"
+#define ADSBEX_V1_ORIGIN        "from"
+#define ADSBEX_V1_DESTINATION   "to"
+
+#define ADSBEX_V1_TYPE_GND      "-GND"
+
 
 // Testing an API key
 #define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
 #define ADSBEX_ERR              "msg"
-#define ADSBEX_NO_API_KEY       "You need a key."
+#define ADSBEX_SUCCESS          "No error"
+#define ADSBEX_NO_API_KEY       "You need an authorized API key."
 
 #define ADSBEX_VERIFY_RAPIDAPI  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/0.0/lon/0.0/dist/25/"
 #define ADSBEX_RAPID_ERR        "message"
@@ -118,6 +137,7 @@ public:
     virtual bool IsLiveFeed() const { return true; }
     virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
     virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
+    virtual std::string GetStatusText () const;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
 //    { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
@@ -126,6 +146,18 @@ protected:
     // need to add/cleanup API key
     virtual bool InitCurl ();
     virtual void CleanupCurl ();
+    
+    /// Process v2 data
+    void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+                    mapLTFlightDataTy& fdMap,
+                    const double tsCutOff, const double adsbxTime,
+                    const positionTy& viewPos);
+    /// Process v1 data
+    void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+                    mapLTFlightDataTy& fdMap,
+                    const double tsCutOff, const double adsbxTime,
+                    const positionTy& viewPos);
+
     // make list of HTTP header fields
     static struct curl_slist* MakeCurlSList (keyTypeE keyTy, const std::string theKey);
     // read header and parse for request limit/remaining
@@ -143,54 +175,6 @@ protected:
     // actual test, blocks, should by called via std::async
     static bool DoTestADSBExAPIKey (const std::string newKey);
     static size_t DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t nmemb, void* userdata);
-};
-
-
-//MARK: ADS-B Exchange (Historic) Constants
-#define ADSBEX_HIST_NAME        "ADS-B Exchange Historic"
-constexpr int ADSBEX_HIST_MIN_CHARS   = 20;             // minimum nr chars per line to be a 'reasonable' line
-constexpr int ADSBEX_HIST_MAX_ERR_CNT = 5;              // after that many errorneous line we stop reading
-#define ADSBEX_HIST_PATH        "Custom Data/ADSB"  // TODO : Move to options: relative to XP main
-#define ADSBEX_HIST_PATH_2      "Custom Data/ADSB2" // TODO : Move to options: fallback, if first one doesn't work
-#define ADSBEX_HIST_DATE_PATH   "%c%04d-%02d-%02d"
-#define ADSBEX_HIST_FILE_NAME   "%c%04d-%02d-%02d-%02d%02dZ.json"
-#define ADSBEX_HIST_PATH_EMPTY  "Historic Data Path doesn't exist or folder empty at %s"
-#define ADSBEX_HIST_TRY_FALLBACK "Trying fallback as primary Historic Data Path doesn't exist or folder empty at %s"
-#define ADSBEX_HIST_FALLBACK_EMPTY  "Also fallback Historic Data Path doesn't exist or folder empty at %s"
-#define ADSBEX_HIST_FILE_ERR    "Could not open historic file '%s': %s"
-#define ADSBEX_HIST_READ_FILE   "Reading from historic file %s"
-#define ADSBEX_HIST_LN1_END     "\"acList\":["      // end of first line
-#define ADSBEX_HIST_LAT         "\"Lat\":"          // latitude tag
-#define ADSBEX_HIST_LONG        "\"Long\":"         // longitude tag
-#define ADSBEX_HIST_COS         "\"Cos\":["         // start of short trails
-#define ADSBEX_HIST_LAST_LN     "]"                 // begin of last line
-#define ADSBEX_HIST_LN1_UNEXPECT "First line doesn't look like hist file: %s"
-#define ADSBEX_HIST_LN_ERROR    "Error reading line %d of hist file %s"
-#define ADSBEX_HIST_TRAIL_ERR   "Trail data not quadrupels (%s @ %f)"
-#define ADSBEX_HIST_START_FILE  "START OF FILE "
-#define ADSBEX_HIST_END_FILE    "END OF FILE "
-
-//
-//MARK: ADS-B Exchange Historical Data
-//
-class ADSBExchangeHistorical : public LTFileChannel, LTFlightDataChannel
-{
-    // helper type to select best receiver per a/c from multiple in one file
-    struct FDSelection
-    {
-        int quality;                // quality value
-        std::string ln;             // line of flight data from file
-    };
-    
-    typedef std::map<std::string, FDSelection> mapFDSelectionTy;
-    
-public:
-    ADSBExchangeHistorical (std::string base = ADSBEX_HIST_PATH,
-                            std::string fallback = ADSBEX_HIST_PATH_2);
-    virtual bool FetchAllData (const positionTy& pos);
-    virtual bool IsLiveFeed() const { return false; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
 };
 
 

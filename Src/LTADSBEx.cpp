@@ -89,7 +89,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // test for ERRor response
     const std::string errTxt = jog_s(pObj, sERR);
-    if (!errTxt.empty()) {
+    if (!errTxt.empty() &&
+        errTxt != ADSBEX_SUCCESS) {
         if (begins_with<std::string>(errTxt, sNOK)) {
             SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
             SetValid(false);
@@ -105,13 +106,17 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     const positionTy viewPos = dataRefs.GetViewPos();
     
     // for determining an offset as compared to network time we need to know network time
-    double adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
+    // Also used later to calcualte the position's timestamp
+    double adsbxTime = jog_n_nan(pObj, ADSBEX_NOW)  / 1000.0;
+    if (std::isnan(adsbxTime))
+        adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
+    
     if (adsbxTime > JAN_FIRST_2019)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(adsbxTime);
     
-    // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
-    const double tsCutOff = dataRefs.GetSimTime();
+    // Cut-off time: We ignore tracking data, which is older than our buffering time
+    const double tsCutOff = (double) dataRefs.GetFdBufPeriod();
     
     // let's cycle the aircraft
     // fetch the aircraft array
@@ -131,134 +136,39 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             }
         }
         
-        // the key: transponder Icao code
-        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
-                                     jog_s(pJAc, ADSBEX_TRANSP_ICAO));
+        // try version 2 first
+        int ver = 2;
+        std::string hexKey = jog_s(pJAc, ADSBEX_V2_TRANSP_ICAO);
+        if (hexKey.empty()) {
+            // not found, try version 1
+            ver = 1;
+            hexKey = jog_s(pJAc, ADSBEX_V1_TRANSP_ICAO);
+            if (hexKey.empty())
+                continue;
+        }
+        
+        // the key: transponder Icao code or some other code
+        LTFlightData::FDKeyType keyType = LTFlightData::KEY_ICAO;
+        if (hexKey.front() == '~') {        // key is a non-icao code?
+            hexKey.erase(0, 1);             // remove the ~
+            keyType = LTFlightData::KEY_ADSBEX;
+        }
+        LTFlightData::FDKeyTy fdKey (keyType, hexKey);
         
         // not matching a/c filter? -> skip it
         if (!acFilter.empty() && (fdKey != acFilter))
-        {
-            continue;
-        }
-        
-        // ADS-B returns Java tics, that is milliseconds, we use seconds
-        const double posTime = jog_sn(pJAc, ADSBEX_POS_TIME) / 1000.0;
-        // skip stale data
-        if (posTime <= tsCutOff)
-            continue;
-        
-        // ADSBEx, especially the RAPID API version, returns
-        // aircraft regardless of distance. To avoid planes
-        // created and immediately removed due to distanced settings
-        // we continue only if pos is within wanted range
-        positionTy pos (jog_sn_nan(pJAc, ADSBEX_LAT),
-                        jog_sn_nan(pJAc, ADSBEX_LON),
-                        NAN,
-                        posTime);
-        const double dist = pos.dist(viewPos);
-        if (dist > dataRefs.GetFdStdDistance_m() )
             continue;
 
-        // Are we to skip static objects?
-        if (dataRefs.GetHideStaticTwr()) {
-            if (!strcmp(jog_s(pJAc, ADSBEX_GND), "1") &&    // on the ground
-                !*jog_s(pJAc, ADSBEX_AC_TYPE_ICAO) &&       // no type
-                !*jog_s(pJAc, ADSBEX_HEADING) &&            // no `trak` heading, not even "0"
-                !*jog_s(pJAc, ADSBEX_CALL) &&               // no call sign
-                !*jog_s(pJAc, ADSBEX_REG) &&                // no tail number
-                !strcmp(jog_s(pJAc, ADSBEX_SPD), "0"))      // speed exactly "0"
-                // skip
-                continue;
-        }
-
+        // Process the details, depends on version detected
         try {
-            // from here on access to fdMap guarded by a mutex
-            // until FD object is inserted and updated
-            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
-            
-            // Check for duplicates with OGN/FLARM, potentially replaces the key type
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-
-            // get the fd object from the map, key is the transpIcao
-            // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[fdKey];
-            
-            // also get the data access lock once and for all
-            // so following fetch/update calls only make quick recursive calls
-            std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-            // now that we have the detail lock we can release the global one
-            mapFdLock.unlock();
-            
-            // completely new? fill key fields
-            if ( fd.empty() )
-                fd.SetKey(fdKey);
-            
-            // -- fill static data --
-            LTFlightData::FDStaticData stat;
-            stat.reg =        jog_s(pJAc, ADSBEX_REG);
-            stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
-            stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
-            stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
-            stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
-            stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
-            stat.call =       jog_s(pJAc, ADSBEX_CALL);
-            stat.originAp =   jog_s(pJAc, ADSBEX_ORIGIN);
-            stat.destAp =     jog_s(pJAc, ADSBEX_DESTINATION);
-            stat.slug       = ADSBEX_SLUG_BASE;
-            stat.slug      += fdKey.key;
-            
-            // ADSBEx sends airport info like "LHR London Heathrow United Kingdom"
-            // That's way to long...
-            cut_off(stat.originAp, " ");
-            cut_off(stat.destAp, " ");
-
-            // -- dynamic data --
-            LTFlightData::FDDynamicData dyn;
-            
-            // non-positional dynamic data
-            dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
-            dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
-            dyn.heading =           jog_sn_nan(pJAc, ADSBEX_HEADING);
-            dyn.spd =               jog_sn(pJAc, ADSBEX_SPD);
-            dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
-            dyn.ts =                posTime;
-            dyn.pChannel =          this;
-            
-            // altitude, if airborne; fetch barometric altitude here
-            const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ALT);
-
-            // position: altitude, heading, ground status
-            pos.SetAltFt(dataRefs.WeatherAltCorr_ft(alt_ft));
-            pos.heading() = dyn.heading;
-            pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
-            
-            // -- Ground vehicle identification --
-            // Sometimes we get "-GND", replace it with "ZZZC"
-            if (stat.acTypeIcao == ADSBEX_TYPE_GND)
-                stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-
-            // But often, ADSBEx doesn't send a clear indicator
-            if (stat.acTypeIcao.empty() &&      // don't know a/c type yet
-                stat.reg.empty() &&             // don't have tail number
-                dyn.gnd &&                      // on the ground
-                dyn.spd < 50.0)                 // reasonable speed
-            {
-                // we assume ground vehicle
-                stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-            }
-
-            // update the a/c's master data
-            fd.UpdateData(std::move(stat), dist);
-            
-            // position is rather important, we check for validity
-            if ( pos.isNormal(true) ) {
-                fd.AddDynData(dyn, 0, 0, &pos);
-            }
-            else
-                LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
-
+            if (ver == 2)
+                ProcessV2(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+            else if (ver == 1)
+                ProcessV1(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+        } catch(...) {
+            LOG_MSG(logERR, "Exception while processing data for '%s'", hexKey.c_str());
         }
     }
     
@@ -268,6 +178,295 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     // success
     return true;
 }
+
+
+// Process v2 data
+void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
+                                        LTFlightData::FDKeyTy& fdKey,
+                                        mapLTFlightDataTy& fdMap,
+                                        const double tsCutOff,
+                                        const double adsbxTime,
+                                        const positionTy& viewPos)
+{
+    // ADS-B returns Java tics, that is milliseconds, we use seconds
+    const double ageOfPos = jog_sn(pJAc, ADSBEX_V2_SEE_POS);
+    // skip stale data
+    if (ageOfPos >= tsCutOff)
+        return;
+    
+    // Try getting best possible position information
+    // Some fields can come back NAN if not defined
+    positionTy pos (jog_n_nan(pJAc, ADSBEX_V2_LAT),
+                    jog_n_nan(pJAc, ADSBEX_V2_LON),
+                    jog_n_nan(pJAc, ADSBEX_V2_ALT_GEOM) * M_per_FT,
+                    adsbxTime - ageOfPos,
+                    jog_n_nan(pJAc, ADSBEX_V2_HEADING));
+    
+    // If lat/lon isn't defined then the tracking data is stale: discard
+    if (std::isnan(pos.lat()) || std::isnan(pos.lon()))
+        return;
+    
+    // ADSBEx, especially the RAPID API version, returns
+    // aircraft regardless of distance. To avoid planes
+    // created and immediately removed due to distanced settings
+    // we continue only if pos is within wanted range
+    const double dist = pos.dist(viewPos);
+    if (dist > dataRefs.GetFdStdDistance_m() )
+        return;
+    
+    // The alt_baro field is string "ground" if on ground or can hold a baro altitude number
+    const JSON_Value* pAltBaro = json_object_get_value(pJAc, ADSBEX_V2_ALT_BARO);
+    if (pAltBaro) {
+        switch (json_value_get_type(pAltBaro))
+        {
+            case JSONNumber:
+                pos.f.onGrnd = GND_OFF;         // we are definitely off ground
+                // But we only need to _process_ baro alt if we don't yet have an altitude
+                if (std::isnan(pos.alt_m()))
+                {
+                    // try converting baro alt from given QNH, otherwise we use our own weather
+                    const double baro_alt = json_number(pAltBaro);
+                    const double qnh = jog_n_nan(pJAc, ADSBEX_V2_NAV_QNH);
+                    if (std::isnan(qnh))
+                        pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt));
+                    else
+                        pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt, qnh));
+                }
+                break;
+                
+            case JSONString:
+                // There is just one string we are aware of: "ground"
+                if (!strcmp(json_string(pAltBaro), "ground")) {
+                    pos.f.onGrnd = GND_ON;
+                    pos.alt_m() = NAN;
+                }
+                break;
+        }
+    }
+    // _Some_ altitude info needs to be available now, otherwise skip data
+    if (!pos.IsOnGnd() && std::isnan(pos.alt_m()))
+        return;
+    
+    // Are we to skip static objects?
+    const std::string reg = jog_s(pJAc, ADSBEX_V2_REG);
+    std::string acTy = jog_s(pJAc, ADSBEX_V2_AC_TYPE_ICAO);
+    const std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
+    
+    // Skip static objects
+    if (dataRefs.GetHideStaticTwr()) {
+        if (reg  == "TWR" ||
+            acTy == "TWR" ||
+            cat  == "C3")
+            // skip
+            return;
+    }
+    
+    // Identify ground vehicles
+    if (cat  == "C1"  || cat == "C2" ||
+        reg  == "GND" ||
+        acTy == "GND")
+        acTy = dataRefs.GetDefaultCarIcaoType();
+    else if (pos.IsOnGnd() &&
+             acTy.empty() && reg.empty() && cat.empty())
+        acTy = dataRefs.GetDefaultCarIcaoType();
+
+    // from here on access to fdMap guarded by a mutex
+    // until FD object is inserted and updated
+    std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+    
+    // Check for duplicates with OGN/FLARM, potentially replaces the key type
+    LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+    
+    // get the fd object from the map, key is the transpIcao
+    // this fetches an existing or, if not existing, creates a new one
+    LTFlightData& fd = fdMap[fdKey];
+    
+    // also get the data access lock once and for all
+    // so following fetch/update calls only make quick recursive calls
+    std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+    // now that we have the detail lock we can release the global one
+    mapFdLock.unlock();
+    
+    // completely new? fill key fields
+    if ( fd.empty() )
+        fd.SetKey(fdKey);
+    
+    // -- fill static data --
+    LTFlightData::FDStaticData stat;
+    stat.reg =        reg;
+    stat.acTypeIcao = acTy;
+    stat.mil =        (jog_l(pJAc, ADSBEX_V2_FLAGS) & 0x01) == 0x01;
+    stat.call =       jog_s(pJAc, ADSBEX_V2_FLIGHT);
+    trim(stat.call);
+    stat.catDescr = GetADSBEmitterCat(cat);
+    stat.slug       = ADSBEX_SLUG_BASE;
+    stat.slug      += fdKey.key;
+    
+    // -- dynamic data --
+    LTFlightData::FDDynamicData dyn;
+    
+    // non-positional dynamic data
+    dyn.radar.code =        jog_sl(pJAc, ADSBEX_V2_RADAR_CODE);
+    dyn.gnd =               pos.IsOnGnd();
+    dyn.heading =           pos.heading();
+    dyn.spd =               jog_n_nan(pJAc, ADSBEX_V2_SPD);
+    dyn.vsi =               jog_n_nan(pJAc, ADSBEX_V2_ALT_GEOM);
+    if (std::isnan(dyn.vsi))
+        dyn.vsi =           jog_n_nan(pJAc, ADSBEX_V2_ALT_BARO);
+    dyn.ts =                pos.ts();
+    dyn.pChannel =          this;
+    
+    // update the a/c's master data
+    fd.UpdateData(std::move(stat), dist);
+    
+    // position is rather important, we check for validity
+    if ( pos.isNormal(true) ) {
+        fd.AddDynData(dyn, 0, 0, &pos);
+    }
+    else
+        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+}
+
+// Process v1 data
+void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
+                                        LTFlightData::FDKeyTy& fdKey,
+                                        mapLTFlightDataTy& fdMap,
+                                        const double tsCutOff,
+                                        const double /*adsbxTime*/,
+                                        const positionTy& viewPos)
+{
+    // ADS-B returns Java tics, that is milliseconds, we use seconds
+    const double posTime = jog_sn(pJAc, ADSBEX_V1_POS_TIME) / 1000.0;
+    // skip stale data
+    if (posTime <= tsCutOff)
+        return;
+    
+    // ADSBEx, especially the RAPID API version, returns
+    // aircraft regardless of distance. To avoid planes
+    // created and immediately removed due to distanced settings
+    // we continue only if pos is within wanted range
+    positionTy pos (jog_sn_nan(pJAc, ADSBEX_V1_LAT),
+                    jog_sn_nan(pJAc, ADSBEX_V1_LON),
+                    NAN,
+                    posTime);
+    const double dist = pos.dist(viewPos);
+    if (dist > dataRefs.GetFdStdDistance_m() )
+        return;
+
+    // Are we to skip static objects?
+    if (dataRefs.GetHideStaticTwr()) {
+        if (!strcmp(jog_s(pJAc, ADSBEX_V1_GND), "1") && // on the ground
+            !*jog_s(pJAc, ADSBEX_V1_AC_TYPE_ICAO) &&    // no type
+            !*jog_s(pJAc, ADSBEX_V1_HEADING) &&         // no `trak` heading, not even "0"
+            !*jog_s(pJAc, ADSBEX_V1_CALL) &&            // no call sign
+            !*jog_s(pJAc, ADSBEX_V1_REG) &&             // no tail number
+            !strcmp(jog_s(pJAc, ADSBEX_V1_SPD), "0"))   // speed exactly "0"
+            // skip
+            return;
+    }
+
+    // from here on access to fdMap guarded by a mutex
+    // until FD object is inserted and updated
+    std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+    
+    // Check for duplicates with OGN/FLARM, potentially replaces the key type
+    LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+
+    // get the fd object from the map, key is the transpIcao
+    // this fetches an existing or, if not existing, creates a new one
+    LTFlightData& fd = fdMap[fdKey];
+    
+    // also get the data access lock once and for all
+    // so following fetch/update calls only make quick recursive calls
+    std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+    // now that we have the detail lock we can release the global one
+    mapFdLock.unlock();
+    
+    // completely new? fill key fields
+    if ( fd.empty() )
+        fd.SetKey(fdKey);
+    
+    // -- fill static data --
+    LTFlightData::FDStaticData stat;
+    stat.reg =        jog_s(pJAc, ADSBEX_V1_REG);
+    stat.country =    jog_s(pJAc, ADSBEX_V1_COUNTRY);
+    stat.acTypeIcao = jog_s(pJAc, ADSBEX_V1_AC_TYPE_ICAO);
+    stat.mil =        jog_sb(pJAc,ADSBEX_V1_MIL);
+    stat.opIcao =     jog_s(pJAc, ADSBEX_V1_OP_ICAO);
+    stat.call =       jog_s(pJAc, ADSBEX_V1_CALL);
+    stat.originAp =   jog_s(pJAc, ADSBEX_V1_ORIGIN);
+    stat.destAp =     jog_s(pJAc, ADSBEX_V1_DESTINATION);
+    stat.slug       = ADSBEX_SLUG_BASE;
+    stat.slug      += fdKey.key;
+    
+    // ADSBEx sends airport info like "LHR London Heathrow United Kingdom"
+    // That's way to long...
+    cut_off(stat.originAp, " ");
+    cut_off(stat.destAp, " ");
+
+    // -- dynamic data --
+    LTFlightData::FDDynamicData dyn;
+    
+    // non-positional dynamic data
+    dyn.radar.code =        jog_sl(pJAc, ADSBEX_V1_RADAR_CODE);
+    dyn.gnd =               jog_sb(pJAc, ADSBEX_V1_GND);
+    dyn.heading =           jog_sn_nan(pJAc, ADSBEX_V1_HEADING);
+    dyn.spd =               jog_sn(pJAc, ADSBEX_V1_SPD);
+    dyn.vsi =               jog_sn(pJAc, ADSBEX_V1_VSI);
+    dyn.ts =                posTime;
+    dyn.pChannel =          this;
+    
+    // altitude, if airborne; fetch barometric altitude here
+    const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_V1_ALT);
+
+    // position: altitude, heading, ground status
+    pos.SetAltFt(dataRefs.WeatherAltCorr_ft(alt_ft));
+    pos.heading() = dyn.heading;
+    pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
+    
+    // -- Ground vehicle identification --
+    // Sometimes we get "-GND", replace it with "ZZZC"
+    if (stat.acTypeIcao == ADSBEX_V1_TYPE_GND)
+        stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+
+    // But often, ADSBEx doesn't send a clear indicator
+    if (stat.acTypeIcao.empty() &&      // don't know a/c type yet
+        stat.reg.empty() &&             // don't have tail number
+        dyn.gnd &&                      // on the ground
+        dyn.spd < 50.0)                 // reasonable speed
+    {
+        // we assume ground vehicle
+        stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+    }
+
+    // update the a/c's master data
+    fd.UpdateData(std::move(stat), dist);
+    
+    // position is rather important, we check for validity
+    if ( pos.isNormal(true) ) {
+        fd.AddDynData(dyn, 0, 0, &pos);
+    }
+    else
+        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+}
+
+
+// get status info, including remaining requests
+std::string ADSBExchangeConnection::GetStatusText () const
+{
+    std::string s = LTChannel::GetStatusText();
+    if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
+    {
+        s += ", ";
+        s += std::to_string(dataRefs.ADSBExRRemain);
+        s += " / ";
+        s += std::to_string(dataRefs.ADSBExRLimit);
+        s += " RAPID API requests left";
+    }
+    return s;
+}
+
+
 
 // add/cleanup API key
 // (this is actually called prior to each request, so quite often)
@@ -487,9 +686,10 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                     // definitely received an error response
                     SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
                 }
-                // check what we received in the buffer
-                else if (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&
-                    readBuf.find(ADSBEX_TIME) != std::string::npos)
+                // check what we received in the buffer: an "ac" array, or both 'total' and 'now'?
+                else if (readBuf.find("\"" ADSBEX_AIRCRAFT_ARR "\"") != std::string::npos ||
+                         (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&
+                          readBuf.find(ADSBEX_NOW) != std::string::npos))
                 {
                     // looks like a valid response containing a/c info
                     bResult = true;
@@ -534,562 +734,3 @@ size_t ADSBExchangeConnection::DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t n
     // all consumed
     return nmemb;
 }
-
-//
-//MARK: ADS-B Exchange Historical Data
-//
-ADSBExchangeHistorical::ADSBExchangeHistorical (std::string base,
-                                                std::string fallback ) :
-LTChannel(DR_CHANNEL_ADSB_EXCHANGE_HISTORIC, ADSBEX_HIST_NAME),
-LTFileChannel(),
-LTFlightDataChannel()
-{
-    // determine full path (might be local to XP System Path)
-    pathBase = LTCalcFullPath(base);
-    // must contain _something_
-    if ( LTNumFilesInPath (pathBase) < 1) {
-        // first path didn't work, try fallback
-        if ( !fallback.empty() ) {
-            SHOW_MSG(logWARN,ADSBEX_HIST_TRY_FALLBACK,pathBase.c_str());
-            // determine full path (might be local to XP System Path)
-            pathBase = LTCalcFullPath(fallback);
-            // must contain _something_
-            if ( LTNumFilesInPath (pathBase) < 1) {
-                SetValid(false,false);
-                SHOW_MSG(logERR,ADSBEX_HIST_FALLBACK_EMPTY,pathBase.c_str());
-            } else {
-                SetValid(true);
-            }
-        } else {
-            // there is no fallback...so that's it
-            SetValid(false,false);
-            SHOW_MSG(logERR,ADSBEX_HIST_PATH_EMPTY,pathBase.c_str());
-        }
-    } else {
-        // found something in the primary path, good!
-        SetValid(true);
-    }
-}
-
-// reads ADS-B data from historical files into the buffer 'fileData'.
-// ADS-B provides one file per minute of the day (UTC)
-// https://www.adsbexchange.com/data/
-bool ADSBExchangeHistorical::FetchAllData (const positionTy& pos)
-{
-    // save last path verified to minimize I/O
-    std::string lastCheckedPath;
-    
-    // the bounding box: only aircraft in this box are considered
-    boundingBoxTy box (pos, dataRefs.GetFdStdDistance_m());
-    
-    // simulated "now" in full minutes UTC
-    time_t now = stripSecs(dataRefs.GetSimTime());
-    
-    // first-time read?
-    if ( !zuluLastRead )
-        zuluLastRead = now;
-    else {
-        // make sure we don't read too much...
-        // if for whatever reason we haven't had time to read files in the past 5 minutes
-        zuluLastRead = std::max(zuluLastRead,
-                                now - 5 * SEC_per_M);
-    }
-    
-    // Loop over files until 1 minutes ahead of (current sim time + regular buffering)
-    for (time_t until = now + (dataRefs.GetFdBufPeriod() + SEC_per_M);
-         zuluLastRead <= until;
-         zuluLastRead += SEC_per_M)      // increase by one minute per iteration
-    {
-        // put together path and file name
-        char sz[50];
-        struct tm tm_val;
-        gmtime_s(&tm_val, &zuluLastRead);
-        snprintf(sz,sizeof(sz),ADSBEX_HIST_DATE_PATH,
-                 dataRefs.GetDirSeparator()[0],
-                 tm_val.tm_year + 1900,
-                 tm_val.tm_mon + 1,
-                 tm_val.tm_mday);
-        std::string pathDate = pathBase + sz;
-        
-        // check path, if not the same as last iteration
-        if ((pathDate != lastCheckedPath) &&
-            (LTNumFilesInPath(pathDate) < 1)) {
-            SetValid(false,false);
-            SHOW_MSG(logERR,ADSBEX_HIST_PATH_EMPTY,pathDate.c_str());
-            return false;
-        } else {
-            lastCheckedPath = pathDate;     // path good, don't check again
-        }
-        
-        // add hour-based file name
-        snprintf(sz,sizeof(sz),ADSBEX_HIST_FILE_NAME,
-                 dataRefs.GetDirSeparator()[0],
-                 tm_val.tm_year + 1900,
-                 tm_val.tm_mon + 1,
-                 tm_val.tm_mday,
-                 tm_val.tm_hour, tm_val.tm_min);
-        pathDate += sz;
-        
-        // open the file
-        std::ifstream f(pathDate);
-        if ( !f ) {                         // couldn't open
-            char sErr[SERR_LEN];
-            strerror_s(sErr, sizeof(sErr), errno);
-            SHOW_MSG(logERR,ADSBEX_HIST_FILE_ERR,pathDate.c_str(),sErr);
-            IncErrCnt();
-            return false;
-        }
-        LOG_MSG(logINFO,ADSBEX_HIST_READ_FILE,pathDate.c_str());
-        
-        // read the first line, which is expected to end with "acList":[
-        char lnBuf[5000];                   // lines with positional data can get really long...
-        f.getline(lnBuf,sizeof(lnBuf));
-        if (!f || f.gcount() < ADSBEX_HIST_MIN_CHARS ||
-            !strstr(lnBuf,ADSBEX_HIST_LN1_END))
-        {
-            // no significant number of chars read or end of line unexpected
-            SHOW_MSG(logERR,ADSBEX_HIST_LN1_UNEXPECT,pathDate.c_str());
-            IncErrCnt();
-            return false;
-        }
-        
-        // store a start-of-file indicator
-        listFd.emplace_back(std::string(ADSBEX_HIST_START_FILE) + sz);
-        
-        // now loop over the positional lines
-        int cntErr = 0;                     // count errors to bail out if file too bad
-        
-        // we make use of the apparent fact that the hist files
-        // contain one aircraft per line. We decide here already if the line
-        // is relevant to us (based on position falling into our bounding box)
-        // as we don't want to run 22 MB through the JSON parser in memory
-        for ( int i = 2; f.good() && !f.eof(); i++ ) {
-            // read a fresh line from the filex
-            lnBuf[0]=0;
-            f.getline(lnBuf,sizeof(lnBuf));
-            
-            // just ignore the last line, this is closing line or even empty
-            if ( f.eof() || strstr(lnBuf,ADSBEX_HIST_LAST_LN) == lnBuf)
-                break;
-            
-            // otherwise it shoud contain reasonable info
-            if ( !f ||
-                f.gcount() < ADSBEX_HIST_MIN_CHARS ||
-                !strchr (lnBuf,'{')         // should also contain '{'
-                ) {
-                // no significant number of chars read, looks invalid, skip
-                SHOW_MSG(logWARN,ADSBEX_HIST_LN_ERROR,i,pathDate.c_str());
-                if (++cntErr > ADSBEX_HIST_MAX_ERR_CNT) {
-                    // this file is too bad...skip rest
-                    IncErrCnt();
-                    break;
-                }
-                continue;
-            }
-            
-            // there are occasionally lines starting with the comma
-            // (which is supposed to be at the end of the line)
-            // remove that comma, otherwise the line is no valid JSON by itself
-            if (lnBuf[0] != '{')
-                memmove(lnBuf,strchr(lnBuf,'{'),strlen(strchr(lnBuf,'{'))+1);
-            
-            // there are two good places for positional info:
-            // tags Lat/Long or the trail after tag Cos
-            positionTy acPos;
-            const char* pLat = strstr(lnBuf,ADSBEX_HIST_LAT);
-            const char* pLong = strstr(lnBuf,ADSBEX_HIST_LONG);
-            const char* pCos = strstr(lnBuf,ADSBEX_HIST_COS);
-            if ( pLat && pLong ) {          // found Lat/Long tags
-                pLat += strlen(ADSBEX_HIST_LAT);
-                pLong += strlen(ADSBEX_HIST_LONG);
-                acPos.lat() = atof(pLat);
-                acPos.lon() = atof(pLong);
-            } else if ( pCos ) {            // only found trails? (rare...)
-                pCos += strlen(ADSBEX_HIST_COS);  // move to _after_ [
-                // there follow: lat, lon, time, alt, lat, lon, time, alt...
-                // we take the first lat/lon
-                acPos.lat() = atof(pCos);
-                // move on to lat - after the comma
-                pCos = strchr(pCos,',');
-                if ( !pCos ) {                  // no comma is _not_ valid,
-                    SHOW_MSG(logWARN,ADSBEX_HIST_LN_ERROR,i,pathDate.c_str());
-                    if (++cntErr > ADSBEX_HIST_MAX_ERR_CNT) {
-                        // this file is too bad...skip rest
-                        IncErrCnt();
-                        break;
-                    }
-                    continue;
-                }
-                acPos.lon() = atof(++pCos);
-            } else                          // no positional info...
-                continue;                   // valid but useless for our purposes -> ignore line
-            
-            // if the position is within the bounding box then we save for later
-#ifdef DEBUG
-            std::string dbg (acPos.dbgTxt());
-            dbg += " in ";
-            dbg += box;
-#endif
-            if ( box.contains(acPos) )
-                listFd.emplace_back(lnBuf);
-        }
-        
-        // store an end-of-file indicator
-        listFd.emplace_back(std::string(ADSBEX_HIST_END_FILE) + sz);
-        
-        // close the file
-        f.close();
-    }
-    
-    // Success
-    return true;
-}
-
-
-bool ADSBExchangeHistorical::ProcessFetchedData (mapLTFlightDataTy& fdMap)
-{
-    // We need to calculate distance to current camera later on
-    const positionTy viewPos = dataRefs.GetViewPos();
-
-    // any a/c filter defined for debugging purposes?
-    std::string acFilter ( dataRefs.GetDebugAcFilter() );
-    
-    // data is expected in listFd, one line per flight data
-    // iterate the lines
-    for (std::list<std::string>::iterator lnIter = listFd.begin();
-         lnIter != listFd.end();
-         ++lnIter)
-    {
-        // must be a start-of-file indicator
-        LOG_ASSERT(lnIter->find(ADSBEX_HIST_START_FILE) == 0);
-        
-        // *** Per a/c select just one best receiver, discard other lines ***
-        // Reason is that despite any attempts of smoothening the flight path
-        // when combining multiple receivers there still are spikes causing
-        // zig zag routes or sudden up/down movement.
-        // So instead of trying to combine the data from multiple lines
-        // (=receivers) for one a/c we _select_ one of these lines and only
-        // work with that one line.
-        mapFDSelectionTy selMap;              // selected lines of current file
-        
-        // loop over flight data lines of current file
-        for (++lnIter;
-             lnIter != listFd.end() && lnIter->find(ADSBEX_HIST_END_FILE) == std::string::npos;
-             ++lnIter)
-        {
-            // the line as read from the historic file
-            std::string& ln = *lnIter;
-            
-            // each individual line should work as a JSON object
-            JSON_Value* pRoot = json_parse_string(ln.c_str());
-            if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
-            JSON_Object* pJAc = json_object(pRoot);
-            if (!pJAc) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
-            
-            // the key: transponder Icao code
-            LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
-                                         jog_s(pJAc, ADSBEX_TRANSP_ICAO));
-            
-            // not matching a/c filter? -> skip it
-            if  (!acFilter.empty() && (fdKey != acFilter))
-            {
-                json_value_free (pRoot);
-                continue;
-            }
-            
-            // the receiver we are dealing with right now
-            int rcvr = (int)jog_l(pJAc, ADSBEX_RCVR);
-            
-            // variables we need for quality indicator calculation
-            int sig =               (int)jog_l(pJAc, ADSBEX_SIG);
-            JSON_Array* pCosList =  json_object_get_array(pJAc, ADSBEX_COS);
-            int cosCount =          int(json_array_get_count(pCosList)/4);
-            
-            // quality is made up of signal level, number of elements of the trail
-            int qual = (sig + cosCount);
-            
-            // and we award the currently used receiver a 50% award: we value to
-            // stay with the same receiver minute after minute (file-to-file)
-            // as this is more likely to avoid spikes when connection this
-            // minute's trail with last minute's trail
-            
-
-            
-            mapLTFlightDataTy::iterator fdIter = fdMap.find(fdKey);
-            if ( fdIter != fdMap.end() && fdIter->second.GetRcvr() == rcvr ) {
-                qual *= 3;
-                qual /= 2;
-            }
-            
-            // did we find another line for this a/c earlier in this file?
-            mapFDSelectionTy::iterator selIter = selMap.find(fdKey.key);
-            
-            // if so we have to compare qualities, the better one survives
-            if ( selIter != selMap.end() )
-            {
-                // now...is quality better than the earlier line(s) in the file?
-                if ( qual > selIter->second.quality ) {
-                    // replace the content, _move_ the line here...we don't need copies
-                    selIter->second.quality = qual;
-                    selIter->second.ln = std::move(ln);
-                }
-            } else {
-                // first time we see this a/c in this file -> add to map
-                selMap.emplace(std::make_pair(fdKey.key, FDSelection {qual, std::move(ln)} ));
-            }
-            
-            // done with interpreting this line
-            json_value_free (pRoot);
-            
-        } // loop over lines of current files
-        
-        // now we only process the selected lines in order to actually
-        // add flight data to our processing
-        for ( mapFDSelectionTy::value_type selVal: selMap )
-        {
-            // each individual line should work as a JSON object
-            JSON_Value* pRoot = json_parse_string(selVal.second.ln.c_str());
-            if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
-            JSON_Object* pJAc = json_object(pRoot);
-            if (!pJAc) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
-            
-            try {
-                // from here on access to fdMap guarded by a mutex
-                // until FD object is inserted and updated
-                std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
-                
-                // get the fd object from the map, key is the transpIcao
-                // this fetches an existing or, if not existing, creates a new one
-                LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
-                                             selVal.first);
-                LTFlightData& fd = fdMap[fdKey];
-                
-                // also get the data access lock once and for all
-                // so following fetch/update calls only make quick recursive calls
-                std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-                // now that we have the detail lock we can release the global one
-                mapFdLock.unlock();
-
-                // completely new? fill key fields
-                if ( fd.empty() )
-                    fd.SetKey(fdKey);
-                
-                // fill static
-                LTFlightData::FDStaticData stat;
-                stat.reg =        jog_s(pJAc, ADSBEX_REG);
-                stat.country =    jog_s(pJAc, ADSBEX_COUNTRY);
-                stat.acTypeIcao = jog_s(pJAc, ADSBEX_AC_TYPE_ICAO);
-                stat.mil =        jog_sb(pJAc, ADSBEX_MIL);
-                stat.trt          = transpTy(jog_sl(pJAc,ADSBEX_TRT));
-                stat.opIcao =     jog_s(pJAc, ADSBEX_OP_ICAO);
-                stat.call =       jog_s(pJAc, ADSBEX_CALL);
-                
-                // dynamic data
-                LTFlightData::FDDynamicData dyn;
-                
-                // ADS-B returns Java tics, that is milliseconds, we use seconds
-                double posTime = jog_n(pJAc, ADSBEX_POS_TIME) / 1000.0;
-                
-                // non-positional dynamic data
-                dyn.radar.code =        jog_sl(pJAc, ADSBEX_RADAR_CODE);
-                dyn.gnd =               jog_sb(pJAc, ADSBEX_GND);
-                dyn.heading =           jog_sn_nan(pJAc, ADSBEX_HEADING);
-                dyn.spd =               jog_sn(pJAc, ADSBEX_SPD);
-                dyn.vsi =               jog_sn(pJAc, ADSBEX_VSI);
-                dyn.ts =                posTime;
-                dyn.pChannel =          this;
-
-                // altitude, if airborne
-                const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_ELEVATION);
-                
-                // position data, including short trails
-                positionTy mainPos (jog_sn_nan(pJAc, ADSBEX_LAT),
-                                    jog_sn_nan(pJAc, ADSBEX_LON),
-                                    // ADSB data is feet, positionTy expects meter
-                                    alt_ft * M_per_FT,
-                                    posTime,
-                                    dyn.heading);
-                
-                // Update flight data
-                fd.UpdateData(std::move(stat), mainPos.dist(viewPos));
-                              
-                fd.AddDynData(dyn,
-                              (int)jog_sl(pJAc, ADSBEX_RCVR),
-                              (int)jog_sl(pJAc, ADSBEX_SIG));
-                
-                // position is kinda important...we continue only with valid data
-                if ( mainPos.isNormal() )
-                {
-                    // we need a good take on the ground status of mainPos
-                    // for later landing detection
-                    mainPos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
-                    
-                    // FIXME: Called from outside main thread,
-                    //        can produce wrong terrain alt (2 cases here)
-                    //        Probably: Just add positions and let updated
-                    //                  AppendNewPos / CalcNewPos do the job of landing detection
-                    fd.TryDeriveGrndStatus(mainPos);
-                    
-                    // Short Trails ("Cos" array), if available
-                    bool bAddedTrails = false;
-                    dequePositionTy trails;
-                    JSON_Array* pCosList = json_object_get_array(pJAc, ADSBEX_COS);
-                    
-                    // short-cut: if we are in the air then skip adding trails
-                    // they might be good on the ground...in the air the
-                    // positions can be too inaccurate causing jumps in speed, vsi, heading etc...
-                    if (mainPos.f.onGrnd == GND_OFF)
-                        pCosList = NULL;
-                    
-                    // found trails and there are at least 2 quadrupels, i.e. really a "trail" not just a single pos?
-                    if (json_array_get_count(pCosList) >= 8) {
-                        if (json_array_get_count(pCosList) % 4 == 0)    // trails should be made of quadrupels
-                            // iterate trail data in form of quadrupels (lat,lon,timestamp,alt):
-                            for (size_t i=0; i< json_array_get_count(pCosList); i += 4) {
-                                trails.emplace_back(json_array_get_number(pCosList, i),         // latitude
-                                                    json_array_get_number(pCosList, i+1),       // longitude
-                                                    json_array_get_number(pCosList, i+3) * M_per_FT,     // altitude (convert to meter)
-                                                    json_array_get_number(pCosList, i+2) / 1000.0);      // timestamp (convert form ms to s)
-                                // only keep new trail if it is a valid position
-                                const positionTy& addedTrail = trails.back();
-                                if ( !addedTrail.isNormal() ) {
-                                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),addedTrail.dbgTxt().c_str());
-                                    trails.pop_back();  // otherwise remove right away
-                                }
-                            }
-                        else
-                            LOG_MSG(logERR,ADSBEX_HIST_TRAIL_ERR,fdKey.c_str(),posTime);
-                    }
-                    
-                    // if we did find enough trails work on them
-                    if ( trails.size() >= 2 ) {
-                        // ideally, the main position should have the exact same timestamp
-                        // as the last trail item and a similar altitude (+/- 500m)
-                        positionTy& lastTrail = trails.back();
-#ifdef DEBUG
-                        std::string dbgMain(mainPos.dbgTxt());
-                        std::string dbgLast(lastTrail.dbgTxt());
-#endif
-                        if (mainPos.hasSimilarTS(lastTrail) &&
-                            (std::abs(mainPos.alt_m() - lastTrail.alt_m()) < 500))
-                        {
-                            // reason we check this is: altitude data in the trails
-                            // seems to always be a multiple of 500ft, which would mean
-                            // that even during climb/decend the plane would do
-                            // kinda "step climbs" of 500ft, which looks unrealistic.
-                            // Altitude in the main position is exact though.
-                            // We take that main altitude for the last trail quadrupel:
-                            lastTrail.alt_m() = mainPos.alt_m();
-                            
-                            // Now we look into our already known positions for the
-                            // last known position before mainPos
-                            // and calculate a smooth climb/descend path between the two:
-                            const dequePositionTy& posList = fd.GetPosDeque();
-#ifdef DEBUG
-                            std::string dbgPosList(positionDeque2String(posList));
-#endif
-                            dequePositionTy::const_iterator iBef =
-                            positionDequeFindBefore(posList, mainPos.ts() - SIMILAR_TS_INTVL);
-                            // if we find an earlier position we take that as reference,
-                            // otherwise we fall back to the first trails element:
-                            const positionTy& refPos = iBef == posList.end() ?
-                            trails.front() : *iBef;
-                            
-                            // *** Landing Detection ***
-                            // Issue: Altitude of trails is untrustworthy,
-                            //        but reliable main positions are historically
-                            //        available only every 60 seconds.
-                            //        During Final/Landing that might be too long:
-                            //        Imagine last position is 30m above ground,
-                            //        but 60 seconds later only we can touch down? That's a looooong flare...
-                            // So: We try determining this case and then
-                            //     replace altitude with VSI-based calculation.
-                            if (!refPos.IsOnGnd() && mainPos.IsOnGnd())
-                            {
-                                // aircraft model to use
-                                const LTAircraft::FlightModel& mdl =
-                                LTAircraft::FlightModel::FindFlightModel(fd);
-                                
-                                // this is the Landing case
-                                // we look for the VSI of the last two already
-                                // known off-ground positions, one is refPos
-                                const double vsiBef =
-                                // is there an even earlier pos before refPos in the list?
-                                iBef != posList.begin() ?
-                                std::prev(iBef)->between(refPos).vsi : // take the vsi between these two
-                                mdl.VSI_FINAL * Ms_per_FTm;            // no, assume reasonable vsi
-                                
-                                const double vsiDirectMain = refPos.vsi_m(mainPos);
-                                
-                                if (vsiBef < -(mdl.VSI_STABLE * Ms_per_FTm) && vsiBef < vsiDirectMain)
-                                {
-                                    // reasonable negative VSI, which is less (steeper) than direct way down to mainPos
-                                    for(positionTy& posIter: trails) {
-                                        // calc altitude based on vsiBef, as soon as we touch ground it will be normalized to terrain altitude
-                                        posIter.alt_m() = refPos.alt_m() + vsiBef * (posIter.ts()-refPos.ts());
-                                        posIter.f.onGrnd = GND_UNKNOWN;
-                                        fd.TryDeriveGrndStatus(posIter);
-                                        // only add pos if not off ground
-                                        // (see above: airborne we don't want too many positions)
-                                        if (posIter.f.onGrnd != GND_OFF)
-                                            fd.AddNewPos(posIter);
-                                    }
-                                    
-                                    // we added trails, don't add any more
-                                    bAddedTrails = true;
-                                }
-                            }
-                            
-                            // didn't add anything yet?
-                            // (this includes the standard non-landing case
-                            //  and the landing case in which we couldn't determine VSI)
-                            if (!bAddedTrails)
-                            {
-                                // this is the non-landing case
-                                // adapt all altitudes to form a smooth path
-                                // from refPos to mainPos
-                                // and add the altered position to our known positions
-                                const double altDiff = lastTrail.alt_m() - refPos.alt_m();
-                                const double tsDiff  = lastTrail.ts()  - refPos.ts();
-                                
-                                // only valid if there is _any_ timestamp difference between first and last trail pos
-                                // there _should_ be...but sometimes there simply isn't
-                                if ( tsDiff > 0 ) {
-                                    for(positionTy& posIter: trails) {
-                                        posIter.alt_m() = refPos.alt_m() + altDiff * (posIter.ts()-refPos.ts()) / tsDiff;
-                                        posIter.f.onGrnd = GND_UNKNOWN;
-                                        fd.AddNewPos(posIter);
-                                    }
-                                    bAddedTrails = true;
-                                }
-                            }
-#ifdef DEBUG
-                            dbgPosList = positionDeque2String(posList);
-#endif
-                        }
-                    }
-                    
-                    // if we didn't add the trails then just add the main position
-                    if (!bAddedTrails) {
-                        // no trails (or just one pos): we just add the main position
-                        fd.AddNewPos(mainPos);
-                    }
-                }
-                else {
-                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),mainPos.dbgTxt().c_str());
-                }
-            } catch(const std::system_error& e) {
-                LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
-            }
-            
-            // cleanup JSON
-            json_value_free (pRoot);
-        } // for all _selected_ lines of an input file
-        
-    } // for all input files
-    
-    // list is processed
-    listFd.clear();
-    return true;
-}
-

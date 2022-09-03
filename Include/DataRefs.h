@@ -41,8 +41,9 @@ const int DEF_MAX_NUM_AC        = 50;           ///< how many aircraft to create
 const int DEF_FD_STD_DISTANCE   = 25;           ///< nm: miles to look for a/c around myself
 const int DEF_FD_SNAP_TAXI_DIST = 15;           ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
 const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flight data
+const int DEF_FD_LONG_REFR_INTVL= 60;           ///< how often to fetch new flight data if flying high
 const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
-const int DEF_AC_OUTDATED_INTVL = 50;           ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+const int DEF_FD_REDUCE_HEIGHT  = 10000;        ///< height AGL considered "flying high"
 const int MIN_NETW_TIMEOUT      =  5;           ///< [s] minimum network request timeout
 const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
 
@@ -217,11 +218,15 @@ enum dataRefsXP {
     DR_PLANE_LAT,                       // user's plane
     DR_PLANE_LON,
     DR_PLANE_ELEV,
+    DR_PLANE_AGL,                       ///< sim/flightmodel/position/y_agl    float    n    meters    AGL
     DR_PLANE_PITCH,
     DR_PLANE_ROLL,
     DR_PLANE_HEADING,
+    DR_PLANE_MAG_HEADING,               ///< sim/flightmodel/position/mag_psi    float    n    degrees    The real magnetic heading of the aircraft
     DR_PLANE_TRACK,
-    DR_PLANE_TRUE_AIRSPEED,
+    DR_PLANE_KIAS,                      ///< sim/flightmodel/position/indicated_airspeed    float    y    kias    Air speed indicated - this takes into account air density and wind direction
+    DR_PLANE_TAS,                       ///< sim/flightmodel/position/true_airspeed    float    n    meters/sec    Air speed true - this does not take into account air density at altitude!
+    DR_PLANE_GS,                        ///< sim/flightmodel/position/groundspeed    float    n    meters/sec    The ground speed of the aircraft
     DR_PLANE_VVI,                       ///< sim/flightmodel/position/vh_ind    float    n    meters/second    VVI (vertical velocity in meters per second)
     DR_PLANE_ONGRND,
     DR_PLANE_REG,                       ///< sim/aircraft/view/acf_tailnum    byte[40]    y    string    Tail number
@@ -357,13 +362,13 @@ enum dataRefsLT {
     DR_CFG_LOG_LEVEL,
     DR_CFG_MSG_AREA_LEVEL,
     DR_CFG_LOG_LIST_LEN,
-    DR_CFG_USE_HISTORIC_DATA,
     DR_CFG_MAX_NUM_AC,
     DR_CFG_FD_STD_DISTANCE,
     DR_CFG_FD_SNAP_TAXI_DIST,
     DR_CFG_FD_REFRESH_INTVL,
+    DR_CFG_FD_LONG_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
-    DR_CFG_AC_OUTDATED_INTVL,
+    DR_CFG_FD_REDUCE_HEIGHT,
     DR_CFG_NETW_TIMEOUT,
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
@@ -386,6 +391,7 @@ enum dataRefsLT {
     DR_DBG_EXPORT_FD,
     DR_DBG_EXPORT_USER_AC,
     DR_DBG_EXPORT_NORMALIZE_TS,
+    DR_DBG_EXPORT_FORMAT,
 
     // channel configuration options
     DR_CFG_FSC_ENV,
@@ -423,6 +429,12 @@ enum cmdRefsLT {
     CR_LABELS_TOGGLE,
     CR_SETTINGS_UI,
     CNT_CMDREFS_LT                      // always last, number of elements
+};
+
+/// Which format to use for exporting flight tracking data
+enum exportFDFormat {
+    EXP_FD_AITFC = 1,                   ///< use AITFC format, the older shorter format
+    EXP_FD_RTTFC,                       ///< user RTTFC format, introduced with RealTraffic v9
 };
 
 // first/last channel; number of channels:
@@ -606,6 +618,7 @@ protected:
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
+    exportFDFormat eDebugExportFdFormat = EXP_FD_AITFC; ///< Which format to use when exporting flight data?
     int bDebugExportFd          = false;// export flight data to LTExportFD.csv
     int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
     float lastExportUserAc      = 0.0f; ///< last time user's aircraft data has been written to export file
@@ -614,7 +627,6 @@ protected:
     std::string XPSystemPath;
     std::string LTPluginPath;           // path to plugin directory
     std::string DirSeparator;
-    int bUseHistoricData        = false;
     int bChannel[CNT_DR_CHANNELS];      // is channel enabled?
     double chTsOffset           = 0.0f; // offset of network time compared to system clock
     int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
@@ -641,8 +653,10 @@ protected:
     int fdStdDistance   = DEF_FD_STD_DISTANCE;      ///< nm: miles to look for a/c around myself
     int fdSnapTaxiDist  = DEF_FD_SNAP_TAXI_DIST;    ///< [m]: Snapping to taxi routes in a max distance of this many meter (0 -> off)
     int fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;     ///< how often to fetch new flight data
+    int fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;   ///< how often to fetch new flight data when flying high
+    int fdCurrRefrIntvl = DEF_FD_REFRESH_INTVL;     ///< current value of how often to fetch new flight data
     int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
-    int acOutdatedIntvl = DEF_AC_OUTDATED_INTVL;    ///< a/c considered outdated if latest flight data more older than this compare to 'now'
+    int fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;     ///< [ft] reduce flight data usage when user aircraft is flying above this altitude
     int netwTimeout     = DEF_NETW_TIMEOUT;         ///< [s] of network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
@@ -671,9 +685,11 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sOpenSkyUser;           ///< OpenSky Network user
+    std::string sOpenSkyPwd;            ///< OpenSky Network password
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
     std::string sFSCUser;               ///< FSCharter login user
-    std::string sFSCPwd;                ///< FSCharter login password, base64-encoded
+    std::string sFSCPwd;                ///< FSCharter login password
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -701,7 +717,9 @@ public:
 public:
     /// once per Flarm a/c type: matching it to one or more ICAO types
     std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
-    
+
+    long OpenSkyRRemain = LONG_MAX;     ///< OpenSky: Remaining number of requests per day
+    std::string OpenSkyRetryAt;         ///< OpenSky: If limit is reached, when to retry? (local time as string)
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     
@@ -742,6 +760,7 @@ protected:
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
+    int         lastUsersAGL_ft = 0;            ///< cached user's plane height above ground
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
     double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
     vectorTy    lastWind;                       ///< wind at user's plane's location
@@ -792,7 +811,6 @@ public:
     std::string GetSimTimeString() const;
     
     // livetraffic/sim/date and .../time
-    static void LTSetSimDateTime(void* p, int i);
     static int LTGetSimDateTime(void* p);
 
     /// Are we in replay mode?
@@ -813,14 +831,13 @@ public:
     inline logLevelTy GetLogLevel()             { return iLogLevel; }
     inline logLevelTy GetMsgAreaLevel()         { return iMsgAreaLevel; }
     
-    // livetraffic/cfg/use_historic_data: Simulate history
-    static void LTSetUseHistData(void*, int i);
-    bool SetUseHistData (bool bUseHistData, bool bForceReload);
-    inline bool GetUseHistData() const           { return bUseHistoricData; }
+    /// Reinit data usage
+    void ForceDataReload ();
     
     // general config values
     static void LTSetCfgValue(void* p, int val);
     bool SetCfgValue(void* p, int val);
+    void ResetAdvCfgToDefaults ();      ///< Reset advanced config options to defaults
     
     // generic config access (not as fast as specific access, but good for rare access)
     static bool  GetCfgBool  (dataRefsLT dr);
@@ -845,9 +862,9 @@ public:
     inline int GetFdStdDistance_m() const { return fdStdDistance * M_per_NM; }
     inline int GetFdStdDistance_km() const { return fdStdDistance * M_per_NM / M_per_KM; }
     inline int GetFdSnapTaxiDist_m() const { return fdSnapTaxiDist; }
-    inline int GetFdRefreshIntvl() const { return fdRefreshIntvl; }
+    inline int GetFdRefreshIntvl() const { return fdCurrRefrIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
-    inline int GetAcOutdatedIntvl() const { return acOutdatedIntvl; }
+    inline int GetAcOutdatedIntvl() const { return 2 * GetFdBufPeriod(); }
     inline int GetNetwTimeout() const { return netwTimeout; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
@@ -880,6 +897,11 @@ public:
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
     
+    void GetOpenSkyCredentials (std::string& user, std::string& pwd)
+    { user = sOpenSkyUser; pwd = sOpenSkyPwd; }
+    void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
+    void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
+
     std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
     
@@ -912,6 +934,8 @@ public:
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
+    exportFDFormat GetDebugExportFormat() const { return eDebugExportFdFormat; }
+    void SetDebugExportFormat (exportFDFormat e) { eDebugExportFdFormat = e; }
     bool GetDebugExportFD() const               { return bDebugExportFd; }
     void SetDebugExportFD (bool bExport)        { bDebugExportFd = bExport; }
     bool GetDebugExportUserAc() const           { return bDebugExportUserAc; }
@@ -968,6 +992,9 @@ public:
     /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
     void SetWeather (float hPa, float lat, float lon, const std::string& stationId,
                      const std::string& METAR);
+    /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
+    static double WeatherAltCorr_ft (double pressureAlt_ft, double hPa)
+        { return pressureAlt_ft + ((hPa - HPA_STANDARD) * FT_per_HPA); }
     /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
     double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
     /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
