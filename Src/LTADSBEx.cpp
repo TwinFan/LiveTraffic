@@ -220,19 +220,18 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
         switch (json_value_get_type(pAltBaro))
         {
             case JSONNumber:
+            {
                 pos.f.onGrnd = GND_OFF;         // we are definitely off ground
-                // But we only need to _process_ baro alt if we don't yet have an altitude
-                if (std::isnan(pos.alt_m()))
-                {
-                    // try converting baro alt from given QNH, otherwise we use our own weather
-                    const double baro_alt = json_number(pAltBaro);
-                    const double qnh = jog_n_nan(pJAc, ADSBEX_V2_NAV_QNH);
-                    if (std::isnan(qnh))
-                        pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt));
-                    else
-                        pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt, qnh));
-                }
+                // But we also process baro alt, potentially even overwriting a geo alt as baro alt is more accurate based on experience
+                // try converting baro alt from given QNH, otherwise we use our own weather
+                const double baro_alt = json_number(pAltBaro);
+                const double qnh = jog_n_nan(pJAc, ADSBEX_V2_NAV_QNH);
+                if (std::isnan(qnh))
+                    pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt));
+                else
+                    pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt, qnh));
                 break;
+            }
                 
             case JSONString:
                 // There is just one string we are aware of: "ground"

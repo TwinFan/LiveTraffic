@@ -830,13 +830,14 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         if (dyn.gnd)
             pos.alt_m() = NAN;          // ground altitude to be determined in scenery
         else {
-            // Is geometric altitude given? Then we use it directly
-            double alt = std::stod(tfc[RT_RTTFC_ALT_GEOM]);
+            // Based on experience barometric altitude is more accurate, so we prefer it, although we need to convert with local pressure
+            double alt = std::stod(tfc[RT_RTTFC_ALT_BARO]);
             if (alt > 0.0)
-                pos.SetAltFt(alt);
-            // Otherwise we need to use barometric altitude and convert with local pressure
+                pos.SetAltFt(dataRefs.WeatherAltCorr_ft(alt));
+            // Otherwise we try using geometric altitude
             else
-                pos.SetAltFt(dataRefs.WeatherAltCorr_ft(std::stod(tfc[RT_RTTFC_ALT_BARO])));
+                if ((alt = std::stod(tfc[RT_RTTFC_ALT_GEOM])) > 0.0)
+                    pos.SetAltFt(alt);
         }
         // don't forget gnd-flag in position
         pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
