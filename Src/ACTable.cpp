@@ -63,8 +63,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Call Sign",        60},
     {"Squawk",           45,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Flight",           65},
-    {"From",             45},
-    {"To",               45},
+    {"Route",            90},
 
     {"Position",        150,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Lat",              75,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
@@ -129,8 +128,7 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v[ACT_COL_OP]           = stat.op;
         v[ACT_COL_CALLSIGN]     = stat.call;
         v[ACT_COL_FLIGHT]       = stat.flight;
-        v[ACT_COL_FROM]         = stat.originAp;
-        v[ACT_COL_TO]           = stat.destAp;
+        v[ACT_COL_ROUTE]        = stat.route();
     } else
         bUpToDate = false;
     

@@ -393,15 +393,14 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     stat.mil =        jog_sb(pJAc,ADSBEX_V1_MIL);
     stat.opIcao =     jog_s(pJAc, ADSBEX_V1_OP_ICAO);
     stat.call =       jog_s(pJAc, ADSBEX_V1_CALL);
-    stat.originAp =   jog_s(pJAc, ADSBEX_V1_ORIGIN);
-    stat.destAp =     jog_s(pJAc, ADSBEX_V1_DESTINATION);
     stat.slug       = ADSBEX_SLUG_BASE;
     stat.slug      += fdKey.key;
     
     // ADSBEx sends airport info like "LHR London Heathrow United Kingdom"
     // That's way to long...
-    cut_off(stat.originAp, " ");
-    cut_off(stat.destAp, " ");
+    std::string orig = jog_s(pJAc, ADSBEX_V1_ORIGIN);
+    std::string dest = jog_s(pJAc, ADSBEX_V1_DESTINATION);
+    stat.setOrigDest(cut_off(orig, " "), cut_off(dest, " "));
 
     // -- dynamic data --
     LTFlightData::FDDynamicData dyn;

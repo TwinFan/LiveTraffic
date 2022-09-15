@@ -101,8 +101,7 @@ public:
 
         // flight details
         std::string     call;           // Call sign          EWG8AY
-        std::string     originAp;       // origin Airport
-        std::string     destAp;         // destination Airport
+        std::vector<std::string> stops; ///< stops on the route, typically origin-destination, but can contain more stops
         std::string     flight;         // flight code
         std::string     slug;           ///< URL to flight details
         
@@ -113,7 +112,9 @@ public:
     protected:
         /// Has this static data object already been filled from a proper master data channel?
         bool            bFilledFromMasterCh = false;
-
+        /// Empty string for static returns
+        static std::string emptyStr;
+        
     public:
         FDStaticData() {}
         // default move/copy constructor/operators
@@ -126,9 +127,15 @@ public:
         bool merge (const FDStaticData& other, bool bIsMasterChData);
         // returns flight, call sign, registration, or provieded _default (e.g. transp hex code)
         std::string acId (const std::string _default) const;
-        // route (this is "originAp-destAp", but considers empty txt)
+        /// Fill stops from given origin/dest
+        void setOrigDest (const std::string& o, const std::string& d);
+        /// Origin = first stop on the route
+        const std::string& origin () const { return stops.empty() ? emptyStr : stops.front(); }
+        /// Destination = last stop on the route
+        const std::string& dest () const { return stops.size() < 2 ? emptyStr : stops.back(); }
+        /// Lists all stops separated with dashes
         std::string route() const;
-        // flight + route (this is "flight: originAp-destAp", but considers empty txt)
+        // flight + route
         std::string flightRoute() const;
         // best guess for an airline livery: opIcao if exists, otherwise first 3 digits of call sign
         inline std::string airlineCode() const

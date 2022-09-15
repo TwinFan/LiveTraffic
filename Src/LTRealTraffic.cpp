@@ -811,8 +811,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.acTypeIcao     = tfc[RT_RTTFC_AC_TYPE];
         stat.call           = tfc[RT_RTTFC_CS_ICAO];
         stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
-        stat.originAp       = tfc[RT_RTTFC_FROM_IATA];
-        stat.destAp         = tfc[RT_RTTFC_TO_IATA];
+        stat.setOrigDest(tfc[RT_RTTFC_FROM_IATA], tfc[RT_RTTFC_TO_IATA]);
         stat.catDescr       = GetADSBEmitterCat(sCat);
 
         // -- dynamic data --
@@ -962,8 +961,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         
         if (tfc.size() > RT_AITFC_TO) {
             stat.reg            = tfc[RT_AITFC_TAIL];
-            stat.originAp       = tfc[RT_AITFC_FROM];
-            stat.destAp         = tfc[RT_AITFC_TO];
+            stat.setOrigDest(tfc[RT_AITFC_FROM], tfc[RT_AITFC_TO]);
         }
 
         // -- dynamic data --
@@ -1013,7 +1011,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
             dyn.gnd &&                      // on the ground
             dyn.spd < 50.0 &&               // reasonable speed
             stat.reg.empty() &&             // no tail number
-            stat.destAp.empty())            // no destination airport
+            stat.dest().empty())            // no destination airport
         {
             // we assume ground vehicle
             stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();

@@ -1831,7 +1831,7 @@ bool DataRefs::LoadConfigFile()
     assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
 
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1869,10 +1869,13 @@ bool DataRefs::LoadConfigFile()
         // Any pre-v3 version?
         if (ln[1][0] < '3')
             conv = CFG_V3;
+        else if (ln[1] < "3.1")
+            conv = CFG_V31;
     }
     
     // *** Delete LiveTraffic_imgui.prf? ***
-    if (conv == CFG_V3)                 // added column to the aircraft list
+    if (conv == CFG_V3 ||                   // added column to the aircraft list
+        conv == CFG_V31)                    // replaced to/from with route
         std::remove(IMGUI_INI_PATH);
     
     // *** DataRefs ***

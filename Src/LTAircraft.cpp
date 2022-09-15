@@ -2469,8 +2469,8 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkInfoTexts* pOut,
     STRCPY_ATMOST(pOut->callSign,       stat.call);
     STRCPY_ATMOST(pOut->squawk,         dyn.GetSquawk());
     STRCPY_ATMOST(pOut->flightNumber,   stat.flight);
-    STRCPY_ATMOST(pOut->origin,         stat.originAp);
-    STRCPY_ATMOST(pOut->destination,    stat.destAp);
+    STRCPY_ATMOST(pOut->origin,         stat.origin());
+    STRCPY_ATMOST(pOut->destination,    stat.dest());
     STRCPY_ATMOST(pOut->trackedBy,      dyn.pChannel ? dyn.pChannel->ChName() : "-");
     
     // v2.40 additions (cslModel field extended to 40 chars)
@@ -2937,8 +2937,8 @@ void LTAircraft::UpdatePosition (float, int cycle)
                 STRCPY_S     (acInfoTexts.icaoAirline,  statCopy.opIcao.c_str());
                 STRCPY_ATMOST(acInfoTexts.airline,      statCopy.op.c_str());
                 STRCPY_S     (acInfoTexts.flightNum,    statCopy.flight.c_str());
-                STRCPY_S     (acInfoTexts.aptFrom,      statCopy.originAp.c_str());
-                STRCPY_S     (acInfoTexts.aptTo,        statCopy.destAp.c_str());
+                STRCPY_S     (acInfoTexts.aptFrom,      statCopy.origin().c_str());
+                STRCPY_S     (acInfoTexts.aptTo,        statCopy.dest().c_str());
             }
         }
         

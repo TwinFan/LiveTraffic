@@ -234,6 +234,9 @@ inline std::string& trim(std::string& s, const char* t = WHITESPACE)
     return ltrim(rtrim(s, t), t);
 }
 
+/// trim whitespace
+inline std::string& trim_ws(std::string& s) { return trim(s); }
+
 /// Cut off everything after `from` from `s`, `from` including
 std::string& cut_off(std::string& s, const std::string& from);
 
