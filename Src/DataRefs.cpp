@@ -1853,8 +1853,17 @@ bool DataRefs::LoadConfigFile()
     // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
-    if (!safeGetline(fIn, lnBuf) ||                     // read a line
-        (ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
+    if (!safeGetline(fIn, lnBuf)) {
+        // this will trigger when the config file has size 0,
+        // don't know why, but in some rare situations that does happen,
+        // is actually the most often support question.
+        SHOW_MSG(logERR, "LiveTraffic's config file had zero size, continuing with defaults!\n"
+                 "Sorry, you'll need to re-enter any credentials in the settings.");
+        // Continue with defaults
+        return true;
+    }
+        
+    if ((ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
         ln[0] != LIVE_TRAFFIC)                          // 1. is LiveTraffic
     {
         LOG_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
