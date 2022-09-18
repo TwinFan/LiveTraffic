@@ -117,9 +117,9 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
         // or certainly data of a proper master data channel
         bIsMasterChData ||
         // or no flight number info at all...
-        (other.flight.empty() && flight.empty())) {
-        if (!other.originAp.empty()) originAp = other.originAp;
-        if (!other.destAp.empty()) destAp = other.destAp;
+        (other.flight.empty() && flight.empty()))
+    {
+        if (!other.stops.empty()) stops = other.stops;
         if (!other.flight.empty()) flight = other.flight;
     }
     
@@ -162,8 +162,7 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     trim(mdl);
     trim(catDescr);
     trim(call);
-    trim(originAp);
-    trim(destAp);
+    std::for_each(stops.begin(), stops.end(), trim_ws);
     trim(flight);
     trim(op);
     trim(opIcao);
@@ -171,17 +170,31 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     return bRet;
 }
 
+// Fill stops from given origin/dest
+void LTFlightData::FDStaticData::setOrigDest (const std::string& o, const std::string& d)
+{
+    stops.clear();
+    if (!o.empty())
+        stops.push_back(o);
+    if (!d.empty()) {
+        if (stops.empty()) stops.push_back("?");    // if we have a destination but no origin, then we put in ? as the origin
+        stops.push_back(d);
+    }
+}
+
 // route (this is "originAp - destAp", but considers emoty txt)
 std::string LTFlightData::FDStaticData::route () const
 {
     // keep it an empty string if there is no info at all
-    if (originAp.empty() && destAp.empty())
+    if (stops.empty())
         return std::string();
     
-    // if there is some info then replace missing info with question mark
-    std::string s(originAp.empty() ? "?" : originAp);
-    s += '-';
-    s += destAp.empty() ? "?" : destAp;
+    // add all stops separated by dashes
+    std::string s(stops.front());
+    for (auto i = std::next(stops.begin()); i != stops.end(); i++) {
+        s += '-';
+        s += *i;
+    }
     return s;
 }
 
@@ -278,6 +291,9 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
 //
 //MARK: Flight Data
 //
+
+/// Question mark for static returns
+std::string LTFlightData::FDStaticData::emptyStr;
 
 // Export file for tracking data
 std::ofstream LTFlightData::fileExport;
@@ -1658,8 +1674,8 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
                      statData.call.c_str(),                                     // cs
                      statData.acTypeIcao.c_str(),                               // type
                      statData.reg.c_str(),                                      // tail
-                     statData.originAp.c_str(),                                 // from
-                     statData.destAp.c_str(),                                   // to
+                     statData.origin().c_str(),                                 // from
+                     statData.dest().c_str(),                                   // to
                      pos.ts() - nanToZero(fileExportTsBase));                   // timestamp: if requested normalize timestamp in output
             break;
             
@@ -1681,8 +1697,8 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
                      statData.call.c_str(),                                     // cs_icao
                      statData.acTypeIcao.c_str(),                               // ac_type
                      statData.reg.c_str(),                                      // ac_tailno
-                     statData.originAp.c_str(),                                 // from_iata
-                     statData.destAp.c_str(),                                   // to_iata
+                     statData.origin().c_str(),                                 // from_iata
+                     statData.dest().c_str(),                                   // to_iata
                      pos.ts() - nanToZero(fileExportTsBase),                    // timestamp: if requested normalize timestamp in output
                      // additions by RTTFC
                      inDyn.pChannel ? inDyn.pChannel->ChName() : "LT",          // source

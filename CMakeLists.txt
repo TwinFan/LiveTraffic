@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 project(LiveTraffic
-        VERSION 3.0.0
+        VERSION 3.1.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition
@@ -24,8 +24,8 @@ if (WIN32)
         set(ENV{platform} "win")
     endif()
 elseif(APPLE)
-    add_compile_options(-mmacosx-version-min=10.11)
-    add_link_options(-mmacosx-version-min=10.11)
+    add_compile_options(-mmacosx-version-min=10.12)
+    add_link_options(-mmacosx-version-min=10.12)
 endif()
 
 ################################################################################

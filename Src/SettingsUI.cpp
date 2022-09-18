@@ -247,7 +247,6 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
-                const bool bOpenSkyOn = dataRefs.IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE);
 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
                 
@@ -266,9 +265,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::Indent(ImGui::GetWidthIconBtn(true));
                     ImGui::InputTextWithHint("##OpenSkyUser",
                                              "OpenSky Network username",
-                                             &sOpenSkyUser,
-                                             // prohibit changes to the user while channel on
-                                             (bOpenSkyOn ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+                                             &sOpenSkyUser);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
 
                     ImGui::TableNextCell();
@@ -287,26 +284,19 @@ void LTSettingsUI::buildInterface()
                                              "Enter or paste OpenSky Network password",
                                              &sOpenSkyPwd,
                                              // clear text or password mode?
-                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
-                                             // prohibit changes to the pwd while channel on
-                                             (bOpenSkyOn ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
-                    
+                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
                     ImGui::TableNextCell();
                 }
                 
-                // Save button or hint how to change
+                // Save button
                 if (!*sFilter) {
                     ImGui::TableNextCell();
-                    if (bOpenSkyOn) {
-                        ImGui::TextUnformatted("Disable the channel first if you want to change user/password.");
-                    } else {
-                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
-                            dataRefs.SetOpenSkyUser(sOpenSkyUser);
-                            dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
-                            if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
-                            dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
-                            bOpenSkyPwdClearText = false;           // and hide the pwd now
-                        }
+                    if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
+                        dataRefs.SetOpenSkyUser(sOpenSkyUser);
+                        dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
+                        if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
+                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
+                        bOpenSkyPwdClearText = false;           // and hide the pwd now
                     }
                     ImGui::TableNextCell();
                 }
@@ -766,10 +756,10 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Max number of aircraft", sFilter, DR_CFG_MAX_NUM_AC,        5, MAX_NUM_AIRCRAFT, 5);
                 ImGui::FilteredCfgNumber("Search distance",        sFilter, DR_CFG_FD_STD_DISTANCE,   5, 100, 5, "%d nm");
                 ImGui::FilteredCfgNumber("Snap to taxiway",        sFilter, DR_CFG_FD_SNAP_TAXI_DIST, 0,  50, 1, "%d m");
-                
                 ImGui::FilteredCfgNumber("Live data refresh",      sFilter, DR_CFG_FD_REFRESH_INTVL, 10, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Above height AGL of",    sFilter, DR_CFG_FD_REDUCE_HEIGHT,    1000, 100000, 1000, "%d ft");
+                ImGui::FilteredCfgNumber("increase refresh to",    sFilter, DR_CFG_FD_LONG_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("A/c outdated timeout",   sFilter, DR_CFG_AC_OUTDATED_INTVL,10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
             
                 if (!*sFilter) ImGui::TreePop();
@@ -829,19 +819,7 @@ void LTSettingsUI::buildInterface()
                 if (ImGui::BeginPopup(SUI_ADVSET_POPUP)) {
                     ImGui::TextUnformatted("Confirm: Resetting Advanced Settings to defaults");
                     if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
-                        dataRefs.SetLogLevel(logWARN);
-                        dataRefs.SetMsgAreaLevel(logINFO);
-                        cfgSet(DR_CFG_MAX_NUM_AC,           DEF_MAX_NUM_AC);
-                        cfgSet(DR_CFG_FD_STD_DISTANCE,      DEF_FD_STD_DISTANCE);
-                        cfgSet(DR_CFG_FD_SNAP_TAXI_DIST,    DEF_FD_SNAP_TAXI_DIST);
-                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);
-                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);
-                        cfgSet(DR_CFG_AC_OUTDATED_INTVL,    DEF_AC_OUTDATED_INTVL);
-                        cfgSet(DR_CFG_FD_BUF_PERIOD,        DEF_FD_BUF_PERIOD);     // there are interdependencies between refresh intvl, outdated intl, and buf_period
-                        cfgSet(DR_CFG_FD_REFRESH_INTVL,     DEF_FD_REFRESH_INTVL);  // hence try resetting in both forward and backward order...one will work out
-                        cfgSet(DR_CFG_NETW_TIMEOUT,         DEF_NETW_TIMEOUT);
-                        dataRefs.UIFontScale    = DEF_UI_FONT_SCALE;
-                        dataRefs.UIopacity      = DEF_UI_OPACITY;
+                        dataRefs.ResetAdvCfgToDefaults();
                         ImGui::CloseCurrentPopup();
                     }
                     ImGui::SameLine();

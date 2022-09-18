@@ -321,6 +321,7 @@ const char* DATA_REFS_XP[] = {
     "sim/flightmodel/position/latitude",
     "sim/flightmodel/position/longitude",
     "sim/flightmodel/position/elevation",
+    "sim/flightmodel/position/y_agl",           // [m] height above ground
     "sim/flightmodel/position/true_theta",      // pitch
     "sim/flightmodel/position/true_phi",        // roll
     "sim/flightmodel/position/true_psi",        // true heading
@@ -494,8 +495,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_std_distance",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_snap_taxi_dist",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/fd_refresh_intvl",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_long_refresh_intvl",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
-    {"livetraffic/cfg/ac_outdated_intvl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/fd_reduce_height",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
@@ -572,8 +574,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_STD_DISTANCE:        return &fdStdDistance;
         case DR_CFG_FD_SNAP_TAXI_DIST:      return &fdSnapTaxiDist;
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
+        case DR_CFG_FD_LONG_REFRESH_INTVL:  return &fdLongRefrIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
-        case DR_CFG_AC_OUTDATED_INTVL:      return &acOutdatedIntvl;
+        case DR_CFG_FD_REDUCE_HEIGHT:          return &fdReduceHeight;
         case DR_CFG_NETW_TIMEOUT:           return &netwTimeout;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
@@ -1015,6 +1018,25 @@ void DataRefs::UpdateUsersPlanePos ()
     // also fetch true airspeed and track
     lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TAS]);
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
+
+    // fetch current height AGL and convert to feet
+    lastUsersAGL_ft = (int)std::lround(XPLMGetDataf     (adrXP[DR_PLANE_AGL]) / M_per_FT);
+    
+    // *** Control if we start/end changing the FD Factor ***
+    const int prevRefrIntvl = fdCurrRefrIntvl;
+    
+    // Currently using the lower number but now flying high?
+    if (fdCurrRefrIntvl == fdRefreshIntvl && lastUsersAGL_ft >= fdReduceHeight)
+        fdCurrRefrIntvl = fdLongRefrIntvl;
+    // Currently using the higher number but now flying low?
+    else if (fdCurrRefrIntvl == fdLongRefrIntvl && lastUsersAGL_ft <= fdReduceHeight - 250)
+        fdCurrRefrIntvl = fdRefreshIntvl;
+    
+    // If we changed tell the user
+    if (prevRefrIntvl != fdCurrRefrIntvl) {
+        SHOW_MSG(logINFO, "At %dft AGL changed refresh interval to %ds",
+                 lastUsersAGL_ft, GetFdRefreshIntvl());
+    }
 }
 
 void DataRefs::ExportUserAcData()
@@ -1506,15 +1528,22 @@ bool DataRefs::SetCfgValue (void* p, int val)
     int oldVal = *reinterpret_cast<int*>(p);
     *reinterpret_cast<int*>(p) = val;
     
-    // Setting the refresh interval (a value more or less likely to be touched by users)
-    // might require adapting buffering period and A/c outdated interval, too
-    if (p == &fdRefreshIntvl) {
-        if (fdBufPeriod < fdRefreshIntvl)
-            fdBufPeriod = fdRefreshIntvl;
-        if (acOutdatedIntvl < 2*fdRefreshIntvl)
-            acOutdatedIntvl = 2*fdRefreshIntvl;
+    // Setting the refresh intervals or the buffering period
+    // might require adapting the other values:
+    // refresh intvl <= long refresh intvl <= buffering period
+    if (p == &fdRefreshIntvl || p == &fdLongRefrIntvl) {
+        if (fdRefreshIntvl > fdLongRefrIntvl)   // long refresh must be at least as long as normal refresh
+            fdLongRefrIntvl = fdRefreshIntvl;
+        if (fdLongRefrIntvl > fdBufPeriod)      // buf period must be at least as long as long refresh
+            fdBufPeriod = fdLongRefrIntvl;
     }
-    
+    else if (p == &fdBufPeriod) {
+        if (fdRefreshIntvl > fdBufPeriod)       // buf period cannot be smaller than refresh interval
+            fdBufPeriod = fdRefreshIntvl;
+        if (fdLongRefrIntvl > fdBufPeriod)      // reduce long refresh to buf period
+            fdLongRefrIntvl = fdBufPeriod;
+    }
+
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
@@ -1524,8 +1553,9 @@ bool DataRefs::SetCfgValue (void* p, int val)
 #endif
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
-        fdBufPeriod     < fdRefreshIntvl    || fdBufPeriod      > 180   ||
-        acOutdatedIntvl < 2*fdRefreshIntvl  || acOutdatedIntvl  > 180   ||
+        fdLongRefrIntvl < fdRefreshIntvl    || fdLongRefrIntvl  > 180   ||
+        fdBufPeriod     < fdLongRefrIntvl   || fdBufPeriod      > 180   ||
+        fdReduceHeight  < 1000              || fdReduceHeight   > 100000||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
         netwTimeout     < 10                ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
@@ -1562,6 +1592,24 @@ bool DataRefs::SetCfgValue (void* p, int val)
     LogCfgSetting(p, val);
     return true;
 }
+
+// Reset advanced config options to defaults
+void DataRefs::ResetAdvCfgToDefaults ()
+{
+    SetLogLevel(logWARN);
+    SetMsgAreaLevel(logINFO);
+    maxNumAc        = DEF_MAX_NUM_AC;
+    fdStdDistance   = DEF_FD_STD_DISTANCE;
+    fdSnapTaxiDist  = DEF_FD_SNAP_TAXI_DIST;
+    fdRefreshIntvl  = DEF_FD_REFRESH_INTVL;
+    fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;
+    fdBufPeriod     = DEF_FD_BUF_PERIOD;
+    fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
+    netwTimeout     = DEF_NETW_TIMEOUT;
+    UIFontScale     = DEF_UI_FONT_SCALE;
+    UIopacity       = DEF_UI_OPACITY;
+}
+
 
 // generic config access (not as fast as specific access, but good for rare access)
 bool  DataRefs::GetCfgBool  (dataRefsLT dr)
@@ -1783,7 +1831,7 @@ bool DataRefs::LoadConfigFile()
     assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
 
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1805,8 +1853,17 @@ bool DataRefs::LoadConfigFile()
     // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
-    if (!safeGetline(fIn, lnBuf) ||                     // read a line
-        (ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
+    if (!safeGetline(fIn, lnBuf)) {
+        // this will trigger when the config file has size 0,
+        // don't know why, but in some rare situations that does happen,
+        // is actually the most often support question.
+        SHOW_MSG(logERR, "LiveTraffic's config file had zero size, continuing with defaults!\n"
+                 "Sorry, you'll need to re-enter any credentials in the settings.");
+        // Continue with defaults
+        return true;
+    }
+        
+    if ((ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
         ln[0] != LIVE_TRAFFIC)                          // 1. is LiveTraffic
     {
         LOG_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
@@ -1821,10 +1878,13 @@ bool DataRefs::LoadConfigFile()
         // Any pre-v3 version?
         if (ln[1][0] < '3')
             conv = CFG_V3;
+        else if (ln[1] < "3.1")
+            conv = CFG_V31;
     }
     
     // *** Delete LiveTraffic_imgui.prf? ***
-    if (conv == CFG_V3)                 // added column to the aircraft list
+    if (conv == CFG_V3 ||                   // added column to the aircraft list
+        conv == CFG_V31)                    // replaced to/from with route
         std::remove(IMGUI_INI_PATH);
     
     // *** DataRefs ***
@@ -1865,7 +1925,8 @@ bool DataRefs::LoadConfigFile()
             {
                 // conversion of older config file formats
                 switch (conv) {
-                    case CFG_NO_CONV: break;
+                    case CFG_NO_CONV:
+                    case CFG_V31: break;
                     case CFG_V3:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
                             // With v3 preferred port changes from 49003 to 49005

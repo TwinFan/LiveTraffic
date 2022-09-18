@@ -602,17 +602,13 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
         if (pJRoute)
         {
             // fetch values from the online data
-            // route is an array of typically 2 entries:
+            // route is an array of typically 2 entries, but can have more
             //    "route":["EDDM","LIMC"]
             JSON_Array* pJRArr = json_object_get_array(pJRoute, OPSKY_ROUTE_ROUTE);
             if (pJRArr) {
                 size_t cnt = json_array_get_count(pJRArr);
-                // origin: first entry
-                if (cnt > 0)
-                    statDat.originAp = jag_s(pJRArr, 0);
-                // destination: last entry
-                if (cnt > 1)
-                    statDat.destAp = jag_s(pJRArr, cnt-1);
+                for (size_t i = 0; i < cnt; i++)
+                    statDat.stops.push_back(jag_s(pJRArr, i));
             }
             
             // flight number: made up of IATA and actual number

@@ -126,12 +126,47 @@
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
-    <h2>v3.0</h2>
+    <h2>v3</h2>
     
-    <h3>v3.0.0 X-Plane 12 Support</h3>
+    <h3>v3.1.0</h3>
 
     <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
     over the files of your existing installation.</P>
+
+    <P>At least copy the following files, which have changed compared to v3.0.0:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+    
+    <ul>
+        <li>NEW Advanced settings for increased flight data refresh interval
+            when flying above a configurable height AGL;
+            so that your OpenSky and ADS-B budgets last longer during cruise.</li>
+        <li>Removed <i>A/c outdated timeout</i> setting, now handled automatically.</li>
+        <li>
+            Added <a href="https://github.com/TwinFan/LiveTraffic/issues/241">#241</a>
+            display of multi-stop routes instead of just origin/destination
+        </li>
+        <li>
+            Added <a href="https://github.com/TwinFan/LiveTraffic/issues/240">#240</a>
+            direct links to OpenSky for updating Aircraft Profile and
+            Route information into the
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a>
+            (new column "Update") and the
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Aircraft Information window</a>,
+            so you can quickly correct/add information
+            in case you find it wrong/missing.
+        </li>
+        <li>ADSBEx, RealTraffic: Reverted to using their <i>barometric</i> altitude fields
+            as they have proven to be more reliable.</li>
+        <li>OpenSky settings: Allow to set username/password while channel is active</li>
+        <li>Gracefully handle zero-sized config file.</li>
+    </ul>
+
+    <h3>v3.0.0 X-Plane 12 Support and channel updates</h3>
 
     <P>At least copy the following files, which have changed compared to v2.60:</P>
         <ul>

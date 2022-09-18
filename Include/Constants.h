@@ -156,6 +156,8 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
 #define LT_DOWNLOAD_CH          "X-Plane.org"
+#define OPSKY_EDIT_AC           "https://opensky-network.org/aircraft-profile?icao24="
+#define OPSKY_EDIT_ROUTE        "https://opensky-network.org/add-route?callsign="
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
@@ -208,9 +210,6 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
 #define CFG_FSC_USER            "FSC_User"
 #define CFG_FSC_PWD             "FSC_Pwd"
-#define XPPRF_RENOPT_HDR        "renopt_HDR"					// XP10
-#define XPPRF_EFFECTS_04		"renopt_effects_04"				// XP11, if >= 3 then includes HDR
-#define XPPRF_RENOPT_HDR_ANTIAL "renopt_HDR_antial"
 
 //MARK: Menu Items
 #define MENU_INFO_LIST_WND      "Status / Information..."

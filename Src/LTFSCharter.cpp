@@ -404,8 +404,7 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 stat.mdl   += s;
             }
             stat.call       =   jog_s(pJAc, FSC_FLIGHT_PILOT);
-            stat.originAp   =   jog_s(pJAc, FSC_FLIGHT_DEP);
-            stat.destAp     =   jog_s(pJAc, FSC_FLIGHT_ARR);
+            stat.setOrigDest(jog_s(pJAc, FSC_FLIGHT_DEP), jog_s(pJAc, FSC_FLIGHT_ARR));
             stat.flight     =   jog_s(pJAc, FSC_FLIGHT_ROUTE_NO);
             l               =   jog_l(pJAc, FSC_FLIGHT_JOB_NO);
             if (l > 0) {
