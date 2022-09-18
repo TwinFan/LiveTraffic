@@ -1925,7 +1925,8 @@ bool DataRefs::LoadConfigFile()
             {
                 // conversion of older config file formats
                 switch (conv) {
-                    case CFG_NO_CONV: break;
+                    case CFG_NO_CONV:
+                    case CFG_V31: break;
                     case CFG_V3:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
                             // With v3 preferred port changes from 49003 to 49005

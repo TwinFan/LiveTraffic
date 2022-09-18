@@ -64,6 +64,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Squawk",           45,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Flight",           65},
     {"Route",            90},
+    {"Update",           40,    ImGui::IM_ALIGN_CENTER, ImGuiTableColumnFlags_NoSort},
 
     {"Position",        150,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Lat",              75,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
@@ -311,29 +312,59 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
         // Fill the data into the list
         for (const FDInfo& fdi: vecFDI) {
             ImGui::TableNextRow();
-            for (size_t col = 0; col < ACT_COL_ACTIONS; ++col) {
-                if (ImGui::TableSetColumnIndex(int(col))) {
-                    ImGui::TextAligned(gCols[col].colAlign, fdi.v[col]);
+            for (size_t col = 0; col < ACT_COL_COUNT; ++col) {
+                switch (col) {
+                    // There are a few columns with special treatment,
+                    case ACT_COL_UPDATE:
+                    case ACT_COL_ACTIONS:
+                        continue;
+                     // the others are just to be drawn
+                    default:
+                        if (ImGui::TableSetColumnIndex(int(col))) {
+                            ImGui::TextAligned(gCols[col].colAlign, fdi.v[col]);
+                        }
                 }
+            }
+            
+            // --- prepare for columns with action buttons ---
+            
+            // Make sure all the buttons have a unique id
+            ImGui::PushID(fdi.key.c_str());
+            
+            // Make selected buttons more visible: Exchange Hovered (lighter) and std color (darker)
+            const ImU32 colHeader = ImGui::GetColorU32(ImGuiCol_Header);
+            ImGui::PushStyleColor(ImGuiCol_Header,          ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered,   colHeader);
+            
+            // Limit the width of the selectables
+            ImVec2 selSize (ImGui::GetWidthIconBtn(), 0.0f);
+            
+            // (Potential) access to the aircraft, can be `nullptr`!
+            LTFlightData* pFD = fdi.GetFD();
+            LTAircraft* pAc = pFD ? pFD->GetAircraft() : nullptr;
+            
+            // Update columnd
+            if (ImGui::TableSetColumnIndex(ACT_COL_UPDATE)) {
+                // Aircraft Profile update (if there is an ICAO key)
+                if (ImGui::SelectableTooltip(ICON_FA_PLANE "##AircraftProfile",
+                                             false,                                         // selected?
+                                             fdi.key.eKeyType == LTFlightData::KEY_ICAO,    // enabled?
+                                             "Update aircraft profile at OpenSky",
+                                             ImGuiSelectableFlags_None, selSize))
+                    LTOpenURL(OPSKY_EDIT_AC, fdi.key);
+                
+                // Route update (if there is a call sign)
+                ImGui::SameLine();
+                if (ImGui::SelectableTooltip(ICON_FA_ROUTE "##Route",
+                                             false,                                         // selected?
+                                             !fdi.v[ACT_COL_CALLSIGN].empty(),              // enabled?
+                                             "Update flight/route at OpenSky",
+                                             ImGuiSelectableFlags_None, selSize))
+                    LTOpenURL(OPSKY_EDIT_ROUTE, fdi.v[ACT_COL_CALLSIGN]);
             }
 
             // Action column
             if (ImGui::TableSetColumnIndex(ACT_COL_ACTIONS)) {
-                // Make sure all the buttons have a unique id
-                ImGui::PushID(fdi.key.c_str());
-                
-                // Make selected buttons more visible: Exchange Hovered (lighter) and std color (darker)
-                const ImU32 colHeader = ImGui::GetColorU32(ImGuiCol_Header);
-                ImGui::PushStyleColor(ImGuiCol_Header,          ImGui::GetColorU32(ImGuiCol_HeaderHovered));
-                ImGui::PushStyleColor(ImGuiCol_HeaderHovered,   colHeader);
-                
-                // Limit the width of the selectables
-                ImVec2 selSize (ImGui::GetWidthIconBtn(), 0.0f);
-                
-                // (Potential) access to the aircraft, can be `nullptr`!
-                LTFlightData* pFD = fdi.GetFD();
-                LTAircraft* pAc = pFD ? pFD->GetAircraft() : nullptr;
-                
                 // Is a/c visible/auto-visible?
                 bool bVisible       = pAc ? pAc->IsVisible()        : false;
                 bool bAutoVisible   = pAc ? pAc->IsAutoVisible()    : false;
@@ -395,10 +426,12 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                                                  ImGuiSelectableFlags_None, selSize))
                         pAc->SetAutoVisible(bAutoVisible);
                 }
-                
-                ImGui::PopStyleColor(2);
-                ImGui::PopID();
             } // action column
+
+            // Restore styles
+            ImGui::PopStyleColor(2);
+            ImGui::PopID();
+
         }   // for all a/c rows
         
         // End of aircraft list

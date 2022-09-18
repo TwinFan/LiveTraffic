@@ -293,7 +293,20 @@ void ACIWnd::buildInterface()
         
         if (bOpen) {
             CollSecClear(ACI_SB_IDENTIFICATION);
-            buildRow("Registration",        stat.reg,           pFD);
+            buildRowLabel("Registration");
+            if (pFD) {
+                if (pFD->key().eKeyType == LTFlightData::KEY_ICAO) {
+                    if (ImGui::SelectableTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT "##AircraftProfile",
+                                                 false,                         // selected?
+                                                 true,                          // enabled?
+                                                 "Update aircraft profile at OpenSky",
+                                                 ImGuiSelectableFlags_None,
+                                                 ImVec2 (ImGui::GetWidthIconBtn(), 0.0f)))
+                        LTOpenURL(OPSKY_EDIT_AC, pFD->key());
+                    ImGui::SameLine();
+                }
+                ImGui::TextUnformatted(stat.reg.c_str());
+            }
             if (pDoc8643 && !pDoc8643->classification.empty())
                 buildRow("ICAO Type (Class)", pFD,
                          "%s (%s)",
@@ -325,7 +338,20 @@ void ACIWnd::buildInterface()
             if (pFD)
                 ImGui::Text("%s | %s", stat.call.c_str(), dyn.GetSquawk().c_str());
             
-            buildRow("Flight: Route",  stat.flightRoute(), pFD);
+            buildRowLabel("Flight: Route");
+            if (pFD) {
+                if (!stat.call.empty()) {
+                    if (ImGui::SelectableTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT "##Route",
+                                                 false,                         // selected?
+                                                 true,                          // enabled?
+                                                 "Update flight/route at OpenSky",
+                                                 ImGuiSelectableFlags_None,
+                                                 ImVec2 (ImGui::GetWidthIconBtn(), 0.0f)))
+                        LTOpenURL(OPSKY_EDIT_ROUTE, stat.call);
+                    ImGui::SameLine();
+                }
+                ImGui::TextUnformatted(stat.flightRoute().c_str());
+            }
                         
             // end of the tree
             ImGui::TreePop();

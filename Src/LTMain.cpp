@@ -246,7 +246,7 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 // MARK: URL/Help support
 //
 
-void LTOpenURL  (const std::string& _url)
+void LTOpenURL  (const std::string& _url, const std::string& addon)
 {
     // Transiently, we allow to add the current camera position into the URL
     std::string url(_url);
@@ -257,6 +257,10 @@ void LTOpenURL  (const std::string& _url)
                   camPos.lat(), camPos.lon());
         url = buf;
     }
+    
+    // If an addon is sepcified it is just added to the end
+    if (!addon.empty())
+        url += addon;
     
 #if IBM
     // Windows implementation: ShellExecuteA
