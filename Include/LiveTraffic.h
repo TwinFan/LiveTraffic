@@ -194,7 +194,7 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 
 // MARK: URL/Help support
 
-void LTOpenURL  (const std::string& url);
+void LTOpenURL  (const std::string& url, const std::string& addon = "");
 void LTOpenHelp (const std::string& path);
 
 // MARK: String/Text Functions
@@ -233,6 +233,9 @@ inline std::string& trim(std::string& s, const char* t = WHITESPACE)
 {
     return ltrim(rtrim(s, t), t);
 }
+
+/// trim whitespace
+inline std::string& trim_ws(std::string& s) { return trim(s); }
 
 /// Cut off everything after `from` from `s`, `from` including
 std::string& cut_off(std::string& s, const std::string& from);

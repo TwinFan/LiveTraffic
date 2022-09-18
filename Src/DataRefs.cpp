@@ -1831,7 +1831,7 @@ bool DataRefs::LoadConfigFile()
     assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
 
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1853,8 +1853,17 @@ bool DataRefs::LoadConfigFile()
     // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
-    if (!safeGetline(fIn, lnBuf) ||                     // read a line
-        (ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
+    if (!safeGetline(fIn, lnBuf)) {
+        // this will trigger when the config file has size 0,
+        // don't know why, but in some rare situations that does happen,
+        // is actually the most often support question.
+        SHOW_MSG(logERR, "LiveTraffic's config file had zero size, continuing with defaults!\n"
+                 "Sorry, you'll need to re-enter any credentials in the settings.");
+        // Continue with defaults
+        return true;
+    }
+        
+    if ((ln = str_tokenize(lnBuf, " ")).size() != 2 ||  // split into two words
         ln[0] != LIVE_TRAFFIC)                          // 1. is LiveTraffic
     {
         LOG_MSG(logERR, ERR_CFG_FILE_VER, sFileName.c_str(), lnBuf.c_str());
@@ -1869,10 +1878,13 @@ bool DataRefs::LoadConfigFile()
         // Any pre-v3 version?
         if (ln[1][0] < '3')
             conv = CFG_V3;
+        else if (ln[1] < "3.1")
+            conv = CFG_V31;
     }
     
     // *** Delete LiveTraffic_imgui.prf? ***
-    if (conv == CFG_V3)                 // added column to the aircraft list
+    if (conv == CFG_V3 ||                   // added column to the aircraft list
+        conv == CFG_V31)                    // replaced to/from with route
         std::remove(IMGUI_INI_PATH);
     
     // *** DataRefs ***
@@ -1913,7 +1925,8 @@ bool DataRefs::LoadConfigFile()
             {
                 // conversion of older config file formats
                 switch (conv) {
-                    case CFG_NO_CONV: break;
+                    case CFG_NO_CONV:
+                    case CFG_V31: break;
                     case CFG_V3:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
                             // With v3 preferred port changes from 49003 to 49005

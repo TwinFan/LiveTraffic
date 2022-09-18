@@ -38,8 +38,8 @@ enum ACTColumnsTy {
     ACT_COL_CALLSIGN,       ///< call sign
     ACT_COL_SQUAWK,         ///< Squawk code
     ACT_COL_FLIGHT,         ///< Flight number
-    ACT_COL_FROM,           ///< departure airport
-    ACT_COL_TO,             ///< destination airport
+    ACT_COL_ROUTE,          ///< route (origin - destination airport or more stops)
+    ACT_COL_UPDATE,         ///< Update links to edit aircraft/route info on OpenSky
     
     ACT_COL_POS,            ///< position relative to nearest airport
     ACT_COL_LAT,            ///< latitude
