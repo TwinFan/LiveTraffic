@@ -1,8 +1,24 @@
 # LiveTraffic - Set up to be used in the provided docker environment to build lin, mac, and win
 
 cmake_minimum_required(VERSION 3.16)
+
+# Mac: Need to tell early on that we want a cross platform build
+if(DEFINED ENV{platform})
+    message ("-- Platform is $ENV{platform}")
+    if($ENV{platform} STREQUAL "mac-x86")
+        message ("   Building cross-platform for mac/x86_64")
+        set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Archs to build")
+    elseif($ENV{platform} STREQUAL "mac-arm")
+        message ("   Building cross-platform for mac/arm64")
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Archs to build")
+    endif()
+else()
+    # No 'platform' defined could mean running from command line, assume we build universal image in one go via XCode
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Archs to build")
+endif()
+
 project(LiveTraffic
-        VERSION 3.1.0
+        VERSION 3.2.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition
@@ -24,8 +40,9 @@ if (WIN32)
         set(ENV{platform} "win")
     endif()
 elseif(APPLE)
-    add_compile_options(-mmacosx-version-min=10.12)
-    add_link_options(-mmacosx-version-min=10.12)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
+    add_compile_options(-mmacosx-version-min=11.0)
+    add_link_options(-mmacosx-version-min=11.0)
 endif()
 
 ################################################################################
@@ -205,6 +222,15 @@ if (NOT MSVC)
         Lib/ImgWindow/ImgWindow.cpp
     PROPERTIES
         COMPILE_FLAGS -Wno-float-equal)
+endif()
+
+# Apple deprecated OpenGL...yea, we know, keep quiet
+if (APPLE)
+    set_source_files_properties(
+        Lib/ImgWindow/ImgFontAtlas.cpp
+        Lib/ImgWindow/ImgWindow.cpp
+    PROPERTIES
+        COMPILE_OPTIONS "-Wno-deprecated-declarations")
 endif()
 
 ################################################################################

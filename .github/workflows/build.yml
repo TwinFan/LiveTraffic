@@ -9,7 +9,6 @@ on:
 # Let's set all project specific definitions globally
 env:
   PRJ_NAME:     LiveTraffic            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
-  PRJ_BUNDLEID: TwinFan.plugin.LiveTraffic
 
 jobs:
   #####################################
@@ -37,8 +36,6 @@ jobs:
   # MacOS with CMake/clang and sign/notarize in self-written script
   build-mac:
     runs-on: macos-latest
-    env:
-      platform: mac
     steps:
     - name: Checkout Code
       uses: actions/checkout@v2       # must checkout before we can use our own actions
@@ -62,11 +59,11 @@ jobs:
       if: ${{ steps.checksecrets.outputs.secretspresent }}
       uses: ./.github/actions/sign-notarize
       with:
-        bundleId:       ${{ env.PRJ_BUNDLEID }}
         xplFileName:    ${{ steps.build.outputs.xpl-file-name }}
         certificate:    ${{ secrets.MACOS_CERTIFICATE }}
         certPwd:        ${{ secrets.MACOS_CERT_PWD }}
         notarizeUser:   ${{ secrets.NOTARIZATION_USERNAME }}
+        notarizeTeam:   ${{ secrets.NOTARIZATION_TEAM }}
         notarizeAppPwd: ${{ secrets.NOTARIZATION_PASSWORD }}
     - name: Upload Artifact
       uses: ./.github/actions/upload-plugin
