@@ -7,12 +7,12 @@ It waits for Apple's answer to notarization, which can take a couple of minutes!
 
 Parameter|Requied|Default|Description
 ---------|-------|-------|------------
-`bundleId`|yes||Plugin's bundle id, something like 'Author.plugin.NameOfPlugin
 `xplFileName`|yes||Path to just built xpl plugin
 `certificate`|yes||Base64 encoded .p12 certificate file
 `certPwd`|yes||Password of the .p12 certificate file
-`notarizeUser`|yes||Username/EMail for notarization
-`notarizeAppPwd`|yes||App-specific password for notarization
+`notarizeUser`|yes||Apple ID for notarization service (parameter `--apple-id` to `notarytool`)
+`notarizeTeam`|yes||Team ID for notarization service (parameter `--team-id` to `notarytool`)
+`notarizeAppPwd`|yes||[App-specific password](https://support.apple.com/en-gb/HT204397) for notarization service (parameter `--password` to `notarytool`)
 
 ## What it does
 

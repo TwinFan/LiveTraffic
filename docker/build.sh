@@ -18,7 +18,7 @@ function build() {
     win)
       flags+=('-DCMAKE_TOOLCHAIN_FILE=../docker/Toolchain-mingw-w64-x86-64.cmake')
       ;;
-    mac)
+    mac*)
       flags+=('-DCMAKE_TOOLCHAIN_FILE=../docker/Toolchain-ubuntu-osxcross.cmake')
       ;;
   esac

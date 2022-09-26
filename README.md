@@ -40,6 +40,15 @@ Thanks go to
 
 ## Build
 
+There are four options to build from sources:
+
+Options            | Windows            | MacOS (universal)   | Linux
+-------------------|--------------------|---------------------|-------------------
+**Github Actions** | Visual Studio 2022 | XCode 12            | Focal
+**Docker**         | Mingw64            | clang, SDK 12       | Focal and Bionic
+**CMake**          | -                  | XCode 12            | Focal and Bionic
+**IDE**            | Visual Studio 2019 | XCode 12            | -
+
 ### Github Actions
 
 LiveTraffic builds on Github, see
@@ -62,6 +71,21 @@ For more background info also see [`docker/README.md`](https://github.com/TwinFa
 
 The `Makefile` also builds the `doc` target, ie. the Doxygen documentation.
 That will only work on a Mac. Otherwise, you may want to remove `doc` from `all`.
+
+### CMake
+
+Given a proper local setup with a suitable compile, CMake, and Ninja installed,
+you can just locally build the sources from the `CMakeList.txt` file,
+e.g. like this:
+
+```
+mkdir build
+cd build
+cmake -G Ninja ..
+ninja
+```
+
+This is precicely how the Mac and Linux builds are done in Github Actions.
 
 ### IDE
 
