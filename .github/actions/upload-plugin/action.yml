@@ -28,7 +28,7 @@ runs:
         mv "${{ inputs.pdbFileName }}" "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
       fi
   - name: Upload plugin
-    uses: actions/upload-artifact@v2
+    uses: actions/upload-artifact@v3
     with:
       name: ${{ inputs.pluginName }}
       path: deploy-${{ inputs.pluginName }}/*   # this way the top folder in the artifacts is "MyPlugin"

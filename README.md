@@ -44,10 +44,10 @@ There are four options to build from sources:
 
 Options            | Windows            | MacOS (universal)   | Linux
 -------------------|--------------------|---------------------|-------------------
-**Github Actions** | Visual Studio 2022 | XCode 12            | Focal
+**Github Actions** | Visual Studio 2022 | XCode 13            | Focal
 **Docker**         | Mingw64            | clang, SDK 12       | Focal and Bionic
-**CMake**          | -                  | XCode 12            | Focal and Bionic
-**IDE**            | Visual Studio 2019 | XCode 12            | -
+**CMake**          | -                  | XCode 14            | Focal and Bionic
+**IDE**            | Visual Studio 2019 | XCode 14            | -
 
 ### Github Actions
 

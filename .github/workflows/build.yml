@@ -19,7 +19,7 @@ jobs:
       platform: lin
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2       # must checkout before we can use our own actions
+      uses: actions/checkout@v3       # must checkout before we can use our own actions
     - name: Build
       uses: ./.github/actions/build-lin
       id: build
@@ -38,7 +38,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2       # must checkout before we can use our own actions
+      uses: actions/checkout@v3       # must checkout before we can use our own actions
     - name: Build
       uses: ./.github/actions/build-mac
       id: build
@@ -80,7 +80,7 @@ jobs:
       platform: win
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2       # must checkout before we can use our own actions
+      uses: actions/checkout@v3       # must checkout before we can use our own actions
     - name: Build
       uses: ./.github/actions/build-win
       id: build
