@@ -20,6 +20,9 @@
 
 #include "LiveTraffic.h"
 
+// Include the code for the FMOD Logo
+#include "FMOD_Logo.inc"
+
 // Controls access to the log list (defined in TextIO)
 extern std::recursive_mutex gLogMutex;
 
@@ -37,6 +40,7 @@ static const CreditTy CREDITS[] = {
     { "X-Plane APIs", "to integrate with X-Plane",      "https://developer.x-plane.com/sdk/plugin-sdk-documents/" },
     { "XPMP2", "for CSL model processing",              "https://github.com/TwinFan/XPMP2" },
     { "CURL", "for network protocol support",           "https://curl.haxx.se/libcurl/" },
+    { "FMOD", "Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.", "https://www.fmod.com/"},
     { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
@@ -453,6 +457,18 @@ void InfoListWnd::buildInterface()
                     ImGui::TreePop();
                 }
                 
+                // FMOD requires us to show the logo
+                // See https://www.fmod.com/attribution
+                if (ImGui::TreeNodeEx("Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // FMOD Logo in white
+                    int logoId = 0;
+                    if (FMODLogo::GetTexture(logoId,false)) {
+                        ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+                    }
+
+                    ImGui::TreePop();
+                }
+
                 // Credits
                 if (ImGui::TreeNode("Credits")) {
                     ImGui::TextUnformatted(LIVE_TRAFFIC " is based on a number of other great libraries and APIs, most notably:");

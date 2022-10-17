@@ -131,6 +131,7 @@
 		25A095C82203B01300658AA8 /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
 		25A095C92203B01300658AA8 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
 		25A70295241D911200D2E7EE /* Apt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Apt.md; sourceTree = "<group>"; };
+		25A9F45828FDE45200686B5E /* FMOD_Logo.inc */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; path = FMOD_Logo.inc; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
@@ -425,11 +426,12 @@
 			isa = PBXGroup;
 			children = (
 				251284AC274D829500B0F51A /* base64 */,
-				25F3471824D2C7DE004574E7 /* parson */,
+				25A9F45628FDE45200686B5E /* fmod */,
 				25EFC76A249567BF005DB0A6 /* Font */,
-				256CA1C8248C5094009F4AAE /* ImgWindow */,
 				256CA1BB248C458D009F4AAE /* ImGui */,
+				256CA1C8248C5094009F4AAE /* ImgWindow */,
 				2593063C22DB411500C82D4F /* LTAPI */,
+				25F3471824D2C7DE004574E7 /* parson */,
 			);
 			path = Lib;
 			sourceTree = "<group>";
@@ -443,6 +445,22 @@
 				2591F9692197008C00F0D436 /* Src */,
 			);
 			path = NoGit;
+			sourceTree = "<group>";
+		};
+		25A9F45628FDE45200686B5E /* fmod */ = {
+			isa = PBXGroup;
+			children = (
+				25A9F45728FDE45200686B5E /* inc */,
+			);
+			path = fmod;
+			sourceTree = "<group>";
+		};
+		25A9F45728FDE45200686B5E /* inc */ = {
+			isa = PBXGroup;
+			children = (
+				25A9F45828FDE45200686B5E /* FMOD_Logo.inc */,
+			);
+			path = inc;
 			sourceTree = "<group>";
 		};
 		25D810FD2402D60A00A8723B /* docker */ = {
@@ -547,7 +565,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1340;
+				LastUpgradeCheck = 1400;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 12.0";
@@ -662,6 +680,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2.05;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
@@ -767,6 +786,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2.05;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
@@ -844,6 +864,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
+				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_LOCATION = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -890,6 +911,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
+				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_LOCATION = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
