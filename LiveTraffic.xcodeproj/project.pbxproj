@@ -30,6 +30,7 @@
 		2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2575F44823ECC2C000747524 /* XPMP2.framework */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 259EC47925057815009B86F3 /* LTOpenGlider.cpp */; };
+		25A9F45B28FF461A00686B5E /* libfmod.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9F45A28FF461A00686B5E /* libfmod.dylib */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
@@ -132,6 +133,7 @@
 		25A095C92203B01300658AA8 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
 		25A70295241D911200D2E7EE /* Apt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Apt.md; sourceTree = "<group>"; };
 		25A9F45828FDE45200686B5E /* FMOD_Logo.inc */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; path = FMOD_Logo.inc; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		25A9F45A28FF461A00686B5E /* libfmod.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libfmod.dylib; path = Lib/fmod/libfmod.dylib; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
@@ -180,6 +182,7 @@
 				2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */,
 				256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */,
 				25D293FD25C625C10007C72E /* libcurl.tbd in Frameworks */,
+				25A9F45B28FF461A00686B5E /* libfmod.dylib in Frameworks */,
 				250F59C82530ECA100EF095C /* XPLM.framework in Frameworks */,
 				2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */,
 			);
@@ -524,6 +527,7 @@
 		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				25A9F45A28FF461A00686B5E /* libfmod.dylib */,
 				25D293F625C625710007C72E /* Cocoa.framework */,
 				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
 				2564042921AAC9B5001E2F2A /* GSS.framework */,
@@ -740,7 +744,7 @@
 					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
-				LIVETRAFFIC_VERSION_BETA = 0;
+				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 3;
 				LIVETRAFFIC_VER_MINOR = 2;
 				LIVETRAFFIC_VER_PATCH = 0;
@@ -845,7 +849,7 @@
 					Lib/Font,
 					"$(HEADER_SEARCH_PATHS)",
 				);
-				LIVETRAFFIC_VERSION_BETA = 0;
+				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 3;
 				LIVETRAFFIC_VER_MINOR = 2;
 				LIVETRAFFIC_VER_PATCH = 0;
@@ -887,6 +891,10 @@
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = mac_x64;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Lib/fmod",
+				);
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",
@@ -934,6 +942,10 @@
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = mac_x64;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Lib/fmod",
+				);
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",

@@ -1,10 +1,25 @@
 TODO
 ===
 
+Sound
+--
+XPMP2
+- Cars should have no engine sound, but only taxiing
+- Engines seem in general a bit too silent compared to gear/flaps
+LiveTraffic
+- FMOD Logo in welcome message...might need to finally turn the Message window into a ImGui screen
+- Volume shouldn't change quickly like in take-off roll or when reversers
+  deploy.
+  - Either check FMOD parameters...there was something about slowly changing volume
+  - Or control thrust/reverse by a MovingParam object
+
 - In Later version reduce ERR_CFG_FILE_MAXWARN to 5 again
 
 Download History
 ==========
+Download counter when providing v3.1.0: 169.434
+Download counter when providing v3.0.0: 164.625
+Download counter when providing v2.60: 148.151
 Download counter when providing v2.53: 136.672
 Download counter when providing v2.51: 126.069
 Download counter when providing v2.50: 122.027

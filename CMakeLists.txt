@@ -23,7 +23,7 @@ project(LiveTraffic
 
 # Provide compile macros from the above project version definition
 add_compile_definitions(
-    LIVETRAFFIC_VERSION_BETA=0
+    LIVETRAFFIC_VERSION_BETA=1
     LIVETRAFFIC_VER_MAJOR=${PROJECT_VERSION_MAJOR}
     LIVETRAFFIC_VER_MINOR=${PROJECT_VERSION_MINOR}
     LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
@@ -62,6 +62,9 @@ add_compile_definitions(XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 XPLM303=1)
 
 # Define platform macros.
 add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>)
+
+# Need FMOD Sound Support (from XPMP2)
+add_compile_definitions(INCLUDE_FMOD_SOUND)
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
@@ -123,6 +126,7 @@ include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImgWindow")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/Font")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/fmod/inc")
 
 ################################################################################
 # Source groups
@@ -163,6 +167,7 @@ set(Header_Files
     Lib/ImgWindow/ImgFontAtlas.h
     Lib/ImgWindow/ImgWindow.h
     Lib/ImgWindow/SystemGL.h
+    Lib/fmod/inc/FMOD_Logo.inc
     Lib/Font/IconsFontAwesome5.h
     Lib/Font/fa-solid-900.inc
     Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPCAircraft.h
@@ -268,6 +273,7 @@ elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/win")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
+list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 
 # Link the XPMP2 library
 find_library(XPMP2_LIBRARY XPMP2 REQUIRED)
@@ -292,11 +298,16 @@ endif ()
 include_directories( ${CURL_INCLUDE_DIRS} )
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
-# Link OpenGL and OpenAL related libraries.
-set (OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL REQUIRED)  # apt install freeglut3-dev
-include_directories( ${OpenGL_INCLUDE_DIRS} )
-target_link_libraries( LiveTraffic ${OpenGL_LIBRARIES} )
+# Link FMOD library
+if(WIN32)
+    find_library(FMOD_LIBRARY NAMES fmod_vc.lib REQUIRED)
+elseif(APPLE)
+    find_library(FMOD_LIBRARY NAMES libfmod.dylib REQUIRED)
+elseif(UNIX AND NOT APPLE)
+    find_library(FMOD_LIBRARY NAMES libfmod.so REQUIRED)
+endif()
+message ("   FMOD_LIBRARY         = ${FMOD_LIBRARY}")
+target_link_libraries(LiveTraffic ${FMOD_LIBRARY})
 
 # Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
 if (WIN32 OR APPLE)
