@@ -313,21 +313,24 @@ public:
         SND_FLAPS,                          ///< Flaps extending/retracting (once per event), bases on GetFlapRatio()
         SND_NUM_EVENTS                      ///< Number of events (always last in `enum`)
     };
-    /// List of FMOD channels
+    /// List of FMOD channels, also beyond sounds created for SoundEvetsTy
     typedef std::list<FMOD_CHANNEL*> ChnListTy;
+    
+    /// Operational values per sound channel, that is triggered by a standard sound event
+    struct SndChTy {
+        bool bAuto = true;                  ///< Shall this sound event be handled automatically? (Set to false in your constructor or in Aircraft::SoundSetup() if you want to control that event type yourself)
+        FMOD_CHANNEL* pChn = nullptr;       ///< channel playing the sound currently
+        float lastDRVal = NAN;              ///< last observed dataRef value to see if sound is to be triggered
+        float volAdj = 1.0f;                ///< Volume adjustment, fed from Aircraft::SoundGetName()
+    };
 
-    /// @brief Which of the above sounds shall be hanled by XPMP2 automatically?
-    /// @details Reset in your constructor if you want to handle some of them yourself
-    bool abSndAuto[SND_NUM_EVENTS] = { true, true, true, true, true };
     /// @brief Minimum distance in [m] to play sound in full volume, the larger the 'louder' the aircraft
     /// @details Initialized based on engine type and numbers, overwrite in your constructor if you want to control "size" of aircraft in terms of its sound volume
     int sndMinDist = 50.0;
     
 protected:
-    /// The audio channels per event type
-    FMOD_CHANNEL*       apChn[SND_NUM_EVENTS] = { nullptr, nullptr, nullptr, nullptr, nullptr };
-    /// If sound is triggered by the change of a (dataRef) value we need to keep track of the latest such value to be able to identify change
-    float               afChnLastVal[SND_NUM_EVENTS] = { NAN, NAN, NAN, NAN, NAN };
+    /// Operational values per sound channel, that is triggered by a standard sound event
+    SndChTy aSndCh[SND_NUM_EVENTS];
     /// Is Low Pass Filter currently being active?
     bool                bChnLowPass = false;
     /// Is sound for this aircraft currently muted?
@@ -672,7 +675,10 @@ public:
     ///          aircraft classification and returns constant
     ///          names for the other sound types.
     /// @note Override in derived class if you want to assign (some) sounds yourself
-    virtual std::string SoundGetName (SoundEventsTy sndEvent) const;
+    /// @param sndEvent The type of sound event, like engine or gear
+    /// @param[out] volAdj Volume adjustment factor, allows to make sound louder (>1.0) or quiter, defaults to 1.0
+    /// @returns Name of the sound to play
+    virtual std::string SoundGetName (SoundEventsTy sndEvent, float& volAdj) const;
 #endif
 
 protected:

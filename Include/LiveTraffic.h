@@ -96,6 +96,7 @@
 #include "IconsFontAwesome5.h"
 
 // XP Multiplayer API (XPMP2)
+#define INCLUDE_FMOD_SOUND 1            // Built with FMOD sound support
 #include "XPMPMultiplayer.h"
 #include "XPMPAircraft.h"
 
