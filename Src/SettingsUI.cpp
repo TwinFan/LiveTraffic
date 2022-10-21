@@ -787,6 +787,15 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeHelp("User Interface", nCol, nullptr, nullptr, sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
             {
+                if (ImGui::FilteredLabel("Message Window", sFilter)) {
+                    if (ImGui::Button("Reposition Message Wnd")) {
+                        // Safe/restore our context as we are now dealing with another ImGui window,
+                        ImGuiContext* pCtxt = ImGui::GetCurrentContext();
+                        CreateMsgWindow(0, logMSG, MSG_REPOSITION_WND);
+                        ImGui::SetCurrentContext(pCtxt);
+                    }
+                    ImGui::TableNextCell();
+                }
                 if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
                     ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
                                          bool(dataRefs.SUItransp) != (wndStyle == WND_STYLE_HUD) ?

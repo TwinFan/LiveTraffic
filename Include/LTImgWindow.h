@@ -43,9 +43,6 @@ namespace ImGui {
 /// Get width of an icon button (calculate on first use)
 IMGUI_API float GetWidthIconBtn (bool _bWithSpacing = false);
 
-/// Convert color from float pointer to ImVec4
-inline ImVec4 ConvColor (float _col[4]) { return ImVec4(_col[0], _col[1], _col[2], _col[3]); }
-
 /// @brief Helper for creating unique IDs
 /// @details Required when creating many widgets in a loop, e.g. in a table
 IMGUI_API void PushID_formatted(const char* format, ...)    IM_FMTARGS(1);

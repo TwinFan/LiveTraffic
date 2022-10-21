@@ -91,6 +91,7 @@
 // ImGui / ImgWindow
 #include "imgui.h"
 #include "imgui_stdlib.h"
+#include "imgui_internal.h"         // For fiddling with the ImGui window z-order we need ImGui internals
 #include "ImgWindow.h"
 #include "ImgFontAtlas.h"
 #include "IconsFontAwesome5.h"

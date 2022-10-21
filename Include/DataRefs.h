@@ -179,6 +179,9 @@ struct WndRect {
     
     /// Set from config file string ("left,top,right.bottom")
     void    set (const std::string& _s);
+    
+    /// Make sure the window is on the visible screen
+    bool keepOnScreen ();
 };
 
 /// Write WndRect into config file ("left,top,right.bottom")
@@ -727,6 +730,9 @@ public:
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
     int UIFontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
 
+    // Message Box
+    WndRect MsgRect;                    ///< Message Box Window position
+    
     // Settings UI
     WndRect SUIrect;                    ///< Settings UI Window position
     int SUItransp = 0;                  ///< Settings UI: transaprent background?

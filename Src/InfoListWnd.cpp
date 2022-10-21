@@ -167,7 +167,7 @@ void InfoListWnd::buildInterface()
             bool bFilterChanged = false;
             for (logLevelTy lvl: {logDEBUG, logMSG, logINFO, logWARN, logERR, logFATAL}) {
                 if (lvl) ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ConvColor(LogLvlColor(lvl)));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImU32(LogLvlColor(lvl)));
                 if (ImGui::CheckboxFlags(LogLvlText(lvl), &msgLvlFilter, 1 << lvl))
                     bFilterChanged = true;
                 ImGui::PopStyleColor();
@@ -272,7 +272,7 @@ void InfoListWnd::buildInterface()
                         ImGui::TextUnformatted(NetwTimeString(msg.netwTime).c_str());
                     // Level
                     if (ImGui::TableSetColumnIndex(2)) {
-                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ConvColor(LogLvlColor(msg.lvl)));
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImU32(LogLvlColor(msg.lvl)));
                         ImGui::TextUnformatted(LogLvlText(msg.lvl));
                         ImGui::PopStyleColor();
                     }

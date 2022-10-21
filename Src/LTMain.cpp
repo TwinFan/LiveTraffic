@@ -1072,7 +1072,7 @@ void LTMainHideAircraft ()
     LTFlightDataHideAircraft ();
     
     // Remove any message about seeing planes
-    CreateMsgWindow(float(AC_MAINT_INTVL), 0, 0, -1);
+    CreateMsgWindow(float(AC_MAINT_INTVL * 1.5), 0, 0, -1);
 
     // disable aircraft drawing, free up multiplayer planes
     // (the "soft way", which requires a few more drawing cycles,

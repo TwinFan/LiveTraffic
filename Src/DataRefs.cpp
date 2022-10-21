@@ -302,6 +302,34 @@ void WndRect::set (const std::string& _s)
     }
 }
 
+// Make sure the window is on the visible screen
+bool WndRect::keepOnScreen ()
+{
+    bool bChanged = false;
+    WndRect screen;
+    XPLMGetScreenBoundsGlobal(&screen.left(), &screen.top(),
+                              &screen.right(), &screen.bottom());
+
+
+    if (right() > screen.right()) {
+        shift(screen.right() - right(), 0);
+        bChanged = true;
+    }
+    if (left() < screen.left()) {
+        shift(screen.left() - left(), 0);
+        bChanged = true;
+    }
+    if (bottom() < screen.bottom()) {
+        shift(0, screen.bottom() - bottom());
+        bChanged = true;
+    }
+    if (top() > screen.top() - WIN_FROM_TOP) {
+        shift(0, screen.top() - WIN_FROM_TOP - top());
+        bChanged = true;
+    }
+    // Did we change any value?
+    return bChanged;
+}
 
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[] = {
@@ -684,6 +712,7 @@ iLogLevel (initLogLevel),
 #ifdef DEBUG
 bDebugAcPos (true),
 #endif
+MsgRect(0, 0, WIN_WIDTH, 0),
 SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
 ACIrect (0, 530, 320, 0),
 ILWrect (0, 400, 965, 0)
@@ -1941,6 +1970,8 @@ bool DataRefs::LoadConfigFile()
             }
             
             // *** Window positions ***
+            else if (sDataRef == CFG_WNDPOS_MSG)
+                MsgRect.set(sVal);
             else if (sDataRef == CFG_WNDPOS_SUI)
                 SUIrect.set(sVal);
             else if (sDataRef == CFG_WNDPOS_ACI)
@@ -2090,6 +2121,7 @@ bool DataRefs::SaveConfigFile()
             fOut << def.GetConfigString() << '\n';
     
     // *** Window positions ***
+    fOut << CFG_WNDPOS_MSG << ' ' << MsgRect << '\n';
     fOut << CFG_WNDPOS_SUI << ' ' << SUIrect << '\n';
     fOut << CFG_WNDPOS_ACI << ' ' << ACIrect << '\n';
     fOut << CFG_WNDPOS_ILW << ' ' << ILWrect << '\n';
