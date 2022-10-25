@@ -126,7 +126,7 @@ include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/ImgWindow")
 include_directories("${CMAKE_SOURCE_DIR}/Lib/Font")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/fmod/inc")
+include_directories("${CMAKE_SOURCE_DIR}/Lib/fmod/logo")
 
 ################################################################################
 # Source groups
@@ -167,7 +167,7 @@ set(Header_Files
     Lib/ImgWindow/ImgFontAtlas.h
     Lib/ImgWindow/ImgWindow.h
     Lib/ImgWindow/SystemGL.h
-    Lib/fmod/inc/FMOD_Logo.inc
+    Lib/fmod/logo/FMOD_Logo.h
     Lib/Font/IconsFontAwesome5.h
     Lib/Font/fa-solid-900.inc
     Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPCAircraft.h
@@ -208,6 +208,7 @@ set(Source_Files
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
     Lib/ImgWindow/ImgFontAtlas.cpp
     Lib/ImgWindow/ImgWindow.cpp
+    Lib/fmod/logo/FMOD_Logo.cpp
 )
 if (WIN32)
     list(APPEND Source_Files "LiveTraffic.rc")
@@ -254,6 +255,7 @@ set_source_files_properties(
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
     Lib/ImgWindow/ImgFontAtlas.cpp
     Lib/ImgWindow/ImgWindow.cpp
+    Lib/fmod/logo/FMOD_Logo.cpp
 PROPERTIES
     SKIP_PRECOMPILE_HEADERS ON)
 

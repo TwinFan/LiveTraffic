@@ -13,30 +13,11 @@ XPMP2
     per plane
 
 LiveTraffic
-- FMOD Logo in welcome message...might need to finally turn the Message window into a ImGui screen
 - Reversers don't work with sound, seems like engine sound is momentarily stopped, then restarted,
   but no reversers in-between
 - Volume shouldn't change quickly like in take-off roll or when reversers
   deploy.
-  - Either check FMOD parameters...there was something about slowly changing volume
   - Or control thrust/reverse by a MovingParam object
-
-Dev Dcoumentation
-- If XPMP2 is compiled with INCLUDE_FMOD_SOUND but actual plugin without,
-  then the plugin will crash in XPMP2::Aircraft::FlightLoopCB()
-  at the point when it tries to call XPMP2::Aircraft::UpdateSound().
-  (Because the XPMP2::Aircraft object created by your plugin code
-  is created with too short a vtable as it did not consider the
-  virtual member functions for sound support.)
-  You can tell if your XPMP2 is with FMOD support latest from the init message in
-  `Log.txt`, when it says: `...XPMPMultiplayerInit: XPMP2 2.60 with FMOD support initializing...`.
-  Solution: Either use a different XPMP2 build. Or make sure to
-  `#define INCLUDE_FMOD_SOUND 1` in your plugin before including the XPMP2 headers.
-- Default sounds
-- fmod/inc/FMOD_Logo.inc
-- Overriding virtual functions
-  - SoundInit
-
 
 - In Later version reduce ERR_CFG_FILE_MAXWARN to 5 again
 

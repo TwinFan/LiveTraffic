@@ -20,9 +20,6 @@
 
 #include "LiveTraffic.h"
 
-// Include the code for the FMOD Logo
-#include "FMOD_Logo.inc"
-
 // Controls access to the log list (defined in TextIO)
 extern std::recursive_mutex gLogMutex;
 
@@ -459,7 +456,7 @@ void InfoListWnd::buildInterface()
                 
                 // FMOD requires us to show the logo
                 // See https://www.fmod.com/attribution
-                if (ImGui::TreeNodeEx("Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.", ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::TreeNodeEx(MSG_FMOD_SOUND, ImGuiTreeNodeFlags_DefaultOpen)) {
                     // FMOD Logo in white
                     int logoId = 0;
                     if (FMODLogo::GetTexture(logoId,false)) {

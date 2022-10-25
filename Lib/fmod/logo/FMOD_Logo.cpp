@@ -1,4 +1,4 @@
-/// @file       FMOD_Logo.inc
+/// @file       FMOD_Logo.cpp
 /// @brief      Compressed version of the FMOD logo with code to create
 ///             a texture ID in X-Plane for display with Dear ImGui
 /// @see        [FMOD attribution requirements](https://www.fmod.com/attribution)
@@ -12,8 +12,6 @@
 ///             so that it can be used with OpenGL functionality to be turned
 ///             into a texture.
 /// @details    **Usage**\n
-///             Include this file once only in an apprpriate source file,
-///             probably where you make want to use of the logo for display:
 ///
 ///             #include "FMOD_Logo.inc"
 ///             ...
@@ -42,8 +40,9 @@
 ///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ///             THE SOFTWARE.
 
+#include "FMOD_Logo.h"
+
 // Standard C/C++ header
-#include <cstddef>
 #include <cassert>
 
 // Include (Open)GL
@@ -63,24 +62,10 @@
 
 namespace FMODLogo {
 
-/// @brief The one "public" function to return a texture id for the logo
-/// @details On first call will load the logo and create a texture from it,
-///          on subsequent calls will return the already loaded id.
-/// @param[out] texId receives the texture id for the (black or white) FMOD logo
-/// @param bBlack [opt] Black or White logo? (Will return different texture ids)
-/// @returns `true` if successful
-bool GetTexture (int& texId, bool bBlack = true);
-
-
-// *** Internal Implementation ***
-
-// Converted from 'FMOD_LOGOS/FMOD Logo Black - White Background.png'
-// Image Size is 728 x 192, comp = 4
-constexpr size_t IMG_WIDTH  = 728;          ///< image width
-constexpr size_t IMG_HEIGHT = 192;          ///< image height
-constexpr size_t IMG_SIZE   = 139776;       ///< image size in number of pixels
-constexpr size_t RLE_SIZE   = 5527;         ///< number of array entries in the RLE array
-const uint16_t ALPHA_RLE[RLE_SIZE] = 
+/// number of array entries in the RLE array
+constexpr size_t RLE_SIZE   = 5527;
+/// Run-length encoded data of the Alpha value of each pixel in the FMOD logo
+const uint16_t ALPHA_RLE[RLE_SIZE] =
 {
     0x5f00, 0x0130, 0x0240, 0x0160, 0x2b80, 0x0120, 0xff00, 0xfe00, 0x0140, 0x2780, 0x0160, 0x7b00, 0x0120, 0x0140, 0x0180, 0x01b0,
     0x01c0, 0x31ff, 0x0140, 0xff00, 0xfe00, 0x0180, 0x27ff, 0x01c0, 0x7700, 0x0130, 0x0170, 0x01b0, 0x01e0, 0x36ff, 0x0140, 0xff00,
@@ -430,7 +415,7 @@ const uint16_t ALPHA_RLE[RLE_SIZE] =
     0x4b00, 0x0120, 0x0150, 0x0680, 0x0150, 0x0130, 0x1000
 };
 
-/// Load the data of the above array, expand it into RGBA data
+// Load the data of the above array, expand it into RGBA data
 uint8_t* LoadRGBA (bool bBlack)
 {
     // RGBA structure

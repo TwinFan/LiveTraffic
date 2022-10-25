@@ -101,6 +101,9 @@
 #include "XPMPMultiplayer.h"
 #include "XPMPAircraft.h"
 
+// FMOD Logo
+#include "FMOD_Logo.h"
+
 // LTAPI Includes, this defines the bulk transfer structure
 #include "LTAPI.h"
 

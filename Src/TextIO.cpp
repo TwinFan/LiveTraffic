@@ -299,6 +299,14 @@ void WndMsg::buildInterface()
         if (bDoReposition && listTexts.size() < 3) {
             ImGui::TextUnformatted(MSG_REPOSITION_LN2);
         }
+        // Show the FMOD logo together with the FMOD attribution message
+        else if (msg.text == MSG_FMOD_SOUND) {
+            // FMOD Logo in white
+            int logoId = 0;
+            if (FMODLogo::GetTexture(logoId,false)) {
+                ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+            }
+        }
         
         // Finish button for repositioning, remove when donw
         if (bDoReposition && (!LTSettingsUI::IsDisplayed() || ImGui::Button("Finished Repositioning")))
