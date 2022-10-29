@@ -2,10 +2,7 @@ name: Sign/Notarize MacOS plugin
 description: Signs, then notarizes the plugin
 author: TwinFan
 
-inputs:                       
-  bundleId:
-    description: "Plugin's bundle id, something like 'Author.plugin.NameOfPlugin"
-    required: true
+inputs:
   xplFileName:
     description: "Path to just built xpl plugin"
     required: true
@@ -16,7 +13,10 @@ inputs:
     description: "Password of the .p12 certificate file"
     required: true
   notarizeUser:
-    description: "Username/EMail for notarization"
+    description: "Apple-ID for notarization"
+    required: true
+  notarizeTeam:
+    description: "Team-ID for notarization"
     required: true
   notarizeAppPwd:
     description: "App-specific password for notarization"
@@ -30,4 +30,4 @@ runs:
     run: |
         echo ${{ inputs.certificate }} | base64 --decode > certificate.p12
         chmod a+x ${{ github.action_path }}/sign-notarize
-        ${{ github.action_path }}/sign-notarize "${{ inputs.xplFileName }}" "${{ inputs.bundleId }}" certificate.p12 "${{ inputs.certPwd }}" "${{ inputs.notarizeUser }}" "${{ inputs.notarizeAppPwd }}"
+        ${{ github.action_path }}/sign-notarize "${{ inputs.xplFileName }}" certificate.p12 "${{ inputs.certPwd }}" "${{ inputs.notarizeUser }}" "${{ inputs.notarizeTeam }}" "${{ inputs.notarizeAppPwd }}"

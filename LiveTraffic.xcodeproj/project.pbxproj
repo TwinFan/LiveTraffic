@@ -19,8 +19,8 @@
 		256CA1C3248C458D009F4AAE /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BE248C458D009F4AAE /* imgui_widgets.cpp */; };
 		256CA1C4248C458D009F4AAE /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1BF248C458D009F4AAE /* imgui.cpp */; };
 		256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1C2248C458D009F4AAE /* imgui_draw.cpp */; };
-		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; };
-		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; };
+		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
+		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
 		256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */; };
 		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
@@ -550,7 +550,7 @@
 				LastUpgradeCheck = 1340;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
-			compatibilityVersion = "Xcode 3.2";
+			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -670,7 +670,6 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				EXCLUDED_ARCHS = arm64;
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -728,12 +727,11 @@
 				LIVETRAFFIC_VER_PATCH = 1;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				SDKROOT = macosx;
 				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/Release";
 			};
 			name = Debug;
@@ -776,7 +774,6 @@
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				EXCLUDED_ARCHS = arm64;
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -834,11 +831,10 @@
 				LIVETRAFFIC_VER_PATCH = 1;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				SDKROOT = macosx;
 				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/Release";
 			};
 			name = Release;
@@ -849,7 +845,6 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
 				DEPLOYMENT_LOCATION = YES;
-				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/XPMP2",
@@ -887,7 +882,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = TwinFan.plugin.LiveTraffic;
 				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
 				PRODUCT_NAME = "${TARGETNAME}";
-				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
 		};
@@ -897,7 +891,6 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
 				DEPLOYMENT_LOCATION = YES;
-				EXCLUDED_ARCHS = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/XPMP2",
@@ -935,7 +928,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = TwinFan.plugin.LiveTraffic;
 				PRODUCT_MODULE_NAME = "$(PRODUCT_NAME:c99extidentifier)";
 				PRODUCT_NAME = "${TARGETNAME}";
-				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};

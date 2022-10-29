@@ -3,11 +3,11 @@
 #
 # Parameters
 # 1. Path to file to sign, then notarize
-# 2. Bundle id to use during notarization
-# 3. Signing ID file like 'certificate.p12'
-# 4. Password for above p12 file
-# 5. Username for notarization
-# 6. App-specific password for notarization
+# 2. Signing ID file like 'certificate.p12'
+# 3. Password for above p12 file
+# 4. Apple ID for notarization (parameter --apple-id to notarytool)
+# 5. Team ID for notarization (parmeter --team-id to notarytool)
+# 6. App-specific password for notarization (parameter --password to notarytool)
 
 set -eu
 
@@ -16,33 +16,6 @@ set -eu
 function cleanup {
     echo ">>> Cleanup <<<"
     security delete-keychain build.keychain
-}
-
-# --- Function to check for notarization results
-
-check_notarization() {
-    local REQUID=$1
-    local USERNAME=$2
-    local USERPWD=$3
-    local STATUS="in progress"
-    while [ "$STATUS" == "in progress" ]
-    do
-        echo "Wait 30s for results..."
-        sleep 30
-        STATUS=`xcrun altool --notarization-info "$REQUID" -u "$USERNAME" -p "$USERPWD" | egrep -o '(in progress|success|invalid)'`
-    done
-
-    case $STATUS in
-        success)    echo ">>> SUCCESS <<<"
-                    return 0
-                    ;;
-        invalid)    echo "%%% INVALID %%%"
-                    return 1
-                    ;;
-        *)          echo "Unknown status $STATUS"
-                    return 1
-                    ;;
-    esac
 }
 
 # ==================================================================
@@ -55,10 +28,10 @@ then
 fi
 
 PATH_TO_FILE=$1
-BUNDLE_ID=$2
-SIGN_ID_FILE=$3
-SIGN_ID_PWD=$4
-NOTAR_USER=$5
+SIGN_ID_FILE=$2
+SIGN_ID_PWD=$3
+NOTAR_USER=$4
+NOTAR_TEAM=$5
 NOTAR_PWD=$6
 
 # --- Sign
@@ -91,16 +64,8 @@ echo .
 
 # Can only send zip archives to notarization
 zip -v "$PATH_TO_FILE.zip" "$PATH_TO_FILE"
-REQUID=`xcrun altool --notarize-app --primary-bundle-id "$BUNDLE_ID" --username "$NOTAR_USER" --password "$NOTAR_PWD" --file "$PATH_TO_FILE.zip" | egrep -o '([a-z0-9]+-){4}[a-z0-9]+'`
+xcrun notarytool submit --wait --apple-id "$NOTAR_USER" --password "$NOTAR_PWD" --team-id "$NOTAR_TEAM" "$PATH_TO_FILE.zip"
 rm "$PATH_TO_FILE.zip"
-
-# --- Check notarization results ---
-
-echo .
-echo "--- Check notarization results ---"
-echo .
-
-check_notarization "$REQUID" "$NOTAR_USER" "$NOTAR_PWD"
 
 # Note: No stapling possible to .xpl files
 
