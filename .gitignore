@@ -17,3 +17,6 @@ xcuserdata/
 *.mode2v3
 *.perspectivev3
 *.pbxuser
+
+# MS Office Temporary Files
+~$*

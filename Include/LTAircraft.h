@@ -298,7 +298,6 @@ protected:
     flightPhaseE         phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
-    bool                bOnGrnd;        // are we touching ground?
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     bool                bNeedSpeed = false;     ///< need speed calculation?
     bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
@@ -363,7 +362,6 @@ public:
     inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
-    inline bool IsOnGrnd() const { return bOnGrnd; }
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
     inline double GetHeading() const { return ppos.heading() + corrAngle.is(); }
     inline double GetTrack() const { return vec.angle; }

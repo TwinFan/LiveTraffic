@@ -44,6 +44,7 @@
 
 // Standard C/C++ header
 #include <cassert>
+#include <cstddef>
 
 // Include (Open)GL
 #if _MSC_VER                    // compiling via MS Visual Studio

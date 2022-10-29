@@ -202,6 +202,9 @@ public:
     ///          GetVertOfs() for accurate placement on the ground
     XPLMDrawInfo_t drawInfo;
     
+    /// Is the aircraft on the ground?
+    bool        bOnGrnd = false;
+
     /// @brief actual dataRef values to be provided to the CSL model
     /// @details XPMP2 provides a minimum set of dataRefs and also getter/setter
     ///          member functions, see below. This is the one place where
@@ -278,6 +281,9 @@ protected:
     float               prev_ts = 0.0f;     ///< last update of `prev_x/y/z` in XP's network time
     float               v_x = 0.0f, v_y = 0.0f, v_z = 0.0f; ///< Cartesian velocity in m/s per axis
     float               gs_kn = 0.0f;       /// ground speed in [kn] based on above v_x/z
+    
+    /// Set by SetOnGrnd() with the timestamp when to reset SetTouchDown()
+    float               tsResetTouchDown = NAN;
     
     /// X-Plane instance handles for all objects making up the model
     std::list<XPLMInstanceRef> listInst;
@@ -490,6 +496,13 @@ public:
     /// @param _flCounter A monotonically increasing counter, bumped once per flight loop dispatch from the sim.
     virtual void UpdatePosition (float _elapsedSinceLastCall, int _flCounter) = 0;
     
+    /// Is the aircraft on the ground?
+    bool IsOnGrnd () const { return bOnGrnd; }
+    /// @brief Set if the aircraft is on the ground
+    /// @param on_grnd Is the aircraft on the ground?
+    /// @param setTouchDownTime [opt] If not `NAN` activates SetTouchDown(), and automatically resets it after the given time in seconds
+    void SetOnGrnd (bool on_grnd, float setTouchDownTime = NAN);
+    
     /// @}
     /// @name Getters and Setters for the values in Aircraft::drawInfo
     /// @{
@@ -499,6 +512,14 @@ public:
     /// @param lat Latitude in degress -90..90
     /// @param lon Longitude in degrees -180..180
     /// @param alt_ft Altitude in feet above MSL
+    /// @param on_grnd Is the aircraft on the ground?
+    /// @param setTouchDownTime [opt] If not `NAN` activates SetTouchDown(), and automatically resets it after the given time in seconds
+    void SetLocation (double lat, double lon, double alt_ft, bool on_grnd, float setTouchDownTime = NAN) {
+        SetLocation(lat, lon, alt_ft);
+        SetOnGrnd(on_grnd, setTouchDownTime);
+    }
+
+    /// Legacy version of above version of SetLocatiion(), here without setting ground flag
     void SetLocation (double lat, double lon, double alt_ft);
     
     /// @brief Converts aircraft's local coordinates to lat/lon values
