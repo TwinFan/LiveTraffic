@@ -97,7 +97,7 @@ else()
     add_compile_definitions(NDEBUG=1)
     if(MSVC)
         # Use highest optimization level in Release builds
-        add_compile_options(/GL)
+        add_compile_options(/MD /Zi /GL- /O2)
     elseif(APPLE)
         add_compile_options(-O3 -fPIC)
     elseif (UNIX OR MINGW)
@@ -276,7 +276,7 @@ elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
-list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
+list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/XPMP2-Sample/lib/fmod")
 
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)

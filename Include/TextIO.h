@@ -122,10 +122,14 @@ ImColor LogLvlColor (logLevelTy _lvl);
 //               if lvl is greater or equal currently defined log level
 // Note: First parameter after lvl must be the message text,
 //       which can be a format string with its parameters following like in sprintf
+#if LIVETRAFFIC_VERSION_BETA
+#define LOG_MSG(lvl,...) {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}
+#else
 #define LOG_MSG(lvl,...)  {                                         \
-    if (LIVETRAFFIC_VERSION_BETA || ((lvl) >= dataRefs.GetLogLevel()))          \
+    if ((lvl) >= dataRefs.GetLogLevel())                            \
     {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}       \
 }
+#endif
 
 // Display AND log a message as above
 #define SHOW_MSG(lvl,...) {                                         \

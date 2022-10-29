@@ -40,6 +40,9 @@ Thanks go to
 
 ## Build
 
+Please note that LiveTraffic includes the XPMP2 lib as a GitHub submodule.
+To properly build, you need to also init/update the XPMP2 submodule.
+
 There are four options to build from sources:
 
 Options            | Windows            | MacOS (universal)   | Linux
@@ -100,18 +103,11 @@ so that it is right away available in your installation after build.
 #### Windows / Visual Studio
 
 - Install [Visual Studio](https://visualstudio.microsoft.com/vs/community/)
-- Open the solution `LifeTraffic.sln`
+- Open the project folder, typically `LifeTraffic`, using File > Open > Folder...
+- Visual Studio will use the provide CMake setup
 - Build from within Visual Studio
 
 Results are in `build/x64`.
-
-### XPMP2 Library
-
-LiveTraffic builds on the XPMP2 library, [also available on GitHub](https://github.com/TwinFan/XPMP2). Binaries of the XPMP2 library are included in this LiveTraffic repository in the `Lib/XPMP2` folder.
-
-Please note that those binaries are **built by GitHub actions**, ie. using [GitHub's toolchain](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#preinstalled-software). This way, also LiveTraffic can be built by GitHub actions. However, the library may or may not be processable by the toolchain you choose to use.
-
-If you run into a linker error while linking XPMP2 library, you may either choose to use similar compilers as current GitHub toolchain, or you also build XPMP2 yourself and replace the inlcuded version of it with your own build.
 
 ### Doxygen Documentation
 

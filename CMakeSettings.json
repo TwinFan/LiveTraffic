@@ -51,7 +51,7 @@
                 },
                 {
                     "name": "CMAKE_CXX_FLAGS_RELWITHDEBINFO",
-                    "value": "/MD /Zi /GL /O2 /DNDEBUG",
+                    "value": "/MD /Zi /GL- /O2 /DNDEBUG",
                     "type": "STRING"
                 },
                 {
@@ -61,7 +61,7 @@
                 },
                 {
                     "name": "CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO",
-                    "value": "/LTCG /debug /INCREMENTAL:NO",
+                    "value": "/debug /INCREMENTAL:NO",
                     "type": "STRING"
                 }
             ]

@@ -8,6 +8,7 @@ XPMP2
 - There is a small crack audible whenever a new plane is spawned
   - There does not seem to be a crack with the start of any additional sound
     per plane
+- With sudden camera changes (like switching planes in LiveTraffic) there's intermediate sounds, probably from high speed Doppler effect
 
 LiveTraffic
 - Reversers don't work with sound, seems like engine sound is momentarily stopped, then restarted,
