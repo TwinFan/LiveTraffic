@@ -242,7 +242,9 @@ IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip
     
     // Process a changed value
     if (bRet && idx >= 0) {
+        ImGuiContext* pCtxt = ImGui::GetCurrentContext();       // don't know what happens due to processing the set dataRef value, better keep our context
         cfgSet(idx, bV);                // set dataRef value
+        ImGui::SetCurrentContext(pCtxt);
         return true;
     } else
         return false;

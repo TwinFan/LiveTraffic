@@ -18,7 +18,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.1.1
+        VERSION 3.2.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition
@@ -64,7 +64,7 @@ add_compile_definitions(XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 XPLM303=1)
 add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>)
 
 # Need FMOD Sound Support (from XPMP2)
-add_compile_definitions(INCLUDE_FMOD_SOUND)
+add_compile_definitions(INCLUDE_FMOD_SOUND=1)
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
@@ -115,18 +115,18 @@ if (MINGW)
 endif()
 
 # Set include directories used by our code and dependencies.
-include_directories("${CMAKE_SOURCE_DIR}/Include")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/base64")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/OpenGL")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/parson")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/XPMP2/XPMP2.framework/Versions/Current/Headers")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/LTAPI")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/ImGui/misc/cpp")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/ImgWindow")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/Font")
-include_directories("${CMAKE_SOURCE_DIR}/Lib/fmod/logo")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/inc")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/XPMP2-Sample/lib/fmod/logo")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
 
 ################################################################################
 # Source groups
@@ -167,12 +167,11 @@ set(Header_Files
     Lib/ImgWindow/ImgFontAtlas.h
     Lib/ImgWindow/ImgWindow.h
     Lib/ImgWindow/SystemGL.h
-    Lib/fmod/logo/FMOD_Logo.h
     Lib/Font/IconsFontAwesome5.h
     Lib/Font/fa-solid-900.inc
-    Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPCAircraft.h
-    Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPMPMultiplayer.h
-    Lib/XPMP2/XPMP2.framework/Versions/Current/Headers/XPMPPlaneRenderer.h
+    Lib/XPMP2/inc/XPCAircraft.h
+    Lib/XPMP2/inc/XPMPMultiplayer.h
+    Lib/XPMP2/XPMP2-Sample/lib/fmod/logo/FMOD_Logo.h
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -208,7 +207,7 @@ set(Source_Files
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
     Lib/ImgWindow/ImgFontAtlas.cpp
     Lib/ImgWindow/ImgWindow.cpp
-    Lib/fmod/logo/FMOD_Logo.cpp
+    Lib/XPMP2/XPMP2-Sample/lib/fmod/logo/FMOD_Logo.cpp
 )
 if (WIN32)
     list(APPEND Source_Files "LiveTraffic.rc")
@@ -264,23 +263,20 @@ PROPERTIES
 # Link Libraries
 ################################################################################
 
+# Incude building XPMP2
+set (INCLUDE_FMOD_SOUND 1)              # include FMOD sound support
+add_subdirectory(Lib/XPMP2)
+add_dependencies(LiveTraffic XPMP2)
+target_link_libraries(LiveTraffic XPMP2)
+
 # Specify library search locations.
 if (APPLE)
-    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2")
     list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Mac")
-elseif (UNIX)
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/$ENV{platform}")
 elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/win")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
 list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
-
-# Link the XPMP2 library
-find_library(XPMP2_LIBRARY XPMP2 REQUIRED)
-message ("   XPMP2_LIBRARY = ${XPMP2_LIBRARY}")
-target_link_libraries(LiveTraffic ${XPMP2_LIBRARY})
 
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
@@ -343,7 +339,7 @@ elseif (APPLE)
     )
 
     # Restrict set of symbols exported from the plugin to the ones required by XPLM:
-    target_link_libraries(LiveTraffic "-exported_symbols_list ${CMAKE_SOURCE_DIR}/Src/LiveTraffic.sym_mac")
+    target_link_libraries(LiveTraffic "-exported_symbols_list ${CMAKE_CURRENT_SOURCE_DIR}/Src/LiveTraffic.sym_mac")
 elseif (UNIX)
     # Link library for dynamic loading of shared objects on UNIX systems.
     find_library(DL_LIBRARY dl REQUIRED)
@@ -354,7 +350,7 @@ elseif (UNIX)
     target_link_libraries(LiveTraffic ${DL_LIBRARY} Threads::Threads)
     # Specify additional runtime search paths for dynamically-linked libraries.
     # Restrict set of symbols exported from the plugin to the ones required by XPLM:
-    target_link_libraries(LiveTraffic -Wl,--version-script -Wl,${CMAKE_SOURCE_DIR}/Src/LiveTraffic.sym)
+    target_link_libraries(LiveTraffic -Wl,--version-script -Wl,${CMAKE_CURRENT_SOURCE_DIR}/Src/LiveTraffic.sym)
 endif ()
 
 # Target directory and file name

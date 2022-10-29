@@ -27,13 +27,13 @@
 		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
 		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
 		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
-		2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2575F44823ECC2C000747524 /* XPMP2.framework */; };
 		257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */; };
 		259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 259EC47925057815009B86F3 /* LTOpenGlider.cpp */; };
-		25A9F45B28FF461A00686B5E /* libfmod.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 25A9F45A28FF461A00686B5E /* libfmod.dylib */; };
-		25A9F46F2904812B00686B5E /* FMOD_Logo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25A9F46B2904811300686B5E /* FMOD_Logo.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
+		25BF009D290DCA7500317CAE /* FMOD_Logo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BF009C290DCA7500317CAE /* FMOD_Logo.cpp */; };
+		25BF00AD290DCC6C00317CAE /* libfmod.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 25BF00AC290DCC6C00317CAE /* libfmod.dylib */; };
+		25BF00AE290DCCA000317CAE /* XPMP2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25BF00A5290DCBF400317CAE /* XPMP2.framework */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
 		25C5254424D0268700C73482 /* InfoListWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C5254324D0268700C73482 /* InfoListWnd.cpp */; };
 		25C59458207A296500E52073 /* TextIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59456207A296500E52073 /* TextIO.cpp */; };
@@ -49,6 +49,37 @@
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		25BF00A4290DCBF400317CAE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 2502C17A23BE8A1600578919;
+			remoteInfo = XPMP2;
+		};
+		25BF00A6290DCBF400317CAE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 25D86CC0253E281800424494;
+			remoteInfo = "XPMP2-Sample";
+		};
+		25BF00A8290DCBF400317CAE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 25B071F72540D6C400CCDA1D;
+			remoteInfo = "XPMP2-Remote";
+		};
+		25BF00AA290DCC3E00317CAE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 2502C17923BE8A1600578919;
+			remoteInfo = XPMP2;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		250F59C72530ECA100EF095C /* XPLM.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPLM.framework; path = Lib/SDK/Libraries/Mac/XPLM.framework; sourceTree = "<group>"; };
@@ -105,7 +136,6 @@
 		2573631D22233CCA005210C5 /* LTADSBEx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTADSBEx.h; sourceTree = "<group>"; };
 		2573631E22233CDA005210C5 /* LTADSBEx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTADSBEx.cpp; sourceTree = "<group>"; };
 		2573631F22233CDA005210C5 /* LTOpenSky.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTOpenSky.cpp; sourceTree = "<group>"; };
-		2575F44823ECC2C000747524 /* XPMP2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XPMP2.framework; path = Lib/XPMP2/XPMP2.framework; sourceTree = "<group>"; };
 		2577B6A1216A93D1004B432D /* FlightModels.prf */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlightModels.prf; sourceTree = "<group>"; };
 		257A10982190E0A8007C1E04 /* ACInfoWnd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ACInfoWnd.cpp; sourceTree = "<group>"; };
 		2582235225C209C2000A0903 /* Toolchain-ubuntu-osxcross.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Toolchain-ubuntu-osxcross.cmake"; sourceTree = "<group>"; };
@@ -133,15 +163,15 @@
 		25A095C82203B01300658AA8 /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
 		25A095C92203B01300658AA8 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
 		25A70295241D911200D2E7EE /* Apt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Apt.md; sourceTree = "<group>"; };
-		25A9F45A28FF461A00686B5E /* libfmod.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libfmod.dylib; path = Lib/fmod/libfmod.dylib; sourceTree = "<group>"; };
-		25A9F46B2904811300686B5E /* FMOD_Logo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FMOD_Logo.cpp; sourceTree = "<group>"; };
-		25A9F46C2904811300686B5E /* FMOD_Logo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FMOD_Logo.h; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
 		25BBD2F921EA0F8300AEAA4B /* OpenSky_Routes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Routes.json; sourceTree = "<group>"; };
 		25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Metadata_Routes_combined.json; sourceTree = "<group>"; };
+		25BF009C290DCA7500317CAE /* FMOD_Logo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = FMOD_Logo.cpp; path = "XPMP2/XPMP2-Sample/lib/fmod/logo/FMOD_Logo.cpp"; sourceTree = "<group>"; };
+		25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = XPMP2.xcodeproj; path = XPMP2/XPMP2.xcodeproj; sourceTree = "<group>"; };
+		25BF00AC290DCC6C00317CAE /* libfmod.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libfmod.dylib; path = "Lib/XPMP2/XPMP2-Sample/lib/fmod/libfmod.dylib"; sourceTree = "<group>"; };
 		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
 		25C5254224D0264700C73482 /* InfoListWnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InfoListWnd.h; sourceTree = "<group>"; };
 		25C5254324D0268700C73482 /* InfoListWnd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = InfoListWnd.cpp; sourceTree = "<group>"; };
@@ -184,9 +214,9 @@
 				2564042A21AAC9B5001E2F2A /* GSS.framework in Frameworks */,
 				256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */,
 				25D293FD25C625C10007C72E /* libcurl.tbd in Frameworks */,
-				25A9F45B28FF461A00686B5E /* libfmod.dylib in Frameworks */,
+				25BF00AD290DCC6C00317CAE /* libfmod.dylib in Frameworks */,
 				250F59C82530ECA100EF095C /* XPLM.framework in Frameworks */,
-				2575F44923ECC2C000747524 /* XPMP2.framework in Frameworks */,
+				25BF00AE290DCCA000317CAE /* XPMP2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -430,7 +460,8 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
-				25A9F45F2904811300686B5E /* fmod */,
+				25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */,
+				25BF009C290DCA7500317CAE /* FMOD_Logo.cpp */,
 				251284AC274D829500B0F51A /* base64 */,
 				25EFC76A249567BF005DB0A6 /* Font */,
 				256CA1BB248C458D009F4AAE /* ImGui */,
@@ -452,21 +483,14 @@
 			path = NoGit;
 			sourceTree = "<group>";
 		};
-		25A9F45F2904811300686B5E /* fmod */ = {
+		25BF009F290DCBF400317CAE /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				25A9F46A2904811300686B5E /* logo */,
+				25BF00A5290DCBF400317CAE /* XPMP2.framework */,
+				25BF00A7290DCBF400317CAE /* XPMP2-Sample.xpl */,
+				25BF00A9290DCBF400317CAE /* XPMP2-Remote.xpl */,
 			);
-			path = fmod;
-			sourceTree = "<group>";
-		};
-		25A9F46A2904811300686B5E /* logo */ = {
-			isa = PBXGroup;
-			children = (
-				25A9F46B2904811300686B5E /* FMOD_Logo.cpp */,
-				25A9F46C2904811300686B5E /* FMOD_Logo.h */,
-			);
-			path = logo;
+			name = Products;
 			sourceTree = "<group>";
 		};
 		25D810FD2402D60A00A8723B /* docker */ = {
@@ -530,7 +554,7 @@
 		D6A7BDAD16A1DEA700D1426A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				25A9F45A28FF461A00686B5E /* libfmod.dylib */,
+				25BF00AC290DCC6C00317CAE /* libfmod.dylib */,
 				25D293F625C625710007C72E /* Cocoa.framework */,
 				D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */,
 				2564042921AAC9B5001E2F2A /* GSS.framework */,
@@ -538,7 +562,6 @@
 				D6A7BDA916A1DEA200D1426A /* OpenGL.framework */,
 				2564042521AAC914001E2F2A /* Security.framework */,
 				250F59C72530ECA100EF095C /* XPLM.framework */,
-				2575F44823ECC2C000747524 /* XPMP2.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -557,6 +580,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				25BF00AB290DCC3E00317CAE /* PBXTargetDependency */,
 			);
 			name = LiveTraffic;
 			productName = StarterPlugin;
@@ -585,12 +609,42 @@
 			mainGroup = D607B15F09A5563000699BC3;
 			productRefGroup = D607B19A09A556E400699BC3 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 25BF009F290DCBF400317CAE /* Products */;
+					ProjectRef = 25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				D607B19809A556E400699BC3 /* LiveTraffic */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		25BF00A5290DCBF400317CAE /* XPMP2.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = XPMP2.framework;
+			remoteRef = 25BF00A4290DCBF400317CAE /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		25BF00A7290DCBF400317CAE /* XPMP2-Sample.xpl */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.dylib";
+			path = "XPMP2-Sample.xpl";
+			remoteRef = 25BF00A6290DCBF400317CAE /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		25BF00A9290DCBF400317CAE /* XPMP2-Remote.xpl */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.dylib";
+			path = "XPMP2-Remote.xpl";
+			remoteRef = 25BF00A8290DCBF400317CAE /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		255C337E2544DA0C002C166F /* ShellScript */ = {
@@ -626,7 +680,6 @@
 				256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */,
 				256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */,
 				256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */,
-				25A9F46F2904812B00686B5E /* FMOD_Logo.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
 				25F3471F24D2CB20004574E7 /* ACTable.cpp in Sources */,
 				2558579420950C6700816F65 /* CoordCalc.cpp in Sources */,
@@ -639,6 +692,7 @@
 				25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */,
 				25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
+				25BF009D290DCA7500317CAE /* FMOD_Logo.cpp in Sources */,
 				256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */,
 				2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
@@ -654,6 +708,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		25BF00AB290DCC3E00317CAE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = XPMP2;
+			targetProxy = 25BF00AA290DCC3E00317CAE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D607B16309A5563100699BC3 /* Debug */ = {
@@ -739,20 +801,21 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					"Lib/SDK/CHeaders/**",
-					Lib/XPMP2/XPMP2.framework/Headers,
+					Lib/XPMP2/inc,
+					"Lib/XPMP2/XPMP2-Sample/lib/fmod/logo",
 					Lib/base64,
 					Lib/parson,
 					Lib/LTAPI,
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
 					Lib/Font,
-					Lib/fmod/logo,
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIBRARY_SEARCH_PATHS = "Lib/XPMP2/XPMP2-Sample/lib/fmod";
 				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 3;
-				LIVETRAFFIC_VER_MINOR = 1;
-				LIVETRAFFIC_VER_PATCH = 1;
+				LIVETRAFFIC_VER_MINOR = 2;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
@@ -845,20 +908,21 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
 					"Lib/SDK/CHeaders/**",
-					Lib/XPMP2/XPMP2.framework/Headers,
+					Lib/XPMP2/inc,
+					"Lib/XPMP2/XPMP2-Sample/lib/fmod/logo",
 					Lib/base64,
 					Lib/parson,
 					Lib/LTAPI,
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
 					Lib/Font,
-					Lib/fmod/logo,
 					"$(HEADER_SEARCH_PATHS)",
 				);
+				LIBRARY_SEARCH_PATHS = "Lib/XPMP2/XPMP2-Sample/lib/fmod";
 				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 3;
-				LIVETRAFFIC_VER_MINOR = 1;
-				LIVETRAFFIC_VER_PATCH = 1;
+				LIVETRAFFIC_VER_MINOR = 2;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
@@ -897,10 +961,6 @@
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = mac_x64;
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/fmod",
-				);
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",
@@ -948,10 +1008,6 @@
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = mac_x64;
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/fmod",
-				);
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",

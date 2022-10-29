@@ -5,9 +5,6 @@ Sound
 --
 
 XPMP2
-- Still need to do some volume fine-tuning
-- Taxiing sound has a crack...is it us or the sound...?
-  - Maybe we can avoid the crack by not playing the sound end-2-end?
 - There is a small crack audible whenever a new plane is spawned
   - There does not seem to be a crack with the start of any additional sound
     per plane

@@ -173,6 +173,10 @@ WndMsg::~WndMsg ()
 // Actually create (or show) the window
 bool WndMsg::DoShow()
 {
+    // must only do so if executed from XP's main thread
+    if (!dataRefs.IsXPThread())
+        return false;
+
     // No message waiting - no deal
     if (listTexts.empty())
         return false;
@@ -391,6 +395,9 @@ void CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime)
         // add to list of display texts _at front_
         listTexts.emplace_front(-fTimeToDisplay, logINFO, aszMsgTxt);
     }
+    
+    // Show the window
+    WndMsg::DoShow();
 }
 
 

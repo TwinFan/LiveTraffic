@@ -20,6 +20,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3       # must checkout before we can use our own actions
+      with:
+        submodules: 'recursive'
     - name: Build
       uses: ./.github/actions/build-lin
       id: build
@@ -39,6 +41,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3       # must checkout before we can use our own actions
+      with:
+        submodules: 'recursive'
     - name: Build
       uses: ./.github/actions/build-mac
       id: build
@@ -81,6 +85,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3       # must checkout before we can use our own actions
+      with:
+        submodules: 'recursive'
     - name: Build
       uses: ./.github/actions/build-win
       id: build
