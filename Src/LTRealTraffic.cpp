@@ -818,7 +818,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         LTFlightData::FDDynamicData dyn;
         
         // non-positional dynamic data
-        dyn.gnd         = tfc[RT_RTTFC_GND] == "1";
+        dyn.gnd         = tfc[RT_RTTFC_AIRBORNE] == "0";
         dyn.heading     = firstPositive(tfc, {RT_RTTFC_TRUE_HEADING, RT_RTTFC_TRACK, RT_RTTFC_MAG_HEADING});
         dyn.spd         = std::stod(tfc[RT_RTTFC_GSP]);
         dyn.vsi         = firstPositive(tfc, {RT_RTTFC_GEOM_RATE, RT_RTTFC_BARO_RATE});

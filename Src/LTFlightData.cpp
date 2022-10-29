@@ -1692,7 +1692,7 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
                      pos.lat(), pos.lon(),                                      // lat, lon
                      nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),   // baro_alt
                      inDyn.vsi,                                                 // baro_rate
-                     (pos.IsOnGnd() ? '1' : '0'),                               // gnd
+                     (pos.IsOnGnd() ? '0' : '1'),                               // airborne
                      inDyn.heading, inDyn.spd,                                  // track, gsp
                      statData.call.c_str(),                                     // cs_icao
                      statData.acTypeIcao.c_str(),                               // ac_type

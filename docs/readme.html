@@ -127,11 +127,34 @@
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
     
     <h2>v3</h2>
-    
-    <h3>v3.1.0</h3>
 
+    <h3>v3.1.1</h3>
+    
     <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
     over the files of your existing installation.</P>
+
+    <P>At least copy the following files, which have changed compared to v3.1.0:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            RealTraffic: Fix planes stuck to ground.
+            See <a href="https://forums.x-plane.org/index.php?/forums/topic/276347-ai-traffic-on-the-ground/">Support Thread</a> for details.<br>
+            <b>Note 1:</b> Fix effective only with RealTraffic App 9.1.202 or later.<br>
+            <b>Note 2:</b> Root cause is a change in the RTTFC format definition,
+            which also affects people <a href="https://twinfan.gitbook.io/livetraffic/introduction/features/feeding-data">feeding own data in RTTFC format to LiveTraffic</a>:
+            Field 6 has reversed meaning from a "Ground" flag to an "Airborne" flag,
+            in line again with the AITFC format's definition of the same field.
+            LiveTraffic's RTTFC Export has been adapted accordingly.
+        </li>
+    </ul>
+
+    <h3>v3.1.0</h3>
 
     <P>At least copy the following files, which have changed compared to v3.0.0:</P>
         <ul>
