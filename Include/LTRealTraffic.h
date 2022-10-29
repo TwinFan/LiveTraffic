@@ -98,7 +98,7 @@ enum RT_RTTFC_FIELDS_TY {
     RT_RTTFC_LON,                   ///< longitude in degrees
     RT_RTTFC_ALT_BARO,              ///< altitude in feet (barometric, not adapted for local pressure)
     RT_RTTFC_BARO_RATE,             ///< barometric vertical rate
-    RT_RTTFC_GND,                   ///< ground flag
+    RT_RTTFC_AIRBORNE,              ///< airborne flag
     RT_RTTFC_TRACK,                 ///< track
     RT_RTTFC_GSP,                   ///< ground speed
     RT_RTTFC_CS_ICAO,               ///< ICAO call sign

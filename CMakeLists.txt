@@ -18,7 +18,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.2.0
+        VERSION 3.1.1
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition
