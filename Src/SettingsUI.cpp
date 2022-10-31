@@ -182,6 +182,8 @@ void LTSettingsUI::buildInterface()
         {
             ImGui::FilteredCfgCheckbox("Show Live Aircraft",    sFilter, DR_CFG_AIRCRAFT_DISPLAYED,     "Main switch to enable display of live traffic");
             ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
+
+            ImGui::FilteredCfgNumber("Master Volume",           sFilter, DR_CFG_MASTER_VOLUME, 0, 200, 10, "%d %%");
             
             // auto-open and warning if any of these values are set as they limit what's shown
             const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive() ||

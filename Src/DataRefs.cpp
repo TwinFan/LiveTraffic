@@ -507,6 +507,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/volume/master",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
     {"livetraffic/cfg/ai_not_on_gnd",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -587,6 +588,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         // configuration options
         case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
+        case DR_CFG_MASTER_VOLUME:          return &volMaster;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_AI_NOT_ON_GND:          return &bAINotOnGnd;
         case DR_CFG_LABELS:                 return &labelCfg;
@@ -1580,6 +1582,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
 #else
         maxNumAc        < 5                 || maxNumAc         > MAX_NUM_AIRCRAFT   ||
 #endif
+        volMaster       < 0                 || volMaster        > 200   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
         fdLongRefrIntvl < fdRefreshIntvl    || fdLongRefrIntvl  > 180   ||
@@ -1616,6 +1619,16 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // If label draw distance changes we need to tell XPMP2
     if (p == &labelMaxDist)
         XPMPSetAircraftLabelDist(float(labelMaxDist), bLabelVisibilityCUtOff);
+    // Master Volume change to be forwarded to XPMP2, too
+    else if (p == &volMaster) {
+        if (volMaster == 0) {                       // Disable sound altogether
+            XPMPSoundEnable(false);
+        } else {                                    // Sound is (to be) enabled
+            if (!XPMPSoundIsEnabled())
+                XPMPSoundEnable(true);
+            XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
+        }
+    }
     
     // success
     LogCfgSetting(p, val);

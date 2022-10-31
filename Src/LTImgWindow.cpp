@@ -266,18 +266,19 @@ IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
                         int v_min, int v_max, int v_step,
                         const char* format)
 {
-    int iV = cfgGet(idx);
+    const int iPrev = cfgGet(idx);
+    int iV = iPrev;
     SetNextItemWidth(GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
     if (SliderInt(label, &iV, v_min, v_max, format)) {      // if slider changed value
-        // rounding to full steps
-        if (v_step > 1)
+        if (v_step > 1)                                     // rounding to full steps
             iV = (iV+(v_step/2))/v_step * v_step;
-        // When entering manually [Ctrl+Click], values aren't clamped, so we take care of it
-        cfgSet(idx, std::clamp<int>(iV, v_min, v_max));     // set dataRef value
-        return true;
+        iV = std::clamp<int>(iV, v_min, v_max);             // When entering manually [Ctrl+Click], values aren't clamped, so we take care of it
+        if (iV != iPrev) {
+            cfgSet(idx, iV);                                // set dataRef value only if really changed
+            return true;
+        }
     }
-    else
-        return false;
+    return false;
 }
 
 

@@ -799,6 +799,9 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     // Support XPMP2 Remote Clinet?
     if (!strcmp(key, XPMP_CFG_ITM_SUPPORT_REMOTE))
         return dataRefs.GetRemoteSupport();
+    // Sound if enabled
+    if (!strcmp(key, XPMP_CFG_ITM_ACTIVATE_SOUND))
+        return dataRefs.GetVolumeMaster() > 0;
     
     // dont' know/care about the option, return the default value
     return iDefault;
