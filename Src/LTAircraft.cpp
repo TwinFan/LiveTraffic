@@ -2871,6 +2871,7 @@ void LTAircraft::UpdatePosition (float, int cycle)
         SetSpoilerRatio((float)spoilers.get());         // spoilers, and speed brakes the same
         SetSpeedbrakeRatio(GetSpoilerRatio());
         SetReversDeployRatio((float)reversers.get());   // opening reversers
+        SetThrustReversRatio((float)reversers.get());
 
         // for engine / prop rotation we derive a value based on flight model
         if (pDoc8643->hasRotor())
