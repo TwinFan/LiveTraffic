@@ -1053,14 +1053,13 @@ void DataRefs::UpdateUsersPlanePos ()
     // fetch current height AGL and convert to feet
     lastUsersAGL_ft = (int)std::lround(XPLMGetDataf     (adrXP[DR_PLANE_AGL]) / M_per_FT);
     
-    // *** Control if we start/end changing the FD Factor ***
+    // *** Control if we change the refresh interval ***
     const int prevRefrIntvl = fdCurrRefrIntvl;
     
-    // Currently using the lower number but now flying high?
-    if (fdCurrRefrIntvl == fdRefreshIntvl && lastUsersAGL_ft >= fdReduceHeight)
+    // Flying high or flying low?
+    if (lastUsersAGL_ft >= fdReduceHeight)
         fdCurrRefrIntvl = fdLongRefrIntvl;
-    // Currently using the higher number but now flying low?
-    else if (fdCurrRefrIntvl == fdLongRefrIntvl && lastUsersAGL_ft <= fdReduceHeight - 250)
+    else if (lastUsersAGL_ft <= fdReduceHeight - 250)
         fdCurrRefrIntvl = fdRefreshIntvl;
     
     // If we changed tell the user
@@ -1552,7 +1551,9 @@ void DataRefs::LTSetCfgValue (void* p, int val)
 bool DataRefs::SetCfgValue (void* p, int val)
 {
     // If fdSnapTaxiDist changes we might want to enable/disable airport reading
-    int oldFdSnapTaxiDist = fdSnapTaxiDist;
+    const int oldFdSnapTaxiDist     = fdSnapTaxiDist;
+    const int oldRefreshInvtl       = fdRefreshIntvl;
+    const int oldLongRefreshIntvl   = fdLongRefrIntvl;
     
     // we don't exactly know which parameter p points to...
     // ...we just set it, validate all of them, and reset in case validation fails
@@ -1619,6 +1620,11 @@ bool DataRefs::SetCfgValue (void* p, int val)
     // If label draw distance changes we need to tell XPMP2
     if (p == &labelMaxDist)
         XPMPSetAircraftLabelDist(float(labelMaxDist), bLabelVisibilityCUtOff);
+    // If we just changed the current refresh interval, then we'd need to change the _current_ value, too
+    else if (p == &fdRefreshIntvl && fdCurrRefrIntvl == oldRefreshInvtl)
+        fdCurrRefrIntvl = fdRefreshIntvl;
+    else if (p == &fdLongRefrIntvl && fdCurrRefrIntvl == oldLongRefreshIntvl)
+        fdCurrRefrIntvl = fdLongRefrIntvl;
     // Master Volume change to be forwarded to XPMP2, too
     else if (p == &volMaster) {
         if (volMaster == 0) {                       // Disable sound altogether
