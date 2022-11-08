@@ -41,7 +41,11 @@ Thanks go to
 ## Build
 
 Please note that LiveTraffic includes the XPMP2 lib as a GitHub submodule.
-To properly build, you need to also init/update the XPMP2 submodule.
+To properly build, you need to also checkout the XPMP2 submodule,
+e.g. on the command line by doing
+```
+git clone --recurse-submodules https://github.com/TwinFan/LiveTraffic
+```
 
 There are four options to build from sources:
 
@@ -49,7 +53,7 @@ Options            | Windows            | MacOS (universal)   | Linux
 -------------------|--------------------|---------------------|-------------------
 **Github Actions** | Visual Studio 2022 | XCode 13            | Focal
 **Docker**         | Mingw64            | clang, SDK 12       | Focal and Bionic
-**CMake**          | -                  | XCode 14            | Focal and Bionic
+**CMake**          | VS 2022 / `NMAKE`  | XCode 14 / `ninja`  | Focal and Bionic / `ninja`
 **IDE**            | Visual Studio 2019 | XCode 14            | -
 
 ### Github Actions
@@ -107,7 +111,7 @@ so that it is right away available in your installation after build.
 - Visual Studio will use the provide CMake setup
 - Build from within Visual Studio
 
-Results are in `build/x64`.
+Results are in `build-win`.
 
 ### Doxygen Documentation
 

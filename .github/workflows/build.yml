@@ -55,9 +55,9 @@ jobs:
       shell: bash
       run: |
         if [ "$MACOS_CERTIFICATE" == "" ]; then
-          echo ::set-output name=secretspresent::
+          echo "secretspresent=" >> $GITHUB_OUTPUT
         else
-          echo ::set-output name=secretspresent::true
+          echo "secretspresent=true" >> $GITHUB_OUTPUT
         fi
     - name: Codesign and Notarization
       if: ${{ steps.checksecrets.outputs.secretspresent }}

@@ -29,6 +29,8 @@ add_compile_definitions(
     LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
 )
 
+message("== Building: ${PROJECT_NAME} ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} ==")
+
 ################################################################################
 # Target Systems
 ################################################################################
@@ -64,7 +66,8 @@ add_compile_definitions(XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 XPLM303=1)
 add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>)
 
 # Need FMOD Sound Support (from XPMP2)
-add_compile_definitions(INCLUDE_FMOD_SOUND=1)
+set (INCLUDE_FMOD_SOUND 1)                          # tells XPMP2 to build with FMOD
+add_compile_definitions(INCLUDE_FMOD_SOUND=1)       # tells LiveTraffic compile to include FMOD from XPMP2 headers
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
@@ -91,7 +94,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     if (MSVC)
         add_compile_options(/Zi)
     else()
-        add_compile_options(-O0 -g)
+        add_compile_options(-O0 -g -fPIC)
     endif()
 else()
     add_compile_definitions(NDEBUG=1)
@@ -120,7 +123,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/inc")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/XPMP2-Sample/lib/fmod/logo")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/fmod/logo")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
@@ -171,7 +174,7 @@ set(Header_Files
     Lib/Font/fa-solid-900.inc
     Lib/XPMP2/inc/XPCAircraft.h
     Lib/XPMP2/inc/XPMPMultiplayer.h
-    Lib/XPMP2/XPMP2-Sample/lib/fmod/logo/FMOD_Logo.h
+    Lib/XPMP2/lib/fmod/logo/FMOD_Logo.h
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -207,7 +210,7 @@ set(Source_Files
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
     Lib/ImgWindow/ImgFontAtlas.cpp
     Lib/ImgWindow/ImgWindow.cpp
-    Lib/XPMP2/XPMP2-Sample/lib/fmod/logo/FMOD_Logo.cpp
+    Lib/XPMP2/lib/fmod/logo/FMOD_Logo.cpp
 )
 if (WIN32)
     list(APPEND Source_Files "LiveTraffic.rc")
@@ -254,7 +257,7 @@ set_source_files_properties(
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
     Lib/ImgWindow/ImgFontAtlas.cpp
     Lib/ImgWindow/ImgWindow.cpp
-    Lib/fmod/logo/FMOD_Logo.cpp
+    Lib/XPMP2/lib/fmod/logo/FMOD_Logo.cpp
 PROPERTIES
     SKIP_PRECOMPILE_HEADERS ON)
 
@@ -264,7 +267,6 @@ PROPERTIES
 ################################################################################
 
 # Incude building XPMP2
-set (INCLUDE_FMOD_SOUND 1)              # include FMOD sound support
 add_subdirectory(Lib/XPMP2)
 add_dependencies(LiveTraffic XPMP2)
 target_link_libraries(LiveTraffic XPMP2)
@@ -276,7 +278,7 @@ elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
 endif ()
-list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/XPMP2-Sample/lib/fmod")
+list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
@@ -296,21 +298,15 @@ endif ()
 include_directories( ${CURL_INCLUDE_DIRS} )
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 
-# Link FMOD library
-if(WIN32)
-    find_library(FMOD_LIBRARY NAMES fmod_vc.lib REQUIRED)
-elseif(APPLE)
-    find_library(FMOD_LIBRARY NAMES libfmod.dylib REQUIRED)
-elseif(UNIX AND NOT APPLE)
-    find_library(FMOD_LIBRARY NAMES libfmod.so REQUIRED)
-endif()
-message ("   FMOD_LIBRARY         = ${FMOD_LIBRARY}")
-target_link_libraries(LiveTraffic ${FMOD_LIBRARY})
-
-# Link X-Plane plugin system libraries. They are only provided for OS X and Windows.
+# Link X-Plane plugin libraries. They are only provided for OS X and Windows.
 if (WIN32 OR APPLE)
-    find_library(XPLM_LIBRARY NAMES XPLM XPLM_64.lib)
-    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} )
+    # FMOD for sound
+    find_library(FMOD_LIBRARY NAMES fmod_vc.lib libfmod.dylib REQUIRED)
+    message ("   FMOD_LIBRARY         = ${FMOD_LIBRARY}")
+
+    # XPLM, the X-Plane SDK
+    find_library(XPLM_LIBRARY NAMES XPLM XPLM_64.lib REQUIRED)
+    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} ${FMOD_LIBRARY})
 endif ()
 
 

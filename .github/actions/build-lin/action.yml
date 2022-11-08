@@ -54,4 +54,4 @@ runs:
     shell: bash
     env:
       TARGET_XPL: build-lin/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
-    run: echo "::set-output name=xpl-file-name::$(echo $TARGET_XPL)"
+    run: echo "xpl-file-name=$(echo $TARGET_XPL)" >> $GITHUB_OUTPUT

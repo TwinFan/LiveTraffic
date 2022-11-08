@@ -479,7 +479,7 @@ void LTSettingsUI::buildInterface()
                     }
                     else if (ImGui::IsItemActive()) {
                         ImGui::SameLine();
-                        ImGui::TextUnformatted("[Enter] to save. Default: 49005, alternate: 49003");
+                        ImGui::TextUnformatted("[Enter] to save. Default is 49005. Effective after restart.");
                     }
                     ImGui::TableNextCell();
                 }

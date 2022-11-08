@@ -9,16 +9,6 @@ XPMP2
   - There does not seem to be a crack with the start of any additional sound
     per plane
 
-LiveTraffic
-- No sound for Gliders: Override Aircraft::SoundGetName()
-- Reversers don't work with sound, seems like engine sound is momentarily stopped, then restarted,
-  but no reversers in-between
-- Volume shouldn't change quickly like in take-off roll or when reversers
-  deploy.
-  - Or control thrust/reverse by a MovingParam object
-
-- In Later version reduce ERR_CFG_FILE_MAXWARN to 5 again
-
 Download History
 ==========
 Download counter when providing v3.1.0: 169.434
