@@ -1,3 +1,4 @@
 [submodule "XPMP2"]
 	path = Lib/XPMP2
 	url = https://github.com/TwinFan/XPMP2
+	branch = next
