@@ -222,8 +222,9 @@ void WndMsg::PositionWnd (int _height)
         rWnd.keepOnScreen();
     }
     
-    SetCurrentWindowGeometry(rWnd);
-
+    // If popped out, we don't touch, user's choice, but inside X-Plane we adapt
+    if (!IsPoppedOut())
+        SetCurrentWindowGeometry(rWnd);
 }
 
 // Some setup before UI building starts
@@ -328,7 +329,8 @@ void WndMsg::buildInterface()
     
     // Nothing left to show? -> Hide ourself
     if (bNowEmpty) {
-        SetVisible(false);
+        if (!IsPoppedOut())
+            SetVisible(false);
     } else {
         // In case of WARN, ERROR, FATAL make sure a colored border is around the window
         if (maxLevel >= logWARN)
