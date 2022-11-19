@@ -1,16 +1,9 @@
 TODO
 ===
 
-Sound
---
-
-XPMP2
-- There is a small crack audible whenever a new plane is spawned
-  - There does not seem to be a crack with the start of any additional sound
-    per plane
-
 Download History
 ==========
+Download counter when providing v3.1.1: 173.345
 Download counter when providing v3.1.0: 169.434
 Download counter when providing v3.0.0: 164.625
 Download counter when providing v2.60: 148.151
