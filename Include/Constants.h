@@ -35,10 +35,9 @@ constexpr unsigned LT_VER_NO = 10000 * LIVETRAFFIC_VER_MAJOR + 100 * LIVETRAFFIC
 extern unsigned verXPlaneOrg;       ///< version on X-Plane.org
 
 //MARK: Window Position
-#define WIN_WIDTH       400         // window width
-#define WIN_ROW_HEIGHT   20         // height of line of text
-#define WIN_FROM_TOP     50
-#define WIN_FROM_RIGHT    0
+constexpr int WIN_WIDTH = 450;      ///< initial Msg Wnd width
+constexpr int WIN_FROM_TOP = 50;    ///< initial Msg Wnd position from top
+constexpr int WIN_FROM_RIGHT = 10;  ///< initial Msg Wnd position from right
 
 constexpr int WIN_TIME_DISPLAY=8;       // duration of displaying a message windows
 constexpr int WIN_TIME_DISP_ERR=12;     // duration of displaying an error/fatal message
@@ -170,7 +169,11 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MSG_REQUESTING_LIVE_FD  "Requesting live flight data online..."
 #define MSG_NUM_AC_INIT         "Initially created %d aircraft"
 #define MSG_NUM_AC_ZERO         "No more aircraft displayed"
-#define MSG_BUF_FILL_COUNTDOWN  "Filling buffer: seeing %d aircraft, displaying %d, still %ds to buffer"
+#define MSG_BUF_FILL_BEGIN      "Filling buffer: seeing "
+#define MSG_BUF_FILL_COUNTDOWN  MSG_BUF_FILL_BEGIN "%d aircraft, displaying %d, still %ds to buffer"
+#define MSG_REPOSITION_WND      "Resize and reposition message window to your liking."
+#define MSG_REPOSITION_LN2      "Also see the effect of changing Font Scale and Opacity in the settings.\nWhen done click:"
+#define MSG_FMOD_SOUND          "Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd."
 #define INFO_WEATHER_UPDATED    "Weather updated: QNH %.f hPa at %s (%.2f / %.2f)"
 #define INFO_AC_ADDED           "Added aircraft %s, operator '%s', a/c model '%s', flight model [%s], bearing %.0f, distance %.1fnm, from channel %s"
 #define INFO_AC_MDL_CHANGED     "Changed CSL model for aircraft %s, operator '%s': a/c model now '%s' (Flight model '%s')"
@@ -198,6 +201,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define FM_PARENT_SEPARATOR     ":"
 #define CFG_CSL_SECTION         "[CSLPaths]"
 #define CFG_FLARM_ACTY_SECTION  "[FlarmAcTypes]"
+#define CFG_WNDPOS_MSG          "MessageWndPos"
 #define CFG_WNDPOS_SUI          "SettingsWndPos"
 #define CFG_WNDPOS_ACI          "ACInfoWndPos"
 #define CFG_WNDPOS_ILW          "InfoListWndPos"

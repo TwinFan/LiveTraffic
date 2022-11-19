@@ -19,7 +19,9 @@ jobs:
       platform: lin
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2       # must checkout before we can use our own actions
+      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      with:
+        submodules: 'recursive'
     - name: Build
       uses: ./.github/actions/build-lin
       id: build
@@ -38,7 +40,9 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2       # must checkout before we can use our own actions
+      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      with:
+        submodules: 'recursive'
     - name: Build
       uses: ./.github/actions/build-mac
       id: build
@@ -51,9 +55,9 @@ jobs:
       shell: bash
       run: |
         if [ "$MACOS_CERTIFICATE" == "" ]; then
-          echo ::set-output name=secretspresent::
+          echo "secretspresent=" >> $GITHUB_OUTPUT
         else
-          echo ::set-output name=secretspresent::true
+          echo "secretspresent=true" >> $GITHUB_OUTPUT
         fi
     - name: Codesign and Notarization
       if: ${{ steps.checksecrets.outputs.secretspresent }}
@@ -80,7 +84,9 @@ jobs:
       platform: win
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2       # must checkout before we can use our own actions
+      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      with:
+        submodules: 'recursive'
     - name: Build
       uses: ./.github/actions/build-win
       id: build

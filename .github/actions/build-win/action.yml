@@ -41,5 +41,5 @@ runs:
       TARGET_XPL: build-win/${{ inputs.archFolder }}/${{ inputs.pluginName }}.xpl
       TARGET_PDB: build-win/${{ inputs.archFolder }}/${{ inputs.pluginName }}.pdb
     run: |
-      echo "::set-output name=xpl-file-name::$(echo $TARGET_XPL)"
-      echo "::set-output name=pdb-file-name::$(echo $TARGET_PDB)"
+      echo "xpl-file-name=$(echo $TARGET_XPL)" >> $GITHUB_OUTPUT
+      echo "pdb-file-name=$(echo $TARGET_PDB)" >> $GITHUB_OUTPUT

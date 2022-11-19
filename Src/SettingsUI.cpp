@@ -182,6 +182,8 @@ void LTSettingsUI::buildInterface()
         {
             ImGui::FilteredCfgCheckbox("Show Live Aircraft",    sFilter, DR_CFG_AIRCRAFT_DISPLAYED,     "Main switch to enable display of live traffic");
             ImGui::FilteredCfgCheckbox("Auto Start",            sFilter, DR_CFG_AUTO_START,             "Show Live Aircraft automatically after start of X-Plane?");
+
+            ImGui::FilteredCfgNumber("Master Volume",           sFilter, DR_CFG_MASTER_VOLUME, 0, 200, 10, "%d %%");
             
             // auto-open and warning if any of these values are set as they limit what's shown
             const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive() ||
@@ -477,7 +479,7 @@ void LTSettingsUI::buildInterface()
                     }
                     else if (ImGui::IsItemActive()) {
                         ImGui::SameLine();
-                        ImGui::TextUnformatted("[Enter] to save. Default: 49005, alternate: 49003");
+                        ImGui::TextUnformatted("[Enter] to save. Default is 49005. Effective after restart.");
                     }
                     ImGui::TableNextCell();
                 }
@@ -787,6 +789,15 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeHelp("User Interface", nCol, nullptr, nullptr, sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
             {
+                if (ImGui::FilteredLabel("Message Window", sFilter)) {
+                    if (ImGui::Button("Reposition Message Wnd")) {
+                        // Safe/restore our context as we are now dealing with another ImGui window,
+                        ImGuiContext* pCtxt = ImGui::GetCurrentContext();
+                        CreateMsgWindow(0, logMSG, MSG_REPOSITION_WND);
+                        ImGui::SetCurrentContext(pCtxt);
+                    }
+                    ImGui::TableNextCell();
+                }
                 if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
                     ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
                                          bool(dataRefs.SUItransp) != (wndStyle == WND_STYLE_HUD) ?

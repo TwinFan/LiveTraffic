@@ -55,10 +55,10 @@ enum logLevelTy {
 
 // Creates a window and displays the given szMsg for fTimeToDisplay seconds
 // fTimeToDisplay == 0 -> no limit
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...) LT_FMTARGS(3);
+void CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...) LT_FMTARGS(3);
 
 /// Show the special text "Seeing aircraft...showing..."
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime);
+void CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime);
 
 /// Check if message wait to be shown, then show
 bool CheckThenShowMsgWindow();
@@ -115,17 +115,21 @@ void PurgeMsgList ();
 /// Return text for log level
 const char* LogLvlText (logLevelTy _lvl);
 
-/// Return color for log level (as float[3])
-float* LogLvlColor (logLevelTy _lvl);
+/// Return color for log level
+ImColor LogLvlColor (logLevelTy _lvl);
 
 // Log a message if this is a beta version, or
 //               if lvl is greater or equal currently defined log level
 // Note: First parameter after lvl must be the message text,
 //       which can be a format string with its parameters following like in sprintf
+#if LIVETRAFFIC_VERSION_BETA
+#define LOG_MSG(lvl,...) {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}
+#else
 #define LOG_MSG(lvl,...)  {                                         \
-    if (LIVETRAFFIC_VERSION_BETA || ((lvl) >= dataRefs.GetLogLevel()))          \
+    if ((lvl) >= dataRefs.GetLogLevel())                            \
     {LogMsg(__FILE__, __LINE__, __func__, lvl, __VA_ARGS__);}       \
 }
+#endif
 
 // Display AND log a message as above
 #define SHOW_MSG(lvl,...) {                                         \

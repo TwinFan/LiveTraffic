@@ -423,6 +423,10 @@ float LoopCBOneTimeSetup (float, float, int, void*)
 #ifdef DEBUG
             SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
 #endif
+
+            // Show FMOD Logo (https://www.fmod.com/attribution)
+            CreateMsgWindow(WIN_TIME_DISPLAY, logMSG, MSG_FMOD_SOUND);
+
             // Inform dataRef tools about our dataRefs
             dataRefs.InformDataRefEditors();
             

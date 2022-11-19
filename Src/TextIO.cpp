@@ -78,191 +78,286 @@ void GetTopRightScreenSize (int& outLeft,
 }
 
 
-//MARK: custom X-Plane message Window - Globals
+//
+// MARK: Message Window
+//
 
-// An opaque handle to the window we will create
-XPLMWindowID    g_window = 0;
-bool            g_visible = false;      ///< window visible? (locally to avoid API calls)
-// when to remove the window
-float           fTimeRemove = NAN;
-
-// time until window is to be shown, will be destroyed after that
+/// Defines an line of text to be shown in the Message Wnd
 struct dispTextTy {
-    float fTimeDisp;                        // until when to display this line?
-    logLevelTy lvlDisp;                     // level of msg (defines text color)
-    std::string text;                       // text of line
+    float fTimeDisp;                        ///< until when to display this line? (negative = display duration)
+    logLevelTy lvlDisp;                     ///< level of msg (defines text color)
+    std::string text;                       ///< text of line
+    dispTextTy(float t, logLevelTy l, const std::string& s) :
+    fTimeDisp(t), lvlDisp(l), text(s) {}
 };
-std::list<dispTextTy> listTexts;     // lines of text to be displayed
+std::list<dispTextTy> listTexts;            ///< lines of text to be displayed
+std::recursive_mutex gListMutex;             ///< Controls access to listText
 
-float COL_LVL[logMSG+1][4] = {          // text colors [RGB] depending on log level
-    {0.7019607843f, 0.7137254902f, 0.7176470588f, 1.00f},       // DEBUG (very light gray)
-    {1.00f, 1.00f, 1.00f, 1.00f},       // INFO (white)
-    {1.00f, 1.00f, 0.00f, 1.00f},       // WARN (yellow)
-    {1.00f, .576f, 0.00f, 1.00f},       // ERROR (orange)
-    {1.00f, 0.54f, 0.83f, 1.00f},       // FATAL (purple, FF8AD4)
-    {1.00f, 1.00f, 1.00f, 1.00f}        // MSG (white)
+/// Predefined text colors [RGBA] depending on log level
+const ImColor COL_LVL[logMSG+1] = {
+    {0.00f, 0.00f, 0.00f, 1.00f},           // 0
+    {1.00f, 1.00f, 1.00f, 1.00f},           // INFO (white)
+    {0xff/255.0f, 0xd1/255.0f, 0x4b/255.0f, 1.00f}, // WARN (FSC yellow)
+    {0.75f, 0.00f, 0.00f, 1.00f},           // ERROR (red)
+    {0.65f, 0.24f, 0.18f, 1.00f},           // FATAL (purple, A73E54)
+    {1.00f, 1.00f, 1.00f, 1.00f},           // MSG (white)
 };
 
-/// Values for "Seeing aircraft...showing..."
-int gNumSee = 0, gNumShow = 0, gBufTime = -1;
+/// Background color for error/fatal display
+#ifdef SIM_CONNECT
+const ImColor WND_MSG_COL_BG = { 0x26 / 255.0f, 0x2a / 255.0f, 0x2b / 255.0f, 1.00f }; // #262a2b, a little transparent
+#else
+const ImColor WND_MSG_COL_BG = {0.50f, 0.50f, 0.50f, 0.60f}; // dark white, a little transparent
+#endif
 
-inline bool needSeeingShowMsg () { return gBufTime >= 0; }
+/// Message window resize limits
+const WndRect WND_MSG_LIMITS (100, 20, 600, 400);
+/// Message window padding around text
+constexpr int WND_MSG_BORDER_PADDING = 5;
 
-//MARK: custom X-Plane message Window - Private Callbacks
-// Callbacks we will register when we create our window
-void    draw_msg(XPLMWindowID in_window_id, void * /*in_refcon*/)
+/// Represents the message window
+class WndMsg : public LTImgWindow
 {
-    // Mandatory: We *must* set the OpenGL state before drawing
-    // (we can't make any assumptions about it)
-    XPLMSetGraphicsState(
-                         0 /* no fog */,
-                         0 /* 0 texture units */,
-                         0 /* no lighting */,
-                         0 /* no alpha testing */,
-                         1 /* do alpha blend */,
-                         1 /* do depth testing */,
-                         0 /* no depth writing */
-                         );
+protected:
+    /// Window border color depends on max msg level in listTexts
+    ImColor colBorder = WND_MSG_COL_BG;
     
-    int l, t, r, b;
-    XPLMGetWindowGeometry(in_window_id, &l, &t, &r, &b);
-    
-    // Fill as translucent dark box, in case of error messages (in not so well readable red)
-    // make the box 3 times so it appears darker
-    XPLMDrawTranslucentDarkBox(l, t, r, b);
-    if (std::any_of(listTexts.cbegin(), listTexts.cend(),
-                    [](const dispTextTy& dt){return dt.lvlDisp == logERR || dt.lvlDisp == logFATAL;}))
-    {
-        XPLMDrawTranslucentDarkBox(l, t, r, b);
-        XPLMDrawTranslucentDarkBox(l, t, r, b);
-    }
-    
-    
-    b = WIN_WIDTH;                          // word wrap width = window width
-    t -= WIN_ROW_HEIGHT;                    // move down to text's baseline
+    /// Current window geometry, reference to dataRefs.wndRectMsg for ease of access
+    WndRect& rWnd;
 
-    // "Seeing aircraft...showing..." message
-    if (needSeeingShowMsg())
-    {
-        char s[100];
-        snprintf(s, sizeof(s), MSG_BUF_FILL_COUNTDOWN, gNumSee, gNumShow, gBufTime);
-        XPLMDrawString(COL_LVL[logINFO], l, t, s, &b, xplmFont_Proportional);
-        fTimeRemove = NAN;
-        t -= 2*WIN_ROW_HEIGHT;
-    }
+    /// The one and only window object
+    static WndMsg* gpWnd;
     
-    // for each line of text to be displayed
-    float currTime = dataRefs.GetMiscNetwTime();
-    for (auto iter = listTexts.cbegin();
-         iter != listTexts.cend();
-         t -= 2*WIN_ROW_HEIGHT)             // can't deduce number of rwos (after word wrap)...just assume 2 rows are enough
-    {
-        // still a valid entry?
-        if (iter->fTimeDisp > 0 && currTime <= iter->fTimeDisp)
-        {
-            // draw text, take color based on msg level
-            XPLMDrawString(COL_LVL[iter->lvlDisp], l, t,
-                           const_cast<char*>(iter->text.c_str()),
-                           &b, xplmFont_Proportional);
-            // cancel any idea of removing the msg window
-            fTimeRemove = NAN;
-            // next element
-            iter++;
-        }
-        else {
-            // now outdated. Move on to next line, but remove this one
-            auto iterRemove = iter++;
-            listTexts.erase(iterRemove);
-        }
-    }
+public:
+    /// Creates a new message window
+    WndMsg (WndMode _wndMode = WND_MODE_FLOAT);
+    /// Destruction also happens when closed by the user, reset global pointer
+    ~WndMsg () override;
+    /// Actually create (or show) the window if there are texts to show
+    static bool DoShow();
+    /// Actually remove the window
+    static void DoRemove();
     
-    // No texts left? Remove window in 1s
-    if ((g_window == in_window_id) &&
-        listTexts.empty() && !needSeeingShowMsg())
-    {
-        if (std::isnan(fTimeRemove))
-            // set time when to remove
-            fTimeRemove = currTime + WIN_TIME_REMAIN;
-        else if (currTime >= fTimeRemove) {
-            // time's up: remove
-            XPLMSetWindowIsVisible ( g_window, g_visible=false );
-            fTimeRemove = NAN;
-        }
-    }
+protected:
+    /// Changes the window's height and makes sure the position coordinates stay valid
+    void PositionWnd (int _height);
+    /// Some setup before UI building starts
+    ImGuiWindowFlags_ beforeBegin() override;
+    /// Main function to render the window's interface
+    void buildInterface() override;
+};
+
+/// There's at most one global message window
+WndMsg* WndMsg::gpWnd = nullptr;
+
+// Creates a new message window
+WndMsg::WndMsg (WndMode _wndMode) :
+LTImgWindow(_wndMode, WND_STYLE_HUD, dataRefs.MsgRect),     // position is recalculated soon...just pass anything
+rWnd(dataRefs.MsgRect)
+{
+    // Set up window basics
+    SetWindowTitle(LIVE_TRAFFIC " Messages");
+    SetWindowResizingLimits(WND_MSG_LIMITS.left(), WND_MSG_LIMITS.top(),
+                            WND_MSG_LIMITS.right(), WND_MSG_LIMITS.bottom());
+    
+    // Set the initial window position
+    PositionWnd(WND_MSG_LIMITS.top() * int(listTexts.size()));
 }
 
-int dummy_mouse_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int /*is_down*/, void * /*in_refcon*/)
-{ return 0; }
+// Destruction also happens when closed by the user, reset global pointer
+WndMsg::~WndMsg ()
+{
+    gpWnd = nullptr;
+}
 
-XPLMCursorStatus dummy_cursor_status_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, void * /*in_refcon*/)
-{ return xplm_CursorDefault; }
-
-int dummy_wheel_handler(XPLMWindowID /*in_window_id*/, int /*x*/, int /*y*/, int /*wheel*/, int /*clicks*/, void * /*in_refcon*/)
-{ return 0; }
-
-void dummy_key_handler(XPLMWindowID /*in_window_id*/, char /*key*/, XPLMKeyFlags /*flags*/, char /*virtual_key*/, void * /*in_refcon*/, int /*losing_focus*/)
-{ }
-
-/// Create/show the message window
-XPLMWindowID DoShowMsgWindow()
+// Actually create (or show) the window
+bool WndMsg::DoShow()
 {
     // must only do so if executed from XP's main thread
     if (!dataRefs.IsXPThread())
-        return nullptr;
+        return false;
 
-    // Create the message window
-    XPLMCreateWindow_t params;
-    params.structSize = sizeof(params);
-    params.visible = 1;
-    params.drawWindowFunc = draw_msg;
-    // Note on "dummy" handlers:
-    // Even if we don't want to handle these events, we have to register a "do-nothing" callback for them
-    params.handleMouseClickFunc = dummy_mouse_handler;
-    params.handleRightClickFunc = dummy_mouse_handler;
-    params.handleMouseWheelFunc = dummy_wheel_handler;
-    params.handleKeyFunc = dummy_key_handler;
-    params.handleCursorFunc = dummy_cursor_status_handler;
-    params.refcon = NULL;
-    params.layer = xplm_WindowLayerFloatingWindows;
-    // No decoration...this is just message output and shall stay where it is
-    params.decorateAsFloatingWindow = xplm_WindowDecorationNone;
-
-    // Set the window's initial bounds
-    // Note that we're not guaranteed that the main monitor's lower left is at (0, 0)...
-    // We'll need to query for the global desktop bounds!
-    GetTopRightScreenSize(params.left, params.top, params.right, params.bottom);
-
-    // define a window in the top right corner,
-    // WIN_FROM_TOP point down from the top, WIN_WIDTH points wide,
-    // enough height for all lines of text
-    params.top -= WIN_FROM_TOP;
-    params.right -= WIN_FROM_RIGHT;
-    params.left = params.right - WIN_WIDTH;
-    params.bottom = params.top - (WIN_ROW_HEIGHT * (2 * int(listTexts.size()) + 1 +
-        (needSeeingShowMsg() ? 2 : 0)));
-
-    // if the window still exists just resize it
-    if (g_window) {
-        if (!XPLMGetWindowIsVisible(g_window))
-            XPLMSetWindowIsVisible(g_window, true);
-        XPLMSetWindowGeometry(g_window, params.left, params.top, params.right, params.bottom);
-    }
-    else {
-        // otherwise create a new one
-        g_window = XPLMCreateWindowEx(&params);
-        LOG_ASSERT(g_window);
-    }
-    g_visible = true;
-
-    return g_window;
+    // No message waiting - no deal
+    if (listTexts.empty())
+        return false;
+    
+    // Make sure the window object exists...
+    if (!gpWnd)
+        gpWnd = new WndMsg();
+    LOG_ASSERT(gpWnd);
+    
+    // ...and its window is visible
+    gpWnd->SetVisible(true);
+    return true;
 }
 
+// Actually remove the window
+void WndMsg::DoRemove()
+{
+    if (gpWnd)
+        delete gpWnd;
+    gpWnd = nullptr;
+}
+
+/// Places the window center according to a point and width/height
+void WndMsg::PositionWnd (int _height)
+{
+    // make sure window size limits are adhered to
+    _height = std::clamp<int>(_height, WND_MSG_LIMITS.top(), WND_MSG_LIMITS.bottom());
+    rWnd.bottom() = rWnd.top() - _height;
+    
+    // Find initial window position
+    if (!rWnd.left() && !rWnd.top() && rWnd.bottom() < 0) {                       // find an initial position
+        // Screen size of top right screen
+        WndRect screen;
+        GetTopRightScreenSize(screen.left(), screen.top(), screen.right(), screen.bottom());
+        // Top Right corner, a bit away from the actual corner
+        rWnd.left() = screen.right() - WIN_FROM_RIGHT - rWnd.right();   // here, rWnd.right is still the expected wnd width
+        rWnd.right() = screen.right() - WIN_FROM_RIGHT;
+        rWnd.top() = screen.top() - WIN_FROM_TOP;
+        rWnd.bottom() = rWnd.top() - _height;
+    }
+    else {
+        // make sure the window does not cross screen boundaries
+        rWnd.keepOnScreen();
+    }
+    
+    // If popped out, we don't touch, user's choice, but inside X-Plane we adapt
+    if (!IsPoppedOut())
+        SetCurrentWindowGeometry(rWnd);
+}
+
+// Some setup before UI building starts
+ImGuiWindowFlags_ WndMsg::beforeBegin()
+{
+    // Give parent class a chance for setup, too, e.g. colors
+    ImGuiWindowFlags_ ret = LTImgWindow::beforeBegin();
+    
+    // Set background and border color (highlights if there is any warning/error on display)
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(WND_MSG_COL_BG));
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(colBorder));
+    style.WindowBorderSize = 1.0f;
+
+    // Save latest screen size to configuration (if not popped out)
+    if (!IsPoppedOut()) {
+        rWnd = GetCurrentWindowGeometry();
+
+        // Set drag area so that 3 pixels are available for resizing
+        SetWindowDragArea(8, 5, rWnd.width()-16, rWnd.height()-10);
+
+        // Set background opacity if not popped out
+        style.Colors[ImGuiCol_WindowBg].w =  float(dataRefs.UIopacity)/100.0f;
+    }
+
+    // Don't save settings for this window to ImGui.ini
+    return ImGuiWindowFlags_(ret | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
+}
+
+// Main function to render the window's interface
+void WndMsg::buildInterface()
+{
+    // Set the Z-Order so it is drawn higher than normal
+    ImGui::GetCurrentWindow()->BeginOrderWithinContext = 5;
+
+    // --- Window buttons in top right corner ---
+    const ImVec2 crsrPos = ImGui::GetCursorPos();
+    buildWndButtons();                  // right-aligned
+    ImGui::SetCursorPos(crsrPos);       // back to beginning of line
+    ImGui::PushTextWrapPos();
+    
+    // --- Loop the messages to be displayed ---
+    logLevelTy maxLevel = logINFO;      // keep track what the highest warning level was
+    const float now = dataRefs.GetMiscNetwTime();
+    // Access to list of messages is guarded by a lock
+    std::unique_lock<std::recursive_mutex> lock(gListMutex);
+    auto iter = listTexts.begin();
+
+    // The very first call to GetMiscNetwTime, right after loading initial scenery,
+    // returns way too low a value, which leads to all texts being deleted in the 2nd frame already.
+    // So we ignore that first call altogether
+    static bool bCalledOnce = false;
+    while (bCalledOnce && iter != listTexts.end()) {
+        dispTextTy& msg = *iter;
+        // Do we now start showing this msg? (msg.timeDisp negative?)
+        if (std::signbit(msg.fTimeDisp))
+            // until when to show this message? (msg.timeDisp is negative!)
+            msg.fTimeDisp = now - msg.fTimeDisp;
+        // Special key for resizing the window stays until actively closed
+        const bool bDoReposition = msg.text == MSG_REPOSITION_WND;
+        if (bDoReposition)
+            BringWindowToFront();
+        // remove and skip outdated texts (which are not repositioning info)
+        else if (msg.fTimeDisp < now) {
+            iter = listTexts.erase(iter);
+            continue;
+        }
+        
+        // Determine max message level
+        if (msg.lvlDisp != logMSG && msg.lvlDisp > maxLevel)
+            maxLevel = msg.lvlDisp;
+        
+        // Set text color and draw the text centered
+        ImGui::PushStyleColor(ImGuiCol_Text, COL_LVL[msg.lvlDisp].Value);
+        ImGui::TextUnformatted(msg.text.c_str());
+        if (bDoReposition && listTexts.size() < 3) {
+            ImGui::TextUnformatted(MSG_REPOSITION_LN2);
+        }
+        // Show the FMOD logo together with the FMOD attribution message
+        else if (msg.text == MSG_FMOD_SOUND) {
+            // FMOD Logo in white
+            int logoId = 0;
+            if (FMODLogo::GetTexture(logoId,false)) {
+                ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+            }
+        }
+        
+        // Finish button for repositioning, remove when donw
+        if (bDoReposition && (!LTSettingsUI::IsDisplayed() || ImGui::Button("Finished Repositioning")))
+            iter = listTexts.erase(iter);
+        else
+            // next message
+            ++iter;
+
+        ImGui::PopStyleColor();
+    }
+    const bool bNowEmpty = listTexts.empty();
+    lock.unlock();
+    
+    ImGui::PopTextWrapPos();
+    
+    // Nothing left to show? -> Hide ourself
+    if (bNowEmpty) {
+        if (!IsPoppedOut())
+            SetVisible(false);
+    } else {
+        // In case of WARN, ERROR, FATAL make sure a colored border is around the window
+        if (maxLevel >= logWARN)
+            colBorder = COL_LVL[maxLevel];
+        else
+            colBorder = WND_MSG_COL_BG;
+        
+        // Test for need to change window geometry
+        const int idealHeight = int(ImGui::GetCursorPosY()) + 2 * WND_MSG_BORDER_PADDING;
+        if (rWnd.height() != idealHeight)
+            PositionWnd(idealHeight);
+    }
+
+    // Restore border/bg color
+    ImGui::PopStyleColor(2);
+    // Have now been called once, so next time we do proper processing
+    bCalledOnce = true;
+}
+
+//
 //MARK: custom X-Plane message Window - Create / Destroy
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
+//
+void CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
 {
     // consider configured level for msg area
     if ( lvl < dataRefs.GetMsgAreaLevel())
-        return g_window;
+        return;
     
     // put together the formatted message if given
     if (szMsg) {
@@ -275,57 +370,49 @@ XPLMWindowID CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* s
                   args);
         va_end (args);
     
-        // define the text to display:
-        dispTextTy dispTxt = {
-            // set the timer if a limit is given
-            fTimeToDisplay >= 0.0f ? dataRefs.GetMiscNetwTime() + fTimeToDisplay : 0,
-            // log level to define the color
-            lvl,
-            // finally the text
-            aszMsgTxt
-        };
-        
         // add to list of display texts
-        listTexts.emplace_back(std::move(dispTxt));
+        std::unique_lock<std::recursive_mutex> lock(gListMutex);
+        listTexts.emplace_back(-fTimeToDisplay, lvl, aszMsgTxt);
     }
 
     // Show the window
-    return DoShowMsgWindow();
+    WndMsg::DoShow();
 }
 
 
 // Show the special text "Seeing aircraft...showing..."
-XPLMWindowID CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime)
+void CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime)
 {
-    gNumSee     = numSee;
-    gNumShow    = numShow;
-    gBufTime    = bufTime;
-    return needSeeingShowMsg() ? CreateMsgWindow(fTimeToDisplay, logINFO, nullptr) : nullptr;
+    // This entry shall always be the first one in the list
+    // So let's see if it is already the first one, then we'd remove it first
+    std::unique_lock<std::recursive_mutex> lock(gListMutex);
+    if (!listTexts.empty() && listTexts.front().text.substr(0,23) == MSG_BUF_FILL_BEGIN)
+        listTexts.pop_front();
+    
+    // Now create the actual message if there is anything to show
+    if (bufTime >= 0) {
+        char aszMsgTxt[500];
+        snprintf(aszMsgTxt, sizeof(aszMsgTxt), MSG_BUF_FILL_COUNTDOWN,
+                 numSee, numShow, bufTime);
+        // add to list of display texts _at front_
+        listTexts.emplace_front(-fTimeToDisplay, logINFO, aszMsgTxt);
+    }
+    
+    // Show the window
+    WndMsg::DoShow();
 }
 
 
 // Check if message wait to be shown, then show
 bool CheckThenShowMsgWindow()
 {
-    if ((!listTexts.empty() || needSeeingShowMsg()) &&      // something to show
-        (!g_window || !g_visible))                          // no window/visible
-    {
-        DoShowMsgWindow();
-        return true;
-    }
-    return false;
+    return WndMsg::DoShow();
 }
 
 
 void DestroyWindow()
 {
-    if ( g_window )
-    {
-        XPLMDestroyWindow(g_window);
-        g_window = NULL;
-        g_visible = false;
-        listTexts.clear();
-   }
+    WndMsg::DoRemove();
 }
 
 //
@@ -514,8 +601,8 @@ const char* LogLvlText (logLevelTy _lvl)
     return LOG_LEVEL[_lvl];
 }
 
-/// Return color for log level (as float[3])
-float* LogLvlColor (logLevelTy _lvl)
+/// Return color for log level
+ImColor LogLvlColor (logLevelTy _lvl)
 {
     LOG_ASSERT(logDEBUG <= _lvl && _lvl <= logMSG);
     return COL_LVL[_lvl];

@@ -37,6 +37,7 @@ static const CreditTy CREDITS[] = {
     { "X-Plane APIs", "to integrate with X-Plane",      "https://developer.x-plane.com/sdk/plugin-sdk-documents/" },
     { "XPMP2", "for CSL model processing",              "https://github.com/TwinFan/XPMP2" },
     { "CURL", "for network protocol support",           "https://curl.haxx.se/libcurl/" },
+    { "FMOD", "Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.", "https://www.fmod.com/"},
     { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
@@ -163,7 +164,7 @@ void InfoListWnd::buildInterface()
             bool bFilterChanged = false;
             for (logLevelTy lvl: {logDEBUG, logMSG, logINFO, logWARN, logERR, logFATAL}) {
                 if (lvl) ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ConvColor(LogLvlColor(lvl)));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImU32(LogLvlColor(lvl)));
                 if (ImGui::CheckboxFlags(LogLvlText(lvl), &msgLvlFilter, 1 << lvl))
                     bFilterChanged = true;
                 ImGui::PopStyleColor();
@@ -268,7 +269,7 @@ void InfoListWnd::buildInterface()
                         ImGui::TextUnformatted(NetwTimeString(msg.netwTime).c_str());
                     // Level
                     if (ImGui::TableSetColumnIndex(2)) {
-                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ConvColor(LogLvlColor(msg.lvl)));
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImU32(LogLvlColor(msg.lvl)));
                         ImGui::TextUnformatted(LogLvlText(msg.lvl));
                         ImGui::PopStyleColor();
                     }
@@ -453,6 +454,18 @@ void InfoListWnd::buildInterface()
                     ImGui::TreePop();
                 }
                 
+                // FMOD requires us to show the logo
+                // See https://www.fmod.com/attribution
+                if (ImGui::TreeNodeEx(MSG_FMOD_SOUND, ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // FMOD Logo in white
+                    int logoId = 0;
+                    if (FMODLogo::GetTexture(logoId,false)) {
+                        ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+                    }
+
+                    ImGui::TreePop();
+                }
+
                 // Credits
                 if (ImGui::TreeNode("Credits")) {
                     ImGui::TextUnformatted(LIVE_TRAFFIC " is based on a number of other great libraries and APIs, most notably:");

@@ -91,13 +91,18 @@
 // ImGui / ImgWindow
 #include "imgui.h"
 #include "imgui_stdlib.h"
+#include "imgui_internal.h"         // For fiddling with the ImGui window z-order we need ImGui internals
 #include "ImgWindow.h"
 #include "ImgFontAtlas.h"
 #include "IconsFontAwesome5.h"
 
 // XP Multiplayer API (XPMP2)
+#define INCLUDE_FMOD_SOUND 1            // Built with FMOD sound support
 #include "XPMPMultiplayer.h"
 #include "XPMPAircraft.h"
+
+// FMOD Logo
+#include "FMOD_Logo.h"
 
 // LTAPI Includes, this defines the bulk transfer structure
 #include "LTAPI.h"

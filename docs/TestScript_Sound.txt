@@ -1,0 +1,67 @@
+LiveTraffic 3.2.0 with FMOD Sound Test Script
+
+Verify in both X-Plane 11 and X-Plane 12.
+(At the very least scenario 1. Startup...but the more the better)
+
+1. Startup
+Action: Start X-Plane with LiveTraffic 3.2.0 installed
+Expected Result:
+- LiveTraffic is available as a plugin in the Plugin menu
+- LiveTraffic shows a kind of splash screen (actually: re-implemented message window)
+  showing the FMOD logo when the first flight loads.
+
+2. Sound
+Action: Go to an airport with reasonable traffic (KLAX always works) and wait
+        till LiveTraffic shows planes (can use Aircraft List to verify)
+        Move around with camera (e.g. starting with Tower View [Shift-5],
+        then [c] for free camera, then moving around with [q e r f , . Crsr]
+Expected Result:
+        Moving aircraft produce engine sound, the more power (take off, climb, cruis)
+        the louder.
+        Additionally, sound of tires rolling, flaps/gear extending retracting may be heard based on situation.
+
+3. Different Sounds for different Engine Type
+Action: Activate camera view for any flying plane (e.g. via the camera symbol of the Aircraft List)
+        Try different aircraft with different engines types (jet, prop, heli...)
+Expected Result:
+        Camera view opens behind selected plane
+        Engine is clearly audible, sound matches engine type
+        No disturbing sound artifacts during the moment of camera switch from one plane to the other
+
+4. Spacial Sound
+Action: While still sitting on a plane's tail (camera view active as per scenario 3.)
+        turn the camera left and right, e.g. using keys [q] and [e].
+Expected Result:
+        Engine sound should come from the right direction relative to camera orientation,
+        more from the left side if camera turned clockwise and vice versa.
+
+5. Master Volume
+Action: While still sitting on a plane's tail (camera view active as per scenario 3.)
+        go to LiveTraffic's Basic Settings.
+        Adjust Master Volume.
+        Change Master Volume all the way to 0%.
+        Change it back to 100%
+Expected Result:
+        Sound volume of LiveTraffic's planes changes accordingly.
+        All sound is off when Master Volume is 0%.
+        Sound comes back when returning from 0% to 100% (or any positive value).
+
+6. Doppler effect
+Action: Identify a plane that sits still on the ground or is slowly taxiing
+        along a steady path (e.g. towards active runway)
+        With the camera, move steadily and ideally quickly ([Shift] plus above
+        camera control keys accelerates camera movement) towards that plane
+        and beyond the plane.
+        Alterntively, you can try to speed towards a plane taking off
+        or in-flight with a small plane like a Cessna.
+Expected Result:
+        Audible Doppler effect: Sound pitch is higher when moving towards plane,
+        and pitch turns low when speeding away from plane.
+
+7. Master Volume settings saved
+Action: Adjust master volume to any setting that is _not_ 100%, say 80%
+        Exit and restart X-Plane
+        Go back to LiveTraffic's Settings
+Expected Result:
+        Master Volume setting is saved and restored to the selected value.
+

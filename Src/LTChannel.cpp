@@ -931,13 +931,13 @@ void LTFlightDataAcMaintenance()
     
     // if buffer-fill countdown is (still) running, update the figures in UI
     if ( initTimeBufFilled > 0 ) {
-        CreateMsgWindow(float(AC_MAINT_INTVL),
+        CreateMsgWindow(float(AC_MAINT_INTVL * 1.5),
                         int(mapFd.size()), numAcAfter,
                         int(initTimeBufFilled - dataRefs.GetSimTime()));
         // buffer fill-up time's up
         if (dataRefs.GetSimTime() >= initTimeBufFilled) {
             initTimeBufFilled = 0;
-            CreateMsgWindow(float(AC_MAINT_INTVL),
+            CreateMsgWindow(float(AC_MAINT_INTVL * 1.5),
                             int(mapFd.size()), numAcAfter,
                             -1);            // clear the message
         }

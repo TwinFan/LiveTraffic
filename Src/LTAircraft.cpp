@@ -180,12 +180,8 @@ val(_min)
 
 void MovingParam::SetVal(double _val)
 {
-    if (!(defMin <= _val && _val <= defMax)) {
-        LOG_MSG(logFATAL, "min=%.1f _val=%.1f max=%.1f duration=%.1f",
-                defMin, _val, defMax, defDuration);
-        LOG_ASSERT(defMin <= _val && _val <= defMax);
-    }
-    val = _val;                     // just set the target value, no moving
+    // just set the target value, no moving
+    val = std::clamp<double>(_val, defMin, defMax);
     valFrom = valTo = valDist = timeFrom = timeTo = NAN;
 }
 
@@ -206,7 +202,8 @@ bool MovingParam::isProgrammed () const
 // start a move to the given target in the specified time frame
 void MovingParam::moveTo ( double tval, double _startTS )
 {
-    LOG_ASSERT((defMin <= tval) && (tval <= defMax));
+    // Normalize between limits
+    tval = std::clamp<double>(tval, defMin, defMax);
     
     // current value equals target already
     if (dequal(tval, val))
@@ -234,7 +231,8 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
                             double _startTS, double _by_ts,
                             bool _startEarly)
 {
-    LOG_ASSERT((defMin <= _to) && (_to <= defMax));
+    // Normalize between limits
+    _to = std::clamp<double>(_to, defMin, defMax);
 
     // current value equals target already
     if (dequal(_to, val)) {
@@ -244,9 +242,8 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
     // calc required duration by using defining parameters
     else if ( !dequal(valTo, _to) ) {
         // default values
-        if (std::isnan(_from))       _from = val;
+        if (std::isnan(_from))       _from = std::clamp<double>(val, defMin, defMax);
         if (std::isnan(_startTS))    _startTS = currCycle.simTime;
-        LOG_ASSERT((defMin <= _from) && (_from <= defMax));
 
         // cleanup funny ts configurations
         if (_by_ts <= currCycle.simTime) {      // supposed to be done already?
@@ -372,7 +369,10 @@ void AccelParam::SetSpeed (double speed)
 void AccelParam::StartAccel(double _startSpeed, double _targetSpeed,
                             double _accel, double _startTime)
 {
-    LOG_ASSERT(_accel > 0 ? _targetSpeed > _startSpeed : _targetSpeed < _startSpeed);
+    // Sanity check
+    if (!(_accel > 0 ? _targetSpeed > _startSpeed : _targetSpeed < _startSpeed))
+        return;
+    
     // reset
     SetSpeed(_startSpeed);
     
@@ -418,8 +418,10 @@ void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
                                    double _startTime, double _targetTime,
                                    const LTAircraft* pAc)
 {
-    LOG_ASSERT(_targetTime > currCycle.simTime);
-    LOG_ASSERT(_startTime < _targetTime);
+    // Sanity checks
+    if (_targetTime <= currCycle.simTime || _startTime >= _targetTime)
+        return;
+
     const double deltaTime = _targetTime - _startTime;
     const double avgSpeed = _deltaDist / deltaTime;
     
@@ -1248,7 +1250,7 @@ tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
-bOnGrnd(false), bArtificalPos(false),
+bArtificalPos(false),
 heading(pMdl->TAXI_TURN_TIME, 360, 0, true),
 corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false),
 gear(pMdl->GEAR_DURATION),
@@ -2871,6 +2873,7 @@ void LTAircraft::UpdatePosition (float, int cycle)
         SetSpoilerRatio((float)spoilers.get());         // spoilers, and speed brakes the same
         SetSpeedbrakeRatio(GetSpoilerRatio());
         SetReversDeployRatio((float)reversers.get());   // opening reversers
+        SetThrustReversRatio((float)reversers.get());
 
         // for engine / prop rotation we derive a value based on flight model
         if (pDoc8643->hasRotor())

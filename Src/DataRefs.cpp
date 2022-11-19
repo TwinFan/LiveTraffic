@@ -302,6 +302,34 @@ void WndRect::set (const std::string& _s)
     }
 }
 
+// Make sure the window is on the visible screen
+bool WndRect::keepOnScreen ()
+{
+    bool bChanged = false;
+    WndRect screen;
+    XPLMGetScreenBoundsGlobal(&screen.left(), &screen.top(),
+                              &screen.right(), &screen.bottom());
+
+
+    if (right() > screen.right()) {
+        shift(screen.right() - right(), 0);
+        bChanged = true;
+    }
+    if (left() < screen.left()) {
+        shift(screen.left() - left(), 0);
+        bChanged = true;
+    }
+    if (bottom() < screen.bottom()) {
+        shift(0, screen.bottom() - bottom());
+        bChanged = true;
+    }
+    if (top() > screen.top() - WIN_FROM_TOP) {
+        shift(0, screen.top() - WIN_FROM_TOP - top());
+        bChanged = true;
+    }
+    // Did we change any value?
+    return bChanged;
+}
 
 //MARK: X-Plane Datarefs
 const char* DATA_REFS_XP[] = {
@@ -479,6 +507,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     // configuration options
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/volume/master",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
     {"livetraffic/cfg/ai_not_on_gnd",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -559,6 +588,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         // configuration options
         case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
+        case DR_CFG_MASTER_VOLUME:          return &volMaster;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_AI_NOT_ON_GND:          return &bAINotOnGnd;
         case DR_CFG_LABELS:                 return &labelCfg;
@@ -684,6 +714,7 @@ iLogLevel (initLogLevel),
 #ifdef DEBUG
 bDebugAcPos (true),
 #endif
+MsgRect(0, 0, WIN_WIDTH, 0),
 SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
 ACIrect (0, 530, 320, 0),
 ILWrect (0, 400, 965, 0)
@@ -1552,6 +1583,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
 #else
         maxNumAc        < 5                 || maxNumAc         > MAX_NUM_AIRCRAFT   ||
 #endif
+        volMaster       < 0                 || volMaster        > 200   ||
         fdStdDistance   < 5                 || fdStdDistance    > 100   ||
         fdRefreshIntvl  < 10                || fdRefreshIntvl   > 180   ||
         fdLongRefrIntvl < fdRefreshIntvl    || fdLongRefrIntvl  > 180   ||
@@ -1593,7 +1625,17 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdCurrRefrIntvl = fdRefreshIntvl;
     else if (p == &fdLongRefrIntvl && fdCurrRefrIntvl == oldLongRefreshIntvl)
         fdCurrRefrIntvl = fdLongRefrIntvl;
-
+    // Master Volume change to be forwarded to XPMP2, too
+    else if (p == &volMaster) {
+        if (volMaster == 0) {                       // Disable sound altogether
+            XPMPSoundEnable(false);
+        } else {                                    // Sound is (to be) enabled
+            if (!XPMPSoundIsEnabled())
+                XPMPSoundEnable(true);
+            XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
+        }
+    }
+    
     // success
     LogCfgSetting(p, val);
     return true;
@@ -1947,6 +1989,8 @@ bool DataRefs::LoadConfigFile()
             }
             
             // *** Window positions ***
+            else if (sDataRef == CFG_WNDPOS_MSG)
+                MsgRect.set(sVal);
             else if (sDataRef == CFG_WNDPOS_SUI)
                 SUIrect.set(sVal);
             else if (sDataRef == CFG_WNDPOS_ACI)
@@ -2096,6 +2140,7 @@ bool DataRefs::SaveConfigFile()
             fOut << def.GetConfigString() << '\n';
     
     // *** Window positions ***
+    fOut << CFG_WNDPOS_MSG << ' ' << MsgRect << '\n';
     fOut << CFG_WNDPOS_SUI << ' ' << SUIrect << '\n';
     fOut << CFG_WNDPOS_ACI << ' ' << ACIrect << '\n';
     fOut << CFG_WNDPOS_ILW << ' ' << ILWrect << '\n';

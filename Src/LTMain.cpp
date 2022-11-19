@@ -799,6 +799,9 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     // Support XPMP2 Remote Clinet?
     if (!strcmp(key, XPMP_CFG_ITM_SUPPORT_REMOTE))
         return dataRefs.GetRemoteSupport();
+    // Sound if enabled
+    if (!strcmp(key, XPMP_CFG_ITM_ACTIVATE_SOUND))
+        return dataRefs.GetVolumeMaster() > 0;
     
     // dont' know/care about the option, return the default value
     return iDefault;
@@ -1072,7 +1075,7 @@ void LTMainHideAircraft ()
     LTFlightDataHideAircraft ();
     
     // Remove any message about seeing planes
-    CreateMsgWindow(float(AC_MAINT_INTVL), 0, 0, -1);
+    CreateMsgWindow(float(AC_MAINT_INTVL * 1.5), 0, 0, -1);
 
     // disable aircraft drawing, free up multiplayer planes
     // (the "soft way", which requires a few more drawing cycles,
