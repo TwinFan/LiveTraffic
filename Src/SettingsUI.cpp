@@ -1051,7 +1051,10 @@ void LTSettingsUI::buildInterface()
                     // avoid duplicates
                     if (std::find(vec.cbegin(), vec.cend(), cslNew) == vec.cend()) {
                         vec.emplace_back(true, cslNew);
+                        // Safe/restore our context...could get broken somewhere in LoadCSLPackage
+                        ImGuiContext* pCtxt = ImGui::GetCurrentContext();
                         dataRefs.LoadCSLPackage(vec.back().getPath());
+                        ImGui::SetCurrentContext(pCtxt);
                     }
                     cslNew.clear();
                     bCslNewExists = false;
