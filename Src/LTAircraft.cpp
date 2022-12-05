@@ -2317,7 +2317,7 @@ void LTAircraft::CalcCorrAngle ()
 {
     // correction only applies to flying before flare
     if (!IsOnGrnd() && phase != FPH_FLARE) {
-        const vectorTy& vecWind = dataRefs.GetSimWind();
+        const vectorTy vecWind = dataRefs.GetSimWind(ppos.alt_m());
         double headDiff = HeadingDiff(vec.angle, vecWind.angle);
         if (headDiff > 90.0)                // if wind comes from behind only consider cross-wind component
             headDiff = 180.0 - headDiff;    // (so that if it comes straight from back (180deg) it would result in 0 correction
