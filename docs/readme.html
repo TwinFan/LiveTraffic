@@ -144,13 +144,19 @@
     <ul>
         <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/248">#248</a>
             crash when manually loading CSL models from the CSL Package Paths settings.</li>
-        <li>Updated to XP12's latest weather model, fixing
+        <li>Fixed audio crackling when new planes spawn.</li>
+        <li>Updated to XP12's latest weather model, considering correct wind
+            layer as per plane's altitude for calculating heading correction,
+            fixing
             <a href="https://github.com/TwinFan/LiveTraffic/issues/247">#247</a>
             dataRef depreciation warnings.</li>
         <li>Fixed an issue in loading airport layouts that prevented
             snapping to taxiways from working in some airports, e.g. KLAX.</li>
-        <li>Added "Refresh Interval" info to Status/Info page, also indicating
-            if reduced interval is active due to flying high</li>
+        <li>Added "Refresh Interval" info to
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status/Info page</a>,
+            indicating if reduced interval is active due to flying high.</li>
+        <li>Linux binary keeps symbol info for better stack info in case of crashes,
+            causing a slight increase in file size.</li>
     </ul>
 
     <h3>v3.2.0</h3>
