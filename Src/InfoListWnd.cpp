@@ -385,7 +385,7 @@ void InfoListWnd::buildInterface()
                                 const int fdStdRefreshIntvl = dataRefs.GetCfgInt(DR_CFG_FD_REFRESH_INTVL);
                                 const int fdCurrRefreshIntvl = dataRefs.GetFdRefreshIntvl();
                                 ImGui::Text(fdCurrRefreshIntvl == fdStdRefreshIntvl ? "%ds" :
-                                                                                      "%ds (reduced interval while flying high)",
+                                                                                      "%ds (increased interval while flying high)",
                                             fdCurrRefreshIntvl);
                             }
 
