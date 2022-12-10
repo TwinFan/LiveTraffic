@@ -63,8 +63,14 @@ static float gWidthIconBtn = NAN;
 // Get width of an icon button (calculate on first use)
 IMGUI_API float GetWidthIconBtn (bool _bWithSpacing)
 {
-    if (std::isnan(gWidthIconBtn))
+    // Since XP12 the size seems to be calculated incorrectly during startup, maybe fonts change after plugin load???
+    // So we recalculate this size every once in a while
+    constexpr int CACHE_CNT = 100;
+    static int cacheCnt = CACHE_CNT;
+    if (std::isnan(gWidthIconBtn) || (--cacheCnt < 0)) {
         gWidthIconBtn = CalcTextSize(ICON_FA_WINDOW_MAXIMIZE).x;
+        cacheCnt = CACHE_CNT;
+    }
     if (_bWithSpacing)
         return gWidthIconBtn + ImGui::GetStyle().ItemSpacing.x;
     else
