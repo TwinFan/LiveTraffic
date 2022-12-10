@@ -8,6 +8,7 @@
 ///             Edge: The connection of two nodes, relates to two consecutive 111-116 lines in `apt.dat`\n
 ///             Path: A set of connecting edges, relates to a gorup of 111-116 lines in `apt.dat`, headed by a 120 line\n
 /// @see        More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
+/// @see        `apt.dat` file format specification is [here](https://developer.x-plane.com/article/airport-data-apt-dat-file-format-specification/)
 /// @author     Birger Hoppe
 /// @copyright  (c) 2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -2187,7 +2188,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
         // ignore empty lines
         if (ln.empty()) continue;
         
-        // test for beginning of an airport
+        // test for beginning of an airport (row code 1)
         if (ln.size() > 10 &&
             ln[0] == '1' &&
             (ln[1] == ' ' || ln[1] == '\t'))
@@ -2210,6 +2211,19 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                 apt = Apt(fields[4]);
                 netwType = NETW_UNKOWN;
             }
+        }
+        
+        // We skip over Seaports (row code 16) and Heliports (17)
+        else if (ln.size() > 3 &&
+            ln[0] == '1' && (ln[1] == '6' || ln[1] == '7') &&
+            (ln[2] == ' ' || ln[2] == '\t'))
+        {
+            // If the previous airport is valid add it to the list
+            if (apt.IsValid())
+                Apt::AddApt(std::move(apt));
+            else
+                // clear the airport object nonetheless
+                apt = Apt();
         }
         
         // test for a runway...just to find location info
@@ -2447,7 +2461,7 @@ void AsyncReadApt (positionTy ctr, double radius)
         const std::string sFileName = LTCalcFullPath(bLooksLikeXP12 ? APTDAT_GLOBAL_AIRPORTS APTDAT_SCENERY_ADD_LOC : APTDAT_RESOURCES_DEFAULT APTDAT_SCENERY_ADD_LOC);
         std::ifstream fIn (sFileName);
         if (fIn.good() && fIn.is_open()) {
-            LOG_MSG(logDEBUG, "Reading apt.dat from %s", sFileName.c_str());
+            LOG_MSG(logDEBUG, "Reading global apt.dat from %s", sFileName.c_str());
             ReadOneAptFile(fIn, box);
             cntFiles++;
         }

@@ -378,6 +378,17 @@ void InfoListWnd::buildInterface()
                                     ImGui::TextUnformatted(weatherMETAR.c_str());
                             }
 
+                            // Refresh Period
+                            ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Refresh Interval");
+                            if (ImGui::TableSetColumnIndex(1)) {
+                                const int fdStdRefreshIntvl = dataRefs.GetCfgInt(DR_CFG_FD_REFRESH_INTVL);
+                                const int fdCurrRefreshIntvl = dataRefs.GetFdRefreshIntvl();
+                                ImGui::Text(fdCurrRefreshIntvl == fdStdRefreshIntvl ? "%ds" :
+                                                                                      "%ds (increased interval while flying high)",
+                                            fdCurrRefreshIntvl);
+                            }
+
                             // Status of channels
                             
                             // Are there invalid channels?

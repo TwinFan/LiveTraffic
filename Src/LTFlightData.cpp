@@ -800,9 +800,11 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
     // access guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
-    // Not enabled at all? (Or no positions at all?)
-    if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||
-        posDeque.empty())
+    // Skip processing if not reasonable:
+    if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||      // Snap-to-taxiway not enabled
+        posDeque.empty() ||                         // no aircraft positions available to process
+        statData.isGrndVehicle() ||                 // ground vehicle
+        (pAc && pAc->IsGroundVehicle()))
         return;
     
     // Loop over position in the deque

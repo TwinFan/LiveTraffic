@@ -975,8 +975,12 @@ void LTSettingsUI::buildInterface()
                         }
                     } else {
                         // Not being edited: offer Load button
-                        if (ImGui::SmallButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)"))
+                        if (ImGui::SmallButtonTooltip(ICON_FA_UPLOAD, "Load CSL packages now from this path (again)")) {
+                            // Safe/restore our context...could get broken somewhere in LoadCSLPackage
+                            ImGuiContext* pCtxt = ImGui::GetCurrentContext();
                             dataRefs.LoadCSLPackage(pathCfg.getPath());
+                            ImGui::SetCurrentContext(pCtxt);
+                        }
                         ImGui::SameLine();
                         // Delete button, requires confirmation
                         constexpr const char* SUI_CSL_DEL_POPUP = "Delete CSL Path";
@@ -1047,7 +1051,10 @@ void LTSettingsUI::buildInterface()
                     // avoid duplicates
                     if (std::find(vec.cbegin(), vec.cend(), cslNew) == vec.cend()) {
                         vec.emplace_back(true, cslNew);
+                        // Safe/restore our context...could get broken somewhere in LoadCSLPackage
+                        ImGuiContext* pCtxt = ImGui::GetCurrentContext();
                         dataRefs.LoadCSLPackage(vec.back().getPath());
+                        ImGui::SetCurrentContext(pCtxt);
                     }
                     cslNew.clear();
                     bCslNewExists = false;

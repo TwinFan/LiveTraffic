@@ -363,8 +363,6 @@ const char* DATA_REFS_XP[] = {
     "sim/aircraft/view/acf_tailnum",            // byte[40] y string    Tail number
     "sim/aircraft/view/acf_modeS_id",           // int      y integer   24bit (0-16777215 or 0-0xFFFFFF) unique ID of the airframe. This is also known as the ADS-B "hexcode".
     "sim/aircraft/view/acf_ICAO",               // byte[40] y string    ICAO code for aircraft (a string) entered by author
-    "sim/weather/wind_direction_degt",          // float    n    [0-359)    The effective direction of the wind at the plane's location.
-    "sim/weather/wind_speed_kt",                // float    n    msc    >= 0        The effective speed of the wind at the plane's location. WARNING: this dataref is in meters/second - the dataref NAME has a bug.
     "sim/graphics/VR/enabled",
 };
 
@@ -2342,8 +2340,61 @@ void DataRefs::UpdateCachedValues ()
 // Local (in sim!) wind at user's plane
 void DataRefs::UpdateSimWind ()
 {
-    lastWind.angle = (double)XPLMGetDataf(adrXP[DR_WIND_DIR]);
-    lastWind.speed = (double)XPLMGetDataf(adrXP[DR_WIND_SPEED]);
+    // Try XP12: Real array of (10) wind layers
+    static XPLMDataRef drRegAlt_m       = XPLMFindDataRef("sim/weather/region/wind_altitude_msl_m");
+    static XPLMDataRef drRegSpeed_mcs   = XPLMFindDataRef("sim/weather/region/wind_speed_msc");
+    static XPLMDataRef drRegDir_degt    = XPLMFindDataRef("sim/weather/region/wind_direction_degt");
+    
+    // Before XP12: 3 hard coded layers
+    static XPLMDataRef drWndAlt_m[3]    = { nullptr, nullptr, nullptr };
+    static XPLMDataRef drWndSpeed_kt[3] = { nullptr, nullptr, nullptr };
+    static XPLMDataRef drWndDir_degt[3] = { nullptr, nullptr, nullptr };
+    
+    // Clear our wind knowledge
+    lastWind.clear();
+    
+    // If XP12 dataRefs aren't available:
+    if (!drRegAlt_m || !drRegSpeed_mcs || !drRegDir_degt) {
+        // Once only request the dataRef handles
+        if (!drWndAlt_m[0]) {
+            char drName[100];
+            for (int i = 0; i < 3; ++i) {
+                snprintf(drName, sizeof(drName), "sim/weather/wind_altitude_msl_m[%d]", i);
+                drWndAlt_m[i]    = XPLMFindDataRef(drName);
+                snprintf(drName, sizeof(drName), "sim/weather/wind_speed_kt[%d]", i);
+                drWndSpeed_kt[i] = XPLMFindDataRef(drName);
+                snprintf(drName, sizeof(drName), "sim/weather/wind_direction_degt[%d]", i);
+                drWndDir_degt[i] = XPLMFindDataRef(drName);
+            }
+        }
+        
+        // Read all wind layers
+        for (int i = 0; i < 3; ++i) {
+            const float spd_msc = XPLMGetDataf(drWndSpeed_kt[i]) / float(KT_per_M_per_S);
+            if (spd_msc < 0.0f) continue;           // skip any negative winds, which is: unused wind layers
+            lastWind.emplace_back(XPLMGetDataf(drWndAlt_m[i]),
+                                  spd_msc,
+                                  XPLMGetDataf(drWndDir_degt[i]));
+        }
+    }
+    
+    // XP12 layered wind data
+    else {
+        // Once get the array's size (XP12 started with a size of 10, but who knows...)
+        static size_t drSize = (size_t) XPLMGetDatavf(drRegAlt_m, nullptr, 0, 0);
+        static std::vector<float> afAlt_m(drSize, 0.0f);
+        static std::vector<float> afSpd_mcs(drSize, 0.0f);
+        static std::vector<float> afDir_degt(drSize, 0.0f);
+        // Get current values from X-Plane
+        XPLMGetDatavf(drRegAlt_m,       afAlt_m.data(),     0, (int)afAlt_m.size());
+        XPLMGetDatavf(drRegSpeed_mcs,   afSpd_mcs.data(),   0, (int)afSpd_mcs.size());
+        XPLMGetDatavf(drRegDir_degt,    afDir_degt.data(),  0, (int)afDir_degt.size());
+        // Proces wind layer values
+        for (size_t i = 0; i < afAlt_m.size(); ++i) {
+            if (afSpd_mcs[i] < 0.0f) continue;      // skip unused layers
+            lastWind.emplace_back(afAlt_m[i], afSpd_mcs[i], afDir_degt[i]);
+        }
+    }
 }
 
 //
@@ -2507,3 +2558,34 @@ void DataRefs::GetWeather (float& hPa, std::string& stationId, std::string& META
     stationId = lastWeatherStationId;
     METAR = lastWeatherMETAR;
 }
+
+// Local (in sim!) wind at given altitude
+const vectorTy DataRefs::GetSimWind (double alt_m) const
+{
+    // No wind layers known? -> return "no wind"
+    if (lastWind.empty())
+        return vectorTy(0.0, NAN, NAN, 0.0);
+    // Just one wind layer? Or plane is lower than first layer? -> return first layer's wind
+    if (lastWind.size() == 1 || std::isnan(alt_m) || alt_m <= lastWind[0].alt_m)
+        return vectorTy(lastWind.front().dir_degt, NAN, NAN, lastWind.front().spd_msc);
+    // More than one layer and plane is flying higher than first layer
+    // Find the fist layer, which is higher than the plane
+    auto iter = std::find_if(lastWind.cbegin(), lastWind.cend(),
+                             [alt_m](const WindLayerTy& wl){ return alt_m <= wl.alt_m; });
+    // If not found, then plane is flying higher than highest layer -> return highest wind
+    if (iter == lastWind.cend())
+        return vectorTy(lastWind.back().dir_degt, NAN, NAN, lastWind.back().spd_msc);
+    // else we found a higher wind layer, but is it right away the first?
+    // (should not happen...but just to be on the safe side we catch the case)
+    if (iter == lastWind.cbegin())
+        return vectorTy(lastWind.front().dir_degt, NAN, NAN, lastWind.front().spd_msc);
+    // Now really...plane is in the middle between two layers
+    // return an average value between them
+    const WindLayerTy& low = *std::prev(iter);
+    const WindLayerTy& hgh = *iter;
+    const double f = (alt_m - low.alt_m) / (hgh.alt_m - low.alt_m);     // factor how much to use the higher value, should be between 0 and 1
+    const double spd = (1.0-f) * low.spd_msc + f * hgh.spd_msc;         // average of speed
+    const double hdg_diff = HeadingDiff(low.dir_degt, hgh.dir_degt);    // heading diff
+    const double hdg = low.dir_degt + f*hdg_diff;                       // "average" of heading
+    return vectorTy(HeadingNormalize(hdg), NAN, NAN, spd);
+};
