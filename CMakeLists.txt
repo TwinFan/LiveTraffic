@@ -101,13 +101,9 @@ else()
     if(MSVC)
         # Use highest optimization level in Release builds
         add_compile_options(/MD /Zi /GL- /O2)
-    elseif(APPLE)
+    else()
+        # Use position-independent code and highest optimization level
         add_compile_options(-O3 -fPIC)
-    elseif (UNIX OR MINGW)
-        # Use position-independent code and highest optimization level (FPS!).
-        add_compile_options(-O3 -fPIC)
-        # Strip symbols during linking
-        add_link_options(-s)
     endif()
 endif()
 
