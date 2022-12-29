@@ -796,6 +796,11 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))
         return dataRefs.ShallCpyObjFiles();
+    // Contrail settings
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_MIN_ALT))   return dataRefs.GetContrailAltMin_ft();
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_MAX_ALT))   return dataRefs.GetContrailAltMax_ft();
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_LIFE))      return dataRefs.GetContrailLifeTime();
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_MULTI))     return dataRefs.GetContrailMulti();
     // Support XPMP2 Remote Clinet?
     if (!strcmp(key, XPMP_CFG_ITM_SUPPORT_REMOTE))
         return dataRefs.GetRemoteSupport();

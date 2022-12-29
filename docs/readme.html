@@ -128,10 +128,36 @@
     
     <h2>v3</h2>
     
-    <h3>v3.2.2</h3>
+    <h3>v3.3.0</h3>
 
     <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
     over the files of your existing installation.</P>
+
+    <P>At least copy the following files, which have changed compared to v3.2.x:</P>
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+            <li><code>Resource/Contrail/</code> (new folder with 3 files:)</li>
+            <ul>
+                <li><code>Contrail.obj</code> (new file)</li>
+                <li><code>Contrail.png</code> (new file)</li>
+                <li><code>Contrail.pss</code> (new file)</li>
+            </ul>
+        </ul>
+    </p>
+
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            Contrails for jets flying between configurable altitudes, see
+            <i>Settings > Advanced > <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#contrails">Contrails</a></i>.<br>
+            <i>Note 1:</i> Contrails use X-Plane's particle system; they have the potential to affect performance.<br>
+            <i>Note 2:</i> Looks like particles, hence contrails, don't show beyond a certain distance from the camera,
+            probably some <a href="https://en.wikipedia.org/wiki/Level_of_detail_(computer_graphics)">LoD</a> optimization by X-Plane; in my tests around 13nm.
+        </li>
+    </ul>
+    
+    <h3>v3.2.2</h3>
 
     <P>At least copy the following files, which have changed compared to v3.2.x:</P>
         <ul>

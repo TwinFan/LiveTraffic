@@ -767,8 +767,20 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
 
-            if (ImGui::TreeNodeHelp("Export", nCol, nullptr, nullptr, sFilter, nOpCl,
+            if (ImGui::TreeNodeHelp("Contrails", nCol, nullptr, nullptr, sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgNumber("Min Altitude",           sFilter, DR_CFG_CONTRAIL_MIN_ALT,    0, 90000, 1000, "%d ft");
+                ImGui::FilteredCfgNumber("Max Alt. (0 = off)",     sFilter, DR_CFG_CONTRAIL_MAX_ALT,    0, 90000, 1000, "%d ft");
+                ImGui::FilteredCfgNumber("Life Time",              sFilter, DR_CFG_CONTRAIL_LIFE_TIME,  5,   300,    5, "%d s");
+                ImGui::FilteredCfgCheckbox("Multiple Contrails",   sFilter, DR_CFG_CONTRAIL_MULTIPLE,
+                                           "If enabled, produces one contrail per engine, which can impact FPS.");
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNodeHelp("Export", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_SpanFullWidth))
             {
                 ImGui::FilteredCfgCheckbox("Export Tracking Data", sFilter, DR_DBG_EXPORT_FD,
                                            "Exports all received tracking data to 'LTExportFD.csv'\nfor analysis or use by feeding scripts.");
