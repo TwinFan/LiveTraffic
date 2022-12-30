@@ -332,8 +332,8 @@ std::string OpenGliderConnection::GetStatusText () const
 // Main function for APRS connection, expected to be started in a thread
 void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
 {
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_OGN_APRS");
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OGN_APRS", LC_ALL_MASK);
     
     try {
         // open a TCP connection to APRS.glidernet.org
@@ -901,8 +901,8 @@ static size_t OGNAcListNetwCB(char *ptr, size_t, size_t nmemb, void* userdata)
 /// @see http://ddb.glidernet.org/download/
 static bool OGNAcListDoDownload ()
 {
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_OGNAcList");
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OGNAcList", LC_ALL_MASK);
     
     bool bRet = false;
     try {

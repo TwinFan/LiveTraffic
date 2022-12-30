@@ -2390,11 +2390,11 @@ void PurgeApt (const boundingBoxTy& _box)
 /// @param radius Search radius around center position in meter
 void AsyncReadApt (positionTy ctr, double radius)
 {
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ReadApt", LC_ALL_MASK);
+
     static size_t lenSceneryLnBegin = strlen(APTDAT_SCENERY_LN_BEGIN);
     
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_ReadApt");
-
     // To avoid costly distance calculations we define a bounding box
     // just by calculating lat/lon values north/east/south/west of given pos
     // and include all airports with coordinates falling into it

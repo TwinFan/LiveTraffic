@@ -110,8 +110,8 @@ bool ForeFlightSender::StopConnection ()
 // thread main function
 void ForeFlightSender::udpSend()
 {
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_ForeFlight");
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ForeFlight", LC_ALL_MASK);
 
     //
     // *** open the UDP socket ***
