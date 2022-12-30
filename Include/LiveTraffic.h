@@ -406,26 +406,6 @@ inline struct tm *localtime_s(struct tm * result, const time_t * time)
 
 #endif
 
-#if IBM
-#define locale_t         _locale_t
-#define freelocale       _free_locale
-
-#define LC_GLOBAL_LOCALE ((locale_t)-1)
-#define LC_ALL_MASK      LC_ALL
-#define LC_COLLATE_MASK  LC_COLLATE
-#define LC_CTYPE_MASK    LC_CTYPE
-#define LC_MONETARY_MASK LC_MONETARY
-#define LC_NUMERIC_MASK  LC_NUMERIC
-#define LC_TIME_MASK     LC_TIME
-
-// Base locale is ignored and mixing of masks is not supported
-#define newlocale(mask, locale, base) _create_locale(mask, locale)
-
-/// @brief Simulation of Linux' `uselocale()` function on Windows
-/// @see https://stackoverflow.com/a/17173977
-locale_t uselocale(locale_t new_locale);
-#endif
-
 /// Simpler access to strncpy_s if dest is a char array (not a pointer!)
 #define STRCPY_S(dest,src) strncpy_s(dest,sizeof(dest),src,sizeof(dest)-1)
 #define STRCPY_ATMOST(dest,src) strncpy_s(dest,sizeof(dest),strAtMost(src,sizeof(dest)-1).c_str(),sizeof(dest)-1)
@@ -448,8 +428,12 @@ inline int strerror_s( char *buf, size_t bufsz, int errnum )
 ///          See https://stackoverflow.com/a/17173977
 class ThreadSettings {
 protected:
+#if IBM
+#define LC_ALL_MASK LC_ALL
+#else
     locale_t threadLocale = locale_t(0);
     locale_t prevLocale = locale_t(0);
+#endif
 public:
     /// @brief Defines thread's name and sets the thread's locale
     /// @param sThreadName Thread's name, max 16 chars
