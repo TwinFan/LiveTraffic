@@ -381,6 +381,10 @@ enum dataRefsLT {
     DR_CFG_HIDE_IN_REPLAY,
     DR_CFG_HIDE_STATIC_TWR,
     DR_CFG_COPY_OBJ_FILES,
+    DR_CFG_CONTRAIL_MIN_ALT,
+    DR_CFG_CONTRAIL_MAX_ALT,
+    DR_CFG_CONTRAIL_LIFE_TIME,
+    DR_CFG_CONTRAIL_MULTIPLE,
     DR_CFG_REMOTE_SUPPORT,
     DR_CFG_EXTERNAL_CAMERA,
     DR_CFG_LAST_CHECK_NEW_VER,
@@ -670,6 +674,10 @@ protected:
     int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
     int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
+    int  contrailAltMin_ft  = 25000;    ///< [ft] Auto Contrails: Minimum altitude
+    int  contrailAltMax_ft  = 45000;    ///< [ft] Auto Contrails: Maximum altitude
+    int  contrailLifeTime   = 25;       ///< [s] Contrail default time to live
+    bool contrailMulti      = false;    ///< Auto-create multiple or just a single contrail?
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
     int bUseExternalCamera  = false;    ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
@@ -894,6 +902,10 @@ public:
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
+    int  GetContrailAltMin_ft () const  { return contrailAltMin_ft; }
+    int  GetContrailAltMax_ft () const  { return contrailAltMax_ft; }
+    int  GetContrailLifeTime () const   { return contrailLifeTime; }
+    bool GetContrailMulti () const      { return contrailMulti; }
     int GetRemoteSupport () const { return remoteSupport; }
     bool ShallUseExternalCamera () const { return bUseExternalCamera; }
 

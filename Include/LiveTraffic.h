@@ -42,6 +42,10 @@
 #include <cstring>
 #include <ctime>
 #include <cassert>
+#include <locale>
+#if APL
+#include <xlocale.h>
+#endif
 
 // Windows
 #if IBM
@@ -217,7 +221,11 @@ inline std::string strAtMost(const std::string s, size_t m) {
 }
 
 /// Replace all occurences of one string with another
-void str_replaceAll(std::string& str, const std::string& from, const std::string& to);
+void str_replaceAll(std::string& str, const std::string& from, const std::string& to, size_t start_pos = 0);
+
+/// @brief Replace a potentially wrong decimal point
+/// @returns if `true` if locale defines other decimal point than `.`
+bool str_correctDecimalPt (std::string& str, size_t start_pos = 0);
 
 // trimming of string
 // https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
@@ -411,18 +419,31 @@ inline int strerror_s( char *buf, size_t bufsz, int errnum )
 { strerror_r(errnum, buf, bufsz); return 0; }
 #endif
 
-// MARK: Thread names
-#ifdef DEBUG
-// This might not work on older Windows version, which is why we don't publish it in release builds
+// MARK: Thread and Locale
+
+/// Begin a thread and set a thread-local locale
+/// @details In the communication with servers we must use internal standards,
+///          ie. C locale, so that for example the decimal point is `.`
+///          Hence we set a thread-local locale in all threads as they deal with communication.
+///          See https://stackoverflow.com/a/17173977
+class ThreadSettings {
+protected:
 #if IBM
-#define SET_THREAD_NAME(sName) SetThreadDescription(GetCurrentThread(), L##sName)
-#elif APL
-#define SET_THREAD_NAME(sName) pthread_setname_np(sName)
-#elif LIN
-#define SET_THREAD_NAME(sName) pthread_setname_np(pthread_self(),sName)
-#endif
+#define LC_ALL_MASK LC_ALL
 #else
-#define SET_THREAD_NAME(sName)
+    locale_t threadLocale = locale_t(0);
+    locale_t prevLocale = locale_t(0);
 #endif
+public:
+    /// @brief Defines thread's name and sets the thread's locale
+    /// @param sThreadName Thread's name, max 16 chars
+    /// @param localeMask One of the LC_*_MASK constants. If `0` then locale is not changed.
+    /// @param sLocaleName New locale to set
+    ThreadSettings (const char* sThreadName,
+                    int localeMask = 0,
+                    const char* sLocaleName = "C");
+    /// Restores and cleans up locale
+    ~ThreadSettings();
+};
 
 #endif /* LiveTraffic_h */

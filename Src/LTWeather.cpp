@@ -187,9 +187,9 @@ size_t WeatherFetchCB(char *ptr, size_t, size_t nmemb, void* userdata)
 // This function would block. Idea is to call it in a thread like with std::async
 bool WeatherFetch (float _lat, float _lon, float _radius_nm)
 {
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_Weather");
-    
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_Weather", LC_ALL_MASK);
+
     bool bRet = false;
     try {
         char curl_errtxt[CURL_ERROR_SIZE];

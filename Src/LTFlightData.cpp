@@ -1318,8 +1318,8 @@ dequeKeyTimeTy dequeKeyPosCalc;
 // the CalcNextPos function on the respective flight data objects
 void LTFlightData::CalcNextPosMain ()
 {
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_CalcPos");
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_CalcPos", LC_ALL_MASK);
 
     // loop till said to stop
     while ( !bFDMainStop ) {

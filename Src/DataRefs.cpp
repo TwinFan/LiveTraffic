@@ -535,6 +535,10 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/hide_in_replay",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/hide_static_twr",             DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/copy_obj_files",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/contrail_min_alt",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/contrail_max_alt",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/contrail_life_time",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/contrail_multiple",           DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -604,7 +608,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_REFRESH_INTVL:       return &fdRefreshIntvl;
         case DR_CFG_FD_LONG_REFRESH_INTVL:  return &fdLongRefrIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
-        case DR_CFG_FD_REDUCE_HEIGHT:          return &fdReduceHeight;
+        case DR_CFG_FD_REDUCE_HEIGHT:       return &fdReduceHeight;
         case DR_CFG_NETW_TIMEOUT:           return &netwTimeout;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
@@ -615,6 +619,10 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_IN_REPLAY:         return &hideInReplay;
         case DR_CFG_HIDE_STATIC_TWR:        return &hideStaticTwr;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
+        case DR_CFG_CONTRAIL_MIN_ALT:       return &contrailAltMin_ft;
+        case DR_CFG_CONTRAIL_MAX_ALT:       return &contrailAltMax_ft;
+        case DR_CFG_CONTRAIL_LIFE_TIME:     return &contrailLifeTime;
+        case DR_CFG_CONTRAIL_MULTIPLE:      return &contrailMulti;
         case DR_CFG_REMOTE_SUPPORT:         return &remoteSupport;
         case DR_CFG_EXTERNAL_CAMERA:        return &bUseExternalCamera;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
@@ -1573,6 +1581,16 @@ bool DataRefs::SetCfgValue (void* p, int val)
         if (fdLongRefrIntvl > fdBufPeriod)      // reduce long refresh to buf period
             fdLongRefrIntvl = fdBufPeriod;
     }
+    
+    // Contrails: Setting the max value will lower the min value, too
+    else if (p == &contrailAltMax_ft) {
+        if (contrailAltMin_ft > contrailAltMax_ft - 1000)
+            contrailAltMin_ft = std::max(0, contrailAltMax_ft - 1000);
+    }
+    else if (p == &contrailAltMin_ft) {
+        if (contrailAltMax_ft < contrailAltMin_ft + 1000)
+            contrailAltMax_ft = std::min(90000, contrailAltMin_ft + 1000);
+    }
 
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
@@ -1595,6 +1613,9 @@ bool DataRefs::SetCfgValue (void* p, int val)
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
+        contrailAltMin_ft < 0               || contrailAltMin_ft> 90000 ||
+        contrailAltMax_ft < 0               || contrailAltMax_ft> 90000 ||
+        contrailLifeTime < 5                || contrailLifeTime >   300 ||
         ffSendPort      < 1024              || ffSendPort       > 65535 ||
         fscEnv          < 0                 || fscEnv           > 1
         )

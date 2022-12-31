@@ -694,8 +694,8 @@ void LTFlightDataStop()
 // and it runs in a loop until LTFlightDataHideAircraft stops it
 void LTFlightDataSelectAc ()
 {
-    // This is a thread main function, set thread's name
-    SET_THREAD_NAME("LT_Channels");
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_Channels", LC_ALL_MASK);
 
     while ( !bFDMainStop )
     {

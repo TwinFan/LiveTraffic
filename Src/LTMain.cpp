@@ -250,14 +250,16 @@ void LTOpenURL  (const std::string& _url, const std::string& addon)
 {
     // Transiently, we allow to add the current camera position into the URL
     std::string url(_url);
-    if (_url.find('%') != std::string::npos) {
+    const size_t posPrct = _url.find('%');
+    if (posPrct != std::string::npos) {
         char buf[256];
         const positionTy camPos = dataRefs.GetViewPos();
         snprintf (buf, sizeof(buf), _url.c_str(),
                   camPos.lat(), camPos.lon());
         url = buf;
+        str_correctDecimalPt(url, posPrct);
     }
-    
+
     // If an addon is sepcified it is just added to the end
     if (!addon.empty())
         url += addon;
@@ -311,15 +313,29 @@ bool str_isalnum(const std::string& s)
 }
 
 // Replace all occurences of one string with another
-void str_replaceAll(std::string& str, const std::string& from, const std::string& to)
+void str_replaceAll(std::string& str, const std::string& from, const std::string& to, size_t start_pos)
 {
     if (from.empty() || str.empty())
         return;
-    size_t start_pos = 0;
     while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
         str.replace(start_pos, from.length(), to);
         start_pos += to.length(); // Continue search only _after_ the replacement position
     }
+}
+
+// @brief Replace a potentially wrong decimal point
+bool str_correctDecimalPt (std::string& str, size_t start_pos)
+{
+    // If the locale is not set to using a decimal point we might end up with a comma in the coordinates, which OpenSky doesn't like
+    // Setting the locale is no option due to immediate impact on all threads,
+    // so we retrospectively replace the wrong delimiter
+    const lconv* pL = localeconv();
+    if (pL && pL->decimal_point && std::strcmp(pL->decimal_point, "."))
+    {
+        str_replaceAll(str, pL->decimal_point, ".", start_pos);
+        return true;
+    }
+    return false;
 }
 
 // Cut off everything after `from` from `s`, `from` including
@@ -664,6 +680,58 @@ bool dequal ( const double d1, const double d2 )
 }
 
 //
+// MARK: Thread Handling
+//
+
+// Defines thread's name and sets the thread's locale
+ThreadSettings::ThreadSettings ([[maybe_unused]] const char* sThreadName,
+                                int localeMask,
+                                const char* sLocaleName)
+{
+    // --- Set thread's name ---
+#if IBM
+    // This might not work on older Windows version, which is why we don't publish it in release builds
+#ifdef DEBUG
+    wchar_t swThreadName[100];
+    std::mbstowcs(swThreadName, sThreadName, sizeof(swThreadName));
+    SetThreadDescription(GetCurrentThread(), swThreadName);
+#endif
+    
+#elif APL
+    pthread_setname_np(sThreadName);
+#elif LIN
+    pthread_setname_np(pthread_self(),sThreadName);
+#endif
+    
+    // --- Set thread's locale ---
+    if (sLocaleName)
+    {
+#if IBM
+        _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+        setlocale(localeMask, sLocaleName);
+#else
+        threadLocale = newlocale(localeMask, sLocaleName, NULL);
+        prevLocale = uselocale(threadLocale);
+#endif
+    }
+}
+
+// Restores and cleans up locale
+ThreadSettings::~ThreadSettings()
+{
+#if IBM
+    _configthreadlocale(_DISABLE_PER_THREAD_LOCALE);
+#else
+    if (prevLocale)
+        uselocale(prevLocale);
+    if (threadLocale) {
+        freelocale(threadLocale);
+        threadLocale = locale_t(0);
+    }
+#endif
+}
+
+//
 //MARK: Callbacks
 //
 
@@ -796,6 +864,11 @@ int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))
         return dataRefs.ShallCpyObjFiles();
+    // Contrail settings
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_MIN_ALT))   return dataRefs.GetContrailAltMin_ft();
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_MAX_ALT))   return dataRefs.GetContrailAltMax_ft();
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_LIFE))      return dataRefs.GetContrailLifeTime();
+    if (!strcmp(key, XPMP_CFG_ITM_CONTR_MULTI))     return dataRefs.GetContrailMulti();
     // Support XPMP2 Remote Clinet?
     if (!strcmp(key, XPMP_CFG_ITM_SUPPORT_REMOTE))
         return dataRefs.GetRemoteSupport();
