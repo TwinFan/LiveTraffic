@@ -136,7 +136,7 @@
     <P>At least copy the following files, which have changed compared to v3.2.x:</P>
         <ul>
             <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>Resource/Contrail/</code> (new folder with 3 files:)</li>
+            <li><code>Resource/Contrail/</code> (<strong>new folder</strong> with 3 files:)</li>
             <ul>
                 <li><code>Contrail.obj</code> (new file)</li>
                 <li><code>Contrail.png</code> (new file)</li>
@@ -153,12 +153,18 @@
             <i>Settings > Advanced > <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#contrails">Contrails</a></i>.<br>
             <i>Note 1:</i> Contrails use X-Plane's particle system; they have the potential to affect performance.<br>
             <i>Note 2:</i> Looks like particles, hence contrails, don't show beyond a certain distance from the camera,
-            probably some <a href="https://en.wikipedia.org/wiki/Level_of_detail_(computer_graphics)">LoD</a> optimization by X-Plane; in my tests around 13nm.
+            probably some <a href="https://en.wikipedia.org/wiki/Level_of_detail_(computer_graphics)">LoD</a> optimization by X-Plane; in my tests around 13-17nm.
         </li>
         <li>
             Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/244">#244</a>:
             URL formatting and JSON parsing robust against changes to
             locale/formatting settings in system or by other plugins.
+        </li>
+        <li>
+            FMOD Error 36: Avoid repeated logging, but provide more details once
+            every 5 minutes if it occurs. Please report occurences
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/279092-xp12-freeze-after-error-with-sound/">here</a>
+            for me to have a chance to find the root cause.
         </li>
     </ul>
     
