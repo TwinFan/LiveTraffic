@@ -112,41 +112,58 @@
         <code>&nbsp;&nbsp;&nbsp;&nbsp;LICENSE</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;readme.html</code><br>
     </P>
-	
-	<h1 id="support">Support</h1>
-	
-	For support turn to the <a href="https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/">LiveTraffic Support forum</a>
-	and have your <code>Log.txt</code> file ready for upload.
-	
-	<a href="https://forums.x-plane.org/index.php?/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/">This post</a>
-	explains more details how to quickly get meaningful answers.</a>
-	
+
+    <h1 id="support">Support</h1>
+
+    For support turn to the <a href="https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/">LiveTraffic Support forum</a>
+    and have your <code>Log.txt</code> file ready for upload.
+
+    <a href="https://forums.x-plane.org/index.php?/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/">This post</a>
+    explains more details how to quickly get meaningful answers.</a>
+
 
     <h1 id="release-notes">Release Notes</h1>
 
     <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
-    
-    <h2>v3</h2>
-    
-    <h3>v3.3.0</h3>
 
-    <P><b>Update:</b> In case of doubt you can always just copy all files from the archive
-    over the files of your existing installation.</P>
+    <h2>v3</h2>
+
+    <h3>v3.3.1</h3>
+
+    <P>
+        <b>Update:</b> In case of doubt you can always just copy all files from the archive
+        over the files of your existing installation.
+    </P>
 
     <P>At least copy the following files, which have changed compared to v3.2.x:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>Resource/Contrail/</code> (<strong>new folder</strong> with 3 files:)</li>
-            <ul>
-                <li><code>Contrail.obj</code> (new file)</li>
-                <li><code>Contrail.png</code> (new file)</li>
-                <li><code>Contrail.pss</code> (new file)</li>
-            </ul>
-        </ul>
-    </p>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
 
     <P>Change log:</P>
-    
+
+    <ul>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/XPMP2/issues/54">XPMP2 #54</a>
+            FMOD Error 36
+        </li>
+    </ul>
+
+    <h3>v3.3.0</h3>
+
+    <P>At least copy the following files, which have changed compared to v3.2.x:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resource/Contrail/</code> (<strong>new folder</strong> with 3 files:)</li>
+        <ul>
+            <li><code>Contrail.obj</code> (new file)</li>
+            <li><code>Contrail.png</code> (new file)</li>
+            <li><code>Contrail.pss</code> (new file)</li>
+        </ul>
+    </ul>
+
+    <P>Change log:</P>
+
     <ul>
         <li>
             Contrails for jets flying between configurable altitudes, see
@@ -167,17 +184,17 @@
             for me to have a chance to find the root cause.
         </li>
     </ul>
-    
+
     <h3>v3.2.2</h3>
 
     <P>At least copy the following files, which have changed compared to v3.2.x:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
-    
+
     <ul>
         <li>
             Mac/XP12 only: Added workaround to avoid freeze upon TCAS activation due to XPD-13332,
@@ -191,48 +208,58 @@
             <a href="https://forums.x-plane.org/index.php?/forums/topic/279092-xp12-freeze-after-error-with-sound/">support thread</a>.
         </li>
     </ul>
-    
+
     <h3>v3.2.1</h3>
 
     <P>At least copy the following files, which have changed compared to v3.2.0:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
-    
+
     <ul>
-        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/248">#248</a>
-            crash when manually loading CSL models from the CSL Package Paths settings.</li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/248">#248</a>
+            crash when manually loading CSL models from the CSL Package Paths settings.
+        </li>
         <li>Fixed audio crackling when new planes spawn.</li>
-        <li>Updated to XP12's latest weather model, considering correct wind
+        <li>
+            Updated to XP12's latest weather model, considering correct wind
             layer as per plane's altitude for calculating heading correction,
             fixing
             <a href="https://github.com/TwinFan/LiveTraffic/issues/247">#247</a>
-            dataRef depreciation warnings.</li>
-        <li>Fixed an issue in loading airport layouts that prevented
-            snapping to taxiways from working in some airports, e.g. KLAX.</li>
-        <li>Added "Refresh Interval" info to
+            dataRef depreciation warnings.
+        </li>
+        <li>
+            Fixed an issue in loading airport layouts that prevented
+            snapping to taxiways from working in some airports, e.g. KLAX.
+        </li>
+        <li>
+            Added "Refresh Interval" info to
             <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status/Info page</a>,
-            indicating if increased interval is active due to flying high.</li>
+            indicating if increased interval is active due to flying high.
+        </li>
         <li>XP12: Fixed sizes of small buttons like in Action column of Aircraft List</li>
-        <li>Linux binary keeps symbol info for better stack info in case of crashes,
-            causing a slight increase in file size.</li>
+        <li>
+            Linux binary keeps symbol info for better stack info in case of crashes,
+            causing a slight increase in file size.
+        </li>
     </ul>
 
     <h3>v3.2.0</h3>
 
     <P>At least copy the following files, which have changed compared to v3.1.x:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>win_x64/fmod.dll</code> (new file)</li>
-            <li><code>Resources/Doc8643.txt</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>win_x64/fmod.dll</code> (new file)</li>
+        <li><code>Resources/Doc8643.txt</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
-    
+
     <ul>
         <li>
             Added sound for aircraft engines, reversers, taxiing, gear, flaps,
@@ -247,20 +274,22 @@
             which <i>Live Data Refresh</i> is configured.
         </li>
         <li>Send info to <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">XPMP2-Remote</a> if labels are to be drawn</li>
-        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/245">#245</a>
-            aircraft removals due to <code>ASSERT FAILED</code> conditions.</li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/245">#245</a>
+            aircraft removals due to <code>ASSERT FAILED</code> conditions.
+        </li>
     </ul>
 
     <h3>v3.1.1</h3>
-    
+
     <P>At least copy the following files, which have changed compared to v3.1.0:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
-    
+
     <ul>
         <li>
             RealTraffic: Fix planes stuck to ground.
@@ -277,17 +306,19 @@
     <h3>v3.1.0</h3>
 
     <P>At least copy the following files, which have changed compared to v3.0.0:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
-    
+
     <ul>
-        <li>NEW Advanced settings for increased flight data refresh interval
+        <li>
+            NEW Advanced settings for increased flight data refresh interval
             when flying above a configurable height AGL;
-            so that your OpenSky and ADS-B budgets last longer during cruise.</li>
+            so that your OpenSky and ADS-B budgets last longer during cruise.
+        </li>
         <li>Removed <i>A/c outdated timeout</i> setting, now handled automatically.</li>
         <li>
             Added <a href="https://github.com/TwinFan/LiveTraffic/issues/241">#241</a>
@@ -303,32 +334,38 @@
             so you can quickly correct/add information
             in case you find it wrong/missing.
         </li>
-        <li>ADSBEx, RealTraffic: Reverted to using their <i>barometric</i> altitude fields
-            as they have proven to be more reliable.</li>
+        <li>
+            ADSBEx, RealTraffic: Reverted to using their <i>barometric</i> altitude fields
+            as they have proven to be more reliable.
+        </li>
         <li>OpenSky settings: Allow to set username/password while channel is active</li>
         <li>Gracefully handle zero-sized config file.</li>
-        <li>Universal Mac binary for native support of Apple Silicon with XP12.<br>
-            Conscious of file size, removed the Bionic Linux binary from the distribution.</li>
+        <li>
+            Universal Mac binary for native support of Apple Silicon with XP12.<br>
+            Conscious of file size, removed the Bionic Linux binary from the distribution.
+        </li>
         </li>
     </ul>
 
     <h3>v3.0.0 X-Plane 12 Support and channel updates</h3>
 
     <P>At least copy the following files, which have changed compared to v2.60:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>Resources/Doc8643.txt</code></li>
-            <li><code>Resources/FlightModels.prf</code></li>
-            <li><code>Resources/SendTraffic.py</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resources/Doc8643.txt</code></li>
+        <li><code>Resources/FlightModels.prf</code></li>
+        <li><code>Resources/SendTraffic.py</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
 
     <ul>
-        <li>X-Plane 12-specific changes
+        <li>
+            X-Plane 12-specific changes
             <ul>
-                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/59">#59</a>: Support for
+                <li>
+                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/59">#59</a>: Support for
                     <a href="https://developer.x-plane.com/article/plugin-traffic-wake-turbulence/">X-Plane 12's wake turbulence</a>,
                     which is applied to TCAS targets, ie. only if LiveTraffic has TCAS control.<br>
                     So watch out...going into the wake of an airliner with your C172
@@ -396,13 +433,13 @@
     </ul>
 
     <h2>v2.6</h2>
-    
+
     <h3>v2.60</h3>
 
     <P>Update: At least copy the following files, which have changed compared to v2.53:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
@@ -413,31 +450,33 @@
         </li>
         <li>
             ADDED links to follow a flight on the web sites of the feeding channels.
-			Find the link symbol (arrow pointing top right) in the <i>Actions</i> column of the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a>
-			as well as in the <i>Tracking Data</i> line of the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Info Window</a>.
+            Find the link symbol (arrow pointing top right) in the <i>Actions</i> column of the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a>
+            as well as in the <i>Tracking Data</i> line of the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Info Window</a>.
         </li>
     </ul>
 
     <h2>v2.5</h2>
-    
+
     <h3>v2.53</h3>
 
-    <P>This update is meant to better deal with the fact that OpenSky
-    lately started to respond sloppy (delayed or even timed out),
-    leading to LiveTraffic stopping to read from OpenSky.
-    It can't fix OpenSky server response time, but it tries to keep LiveTraffic
-    afloat even while facing slow replies.<br>
-    Also verify that <i><a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection">Settings > Advanced > Aircraft Selection</a> > Buffering Period</i>
-    is at least set to 90 seconds to provide for ample buffer for periods
-    OpenSky does not respond.</P>
-    
+    <P>
+        This update is meant to better deal with the fact that OpenSky
+        lately started to respond sloppy (delayed or even timed out),
+        leading to LiveTraffic stopping to read from OpenSky.
+        It can't fix OpenSky server response time, but it tries to keep LiveTraffic
+        afloat even while facing slow replies.<br>
+        Also verify that <i><a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection">Settings > Advanced > Aircraft Selection</a> > Buffering Period</i>
+        is at least set to 90 seconds to provide for ample buffer for periods
+        OpenSky does not respond.
+    </P>
+
     <P>Update: At least copy the following files, which have changed compared to v2.52:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>Resources/Doc8643.txt</code></li>
-            <li><code>Resources/related.txt</code></li>
-            <li><code>Resources/FlightModels.prf</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resources/Doc8643.txt</code></li>
+        <li><code>Resources/related.txt</code></li>
+        <li><code>Resources/FlightModels.prf</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
@@ -464,179 +503,238 @@
             <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">here</a>.
         </li>
     </ul>
-    
+
     <h3>v2.52</h3>
 
     <P>Update: At least copy the following files, which have changed compared to v2.51:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>Resources/related.txt</code></li>
-            <li><code>Resources/FlightModels.prf</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resources/related.txt</code></li>
+        <li><code>Resources/FlightModels.prf</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED more enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles, business jets and small prop aircraft,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">see here</a>.</li>
-        <li>ADDED an option to the
+        <li>
+            ADDED more enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles, business jets and small prop aircraft,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">see here</a>.
+        </li>
+        <li>
+            ADDED an option to the
             <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug settings</a>
-            to dump airport layout data for analysis purposes</li>
+            to dump airport layout data for analysis purposes
+        </li>
     </ul>
-    
+
     <h3>v2.51</h3>
 
     <P>Update: At least copy the following files, which have changed compared to v2.50:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
-            <li><code>Resources/related.txt</code></li>
-            <li><code>Resources/FlightModels.prf</code></li>
-            <li><code>Resources/SendTraffic.py</code></li>
-        </ul>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resources/related.txt</code></li>
+        <li><code>Resources/FlightModels.prf</code></li>
+        <li><code>Resources/SendTraffic.py</code></li>
+    </ul>
     </p>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/214">#214</a> an option to hide aircraft parking at gates or ramp positions to
-            Settings > Basics > <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Cooperation</a>.</li>
-        <li>ADDED Dassault 3-engine jets to <code>related.txt</code>,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/240048-fa7x-display/">see here</a></li>
-        <li>ADDED enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2160931">see here</a>.</li>
-        <li>FIXED LiveTraffic to be compatible again with XP 11.41 and before (down to XP11.10),
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/240699-just-downloaded-and-installed-v250-wont-load-plugin/">see here</a></li>
-        <li>FIXED crash when receiving unknown aircraft type with OpenGlider Network channel,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/">see here</a></li>
-        <li>FIXED <code>SendTraffic.py</code> to be compatible with Python 3.5 upwards,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/&do=findComment&comment=2148802">see here</a></li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/214">#214</a> an option to hide aircraft parking at gates or ramp positions to
+            Settings > Basics > <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Cooperation</a>.
+        </li>
+        <li>
+            ADDED Dassault 3-engine jets to <code>related.txt</code>,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/240048-fa7x-display/">see here</a>
+        </li>
+        <li>
+            ADDED enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2160931">see here</a>.
+        </li>
+        <li>
+            FIXED LiveTraffic to be compatible again with XP 11.41 and before (down to XP11.10),
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/240699-just-downloaded-and-installed-v250-wont-load-plugin/">see here</a>
+        </li>
+        <li>
+            FIXED crash when receiving unknown aircraft type with OpenGlider Network channel,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/">see here</a>
+        </li>
+        <li>
+            FIXED <code>SendTraffic.py</code> to be compatible with Python 3.5 upwards,
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/&do=findComment&comment=2148802">see here</a>
+        </li>
     </ul>
 
     <h3>v2.50</h3>
 
     <P>Update: At least copy the following files, which have changed compared to v2.40:</P>
-        <ul>
-            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,
-                <ul>
-                    <li><i>Linux users</i>: There are two versions now:<br>
-                        <code>LiveTraffic.xpl</code> is built on Ubuntu 20.04,<br>
-                        <code>LiveTraffic-bionic.xpl</code> is built on Ubuntu 18.04.
-                        In case you need the Bionic version rename it to <code>LiveTraffic.xpl</code>.</li>
-                </ul>
-            </li>
-            <li><code>Resources/</code>
-                <ul>
-                    <li><code>Doc8643.txt</code>,</li>
-                    <li><code>FlightModels.prf</code>,</li>
-                    <li><code>model_typecode.txt</code>,</li>
-                    <li><code>related.txtt</code>,</li>
-                    <li><code>SendTraffic.py</code> (new file).</li>
-                </ul>
-            </li>
-        </ul>
+    <ul>
+        <li>
+            <code>lin|mac|win_x64/LiveTraffic.xpl</code>,
+            <ul>
+                <li>
+                    <i>Linux users</i>: There are two versions now:<br>
+                    <code>LiveTraffic.xpl</code> is built on Ubuntu 20.04,<br>
+                    <code>LiveTraffic-bionic.xpl</code> is built on Ubuntu 18.04.
+                    In case you need the Bionic version rename it to <code>LiveTraffic.xpl</code>.
+                </li>
+            </ul>
+        </li>
+        <li>
+            <code>Resources/</code>
+            <ul>
+                <li><code>Doc8643.txt</code>,</li>
+                <li><code>FlightModels.prf</code>,</li>
+                <li><code>model_typecode.txt</code>,</li>
+                <li><code>related.txtt</code>,</li>
+                <li><code>SendTraffic.py</code> (new file).</li>
+            </ul>
+        </li>
+    </ul>
     </p>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/209">#209</a>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/209">#209</a>
             export of flight tracking data and/or tracking data based
             on the user's aircraft to <code>Output/LTExportFD - &lt;timestamp&gt;.csv</code>
             for analysis or for feeding back into LiveTraffic,
             see <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#logging">Settings > Advanced > Export</a>.<br>
             The Python script <code>Resources/SendTraffic.py</code>, with which this
             data can be fed back into LiveTraffic, is now part of the
-            LiveTraffic distribution. Try <code>SendTraffic.py -h</code> for help.</li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/211">#211</a>
+            LiveTraffic distribution. Try <code>SendTraffic.py -h</code> for help.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/211">#211</a>
             validation of number of available CSL Models to warn specifically
             if only the included car is available.
             Added Help menu item for
             <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step#csl-model-installation">CSL Model installation</a>.
-            Added display of number of available CSL Models on Status page.</li>
+            Added display of number of available CSL Models on Status page.
+        </li>
         <li>CHANGED maximum number of aircraft from 100 to 200.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/206">#206</a>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/206">#206</a>
             log filling up with weather-related error messages when no weather
-            can be found (like during a cross-ocean flight)</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/210">#210</a>
+            can be found (like during a cross-ocean flight)
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/210">#210</a>
             landing planes turning sideways immediately upon touch down,
             short-cutting the way to the next taxiway position;
-            they should now more often follow runway exits.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/208">#208</a>
+            they should now more often follow runway exits.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/208">#208</a>
             auto-land planes disappearing at the moment of touch-down;
             they shall now roll out to a complete stop again before
             being removed.
-        <li>FIXED validation of tracking data of planes for which ICAO aircraft
+        <li>
+            FIXED validation of tracking data of planes for which ICAO aircraft
             type could be determined from model text only, reducing amount of
             discarded data, increasing number of displayed GA / Business planes
-            with no aircraft record at OpenSky.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/207">#207</a>
-            race conditions that might have led to rare CTDs.</li>
-        <li>Added a WORKAROUND to limit the impact the still unsolved
+            with no aircraft record at OpenSky.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/207">#207</a>
+            race conditions that might have led to rare CTDs.
+        </li>
+        <li>
+            Added a WORKAROUND to limit the impact the still unsolved
             <a href="https://github.com/TwinFan/XPMP2/issues/23">XPMP2 Issue 23</a> has,
-            reducing the likelihood of crashes.</li>
-        <li>ADDED two Linux builds: The default is now built on Ubuntu 20.04 Focal Fossa.
+            reducing the likelihood of crashes.
+        </li>
+        <li>
+            ADDED two Linux builds: The default is now built on Ubuntu 20.04 Focal Fossa.
             Previously, LiveTraffic was built on Ubuntu 18.04 Bionic Beaver.
             This is still provided as <code>LiveTraffic-bionic.xpl</code>. If the default
             doesn't work for you then rename the Bionic version to
-            <code>LiveTraffic.xpl</code>.</li>
+            <code>LiveTraffic.xpl</code>.
+        </li>
     </ul>
 
     <h2>v2.4</h2>
-    
+
     <h3>v2.40</h3>
 
-    <P>For updating coming from v2.30
+    <P>
+        For updating coming from v2.30
         <ul>
             <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</li>
-            <li>If you use the
+            <li>
+                If you use the
                 <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">XPMP2 Remote Client</a>
-                you need to upgrade it to v1.10 as one network message format changed.</li>
+                you need to upgrade it to v1.10 as one network message format changed.
+            </li>
         </ul>
-    </p>
+    </P>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/196">#196</a>
-            support for having 3rd party camera plugins take over LiveTraffic's camera view.</li>
-        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/204">#204</a>:
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/196">#196</a>
+            support for having 3rd party camera plugins take over LiveTraffic's camera view.
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/204">#204</a>:
             OpenSky Master data is preferred as it can be
-            <a href="https://opensky-network.org/aircraft-database">maintained by everybody</a>.</li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/203">#203</a>
-            signature and notarization to the Mac version.</li>
-        <li>ADDED <a href="https://github.com/TwinFan/XPMP2/issues/27">XPMP2 #27</a>
+            <a href="https://opensky-network.org/aircraft-database">maintained by everybody</a>.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/203">#203</a>
+            signature and notarization to the Mac version.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/XPMP2/issues/27">XPMP2 #27</a>
             remote support for the set of
-            <a href="https://twinfan.github.io/XPMP2/SharedDataRefs.html">textual shared dataRefs</a>.</li>
-        <li>MODERNIZED <a href="https://github.com/TwinFan/LiveTraffic/issues/179">#179</a>
-            how LiveTraffic uses the XPMP2 library, shall slightly reduce performance impact.</li>
-        <li>For 3rd party plugin developers:
+            <a href="https://twinfan.github.io/XPMP2/SharedDataRefs.html">textual shared dataRefs</a>.
+        </li>
+        <li>
+            MODERNIZED <a href="https://github.com/TwinFan/LiveTraffic/issues/179">#179</a>
+            how LiveTraffic uses the XPMP2 library, shall slightly reduce performance impact.
+        </li>
+        <li>
+            For 3rd party plugin developers:
             <ul>
-                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/196">#196</a>
+                <li>
+                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/196">#196</a>
                     two shared dataRefs to be notified when a LiveTraffic user
-                    activates the camera and to learn on which aircraft.</li>
-                <li>CHANGED <a href="https://github.com/TwinFan/LTAPI/issues/4">LTAPI issue #4</a>:
-                    LTAPI can now return up to 40 chars in <code>info.cslModel</code>.</li>
-                <li>ADDED <a href="https://github.com/TwinFan/XPMP2/issues/26">XPMP2 Issue #26</a>
-                    a shared dataRef per plane holding the CSL Model used to render the plane.</li>
+                    activates the camera and to learn on which aircraft.
+                </li>
+                <li>
+                    CHANGED <a href="https://github.com/TwinFan/LTAPI/issues/4">LTAPI issue #4</a>:
+                    LTAPI can now return up to 40 chars in <code>info.cslModel</code>.
+                </li>
+                <li>
+                    ADDED <a href="https://github.com/TwinFan/XPMP2/issues/26">XPMP2 Issue #26</a>
+                    a shared dataRef per plane holding the CSL Model used to render the plane.
+                </li>
             </ul>
         </li>
     </ul>
 
     <h2>v2.3</h2>
-    
+
     <h3>v2.30</h3>
 
-    <P>For updating coming from v2.20
+    <P>
+        For updating coming from v2.20
         <ul>
             <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
         </ul>
-    </p>
+    </P>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED support for XPMP2 Remote Client and TCAS Concentrator (XPMP2 issues
+        <li>
+            ADDED support for XPMP2 Remote Client and TCAS Concentrator (XPMP2 issues
             <a href="https://github.com/TwinFan/XPMP2/issues/22">#22</a> and
             <a href="https://github.com/TwinFan/XPMP2/issues/16">#16</a>):<br>
             After installing XPMP2 Remote Client, LiveTraffic's planes are
@@ -645,91 +743,116 @@
             Locally installed, the Remote Client combines planes from several
             XPMP2-based clients for one combined view on TCAS.<br>
             <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/xpmp2-remote-client">See documentation</a>
-            for more.</li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/199">issue #199</a>
+            for more.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/199">issue #199</a>
             support for RealTraffic's historic data feed:
-			<a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity#historic-data">LiveTraffic recognizes</a>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity#historic-data">LiveTraffic recognizes</a>
             when fed with data from the past and adjusts the data so that it displays now.<br>
-            Use the time slider in the RealTraffic app to go back in time.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/201">issue #201</a>,
+            Use the time slider in the RealTraffic app to go back in time.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/201">issue #201</a>,
             avoiding creation and immediate destruction of planes when max number
             of configured planes is reached. Also, available tracking data is
             kept in memory if plane is removed for whatever reason, so it is
-            faster available again when coming back in reach.</li>
-        <li>FIXED a potential crash related to unexpectedly formatted
-            Open Glider Network data.</li>
+            faster available again when coming back in reach.
+        </li>
+        <li>
+            FIXED a potential crash related to unexpectedly formatted
+            Open Glider Network data.
+        </li>
     </ul>
-    
+
     <h2>v2.2</h2>
-    
+
     <h3>v2.20</h3>
 
-    <P>For updating coming from v2.10 copy
+    <P>
+        For updating coming from v2.10 copy
         <ul>
             <li><code>lin|mac|win_x64/LiveTraffic.xpl</code> and</li>
             <li>all files of the <code>Resources</code> folder.</li>
         </ul>
-    </p>
+    </P>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/72">#72</a>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/72">#72</a>
             new channel <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/ogn">Open Glider Network</a>,
             which tracks gliders, paragliders, and some light motor aircraft
             based on the FLARM technology</a>.<br>
             Good coverage in Switzerland, Germany, other European countries
             where it is fun on the weekend to
             <a href="https://twinfan.gitbook.io/livetraffic/reference/first-screenshots#open-glider-network">follow gliders across the country</a>!<br>
-            Occasionally some spot coverage in other parts of the world.</li>
-        <li>NEW: Links to check coverage for ADSBex and OGN now include current
-            position so that their radar view opens where you are in the sim.</li>
-        <li>FIXED <a href="https://forums.x-plane.org/index.php?/forums/topic/229421-network-refresh-time-config/&do=findComment&comment=2061220">a bug</a>
+            Occasionally some spot coverage in other parts of the world.
+        </li>
+        <li>
+            NEW: Links to check coverage for ADSBex and OGN now include current
+            position so that their radar view opens where you are in the sim.
+        </li>
+        <li>
+            FIXED <a href="https://forums.x-plane.org/index.php?/forums/topic/229421-network-refresh-time-config/&do=findComment&comment=2061220">a bug</a>
             preventing to load a <i>Live data refresh</i> period of
-            more than 20 seconds from LiveTraffic's preferences.</li>
+            more than 20 seconds from LiveTraffic's preferences.
+        </li>
         <li>FIXED using backspace in VR virtual keyboard.</li>
         <li>FIXED accepting edit field changes with [Tab].</li>
         <li>FIXED giving up keyboard focus when windows loose focus.</li>
     </ul>
-    
+
     <h2>v2.0</h2>
 
-    <P>Please follow
+    <P>
+        Please follow
         <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/upgrading-from-v1.5-to-v2.0">upgrade instructions</a>
-        for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.x.</P>
-    
-    <P>It is always safe to copy all files found in the LiveTraffic.zip archive
-    over an existing installation.</P>
+        for upgrading an existing LiveTraffic v1.5 (or earlier) installation to version 2.x.
+    </P>
+
+    <P>
+        It is always safe to copy all files found in the LiveTraffic.zip archive
+        over an existing installation.
+    </P>
 
     <h3>v2.10</h3>
 
-    <P>For updating coming from v2.09
+    <P>
+        For updating coming from v2.09
         <ul>
-            <li>copy
+            <li>
+                copy
                 <ul>
                     <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
                     <li><code>Resources/FlightModels.prf</code>,</li>
                 </ul>
             </li>
-            <li>add the new files
+            <li>
+                add the new files
                 <ul>
                     <li><code>Resources/Obj8DataRefs.txt</code>,</li>
                     <li><code>Resources/RestoreOrig.py</code>,</li>
                 </ul>
-            <li>remove
+            <li>
+                remove
                 <ul>
                     <li><code>Resources/CSL2XSB.py</code>, which is no longer needed,</li>
                 </ul>
             </li>
-            <li>execute <code>Resources/RestoreOrig.py</code> if you have ever used
-                the <code>CSL2XSB.py</code> script before.</li>
+            <li>
+                execute <code>Resources/RestoreOrig.py</code> if you have ever used
+                the <code>CSL2XSB.py</code> script before.
+            </li>
         </ul>
-    </p>
+    </P>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/XPMP2/issues/4">XPMP2 Issue #4</a>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/XPMP2/issues/4">XPMP2 Issue #4</a>
             a built-in way of enhancing the CSL models, which previously
             was done through the <code>CSL2XSB.py</code> script. LiveTraffic
             now creates necessary copies of .obj files on the fly just before
@@ -744,13 +867,17 @@
             creates on-the-fly, ie. it can serve as cleanup at any time.<br>
             If you use <a href="https://csl.x-air.ru/?lang_id=43">X-CSL models</a>
             then it is recommended to remove them completely and re-download
-            latest models for a clean start.</li>
-        <li>CHANGED color of action buttons in Aircraft List so that it is now
-            better visible when camera/visibility is on/off.</li>
+            latest models for a clean start.
+        </li>
+        <li>
+            CHANGED color of action buttons in Aircraft List so that it is now
+            better visible when camera/visibility is on/off.
+        </li>
         <li>CHANGED Help in Info Status Window is now context-sensitive.</li>
         <li>ADDED web links for checking ccoverage to Info Status Window in the channels' rows.</li>
         <li>ADDED field "TCAS Id" to list of available columns in Aircraft List</li>
-        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/189">#189</a>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/189">#189</a>
             handling of aircraft altitude:
             LiveTraffic now takes <i>barometric</i> altitude from channels
             instead of <i>geometric</i>, requests current weather from
@@ -758,238 +885,317 @@
             (shown in <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status</a>)
             and corrects altitude internally.
             While more complex, this approach proved to be more accurate and should
-            reduce number of long landings.</li>
-        <li>CHANGED weight on wheels while landing/taxiing, should end up in
+            reduce number of long landings.
+        </li>
+        <li>
+            CHANGED weight on wheels while landing/taxiing, should end up in
             correct gear claw angle while taxiing in most models.
     </ul>
 
 
     <h3>v2.09</h3>
 
-    <P>For updating coming from v2.08 copy
-    <ul>
-        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
-        <li><code>Resources/model_typecode.txt</code>.</li>
-    </ul>
+    <P>
+        For updating coming from v2.08 copy
+        <ul>
+            <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+            <li><code>Resources/model_typecode.txt</code>.</li>
+        </ul>
 
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window">Status Information Window</a> showing:
+        <li>
+            ADDED <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window">Status Information Window</a> showing:
             <ul>
-                <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">List of Aircraft</a>
+                <li>
+                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">List of Aircraft</a>
                     including a lot of data and direct action buttons for info window/camera
-                    (issue <a href="https://github.com/TwinFan/LiveTraffic/issues/21">#21</a>)</li>
-                <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/messages">List of Messages</a>,
-                    ie. backlog of texts appearing in the message area and/or in <code>Log.txt</code></li>
-                <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">General status</a>
+                    (issue <a href="https://github.com/TwinFan/LiveTraffic/issues/21">#21</a>)
+                </li>
+                <li>
+                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/messages">List of Messages</a>,
+                    ie. backlog of texts appearing in the message area and/or in <code>Log.txt</code>
+                </li>
+                <li>
+                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">General status</a>
                     like number of aircraft, TCAS control, channel status, and version information
-                    (issue <a href="https://github.com/TwinFan/LiveTraffic/issues/121">#121</a>)</li>
+                    (issue <a href="https://github.com/TwinFan/LiveTraffic/issues/121">#121</a>)
+                </li>
             </ul>
             All lists feature search/filter options and configurable columns
             (selection, order, sorting) by left/right clicking/dragging in the column headers.
         </li>
         <li>ADDED: Window positions are saved/restored (inside the simulator)</li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/166">#166</a>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/166">#166</a>
             auto-hiding of nearby aircraft. Find two new settings in
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a>.</li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/192">#192</a>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a>.
+        </li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/192">#192</a>
             option not to forward ground aircraft to TCAS/AI, see
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a>.</li>
-        <li>UPDATED <code>model_typecode.txt</code>, which assist in model-guessing
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a>.
+        </li>
+        <li>
+            UPDATED <code>model_typecode.txt</code>, which assist in model-guessing
             when no ICAO type code is available.<br>
-            Thanks go to crbascott for providing this file.</li>
+            Thanks go to crbascott for providing this file.
+        </li>
         <li>FIXED restoring previous view when switching off camera view.</li>
     </ul>
-        
+
     <h3>v2.08</h3>
 
     <P>For updating coming from v2.07 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
-	
+
     <P>Change log:</P>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/188">#188</a>
-            configuration options for maximum label distances / cut-off at visibility range</li>
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/188">#188</a>
+            configuration options for maximum label distances / cut-off at visibility range
+        </li>
         <li>CHANGED label's vertical position in relation to the plane depending on plane's WTC</li>
-        <li>FIXED a crash when a LiveTraffic aircraft is turned invalid (due to new
+        <li>
+            FIXED a crash when a LiveTraffic aircraft is turned invalid (due to new
             <code>THREAD_is_main_thread</code> validations in XP, see
-            <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a>).</li>
-		<li>FIXED other calls into X-Plane's API from worker threads, hopefully
-            avoiding crashes in future versions of X-Plane when validations tighten even further.</li>
-        <li>FIXED a potential crash when a LiveTraffic aircraft is turned invalid in a spearate thread
-		    while in parallel XPMP2 is sending its data to dataRefs (TCAS, multiplayer, shared info).</li>
+            <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a>).
+        </li>
+        <li>
+            FIXED other calls into X-Plane's API from worker threads, hopefully
+            avoiding crashes in future versions of X-Plane when validations tighten even further.
+        </li>
+        <li>
+            FIXED a potential crash when a LiveTraffic aircraft is turned invalid in a spearate thread
+            while in parallel XPMP2 is sending its data to dataRefs (TCAS, multiplayer, shared info).
+        </li>
         <li>FIXED initial height of A/C Info window so that no scrollbar appears</li>
         <li>FIXED two potential causes for aircraft invalidations</li>
-	</ul>
+    </ul>
 
     <h3>v2.07</h3>
 
     <P>For updating coming from v2.06 just copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.
-	
+
     <P>Change log:</P>
 
     <ul>
-		<li>FIXED a crash when entering/changing the ADS-B Exchange API key that came up with XP11.50b14
+        <li>
+            FIXED a crash when entering/changing the ADS-B Exchange API key that came up with XP11.50b14
             (due to new <code>THREAD_is_main_thread</code> validations in XP, see
             <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a> and
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/221016-adsbx-key-test-ctd-xplane-11b13/&do=findComment&comment=1988830">here</a>.)</li>
-		<li>FIXED welcome message and beta warning not showing on startup.</li>
-	</ul>
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/221016-adsbx-key-test-ctd-xplane-11b13/&do=findComment&comment=1988830">here</a>.)
+        </li>
+        <li>FIXED welcome message and beta warning not showing on startup.</li>
+    </ul>
 
     <h3>v2.06</h3>
 
-    <P>For updating coming from v2.05
-       <ul>
-           <li>copy
-               <ul>
-                   <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
-                   <li><code>Resources/CSL2XSB.py</code>,</li>
-                   <li><code>Resources/FlightModels.prf</code>,</li>
-                   <li><code>Resources/related.txt</code>.</li>
-               </ul>
-           </li>
-           <li>It is recommended to
-               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
-               on your CSL models again if you ever did so before,
-               no matter the settings you had used.</li>
+    <P>
+        For updating coming from v2.05
+        <ul>
+            <li>
+                copy
+                <ul>
+                    <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                    <li><code>Resources/CSL2XSB.py</code>,</li>
+                    <li><code>Resources/FlightModels.prf</code>,</li>
+                    <li><code>Resources/related.txt</code>.</li>
+                </ul>
+            </li>
+            <li>
+                It is recommended to
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+                on your CSL models again if you ever did so before,
+                no matter the settings you had used.
+            </li>
         </ul>
-    </p>
+    </P>
 
     <P>Change log:</P>
 
     <ul>
-        <li>REIMPLEMENTED
+        <li>
+            REIMPLEMENTED
             <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration">Settings window</a>
             in form of a configuration tree list with numerous help options.
-            Supports search for items and copy&amp;paste.</li>
-        <li>REIMPLEMENTED
+            Supports search for items and copy&amp;paste.
+        </li>
+        <li>
+            REIMPLEMENTED
             <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Aircraft Info Window</a>,
             resizeable, pop out/in buttons, collapsable sections, variable text size and opacity.<br>
             These reimplementations lay the technology foundation for further UI improvements
-            (and cause the noticeable increase in file size).</li>
-        <li>FIXED numerous bugs in position and heading calculation.
+            (and cause the noticeable increase in file size).
+        </li>
+        <li>
+            FIXED numerous bugs in position and heading calculation.
             Plane movement, especially on the ground, should look much smoother now.<br>
             <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/">Here is</a>
-            how that exercise started!</li>
-        <li>ADDED TCAS fallback: In X-Plane versions prior to 11.50b8,
+            how that exercise started!
+        </li>
+        <li>
+            ADDED TCAS fallback: In X-Plane versions prior to 11.50b8,
             LiveTraffic/XPMP2 falls back to the previous concept of TCAS provisioning,
             namely AI/multiplayer planes, so that TCAS is again available
             also in XP11.41 and before;
-            requiring setup of AI Aircraft, though, in most cases.</li>
-        <li>ADDED TCAS slotting, ie. planes will as much as possible try to
+            requiring setup of AI Aircraft, though, in most cases.
+        </li>
+        <li>
+            ADDED TCAS slotting, ie. planes will as much as possible try to
             stay in one TCAS target (resp. AI/multiplayer) slot to make it
             easier for 3rd party plugins to follow one single plane.
-            Certainly <a href="https://twinfan.github.io/XPMP2/TCAS.html#slotting">has limits</a>.</li>
-        <li>ADDED: LiveTraffic/XPMP2 understand PilotEdge's format of the
+            Certainly <a href="https://twinfan.github.io/XPMP2/TCAS.html#slotting">has limits</a>.
+        </li>
+        <li>
+            ADDED: LiveTraffic/XPMP2 understand PilotEdge's format of the
             <code>xsb_aircraft.txt</code> file, allowing LiveTraffic to read
             PE's CSL models directly, no conversion required.<br>
             Note that PE's CSL models might be subject to copyright and/or
-            license restrictions. Check your PE license information.</li>
+            license restrictions. Check your PE license information.
+        </li>
     </ul>
-    
+
     <h3>v2.05</h3>
 
     <P>For updating coming from v2.04 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</P>
-       
+
     <P>Change log:</P>
 
     <ul>
-        <li>FIXED crash (Windows only, with no dump or log entry) when aircraft id
+        <li>
+            FIXED crash (Windows only, with no dump or log entry) when aircraft id
             (registration, flight number, call sign) is 8 characters or more
-            while TCAS is on.</li>
-        <li>FIXED matching of models with no entry in <code>related.txt</code>:
+            while TCAS is on.
+        </li>
+        <li>
+            FIXED matching of models with no entry in <code>related.txt</code>:
             They are now compared to all models and not only to other models
-            with no <code>related.txt</code> entry.</li>
+            with no <code>related.txt</code> entry.
+        </li>
     </ul>
-    
+
     <h3>v2.04</h3>
 
-    <P>For updating coming from v2.03
-       <ul>
-           <li>copy
-               <ul>
-                   <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
-                   <li><code>Resources/CSL2XSB.py</code>,</li>
-                   <li><code>Resources/Doc8643.txt</code>.</li>
-               </ul>
-           </li>
-           <li>It is recommended to
-               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
-               on your CSL models again if you ever did so before,
-               no matter the settings you had used.</li>
+    <P>
+        For updating coming from v2.03
+        <ul>
+            <li>
+                copy
+                <ul>
+                    <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                    <li><code>Resources/CSL2XSB.py</code>,</li>
+                    <li><code>Resources/Doc8643.txt</code>.</li>
+                </ul>
+            </li>
+            <li>
+                It is recommended to
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+                on your CSL models again if you ever did so before,
+                no matter the settings you had used.
+            </li>
         </ul>
-    </p>
-       
+    </P>
+
     <P>Change log:</P>
 
     <ul>
-        <li>REACTIVATED LiveTraffic's map layer as XPD-10825 is fixed in XP11.50
-            Beta 10. Make sure you have updated to Beta 10!</li>
-        <li>ENHANCED handling of acquiring TCAS control:
+        <li>
+            REACTIVATED LiveTraffic's map layer as XPD-10825 is fixed in XP11.50
+            Beta 10. Make sure you have updated to Beta 10!
+        </li>
+        <li>
+            ENHANCED handling of acquiring TCAS control:
             <ul>
-                <li>If LiveTraffic cannot immediately get TCAS/AI control,
+                <li>
+                    If LiveTraffic cannot immediately get TCAS/AI control,
                     then the currently controlling plugin is named in the
                     info message and LiveTraffic tries again automatically
                     once TCAS control becomes available, ie. the other plugin
-                    releases it.</li>
-                <li>If another plugin requests TCAS control while LiveTraffic
+                    releases it.
+                </li>
+                <li>
+                    If another plugin requests TCAS control while LiveTraffic
                     holds it, a message is displayed for the user to decide.
                     As LiveTraffic shows real-world traffic it is not
-                    required to give up control immediately.</li>
+                    required to give up control immediately.
+                </li>
             </ul>
         </li>
-        <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/10">XPMP2 #10</a>:
+        <li>
+            FIXED <a href="https://github.com/TwinFan/XPMP2/issues/10">XPMP2 #10</a>:
             Multiple ICAO/AIRLINE/LIVERY/MATCHES lines supported in
             <code>xsb_aircraft.txt</code>, ie. one model can match with different
-            criteria.</li>
-        <li><code>CSL2XSB.py</code> now comments out aircraft with old formats
+            criteria.
+        </li>
+        <li>
+            <code>CSL2XSB.py</code> now comments out aircraft with old formats
             and removes more unneeded commands (HASGEAR, TEXTURE)
             to reduce log warnings during LiveTraffic startup.<br>
             Execute <code>CSL2XSB.py</code> again on your models to benefit
-            from this change.</li>
-        <li>Developers: Significant additions to documentation of
+            from this change.
+        </li>
+        <li>
+            Developers: Significant additions to documentation of
             XPMP2 library, see its
-            <a href="https://twinfan.github.io/XPMP2/">GitHub pages</a>.</li>
+            <a href="https://twinfan.github.io/XPMP2/">GitHub pages</a>.
+        </li>
     </ul>
-        
+
     <h3>v2.03</h3>
 
-    <P>For updating coming from v2.01 or v2.02
-       <ul>
-           <li>copy
-               <ul><li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
-                   <li><code>Resources/CSL2XSB.py</code>, and</li>
-                   <li><code>Resources/FlightModels.prf</code>.</li>
-               </ul>
-           </li>
-           <li>remove<ul><li><code>Resources/NoPlane.acf</code> as well as</li>
-                         <li><code>&lt;X-Plane&gt;/Aircraft/LiveTraffic/</code>.</li>
-                     </ul></li>
-           <li>It is recommended to
-               <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
-               on your CSL models again if you ever did so before,
-               no matter the settings you had used.</li>
+    <P>
+        For updating coming from v2.01 or v2.02
+        <ul>
+            <li>
+                copy
+                <ul>
+                    <li><code>lin|mac|win_x64/LiveTraffic.xpl</code>,</li>
+                    <li><code>Resources/CSL2XSB.py</code>, and</li>
+                    <li><code>Resources/FlightModels.prf</code>.</li>
+                </ul>
+            </li>
+            <li>
+                remove<ul>
+                    <li><code>Resources/NoPlane.acf</code> as well as</li>
+                    <li><code>&lt;X-Plane&gt;/Aircraft/LiveTraffic/</code>.</li>
+                </ul>
+            </li>
+            <li>
+                It is recommended to
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">run <code>CSL2XSB.py</code></a>
+                on your CSL models again if you ever did so before,
+                no matter the settings you had used.
+            </li>
         </ul>
-    </p>
-       
+    </P>
+
     <P>Change log:</P>
 
     <ul>
-        <li>CHANGED TCAS handling to new
+        <li>
+            CHANGED TCAS handling to new
             <a href="https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/">TCAS override</a>
             approach that was introduced with X-Plane 11.50 Beta 8.
             <ul>
-                <li>TCAS functionality <strong>requires X-Plane 11.50b8</strong> or later.
-                    On earlier version TCAS can no longer be activated.</li>
+                <li>
+                    TCAS functionality <strong>requires X-Plane 11.50b8</strong> or later.
+                    On earlier version TCAS can no longer be activated.
+                </li>
                 <li>Up to 63 TCAS blibs will show on Laminar's instruments.</li>
-                <li>You <strong>no longer need to configure AI Aircraft</strong>
-                    in X-Plane's settings just for LiveTraffic's purposes.</li>
-                <li>Other plugins' TCAS implementations as well as 3rd party plugins
+                <li>
+                    You <strong>no longer need to configure AI Aircraft</strong>
+                    in X-Plane's settings just for LiveTraffic's purposes.
+                </li>
+                <li>
+                    Other plugins' TCAS implementations as well as 3rd party plugins
                     currently accessing the classic up to 19 multiplayer
                     dataRefs will first need to adapt to the new approach
-                    to benefit from the up to 63 planes.</li>
-                <li><strong>Attention developers,</strong>
+                    to benefit from the up to 63 planes.
+                </li>
+                <li>
+                    <strong>Attention developers,</strong>
                     if using LiveTraffic's AI multiplayer data:
                     The previous slotting mechanism is removed, that means
                     that planes can potentially change AI slots with every
@@ -997,158 +1203,220 @@
                     This is because the new
                     <a href="https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/">TCAS target mechanism</a>
                     offers the <code>sim/cockpit2/tcas/targets/modeS_id[64]</code>
-                    dataRef array to keep track of an aircraft's identity.</li>
+                    dataRef array to keep track of an aircraft's identity.
+                </li>
             </ul>
         </li>
-		<li>TEMPORARILY DEACTIVATED LiveTraffic's own rendering of the map due to a
-		    bug in X-Plane 11.50b9, causing crashes when the location changes.
-			Instead, X-Plane's rendering of the now up to 63 TCAS planes
-			is activated so that you see at least some standard icons.<br>
-			Bug is filed with Laminar. Map will come back once that bug is fixed.</li>
-        <li>CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/186">#186</a>
+        <li>
+            TEMPORARILY DEACTIVATED LiveTraffic's own rendering of the map due to a
+            bug in X-Plane 11.50b9, causing crashes when the location changes.
+            Instead, X-Plane's rendering of the now up to 63 TCAS planes
+            is activated so that you see at least some standard icons.<br>
+            Bug is filed with Laminar. Map will come back once that bug is fixed.
+        </li>
+        <li>
+            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/186">#186</a>
             identification of ground vehicles, takes operator and call sign
             into consideration. Call sign matches configured in
-            <code>FlightModel.prf</code>.</li>
-        <li>FIXED identification of ground vehicles for the purpose of chosing a map icon
-                  if car ICAO type is configured different from standard ZZZC.
-        <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/9">XPMP2 #9</a>:
+            <code>FlightModel.prf</code>.
+        </li>
+        <li>
+            FIXED identification of ground vehicles for the purpose of chosing a map icon
+            if car ICAO type is configured different from standard ZZZC.
+        <li>
+            FIXED <a href="https://github.com/TwinFan/XPMP2/issues/9">XPMP2 #9</a>:
             Allowing models with same name from different CSL packages.
             Matching will pick randomly, also across packages.<br>
             This removes many "Duplicate model" warnings from the log.
             It remains a warning if the same name is reused within one
-            package.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/183">#183</a>
-            ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
-            garbage character read from Settings text fields.</li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/184">#184</a>:
+            package.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/183">#183</a>
+            ghost planes: Some CSL models were not drawn due to a bug while reading <code>xsb_aircraft.txt</code>.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/185">#185</a>
+            garbage character read from Settings text fields.
+        </li>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/184">#184</a>:
             Aircraft on the ground, for which no updates are available any longer,
-            were not properly removed but could just sit there forever.</li>
-        <li>REMOVED handling of <code>ICAO</code>/<code>AIRLINE</code> lines from
+            were not properly removed but could just sit there forever.
+        </li>
+        <li>
+            REMOVED handling of <code>ICAO</code>/<code>AIRLINE</code> lines from
             <code>CSL2XSB.py</code>, which previously was meant to define default models
             per aircraft type and airline. With XPMP2's random pick mechanism this is no longer needed
             and would even reduce the match quality of the models previously chosen as defaults.<br>
             Execute <code>CSL2XSB.py</code> again on your models to benefit
-            from this change.</li>
-        <li>In Beta versions like this, <i>Log Model Matching</i>
+            from this change.
+        </li>
+        <li>
+            In Beta versions like this, <i>Log Model Matching</i>
             (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug Settings</a>)
-            is forced to be activated.</li>
-	</ul>
+            is forced to be activated.
+        </li>
+    </ul>
 
     <h3>v2.01 and v2.02</h3>
 
-    <P>The published Windows version of v2.01 had not included all fixes, so v2.02
-    is published only to also provide the correct Windows binary.</P>
+    <P>
+        The published Windows version of v2.01 had not included all fixes, so v2.02
+        is published only to also provide the correct Windows binary.
+    </P>
 
-    <P>For updating coming from v2.00 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
-    and <code>Resources/NoPlane.acf</code>.</p>
+    <P>
+        For updating coming from v2.00 copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>
+        and <code>Resources/NoPlane.acf</code>.
+    </P>
 
     <P>
 
-    <ul>
-        <li>CSL Models: If <code>VERT_OFFSET</code> is not specified in <code>xsb_aircraft.txt</code>
-            then it is extracted from the model's <code>.obj</code> file.
-            Will help some X-CSL models back onto the ground.</li>
-        <li>CHANGE <a href="https://github.com/TwinFan/XPMP2/issues/8">XPMP2 #8</a>
-            Matching now prefers a matching <i>related</i> a/c type <i>plus</i> matching livery
-            over a model with matching <i>exact</i> a/c type but without livery.<br>
-            This will show correct livery more often at the price of
-            picking a <i>related</i> a/c type only if nothing better is available.
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/178">#178</a>
-            planes transforming to cars on touch-down.</li>
-        <li>CHANGED identification of cars: If no info about an object is available
-            at all (e.g. not maintained yet at OpenSky), then will decide for
-            default plane, not car.</li>
-        <li><a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Aircraft Info Window</a>
-            reports <i>CSL Model</i> again with last segment
-            of path where model is taken from, allows to identify the package used
-            (like Bluebell vs. X-CSL).</li>
-        <li>Removed residual jet smoke from under planes (by updating <code>NoPlane.acf</code>).</li>
-        <li>For plugin developers:
-            <ul>
-                <li>FIXED <a href="https://github.com/TwinFan/XPMP2/issues/7">XPMP2 #7</a>
-                    multiplayer slot indexes returned to plugin being off by 1,
-                    are now 1-based again</li>
-                <li>Y value published in <code>sim/multiplayer/plane...</code> datarefs
-                    is in line again with altitude reported via LTAPI,
-                    ie. <i>without</i> <code>VERT_OFFSET</code>.</li>
-                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/180">#180</a>:
-                    LiveTraffic's version number and date are provided via
-                    dataRefs <code>livetraffic/ver/nr</code> and <code>.../date</code>.</li>
-                <li><a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
-                    provides respective version number/date functions, too.</li>
-                <li><a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
-                    should also return last path segment together with model name
-                    in <code>cslModel</code>.</li>
-            </ul>
-        </li>
-    </ul>
-
-
-    <h3>v2.00</h3>
-
-
-    <ul>
-        <li><strong>Supports X-Plane 11 only.</strong><br>
-            REMOVED compatibility with X-Plane 10.
-            A legacy version compatible with XP10 is
-            <a href="https://forums.x-plane.org/index.php?/files/file/61021-livetraffic-for-xp10/">provided separately</a>.
-        </li>
-        <li>Now uses latest plugin directory structure: Binaries are in
-            <code>lin/mac/win_64</code> subdirectories, each containing
-            one <code>LiveTraffic.xpl</code> file.
-        <li>ADDED <strong>support for Vulkan/Metal</strong>, re-implemented the core library,
-            now using <a href="https://github.com/TwinFan/XPMP2">XPMP2</a>.
-            This means complete reimplementation of (and potentially new bugs in):
-            <ul>
-                <li>Reading CSL models.<br>
-                    <strong>NOTE:</strong> Only OBJ8 models
-                    are now supported! See your <code>Log.txt</code> for unaccepted
-                    models.</li>
-                <li>Model matching, the new approach is explained in
-                    <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#matching">this FAQ</a></li>
-                <li>TCAS support had to take a
-                    <a href="https://twinfan.gitbook.io/livetraffic/introduction/features/tcas#how-it-works">completely new approach</a>, too</li>
-                <li>AI/multiplayer support.</li>
-            </ul>
-            <li>ADDED a
-            	<a href="https://twinfan.gitbook.io/livetraffic/introduction/features/display-of-aircraft#x-planes-map">map layer "LiveTraffic"</a>
-            	to X-Plane's internal map showing <i>all</i> aircraft under LiveTraffic's control.
+        <ul>
+            <li>
+                CSL Models: If <code>VERT_OFFSET</code> is not specified in <code>xsb_aircraft.txt</code>
+                then it is extracted from the model's <code>.obj</code> file.
+                Will help some X-CSL models back onto the ground.
             </li>
-        <li>REMOVED the following settings:
-            <ul>
-            	<li><i>Max number of full a/c to draw</i> and
-            	    <i>Max distance for drawing full a/c</i> in
-            	    <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">Advanced settings</a>.
-            	    v2.0 no longer distinguishes "full" from "lights only" drawing.
-            	    Aircraft are always drawn in full.
-            	</li>
-            	<li><i>Register original libxplanemp CSL dataRefs</i>
-        	    from <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-csl">CSL Settings</a>.
-            	<a href="https://twinfan.gitbook.io/livetraffic/v/v1.50/setup/installation/csl2xsb#making-csl-packages-unique-to-livetraffic">Making CSL Packages unique to LiveTraffic"</a>
-	            is neither support nor needed any longer.
-    	        The "Missing Gear" issue is history when using instancing.</li>
-            </ul>
-        </li>
-        <li>In Beta versions like this, <i>Log Level</i>
-            (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">Advanced Settings</a>)
-            is forced to be <i>Debug</i>.</li>
-    </ul>
+            <li>
+                CHANGE <a href="https://github.com/TwinFan/XPMP2/issues/8">XPMP2 #8</a>
+                Matching now prefers a matching <i>related</i> a/c type <i>plus</i> matching livery
+                over a model with matching <i>exact</i> a/c type but without livery.<br>
+                This will show correct livery more often at the price of
+                picking a <i>related</i> a/c type only if nothing better is available.
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/178">#178</a>
+                planes transforming to cars on touch-down.
+            </li>
+            <li>
+                CHANGED identification of cars: If no info about an object is available
+                at all (e.g. not maintained yet at OpenSky), then will decide for
+                default plane, not car.
+            </li>
+            <li>
+                <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Aircraft Info Window</a>
+                reports <i>CSL Model</i> again with last segment
+                of path where model is taken from, allows to identify the package used
+                (like Bluebell vs. X-CSL).
+            </li>
+            <li>Removed residual jet smoke from under planes (by updating <code>NoPlane.acf</code>).</li>
+            <li>
+                For plugin developers:
+                <ul>
+                    <li>
+                        FIXED <a href="https://github.com/TwinFan/XPMP2/issues/7">XPMP2 #7</a>
+                        multiplayer slot indexes returned to plugin being off by 1,
+                        are now 1-based again
+                    </li>
+                    <li>
+                        Y value published in <code>sim/multiplayer/plane...</code> datarefs
+                        is in line again with altitude reported via LTAPI,
+                        ie. <i>without</i> <code>VERT_OFFSET</code>.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/180">#180</a>:
+                        LiveTraffic's version number and date are provided via
+                        dataRefs <code>livetraffic/ver/nr</code> and <code>.../date</code>.
+                    </li>
+                    <li>
+                        <a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
+                        provides respective version number/date functions, too.
+                    </li>
+                    <li>
+                        <a href="https://github.com/TwinFan/LTAPI">LTAPI</a>
+                        should also return last path segment together with model name
+                        in <code>cslModel</code>.
+                    </li>
+                </ul>
+            </li>
+        </ul>
 
-    <h2>v1.5</h2>
 
-    <h3>v1.52</h3>
+        <h3>v2.00</h3>
 
-    <p><b>To update</b> coming from v1.50 or v1.51: Just copy the 3 executables
-    <code>LiveTraffic/64/*.xpl</code>.</p>
+
+        <ul>
+            <li>
+                <strong>Supports X-Plane 11 only.</strong><br>
+                REMOVED compatibility with X-Plane 10.
+                A legacy version compatible with XP10 is
+                <a href="https://forums.x-plane.org/index.php?/files/file/61021-livetraffic-for-xp10/">provided separately</a>.
+            </li>
+            <li>
+                Now uses latest plugin directory structure: Binaries are in
+                <code>lin/mac/win_64</code> subdirectories, each containing
+                one <code>LiveTraffic.xpl</code> file.
+            <li>
+                ADDED <strong>support for Vulkan/Metal</strong>, re-implemented the core library,
+                now using <a href="https://github.com/TwinFan/XPMP2">XPMP2</a>.
+                This means complete reimplementation of (and potentially new bugs in):
+                <ul>
+                    <li>
+                        Reading CSL models.<br>
+                        <strong>NOTE:</strong> Only OBJ8 models
+                        are now supported! See your <code>Log.txt</code> for unaccepted
+                        models.
+                    </li>
+                    <li>
+                        Model matching, the new approach is explained in
+                        <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#matching">this FAQ</a>
+                    </li>
+                    <li>
+                        TCAS support had to take a
+                        <a href="https://twinfan.gitbook.io/livetraffic/introduction/features/tcas#how-it-works">completely new approach</a>, too
+                    </li>
+                    <li>AI/multiplayer support.</li>
+                </ul>
+            <li>
+                ADDED a
+                <a href="https://twinfan.gitbook.io/livetraffic/introduction/features/display-of-aircraft#x-planes-map">map layer "LiveTraffic"</a>
+                to X-Plane's internal map showing <i>all</i> aircraft under LiveTraffic's control.
+            </li>
+            <li>
+                REMOVED the following settings:
+                <ul>
+                    <li>
+                        <i>Max number of full a/c to draw</i> and
+                        <i>Max distance for drawing full a/c</i> in
+                        <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">Advanced settings</a>.
+                        v2.0 no longer distinguishes "full" from "lights only" drawing.
+                        Aircraft are always drawn in full.
+                    </li>
+                    <li>
+                        <i>Register original libxplanemp CSL dataRefs</i>
+                        from <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-csl">CSL Settings</a>.
+                        <a href="https://twinfan.gitbook.io/livetraffic/v/v1.50/setup/installation/csl2xsb#making-csl-packages-unique-to-livetraffic">Making CSL Packages unique to LiveTraffic"</a>
+                        is neither support nor needed any longer.
+                        The "Missing Gear" issue is history when using instancing.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                In Beta versions like this, <i>Log Level</i>
+                (<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">Advanced Settings</a>)
+                is forced to be <i>Debug</i>.
+            </li>
+        </ul>
+
+        <h2>v1.5</h2>
+
+        <h3>v1.52</h3>
+
+    <p>
+        <b>To update</b> coming from v1.50 or v1.51: Just copy the 3 executables
+        <code>LiveTraffic/64/*.xpl</code>.
+    </p>
 
     <ul>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
             Aircraft sometimes failed to create when best available data was just half
             a second away from the end of the buffering period
             (<a href="https://forums.x-plane.org/index.php?/forums/topic/209494-xp11-crash-livetraffic-messages/">introduced with v1.50</a>)
         </li>
-        <li>FIXED a startup problem on Windows 8.1-based systems causing
+        <li>
+            FIXED a startup problem on Windows 8.1-based systems causing
             "Error Code = 127 : The specified procedure could not be found."
             (<a href="https://forums.x-plane.org/index.php?/forums/topic/210083-live-traffic-151-not-loading-error-code-127-in-log-attached/">introduced with v1.51</a>)
         </li>
@@ -1156,11 +1424,14 @@
 
     <h3>v1.51</h3>
 
-    <p><b>To update</b> coming from v1.50: Just copy the 3 executables
-    <code>LiveTraffic/64/*.xpl</code>.</p>
+    <p>
+        <b>To update</b> coming from v1.50: Just copy the 3 executables
+        <code>LiveTraffic/64/*.xpl</code>.
+    </p>
 
     <ul>
-        <li>PARTICIALLY FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
+        <li>
+            PARTICIALLY FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
             Should avoid crashing after a rare and yet unexplained event leading to missing
             data while trying to create a new aircraft.
         </li>
@@ -1168,33 +1439,42 @@
 
     <h3>v1.50</h3>
 
-    <p><b>To update</b> coming from v1.24: Copy the 3 executables
-    <code>LiveTraffic/64/*.xpl</code> and the updated
-    <code>Resources/Doc8643.txt</code> file.</p>
+    <p>
+        <b>To update</b> coming from v1.24: Copy the 3 executables
+        <code>LiveTraffic/64/*.xpl</code> and the updated
+        <code>Resources/Doc8643.txt</code> file.
+    </p>
 
     <ul>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>:
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>:
             Snapping to taxiways to make aircraft stay on taxiways more often.
             Also determines gate/ramp positions and turns aircraft the right way.
             Controlled by <i>Snap to Taxiways</i> setting in
             <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced">
-                Advanced Settings</a>.<br>
+                Advanced Settings
+            </a>.<br>
             <a href="https://twinfan.gitbook.io/livetraffic/reference/snapping-to-taxiways">See documentation</a>
             for some background of how it works.
         </li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>:
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>:
             Soft Bezier-style curves for turning aircraft.
         </li>
-        <li>ADDED safeguard to keep approaching aircraft above 2.5° glidescope
+        <li>
+            ADDED safeguard to keep approaching aircraft above 2.5° glidescope
             to avoid landing short of the runway.
         </li>
-        <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/13">#13</a>:
+        <li>
+            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/13">#13</a>:
             Ensure nearest aircraft are shown when reaching limit.
         </li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/170">#170</a> (Windows only):
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/170">#170</a> (Windows only):
             Multiplayer location info initialized with "far away" again instead of zeroes.
         </li>
-        <li>ADDED message that LiveTraffic does not yet work under Vulkan/Metal.
+        <li>
+            ADDED message that LiveTraffic does not yet work under Vulkan/Metal.
             Watch <a href="https://forums.x-plane.org/index.php?/forums/topic/207193-livetraffic-and-vulkanmetal/">this post</a> and await v2.0.
         </li>
     </ul>
@@ -1204,7 +1484,8 @@
     <h3>v1.24</h3>
 
     <ul>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/169">#169</a>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/169">#169</a>
             auto-land.
         </li>
     </ul>
@@ -1214,33 +1495,42 @@
     <b>To update</b> coming from v1.22
     <ul>
         <li>copy the 3 executables <code>LiveTraffic/64/*.xpl</code>.</li>
-        <li>copy the updated files <code>LiveTraffic/Resources/Doc8643.txt</code>
-            and <code>LiveTraffic/Resources/related.txt</code>.</li>
+        <li>
+            copy the updated files <code>LiveTraffic/Resources/Doc8643.txt</code>
+            and <code>LiveTraffic/Resources/related.txt</code>.
+        </li>
     </ul>
 
     <p>Changes to LiveTraffic:</p>
 
     <ul>
-        <li>FIXED handling of OpenSky master data, avoiding duplicate requests.
-            Reduces likelihood of HTTP 503 error and improves handling of it.</li>
-        <li>UPDATED <code>Doc8643.txt</code> and <code>related.txt</code> to
+        <li>
+            FIXED handling of OpenSky master data, avoiding duplicate requests.
+            Reduces likelihood of HTTP 503 error and improves handling of it.
+        </li>
+        <li>
+            UPDATED <code>Doc8643.txt</code> and <code>related.txt</code> to
             include new ICAO aircraft type codes like B3XM (B737 MAX 10)
         </li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/156">#156</a>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/156">#156</a>
             a bug preventing the display of aircraft when decimal point in
             regional settings differs from dot.
         </li>
-        <li>FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/50">#50</a>
+        <li>
+            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/50">#50</a>
             a crash in X-Plane startup after failed initalization of LiveTraffic
             (again), e.g. due to invalid configuration file.
         </li>
-        <li>ADDED some aspects of <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>,
+        <li>
+            ADDED some aspects of <a href="https://github.com/TwinFan/LiveTraffic/issues/100">#100</a>,
             snapping to taxiways, already. Few changes to aircraft behaviour
             will be visible yet. But LiveTraffic already reads scenery
             information to learn about runways and taxiways.
             Auto-land aircraft will more often and more accuractely find
             a runway. But the main part, avoiding cutting corners when
-            leaving the runway for a taxiway or turning tight corners, is not yet in.</li>
+            leaving the runway for a taxiway or turning tight corners, is not yet in.
+        </li>
     </ul>
 
     <h3>v1.22 Fixits</h3>
@@ -1339,40 +1629,59 @@
             with working animations/lights. Requires your local CSL models to be
             changed by the latest CSL2XSB script. Please see
             <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">
-            documentation for details</a>.
+                documentation for details
+            </a>.
         </li>
         <li>
             ADDED rotor / propellor / reversers / wheel animations. Requires
-            <ul><li>supporting CSL models (many in the Bluebell package work)</li>
-                <li>conversion of CSL models with latest CSL2XSB script</li></ul>
+            <ul>
+                <li>supporting CSL models (many in the Bluebell package work)</li>
+                <li>conversion of CSL models with latest CSL2XSB script</li>
+            </ul>
             See <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/csl2xsb">
-            documentation for details</a>.
+                documentation for details
+            </a>.
         </li>
         <li>
             UPDATED, basically rewrote the <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">
-                documentation page on many multiplayer clients in parallel<a/>,
+                documentation page on many multiplayer clients in parallel<a />,
                 like when also using XSquawkBox, X-IvAp, Swift and the like.
         <li>
             ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/147">#147</a>:
             RealTraffic now provides a proper timestamp in its tracking data,
             which LiveTraffic uses for path calculations.
         </li>
-        <li><strong>Features relevant to other plugins' or CSL model developers:</strong>
+        <li>
+            <strong>Features relevant to other plugins' or CSL model developers:</strong>
             <ul>
-                <li>ADDED support for <a href="https://github.com/TwinFan/libxplanemp/wiki/OBJ8-CSL-dataRefs">
-                    more CSL animation dataRefs</a>.</li>
-                <li>ADDED: All <code>sim/multiplayer/position</code> dataRefs are now
-                    provided for AI planes, including <code>v_x/y/z</code>.</li>
-                <li>CHANGED: Position reporting by <code>sim/multiplayer/position</code>
+                <li>
+                    ADDED support for <a href="https://github.com/TwinFan/libxplanemp/wiki/OBJ8-CSL-dataRefs">
+                        more CSL animation dataRefs
+                    </a>.
+                </li>
+                <li>
+                    ADDED: All <code>sim/multiplayer/position</code> dataRefs are now
+                    provided for AI planes, including <code>v_x/y/z</code>.
+                </li>
+                <li>
+                    CHANGED: Position reporting by <code>sim/multiplayer/position</code>
                     is the <em>next</em> drawing cycle's position,
-                    which helps camera plugins to stay in synch with focus plane.</li>
-                <li>ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/144">#144</a>
+                    which helps camera plugins to stay in synch with focus plane.
+                </li>
+                <li>
+                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/144">#144</a>
                     shared dataRefs for providing textual information
                     about planes as <a href="https://forums.x-plane.org/index.php?/files/file/52997-fstrampfree/">
-                        suggested by FSTramp</a>.</li>
-                <li>SEE the <a href="https://github.com/TwinFan/libxplanemp/wiki">
-                    Wiki of my libxplanemp fork</a> for more details.</li>
-                <li>CHANGED and ENHANCED <a href="https://github.com/TwinFan/LiveTraffic/issues/86">#86</a>
+                        suggested by FSTramp
+                    </a>.
+                </li>
+                <li>
+                    SEE the <a href="https://github.com/TwinFan/libxplanemp/wiki">
+                        Wiki of my libxplanemp fork
+                    </a> for more details.
+                </li>
+                <li>
+                    CHANGED and ENHANCED <a href="https://github.com/TwinFan/LiveTraffic/issues/86">#86</a>
                     communication to
                     <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>,
                     which is now an efficient bulk data transfer and includes
@@ -1409,432 +1718,432 @@
 
     <p>
 
-    <ul>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/138">#138</a>
-            ability to connect to ADS-B Exhcange via
-            <a href="https://rapidapi.com/adsbx/api/adsbx-flight-sim-traffic">RapidAPI</a>.<br>
-            <b>Note: This is a paid service.</b> See
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/ads-b-exchange">documentation</a>
-            for more info.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/135">#135</a>
-            ADSBEx channel no longer fails and disables when no aircraft are returned.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/137">#137</a>
-            LiveTraffic no longer fails to start up if X-Plane commands (like
-            <code>sim/general/hat_switch_left</code>) are not found. This might allow
-            using LiveTraffic even on outdated vesions like XP10.45 (untested).
-        </li>
-    </ul>
+        <ul>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/138">#138</a>
+                ability to connect to ADS-B Exhcange via
+                <a href="https://rapidapi.com/adsbx/api/adsbx-flight-sim-traffic">RapidAPI</a>.<br>
+                <b>Note: This is a paid service.</b> See
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/ads-b-exchange">documentation</a>
+                for more info.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/135">#135</a>
+                ADSBEx channel no longer fails and disables when no aircraft are returned.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/137">#137</a>
+                LiveTraffic no longer fails to start up if X-Plane commands (like
+                <code>sim/general/hat_switch_left</code>) are not found. This might allow
+                using LiveTraffic even on outdated vesions like XP10.45 (untested).
+            </li>
+        </ul>
 
-    <h3>v1.15.190428 ADSBEx with API Key</h3>
+        <h3>v1.15.190428 ADSBEx with API Key</h3>
 
-    <ul>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/132">#132</a>
-            channel ADS-B Exchange to
-            <a href="https://www.adsbexchange.com/data/">new API</a>
-            after public API closed down.<br>
-            <b>Note: API key required</b>, to get one you need to be feeding
-            ADS-B data to ADS-B Exchange. Then, you can
-            <a href="https://adsbexchange.com/contact/">request a key there</a>
-            and enter it into LiveTraffic's
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics">Basic Settings</a>
-            to re-enable the ADSBEx channel.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/131">#131</a>
-            errorneous warning <code>valid OBJ8 part types are LIGHTS or SOLID. Got LIGHTS.</code>.
-        </li>
-    </ul>
+        <ul>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/132">#132</a>
+                channel ADS-B Exchange to
+                <a href="https://www.adsbexchange.com/data/">new API</a>
+                after public API closed down.<br>
+                <b>Note: API key required</b>, to get one you need to be feeding
+                ADS-B data to ADS-B Exchange. Then, you can
+                <a href="https://adsbexchange.com/contact/">request a key there</a>
+                and enter it into LiveTraffic's
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics">Basic Settings</a>
+                to re-enable the ADSBEx channel.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/131">#131</a>
+                errorneous warning <code>valid OBJ8 part types are LIGHTS or SOLID. Got LIGHTS.</code>.
+            </li>
+        </ul>
 
-    <h3>v1.10.190406 RealTraffic, ForeFlight</h3>
+        <h3>v1.10.190406 RealTraffic, ForeFlight</h3>
 
-    <ul>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/65">#65</a>
-            RealTraffic as a new channel. See
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity">configuration instructions</a>.<br>
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/47">#47</a>
-            ForeFlight as an output channel. See
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/foreflight">configuration info</a>.<br>
-        </li>
-        <li>
-            FIXED checking for updates so that it happens every 48h only
-            if no update was found during last check.
-        </li>
-        <li>
-            REMOVED <a href="https://github.com/TwinFan/LiveTraffic/issues/125">#125</a>
-            historic options from config file to prevent users from being trapped
-            with "No enabled active channel...".
-        </li>
-    </ul>
+        <ul>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/65">#65</a>
+                RealTraffic as a new channel. See
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity">configuration instructions</a>.<br>
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/47">#47</a>
+                ForeFlight as an output channel. See
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/foreflight">configuration info</a>.<br>
+            </li>
+            <li>
+                FIXED checking for updates so that it happens every 48h only
+                if no update was found during last check.
+            </li>
+            <li>
+                REMOVED <a href="https://github.com/TwinFan/LiveTraffic/issues/125">#125</a>
+                historic options from config file to prevent users from being trapped
+                with "No enabled active channel...".
+            </li>
+        </ul>
 
 
-    <h2>v1.00 Public Release</h2>
+        <h2>v1.00 Public Release</h2>
 
-    <h3>v1.00.190309</h3>
+        <h3>v1.00.190309</h3>
 
-    <ul>
-        <li>
-            RELEASE BUILD, i.e. no time limit.
-        </li>
-        <li>
-            UPDATED <a href="https://github.com/TwinFan/LiveTraffic/issues/117">#117</a>
-            handling of AI/TCAS planes so that third-party plugins
-            have a better chance of seeing LiveTraffic's AI planes with their correct heading.<br>
-            X-Plane's internal map and Little NavMap now show LiveTraffic's planes.
-        </li>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/118">#118</a>
-            reporting of warnings/infos while parsing CSL packages. Repeated
-            messages <i>per package/<code>xsb_aircrafts.txt</code> file</i>
-            are now suppressed and only a counter reported. Previosuly, packages with additional
-            parameters could cause thousands of lines of repeating <code>Log.txt</code> output.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/112">#112</a>
-            ASSERT FAILED for <code>bWrapAround</code>, a bug in handling
-            roll.
-        </li>
-    </ul>
+        <ul>
+            <li>
+                RELEASE BUILD, i.e. no time limit.
+            </li>
+            <li>
+                UPDATED <a href="https://github.com/TwinFan/LiveTraffic/issues/117">#117</a>
+                handling of AI/TCAS planes so that third-party plugins
+                have a better chance of seeing LiveTraffic's AI planes with their correct heading.<br>
+                X-Plane's internal map and Little NavMap now show LiveTraffic's planes.
+            </li>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/118">#118</a>
+                reporting of warnings/infos while parsing CSL packages. Repeated
+                messages <i>per package/<code>xsb_aircrafts.txt</code> file</i>
+                are now suppressed and only a counter reported. Previosuly, packages with additional
+                parameters could cause thousands of lines of repeating <code>Log.txt</code> output.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/112">#112</a>
+                ASSERT FAILED for <code>bWrapAround</code>, a bug in handling
+                roll.
+            </li>
+        </ul>
 
-    <h2>v0.90 Public Beta</h2>
+        <h2>v0.90 Public Beta</h2>
 
-    <h3>v0.94.190303 Public Beta - Release Candidate 2</h3>
+        <h3>v0.94.190303 Public Beta - Release Candidate 2</h3>
 
-    <ul>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/107">#107</a>
-            checking for new version on X-Plane.org every 48h; if so message shows up and
-            additional menu item <code>LiveTraffic/New Version...</code> becomes available.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/30">#30</a>
-            menu items
-            <ul>
-                <li>Aircraft Info shown, which hides/shows all A/C Info wnds</li>
-                <li>Close All Windows, which closes all A/C Info wnds</li>
-                <li>Labels shown, which toggles if labels are shown in the current view (internal/external/VR)</li>
-            </ul>
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/30">#30</a>
-            commands for most menu items, so that you can assign keys or
-            joystick buttons to them in X-Plane's Keyboard and Joystick settings.<br>
-            In XP11, assigned keyboard shortcuts show up next to the menu items.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/110">#110</a>
-            option to only control AI aircraft for TCAS blibs on request, i.e.
-            not automatically. That helps integration with other multiplayer
-            clients, who could then control TCAS.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/114">#114</a>
-            button to A/C info window for switching between AUTO and
-            locked-to-selected-a/c mode.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/103">#103</a>
-            manipulation of external camera position using standard commands
-            as in X-Plane's Free Camera view. Hat switch mapped to
-            left/right/forward/aft movement. Zoom supported.
-        </li>
-        <li>
-            VR only:
-            <ul>
-                <li>
-                    A/C Info Window follows into external camera view,
-                    so that "Camera" checkbox stays available for getting out of Camera view.
-                </li>
-                <li>
-                    CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/115">#115</a>
-                    A/C Info Window cannot be closed when in external camera view,
-                    so that the button to return from camery view remains available.
-                </li>
-            </ul>
-        </li>
-        <li>
-            Linux only: Open help URLs using <code>xdg-open</code> instead of
-            <code>open</code>.
-        </li>
-        <li>
-            Further CHANGED initial window positioning, especially for Settings UI.
-        </li>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/108">#108</a>
-            version number of <code>FlightModels.prf</code> and enhanced validation to make sure everybody updates.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/109">#109</a>
-            Embraer E-Jet and ERJ families to <code>related.txt</code>.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/116">#116</a>
-            banking on approach, which had happened especially often in
-            auto-land situations.
-        </li>
-    </ul>
+        <ul>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/107">#107</a>
+                checking for new version on X-Plane.org every 48h; if so message shows up and
+                additional menu item <code>LiveTraffic/New Version...</code> becomes available.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/30">#30</a>
+                menu items
+                <ul>
+                    <li>Aircraft Info shown, which hides/shows all A/C Info wnds</li>
+                    <li>Close All Windows, which closes all A/C Info wnds</li>
+                    <li>Labels shown, which toggles if labels are shown in the current view (internal/external/VR)</li>
+                </ul>
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/30">#30</a>
+                commands for most menu items, so that you can assign keys or
+                joystick buttons to them in X-Plane's Keyboard and Joystick settings.<br>
+                In XP11, assigned keyboard shortcuts show up next to the menu items.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/110">#110</a>
+                option to only control AI aircraft for TCAS blibs on request, i.e.
+                not automatically. That helps integration with other multiplayer
+                clients, who could then control TCAS.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/114">#114</a>
+                button to A/C info window for switching between AUTO and
+                locked-to-selected-a/c mode.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/103">#103</a>
+                manipulation of external camera position using standard commands
+                as in X-Plane's Free Camera view. Hat switch mapped to
+                left/right/forward/aft movement. Zoom supported.
+            </li>
+            <li>
+                VR only:
+                <ul>
+                    <li>
+                        A/C Info Window follows into external camera view,
+                        so that "Camera" checkbox stays available for getting out of Camera view.
+                    </li>
+                    <li>
+                        CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/115">#115</a>
+                        A/C Info Window cannot be closed when in external camera view,
+                        so that the button to return from camery view remains available.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                Linux only: Open help URLs using <code>xdg-open</code> instead of
+                <code>open</code>.
+            </li>
+            <li>
+                Further CHANGED initial window positioning, especially for Settings UI.
+            </li>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/108">#108</a>
+                version number of <code>FlightModels.prf</code> and enhanced validation to make sure everybody updates.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/109">#109</a>
+                Embraer E-Jet and ERJ families to <code>related.txt</code>.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/116">#116</a>
+                banking on approach, which had happened especially often in
+                auto-land situations.
+            </li>
+        </ul>
 
-    <h3>v0.93.190224 Public Beta - Release Candidate 1</h3>
+        <h3>v0.93.190224 Public Beta - Release Candidate 1</h3>
 
-    <ul>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/98">#98</a>
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">
-                step-by-step instruction for Bluebell CSL package installation
-            </a>
-            to documentation especially targeting new users.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/105">#105</a>
-            a <code>Help</code> submenu to <code>Plugins > LiveTraffic</code> as well as
-            help buttons labeled <code>[?]</code> to the A/C Info and Settings
-            window for direct access to relevant online documentation.
-        </li>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/106">#106</a>
-            handling of A/C Info windows in XP11 to make use of XP11 features:
-            <ul>
-                <li>Created as floating windows, ie. can be moved across monitors.</li>
-                <li>Created as VR windows when in VR mode.</li>
-                <li>
-                    Floating windows move into VR and vice versa when entering/leaving VR.<br>
-                    VR functionality untested as I don't have a VR rig. Qualified feedback welcome!
-                </li>
-                <li>
-                    New menu entry <code>Plugins > LiveTraffic > Aircraft Info... (Popped out)</code>
-                    creates a popped out window (native OS window).<br>
-                    Initial position might not be optimal yet, but can then be
-                    moved anywhere on your desktop.
-                </li>
-            </ul>
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/16">#16</a>
-            roll to aircraft movement when flying curves. Still looks a bit shaky,
-            will only get better after implementing Bezier curves
-            (<a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>) after v1.0.
-        </li>
-        <li>
-            ADDED current number of aircraft shown to menu item text of
-            <code>Plugins &gt; LiveTraffic &gt; Aircraft displayed</code>.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/102">#102</a>
-            option to Advanced Settings to select which level of messages to
-            show in message area.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/104">#104</a>
-            positioning of all windows in X-Plane 11.<br>
-            Message are will show up on right-most monitor in top right corner.<br>
-            Settings and A/C info windows will initially be placed in the
-            center of the main screen.
-        </li>
-        <li>
-            FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/99">#99</a>
-            <I>Last Data</I> info in A/C information window, especially obvious
-            in ADSBEx streams, in which the last timestamp never became negative.
-        </li>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/97">#97</a>
-            aircraft's ICAO type selection: Decision is pushed out to a moment before
-            actual plane creation when infos from various channels are
-            collected and combined. Reduces warnings about missing ICAO type
-            in <code>Log.txt</code> significantly. Better identifies
-            ground vehicles especially in ADS-B streams.
-        </li>
-        <li>
-            Also, the CSL model for a plane can now change in-flight if
-            new info arrives that affects model-matching, e.g. a proper
-            ICAO type for a plane previously shown with defaults.<br>
-            After manually loading CSL models in Settings > CSL all planes
-            are re-matched, immediately making use of newly loaded models.
-        </li>
-        <li>
-            REMOVED settings for reading historic ADS-B Exchange data, see
-            <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#is-there-an-option-to-read-historic-tracking-data-wasnt-there-once-one">here</a>
-            for reasoning.
-        </li>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/101">#101</a>
-            and enhanced technical exception handling. LT disables itself in case it can't
-            recover from exception (instead of re-throwing the exception, which causes CTD).
-        </li>
-    </ul>
+        <ul>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/98">#98</a>
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step">
+                    step-by-step instruction for Bluebell CSL package installation
+                </a>
+                to documentation especially targeting new users.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/105">#105</a>
+                a <code>Help</code> submenu to <code>Plugins > LiveTraffic</code> as well as
+                help buttons labeled <code>[?]</code> to the A/C Info and Settings
+                window for direct access to relevant online documentation.
+            </li>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/106">#106</a>
+                handling of A/C Info windows in XP11 to make use of XP11 features:
+                <ul>
+                    <li>Created as floating windows, ie. can be moved across monitors.</li>
+                    <li>Created as VR windows when in VR mode.</li>
+                    <li>
+                        Floating windows move into VR and vice versa when entering/leaving VR.<br>
+                        VR functionality untested as I don't have a VR rig. Qualified feedback welcome!
+                    </li>
+                    <li>
+                        New menu entry <code>Plugins > LiveTraffic > Aircraft Info... (Popped out)</code>
+                        creates a popped out window (native OS window).<br>
+                        Initial position might not be optimal yet, but can then be
+                        moved anywhere on your desktop.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/16">#16</a>
+                roll to aircraft movement when flying curves. Still looks a bit shaky,
+                will only get better after implementing Bezier curves
+                (<a href="https://github.com/TwinFan/LiveTraffic/issues/17">#17</a>) after v1.0.
+            </li>
+            <li>
+                ADDED current number of aircraft shown to menu item text of
+                <code>Plugins &gt; LiveTraffic &gt; Aircraft displayed</code>.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/102">#102</a>
+                option to Advanced Settings to select which level of messages to
+                show in message area.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/104">#104</a>
+                positioning of all windows in X-Plane 11.<br>
+                Message are will show up on right-most monitor in top right corner.<br>
+                Settings and A/C info windows will initially be placed in the
+                center of the main screen.
+            </li>
+            <li>
+                FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/99">#99</a>
+                <I>Last Data</I> info in A/C information window, especially obvious
+                in ADSBEx streams, in which the last timestamp never became negative.
+            </li>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/97">#97</a>
+                aircraft's ICAO type selection: Decision is pushed out to a moment before
+                actual plane creation when infos from various channels are
+                collected and combined. Reduces warnings about missing ICAO type
+                in <code>Log.txt</code> significantly. Better identifies
+                ground vehicles especially in ADS-B streams.
+            </li>
+            <li>
+                Also, the CSL model for a plane can now change in-flight if
+                new info arrives that affects model-matching, e.g. a proper
+                ICAO type for a plane previously shown with defaults.<br>
+                After manually loading CSL models in Settings > CSL all planes
+                are re-matched, immediately making use of newly loaded models.
+            </li>
+            <li>
+                REMOVED settings for reading historic ADS-B Exchange data, see
+                <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#is-there-an-option-to-read-historic-tracking-data-wasnt-there-once-one">here</a>
+                for reasoning.
+            </li>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/101">#101</a>
+                and enhanced technical exception handling. LT disables itself in case it can't
+                recover from exception (instead of re-throwing the exception, which causes CTD).
+            </li>
+        </ul>
 
-    <h3>v0.92.190211 Public Beta</h3>
+        <h3>v0.92.190211 Public Beta</h3>
 
-    <ul>
-        <li>
-            ADDED compatibility with X-Plane 10 again for the moment.
-            This will not last forever, but with the goal to have at least
-            one release version still supporting X-Plane 10.
-        </li>
-        <li>
-            ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/96">#96</a> an error message if there are
-            no active channels serving tracking data.
-        </li>
-    </ul>
+        <ul>
+            <li>
+                ADDED compatibility with X-Plane 10 again for the moment.
+                This will not last forever, but with the goal to have at least
+                one release version still supporting X-Plane 10.
+            </li>
+            <li>
+                ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/96">#96</a> an error message if there are
+                no active channels serving tracking data.
+            </li>
+        </ul>
 
-    <h3>v0.92.190209 Public Beta</h3>
+        <h3>v0.92.190209 Public Beta</h3>
 
-    <ul>
-        <li>
-            Setup
-            <ul>
-                <li>
-                    REMOVED compatibility with X-Plane 10 in preparation of using pure X-Plane 11 features.
-                </li>
-                <li>
-                    CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/70">#70</a>
-                    Reality time is now taken from the network channels; removes the dependency on local PC time being correct.
-                </li>
-                <li>
-                    CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/71">#71</a>
-                    creation of network connection, working around an issue when certificate revocation check is unable (Windows only)
-                </li>
-                <li>
-                    CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/85">#85</a>
-                    the way text files are read, now independed of line endings. This allows to use the same installation
-                    in a dual boot config Windows/Linux and not fail on Linux when reading a CR/LF encoded <code>LiveTraffic.prf</code> file.
-                </li>
-            </ul>
-        </li>
-        <li>
-            New/Changed Functionality
-            <ul>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/80">#80</a>
-                    ability to hide and hence impersonate planes, <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window/hide-and-impersonate-aircrafts">see documentation</a>.
-                </li>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/93">#93</a>
-                    external camera view sitting on any plane's tail, <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window/external-camera-view">see documentation</a>.
-                </li>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/88">#88</a>
-                    Advanced Setting to hide traffic below a certain height AGL or while taxiing,
-                    to allow better parallel operation with airport traffic plugins.
-                </li>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/76">#76</a>
-                    Advanced Setting to allow landing lights on during taxiing to see planes at night.
-                </li>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/69">#69</a>
-                    A/C Label Setting to control if labels shall appear in internal / external / VR views.
-                </li>
-                <li>
-                    CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/74">#74</a>
-                    distances in Advanced Settings from km to nm. Existing settings from previous versions will be converted on first startup. Rounding applies.
-                </li>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/92">#92</a>
-                    menu item to try to get access to AI planes for TCAS control. Reorganized menu.
-                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/menu-items">See new documentation</a> on menu items.
-                </li>
-                <li>
-                    ADDED ability to search for squawk code in <i>A/C key</i> field of A/C Information Windows.
-                </li>
-                <li>
-                    ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/75">#75</a>
-                    options in Debug Settings to fix model matching parameters for CSL model makers.
-                    <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug#forced-model-matching">See documentation.</a>
-                </li>
-                <li>
-                    CHANGED model matching: Now passing registration (tail number) as the match string
-                    for LIVERY. CSL model makers are now able to configure liveries per individual airframe.
-                </li>
-                <li>
-                    REMOVED menu item for reloading plugins. No longer needed with new handling of access to AI planes / TCAS.
-                </li>
-            </ul>
-        </li>
-        <li>
-            CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/81">#81</a> multiplayer lib to base on latest upstream code, which in tun
-            <ul>
-                <li>
-                    ADDED  <a href="https://github.com/TwinFan/LiveTraffic/issues/45">#45</a>
-                    ability to work without access to AI planes (then no TCAS) to enhance parallel operations with other multiplayer plugins.
-                    <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">See documentation</a> for usage instructions.
-                </li>
-                <li>
-                    CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/63">#63</a>
-                    label drawing back to 3D phase, no longer drawing over cockpit.<br>
-                    However, in VR labels still appear in one eye only (<a href="https://github.com/TwinFan/LiveTraffic/issues/69">#69</a>).
-                </li>
-                <li>
-                    ADDED ability to control taxi lights in CSL models. I have not yet found a model, which supports taxi lights, though.
-                </li>
-                <li>
-                    ADDED clamping, i.e. the ability to detect from the OBJ8 models the necessary vertical offset for fairly good
-                    placement on the ground. Still, a well maintained <code>VERT_OFFSET</code> setting in <code>xsb_aircrafts.txt</code> is more accurate.
-                </li>
-            </ul>
-        </li>
+        <ul>
+            <li>
+                Setup
+                <ul>
+                    <li>
+                        REMOVED compatibility with X-Plane 10 in preparation of using pure X-Plane 11 features.
+                    </li>
+                    <li>
+                        CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/70">#70</a>
+                        Reality time is now taken from the network channels; removes the dependency on local PC time being correct.
+                    </li>
+                    <li>
+                        CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/71">#71</a>
+                        creation of network connection, working around an issue when certificate revocation check is unable (Windows only)
+                    </li>
+                    <li>
+                        CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/85">#85</a>
+                        the way text files are read, now independed of line endings. This allows to use the same installation
+                        in a dual boot config Windows/Linux and not fail on Linux when reading a CR/LF encoded <code>LiveTraffic.prf</code> file.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                New/Changed Functionality
+                <ul>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/80">#80</a>
+                        ability to hide and hence impersonate planes, <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window/hide-and-impersonate-aircrafts">see documentation</a>.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/93">#93</a>
+                        external camera view sitting on any plane's tail, <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window/external-camera-view">see documentation</a>.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/88">#88</a>
+                        Advanced Setting to hide traffic below a certain height AGL or while taxiing,
+                        to allow better parallel operation with airport traffic plugins.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/76">#76</a>
+                        Advanced Setting to allow landing lights on during taxiing to see planes at night.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/69">#69</a>
+                        A/C Label Setting to control if labels shall appear in internal / external / VR views.
+                    </li>
+                    <li>
+                        CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/74">#74</a>
+                        distances in Advanced Settings from km to nm. Existing settings from previous versions will be converted on first startup. Rounding applies.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/92">#92</a>
+                        menu item to try to get access to AI planes for TCAS control. Reorganized menu.
+                        <a href="https://twinfan.gitbook.io/livetraffic/using-lt/menu-items">See new documentation</a> on menu items.
+                    </li>
+                    <li>
+                        ADDED ability to search for squawk code in <i>A/C key</i> field of A/C Information Windows.
+                    </li>
+                    <li>
+                        ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/75">#75</a>
+                        options in Debug Settings to fix model matching parameters for CSL model makers.
+                        <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug#forced-model-matching">See documentation.</a>
+                    </li>
+                    <li>
+                        CHANGED model matching: Now passing registration (tail number) as the match string
+                        for LIVERY. CSL model makers are now able to configure liveries per individual airframe.
+                    </li>
+                    <li>
+                        REMOVED menu item for reloading plugins. No longer needed with new handling of access to AI planes / TCAS.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/81">#81</a> multiplayer lib to base on latest upstream code, which in tun
+                <ul>
+                    <li>
+                        ADDED  <a href="https://github.com/TwinFan/LiveTraffic/issues/45">#45</a>
+                        ability to work without access to AI planes (then no TCAS) to enhance parallel operations with other multiplayer plugins.
+                        <a href="https://twinfan.gitbook.io/livetraffic/setup/other-multiplayer-in-parallel">See documentation</a> for usage instructions.
+                    </li>
+                    <li>
+                        CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/63">#63</a>
+                        label drawing back to 3D phase, no longer drawing over cockpit.<br>
+                        However, in VR labels still appear in one eye only (<a href="https://github.com/TwinFan/LiveTraffic/issues/69">#69</a>).
+                    </li>
+                    <li>
+                        ADDED ability to control taxi lights in CSL models. I have not yet found a model, which supports taxi lights, though.
+                    </li>
+                    <li>
+                        ADDED clamping, i.e. the ability to detect from the OBJ8 models the necessary vertical offset for fairly good
+                        placement on the ground. Still, a well maintained <code>VERT_OFFSET</code> setting in <code>xsb_aircrafts.txt</code> is more accurate.
+                    </li>
+                </ul>
+            </li>
 
-        <li>
-            Pure Bug Fixes
-            <ul>
-                <li>
-                    FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/73">#73</a>
-                    model-selection based on <code>related.txt</code> for some Diamond models, which appeared as gliders.
-                </li>
-                <li>
-                    FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/84">#84</a>
-                    Message area moving too high on Linux
-                </li>
-                <li>
-                    FIXED rounding of altitudes to full feet in internal calculations, which removes step climbs/descends by 1ft,
-                    especially visible on the ground.
-                </li>
-                <li>
-                    FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/50">#50</a>
-                    a crash of X-Plane after failed initialization of LiveTraffic.
-                </li>
-                <li>
-                    FIXED Stop requesting master data when shutting down, speeding up shut down of X-Plane when LiveTraffic
-                    is in the loop of fetching master data from OpenSky.
-                </li>
-            </ul>
-        </li>
-    </ul>
+            <li>
+                Pure Bug Fixes
+                <ul>
+                    <li>
+                        FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/73">#73</a>
+                        model-selection based on <code>related.txt</code> for some Diamond models, which appeared as gliders.
+                    </li>
+                    <li>
+                        FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/84">#84</a>
+                        Message area moving too high on Linux
+                    </li>
+                    <li>
+                        FIXED rounding of altitudes to full feet in internal calculations, which removes step climbs/descends by 1ft,
+                        especially visible on the ground.
+                    </li>
+                    <li>
+                        FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/50">#50</a>
+                        a crash of X-Plane after failed initialization of LiveTraffic.
+                    </li>
+                    <li>
+                        FIXED Stop requesting master data when shutting down, speeding up shut down of X-Plane when LiveTraffic
+                        is in the loop of fetching master data from OpenSky.
+                    </li>
+                </ul>
+            </li>
+        </ul>
 
-    <h3>v0.91.190120 Public Beta</h3>
+        <h3>v0.91.190120 Public Beta</h3>
 
-    <b>To update coming from 0.90</b> or ealier:
+        <b>To update coming from 0.90</b> or ealier:
 
-    <ul>
-        <li>
-            The v0.91 package now ships with a directory <code>LiveTraffic/Resources/ShippedCSL</code>,
-            which contains the X-CSL FollowMe Car courtesy of X-CSL.
-            Move <code>ShippedCSL</code>
-            under the existing <code>LiveTraffic/Resources</code> directory,
-            in parallel to the existing <code>CSL</code> directory with the
-            Bluebell installation.
-        <li>
-            If you had installed the X-CSL FollowMe car manually, then remove
-            it now by deleting the <code>CARS</code> directory from
-            your <code>LiveTraffic/Resources/CSL</code> directory.
-        </li>
-        <li>
-            If you ever had trouble with "ghost planes" (seeing yellow labels
-            without aircraft) then likely your Bluebell CSL installation has been
-            damaged, possibly by the X-CSL installation. Recommendation is
-            to start over: Clear the <code>LiveTraffic/Resources/CSL</code>
-            directory and download the Bluebell package once again,
-            following the
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation#bluebell-obj8-csl-packages">installation documentation</a>.
-        </li>
-    </ul>
+        <ul>
+            <li>
+                The v0.91 package now ships with a directory <code>LiveTraffic/Resources/ShippedCSL</code>,
+                which contains the X-CSL FollowMe Car courtesy of X-CSL.
+                Move <code>ShippedCSL</code>
+                under the existing <code>LiveTraffic/Resources</code> directory,
+                in parallel to the existing <code>CSL</code> directory with the
+                Bluebell installation.
+            <li>
+                If you had installed the X-CSL FollowMe car manually, then remove
+                it now by deleting the <code>CARS</code> directory from
+                your <code>LiveTraffic/Resources/CSL</code> directory.
+            </li>
+            <li>
+                If you ever had trouble with "ghost planes" (seeing yellow labels
+                without aircraft) then likely your Bluebell CSL installation has been
+                damaged, possibly by the X-CSL installation. Recommendation is
+                to start over: Clear the <code>LiveTraffic/Resources/CSL</code>
+                directory and download the Bluebell package once again,
+                following the
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation#bluebell-obj8-csl-packages">installation documentation</a>.
+            </li>
+        </ul>
 
     <P>
         Resulting folder structure shall be:
