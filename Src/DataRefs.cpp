@@ -1898,7 +1898,8 @@ bool DataRefs::LoadConfigFile()
     assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
 
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31 } conv = CFG_NO_CONV;
+    unsigned long cfgFileVer = 0;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1945,8 +1946,24 @@ bool DataRefs::LoadConfigFile()
         // Any pre-v3 version?
         if (ln[1][0] < '3')
             conv = CFG_V3;
-        else if (ln[1] < "3.1")
-            conv = CFG_V31;
+        else {
+            // we expect a version number with 3 parts...but we'll be careful
+            std::regex reVerNum ("(\\d+)\\.(\\d+)\\.(\\d+)");
+            std::smatch m;
+            std::regex_search(ln[1], m, reVerNum);
+            if (m.size() >= 2)
+                cfgFileVer = std::stoul(m[1]) * 10000;
+            if (m.size() >= 3)
+                cfgFileVer += std::stoul(m[2]) * 100;
+            if (m.size() >= 4)
+                cfgFileVer += std::stoul(m[3]);
+            
+            // any conversions required?
+            if (cfgFileVer < 30100)         // < 3.1.0
+                conv = CFG_V31;
+            else if (cfgFileVer < 30301)    // < 3.3.1
+                conv = CFG_V331;
+        }
     }
     
     // *** Delete LiveTraffic_imgui.prf? ***
@@ -1993,8 +2010,12 @@ bool DataRefs::LoadConfigFile()
                 // conversion of older config file formats
                 switch (conv) {
                     case CFG_NO_CONV:
-                    case CFG_V31: break;
+                        break;
+                    case CFG_V331:
+                    case CFG_V31:
                     case CFG_V3:
+                        // We "forgot" to change the default to 49005 for fresh installations,
+                        // so we need to convert the port all the way up to v3.3.1:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
                             // With v3 preferred port changes from 49003 to 49005
                             if (sVal == "49003")

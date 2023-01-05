@@ -685,7 +685,7 @@ protected:
     int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
     int rtListenPort    = 10747;        // port opened for RT to connect
-    int rtTrafficPort   = 49003;        // UDP Port receiving traffic
+    int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
