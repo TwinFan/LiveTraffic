@@ -726,6 +726,11 @@ public:
     
 // MARK: Public members
 public:
+    /// X-Plane version information
+    int xpVer = 0;
+    int xplmVer = 0;
+    std::string sXpVer;
+    
     /// once per Flarm a/c type: matching it to one or more ICAO types
     std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
 
@@ -770,6 +775,7 @@ protected:
     static positionTy lastCamPos;               ///< cached read camera position
     float       lastNetwTime    = 0.0f;         ///< cached network time
     double      lastSimTime     = NAN;          ///< cached simulated time
+    unsigned long lastXPSimTime_ms = 0;         ///< X-Plane's simulated time in milliseconds since the Unix epoch
     bool        lastReplay      = true;         ///< cached: is replay mode?
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
@@ -796,9 +802,14 @@ public:
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
     inline bool  IsVREnabled() const            { return lastVREnabled; }
 
-    inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
-    inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
-    inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
+    bool IsUsingSystemTime() const              { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]); }
+    int GetLocalDateDays() const                { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
+    float GetLocalTimeSec() const               { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
+    float GetZuluTimeSec() const                { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
+    unsigned long GetXPSimTime_ms() const       { return lastXPSimTime_ms; }
+    void UpdateXPSimTime();                     ///< Calculate X-Plane's current simulation time as Unix epoch time in milliseconds (Java timestamp)
+    std::string GetXPSimTimeStr() const;        ///< Return a nicely formated time string with XP's simulated time in UTC
+    
     void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
 

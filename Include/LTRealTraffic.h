@@ -47,10 +47,10 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_LAST_RCVD        " | last: %lds ago"
-#define MSG_RT_ADJUST           " | historic traffic from %s ago"
+#define MSG_RT_ADJUST           " | historic traffic from %s"
 
 #define INFO_RT_REAL_TIME       "RealTraffic: Tracking data is real-time again."
-#define INFO_RT_ADJUST_TS       "RealTraffic: Detected tracking data from %s in the past, will adjust them to display now."
+#define INFO_RT_ADJUST_TS       "RealTraffic: Receive and display past tracking data from %s"
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
 #define ERR_RT_WEATHER_QNH      "RealTraffic reports unreasonable QNH %ld - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
@@ -247,8 +247,11 @@ protected:
     static void tcpConnectionS (RealTrafficConnection* me) { me->tcpConnection();}
     bool StopTcpConnection ();
 
-    void SendPos (const positionTy& pos, double speed_m);
-    void SendUsersPlanePos();
+    void SendMsg (const char* msg);                         ///< Send and log a message to RealTraffic
+    void SendTime (unsigned long ts);                       ///< Send a timestamp to RealTraffic
+    void SendXPSimTime();                                   ///< Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
+    void SendPos (const positionTy& pos, double speed_m);   ///< Send position/speed info for own ship to RealTraffic
+    void SendUsersPlanePos();                               ///< Send user's plane's position/speed to RealTraffic
 
     // MARK: UDP
     // UDP Listen: the main function for receiving UDP broadcasts

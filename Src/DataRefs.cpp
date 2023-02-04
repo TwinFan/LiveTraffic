@@ -779,6 +779,13 @@ bool DataRefs::Init ()
     XPLMGetSystemPath ( aszPath );
     XPSystemPath = aszPath;
     
+    // XP Version
+    XPLMGetVersions(&xpVer, &xplmVer, nullptr);
+    snprintf(aszPath, sizeof(aszPath), "X-Plane %d.%02d",
+             xpVer / 1000,
+             ((xpVer) / 10) % 100);
+    sXpVer = aszPath;
+    
     // Directory Separator provided by XP
     DirSeparator = XPLMGetDirectorySeparator();
     
@@ -997,6 +1004,98 @@ float DataRefs::GetMiscNetwTime() const
         return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
     else
         return lastNetwTime;
+}
+
+
+// Calculates X-Plane's current simulation time as Unix epoch time in milliseconds (Java timestamp)
+/// @details Complication:
+///          X-Plane provides _local_ data and time,
+///          but only zulu time, no date, but zulu date can easily differ
+///          from local date. So from user position's longitude we need to guess
+///          if zulu data is before, on, or after local date.
+void DataRefs::UpdateXPSimTime()
+{
+    // convert all numbers right away to milliseconds as we need that in the end anyway
+    // and that way we preserve the meaning of the fractional seconds coming from X-Plane
+    constexpr long DAY_MS = 24L * 60L * 60L * 1000L;
+    long t = (long)(GetLocalDateDays()) * DAY_MS;
+    const long localTime = long(GetLocalTimeSec() * 1000.0f);
+    const long zuluTime =  long(GetZuluTimeSec()  * 1000.0f);
+    // if local and zulu time are different at all (testing for more than one minute difference)
+    if (std::labs(localTime - zuluTime) > 60000L) {
+        // Eastern hemisphere? -> Zulu is _behind_ local time
+        if (lastUsersPlanePos.lon() > 0.0) {
+            // but if the local Zulu time component is actually _ahead of_ local time, then need to decrement zulu date
+            if (zuluTime > localTime)
+                t -= DAY_MS;
+        } else {
+            // Western hemisphere -> Zulu is _ahead of_ local time
+            // but if the zulu time component is actually _behind_ local time, then need to increment zulu date
+            if (zuluTime < localTime)
+                t += DAY_MS;
+        }
+    }
+    // Now t is date in zulu days, just add time component
+    t += zuluTime;
+    
+    // Last thing to do: Add the beginning of the right year to it
+    // Complications: X-Plane has no notion of a "year", it just returns days since start of the year
+    //                X-Plane offers only 28 days for February, so it runs on a 365d year
+    //                If the day of the year is past current real life day of year, then assume "last year"
+    //                But: What do we do with leap years in reality???
+    
+    // Find this year's beginning
+    time_t now;
+    std::tm tm;
+    time(&now);                     // today, actually 'now'
+    gmtime_s(&tm, &now);
+    tm.tm_yday = 0;                 // set to 01-JAN of 'this year'
+    tm.tm_mday = 1;
+    tm.tm_mon = 0;
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+    tm.tm_isdst = 0;
+    time_t jan01 = mktime_utc(tm);  // convert 01-JAN back to Unix epoch
+    
+    // Convert to milliseconds, then add to our result
+    t += long(jan01) * 1000L;
+    
+    // if t is now (more than 1s) in the future, then we reduce t by an entire year,
+    // supposingly pointing to the same day last year
+    if (t > long(now+1) * 1000L) {
+        // Save a date representation of what we computed so far in the future
+        time_t unix_t = time_t(t / 1000L);
+        std::tm tm_future;
+        gmtime_s(&tm_future, &unix_t);
+        
+        // reduce by 365 days
+        t -= 365 * DAY_MS;
+        
+        // Would we need to skip over a leap year's 29th Feb?
+        // Goal is: We need to end up on the same day of the month,
+        //          so convert back to calendar days and let's check
+        unix_t = time_t(t / 1000L);
+        gmtime_s(&tm, &unix_t);
+        // If day of month don't agree then reduce by another day to cover leap day
+        if (tm.tm_mday != tm_future.tm_mday)
+            t -= DAY_MS;
+    }
+    
+    // Done: store as our last calculate value
+    lastXPSimTime_ms = (unsigned long)t;
+}
+
+
+// Return a nicely formated time string with XP's simulated time in UTC
+std::string DataRefs::GetXPSimTimeStr() const
+{
+    char s[100];
+    time_t xp_t = time_t(lastXPSimTime_ms / 1000L);
+    struct tm xp_tm;
+    gmtime_s(&xp_tm, &xp_t);
+    std::strftime(s, sizeof(s), "%Y-%m-%d %H:%M:%S UTC", &xp_tm);
+    return s;
 }
 
 /// Set the view type, translating from XPViewTypes to command ref needed
@@ -2375,6 +2474,7 @@ void DataRefs::UpdateCachedValues ()
     UpdateViewPos();
     UpdateUsersPlanePos();
     UpdateSimWind();
+    UpdateXPSimTime();
     ExportUserAcData();
 }
 
