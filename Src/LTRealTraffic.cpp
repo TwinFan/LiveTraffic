@@ -437,22 +437,32 @@ void RealTrafficConnection::SendMsg (const char* msg)
 
 // Send a timestamp to RealTraffic
 /// @details Format is Qs123=1674984782616, where the long number is the UTC epoch milliseconds of the simulator time.
-void RealTrafficConnection::SendTime (unsigned long ts)
+void RealTrafficConnection::SendTime (long long ts)
 {
     // format the string to send and send it out
     char s[50];
-    snprintf(s, sizeof(s), "Qs123=%lu\n", ts);
+    snprintf(s, sizeof(s), "Qs123=%lld\n", ts);
     SendMsg(s);
 }
 
 // Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
 void RealTrafficConnection::SendXPSimTime()
 {
-    SendTime(dataRefs.IsUsingSystemTime() ?         // if using system time
-             // then send system time directly to RealTraffic, no detour via X-plane
-             (unsigned long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() :
-             // otherwise send manually configured time to RealTraffic
-             dataRefs.GetXPSimTime_ms());
+    if (dataRefs.GetRTSTC() == STC_NO_CTRL)         // Configured to send nothing?
+        return;
+    
+    // Which time stamp to send?
+    long long ts;
+    if (dataRefs.IsUsingSystemTime()) {             // Sim is using system time, so send system time
+        ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    } else {
+        ts = dataRefs.GetXPSimTime_ms();            // else send simulated time
+        if (dataRefs.GetRTSTC() == STC_SIM_TIME_PLUS_BUFFER)
+            // add buffering period if requested, so planes match up with simulator time exactly instead of being delayed
+            ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
+    }
+    
+    SendTime(ts);
 }
 
 

@@ -559,6 +559,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -643,6 +644,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
+        case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
         case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
@@ -1017,12 +1019,12 @@ void DataRefs::UpdateXPSimTime()
 {
     // convert all numbers right away to milliseconds as we need that in the end anyway
     // and that way we preserve the meaning of the fractional seconds coming from X-Plane
-    constexpr long DAY_MS = 24L * 60L * 60L * 1000L;
-    long t = (long)(GetLocalDateDays()) * DAY_MS;
-    const long localTime = long(GetLocalTimeSec() * 1000.0f);
-    const long zuluTime =  long(GetZuluTimeSec()  * 1000.0f);
+    constexpr long long DAY_MS = 24LL * 60LL * 60LL * 1000LL;
+    long long t = (long long)(GetLocalDateDays()) * DAY_MS;
+    const long long localTime = (long long)(GetLocalTimeSec() * 1000.0f);
+    const long long zuluTime =  (long long)(GetZuluTimeSec()  * 1000.0f);
     // if local and zulu time are different at all (testing for more than one minute difference)
-    if (std::labs(localTime - zuluTime) > 60000L) {
+    if (std::llabs(localTime - zuluTime) > 60000LL) {
         // Eastern hemisphere? -> Zulu is _behind_ local time
         if (lastUsersPlanePos.lon() > 0.0) {
             // but if the local Zulu time component is actually _ahead of_ local time, then need to decrement zulu date
@@ -1059,23 +1061,23 @@ void DataRefs::UpdateXPSimTime()
     time_t jan01 = mktime_utc(tm);  // convert 01-JAN back to Unix epoch
     
     // Convert to milliseconds, then add to our result
-    t += long(jan01) * 1000L;
+    t += (long long)(jan01) * 1000LL;
     
     // if t is now (more than 1s) in the future, then we reduce t by an entire year,
     // supposingly pointing to the same day last year
-    if (t > long(now+1) * 1000L) {
+    if (t > (long long)(now+1) * 1000LL) {
         // Save a date representation of what we computed so far in the future
-        time_t unix_t = time_t(t / 1000L);
+        time_t unix_t = time_t(t / 1000LL);
         std::tm tm_future;
         gmtime_s(&tm_future, &unix_t);
         
         // reduce by 365 days
-        t -= 365 * DAY_MS;
+        t -= 365LL * DAY_MS;
         
         // Would we need to skip over a leap year's 29th Feb?
         // Goal is: We need to end up on the same day of the month,
         //          so convert back to calendar days and let's check
-        unix_t = time_t(t / 1000L);
+        unix_t = time_t(t / 1000LL);
         gmtime_s(&tm, &unix_t);
         // If day of month don't agree then reduce by another day to cover leap day
         if (tm.tm_mday != tm_future.tm_mday)
@@ -1083,7 +1085,7 @@ void DataRefs::UpdateXPSimTime()
     }
     
     // Done: store as our last calculate value
-    lastXPSimTime_ms = (unsigned long)t;
+    lastXPSimTime_ms = (long long)t;
 }
 
 
@@ -1712,6 +1714,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
+        rtSTC           < STC_NO_CTRL       || rtSTC            > STC_SIM_TIME_PLUS_BUFFER ||
         contrailAltMin_ft < 0               || contrailAltMin_ft> 90000 ||
         contrailAltMax_ft < 0               || contrailAltMax_ft> 90000 ||
         contrailLifeTime < 5                || contrailLifeTime >   300 ||

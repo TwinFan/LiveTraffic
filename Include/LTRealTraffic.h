@@ -248,7 +248,7 @@ protected:
     bool StopTcpConnection ();
 
     void SendMsg (const char* msg);                         ///< Send and log a message to RealTraffic
-    void SendTime (unsigned long ts);                       ///< Send a timestamp to RealTraffic
+    void SendTime (long long ts);                           ///< Send a timestamp to RealTraffic
     void SendXPSimTime();                                   ///< Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
     void SendPos (const positionTy& pos, double speed_m);   ///< Send position/speed info for own ship to RealTraffic
     void SendUsersPlanePos();                               ///< Send user's plane's position/speed to RealTraffic
