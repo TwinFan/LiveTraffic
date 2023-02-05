@@ -559,6 +559,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -643,6 +644,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
+        case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
         case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
@@ -778,6 +780,13 @@ bool DataRefs::Init ()
     char aszPath[512];
     XPLMGetSystemPath ( aszPath );
     XPSystemPath = aszPath;
+    
+    // XP Version
+    XPLMGetVersions(&xpVer, &xplmVer, nullptr);
+    snprintf(aszPath, sizeof(aszPath), "X-Plane %d.%02d",
+             xpVer / 1000,
+             ((xpVer) / 10) % 100);
+    sXpVer = aszPath;
     
     // Directory Separator provided by XP
     DirSeparator = XPLMGetDirectorySeparator();
@@ -997,6 +1006,98 @@ float DataRefs::GetMiscNetwTime() const
         return XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
     else
         return lastNetwTime;
+}
+
+
+// Calculates X-Plane's current simulation time as Unix epoch time in milliseconds (Java timestamp)
+/// @details Complication:
+///          X-Plane provides _local_ data and time,
+///          but only zulu time, no date, but zulu date can easily differ
+///          from local date. So from user position's longitude we need to guess
+///          if zulu data is before, on, or after local date.
+void DataRefs::UpdateXPSimTime()
+{
+    // convert all numbers right away to milliseconds as we need that in the end anyway
+    // and that way we preserve the meaning of the fractional seconds coming from X-Plane
+    constexpr long long DAY_MS = 24LL * 60LL * 60LL * 1000LL;
+    long long t = (long long)(GetLocalDateDays()) * DAY_MS;
+    const long long localTime = (long long)(GetLocalTimeSec() * 1000.0f);
+    const long long zuluTime =  (long long)(GetZuluTimeSec()  * 1000.0f);
+    // if local and zulu time are different at all (testing for more than one minute difference)
+    if (std::llabs(localTime - zuluTime) > 60000LL) {
+        // Eastern hemisphere? -> Zulu is _behind_ local time
+        if (lastUsersPlanePos.lon() > 0.0) {
+            // but if the local Zulu time component is actually _ahead of_ local time, then need to decrement zulu date
+            if (zuluTime > localTime)
+                t -= DAY_MS;
+        } else {
+            // Western hemisphere -> Zulu is _ahead of_ local time
+            // but if the zulu time component is actually _behind_ local time, then need to increment zulu date
+            if (zuluTime < localTime)
+                t += DAY_MS;
+        }
+    }
+    // Now t is date in zulu days, just add time component
+    t += zuluTime;
+    
+    // Last thing to do: Add the beginning of the right year to it
+    // Complications: X-Plane has no notion of a "year", it just returns days since start of the year
+    //                X-Plane offers only 28 days for February, so it runs on a 365d year
+    //                If the day of the year is past current real life day of year, then assume "last year"
+    //                But: What do we do with leap years in reality???
+    
+    // Find this year's beginning
+    time_t now;
+    std::tm tm;
+    time(&now);                     // today, actually 'now'
+    gmtime_s(&tm, &now);
+    tm.tm_yday = 0;                 // set to 01-JAN of 'this year'
+    tm.tm_mday = 1;
+    tm.tm_mon = 0;
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
+    tm.tm_isdst = 0;
+    time_t jan01 = mktime_utc(tm);  // convert 01-JAN back to Unix epoch
+    
+    // Convert to milliseconds, then add to our result
+    t += (long long)(jan01) * 1000LL;
+    
+    // if t is now (more than 1s) in the future, then we reduce t by an entire year,
+    // supposingly pointing to the same day last year
+    if (t > (long long)(now+1) * 1000LL) {
+        // Save a date representation of what we computed so far in the future
+        time_t unix_t = time_t(t / 1000LL);
+        std::tm tm_future;
+        gmtime_s(&tm_future, &unix_t);
+        
+        // reduce by 365 days
+        t -= 365LL * DAY_MS;
+        
+        // Would we need to skip over a leap year's 29th Feb?
+        // Goal is: We need to end up on the same day of the month,
+        //          so convert back to calendar days and let's check
+        unix_t = time_t(t / 1000LL);
+        gmtime_s(&tm, &unix_t);
+        // If day of month don't agree then reduce by another day to cover leap day
+        if (tm.tm_mday != tm_future.tm_mday)
+            t -= DAY_MS;
+    }
+    
+    // Done: store as our last calculate value
+    lastXPSimTime_ms = (long long)t;
+}
+
+
+// Return a nicely formated time string with XP's simulated time in UTC
+std::string DataRefs::GetXPSimTimeStr() const
+{
+    char s[100];
+    time_t xp_t = time_t(lastXPSimTime_ms / 1000L);
+    struct tm xp_tm;
+    gmtime_s(&xp_tm, &xp_t);
+    std::strftime(s, sizeof(s), "%Y-%m-%d %H:%M:%S UTC", &xp_tm);
+    return s;
 }
 
 /// Set the view type, translating from XPViewTypes to command ref needed
@@ -1613,6 +1714,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
+        rtSTC           < STC_NO_CTRL       || rtSTC            > STC_SIM_TIME_PLUS_BUFFER ||
         contrailAltMin_ft < 0               || contrailAltMin_ft> 90000 ||
         contrailAltMax_ft < 0               || contrailAltMax_ft> 90000 ||
         contrailLifeTime < 5                || contrailLifeTime >   300 ||
@@ -1898,7 +2000,8 @@ bool DataRefs::LoadConfigFile()
     assert (aFlarmToIcaoAcTy.size() == size_t(FAT_UAV)+1);
 
     // which conversion to do with the (older) version of the config file?
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31 } conv = CFG_NO_CONV;
+    unsigned long cfgFileVer = 0;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -1945,8 +2048,24 @@ bool DataRefs::LoadConfigFile()
         // Any pre-v3 version?
         if (ln[1][0] < '3')
             conv = CFG_V3;
-        else if (ln[1] < "3.1")
-            conv = CFG_V31;
+        else {
+            // we expect a version number with 3 parts...but we'll be careful
+            std::regex reVerNum ("(\\d+)\\.(\\d+)\\.(\\d+)");
+            std::smatch m;
+            std::regex_search(ln[1], m, reVerNum);
+            if (m.size() >= 2)
+                cfgFileVer = std::stoul(m[1]) * 10000;
+            if (m.size() >= 3)
+                cfgFileVer += std::stoul(m[2]) * 100;
+            if (m.size() >= 4)
+                cfgFileVer += std::stoul(m[3]);
+            
+            // any conversions required?
+            if (cfgFileVer < 30100)         // < 3.1.0
+                conv = CFG_V31;
+            else if (cfgFileVer < 30301)    // < 3.3.1
+                conv = CFG_V331;
+        }
     }
     
     // *** Delete LiveTraffic_imgui.prf? ***
@@ -1993,8 +2112,12 @@ bool DataRefs::LoadConfigFile()
                 // conversion of older config file formats
                 switch (conv) {
                     case CFG_NO_CONV:
-                    case CFG_V31: break;
+                        break;
+                    case CFG_V331:
+                    case CFG_V31:
                     case CFG_V3:
+                        // We "forgot" to change the default to 49005 for fresh installations,
+                        // so we need to convert the port all the way up to v3.3.1:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
                             // With v3 preferred port changes from 49003 to 49005
                             if (sVal == "49003")
@@ -2354,6 +2477,7 @@ void DataRefs::UpdateCachedValues ()
     UpdateViewPos();
     UpdateUsersPlanePos();
     UpdateSimWind();
+    UpdateXPSimTime();
     ExportUserAcData();
 }
 

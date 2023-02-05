@@ -405,6 +405,7 @@ enum dataRefsLT {
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
+    DR_CFG_RT_SIM_TIME_CTRL,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
     DR_CFG_FF_SEND_TRAFFIC,
@@ -442,6 +443,14 @@ enum exportFDFormat {
     EXP_FD_AITFC = 1,                   ///< use AITFC format, the older shorter format
     EXP_FD_RTTFC,                       ///< user RTTFC format, introduced with RealTraffic v9
 };
+
+/// Which simulator time to send to RealTraffic?
+enum SimTimeCtrlTy : int {
+    STC_NO_CTRL = 0,                    ///< Don't send any sim time
+    STC_SIM_TIME,                       ///< Send current sim time unchanged
+    STC_SIM_TIME_PLUS_BUFFER,           ///< Send current sim time plus buffering period, so that the traffic, when it appears, matches up with current sim time
+};
+
 
 // first/last channel; number of channels:
 constexpr int DR_CHANNEL_FIRST  = DR_CHANNEL_FUTUREDATACHN_ONLINE;
@@ -685,8 +694,9 @@ protected:
     int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
     int rtListenPort    = 10747;        // port opened for RT to connect
-    int rtTrafficPort   = 49003;        // UDP Port receiving traffic
+    int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
+    SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
@@ -726,6 +736,11 @@ public:
     
 // MARK: Public members
 public:
+    /// X-Plane version information
+    int xpVer = 0;
+    int xplmVer = 0;
+    std::string sXpVer;
+    
     /// once per Flarm a/c type: matching it to one or more ICAO types
     std::array<std::vector<std::string>, 14> aFlarmToIcaoAcTy;
 
@@ -770,6 +785,7 @@ protected:
     static positionTy lastCamPos;               ///< cached read camera position
     float       lastNetwTime    = 0.0f;         ///< cached network time
     double      lastSimTime     = NAN;          ///< cached simulated time
+    long long   lastXPSimTime_ms = 0;           ///< X-Plane's simulated time in milliseconds since the Unix epoch
     bool        lastReplay      = true;         ///< cached: is replay mode?
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
@@ -796,9 +812,14 @@ public:
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
     inline bool  IsVREnabled() const            { return lastVREnabled; }
 
-    inline void SetLocalDateDays(int days)      { XPLMSetDatai(adrXP[DR_LOCAL_DATE_DAYS], days); }
-    inline void SetUseSystemTime(bool bSys)     { XPLMSetDatai(adrXP[DR_USE_SYSTEM_TIME], (int)bSys); }
-    inline void SetZuluTimeSec(float sec)       { XPLMSetDataf(adrXP[DR_ZULU_TIME_SEC], sec); }
+    bool IsUsingSystemTime() const              { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]); }
+    int GetLocalDateDays() const                { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
+    float GetLocalTimeSec() const               { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
+    float GetZuluTimeSec() const                { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
+    long long GetXPSimTime_ms() const           { return lastXPSimTime_ms; }
+    void UpdateXPSimTime();                     ///< Calculate X-Plane's current simulation time as Unix epoch time in milliseconds (Java timestamp)
+    std::string GetXPSimTimeStr() const;        ///< Return a nicely formated time string with XP's simulated time in UTC
+    
     void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
 
@@ -934,6 +955,7 @@ public:
     void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
     
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
+    SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)

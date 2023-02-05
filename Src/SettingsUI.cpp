@@ -498,6 +498,15 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
+                if (ImGui::FilteredLabel("Simulator Time Control", sFilter)) {
+                    const float cbWidth = ImGui::CalcTextSize("Send Sim Time plus Buffering Period (default)_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetRTSTC();
+                    if (ImGui::Combo("##RTSTC", &n, "Don't send Simulator Time\0Send Simulator Time unchanged\0Send Sim Time plus Buffering Period (default)\0", 3))
+                        DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL].setData(n);
+                    ImGui::TableNextCell();
+                }
+
                 if (!*sFilter) ImGui::TreePop();
             }
             

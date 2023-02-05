@@ -476,6 +476,26 @@ void InfoListWnd::buildInterface()
 
                     ImGui::TreePop();
                 }
+                
+                // X-Plane Version info
+                if (ImGui::TreeNode(dataRefs.sXpVer.c_str())) {
+                    if (ImGui::BeginTable("X-Plane Version Info", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
+                        ImGui::TableNextRow();
+                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("X-Plane Version");
+                        if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.xpVer);
+                        ImGui::TableNextRow();
+                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("XPLM Version");
+                        if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.xplmVer);
+                        ImGui::TableNextRow();
+                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Sim Time");
+                        if (ImGui::TableSetColumnIndex(1))
+                            ImGui::Text("%s (%s)",
+                                        dataRefs.GetXPSimTimeStr().c_str(),
+                                        dataRefs.IsUsingSystemTime() ? "live" : "user setting");
+                        ImGui::EndTable();
+                    }
+                    ImGui::TreePop();
+                }
 
                 // Credits
                 if (ImGui::TreeNode("Credits")) {

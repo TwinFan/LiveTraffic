@@ -55,7 +55,7 @@ RealTrafficConnection::~RealTrafficConnection ()
         
 // Does not actually fetch data (the UDP thread does that) but
 // 1. Starts the connections
-// 2. updates the RealTraffic local server with out current position
+// 2. updates the RealTraffic local server with out current position and time
 // 3. cleans up map of datagrams for duplicate check
 bool RealTrafficConnection::FetchAllData(const positionTy& pos)
 {
@@ -75,7 +75,8 @@ bool RealTrafficConnection::FetchAllData(const positionTy& pos)
     // do anything only in a normal status
     if (IsConnected())
     {
-        // Send current position
+        // Send current position and time
+        SendXPSimTime();
         SendUsersPlanePos();
         
         // cleanup map of last datagrams
@@ -264,7 +265,7 @@ std::string RealTrafficConnection::GetStatusTextExt() const
     std::string s (GetStatusStr());
     
     if (IsConnected() && lastReceivedTime > 0.0) {
-        char sIntvl[50];
+        char sIntvl[100];
         // add when the last msg was received
         long intvl = std::lround(dataRefs.GetSimTime() - lastReceivedTime);
         snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,intvl);
@@ -370,7 +371,8 @@ void RealTrafficConnection::tcpConnection ()
         if (tcpPosSender.listenAccept()) {
             // so we did accept a connection!
             SetStatusTcp(true, false);
-            // send our first position
+            // send our simulated time and first position
+            SendXPSimTime();
             SendUsersPlanePos();
         }
         else
@@ -419,15 +421,57 @@ bool RealTrafficConnection::StopTcpConnection ()
 }
 
 
+// Send and log a message to RealTraffic
+void RealTrafficConnection::SendMsg (const char* msg)
+{
+    if (!tcpPosSender.IsConnected())
+    { LOG_MSG(logWARN,ERR_SOCK_NOTCONNECTED,ChName()); return; }
+        
+    // send the string
+    if (!tcpPosSender.send(msg)) {
+        LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
+        SetStatusTcp(false, true);
+    }
+    DebugLogRaw(msg);
+}
+
+// Send a timestamp to RealTraffic
+/// @details Format is Qs123=1674984782616, where the long number is the UTC epoch milliseconds of the simulator time.
+void RealTrafficConnection::SendTime (long long ts)
+{
+    // format the string to send and send it out
+    char s[50];
+    snprintf(s, sizeof(s), "Qs123=%lld\n", ts);
+    SendMsg(s);
+}
+
+// Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
+void RealTrafficConnection::SendXPSimTime()
+{
+    if (dataRefs.GetRTSTC() == STC_NO_CTRL)         // Configured to send nothing?
+        return;
+    
+    // Which time stamp to send?
+    long long ts;
+    if (dataRefs.IsUsingSystemTime()) {             // Sim is using system time, so send system time
+        ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    } else {
+        ts = dataRefs.GetXPSimTime_ms();            // else send simulated time
+        if (dataRefs.GetRTSTC() == STC_SIM_TIME_PLUS_BUFFER)
+            // add buffering period if requested, so planes match up with simulator time exactly instead of being delayed
+            ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
+    }
+    
+    SendTime(ts);
+}
+
+
 // send position to RealTraffic so that RT knows which area
 // we are interested and to give us local weather
 // Example:
 // “Qs121=6747;289;5.449771266137578;37988724;501908;0.6564195830703577;-2.1443275933742236”
 void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 {
-    if (!tcpPosSender.IsConnected())
-    { LOG_MSG(logWARN,ERR_SOCK_NOTCONNECTED,ChName()); return; }
-        
     if (!pos.isFullyValid())
     { LOG_MSG(logWARN,ERR_SOCK_INV_POS,ChName()); return; }
 
@@ -444,12 +488,8 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
              deg2rad(pos.lon())                         // longitude
     );
     
-    // send the string
-    if (!tcpPosSender.send(s)) {
-        LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
-        SetStatusTcp(false, true);
-    }
-    DebugLogRaw(s);
+    // Send the message
+    SendMsg(s);
 }
 
 // send the position of the user's plane
@@ -1086,18 +1126,29 @@ void RealTrafficConnection::AdjustTimestamp (double& ts)
 // Return a string describing the current timestamp adjustment
 std::string RealTrafficConnection::GetAdjustTSText () const
 {
-    char timeTxt[25];
+    char timeTxt[100];
     if (tsAdjust < 300.0)               // less than 5 minutes: tell seconds
-        snprintf(timeTxt, sizeof(timeTxt), "%.0fs", tsAdjust);
+        snprintf(timeTxt, sizeof(timeTxt), "%.0fs ago", tsAdjust);
     else if (tsAdjust < 86400.0)        // less than 1 day
-        snprintf(timeTxt, sizeof(timeTxt), "%ld:%02ldh",
+        snprintf(timeTxt, sizeof(timeTxt), "%ld:%02ldh ago",
                  long(tsAdjust/3600.0),         // hours
                  long(tsAdjust/60.0) % 60);     // minutes
-    else
-        snprintf(timeTxt, sizeof(timeTxt), "%ldd %ld:%02ldh",
+    else {
+        // More than a day ago, compute full UTC time the data is from
+        struct tm tm;
+        time_t t;
+        time(&t);
+        t -= time_t(tsAdjust);
+        gmtime_s(&tm, &t);
+        
+        snprintf(timeTxt, sizeof(timeTxt), "%ldd %ld:%02ldh ago (%4d-%02d-%02d %02d:%02d UTC)",
                  long(tsAdjust/86400),          // days
                  long(tsAdjust/3600.0) % 24,    // hours
-                 long(tsAdjust/60.0) % 60);     // minutes
+                 long(tsAdjust/60.0) % 60,      // minutes
+                 // UTC timestamp
+                 tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+                 tm.tm_hour, tm.tm_min);
+    }
     return std::string(timeTxt);
 }
 
