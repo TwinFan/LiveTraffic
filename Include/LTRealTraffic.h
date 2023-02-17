@@ -39,7 +39,7 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 #define RT_LOCALHOST            "0.0.0.0"
-constexpr size_t RT_NET_BUF_SIZE    = 512;
+constexpr size_t RT_NET_BUF_SIZE    = 8192;
 
 constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
 constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
@@ -198,6 +198,7 @@ protected:
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     // weather, esp. current barometric pressure to correct altitude values
     std::string lastWeather;            // for duplicate detection
+    bool bWeatherErrHappened = false;   ///< Flag: Report UDP errors for weather just once
     /// rolling list of timestamp (diff to now) for detecting historic sending
     std::deque<double> dequeTS;
     /// current timestamp adjustment
