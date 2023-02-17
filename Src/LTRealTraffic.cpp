@@ -524,6 +524,7 @@ void RealTrafficConnection::udpListen ()
     try {
         // Open the UDP port
         bStopUdp = false;
+        bWeatherErrHappened = false;
         udpTrafficData.Open (RT_LOCALHOST,
                              port = DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
                              RT_NET_BUF_SIZE);
@@ -593,8 +594,14 @@ void RealTrafficConnection::udpListen ()
                     // have it processed
                     ProcessRecvedWeatherData(udpWeatherData.getBuf());
                 }
-                else
-                    retval = -1;
+                else {
+                    // Weather data isn't critical, so we silently swallow it
+                    retval = 0;
+                    if (!bWeatherErrHappened) {
+                        LOG_MSG(logERR, "RealTraffic: Error while trying to receive weather data (reported this once only)");
+                        bWeatherErrHappened = true;
+                    }
+                }
             }
             
             // short-cut if we are to shut down
