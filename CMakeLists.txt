@@ -18,7 +18,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.3.2
+        VERSION 3.3.3
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition
@@ -42,9 +42,10 @@ if (WIN32)
         set(ENV{platform} "win")
     endif()
 elseif(APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
-    add_compile_options(-mmacosx-version-min=11.0)
-    add_link_options(-mmacosx-version-min=11.0)
+    # MacOS 10.15 is minimum system requirement for X-Plane 12
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
+    add_compile_options(-mmacosx-version-min=10.15)
+    add_link_options(-mmacosx-version-min=10.15)
 endif()
 
 ################################################################################
