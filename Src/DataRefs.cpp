@@ -1751,7 +1751,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         if (volMaster == 0) {                       // Disable sound altogether
             XPMPSoundEnable(false);
         } else {                                    // Sound is (to be) enabled
-            if (!XPMPSoundIsEnabled())
+            if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
                 XPMPSoundEnable(true);
             XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
         }
