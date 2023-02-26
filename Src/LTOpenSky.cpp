@@ -279,9 +279,11 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 // position
+                const double baroAlt_m = jag_n_nan(pJAc, OPSKY_BARO_ALT);
+                const double geoAlt_m = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
                 positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
                                 jag_n_nan(pJAc, OPSKY_LON),
-                                dataRefs.WeatherAltCorr_m(jag_n_nan(pJAc, OPSKY_BARO_ALT)),
+                                geoAlt_m,
                                 posTime,
                                 dyn.heading);
                 pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;

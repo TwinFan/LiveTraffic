@@ -879,7 +879,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
             // Based on experience barometric altitude is more accurate, so we prefer it, although we need to convert with local pressure
             double alt = std::stod(tfc[RT_RTTFC_ALT_BARO]);
             if (alt > 0.0)
-                pos.SetAltFt(dataRefs.WeatherAltCorr_ft(alt));
+                pos.SetAltFt(BaroAltToGeoAlt_ft(alt, dataRefs.GetPressureHPA()));
             // Otherwise we try using geometric altitude
             else
                 if ((alt = std::stod(tfc[RT_RTTFC_ALT_GEOM])) > 0.0)
@@ -1046,7 +1046,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         } else {
             // probably not on gnd, so take care of altitude
             // altitude comes without local pressure applied
-            pos.SetAltFt(dataRefs.WeatherAltCorr_ft(std::stod(tfc[RT_AITFC_ALT])));
+            pos.SetAltFt(BaroAltToGeoAlt_ft(std::stod(tfc[RT_AITFC_ALT]), dataRefs.GetPressureHPA()));
         }
         
         // don't forget gnd-flag in position

@@ -1206,7 +1206,7 @@ void DataRefs::ExportUserAcData()
             snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
                      modeS_ID,                                                              // hexid
                      lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),                      // lat, lon
-                     nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())), // alt
+                     nanToZero(GeoAltToBaroAlt_ft(lastUsersPlanePos.alt_ft(), dataRefs.GetPressureHPA())), // alt
                      XPLMGetDataf(adrXP[DR_PLANE_VVI]),                                     // vs
                      (lastUsersPlanePos.IsOnGnd() ? '0' : '1'),                             // airborne
                      lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,   // hdg, spd
@@ -1226,7 +1226,7 @@ void DataRefs::ExportUserAcData()
                      // equivalent to AITFC
                      modeS_ID,                                                              // hexid
                      lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),                      // lat, lon
-                     nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())), // baro_alt
+                     nanToZero(GeoAltToBaroAlt_ft(lastUsersPlanePos.alt_ft(), dataRefs.GetPressureHPA())), // baro_alt
                      XPLMGetDataf(adrXP[DR_PLANE_VVI]),                                     // baro_rate
                      (lastUsersPlanePos.IsOnGnd() ? '1' : '0'),                             // gnd
                      lastUsersTrack, XPLMGetDataf(adrXP[DR_PLANE_GS]) * KT_per_M_per_S,     // track, gsp
@@ -2669,8 +2669,7 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
     // protected against reads from the main thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
     
-    // Compute the new altitude correction and save its position and time
-    altPressCorr_ft = (hPa - HPA_STANDARD) * FT_per_HPA;
+    // Save weather position and time
     lastWeatherPos = GetViewPos();              // here and...
     lastWeatherUpd = GetMiscNetwTime();         // ...now
     lastWeatherStationId = stationId;
