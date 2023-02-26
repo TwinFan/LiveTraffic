@@ -591,7 +591,7 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
                 }
             }
             // Replace type GRND with our default car type, too
-            else if (statDat.acTypeIcao == "GRND")
+            else if (statDat.acTypeIcao == "GRND" || statDat.acTypeIcao == "GND")
                 statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
         }
         
