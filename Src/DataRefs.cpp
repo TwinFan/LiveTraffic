@@ -571,7 +571,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },

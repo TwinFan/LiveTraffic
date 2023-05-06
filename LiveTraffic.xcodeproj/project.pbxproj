@@ -11,6 +11,7 @@
 		251284AF274D829500B0F51A /* base64.c in Sources */ = {isa = PBXBuildFile; fileRef = 251284AE274D829500B0F51A /* base64.c */; };
 		2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */; };
 		2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41F248D022B00F18B76 /* LTImgWindow.cpp */; };
+		251ED8862A02CC1B00274897 /* LTADSBHub.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 251ED8852A02CC1B00274897 /* LTADSBHub.cpp */; };
 		254F278924EF230400CACCDA /* LTWeather.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 254F278824EF230400CACCDA /* LTWeather.cpp */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
 		25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25624BD923B014F600B899E1 /* LTApt.cpp */; };
@@ -77,6 +78,8 @@
 		2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_stdlib.cpp; sourceTree = "<group>"; };
 		2515F41E248CF59C00F18B76 /* LTImgWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTImgWindow.h; sourceTree = "<group>"; };
 		2515F41F248D022B00F18B76 /* LTImgWindow.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTImgWindow.cpp; sourceTree = "<group>"; };
+		251ED8842A02CA1D00274897 /* LTADSBHub.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTADSBHub.h; sourceTree = "<group>"; };
+		251ED8852A02CC1B00274897 /* LTADSBHub.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTADSBHub.cpp; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
 		25364221221755B1000DC56F /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		253C08C92761489D0011CCEE /* FSCharter */ = {isa = PBXFileReference; lastKnownFileType = folder; path = FSCharter; sourceTree = "<group>"; };
@@ -292,6 +295,7 @@
 				25C5254324D0268700C73482 /* InfoListWnd.cpp */,
 				D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */,
 				2573631E22233CDA005210C5 /* LTADSBEx.cpp */,
+				251ED8852A02CC1B00274897 /* LTADSBHub.cpp */,
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
 				25624BD923B014F600B899E1 /* LTApt.cpp */,
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
@@ -425,6 +429,7 @@
 				25C5254224D0264700C73482 /* InfoListWnd.h */,
 				25A095C82203B01300658AA8 /* LiveTraffic.h */,
 				2573631D22233CCA005210C5 /* LTADSBEx.h */,
+				251ED8842A02CA1D00274897 /* LTADSBHub.h */,
 				25A095C92203B01300658AA8 /* LTAircraft.h */,
 				25624BDB23B0150300B899E1 /* LTApt.h */,
 				25A095C22203B01300658AA8 /* LTChannel.h */,
@@ -666,6 +671,7 @@
 				256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */,
 				2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
+				251ED8862A02CC1B00274897 /* LTADSBHub.cpp in Sources */,
 				259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */,
 				2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */,
 				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
@@ -717,13 +723,11 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Developer ID Application: Birger Hoppe (W5UR4ZV2BP)";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2.05;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
@@ -785,8 +789,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 3;
-				LIVETRAFFIC_VER_MINOR = 3;
-				LIVETRAFFIC_VER_PATCH = 3;
+				LIVETRAFFIC_VER_MINOR = 4;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -827,12 +831,10 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Developer ID Application: Birger Hoppe (W5UR4ZV2BP)";
 				CURRENT_PROJECT_VERSION = 2.05;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
@@ -893,8 +895,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 3;
-				LIVETRAFFIC_VER_MINOR = 3;
-				LIVETRAFFIC_VER_PATCH = 3;
+				LIVETRAFFIC_VER_MINOR = 4;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
