@@ -66,6 +66,9 @@ protected:
         FMT_NULL_DATA,              ///< Received null data, indicative of wrong configuration
     } eFormat = FMT_UNKNOWN;        ///< ADSBHub format that we receive
     
+    /// Time of last received data
+    std::chrono::time_point<std::chrono::steady_clock> lastData;
+    
     /// Incomplete line/data left over from previous message
     std::string lnLeftOver;
     

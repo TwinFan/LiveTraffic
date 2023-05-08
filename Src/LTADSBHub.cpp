@@ -70,7 +70,7 @@ std::string ADSBHubConnection::GetStatusText () const
     // Let's start with the standard text
     std::string s (LTChannel::GetStatusText());
     // add format of data being received
-    if (eFormat == FMT_NULL_DATA) {
+    if (!IsValid() && eFormat == FMT_NULL_DATA) {
         s += ", had received no data, verify ADSBHub 'Data Access' configuration!";
         if (!sPublicIPv4addr.empty()) {
             s += " Your public IP address appears to be ";
@@ -82,6 +82,13 @@ std::string ADSBHubConnection::GetStatusText () const
             case FMT_SBS:       s += ", receiving SBS format"; break;
             case FMT_ComprVRS:  s += ", receiving Compressed VRS format"; break;
             default:            s += ", connecting...";
+        }
+        // add time since last data
+        if (lastData != std::chrono::time_point<std::chrono::steady_clock>()) {
+            char t[100];
+            std::chrono::duration<double> diff = std::chrono::steady_clock::now() - lastData;
+            snprintf(t, sizeof(t), ", last data %.1fs ago", diff.count());
+            s += t;
         }
     }
     return s;
@@ -157,6 +164,7 @@ void ADSBHubConnection::StreamMain ()
                     }
                     
                     // have it processed
+                    lastData = std::chrono::steady_clock::now();
                     switch (eFormat) {
                         case FMT_SBS:
                             if (!StreamProcessDataSBS(size_t(rcvdBytes), tcpStream.getBuf()))
@@ -647,6 +655,7 @@ void ADSBHubConnection::StreamStart ()
     if (!thrStream.joinable()) {
         LOG_MSG(logDEBUG, "Starting ADSBHub thread...");
         eFormat = FMT_UNKNOWN;
+        lastData = std::chrono::time_point<std::chrono::steady_clock>();
         bStopThr = false;
         thrStream = std::thread(&ADSBHubConnection::StreamMain, this);
     }
