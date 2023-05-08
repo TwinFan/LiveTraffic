@@ -163,7 +163,7 @@ void ADSBHubConnection::StreamMain ()
                                 throw NetRuntimeError("StreamProcessDataSBS failed");
                             break;
                         case FMT_ComprVRS:
-                            if (!StreamProcessDataVRS(size_t(rcvdBytes), tcpStream.getBuf()))
+                            if (!StreamProcessDataVRS(size_t(rcvdBytes), (const uint8_t*)tcpStream.getBuf()))
                                 throw NetRuntimeError("StreamProcessDataVRS failed");
                             break;
                         case FMT_NULL_DATA:
@@ -265,6 +265,8 @@ std::string readToken (const char* &pStart, const char* pEnd, char sep = ',')
 
 
 #define TEST_END(s) if (pStart > pEnd) { LOG_MSG(logERR, "Line too short, " s ); return false; }
+
+#define TEST_LEN(l,s) if ((pStart + l-1) > pEnd) { LOG_MSG(logERR, "Line too short for next value " s ); return false; }
 
 /// @brief Process a single line of SBS data
 /// @see http://woodair.net/sbs/article/barebones42_socket_data.htm
@@ -372,16 +374,223 @@ bool ADSBHubConnection::StreamProcessDataSBSLine (const char* pStart, const char
 }
 
 // Process received Compressed VRS data
-bool ADSBHubConnection::StreamProcessDataVRS (size_t num, const char* buffer)
+bool ADSBHubConnection::StreamProcessDataVRS (size_t num, const uint8_t* buffer)
 {
+    // Start / length of line
+    const uint8_t* pStart = buffer;
+    size_t len = 0;
+    
+    // Something left over from previous message?
+    if (!lnLeftOver.empty()) {
+        // add missing bytes from this current message
+        len = size_t(lnLeftOver[0]);
+        assert(len > lnLeftOver.length());
+        const size_t lenMissing = len - lnLeftOver.length();
+        
+        // Current message doesn't have all the remainder??? (shouldn't happen...)
+        if (lenMissing > num) {
+            // add everything to the left-over-buffer...but then return and wait for next message
+            lnLeftOver.append((const char*)buffer, num);
+            return true;
+        }
+        
+        // rest of line available now in current message
+        lnLeftOver.append((const char*)buffer, lenMissing);
+        if (!StreamProcessDataVRSLine((const uint8_t*)lnLeftOver.data()) && !IncErrCnt())
+        {
+            lnLeftOver.clear();             // too many errors -> bail
+            return false;
+        }
+        lnLeftOver.clear();                 // we've processed the remainder just now
+        
+        // eat the remainder that we had just processed
+        num -= lenMissing;
+        pStart += lenMissing;
+    }
+    
+    // Process all (complete) lines of C-VRS data
+    len = size_t(pStart[0]);
+    while (len <= num)
+    {
+        // Process the current line
+        if (!StreamProcessDataVRSLine(pStart) && !IncErrCnt())
+        {
+            return false;                   // too many errors, bail
+        }
+        
+        // advance to next line
+        pStart += len;
+        num -= len;
+        if (num <= 0)                       // processed complete message -> break out
+            break;
+        len = size_t(pStart[0]);
+    }
+    
+    // Anything left to remember for next turn?
+    if (num > 0)
+        lnLeftOver.append((const char*)pStart, num);
+    else
+        // If the entire network message _exactly_ ended with a full line then assume we're done completely and also process that last plane data
+        ProcessPlaneData();
+
     // Success
     return true;
+}
 
+std::string VRSString (const uint8_t* &pStart)
+{
+    size_t sLen = size_t(pStart[0]);
+    ++pStart;                           // eat the length byte
+    const char* pS = (const char*)pStart;
+    pStart += sLen;                     // eat the actual string
+    return std::string(pS, sLen);
+}
+
+long VRSFloatInt (const uint8_t* &pStart)
+{
+    long l = long((unsigned long)(pStart[0]) << 16 |
+                  (unsigned long)(pStart[1]) <<  8 |
+                  (unsigned long)(pStart[2]));
+    pStart += 3;                        // eat the number
+    // test for negative value
+    if (l & 0x800000) {
+        l &= 0x7fffffL;                 // remove the negative flag
+        l *= -1L;                       // make value negative
+    }
+    return l;
+}
+
+int VRSFloatShort (const uint8_t* &pStart)
+{
+    // this happens to just be a little endian signed 16 bit value with negative values as 1 complement
+    int16_t i = *((const int16_t*)pStart);
+    pStart += 2;
+    return i;
+}
+
+float VRSFloat (const uint8_t* &pStart)
+{
+    float f = NAN;
+    static_assert (sizeof(f) == 4);
+    memcpy(&f, pStart, 4);              // a float is just a standard IEEE 32bit float
+    pStart += 4;
+    return f;
+}
+
+unsigned VRSShort (const uint8_t* &pStart)
+{
+    unsigned u = unsigned(pStart[1]) << 8 |
+                 unsigned(pStart[0]);
+    pStart += 2;
+    return u;
+}
+
+/// @brief Process a single line of C-VRS data
+/// @see https://www.virtualradarserver.co.uk/Documentation/Formats/CompressedVrs.aspx
+bool ADSBHubConnection::StreamProcessDataVRSLine (const uint8_t* pStart)
+{
+    // end of line, based on fact that line length is stored in first byte
+    const size_t len = size_t(pStart[0]);
+    if (len < 10) {
+        LOG_MSG(logDEBUG, "Ignoring too short a message of length %d", int(len));
+        return false;
+    }
+    const uint8_t* const pEnd = pStart + len;
+    
+    // Skip over length, checksum, transmission type:
+    pStart += 4;
+    
+    // next 3 bytes is the ADS-B hex id
+    LTFlightData::FDKeyTy key (LTFlightData::KEY_ICAO,
+                               (unsigned long)(pStart[0]) << 16 |
+                               (unsigned long)(pStart[1]) <<  8 |
+                               (unsigned long)(pStart[2]));
+    pStart += 3;
+
+    // Change of plane? Then process previous data first before continuing
+    if (fdKey != key) {
+        ProcessPlaneData();
+        // New plane
+        fdKey = key;
+    }
+    
+    // remember list of fields and list of flags
+    uint8_t fields = pStart[0];
+    uint8_t flags  = pStart[1];
+    pStart += 2;
+    
+    // --- process fields ---
+    TEST_END("no fields processed")
+    
+    // Callsign
+    if (fields & 0x01) {
+        TEST_LEN(size_t(pStart[0]), "Call Sign");
+        stat.call = VRSString(pStart);
+    }
+
+    // Altitude
+    if (fields & 0x02) {
+        TEST_LEN(3, "Altitude");
+        pos.SetAltFt((double)VRSFloatInt(pStart));
+    }
+    
+    // Ground Speed
+    if (fields & 0x04) {
+        TEST_LEN(2, "Altitude");
+        dyn.spd = (double)VRSFloatShort(pStart);
+    }
+    
+    // Track * 10.0
+    if (fields & 0x08) {
+        TEST_LEN(2, "Track");
+        pos.heading() = dyn.heading = (double)VRSFloatShort(pStart) / 10.0;
+    }
+    
+    // Latitude
+    if (fields & 0x10) {
+        TEST_LEN(4, "Latitude");
+        pos.lat() = (double)VRSFloat(pStart);
+    }
+    
+    // Longitude
+    if (fields & 0x20) {
+        TEST_LEN(4, "Longitude");
+        pos.lon() = (double)VRSFloat(pStart);
+    }
+    
+    // Vertical Speed
+    if (fields & 0x40) {
+        TEST_LEN(2, "VSI");
+        dyn.vsi = (double)VRSFloatShort(pStart);
+    }
+    
+    // Squawk
+    if (fields & 0x80) {
+        TEST_LEN(2, "Squawk");
+        dyn.radar.code = (long)VRSShort(pStart);
+    }
+
+    // --- Flags ---
+    if (flags) {
+        TEST_LEN(1, "Flags");
+        // Only one we are interested in is 'On ground'
+        if (flags & 0x08) {
+            pos.f.onGrnd =
+                (pStart[0] & 0x08) ? GND_ON : GND_OFF;
+        }
+        ++pStart;
+    }
+    
+    return true;
 }
 
 /// Add the collected data for a plane to LiveTraffic's FlightData and reset the internal buffers
 void ADSBHubConnection::ProcessPlaneData ()
 {
+    // if no timestamp then assume "3s ago"
+    if (std::isnan(pos.ts()))
+        pos.ts() = GetSysTime() - 3.0;
+
     // Data collected?
     if (!fdKey.empty() && pos.isNormal(true))
     {

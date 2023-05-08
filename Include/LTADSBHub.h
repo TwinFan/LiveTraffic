@@ -100,8 +100,10 @@ protected:
     /// Process a single line of SBS data
     bool StreamProcessDataSBSLine (const char* pStart, const char* pEnd);
     /// Process received VRS data
-    bool StreamProcessDataVRS (size_t num, const char* buffer);
-    
+    bool StreamProcessDataVRS (size_t num, const uint8_t* buffer);
+    /// Process a single line of C-VRS data
+    bool StreamProcessDataVRSLine (const uint8_t* pStart);
+
     /// Add the collected data for a plane to LiveTraffic's FlightData and reset the internal buffers
     void ProcessPlaneData ();
 
