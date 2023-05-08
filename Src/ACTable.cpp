@@ -204,9 +204,22 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         // We can try finding some positional information in the pos deque
         const dequePositionTy& posDeque = fd.GetPosDeque();
         if (!posDeque.empty()) {
-            v_f(ACT_COL_LAT,    "%.4f",     posDeque.front().lat());
-            v_f(ACT_COL_LON,    "%.4f",     posDeque.front().lon());
-            v_f(ACT_COL_ALT,    "%.f",      posDeque.front().alt_ft());
+            const positionTy& firstPos = posDeque.front();
+            v_f(ACT_COL_LAT,    "%.4f",     firstPos.lat());
+            v_f(ACT_COL_LON,    "%.4f",     firstPos.lon());
+            v_f(ACT_COL_ALT,    "%.f",      firstPos.alt_ft());
+            const vectorTy vecCam = firstPos.between(dataRefs.GetViewPos());
+            v_f(ACT_COL_BEARING,"%.f",      vecCam.angle);
+            v_f(ACT_COL_DIST,   "%.1f",     vecCam.dist / M_per_NM);
+            if (!std::isnan(firstPos.heading())) {
+                v_f(ACT_COL_HEADING, "%.f", firstPos.heading());
+            }
+        }
+        if (!std::isnan(dyn.spd)) {
+            v_f(ACT_COL_SPEED,  "%.f",      dyn.spd);
+        }
+        if (!std::isnan(dyn.vsi)) {
+            v_f(ACT_COL_VSI,    "%.f",      dyn.vsi);
         }
     }
     
