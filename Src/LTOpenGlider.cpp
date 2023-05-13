@@ -518,11 +518,11 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     
     // Try to match the line with an expected pattern
     static std::regex re (":/(\\d\\d)(\\d\\d)(\\d\\d)[hz]"  // timestamp, 3 matches: h, min, sec
-                          "(\\d\\d)(\\d\\d.\\d\\d)(N|S)"    // latitude, 3 matches: degree, minutes incl. decimals, N or S
+                          "(\\d\\d)(\\d\\d\\.\\d\\d)(N|S)"  // latitude, 3 matches: degree, minutes incl. decimals, N or S
                           "(?:/|\\\\)"                      // display symbol, not stored
-                          "(\\d\\d\\d)(\\d\\d.\\d\\d)(E|W)" // longitude, 3 matches: degree, minutes incl. decimals, E or W
+                          "(\\d\\d\\d)(\\d\\d\\.\\d\\d)(E|W)"// longitude, 3 matches: degree, minutes incl. decimals, E or W
                           "."                               // display symbol
-                          "(\\d\\d\\d)/(\\d\\d\\d)"         // heading/speed, 2 matches (optional, "000/000" indicates no data)
+                          "(\\d{1,3})/(\\d{1,3})"           // heading/speed, 2 matches (optional, "000/000" indicates no data)
                           "/A=(\\d{6}) "                    // altitude in feet, 1 match
                           "!W(\\d)(\\d)! "                  // position precision enhancement, 2 matches: latitude, longitude
                           "id([0-9A-Z]{2})([0-9A-Z]{6,8}) " // sender details and address, 2 matches
