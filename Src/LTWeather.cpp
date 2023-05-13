@@ -76,7 +76,7 @@
 //
 
 /// The request URL, parameters are in this order: radius, longitude, latitude
-const char* WEATHER_URL="https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&radialDistance=%.f;%.2f,%.2f&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
+const char* WEATHER_URL="https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&minLat=%.2f&minLon=%.2f&maxLat=%.2f&maxLon=%.2f&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
 
 /// Weather search radius (increment) to use if the initial weather request came back empty
 constexpr float ADD_WEATHER_RADIUS_NM = 100.0f;
@@ -193,7 +193,7 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
     bool bRet = false;
     try {
         char curl_errtxt[CURL_ERROR_SIZE];
-        char url[255];
+        char url[512];
         std::string readBuf;
         
         // initialize the CURL handle
@@ -209,7 +209,12 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
             bRepeat = false;
 
             // put together the URL, convert nautical to statute miles
-            snprintf(url, sizeof(url), WEATHER_URL, _radius_nm / 1.151f, _lon, _lat);
+            const boundingBoxTy box (positionTy(_lat, _lon), _radius_nm * M_per_NM);
+            const positionTy minPos = box.sw();
+            const positionTy maxPos = box.ne();
+            snprintf(url, sizeof(url), WEATHER_URL,
+                     minPos.lat(), minPos.lon(),
+                     maxPos.lat(), maxPos.lon());
 
             // prepare the handle with the right options
             readBuf.reserve(CURL_MAX_WRITE_SIZE);

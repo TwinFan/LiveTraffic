@@ -591,6 +591,34 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
 
 // MARK: Other Utility Functions
 
+// Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
+/// @see https://www.mide.com/air-pressure-at-altitude-calculator
+double PressureFromBaroAlt(double baroAlt_m, double refPressure)
+{
+    return refPressure * std::pow(1.0 + baroAlt_m * TEMP_LAPS_R/TEMP_STANDARD, 1.0/G0_M_R_Lb);
+}
+
+// Convert a given pressure to an altitude, providing sea level pressure as reference
+/// @see https://www.mide.com/air-pressure-at-altitude-calculator
+double AltFromPressure(double pressure, double refPressure)
+{
+    return TEMP_STANDARD/TEMP_LAPS_R * (std::pow(pressure / refPressure, G0_M_R_Lb) - 1.0);
+}
+
+// Convert a pressure altitude (based on std pressure) to a geometric altitude
+double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure)
+{
+    const double pressure = PressureFromBaroAlt(baroAlt_m);
+    return AltFromPressure(pressure, refPressure);
+}
+
+// Convert a geometric altitude to a barometric altitude (based on std pressure)
+double GeoAltToBaroAlt_m(double geoAlt_m, double refPressure)
+{
+    const double pressure = PressureFromBaroAlt(geoAlt_m, refPressure);
+    return AltFromPressure(pressure, HPA_STANDARD);
+}
+
 // Fetch nearest airport id by location
 std::string GetNearestAirportId (const positionTy& _pos,
                                  positionTy* outApPos)

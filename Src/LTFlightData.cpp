@@ -1669,7 +1669,7 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
                      "AITFC,%lu,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,%s,%s,%.0f\n",
                      key().num,                                                 // hexid
                      pos.lat(), pos.lon(),                                      // lat, lon
-                     nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),   // alt
+                     nanToZero(GeoAltToBaroAlt_ft(pos.alt_ft(), dataRefs.GetPressureHPA())),   // alt
                      inDyn.vsi,                                                 // vs
                      (pos.IsOnGnd() ? '0' : '1'),                               // airborne
                      inDyn.heading, inDyn.spd,                                  // hdg,spd
@@ -1692,7 +1692,7 @@ void LTFlightData::ExportFD(const FDDynamicData& inDyn,
                      // equivalent to AITFC
                      key().num,                                                 // hexid
                      pos.lat(), pos.lon(),                                      // lat, lon
-                     nanToZero(dataRefs.WeatherPressureAlt_ft(pos.alt_ft())),   // baro_alt
+                     nanToZero(GeoAltToBaroAlt_ft(pos.alt_ft(), dataRefs.GetPressureHPA())),   // baro_alt
                      inDyn.vsi,                                                 // baro_rate
                      (pos.IsOnGnd() ? '0' : '1'),                               // airborne
                      inDyn.heading, inDyn.spd,                                  // track, gsp

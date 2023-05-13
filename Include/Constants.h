@@ -61,10 +61,9 @@ constexpr double JAN_FIRST_2019 = 1546344000;   // 01.01.2019
 constexpr double HPA_STANDARD   = 1013.25;      // air pressure
 constexpr double INCH_STANDARD  = 29.92126;
 constexpr double HPA_per_INCH   = HPA_STANDARD/INCH_STANDARD;
-// The pressure drops approximately by 11.3 Pa per meter in first 1000 meters above sea level.
-constexpr double PA_per_M       = 11.3;         // https://en.wikipedia.org/wiki/Barometric_formula
-// ft altitude diff per hPa change
-constexpr double FT_per_HPA     = (100/PA_per_M)/M_per_FT;
+constexpr double TEMP_STANDARD  = 288.15f;      ///< Standard temperatur of 15°C in °Kelvin
+constexpr double G0_M_R_Lb      = 0.1902632365f;///< -(g0 * M) / (R * Lb)
+constexpr double TEMP_LAPS_R    = -0.0065f;     ///< K/m
 
 //MARK: Flight Data-related
 constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)

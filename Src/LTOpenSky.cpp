@@ -279,9 +279,11 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 dyn.pChannel =          this;
                 
                 // position
+                const double baroAlt_m = jag_n_nan(pJAc, OPSKY_BARO_ALT);
+                const double geoAlt_m = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
                 positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
                                 jag_n_nan(pJAc, OPSKY_LON),
-                                dataRefs.WeatherAltCorr_m(jag_n_nan(pJAc, OPSKY_BARO_ALT)),
+                                geoAlt_m,
                                 posTime,
                                 dyn.heading);
                 pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
@@ -591,7 +593,7 @@ bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
                 }
             }
             // Replace type GRND with our default car type, too
-            else if (statDat.acTypeIcao == "GRND")
+            else if (statDat.acTypeIcao == "GRND" || statDat.acTypeIcao == "GND")
                 statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
         }
         

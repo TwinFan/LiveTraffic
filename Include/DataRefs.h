@@ -417,7 +417,7 @@ enum dataRefsLT {
     DR_CHANNEL_FSCHARTER,
     DR_CHANNEL_OPEN_GLIDER_NET,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
-    DR_CHANNEL_ADSB_EXCHANGE_HISTORIC,
+    DR_CHANNEL_ADSB_HUB,
     DR_CHANNEL_OPEN_SKY_ONLINE,
     DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
     DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
@@ -720,7 +720,6 @@ protected:
     const LTAircraft* pAc = nullptr;    // ptr to that a/c
     
     // Weather
-    double      altPressCorr_ft = 0.0;  ///< [ft] barometric correction for pressure altitude, in meter
     float       lastWeatherAttempt = 0.0f;  ///< last time we _tried_ to update the weather
     float       lastWeatherUpd = 0.0f;  ///< last time the weather was updated? (in XP's network time)
     float       lastWeatherHPA = HPA_STANDARD; ///< last barometric pressure received
@@ -1042,15 +1041,8 @@ public:
     /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
     void SetWeather (float hPa, float lat, float lon, const std::string& stationId,
                      const std::string& METAR);
-    /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
-    static double WeatherAltCorr_ft (double pressureAlt_ft, double hPa)
-        { return pressureAlt_ft + ((hPa - HPA_STANDARD) * FT_per_HPA); }
-    /// Compute geometric altitude [ft] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
-    double WeatherAltCorr_ft (double pressureAlt_ft) { return pressureAlt_ft + altPressCorr_ft; }
-    /// Compute geometric altitude [m] from pressure altitude and current weather in a very simplistic manner good enough for the first 3,000ft
-    double WeatherAltCorr_m (double pressureAlt_m) { return pressureAlt_m + altPressCorr_ft * M_per_FT; }
-    /// Compute pressure altitude [ft] from geometric altitude and current weather in a very simplistic manner good enough for the first 3,000ft
-    double WeatherPressureAlt_ft (double geoAlt_ft) { return geoAlt_ft - altPressCorr_ft; }
+    /// Get current sea level air pressure
+    double GetPressureHPA() const { return lastWeatherHPA; }
     /// Thread-safely gets current weather info
     void GetWeather (float& hPa, std::string& stationId, std::string& METAR);
     

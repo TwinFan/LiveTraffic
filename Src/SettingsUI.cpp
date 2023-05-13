@@ -249,7 +249,7 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
-
+                
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
                 
                 // Hint that user/password increases number of allowed requests
@@ -261,7 +261,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::TextUnformatted("Using a registered user allows for more requests to OpenSky per day ");
                     ImGui::TableNextCell();
                 }
-
+                
                 // User
                 if (ImGui::FilteredLabel("Username", sFilter)) {
                     ImGui::Indent(ImGui::GetWidthIconBtn(true));
@@ -269,7 +269,7 @@ void LTSettingsUI::buildInterface()
                                              "OpenSky Network username",
                                              &sOpenSkyUser);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
-
+                    
                     ImGui::TableNextCell();
                 }
                 
@@ -302,7 +302,7 @@ void LTSettingsUI::buildInterface()
                     }
                     ImGui::TableNextCell();
                 }
-
+                
                 // OpenSky's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (pOpenSkyCh) {
@@ -315,6 +315,24 @@ void LTSettingsUI::buildInterface()
                 
                 if (!*sFilter) ImGui::TreePop();
             }
+            
+            // --- ADSBHub ---
+            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
+            ImGui::Indent();
+            ImGui::FilteredCfgCheckbox("ADSBHub", sFilter, DR_CHANNEL_ADSB_HUB,
+                                       "Connect to ADSBHub for tracking data, requires feeder setup",
+                                       false);      // don't move to next cell yet
+            if (ImGui::MatchesFilter("ADSBHub", sFilter)) {
+                ImGui::SameLine();
+                ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME, ADSBHUB_CHECK_URL, ADSBHUB_CHECK_POPUP);
+                ImGui::TableNextCell();
+            }
+            ImGui::Unindent();
+
+            // If ADSBHub has just been enabled then, as a courtesy,
+            // we also make sure that OpenSky Master data is enabled
+            if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB))
+                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
             
             // --- ADS-B Exchange ---
             if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
@@ -410,10 +428,12 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENGLIDER, "Open Help on Open Glider Network in Browser",
                                            sFilter, nOpCl))
             {
-                ImGui::TextUnformatted("Flarm A/c Types");
-                ImGui::TableNextCell();
-                ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
-                ImGui::TableNextCell();
+                if (!*sFilter) {
+                    ImGui::TextUnformatted("Flarm A/c Types");
+                    ImGui::TableNextCell();
+                    ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
+                    ImGui::TableNextCell();
+                }
                     
                 // One edit field for each Flarm aircraft type
                 for (size_t i = 0; i < aFlarmAcTys.size(); i++) {

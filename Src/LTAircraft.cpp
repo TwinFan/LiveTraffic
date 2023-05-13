@@ -2917,10 +2917,10 @@ void LTAircraft::UpdatePosition (float, int cycle)
             }
         }
         
-        // If on the ground, but we shall not forward gnd a/c to TCAS/AI
+        // If taxiing on the ground (but not on rwy), but we shall not forward gnd a/c to TCAS/AI
         // -> deactivate TCAS
         // (will be re-activated by the above code every 100th cycle)
-        if (dataRefs.IsAINotOnGnd() && IsOnGrnd())
+        if (dataRefs.IsAINotOnGnd() && !IsOnRwy() && phase == FPH_TAXI)
             acRadar.mode = xpmpTransponderMode_Standby;
 
         // *** Informational Texts ***

@@ -227,9 +227,9 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
                 const double baro_alt = json_number(pAltBaro);
                 const double qnh = jog_n_nan(pJAc, ADSBEX_V2_NAV_QNH);
                 if (std::isnan(qnh))
-                    pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt));
+                    pos.SetAltFt(BaroAltToGeoAlt_ft(baro_alt, dataRefs.GetPressureHPA()));
                 else
-                    pos.SetAltFt(dataRefs.WeatherAltCorr_ft(baro_alt, qnh));
+                    pos.SetAltFt(BaroAltToGeoAlt_ft(baro_alt, qnh));
                 break;
             }
                 
@@ -275,7 +275,10 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
     
     // Check for duplicates with OGN/FLARM, potentially replaces the key type
     LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-    
+    // Some internal codes sometimes overlap with RealTraffic
+    if (fdKey.eKeyType == LTFlightData::KEY_ADSBEX)
+        LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_RT);
+
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
     LTFlightData& fd = fdMap[fdKey];
@@ -370,6 +373,9 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     
     // Check for duplicates with OGN/FLARM, potentially replaces the key type
     LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+    // Some internal codes sometimes overlap with RealTraffic
+    if (fdKey.eKeyType == LTFlightData::KEY_ADSBEX)
+        LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_RT);
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
@@ -418,7 +424,7 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_V1_ALT);
 
     // position: altitude, heading, ground status
-    pos.SetAltFt(dataRefs.WeatherAltCorr_ft(alt_ft));
+    pos.SetAltFt(BaroAltToGeoAlt_ft(alt_ft, dataRefs.GetPressureHPA()));
     pos.heading() = dyn.heading;
     pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
     

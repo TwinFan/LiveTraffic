@@ -128,14 +128,46 @@
 
     <h2>v3</h2>
 
-    <h3>v3.3.2</h3>
+    <h3>v3.4.0</h3>
 
     <P>
         <b>Update:</b> In case of doubt you can always just copy all files from the archive
         over the files of your existing installation.
     </P>
 
-    <P>At least copy the following files, which have changed compared to v3.2.x:</P>
+    <P>At least copy the following files, which have changed compared to v3.3.2:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>Added ADSBHub as input channel for tracking data,
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/adsbhub">see documentation</a> for details</li>
+        <li>Fixed a bug in TCAS slot handling that could cause many planes
+            not to receive TCAS position updates any longer,
+            impacting TCAS position and wake creation.</li>
+        <li>Aircraft List shows some position info even if plane is not
+            (yet) displayed.</li>
+        <li>Fixed an issue with fetching weather info across the international date line.</li>
+        <li>XP12.04 and later: Sound is using X-Plane's FMOD system instead of
+            creating its own. Should avoid
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/279092-xp12-freeze-after-error-with-sound/&do=findComment&comment=2474622">freezes in some Linux setups on shutdown</a>.
+        <li>OpenSky: Identify some more objects as ground vehicles.</li>
+        <li>RealTraffic: Changed interpretation of altitude in preparation for RealTraffic v10</li>
+        <li>Open Glider Network: More tolerant while interpreting messages, rejecting less often</li>
+        <li>ADSBEx/RealTraffic: Identifying if both channels feed the same non-ICAO codes,
+            avoiding duplicate vehicle display</li>
+        <li>
+            MacOS: Supports MacOS X 10.15 (Catalina) or higher in line with
+            <a href="https://www.x-plane.com/kb/x-plane-12-system-requirements/">X-Plane 12 System Requirements</a>
+        </li>
+    </ul>
+
+    <h3>v3.3.2</h3>
+
+    <P>At least copy the following files, which have changed compared to v3.3.1:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
     </ul>
@@ -150,11 +182,6 @@
     </ul>
 
     <h3>v3.3.1</h3>
-
-    <P>
-        <b>Update:</b> In case of doubt you can always just copy all files from the archive
-        over the files of your existing installation.
-    </P>
 
     <P>At least copy the following files, which have changed compared to v3.2.x:</P>
     <ul>

@@ -3,7 +3,7 @@
 /// @see        https://rtweb.flyrealtraffic.com/
 /// @details    Defines RealTrafficConnection:\n
 ///             - Sends current position to RealTraffic app\n
-///             - Receives tracking and weather data via UDP\n
+///             - Receives tracking data via UDP\n
 ///             - Interprets the response and passes the tracking data on to LTFlightData.\n
 /// @author     Birger Hoppe
 /// @copyright  (c) 2019-2020 Birger Hoppe
@@ -41,8 +41,8 @@
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
 
-constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
-constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
+// constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
+// constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
@@ -52,7 +52,6 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define INFO_RT_REAL_TIME       "RealTraffic: Tracking data is real-time again."
 #define INFO_RT_ADJUST_TS       "RealTraffic: Receive and display past tracking data from %s"
 #define ERR_RT_CANTLISTEN       "RealTraffic: Cannot listen to network, can't tell RealTraffic our position"
-#define ERR_RT_WEATHER_QNH      "RealTraffic reports unreasonable QNH %ld - ignored"
 #define ERR_RT_DISCARDED_MSG    "RealTraffic: Discarded invalid message: %s"
 #define ERR_SOCK_NOTCONNECTED   "%s: Cannot send position: not connected"
 #define ERR_SOCK_INV_POS        "%s: Cannot send position: position not fully valid"
@@ -137,11 +136,6 @@ enum RT_RTTFC_FIELDS_TY {
     RT_RTTFC_MIN_TFC_FIELDS         ///< always last, minimum number of fields
 };
 
-// Weather JSON fields
-#define RT_WEATHER_ICAO         "ICAO"
-#define RT_WEATHER_QNH          "QNH"
-#define RT_WEATHER_METAR        "METAR"
-
 // map of id to last received datagram (for duplicate datagram detection)
 struct RTUDPDatagramTy {
     double posTime;
@@ -186,7 +180,6 @@ protected:
     // udp thread and its sockets
     std::thread thrUdpListener;
     UDPReceiver udpTrafficData;
-    UDPReceiver udpWeatherData;
 #if APL == 1 || LIN == 1
     // the self-pipe to shut down the UDP listener thread gracefully
     SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
@@ -196,9 +189,6 @@ protected:
     double lastReceivedTime     = 0.0;  // copy of simTime
     // map of last received datagrams for duplicate detection
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
-    // weather, esp. current barometric pressure to correct altitude values
-    std::string lastWeather;            // for duplicate detection
-    bool bWeatherErrHappened = false;   ///< Flag: Report UDP errors for weather just once
     /// rolling list of timestamp (diff to now) for detecting historic sending
     std::deque<double> dequeTS;
     /// current timestamp adjustment
@@ -265,9 +255,8 @@ protected:
     bool ProcessRecvedTrafficData (const char* traffic);
     bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a RTTFC type message
     bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a AITFC or XTRAFFICPSX type message
-    bool ProcessRecvedWeatherData (const char* weather);
     
-    /// Determine timestamp adjustment necessairy in case of historic data
+    /// Determine timestamp adjustment necessary in case of historic data
     void AdjustTimestamp (double& ts);
     /// Return a string describing the current timestamp adjustment
     std::string GetAdjustTSText () const;
@@ -278,9 +267,6 @@ protected:
                               const char* datagram);
     // remove outdated entries from mapDatagrams
     void CleanupMapDatagrams();
-    
-    // initialize weather info
-    void InitWeather();
 };
 
 

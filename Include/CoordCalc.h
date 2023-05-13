@@ -519,6 +519,10 @@ struct boundingBoxTy {
     
     /// Center point of bounding box
     positionTy center () const;
+    /// South-west corner ("minimum")
+    positionTy sw () const { return positionTy(se.lat(), nw.lon()); }
+    /// north-east corner ("maximum")
+    positionTy ne () const { return positionTy(nw.lat(), se.lon()); }
 
     // standard string for any output purposes
     operator std::string() const;

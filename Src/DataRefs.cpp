@@ -571,7 +571,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_exchange/historic",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -1206,7 +1206,7 @@ void DataRefs::ExportUserAcData()
             snprintf(buf, sizeof(buf), "AITFC,%u,%.6f,%.6f,%.0f,%.0f,%c,%.0f,%.0f,%s,%s,%s,,,%.0f\n",
                      modeS_ID,                                                              // hexid
                      lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),                      // lat, lon
-                     nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())), // alt
+                     nanToZero(GeoAltToBaroAlt_ft(lastUsersPlanePos.alt_ft(), dataRefs.GetPressureHPA())), // alt
                      XPLMGetDataf(adrXP[DR_PLANE_VVI]),                                     // vs
                      (lastUsersPlanePos.IsOnGnd() ? '0' : '1'),                             // airborne
                      lastUsersPlanePos.heading(), lastUsersTrueAirspeed * KT_per_M_per_S,   // hdg, spd
@@ -1226,7 +1226,7 @@ void DataRefs::ExportUserAcData()
                      // equivalent to AITFC
                      modeS_ID,                                                              // hexid
                      lastUsersPlanePos.lat(), lastUsersPlanePos.lon(),                      // lat, lon
-                     nanToZero(dataRefs.WeatherPressureAlt_ft(lastUsersPlanePos.alt_ft())), // baro_alt
+                     nanToZero(GeoAltToBaroAlt_ft(lastUsersPlanePos.alt_ft(), dataRefs.GetPressureHPA())), // baro_alt
                      XPLMGetDataf(adrXP[DR_PLANE_VVI]),                                     // baro_rate
                      (lastUsersPlanePos.IsOnGnd() ? '1' : '0'),                             // gnd
                      lastUsersTrack, XPLMGetDataf(adrXP[DR_PLANE_GS]) * KT_per_M_per_S,     // track, gsp
@@ -1751,7 +1751,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         if (volMaster == 0) {                       // Disable sound altogether
             XPMPSoundEnable(false);
         } else {                                    // Sound is (to be) enabled
-            if (!XPMPSoundIsEnabled())
+            if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
                 XPMPSoundEnable(true);
             XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
         }
@@ -2669,8 +2669,7 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
     // protected against reads from the main thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
     
-    // Compute the new altitude correction and save its position and time
-    altPressCorr_ft = (hPa - HPA_STANDARD) * FT_per_HPA;
+    // Save weather position and time
     lastWeatherPos = GetViewPos();              // here and...
     lastWeatherUpd = GetMiscNetwTime();         // ...now
     lastWeatherStationId = stationId;
