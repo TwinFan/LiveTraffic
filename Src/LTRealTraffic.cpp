@@ -199,9 +199,6 @@ void RealTrafficConnection::SetStatusUdp(bool bEnable, bool _bStopUdp)
         if (_bStopUdp)
             StopUdpConnection();
         
-        // reset weather
-        InitWeather();
-        
         // set status
         switch (status) {
         case RT_STATUS_NONE:
@@ -299,9 +296,6 @@ bool RealTrafficConnection::StartConnections()
     // set startup status
     if (status == RT_STATUS_NONE)
         SetStatus(RT_STATUS_STARTING);
-    
-    // Make sure weather is cleared
-    InitWeather();
     
     // *** TCP server for RealTraffic to connect to ***
     if (!thrTcpRunning && !tcpPosSender.IsConnected()) {
@@ -524,15 +518,10 @@ void RealTrafficConnection::udpListen ()
     try {
         // Open the UDP port
         bStopUdp = false;
-        bWeatherErrHappened = false;
         udpTrafficData.Open (RT_LOCALHOST,
                              port = DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
                              RT_NET_BUF_SIZE);
-        udpWeatherData.Open (RT_LOCALHOST,
-                             port = DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT),
-                             RT_NET_BUF_SIZE);
-        int maxSock = std::max((int)udpTrafficData.getSocket(),
-                               (int)udpWeatherData.getSocket()) + 1;
+        int maxSock = (int)udpTrafficData.getSocket() + 1;
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the UDP socket gracefully
         if (pipe(udpPipe) < 0)
@@ -549,7 +538,6 @@ void RealTrafficConnection::udpListen ()
             fd_set sRead;
             FD_ZERO(&sRead);
             FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
-            FD_SET(udpWeatherData.getSocket(), &sRead);
 #if APL == 1 || LIN == 1
             FD_SET(udpPipe[0], &sRead);
 #endif
@@ -580,28 +568,6 @@ void RealTrafficConnection::udpListen ()
                 }
                 else
                     retval = -1;
-            }
-            
-            // select successful - weather data
-            if (retval > 0 && FD_ISSET(udpWeatherData.getSocket(), &sRead))
-            {
-                // read UDP datagram
-                long rcvdBytes = udpWeatherData.recv();
-                
-                // received something?
-                if (rcvdBytes > 0)
-                {
-                    // have it processed
-                    ProcessRecvedWeatherData(udpWeatherData.getBuf());
-                }
-                else {
-                    // Weather data isn't critical, so we silently swallow it
-                    retval = 0;
-                    if (!bWeatherErrHappened) {
-                        LOG_MSG(logERR, "RealTraffic: Error while trying to receive weather data (reported this once only)");
-                        bWeatherErrHappened = true;
-                    }
-                }
             }
             
             // short-cut if we are to shut down
@@ -637,7 +603,6 @@ void RealTrafficConnection::udpListen ()
     // once we return from this thread
 #if APL == 1 || LIN == 1
     udpTrafficData.Close();
-    udpWeatherData.Close();
     // close the self-pipe sockets
     for (SOCKET &s: udpPipe) {
         if (s != INVALID_SOCKET) close(s);
@@ -646,7 +611,6 @@ void RealTrafficConnection::udpListen ()
 #else
     if (!bStopUdp) {                // already closed if stop flag set, avoid rare crashes if called in parallel
         udpTrafficData.Close();
-        udpWeatherData.Close();
     }
 #endif
     thrUdpRunning = false;
@@ -665,7 +629,6 @@ bool RealTrafficConnection::StopUdpConnection ()
         // close all connections, this will also break out of all
         // blocking calls for receiving message and hence terminate the threads
         udpTrafficData.Close();
-        udpWeatherData.Close();
 #if APL == 1 || LIN == 1
     }
 #endif
@@ -876,10 +839,10 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         if (dyn.gnd)
             pos.alt_m() = NAN;          // ground altitude to be determined in scenery
         else {
-            // Based on experience barometric altitude is more accurate, so we prefer it, although we need to convert with local pressure
+            // Since RealTraffic v10, it delivers "corrected" altitude in the Baremtric Alt field, we prefer this value and don't need to apply pressure correction
             double alt = std::stod(tfc[RT_RTTFC_ALT_BARO]);
             if (alt > 0.0)
-                pos.SetAltFt(BaroAltToGeoAlt_ft(alt, dataRefs.GetPressureHPA()));
+                pos.SetAltFt(alt);
             // Otherwise we try using geometric altitude
             else
                 if ((alt = std::stod(tfc[RT_RTTFC_ALT_GEOM])) > 0.0)
@@ -889,7 +852,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
 
         // Vehicle?
-        if (stat.acTypeIcao == "GRND")          // some vehicles come with type 'GRND'...
+        if (stat.acTypeIcao == "GRND" || stat.acTypeIcao == "GND")  // some vehicles come with type 'GRND'...
             stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
         else if (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '1' || sCat[1] == '2'))
             stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
@@ -1208,83 +1171,4 @@ void RealTrafficConnection::CleanupMapDatagrams()
         else
             ++it;            
     }
-}
-
-
-// MARK: Weather
-// Process regular weather messages. They are important for QNH,
-// as RealTraffic doesn't adapt altitude readings in the traffic data.
-// Weather comes in JSON format, pretty-printed looking like this:
-// {
-//     "ICAO": "KJFK",
-//     "QNH": 2996,             # inches mercury in US!
-//     "METAR": "KJFK 052051Z 25016KT 10SM FEW050 FEW250 00/M09 A2996 RMK AO2 SLP144 T00001094 56025",
-//     "NAME": "John F Kennedy International Airport",
-//     "IATA": "JFK",
-//     "DISTNM": 0.1
-// }
-//
-// or like this:
-// {
-//     "ICAO": "OMDB",
-//     "QNH": 1015,             # hPa outside US
-//     "METAR": "OMDB 092300Z 27012KT 9999 BKN036 19/10 Q1015 NOSIG",
-//     "NAME": "Dubai International Airport",
-//     "IATA": "DXB",
-//     "DISTNM": 0.3
-// }
-
-bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
-{
-    // sanity check: not empty
-    if (!weather || !weather[0])
-        return false;
-    
-    // Raw data logging
-    DebugLogRaw(weather);
-    
-    // duplicate?
-    if (lastWeather == weather)
-        return true;            // ignore silently
-    lastWeather = weather;
-    
-    LOG_MSG(logDEBUG, "Received Weather: %s", weather);
-    
-    // interpret weather
-    JSON_Value* pRoot = json_parse_string(weather);
-    if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return false; }
-    // first get the structre's main object
-    JSON_Object* pObj = json_object(pRoot);
-    if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return false; }
-
-    // fetch QNH
-    // This value seems to be sent without (in the very first message)
-    // and with quotes (thereafter), so we try both ways to get a reasonable value:
-    
-    double newQNH = jog_sl(pObj, RT_WEATHER_QNH);
-    if (newQNH < 1.0)
-        newQNH = jog_l(pObj, RT_WEATHER_QNH);
-
-    // this could be inch mercury * 100 in the US...convert to hPa
-    if (2600 <= newQNH && newQNH <= 3400) {
-        newQNH /= 100.0;
-        newQNH *= HPA_per_INCH;
-    }
-
-    // process a change and report the weather centrally
-    if (800 <= newQNH && newQNH <= 1100) {
-        const std::string metarIcao = jog_s(pObj, RT_WEATHER_ICAO);
-        const std::string metar =     jog_s(pObj, RT_WEATHER_METAR);
-        dataRefs.SetWeather(float(newQNH), NAN, NAN, metarIcao, metar);
-        return true;
-    } else {
-        LOG_MSG(logWARN, ERR_RT_WEATHER_QNH, std::lround(newQNH));
-        return false;
-    }
-}
-
-// initialize weather info
-void RealTrafficConnection::InitWeather()
-{
-    lastWeather.clear();
 }
