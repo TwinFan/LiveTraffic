@@ -17,12 +17,18 @@ print ("Socket connected")
 
 try:
     msgFormat = ''              # Will become either 'SBS' or 'C-VRS'
-    i = 0
+    i = 0                       # Count received messages (with actual content)
+    iNull = 0                   # Count received NULL messages
     incomplLn = ''              # incomplete beginning of a line from last network message
     while(1):
         r = sock.recv(4096)     # Receive data
-        i += 1
         if (len(r) > 0):
+            # Received something after a couple of NULLs?
+            if (iNull > 0):
+                print ("After {0} NULL messages, now receiving:\n".format(iNull))
+                iNull = 0
+            
+            i += 1
             # Determine which format we are listening to
             if msgFormat == '':
                 if len(r) >= 30:
@@ -56,14 +62,18 @@ try:
                 incomplLn += r                      # add what's received to what's left over from last msg
                 l = incomplLn[0]                    # length of individual msg is in first byte
                 while(len(incomplLn) >= l):         # while buffer contains full msg print it
-                    print (binascii.hexlify(incomplLn[0:l],' ').decode('ascii'))
+#                    print (binascii.hexlify(incomplLn[0:l],' ').decode('ascii'))
+                    # Print Header in 3 parts, showing ICAO in 6 digits, then add data after colon:
+                    print (incomplLn[0:4].hex('-') + '|' + incomplLn[4:7].hex() + '|' + incomplLn[7:9].hex('-') + ': ' + incomplLn[9:l].hex(' '))
                     if len(incomplLn) > l:          # if buffer has _more_ than just the printed msg
                         incomplLn = incomplLn[l:]   # remove printed part (inefficient, makes copies...but well...)
                         l = incomplLn[0]            # and determine length of next msg
                     else:
                         incomplLn = b''             # msg fit exactly, clear buffer
         else:
-            print ("{0}. <NULL> {1}".format(i,r))
+            if (iNull == 0):
+                print ("Receiving NULL...")
+            iNull += 1
             
 
 except OSError as err:

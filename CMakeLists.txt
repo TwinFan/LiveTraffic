@@ -18,7 +18,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.3.3
+        VERSION 3.4.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Provide compile macros from the above project version definition
@@ -140,6 +140,7 @@ set(Header_Files
     Include/InfoListWnd.h
     Include/LiveTraffic.h
     Include/LTADSBEx.h
+    Include/LTADSBHub.h
     Include/LTAircraft.h
     Include/LTApt.h
     Include/LTChannel.h
@@ -183,6 +184,7 @@ set(Source_Files
     Src/InfoListWnd.cpp
     Src/LiveTraffic.cpp
     Src/LTADSBEx.cpp
+    Src/LTADSBHub.cpp
     Src/LTAircraft.cpp
     Src/LTApt.cpp
     Src/LTChannel.cpp

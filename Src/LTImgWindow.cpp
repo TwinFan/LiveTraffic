@@ -360,15 +360,24 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
 }
 
 
-// Show this label only if text matches filter string
-IMGUI_API bool FilteredLabel(const char* label, const char* filter,
-                             bool bEnabled)
+/// Does label match filter?
+bool MatchesFilter(const char* label, const char* filter)
 {
     if (filter && *filter)  {           // any filter defined?
         std::string labelUpper(label);
         if (str_toupper(labelUpper).find(filter) == std::string::npos)
             return false;
     }
+    return true;
+}
+
+
+// Show this label only if text matches filter string
+IMGUI_API bool FilteredLabel(const char* label, const char* filter,
+                             bool bEnabled)
+{
+    if (!MatchesFilter(label, filter))
+        return false;
     
     // Draw the label
     if (bEnabled)
@@ -413,7 +422,7 @@ IMGUI_API bool FilteredInputText(const char* label, const char* filter,
 
 // Filter label plus checkbox linked to boolean(integer) dataRef
 IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx,
-                                   const char* tooltip)
+                                   const char* tooltip, bool bNextCell)
 {
     // Draw label first
     if (!FilteredLabel(label, filter))
@@ -423,7 +432,8 @@ IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRe
     PushID(label);
     const bool bRet = CheckboxDr("", idx, tooltip);
     PopID();
-    TableNextCell();
+    if (bNextCell)
+        TableNextCell();
     return bRet;
 }
 

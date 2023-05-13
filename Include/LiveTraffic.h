@@ -137,6 +137,7 @@ extern DataRefs dataRefs;
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
+#include "LTADSBHub.h"
 #include "LTOpenGlider.h"
 #include "LTFSCharter.h"
 

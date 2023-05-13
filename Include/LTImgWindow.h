@@ -220,6 +220,8 @@ inline bool TreeNodeLinkHelp(const char* label, int nCol,
                                filter, nOpCl, flags);
 }
 
+/// Does label match filter?
+bool MatchesFilter(const char* label, const char* filter);
 
 /// @brief Show this label only if text matches filter string
 /// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
@@ -241,7 +243,7 @@ IMGUI_API bool FilteredInputText(const char* label, const char* filter,
 ///          Otherwise, cursor is at beginning of (next) cell afterwards.
 /// @return Value just changed?
 IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRefsLT idx,
-                                   const char* tooltip = nullptr);
+                                   const char* tooltip = nullptr, bool bNextCell = true);
 
 /// @brief Filter label plus checkbox for a bit
 /// @details All rendering is skipped if `filter` is non-empty but doesn not match `label`.
