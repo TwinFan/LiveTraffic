@@ -808,6 +808,15 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
 
+            if (ImGui::TreeNodeHelp("Miscellaneous", nCol, nullptr, nullptr, sFilter, nOpCl,
+                                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanFullWidth))
+            {
+                ImGui::FilteredCfgCheckbox("Own FMOD Instance",   sFilter, DR_CFG_SND_FORCE_FMOD_INSTANCE,
+                                           "Enforce using separate FMOD instance instead of X-Plane's.\n(Takes effect after restart only.)");
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             if (ImGui::TreeNodeHelp("Export", nCol, nullptr, nullptr, sFilter, nOpCl,
                                     ImGuiTreeNodeFlags_SpanFullWidth))
             {
