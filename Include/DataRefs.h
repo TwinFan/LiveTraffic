@@ -44,6 +44,11 @@ const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flig
 const int DEF_FD_LONG_REFR_INTVL= 60;           ///< how often to fetch new flight data if flying high
 const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
 const int DEF_FD_REDUCE_HEIGHT  = 10000;        ///< height AGL considered "flying high"
+const int DEF_CONTR_ALT_MIN     = 25000;        ///< [ft] Auto Contrails: Minimum altitude
+const int DEF_CONTR_ALT_MAX     = 45000;        ///< [ft] Auto Contrails: Maximum altitude
+const int DEF_CONTR_LIFETIME    = 25;           ///< [s] Contrail default time to live
+const bool DEF_CONTR_MULTI      = false;        ///< Auto-create multiple or just a single contrail?
+const int DEF_SUI_TRANSP        = 0;            ///< Settings UI: transaprent background?
 const int MIN_NETW_TIMEOUT      =  5;           ///< [s] minimum network request timeout
 const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
 
@@ -683,10 +688,10 @@ protected:
     int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
     int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
-    int  contrailAltMin_ft  = 25000;    ///< [ft] Auto Contrails: Minimum altitude
-    int  contrailAltMax_ft  = 45000;    ///< [ft] Auto Contrails: Maximum altitude
-    int  contrailLifeTime   = 25;       ///< [s] Contrail default time to live
-    bool contrailMulti      = false;    ///< Auto-create multiple or just a single contrail?
+    int  contrailAltMin_ft  = DEF_CONTR_ALT_MIN;    ///< [ft] Auto Contrails: Minimum altitude
+    int  contrailAltMax_ft  = DEF_CONTR_ALT_MAX;    ///< [ft] Auto Contrails: Maximum altitude
+    int  contrailLifeTime   = DEF_CONTR_LIFETIME;   ///< [s] Contrail default time to live
+    bool contrailMulti      = DEF_CONTR_MULTI;      ///< Auto-create multiple or just a single contrail?
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
     int bUseExternalCamera  = false;    ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
@@ -757,7 +762,7 @@ public:
     
     // Settings UI
     WndRect SUIrect;                    ///< Settings UI Window position
-    int SUItransp = 0;                  ///< Settings UI: transaprent background?
+    int SUItransp = DEF_SUI_TRANSP;     ///< Settings UI: transaprent background?
     
     // A/C Info Window(s)
     WndRect ACIrect;                    ///< A/C Info Window position

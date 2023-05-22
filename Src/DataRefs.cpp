@@ -1775,6 +1775,12 @@ void DataRefs::ResetAdvCfgToDefaults ()
     fdBufPeriod     = DEF_FD_BUF_PERIOD;
     fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
     netwTimeout     = DEF_NETW_TIMEOUT;
+    contrailAltMin_ft   = DEF_CONTR_ALT_MIN;
+    contrailAltMax_ft   = DEF_CONTR_ALT_MAX;
+    contrailLifeTime    = DEF_CONTR_LIFETIME;
+    contrailMulti       = DEF_CONTR_MULTI;
+    MsgRect.clear();
+    SUItransp       = DEF_SUI_TRANSP;
     UIFontScale     = DEF_UI_FONT_SCALE;
     UIopacity       = DEF_UI_OPACITY;
 }
