@@ -506,6 +506,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/aircrafts_displayed",         DataRefs::LTGetInt, DataRefs::LTSetAircraftDisplayed, GET_VAR, false },
     {"livetraffic/cfg/auto_start",                  DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/volume/master",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/sound/force_fmod_instance",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/ai_on_request",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/ai_controlled",               DataRefs::HaveAIUnderControl, NULL,             NULL,    false },
     {"livetraffic/cfg/ai_not_on_gnd",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -592,6 +593,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_AIRCRAFT_DISPLAYED:     return &bShowingAircraft;
         case DR_CFG_AUTO_START:             return &bAutoStart;
         case DR_CFG_MASTER_VOLUME:          return &volMaster;
+        case DR_CFG_SND_FORCE_FMOD_INSTANCE:return &sndForceFmodInstance;
         case DR_CFG_AI_ON_REQUEST:          return &bAIonRequest;
         case DR_CFG_AI_NOT_ON_GND:          return &bAINotOnGnd;
         case DR_CFG_LABELS:                 return &labelCfg;
@@ -1775,6 +1777,13 @@ void DataRefs::ResetAdvCfgToDefaults ()
     fdBufPeriod     = DEF_FD_BUF_PERIOD;
     fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
     netwTimeout     = DEF_NETW_TIMEOUT;
+    contrailAltMin_ft   = DEF_CONTR_ALT_MIN;
+    contrailAltMax_ft   = DEF_CONTR_ALT_MAX;
+    contrailLifeTime    = DEF_CONTR_LIFETIME;
+    contrailMulti       = DEF_CONTR_MULTI;
+    sndForceFmodInstance= DEF_SND_FMOD_INST;
+    MsgRect.clear();
+    SUItransp       = DEF_SUI_TRANSP;
     UIFontScale     = DEF_UI_FONT_SCALE;
     UIopacity       = DEF_UI_OPACITY;
 }

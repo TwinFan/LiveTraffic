@@ -128,12 +128,30 @@
 
     <h2>v3</h2>
 
-    <h3>v3.4.0</h3>
+    <h3>v3.4.1</h3>
 
     <P>
         <b>Update:</b> In case of doubt you can always just copy all files from the archive
         over the files of your existing installation.
     </P>
+
+    <P>At least copy the following files, which have changed compared to v3.4.0:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>
+            Added Advanced configuration option to force a separate FMOD instance, avoids
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/288846-live-traffic-ctd-x-plane-1205/">FMOD interference with other plugins/FlyWithLua</a>
+            that caused CTDs e.g. with Zibo B738 or Thranda C206.<br>
+            Windows, Mac: Enabled by default; Linux: Disabled by default
+        </li>
+    </ul>
+    
+    <h3>v3.4.0</h3>
 
     <P>At least copy the following files, which have changed compared to v3.3.2:</P>
     <ul>

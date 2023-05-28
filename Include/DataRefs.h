@@ -44,6 +44,16 @@ const int DEF_FD_REFRESH_INTVL  = 20;           ///< how often to fetch new flig
 const int DEF_FD_LONG_REFR_INTVL= 60;           ///< how often to fetch new flight data if flying high
 const int DEF_FD_BUF_PERIOD     = 90;           ///< seconds to buffer before simulating aircraft
 const int DEF_FD_REDUCE_HEIGHT  = 10000;        ///< height AGL considered "flying high"
+const int DEF_CONTR_ALT_MIN     = 25000;        ///< [ft] Auto Contrails: Minimum altitude
+const int DEF_CONTR_ALT_MAX     = 45000;        ///< [ft] Auto Contrails: Maximum altitude
+const int DEF_CONTR_LIFETIME    = 25;           ///< [s] Contrail default time to live
+const bool DEF_CONTR_MULTI      = false;        ///< Auto-create multiple or just a single contrail?
+#if LIN                                         // On Linux, there more reports of issues if using separate FMOD, so we keep it disabled by default:
+const bool DEF_SND_FMOD_INST    = false;        ///< Enforce using our own FMOD instance instead of X-Plane's?
+#else                                           // There have been various CTD reports with complex aircraft if using X-Plane's FMOD, so we keep this enabled by default:
+const bool DEF_SND_FMOD_INST    = true;         ///< Enforce using our own FMOD instance instead of X-Plane's?
+#endif
+const int DEF_SUI_TRANSP        = 0;            ///< Settings UI: transaprent background?
 const int MIN_NETW_TIMEOUT      =  5;           ///< [s] minimum network request timeout
 const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
 
@@ -352,6 +362,7 @@ enum dataRefsLT {
     DR_CFG_AIRCRAFT_DISPLAYED,
     DR_CFG_AUTO_START,
     DR_CFG_MASTER_VOLUME,
+    DR_CFG_SND_FORCE_FMOD_INSTANCE,
     DR_CFG_AI_ON_REQUEST,
     DR_CFG_AI_UNDER_CONTROL,
     DR_CFG_AI_NOT_ON_GND,
@@ -655,6 +666,7 @@ protected:
     // generic config values
     int bAutoStart          = true;     ///< shall display a/c right after startup?
     int volMaster           = 100;      ///< Master Volume in Percent
+    int sndForceFmodInstance= DEF_SND_FMOD_INST;    ///< Sound: Force using our own FMOD instance (instead of using XP's)
     int bAIonRequest        = false;    ///< acquire multiplayer control for TCAS on request only, not automatically?
     bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
     int bAINotOnGnd         = false;    ///< shall a/c on the ground be hidden from TCAS/AI?
@@ -683,10 +695,10 @@ protected:
     int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
     int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
-    int  contrailAltMin_ft  = 25000;    ///< [ft] Auto Contrails: Minimum altitude
-    int  contrailAltMax_ft  = 45000;    ///< [ft] Auto Contrails: Maximum altitude
-    int  contrailLifeTime   = 25;       ///< [s] Contrail default time to live
-    bool contrailMulti      = false;    ///< Auto-create multiple or just a single contrail?
+    int  contrailAltMin_ft  = DEF_CONTR_ALT_MIN;    ///< [ft] Auto Contrails: Minimum altitude
+    int  contrailAltMax_ft  = DEF_CONTR_ALT_MAX;    ///< [ft] Auto Contrails: Maximum altitude
+    int  contrailLifeTime   = DEF_CONTR_LIFETIME;   ///< [s] Contrail default time to live
+    bool contrailMulti      = DEF_CONTR_MULTI;      ///< Auto-create multiple or just a single contrail?
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
     int bUseExternalCamera  = false;    ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
@@ -757,7 +769,7 @@ public:
     
     // Settings UI
     WndRect SUIrect;                    ///< Settings UI Window position
-    int SUItransp = 0;                  ///< Settings UI: transaprent background?
+    int SUItransp = DEF_SUI_TRANSP;     ///< Settings UI: transaprent background?
     
     // A/C Info Window(s)
     WndRect ACIrect;                    ///< A/C Info Window position
@@ -890,6 +902,7 @@ public:
     // specific access
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     int GetVolumeMaster() const { return volMaster; }
+    bool ShallForceFmodInstance() const { return sndForceFmodInstance != 0; }
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
     bool IsAINotOnGnd() const { return bAINotOnGnd != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
