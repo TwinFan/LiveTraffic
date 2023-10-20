@@ -2010,7 +2010,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2072,8 +2072,10 @@ bool DataRefs::LoadConfigFile()
             // any conversions required?
             if (cfgFileVer < 30100)         // < 3.1.0
                 conv = CFG_V31;
-            else if (cfgFileVer < 30301)    // < 3.3.1
+            if (cfgFileVer < 30301)         // < 3.3.1
                 conv = CFG_V331;
+            if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0
+                conv = CFG_V342;
         }
     }
     
@@ -2122,9 +2124,9 @@ bool DataRefs::LoadConfigFile()
                 switch (conv) {
                     case CFG_NO_CONV:
                         break;
-                    case CFG_V331:
-                    case CFG_V31:
                     case CFG_V3:
+                    case CFG_V31:
+                    case CFG_V331:
                         // We "forgot" to change the default to 49005 for fresh installations,
                         // so we need to convert the port all the way up to v3.3.1:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
@@ -2132,6 +2134,11 @@ bool DataRefs::LoadConfigFile()
                             if (sVal == "49003")
                                 sVal = "49005";
                         }
+                        [[fallthrough]];
+                    case CFG_V342:
+                        // Re-implemented XP Sound, so we reset the "Force own FMOD Instance flag" because we believe in the XP implementation now ;-)
+                        if (*i == DATA_REFS_LT[DR_CFG_SND_FORCE_FMOD_INSTANCE])
+                            sVal = "0";
                         break;
                 }
                 

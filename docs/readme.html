@@ -128,12 +128,40 @@
 
     <h2>v3</h2>
 
-    <h3>v3.4.1</h3>
+    <h3>v3.4.2</h3>
 
     <P>
         <b>Update:</b> In case of doubt you can always just copy all files from the archive
         over the files of your existing installation.
     </P>
+
+    <P>At least copy the following files, which have changed compared to v3.4.1:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>
+            Reimplemented usage of XP's sound system when running in X-Plane 12.04 and later.
+            As I believe in this implementation, the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#miscellaneous">setting "Own FMOD Instance"</a>
+            is reset to inactive, but is still available and can be
+            activated again in case there are still issues.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/257">#257</a>
+            weather download to updated API endpoints so that proper atmospheric pressure
+            can again be applied to altitudes conversion.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/258">#258</a>
+            extensive logging of ignored OGN messages.
+        </li>
+    </ul>
+    
+    <h3>v3.4.1</h3>
 
     <P>At least copy the following files, which have changed compared to v3.4.0:</P>
     <ul>
