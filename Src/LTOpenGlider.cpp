@@ -19,7 +19,7 @@
 /// @details    Also downloads and performs searches in the aircraft list
 /// @see        http://ddb.glidernet.org/download/
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2023 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -546,8 +546,15 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     // We expect 16 matches, 17 if fpm is given. Size is one more because element 0 is the complete matched string:
     if (m.size() < 17) {
         // didn't match. But if we think this _could_ be a valid message then we should warn, maybe there's still a flaw in the regex above
-        if (ln.find("! id") != std::string::npos) {
-            LOG_MSG(logWARN, WARN_OGN_APRS_NOT_MATCHED, ln.c_str());
+        if (ln.find("! id") != std::string::npos &&         // seems to include an id
+            ln.find("/A=") != std::string::npos)            // as well as an altitude (there are messages out there without altitude, which we rightfully and silently discard this way)
+        {
+            static float lastWarn = -300.0f;
+            const float now = dataRefs.GetMiscNetwTime();
+            if (lastWarn < now - 300.0f) {                  // only issue warning if last such warning is more than 5 minutes ago
+                lastWarn = now;
+                LOG_MSG(logWARN, WARN_OGN_APRS_NOT_MATCHED, ln.c_str());
+            }
         }
         // but otherwise no issue...there are some message in the stream that we just don't need
         return true;
