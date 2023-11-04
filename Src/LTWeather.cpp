@@ -219,7 +219,7 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
             // prepare the handle with the right options
             readBuf.reserve(CURL_MAX_WRITE_SIZE);
             curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-            curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+            curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
             curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
             curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WeatherFetchCB);
             curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);

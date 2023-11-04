@@ -54,8 +54,8 @@ const bool DEF_SND_FMOD_INST    = false;        ///< Enforce using our own FMOD 
 const bool DEF_SND_FMOD_INST    = true;         ///< Enforce using our own FMOD instance instead of X-Plane's?
 #endif
 const int DEF_SUI_TRANSP        = 0;            ///< Settings UI: transaprent background?
-const int MIN_NETW_TIMEOUT      =  5;           ///< [s] minimum network request timeout
-const int DEF_NETW_TIMEOUT      = 90;           ///< [s] of network request timeout
+const int DEF_MIN_NETW_TIMEOUT  = 5;            ///< [s] default minimum network request timeout
+const int DEF_MAX_NETW_TIMEOUT  = 5;            ///< [s] default maximum network request timeout
 
 
 constexpr int DEF_UI_FONT_SCALE = 100;  ///< [%] Default font scaling
@@ -382,7 +382,8 @@ enum dataRefsLT {
     DR_CFG_FD_LONG_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_FD_REDUCE_HEIGHT,
-    DR_CFG_NETW_TIMEOUT,
+    DR_CFG_MIN_NETW_TIMEOUT,
+    DR_CFG_MAX_NETW_TIMEOUT,
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
     DR_CFG_HIDE_TAXIING,
@@ -685,7 +686,8 @@ protected:
     int fdCurrRefrIntvl = DEF_FD_REFRESH_INTVL;     ///< current value of how often to fetch new flight data
     int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
     int fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;     ///< [ft] reduce flight data usage when user aircraft is flying above this altitude
-    int netwTimeout     = DEF_NETW_TIMEOUT;         ///< [s] of network request timeout
+    int netwTimeoutMin  = DEF_MIN_NETW_TIMEOUT;     ///< [s] of min network request timeout
+    int netwTimeoutMax  = DEF_MAX_NETW_TIMEOUT;     ///< [s] of max network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
     int hideTaxiing     = 0;            // hide a/c while taxiing?
@@ -922,7 +924,8 @@ public:
     inline int GetFdRefreshIntvl() const { return fdCurrRefrIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return 2 * GetFdBufPeriod(); }
-    inline int GetNetwTimeout() const { return netwTimeout; }
+    inline int GetNetwTimeoutMin() const { return netwTimeoutMin; }
+    inline int GetNetwTimeoutMax() const { return netwTimeoutMax; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
     inline bool GetHideTaxiing() const { return hideTaxiing != 0; }

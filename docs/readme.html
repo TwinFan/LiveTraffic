@@ -144,6 +144,16 @@
 
     <ul>
         <li>
+            In light of OpenSky's API timeout issues, some network error handling
+            is reworked. Introduced a new
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection">Advanced Setting</a>
+            for <i>Min. Network Timeout</i>.
+            With this version, both <i>Min.</i> and <i>Max. Network timeout</i> are set to 5s.
+            This way LiveTraffic won't wait long for OpenSky not responding
+            but instead will retry again sooner.
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/295468-opensky-request-timeouts/&do=findComment&comment=2627189">See here for recommendations.</a>
+        </li>
+        <li>
             Reimplemented usage of XP's sound system when running in X-Plane 12.04 and later.
             As I believe in this implementation, the
             <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#miscellaneous">setting "Own FMOD Instance"</a>
