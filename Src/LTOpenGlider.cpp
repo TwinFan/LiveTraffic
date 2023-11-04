@@ -19,7 +19,7 @@
 /// @details    Also downloads and performs searches in the aircraft list
 /// @see        http://ddb.glidernet.org/download/
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2023 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -355,7 +355,6 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
         }
         
         // *** Main Loop ***
-        struct timeval timeout = { OGN_APRS_TIMEOUT_S, 0 };
         while (!bStopAprs && tcpAprs.isOpen())
         {
             // wait for some signal on either socket (APRS or self-pipe)
@@ -365,6 +364,7 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
 #if APL == 1 || LIN == 1
             FD_SET(aprsPipe[0], &sRead);              // check the self-pipe
 #endif
+            struct timeval timeout = { OGN_APRS_TIMEOUT_S, 0 };
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
@@ -546,8 +546,15 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     // We expect 16 matches, 17 if fpm is given. Size is one more because element 0 is the complete matched string:
     if (m.size() < 17) {
         // didn't match. But if we think this _could_ be a valid message then we should warn, maybe there's still a flaw in the regex above
-        if (ln.find("! id") != std::string::npos) {
-            LOG_MSG(logWARN, WARN_OGN_APRS_NOT_MATCHED, ln.c_str());
+        if (ln.find("! id") != std::string::npos &&         // seems to include an id
+            ln.find("/A=") != std::string::npos)            // as well as an altitude (there are messages out there without altitude, which we rightfully and silently discard this way)
+        {
+            static float lastWarn = -300.0f;
+            const float now = dataRefs.GetMiscNetwTime();
+            if (lastWarn < now - 300.0f) {                  // only issue warning if last such warning is more than 5 minutes ago
+                lastWarn = now;
+                LOG_MSG(logWARN, WARN_OGN_APRS_NOT_MATCHED, ln.c_str());
+            }
         }
         // but otherwise no issue...there are some message in the stream that we just don't need
         return true;
@@ -919,7 +926,7 @@ static bool OGNAcListDoDownload ()
         // prepare the handle with the right options
         ho.readBuf.reserve(CURL_MAX_WRITE_SIZE);
         curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
         curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
         curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, OGNAcListNetwCB);
         curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &ho);

@@ -1,8 +1,8 @@
 /// @file       LTWeather.h
 /// @brief      Fetch real weather information from AWC
-/// @see        https://www.aviationweather.gov/dataserver/example?datatype=metar
+/// @see        https://aviationweather.gov/data/api/#/Dataserver/dataserverMetars
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2023 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation

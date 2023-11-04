@@ -345,7 +345,7 @@ std::ofstream LTOnlineChannel::outRaw;
 
 LTOnlineChannel::LTOnlineChannel () :
 pCurl(NULL),
-nTimeout(dataRefs.GetNetwTimeout()),
+nTimeout(dataRefs.GetNetwTimeoutMax()),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
 netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
 curl_errtxt{0}, httpResponse(HTTP_OK)
@@ -575,10 +575,20 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
         
         // In case of timeout increase the channel's timeout and don't count it as an error
         if (cc == CURLE_OPERATION_TIMEDOUT) {
-            LOG_MSG(logWARN, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
-            nTimeout = std::min (nTimeout * 2,
-                                 dataRefs.GetNetwTimeout());
-            LOG_MSG(logWARN, "%s: Timeout increased to %ds", ChName(), nTimeout);
+            // But bother the user only with messages once every 3 minutes (this is due to OpenSky having been plagued with slow API responses running into timeouts)
+            static float tLastMsg = 0.0f;                   // time last message was logged
+            const float now = dataRefs.GetMiscNetwTime();
+            if (tLastMsg + 180.0f < now) {
+                LOG_MSG(logWARN, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
+                tLastMsg = now;
+            }
+            // Increase the timeout
+            const int prevTimeout = nTimeout;
+            nTimeout = std::min (nTimeout * 2,              // double the timeout
+                                 dataRefs.GetNetwTimeoutMax());
+            if (nTimeout > prevTimeout) {
+                LOG_MSG(logWARN, "%s: Timeout increased to %ds", ChName(), nTimeout);
+            }
         } else {
             SHOW_MSG(logERR, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
             IncErrCnt();
@@ -594,9 +604,11 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
         // Based on actual time take set a new network timeout as twice the response time
         {
             const std::chrono::seconds d = std::chrono::duration_cast<std::chrono::seconds>(tEnd - tStart);
+            // In case of a reduction we reduce to no less than half the previous value,
+            // keep value between min/max network timeout
             nTimeout = std::clamp<int> ((int)d.count() * 2,
-                                        std::max(MIN_NETW_TIMEOUT,nTimeout/2),  // this means the in case of a reduction we reduce to now less than half the previous value
-                                        dataRefs.GetNetwTimeout());
+                                        std::max(dataRefs.GetNetwTimeoutMin(),nTimeout/2),
+                                        dataRefs.GetNetwTimeoutMax());
             // LOG_MSG(logWARN, "%s: Timeout set to %ds", ChName(), nTimeout);
             break;
         }

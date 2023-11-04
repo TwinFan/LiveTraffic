@@ -128,12 +128,54 @@
 
     <h2>v3</h2>
 
-    <h3>v3.4.1</h3>
+    <h3>v3.4.2</h3>
 
     <P>
         <b>Update:</b> In case of doubt you can always just copy all files from the archive
         over the files of your existing installation.
     </P>
+
+    <P>At least copy the following files, which have changed compared to v3.4.1:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>
+            In light of OpenSky's API timeout issues, some network error handling
+            is reworked. Introduced a new
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection">Advanced Setting</a>
+            for <i>Min. Network Timeout</i>.
+            With this version, both <i>Min.</i> and <i>Max. Network timeout</i> are set to 5s.
+            This way LiveTraffic won't wait long for OpenSky not responding
+            but instead will retry again sooner.
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/295468-opensky-request-timeouts/&do=findComment&comment=2627189">See here for recommendations.</a>
+        </li>
+        <li>
+            Reimplemented usage of XP's sound system when running in X-Plane 12.04 and later.
+            As I believe in this implementation, the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#miscellaneous">setting "Own FMOD Instance"</a>
+            is reset to inactive, but is still available and can be
+            activated again in case there are still issues.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/257">#257</a>
+            weather download to updated API endpoints so that proper atmospheric pressure
+            can again be applied to altitudes conversion.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/258">#258</a>
+            extensive logging of ignored OGN messages.
+        </li>
+        <li>
+            Linux: Fixed <a href="https://forums.x-plane.org/index.php?/forums/topic/296204-linux-timeouts-from-adsbhub/">ADSBHub and OGN disconnects</a>
+            due to "'select' ran into a timeout"
+        </li>
+    </ul>
+    
+    <h3>v3.4.1</h3>
 
     <P>At least copy the following files, which have changed compared to v3.4.0:</P>
     <ul>

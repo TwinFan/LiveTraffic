@@ -1,8 +1,8 @@
 /// @file       LTWeather.cpp
 /// @brief      Fetch real weather information from AWC
-/// @see        https://www.aviationweather.gov/dataserver/example?datatype=metar
-/// @see        Example request: Latest weather 25 statute miles around EDLE, limited to the fields we are interested in:
-///             https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&radialDistance=100;-118.9385,33.4036&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg
+/// @see        https://aviationweather.gov/data/api/#/Dataserver/dataserverMetars
+/// @see        Example request: Latest weather somewhere around EDDL, limited to the fields we are interested in:
+///             https://aviationweather.gov//cgi-bin/data/dataserver.php?requestType=retrieve&dataSource=metars&format=xml&boundingBox=45.5,0.5,54.5,9,5&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg
 /// @details    Example response:
 ///                 @code{.xml}
 ///                     <response xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XML-Schema-instance" version="1.2" xsi:noNamespaceSchemaLocation="http://aviationweather.gov/adds/schema/metar1_2.xsd">
@@ -52,7 +52,7 @@
 ///                 @endcode
 ///
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2023 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -76,7 +76,7 @@
 //
 
 /// The request URL, parameters are in this order: radius, longitude, latitude
-const char* WEATHER_URL="https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&minLat=%.2f&minLon=%.2f&maxLat=%.2f&maxLon=%.2f&hoursBeforeNow=2&mostRecent=true&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
+const char* WEATHER_URL="https://aviationweather.gov/cgi-bin/data/dataserver.php?requestType=retrieve&dataSource=metars&format=xml&hoursBeforeNow=2&mostRecent=true&boundingBox=%.2f,%.2f,%.2f,%.2f&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
 
 /// Weather search radius (increment) to use if the initial weather request came back empty
 constexpr float ADD_WEATHER_RADIUS_NM = 100.0f;
@@ -219,7 +219,7 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
             // prepare the handle with the right options
             readBuf.reserve(CURL_MAX_WRITE_SIZE);
             curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-            curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeout());
+            curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
             curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
             curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WeatherFetchCB);
             curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);

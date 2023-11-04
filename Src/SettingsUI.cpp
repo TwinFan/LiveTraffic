@@ -791,8 +791,9 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Above height AGL of",    sFilter, DR_CFG_FD_REDUCE_HEIGHT,    1000, 100000, 1000, "%d ft");
                 ImGui::FilteredCfgNumber("increase refresh to",    sFilter, DR_CFG_FD_LONG_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_NETW_TIMEOUT,     10, 180, 5, "%d s");
-            
+                ImGui::FilteredCfgNumber("Min. Network timeout",   sFilter, DR_CFG_MIN_NETW_TIMEOUT,  5, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_MAX_NETW_TIMEOUT,  5, 180, 5, "%d s");
+
                 if (!*sFilter) ImGui::TreePop();
             }
 

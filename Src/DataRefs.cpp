@@ -526,6 +526,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_long_refresh_intvl",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_reduce_height",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/network_timeout_min",         DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
@@ -612,7 +613,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_LONG_REFRESH_INTVL:  return &fdLongRefrIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_FD_REDUCE_HEIGHT:       return &fdReduceHeight;
-        case DR_CFG_NETW_TIMEOUT:           return &netwTimeout;
+        case DR_CFG_MIN_NETW_TIMEOUT:       return &netwTimeoutMin;
+        case DR_CFG_MAX_NETW_TIMEOUT:       return &netwTimeoutMax;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
         case DR_CFG_HIDE_TAXIING:           return &hideTaxiing;
@@ -1709,7 +1711,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdBufPeriod     < fdLongRefrIntvl   || fdBufPeriod      > 180   ||
         fdReduceHeight  < 1000              || fdReduceHeight   > 100000||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
-        netwTimeout     < 10                ||
+        netwTimeoutMax  < 5                 || netwTimeoutMin   > netwTimeoutMax ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
         hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
@@ -1776,7 +1778,8 @@ void DataRefs::ResetAdvCfgToDefaults ()
     fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;
     fdBufPeriod     = DEF_FD_BUF_PERIOD;
     fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
-    netwTimeout     = DEF_NETW_TIMEOUT;
+    netwTimeoutMin      = DEF_MIN_NETW_TIMEOUT;
+    netwTimeoutMax      = DEF_MAX_NETW_TIMEOUT;
     contrailAltMin_ft   = DEF_CONTR_ALT_MIN;
     contrailAltMax_ft   = DEF_CONTR_ALT_MAX;
     contrailLifeTime    = DEF_CONTR_LIFETIME;
@@ -2010,7 +2013,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2072,8 +2075,10 @@ bool DataRefs::LoadConfigFile()
             // any conversions required?
             if (cfgFileVer < 30100)         // < 3.1.0
                 conv = CFG_V31;
-            else if (cfgFileVer < 30301)    // < 3.3.1
+            if (cfgFileVer < 30301)         // < 3.3.1
                 conv = CFG_V331;
+            if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
+                conv = CFG_V342;
         }
     }
     
@@ -2122,9 +2127,9 @@ bool DataRefs::LoadConfigFile()
                 switch (conv) {
                     case CFG_NO_CONV:
                         break;
-                    case CFG_V331:
-                    case CFG_V31:
                     case CFG_V3:
+                    case CFG_V31:
+                    case CFG_V331:
                         // We "forgot" to change the default to 49005 for fresh installations,
                         // so we need to convert the port all the way up to v3.3.1:
                         if (*i == DATA_REFS_LT[DR_CFG_RT_TRAFFIC_PORT]) {
@@ -2132,6 +2137,14 @@ bool DataRefs::LoadConfigFile()
                             if (sVal == "49003")
                                 sVal = "49005";
                         }
+                        [[fallthrough]];
+                    case CFG_V342:
+                        // Re-implemented XP Sound, so we reset the "Force own FMOD Instance flag" because we believe in the XP implementation now ;-)
+                        if (*i == DATA_REFS_LT[DR_CFG_SND_FORCE_FMOD_INSTANCE])
+                            sVal = "0";
+                        // With OpenSky API timeouts we set the max timeout to just 5s so we try more often
+                        if (*i == DATA_REFS_LT[DR_CFG_MAX_NETW_TIMEOUT])
+                            sVal = "5";
                         break;
                 }
                 

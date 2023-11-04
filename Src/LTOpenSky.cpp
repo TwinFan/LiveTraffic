@@ -503,7 +503,6 @@ bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
         if (!info.empty())
             vecAc.push_back(std::move(info));
         
-        IncErrCnt();
         return !listMd.empty();         // return `true` if there is data to process, otherwise we wouldn't process what had been received before the error
     }
     
