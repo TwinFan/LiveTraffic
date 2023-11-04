@@ -122,7 +122,6 @@ void ADSBHubConnection::StreamMain ()
 #endif
         
         // *** Main Loop ***
-        struct timeval timeout = { ADSBHUB_TIMEOUT_S, 0 };
         while (!bStopThr && tcpStream.isOpen())
         {
             // wait for some signal on either socket (Stream or self-pipe)
@@ -132,6 +131,7 @@ void ADSBHubConnection::StreamMain ()
 #if APL == 1 || LIN == 1
             FD_SET(streamPipe[0], &sRead);              // check the self-pipe
 #endif
+            struct timeval timeout = { ADSBHUB_TIMEOUT_S, 0 };
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)

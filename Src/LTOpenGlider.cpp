@@ -355,7 +355,6 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
         }
         
         // *** Main Loop ***
-        struct timeval timeout = { OGN_APRS_TIMEOUT_S, 0 };
         while (!bStopAprs && tcpAprs.isOpen())
         {
             // wait for some signal on either socket (APRS or self-pipe)
@@ -365,6 +364,7 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
 #if APL == 1 || LIN == 1
             FD_SET(aprsPipe[0], &sRead);              // check the self-pipe
 #endif
+            struct timeval timeout = { OGN_APRS_TIMEOUT_S, 0 };
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
