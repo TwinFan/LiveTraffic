@@ -3,6 +3,12 @@ TODO
 
 Download History
 ==========
+Download counter when providing v3.3.2: 184.182
+Download counter when providing v3.3.1: 182.945
+Download counter when providing v3.3.0: 179.678
+Download counter when providing v3.2.2: 178.411
+Download counter when providing v3.2.1: 177.364
+Download counter when providing v3.2.0: 175.307
 Download counter when providing v3.1.1: 173.345
 Download counter when providing v3.1.0: 169.434
 Download counter when providing v3.0.0: 164.625
