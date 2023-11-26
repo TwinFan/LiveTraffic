@@ -749,17 +749,6 @@ double firstPositive (const std::vector<std::string>& tfc,
 bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
                                           const std::vector<std::string>& tfc)
 {
-    // *** Potentially skip static objects ***
-    const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
-    if (dataRefs.GetHideStaticTwr() &&              // shall ignore static objects?
-        (// Aircraft's category is C3, C4, or C5?
-         (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '3' || sCat[1] == '4' || sCat[1] == '5')) ||
-         // - OR - tail and type are 'TWR' (as in previous msg types)
-         (tfc[RT_RTTFC_AC_TAILNO] == "TWR" &&
-          tfc[RT_RTTFC_AC_TYPE] == "TWR")
-       ))
-        return true;
-    
     // *** position time ***
     double posTime = std::stod(tfc[RT_RTTFC_TIMESTAMP]);
     AdjustTimestamp(posTime);
@@ -825,7 +814,16 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.call           = tfc[RT_RTTFC_CS_ICAO];
         stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
         stat.setOrigDest(tfc[RT_RTTFC_FROM_IATA], tfc[RT_RTTFC_TO_IATA]);
+
+        const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
         stat.catDescr       = GetADSBEmitterCat(sCat);
+        
+        // Static objects are all equally marked with a/c type TWR
+        if ((sCat == "C3" || sCat == "C4" || sCat == "C5") ||
+            (stat.reg == STATIC_OBJECT_TYPE && stat.acTypeIcao == STATIC_OBJECT_TYPE))
+        {
+            stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+        }
 
         // -- dynamic data --
         LTFlightData::FDDynamicData dyn;
@@ -887,12 +885,6 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
 bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
                                           const std::vector<std::string>& tfc)
 {
-    // *** Potentially skip static objects ***
-    if (dataRefs.GetHideStaticTwr() &&
-        tfc[RT_AITFC_CS]    == "TWR" &&
-        tfc[RT_AITFC_TYPE]  == "TWR")
-        return true;
-    
     // *** position time ***
     // There are 2 possibilities:
     // 1. As of v7.0.55 RealTraffic can send a timestamp (when configured
@@ -954,7 +946,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         else
             // Some codes are otherwise often duplicate with ADSBEx
             LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
-
+        
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
         LTFlightData& fd = fdMap[fdKey];
@@ -964,7 +956,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
         // now that we have the detail lock we can release the global one
         mapFdLock.unlock();
-
+        
         // completely new? fill key fields
         if ( fd.empty() )
             fd.SetKey(fdKey);
@@ -978,6 +970,12 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         if (tfc.size() > RT_AITFC_TO) {
             stat.reg            = tfc[RT_AITFC_TAIL];
             stat.setOrigDest(tfc[RT_AITFC_FROM], tfc[RT_AITFC_TO]);
+        }
+        
+        // For static objects we also set `reg` to TWR for consistency
+        if (stat.acTypeIcao == STATIC_OBJECT_TYPE) {
+            stat.reg = STATIC_OBJECT_TYPE;
+            stat.catDescr = GetADSBEmitterCat("C3");
         }
 
         // -- dynamic data --

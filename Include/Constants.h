@@ -195,6 +195,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
 #define CSL_CAR_ICAO_TYPE       "ZZZC"      // fake code for a ground vehicle
+#define STATIC_OBJECT_TYPE      "TWR"       ///< code often used for statuc objects
 #define FM_MAP_SECTION          "Map"
 #define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"

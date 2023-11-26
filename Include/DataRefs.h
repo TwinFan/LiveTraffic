@@ -934,9 +934,11 @@ public:
     { return bGnd ? hideNearbyGnd : hideNearbyAir; }
     inline bool GetHideInReplay() const { return hideInReplay; }
     inline bool GetHideStaticTwr () const { return hideStaticTwr; }
-    inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
+    bool WarnAutoHiding() const                 ///< any auto-hiding activated, that we should warn the user about?
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
+    bool IsAutoHidingActive() const             ///< any auto-hiding activated, including options no warning is issued about?
+    { return hideStaticTwr || WarnAutoHiding(); }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
     int  GetContrailAltMin_ft () const  { return contrailAltMin_ft; }
     int  GetContrailAltMax_ft () const  { return contrailAltMax_ft; }

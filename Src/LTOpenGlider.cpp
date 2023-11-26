@@ -210,12 +210,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             break;
         }
         
-        // We sliently skip all static objects
-        if (dataRefs.GetHideStaticTwr() &&
-            std::stoi(tok[GNF_FLARM_ACFT_TYPE]) == FAT_STATIC_OBJ)
-            continue;
-        
-        // We also skip records, which are outdated by the time they arrive
+        // We skip records, which are outdated by the time they arrive
         const long age_s = std::abs(std::stol(tok[GNF_AGE_S]));
         if (age_s >= dataRefs.GetFdBufPeriod())
             continue;
@@ -257,6 +252,11 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
                 const FlarmAircraftTy acTy = (FlarmAircraftTy)std::clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
                                                                               FAT_UNKNOWN, FAT_STATIC_OBJ);
                 stat.catDescr   = OGNGetAcTypeName(acTy);
+
+                // Static objects are always mapped to TWR, all others can be configured by the user
+                if (acTy == FAT_STATIC_OBJ) {
+                    stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+                }
                 
                 // If we still have no accurate ICAO type then we need to fall back to some configured defaults
                 if (stat.acTypeIcao.empty())
@@ -569,10 +569,6 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     if (senderDetails & 0b11000000)             // "No tracking" or "stealth mode" set?
         return true;                            // -> ignore
     
-    if (dataRefs.GetHideStaticTwr() &&          // Shall hide static objects and it is
-        acTy == FAT_STATIC_OBJ)                 // Static object?
-        return true;                            // -> ignore
-    
     // Timestamp - skip too old records
     time_t ts = mktime_utc(std::stoi(m.str(M_TS_H)),
                            std::stoi(m.str(M_TS_MIN)),
@@ -616,6 +612,11 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         
             // Aircraft type converted from Flarm AcftType
             stat.catDescr   = OGNGetAcTypeName(acTy);
+            
+            // Static objects are always mapped to TWR, all others can be configured by the user
+            if (acTy == FAT_STATIC_OBJ) {
+                stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+            }
             
             // If we still have no accurate ICAO type then we need to fall back to some configured defaults
             if (stat.acTypeIcao.empty())
@@ -744,7 +745,7 @@ bool OpenGliderConnection::LookupAcList (const std::string& sDevId,
     
     // If needed open the file
     if (!ifAcList.is_open()) {
-        // open the output file in binary mode
+        // open the input file in binary mode
         const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
         ifAcList.open (sFileName, std::ios::binary | std::ios::in);
         if (!ifAcList) {

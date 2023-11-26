@@ -247,17 +247,17 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
         return;
     
     // Are we to skip static objects?
-    const std::string reg = jog_s(pJAc, ADSBEX_V2_REG);
+    std::string reg = jog_s(pJAc, ADSBEX_V2_REG);
     std::string acTy = jog_s(pJAc, ADSBEX_V2_AC_TYPE_ICAO);
-    const std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
+    std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
     
-    // Skip static objects
-    if (dataRefs.GetHideStaticTwr()) {
-        if (reg  == "TWR" ||
-            acTy == "TWR" ||
-            cat  == "C3")
-            // skip
-            return;
+    // Mark all static objects equally, so they can optionally be hidden
+    if (reg  == STATIC_OBJECT_TYPE ||
+        acTy == STATIC_OBJECT_TYPE ||
+        cat  == "C3")
+    {
+        reg = acTy = STATIC_OBJECT_TYPE;
+        cat = "C3";
     }
     
     // Identify ground vehicles
@@ -355,18 +355,6 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     if (dist > dataRefs.GetFdStdDistance_m() )
         return;
 
-    // Are we to skip static objects?
-    if (dataRefs.GetHideStaticTwr()) {
-        if (!strcmp(jog_s(pJAc, ADSBEX_V1_GND), "1") && // on the ground
-            !*jog_s(pJAc, ADSBEX_V1_AC_TYPE_ICAO) &&    // no type
-            !*jog_s(pJAc, ADSBEX_V1_HEADING) &&         // no `trak` heading, not even "0"
-            !*jog_s(pJAc, ADSBEX_V1_CALL) &&            // no call sign
-            !*jog_s(pJAc, ADSBEX_V1_REG) &&             // no tail number
-            !strcmp(jog_s(pJAc, ADSBEX_V1_SPD), "0"))   // speed exactly "0"
-            // skip
-            return;
-    }
-
     // from here on access to fdMap guarded by a mutex
     // until FD object is inserted and updated
     std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
@@ -428,6 +416,19 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     pos.heading() = dyn.heading;
     pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
     
+    // -- Static Object Identification --
+    // Mark all static objects equally, so they can optionally be hidden
+    if (dyn.gnd &&                                  // on the ground
+        stat.acTypeIcao.empty() &&                  // no type
+        stat.call.empty() &&                        // no call sign
+        stat.reg.empty() &&                         // no tail number
+        !*jog_s(pJAc, ADSBEX_V1_TTRK) &&            // no `ttrk` heading, not even "0"
+        !strcmp(jog_s(pJAc, ADSBEX_V1_SPD), "0"))   // speed exactly "0"
+    {
+        stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+        stat.catDescr = GetADSBEmitterCat("C3");
+    }
+
     // -- Ground vehicle identification --
     // Sometimes we get "-GND", replace it with "ZZZC"
     if (stat.acTypeIcao == ADSBEX_V1_TYPE_GND)

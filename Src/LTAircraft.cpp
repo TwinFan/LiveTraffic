@@ -1275,6 +1275,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         // get copy of dynamice and static data for constructor purposes
         LTFlightData::FDDynamicData dynCopy (fd.WaitForSafeCopyDyn());
         LTFlightData::FDStaticData statCopy (fd.WaitForSafeCopyStat());
+        bStaticObject = statCopy.isStaticObject();
         
         // init
         aiPrio = 0;
@@ -2521,6 +2522,9 @@ bool LTAircraft::CalcVisible ()
     // automatic is off -> take over manually given state
     else if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
         XPMP2::Aircraft::SetVisible(bSetVisible);
+    // hide static objects and we are one?
+    else if (dataRefs.GetHideStaticTwr() && bStaticObject)
+        XPMP2::Aircraft::SetVisible(false);
     // hide while taxiing...and we are taxiing?
     else if (dataRefs.GetHideTaxiing() &&
         (phase == FPH_TAXI || phase == FPH_STOPPED_ON_RWY))
@@ -2978,6 +2982,7 @@ void LTAircraft::ChangeModel ()
         // also update the flight model to be used
         pMdl = &FlightModel::FindFlightModel(fd, true);
         pDoc8643 = &Doc8643::get(acIcaoType);
+        bStaticObject = statData.isStaticObject();
         LOG_MSG(logINFO,INFO_AC_MDL_CHANGED,
                 labelInternal.c_str(),
                 statData.opIcao.c_str(),

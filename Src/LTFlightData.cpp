@@ -232,6 +232,12 @@ bool LTFlightData::FDStaticData::isGrndVehicle() const
     return acTypeIcao == dataRefs.GetDefaultCarIcaoType();
 }
 
+// is this a static object?
+bool LTFlightData::FDStaticData::isStaticObject() const
+{
+    return acTypeIcao == STATIC_OBJECT_TYPE;
+}
+
 // set the key value
 std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
 {

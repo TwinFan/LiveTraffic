@@ -82,6 +82,7 @@
 #define ADSBEX_V1_LON           "lon"
 #define ADSBEX_V1_ELEVATION     "galt"          // geometric altitude
 #define ADSBEX_V1_ALT           "alt"           // barometric altitude
+#define ADSBEX_V1_TTRK          "ttrk"
 #define ADSBEX_V1_HEADING       "trak"
 #define ADSBEX_V1_GND           "gnd"
 #define ADSBEX_V1_POS_TIME      "postime"

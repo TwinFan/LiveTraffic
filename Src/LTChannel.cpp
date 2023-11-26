@@ -912,19 +912,13 @@ void LTFlightDataAcMaintenance()
         double simTime = dataRefs.GetSimTime();
         
         // iterate all flight data and remove outdated aircraft along with their fd data
-        // (although c++ doc says map iterators won't be affected by erase it actually crashes...
-        //  so we do it the old-fashioned way and store a vector of to-be-deleted keys
-        //  and do the actual delete in a second round)
-        std::vector<mapLTFlightDataTy::key_type> vFdKeysToErase;
-        for ( mapLTFlightDataTy::value_type& fdPair: mapFd )
+        for ( auto i = mapFd.begin(); i != mapFd.end(); )
         {
             // do the maintenance, remember a/c to be deleted
-            if ( fdPair.second.AircraftMaintenance(simTime) )
-                vFdKeysToErase.push_back(fdPair.first);
-        }
-        // now remove all outdated fd objects remembered for deletion
-        for ( const mapLTFlightDataTy::key_type& key: vFdKeysToErase ) {
-            mapFd.erase(key);
+            if ( i->second.AircraftMaintenance(simTime) )
+                i = mapFd.erase(i);
+            else
+                ++i;
         }
         
     } catch(const std::system_error& e) {

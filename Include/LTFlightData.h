@@ -142,6 +142,8 @@ public:
             { return opIcao.empty() ? call.substr(0,3) : opIcao; }
         /// is this a ground vehicle?
         bool isGrndVehicle() const;
+        /// is this a static object? (marked by a/c type being TWR)
+        bool isStaticObject() const;
         /// has been initialized from a proper master data channel?
         bool hasMasterChData() const { return bFilledFromMasterCh; }
     };

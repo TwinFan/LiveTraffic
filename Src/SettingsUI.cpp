@@ -186,7 +186,7 @@ void LTSettingsUI::buildInterface()
             ImGui::FilteredCfgNumber("Master Volume",           sFilter, DR_CFG_MASTER_VOLUME, 0, 200, 10, "%d %%");
             
             // auto-open and warning if any of these values are set as they limit what's shown
-            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive() ||
+            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.WarnAutoHiding() ||
                                        dataRefs.ShallUseExternalCamera() || dataRefs.GetRemoteSupport() < 0;
             if (bSomeRestrict)
                 ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
