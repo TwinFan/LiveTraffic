@@ -35,9 +35,7 @@
 //
 
 ADSBExchangeConnection::ADSBExchangeConnection () :
-LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel()
+LTFlightDataChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME)
 {
     // purely informational
     urlName  = ADSBEX_CHECK_NAME;

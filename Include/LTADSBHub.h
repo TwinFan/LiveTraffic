@@ -41,7 +41,7 @@
 //
 
 /// Connection to ADSBHub via TCP stream
-class ADSBHubConnection : public LTOnlineChannel, LTFlightDataChannel
+class ADSBHubConnection : public LTFlightDataChannel
 {
 protected:
     // the map of flight data, where we deliver our data to
@@ -87,8 +87,6 @@ public:
     std::string GetURL (const positionTy&) override { return ""; }
     /// @brief Processes the fetched data
     bool ProcessFetchedData (mapLTFlightDataTy&) override { return true; };
-    bool IsLiveFeed() const override { return true; }
-    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override;
     void DoDisabledProcessing() override { StreamClose(); }

@@ -71,7 +71,7 @@
 //
 //MARK: FSCharter
 //
-class FSCConnection : public LTOnlineChannel, LTFlightDataChannel
+class FSCConnection : public LTFlightDataChannel
 {
 public:
     /// FSC-specific connection status
@@ -101,9 +101,6 @@ protected:
 public:
     FSCConnection ();
     
-    bool IsLiveFeed() const override { return true; }
-    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
-
     std::string GetStatusStr () const;              ///< Get FSC-specific status string
     std::string GetStatusText () const override;    ///< get status info, considering FSC-specific texts
 

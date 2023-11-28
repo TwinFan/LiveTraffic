@@ -343,7 +343,8 @@ void LTACMasterdataChannel::CopyGlobalRequestList ()
 // the one (hence static) output file for logging raw network data
 std::ofstream LTOnlineChannel::outRaw;
 
-LTOnlineChannel::LTOnlineChannel () :
+LTOnlineChannel::LTOnlineChannel (dataRefsLT ch, LTChannelType t, const char* chName) :
+LTChannel(ch, t, chName),
 pCurl(NULL),
 nTimeout(dataRefs.GetNetwTimeoutMax()),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
@@ -642,14 +643,6 @@ bool LTOnlineChannel::IsRevocationError (const std::string& err)
 }
 
 //
-//MARK: LTFileChannel
-//
-
-LTFileChannel::LTFileChannel () :
-zuluLastRead(0)
-{}
-
-//
 //MARK: Init Functions
 //
 bool LTFlightDataInit()
@@ -914,8 +907,11 @@ void LTFlightDataAcMaintenance()
         // iterate all flight data and remove outdated aircraft along with their fd data
         for ( auto i = mapFd.begin(); i != mapFd.end(); )
         {
-            // do the maintenance, remember a/c to be deleted
-            if ( i->second.AircraftMaintenance(simTime) )
+            // access guarded by a mutex
+            LTFlightData& fd = i->second;
+            std::lock_guard<std::recursive_mutex> lockFd (fd.dataAccessMutex);
+            // do the maintenance, remove aircraft if that's the verdict
+            if ( fd.AircraftMaintenance(simTime) )
                 i = mapFd.erase(i);
             else
                 ++i;

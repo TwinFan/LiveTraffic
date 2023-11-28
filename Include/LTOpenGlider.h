@@ -126,7 +126,7 @@ struct OGNAnonymousIdMapTy {
 
 
 /// Connection to OGN via APRS or HTTP
-class OpenGliderConnection : public LTOnlineChannel, LTFlightDataChannel
+class OpenGliderConnection : public LTFlightDataChannel
 {
 protected:
     // APRS connection to receives tracking data
@@ -157,8 +157,6 @@ public:
     std::string GetURL (const positionTy& pos) override;
     /// @brief Processes the fetched data
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
-    bool IsLiveFeed() const override { return true; }
-    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
     void DoDisabledProcessing() override { Cleanup(); }

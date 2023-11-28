@@ -50,7 +50,7 @@ constexpr std::chrono::milliseconds FF_INTVL        = std::chrono::milliseconds(
 //
 // MARK: ForeFlight Sender
 //
-class ForeFlightSender : public LTOnlineChannel, LTFlightDataChannel
+class ForeFlightSender : public LTOutputChannel
 {
 protected:
     // the map of flight data, data that we send out to ForeFlight
@@ -74,15 +74,13 @@ public:
     ForeFlightSender (mapLTFlightDataTy& _fdMap);
     virtual ~ForeFlightSender ();
 
-    virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRAFFIC_SENDER; }
+    std::string GetURL (const positionTy&) override { return ""; }   // don't need URL, no request/reply
     
     // interface called from LTChannel
-    virtual bool FetchAllData(const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy&) { return true; }
-    virtual void DoDisabledProcessing();
-    virtual void Close ();
+    bool FetchAllData(const positionTy& pos) override;
+    bool ProcessFetchedData (mapLTFlightDataTy&) override { return true; }
+    void DoDisabledProcessing() override;
+    void Close () override;
     
 protected:
     // Start/Stop

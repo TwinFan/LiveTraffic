@@ -47,9 +47,7 @@ constexpr int    ADSBHUB_TIMEOUT_S  = 60;                   ///< ADSBHub sends s
 
 // Constructor
 ADSBHubConnection::ADSBHubConnection (mapLTFlightDataTy& _fdMap) :
-LTChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel(),
+LTFlightDataChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME),
 fdMap(_fdMap)
 {
     // purely informational

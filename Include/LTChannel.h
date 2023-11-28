@@ -62,21 +62,22 @@ public:
     std::string urlPopup;           ///< more detailed text, shows eg. as popup when hovering over the link button
     const char* const pszChName;    ///< the cahnnel's name
     const dataRefsLT channel;       ///< id of channel (see dataRef)
+    const LTChannelType eType;      ///< type of channel
     
 private:
     bool bValid = true;             ///< valid connection?
     int errCnt = 0;                 ///< number of errors tolerated
 
 public:
-    LTChannel (dataRefsLT ch, const char* chName) : pszChName(chName), channel(ch) {}
+    LTChannel (dataRefsLT ch, LTChannelType t, const char* chName) :
+        pszChName(chName), eType(t), channel(ch) {}
     virtual ~LTChannel () {}
     
 public:
     const char* ChName() const { return pszChName; }
     inline dataRefsLT GetChannel() const { return channel; }
     
-    virtual bool IsLiveFeed () const = 0;
-    virtual LTChannelType GetChType () const = 0;
+    LTChannelType GetChType () const { return eType; };
     virtual bool IsValid () const {return bValid;}      // good to provide data after init?
     virtual void SetValid (bool _valid, bool bMsg = true);
     virtual bool IncErrCnt();               // increases error counter, returns if (still) valid
@@ -118,14 +119,57 @@ typedef std::list<ptrLTChannelTy> listPtrLTChannelTy;
 extern listPtrLTChannelTy    listFDC;
 
 //
+// MARK: LTOnlineChannel
+//       Any request/reply via internet, uses CURL library
+//
+class LTOnlineChannel : public LTChannel
+{
+protected:
+    CURL* pCurl;                    // handle into CURL
+    std::string requBody;           ///< body of a POST request
+    int nTimeout;                   ///< current network timeout of this channel
+    char* netData;                  // where the response goes
+    size_t netDataPos;              // current write pos into netData
+    size_t netDataSize;             // current size of netData
+    char curl_errtxt[CURL_ERROR_SIZE];    // where error text goes
+    long httpResponse;              // last HTTP response code
+    
+    static std::ofstream outRaw;    // output file for raw logging
+    
+public:
+    LTOnlineChannel (dataRefsLT ch, LTChannelType t, const char* chName);
+    virtual ~LTOnlineChannel ();
+    
+protected:
+    virtual bool InitCurl ();
+    virtual void CleanupCurl ();
+    // CURL callback
+    static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
+    // logs raw data to a text file
+    void DebugLogRaw (const char* data, bool bHeader = true);
+    
+public:
+    bool FetchAllData (const positionTy& pos) override;
+    virtual std::string GetURL (const positionTy& pos) = 0;
+    virtual void ComputeBody (const positionTy& /*pos*/) { requBody.clear(); }   ///< in case of a POST request this call puts together its body
+    
+    /// Is the given network error text possibly caused by problems querying the revocation list?
+    static bool IsRevocationError (const std::string& err);
+};
+
+
+//
 //MARK: LTFlightDataChannel
 //
-class LTFlightDataChannel : virtual public LTChannel {
+
+/// Parent class for any flight data channel
+class LTFlightDataChannel : public LTOnlineChannel {
 protected:
     mutable float timeLastAcCnt = 0.0;      ///< when did we last count the a/c served by this channel?
     mutable int     numAcServed = 0;        ///< how many a/c do we feed when counted last?
 public:
-    LTFlightDataChannel () {}
+    LTFlightDataChannel (dataRefsLT ch, const char* chName) :
+        LTOnlineChannel(ch, CHT_TRACKING_DATA, chName) {}
     int GetNumAcServed () const override;   ///< how many a/c do we feed when counted last?
 };
 
@@ -133,7 +177,7 @@ public:
 //MARK: LTACMasterdata
 //
 
-// list of a/c for which static data is yet missing
+/// list of a/c for which static data is yet missing
 struct acStatUpdateTy {
 public:
     LTFlightData::FDKeyTy acKey;    // to find master data
@@ -156,7 +200,8 @@ public:
 };
 typedef std::vector<acStatUpdateTy> vecAcStatUpdateTy;
 
-class LTACMasterdataChannel : virtual public LTChannel
+/// Parent class for master data channels
+class LTACMasterdataChannel : public LTOnlineChannel
 {
 private:
     /// @brief global list of a/c for which static data is yet missing
@@ -170,7 +215,9 @@ protected:
     std::string currKey;
     listStringTy  listMd;           // read buffer, one string per a/c data
 public:
-	LTACMasterdataChannel () {}
+	LTACMasterdataChannel (dataRefsLT ch, const char* chName) :
+        LTOnlineChannel(ch, CHT_MASTER_DATA, chName) {}
+
     virtual bool UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
                                    const LTFlightData::FDStaticData& dat);
     int GetNumAcServed () const override { return 0; }  ///< how many a/c do we feed?
@@ -187,58 +234,15 @@ protected:
 };
 
 //
-// MARK: LTOnlineChannel
-//       Any request/reply via internet, uses CURL library
+//MARK: LTOutputChannel
 //
-class LTOnlineChannel : virtual public LTChannel
-{
-protected:
-    CURL* pCurl;                    // handle into CURL
-    std::string requBody;           ///< body of a POST request
-    int nTimeout;                   ///< current network timeout of this channel
-    char* netData;                  // where the response goes
-    size_t netDataPos;              // current write pos into netData
-    size_t netDataSize;             // current size of netData
-    char curl_errtxt[CURL_ERROR_SIZE];    // where error text goes
-    long httpResponse;              // last HTTP response code
-    
-    static std::ofstream outRaw;    // output file for raw logging
-    
-public:
-    LTOnlineChannel ();
-    virtual ~LTOnlineChannel ();
-    
-protected:
-    virtual bool InitCurl ();
-    virtual void CleanupCurl ();
-    // CURL callback
-    static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
-    // logs raw data to a text file
-    void DebugLogRaw (const char* data, bool bHeader = true);
-    
-public:
-    virtual bool FetchAllData (const positionTy& pos);
-    virtual std::string GetURL (const positionTy& pos) = 0;
-    virtual void ComputeBody (const positionTy& /*pos*/) { requBody.clear(); }   ///< in case of a POST request this call puts together its body
-    virtual bool IsLiveFeed () const    { return true; }
-    
-    /// Is the given network error text possibly caused by problems querying the revocation list?
-    static bool IsRevocationError (const std::string& err);
-};
 
-//
-//MARK: LTFileChannel
-//
-class LTFileChannel : virtual public LTChannel
-{
-protected:
-    // the path to the underlying historical files
-    std::string pathBase;           // base path
-    time_t zuluLastRead;            // the time of the last read file (UTC)
-    listStringTy  listFd;           // read buffer, one string per a/c line in the hist file
+/// Parent class for any channel that outputs data
+class LTOutputChannel : public LTOnlineChannel {
 public:
-    LTFileChannel ();
-    virtual bool IsLiveFeed () const    {return false;}
+    LTOutputChannel (dataRefsLT ch, const char* chName) :
+        LTOnlineChannel(ch, CHT_TRAFFIC_SENDER, chName) {}
+    int GetNumAcServed () const override { return 0; }  ///< We don't "feed" aircraft
 };
 
 //

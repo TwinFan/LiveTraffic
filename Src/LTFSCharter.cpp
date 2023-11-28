@@ -72,9 +72,7 @@ static std::map<unsigned long,FSCAnonIdTy> mapFSCAnonId;
 
 // Constructor
 FSCConnection::FSCConnection () :
-LTChannel(DR_CHANNEL_FSCHARTER, FSC_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel()
+LTFlightDataChannel(DR_CHANNEL_FSCHARTER, FSC_NAME)
 {
     // purely informational
     urlName  = FSC_CHECK_NAME;

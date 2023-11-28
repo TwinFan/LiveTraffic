@@ -31,9 +31,7 @@
 
 // Constructor
 OpenSkyConnection::OpenSkyConnection () :
-LTChannel(DR_CHANNEL_OPEN_SKY_ONLINE, OPSKY_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel()
+LTFlightDataChannel(DR_CHANNEL_OPEN_SKY_ONLINE, OPSKY_NAME)
 {
     // purely informational
     urlName  = OPSKY_CHECK_NAME;
@@ -341,9 +339,7 @@ std::string OpenSkyConnection::GetStatusText () const
 
 // Constructor
 OpenSkyAcMasterdata::OpenSkyAcMasterdata () :
-LTChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME),
-LTOnlineChannel(),
-LTACMasterdataChannel()
+LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME)
 {
     // purely informational
     urlName  = OPSKY_MD_CHECK_NAME;

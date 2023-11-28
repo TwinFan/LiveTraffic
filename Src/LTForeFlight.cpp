@@ -29,9 +29,7 @@
 
 // Constructor doesn't do much
 ForeFlightSender::ForeFlightSender (mapLTFlightDataTy& _fdMap) :
-LTChannel(DR_CHANNEL_FORE_FLIGHT_SENDER, FOREFLIGHT_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel(),
+LTOutputChannel(DR_CHANNEL_FORE_FLIGHT_SENDER, FOREFLIGHT_NAME),
 fdMap(_fdMap)
 {
     // purely informational

@@ -36,9 +36,7 @@
 
 // Constructor doesn't do much
 RealTrafficConnection::RealTrafficConnection (mapLTFlightDataTy& _fdMap) :
-LTChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel(),
+LTFlightDataChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME),
 fdMap(_fdMap)
 {
     //purely information

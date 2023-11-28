@@ -149,7 +149,7 @@ struct RTUDPDatagramTy {
 //
 // MARK: RealTraffic Connection
 //
-class RealTrafficConnection : public LTOnlineChannel, LTFlightDataChannel
+class RealTrafficConnection : public LTFlightDataChannel
 {
 public:
     enum rtStatusTy {
@@ -198,29 +198,27 @@ public:
     RealTrafficConnection (mapLTFlightDataTy& _fdMap);
     virtual ~RealTrafficConnection ();
 
-    virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
+    std::string GetURL (const positionTy&) override { return ""; }   // don't need URL, no request/reply
 
     // interface called from LTChannel
-    virtual bool FetchAllData(const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy&) { return true; }
-    virtual void DoDisabledProcessing();
-    virtual void Close ();
+    bool FetchAllData(const positionTy& pos) override;
+    bool ProcessFetchedData (mapLTFlightDataTy&) override { return true; }
+    void DoDisabledProcessing() override;
+    void Close () override;
     // SetValid also sets internal status
-    virtual void SetValid (bool _valid, bool bMsg = true);
+    void SetValid (bool _valid, bool bMsg = true) override;
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
     // shall data of this channel be subject to hovering flight detection?
-    virtual bool DoHoverDetection () const { return true; }
+    bool DoHoverDetection () const override { return true; }
 
     // Status
     inline rtStatusTy GetStatus () const { return status; }
     double GetLastRcvdTime () const { return lastReceivedTime; }
     std::string GetStatusStr () const;
-    virtual std::string GetStatusText () const;  ///< return a human-readable staus
-    virtual std::string GetStatusTextExt () const;
+    std::string GetStatusText () const override;  ///< return a human-readable staus
+    std::string GetStatusTextExt () const override;
 
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
