@@ -64,27 +64,29 @@ public:
     OpenSkyConnection ();
     std::string GetURL (const positionTy& pos) override;
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
-    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
     std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
 protected:
+    void Main () override;          ///< virtual thread main function
+
     bool InitCurl () override;
     // read header and parse for request remaining
     static size_t ReceiveHeader(char *buffer, size_t size, size_t nitems, void *userdata);
 
 };
 
-//MARK: OpenSky Master Data Constats
+//
+//MARK: OpenSky Master Data Constants
+//
 #define OPSKY_MD_CHECK_NAME     "OpenSky Aircraft Database"
 #define OPSKY_MD_CHECK_URL      "https://opensky-network.org/aircraft-database"
 #define OPSKY_MD_CHECK_POPUP    "Search and update OpenSky's databse of airframes"
 
-constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 2 requests
+constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds(500);
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
-#define OPSKY_MD_GROUP          "MASTER"        // made-up group of master data fields
 #define OPSKY_MD_TRANSP_ICAO    "icao24"
 #define OPSKY_MD_COUNTRY        "country"
 #define OPSKY_MD_MAN            "manufacturerName"
@@ -96,11 +98,9 @@ constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 
 #define OPSKY_MD_CAT_DESCR      "categoryDescription"
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
 constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
-#define OPSKY_MD_TEXT_NO_CAT    "No  ADS-B Emitter Category Information"
-#define OPSKY_MD_MDL_UNKNOWN    "[?]"
+#define OPSKY_MD_TEXT_NO_CAT    "No ADS-B Emitter Category Information"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
-#define OPSKY_ROUTE_GROUP       "ROUTE"         // made-up group of route information fields
 #define OPSKY_ROUTE_CALLSIGN    "callsign"
 #define OPSKY_ROUTE_ROUTE       "route"
 #define OPSKY_ROUTE_OP_IATA     "operatorIata"
@@ -109,17 +109,19 @@ constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which cate
 //
 //MARK: OpenSkyAcMasterdata
 //
+
+/// Represents the OpenSky Master data channel, which requests aircraft master data and route information from OpenSky Networks
 class OpenSkyAcMasterdata : public LTACMasterdataChannel
 {
+public:
+    OpenSkyAcMasterdata ();                                         ///< Constructor sets channel, name, and URLs
+public:
+    std::string GetURL (const positionTy& pos) override;            ///< Returns the master data or route URL to query
+    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;    ///< Process received master or route data
 protected:
-    listStringTy invIcaos;          // list of not-to-query-again icaos
-    listStringTy invCallSigns;      // list of not-to-query-again call signs
-public:
-    OpenSkyAcMasterdata ();
-public:
-    bool FetchAllData (const positionTy& pos) override;
-    std::string GetURL (const positionTy& pos) override;
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
+    void Main () override;                                          ///< virtual thread main function
+    bool ProcessMasterData (JSON_Object* pJAc);                     ///< Process received aircraft master data
+    bool ProcessRouteInfo (JSON_Object* pJRoute);                   ///< Process received route info
 };
 
 

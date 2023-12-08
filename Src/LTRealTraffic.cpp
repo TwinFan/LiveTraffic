@@ -284,6 +284,14 @@ void RealTrafficConnection::SetValid (bool _valid, bool bMsg)
     LTOnlineChannel::SetValid(_valid, bMsg);
 }
 
+// virtual thread main function
+void RealTrafficConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_RT", LC_ALL_MASK);
+}
+
+
 // starts all networking threads
 bool RealTrafficConnection::StartConnections()
 {

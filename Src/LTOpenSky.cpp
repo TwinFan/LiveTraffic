@@ -39,6 +39,14 @@ LTFlightDataChannel(DR_CHANNEL_OPEN_SKY_ONLINE, OPSKY_NAME)
     urlPopup = OPSKY_CHECK_POPUP;
 }
 
+// virtual thread main function
+void OpenSkyConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OpSky", LC_ALL_MASK);
+}
+
+
 // Initialize CURL, adding OpenSky credentials
 bool OpenSkyConnection::InitCurl ()
 {
@@ -347,280 +355,186 @@ LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME)
     urlPopup = OPSKY_MD_CHECK_POPUP;
 }
 
-// OpenSkyAcMasterdata fetches two objects with two URL requests:
-// 1. Master (or Meta) data based on transpIcao
-// 2. Route information based on current call sign
-// Both keys are passed in vecAcStatUpdate. Two requests are sent one after
-// the other. The returning information is combined into one artifical JSON
-// object:
-//      { "MASTER": <1. response>, "ROUTE": <2. response> }
-// to be interpreted by ProcessFetchedData later.
-bool OpenSkyAcMasterdata::FetchAllData (const positionTy& /*pos*/)
-{
-    if ( !IsEnabled() )
-        return false;
-    
-    // first of all copy all requested a/c to our private list,
-    // the global one is refreshed before the next call.
-    CopyGlobalRequestList();
-    
-    // cycle all a/c's that need master data
-    int iNeedToWait = 0;                // will be >0 once we had _not_ waited once
-    bool bChannelOK = true;
-    positionTy pos;                     // no position needed, but we use the GND flag to tell the URL callback if we need master or route request
-    acStatUpdateTy info;
-    while (bChannelOK && !vecAc.empty() && !bFDMainStop &&
-           // We might have many requests in the list and we must pause
-           // between two of them. We check in the loop that we don't exceed the
-           // next wakeup time for the global request/reply loop so that regular
-           // tracking request lookup can happen in time.
-           std::chrono::steady_clock::now() <= gNextWakeup - 2 * std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)))
-    {
-        // fetch request from back of list and remove
-        info = vecAc.back();
-        vecAc.pop_back();
-        // empty or not an ICAO code? -> skip
-        if (info.acKey.eKeyType != LTFlightData::KEY_ICAO ||
-            info.acKey.key.empty())
-            continue;
-        
-//        LOG_MSG(logDEBUG, "Requesting for %s / %s, order = %d",
-//                info.acKey.c_str(), info.callSign.c_str(), info.order);
-        
-        // beginning of a JSON object
-        std::string data("{");
-        
-        // *** Fetch Masterdata ***
-        pos.f.onGrnd = GND_ON;                          // flag for: master data
-        
-        // skip icao of which we know they will come back invalid
-        if ( std::find(invIcaos.cbegin(),invIcaos.cend(),info.acKey.key) == invIcaos.cend() )
-        {
-            // set key (transpIcao) so that other functions (GetURL) can access it
-            currKey = info.acKey.key;
-            
-            // Potentially need to wait a bit between two subsequent requests
-            if (iNeedToWait++)
-                std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
 
-            // make use of LTOnlineChannel's capability of reading online data
-            if (LTOnlineChannel::FetchAllData(pos)) {
-                switch (httpResponse) {
-                    case HTTP_OK:                       // save response
-                        data += "\"" OPSKY_MD_GROUP "\": ";       // start the group MASTER
-                        data += netData;                // add the reponse
-                        bChannelOK = true;
-                        break;
-                    case HTTP_NOT_FOUND:                // doesn't know a/c, don't query again
-                    case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
-                        invIcaos.emplace_back(info.acKey.key);
-                        bChannelOK = true;              // but technically a valid response
-                        break;
-                        // in all other cases (including 503 HTTP_NOT_AVAIL)
-                        // we say it is a problem and we try probably again later
-                    default:
-                        bChannelOK = false;
-                }
-            } else {
-                // technical problem with fetching HTTP data
-                bChannelOK = false;
-            }
-        }
-        
-        // break out on problems
-        if (!bChannelOK)
-            break;
-        
-        // *** Fetch Flight Info ***
-        pos.f.onGrnd = GND_OFF;                         // flag for: route info
-        
-        // call sign shall be alphanumeric but nothing else
-        str_toupper(info.callSign);
-        
-        // requires call sign and shall not be known bad
-        if (bChannelOK &&
-            !info.callSign.empty() &&
-            // shall be alphanumeric
-            str_isalnum(info.callSign) &&
-            // shall not be a known bad call sign
-            std::find(invCallSigns.cbegin(),invCallSigns.cend(),info.callSign) == invCallSigns.cend())
-        {
-            // set key (call sign) so that other functions (GetURL) can access it
-            currKey = info.callSign;
+// virtual thread main function
+void OpenSkyAcMasterdata::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OpSkyMaster", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // (Try to) get the next request to be processed
+            requ = FetchNextRequest();
             
-            // delay between 2 requests to not overload OpenSky
-            if (iNeedToWait++)
-                std::this_thread::sleep_for(std::chrono::milliseconds(int(OPSKY_WAIT_BETWEEN * 1000.0)));
-            
-            // make use of LTOnlineChannel's capability of reading online data
-            if (LTOnlineChannel::FetchAllData(pos)) {
-                switch (httpResponse) {
-                    case HTTP_OK:                       // save response
-                        if (data.length() > 1)          // concatenate both JSON groups
-                            data += ", ";
-                        data += "\"" OPSKY_ROUTE_GROUP "\": ";       // start the group ROUTE
-                        data += netData;                // add the response
-                        bChannelOK = true;
-                        break;
-                    case HTTP_NOT_FOUND:                // doesn't know callsign, don't query again
-                    case HTTP_BAD_REQUEST:              // uh uh...done something wrong, don't do that again
-                        invCallSigns.emplace_back(info.callSign);
-                        bChannelOK = true;              // but technically a valid response
-                        break;
-                        // in all other cases (including 503 HTTP_NOT_AVAIL)
-                        // we say it is a problem and we try probably again later
-                    default:
-                        bChannelOK = false;
-                }
-            } else {
-                // technical problem with fetching HTTP data
-                bChannelOK = false;
+            // if there is something to request, fetch the data and process it
+            if (requ &&
+                FetchAllData(positionTy()) && ProcessFetchedData(mapFd)) {
+                // reduce error count if processed successfully
+                // as a chance to appear OK in the long run
+                DecErrCnt();
             }
+            
+            // sleep for OPSKY_WAIT_BETWEEN or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_for(lk, OPSKY_WAIT_BETWEEN,
+                                         [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
         }
-        
-        // break out on problems
-        if (!bChannelOK)
-            break;
-        
-        // close the outer JSON group
-        data += '}';
-        
-        // the data we found is saved for later processing
-        if (data.length() > 2)
-            listMd.emplace_back(std::move(data));
     }
-    
-    // done
-    currKey.clear();
-    
-    // if no technical valid answer received handle error
-    if ( !bChannelOK ) {
-        // we need to do that last request again
-        if (!info.empty())
-            vecAc.push_back(std::move(info));
-        
-        return !listMd.empty();         // return `true` if there is data to process, otherwise we wouldn't process what had been received before the error
-    }
-    
-    // success
-    return true;
 }
 
-// returns the openSky a/c master data URL per a/c
-std::string OpenSkyAcMasterdata::GetURL (const positionTy& pos)
+
+// Returns the master data or route URL to query
+std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 {
-    // FetchAllData tells us by pos' gnd flag if we are to query
-    // meta data (ON) or route information (OFF)
-    return std::string(pos.IsOnGnd() ? OPSKY_MD_URL : OPSKY_ROUTE_URL) + currKey;
+    switch (requ.type) {
+        case DATREQU_AC_MASTER:
+            return std::string(OPSKY_MD_URL) + requ.acKey.key;
+        case DATREQU_ROUTE:
+            return std::string(OPSKY_ROUTE_URL) + requ.callSign;
+        case DATREQU_NONE:
+            return std::string();
+    }
+    return std::string();
 }
 
 // process each master data line read from OpenSky
 bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
 {
-    // loop all previously collected master data records
-    while (!listMd.empty()) {
-        // the current master data record, remove it from the list
-        std::string ln = std::move(listMd.front());
-        listMd.pop_front();
-        
-        // here we collect the master data
-        LTFlightData::FDStaticData statDat;
-        
-        // each individual line should work as a JSON object
-        JSON_Value* pRoot = json_parse_string(ln.c_str());
-        if (!pRoot) {
-            LOG_MSG(logERR,ERR_JSON_PARSE);
-            if (IncErrCnt())
-                continue;
-            else
-                return false;
+    // If the requested data wasn't found we shall never try this request again
+    if (httpResponse == HTTP_NOT_FOUND ||
+        httpResponse == HTTP_BAD_REQUEST)
+    {
+        switch (requ.type) {
+            case DATREQU_AC_MASTER:
+                AddIgnoreAc(requ.acKey);
+                break;
+            case DATREQU_ROUTE:
+                AddIgnoreCallSign(requ.callSign);
+                break;
+            case DATREQU_NONE:
+                break;
         }
-        JSON_Object* pMain = json_object(pRoot);
-        if (!pMain) {
-            LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT);
-            if (IncErrCnt())
-                continue;
-            else
-                return false;
-        }
-        
-        // *** Meta Data ***
-        // the key: transponder Icao code
-        LTFlightData::FDKeyTy fdKey;
-
-        // access the meta data field group
-        JSON_Object* pJAc = json_object_get_object(pMain, OPSKY_MD_GROUP);
-        if (pJAc)
-        {
-            // fetch values from the online data
-            fdKey.SetKey(LTFlightData::KEY_ICAO,
-                         jog_s(pJAc, OPSKY_MD_TRANSP_ICAO));
-            statDat.reg         = jog_s(pJAc, OPSKY_MD_REG);
-            statDat.country     = jog_s(pJAc, OPSKY_MD_COUNTRY);
-            statDat.acTypeIcao  = jog_s(pJAc, OPSKY_MD_AC_TYPE_ICAO);
-            statDat.man         = jog_s(pJAc, OPSKY_MD_MAN);
-            statDat.mdl         = jog_s(pJAc, OPSKY_MD_MDL);
-            statDat.catDescr    = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
-            statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
-            statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
-            
-            // -- Ground vehicle identification --
-            // OpenSky only delivers "category description" and has a
-            // pretty clear indicator for a ground vehicle
-            if (statDat.acTypeIcao.empty() &&           // don't know a/c type yet
-                (statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
-                 // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-                 (statDat.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
-                  statDat.man.empty() &&
-                  statDat.mdl.empty() &&
-                  statDat.opIcao.empty())))
-            {
-                // we assume ground vehicle
-                statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-                // The category description usually is something like
-                // "Surface Vehicle – Service Vehicle"
-                // Save the latter part if we have no model info yet
-                if (statDat.mdl.empty() &&
-                    statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos &&
-                    statDat.catDescr.length() > OPSKY_MD_TEXT_VEHICLE_LEN)
-                {
-                    statDat.mdl = statDat.catDescr.c_str() + OPSKY_MD_TEXT_VEHICLE_LEN;
-                }
-            }
-            // Replace type GRND with our default car type, too
-            else if (statDat.acTypeIcao == "GRND" || statDat.acTypeIcao == "GND")
-                statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-        }
-        
-        // *** Route Information ***
-        
-        // access the route info field group
-        JSON_Object* pJRoute = json_object_get_object(pMain, OPSKY_ROUTE_GROUP);
-        if (pJRoute)
-        {
-            // fetch values from the online data
-            // route is an array of typically 2 entries, but can have more
-            //    "route":["EDDM","LIMC"]
-            JSON_Array* pJRArr = json_object_get_array(pJRoute, OPSKY_ROUTE_ROUTE);
-            if (pJRArr) {
-                size_t cnt = json_array_get_count(pJRArr);
-                for (size_t i = 0; i < cnt; i++)
-                    statDat.stops.push_back(jag_s(pJRArr, i));
-            }
-            
-            // flight number: made up of IATA and actual number
-            statDat.flight  = jog_s(pJRoute,OPSKY_ROUTE_OP_IATA);
-            double flightNr = jog_n_nan(pJRoute,OPSKY_ROUTE_FLIGHT_NR);
-            if (!std::isnan(flightNr))
-                statDat.flight += std::to_string(lround(flightNr));
-        }
-        
-        // update the a/c's master data
-        if (!fdKey.empty())
-            UpdateStaticData(fdKey, statDat);
+        // But this is syntactically a totally valid response
+        return true;
     }
     
-    // we've processed all data, return success
+    // Any other result or no message is not OK
+    if (httpResponse != HTTP_OK || !netDataPos) {
+        IncErrCnt();
+        return false;
+    }
+    
+    // Try to interpret is as JSON and get the main JSON object
+    JSON_Value* pRoot = json_parse_string(netData);
+    if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
+    JSON_Object* pObj = json_object(pRoot);
+    if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+    
+    // Pass on the further processing depending on the request type
+    bool bRet = false;
+    switch (requ.type) {
+        case DATREQU_AC_MASTER:
+            bRet = ProcessMasterData(pObj);
+            break;
+        case DATREQU_ROUTE:
+            bRet = ProcessRouteInfo(pObj);
+            break;
+        case DATREQU_NONE:
+            break;
+    }
+    
+    // cleanup JSON
+    json_value_free (pRoot);
+    return bRet;
+}
+
+
+// Process received aircraft master data
+bool OpenSkyAcMasterdata::ProcessMasterData (JSON_Object* pJAc)
+{
+    LTFlightData::FDKeyTy fdKey;        // the key: transponder Icao code, filled from response!
+    LTFlightData::FDStaticData statDat; // here we collect the master data
+
+    // fetch values from the online data
+    fdKey.SetKey(LTFlightData::KEY_ICAO,
+                 jog_s(pJAc, OPSKY_MD_TRANSP_ICAO));
+    statDat.reg         = jog_s(pJAc, OPSKY_MD_REG);
+    statDat.country     = jog_s(pJAc, OPSKY_MD_COUNTRY);
+    statDat.acTypeIcao  = jog_s(pJAc, OPSKY_MD_AC_TYPE_ICAO);
+    statDat.man         = jog_s(pJAc, OPSKY_MD_MAN);
+    statDat.mdl         = jog_s(pJAc, OPSKY_MD_MDL);
+    statDat.catDescr    = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
+    statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
+    statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
+            
+    // -- Ground vehicle identification --
+    // OpenSky only delivers "category description" and has a
+    // pretty clear indicator for a ground vehicle
+    if (statDat.acTypeIcao.empty() &&           // don't know a/c type yet
+        (statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
+         // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
+         (statDat.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
+          statDat.man.empty() &&
+          statDat.mdl.empty() &&
+          statDat.opIcao.empty())))
+    {
+        // we assume ground vehicle
+        statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        // The category description usually is something like
+        // "Surface Vehicle – Service Vehicle"
+        // Save the latter part if we have no model info yet
+        if (statDat.mdl.empty() &&
+            statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos &&
+            statDat.catDescr.length() > OPSKY_MD_TEXT_VEHICLE_LEN)
+        {
+            statDat.mdl = statDat.catDescr.c_str() + OPSKY_MD_TEXT_VEHICLE_LEN;
+        }
+    }
+    // Replace type GRND with our default car type, too
+    else if (statDat.acTypeIcao == "GRND" || statDat.acTypeIcao == "GND")
+        statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+    
+    // Perform the update
+    UpdateStaticData(fdKey, statDat);
+    return true;
+}
+        
+
+// Process received route info
+bool OpenSkyAcMasterdata::ProcessRouteInfo (JSON_Object* pJRoute)
+{
+    LTFlightData::FDStaticData statDat; // here we collect the master data
+
+    // fetch values from the online data
+    // route is an array of typically 2 entries, but can have more
+    //    "route":["EDDM","LIMC"]
+    JSON_Array* pJRArr = json_object_get_array(pJRoute, OPSKY_ROUTE_ROUTE);
+    if (pJRArr) {
+        size_t cnt = json_array_get_count(pJRArr);
+        for (size_t i = 0; i < cnt; i++)
+            statDat.stops.push_back(jag_s(pJRArr, i));
+    }
+    
+    // flight number: made up of IATA and actual number
+    statDat.flight  = jog_s(pJRoute,OPSKY_ROUTE_OP_IATA);
+    double flightNr = jog_n_nan(pJRoute,OPSKY_ROUTE_FLIGHT_NR);
+    if (!std::isnan(flightNr))
+        statDat.flight += std::to_string(lround(flightNr));
+    
+    // update the a/c's master data
+    UpdateStaticData(requ.acKey, statDat);
     return true;
 }
 

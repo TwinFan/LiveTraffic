@@ -30,18 +30,12 @@
 #include "curl/curl.h"              // for CURL*
 #include "parson.h"                 // for JSON parsing
 
-// MARK: Generic types
-// just a generic list of strings
-typedef std::list<std::string> listStringTy;
-
 // MARK: Thread control
-extern std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
 extern std::thread CalcPosThread;              // the thread for pos calc (TriggerCalcNewPos)
 extern std::mutex  FDThreadSynchMutex;         // supports wake-up and stop synchronization
 extern std::condition_variable FDThreadSynchCV;
 // stop all threads?
 extern volatile bool bFDMainStop;
-extern std::chrono::time_point<std::chrono::steady_clock> gNextWakeup;  ///< when to wake up next for network requests
 
 //
 //MARK: Flight Data Connection (abstract base class)
@@ -63,6 +57,19 @@ public:
     const char* const pszChName;    ///< the cahnnel's name
     const dataRefsLT channel;       ///< id of channel (see dataRef)
     const LTChannelType eType;      ///< type of channel
+
+protected:
+    std::thread thr;                ///< Main Thread the channel runs in
+    std::chrono::time_point<std::chrono::steady_clock> tNextWakeup; ///< when to wake up next for networking?
+    typedef enum {
+        THR_NONE = 0,               ///< no thread, not running
+        THR_STARTING,               ///< Start of thread requested
+        THR_RUNNING,                ///< Thread is running
+        THR_STOP,                   ///< Thread shall stop
+        THR_ENDED,                  ///< Thread has ended, but is not yet joined
+    } ThrStatusTy;
+    /// Thread's state
+    volatile ThrStatusTy bThrStatus = THR_NONE;
     
 private:
     bool bValid = true;             ///< valid connection?
@@ -72,6 +79,19 @@ public:
     LTChannel (dataRefsLT ch, LTChannelType t, const char* chName) :
         pszChName(chName), eType(t), channel(ch) {}
     virtual ~LTChannel () {}
+    
+    void Start ();                  ///< Start the channel, typically starts a separate thread
+    void Stop (bool bWaitJoin);     ///< Stop the channel
+    bool isRunning () const         ///< Is channel's thread running?
+    { return thr.joinable(); }
+    virtual bool shallRun () const; ///< all conditions met to continue the thread loop?
+    /// Thread has ended but still needs to be joined
+    bool hasEnded () const { return bThrStatus == THR_ENDED; }
+
+private:
+    void _Main();                   ///< Thread main function, will call virtual Main()
+protected:
+    void virtual Main () = 0;       ///< virtual thread main function
     
 public:
     const char* ChName() const { return pszChName; }
@@ -99,11 +119,16 @@ public:
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
     virtual bool ProcessFetchedData (mapLTFlightDataTy& fd) = 0;
-    // do something while disabled?
+    // TODO: Remove Disabled Processing, should be done during end of main thread / do something while disabled?
     virtual void DoDisabledProcessing () {}
-    // (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
+    // TODO: Remove Close / (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
     virtual void Close () {}
 };
+
+// Mutex and condition variable with which threads are woken up
+extern std::mutex               FDThreadSynchMutex;
+extern std::condition_variable  FDThreadSynchCV;
+extern volatile bool            bFDMainStop;
 
 // Collection of smart pointers requires C++ 17 to compile correctly!
 #if __cplusplus < 201703L
@@ -178,42 +203,61 @@ public:
 //
 
 /// list of a/c for which static data is yet missing
+/// Note: Either a key is set (then we ask for a/c master data), or a call sign (then we ask for route information)
 struct acStatUpdateTy {
 public:
-    LTFlightData::FDKeyTy acKey;    // to find master data
-    std::string callSign;           // to query route information
-    unsigned order = UINT_MAX;      ///< processing order, lowest value first
-protected:
-    bool bProcessed = false;        ///< has been processed by some master data channel?
+    LTFlightData::FDKeyTy acKey;    ///< a/c key to find a/c master data
+    std::string callSign;           ///< call sign to query route information
+    unsigned long dist = UINT_MAX;  ///< distance of plane to camera, influences priority
+
+    DatRequTy type = DATREQU_NONE;   ///< type of this master data request
     
 public:
-    acStatUpdateTy() {}
-    acStatUpdateTy(const LTFlightData::FDKeyTy& k, std::string c, unsigned o) :
-    acKey(k), callSign(c), order(o) {}
-
-    inline bool operator == (const acStatUpdateTy& o) const
-    { return acKey == o.acKey && callSign == o.callSign; }
-    inline bool empty () const { return acKey.empty() && callSign.empty(); }
+    /// @brief Constructor for both master data or route lookup
+    /// @param k Key to aircraft, is always required to be able to update the aircraft after having fetched data
+    /// @param cs callSign if and only if a route is requested, empty if a/c master data is requested
+    /// @param d Distance of aircraft to camera, influence priority in which requests are processed
+    acStatUpdateTy(const LTFlightData::FDKeyTy& k, const std::string& cs, unsigned long d) :
+    acKey(k), callSign(cs), dist(d), type(cs.empty() ? DATREQU_AC_MASTER : DATREQU_ROUTE) {}
     
-    inline void SetProcessed () { bProcessed = true; }
-    inline bool HasBeenProcessed () const { return bProcessed; }
+    /// Default constructor creates an empty, invalid object
+    acStatUpdateTy () : type(DATREQU_NONE) {}
+    
+    /// @brief Priority order is: route info has lower prio than master data, and within that: longer distance has lower order
+    /// @see confusing definition of std::priority_queue's `Compare` template parameter at https://en.cppreference.com/w/cpp/container/priority_queue
+    bool operator < (const acStatUpdateTy& o) const
+    { return type == o.type ? dist > o.dist : type > o.type; }
+    
+    /// Equality is used to test of a likewise request is included already and does _not_ take distance into account
+    bool operator == (const acStatUpdateTy& o) const
+    { return type == o.type && acKey == o.acKey && callSign == callSign; }
+    
+    /// Valid request? (need an a/c key, and if it is a route request also a call sign)
+    operator bool () const { return type != DATREQU_NONE && !acKey.empty() && (type != DATREQU_ROUTE || !callSign.empty()); }
 };
-typedef std::vector<acStatUpdateTy> vecAcStatUpdateTy;
+
+/// Set of all master data requests, ordered by `acStatUpdateTy::operator<`
+typedef std::set<acStatUpdateTy> setAcStatUpdateTy;
+typedef std::set<LTFlightData::FDKeyTy> setFdKeyTy;
+typedef std::set<std::string> setStringTy;
 
 /// Parent class for master data channels
 class LTACMasterdataChannel : public LTOnlineChannel
 {
 private:
-    /// @brief global list of a/c for which static data is yet missing
-    /// (reset with every network request cycle)
-    static vecAcStatUpdateTy vecAcStatUpdate;
-    /// Lock controlling multi-threaded access to `listAcSTatUpdate`
-    static std::mutex vecAcStatMutex;
+    /// Lock controlling multi-threaded access to all the 3 sets
+    static std::mutex mtxSets;
+    /// global list of static data requests
+    static setAcStatUpdateTy setAcStatUpdate;
+    /// List of a/c to ignore, as we know we don't get data online
+    static setFdKeyTy setIgnoreAc;
+    /// List of call signs to ignore, as we know we don't get route info online
+    static setStringTy setIgnoreCallSign;
 
 protected:
-    vecAcStatUpdateTy vecAc;        ///< object-private list of a/c to query
-    std::string currKey;
-    listStringTy  listMd;           // read buffer, one string per a/c data
+    /// The request currently being processed
+    acStatUpdateTy requ;
+
 public:
 	LTACMasterdataChannel (dataRefsLT ch, const char* chName) :
         LTOnlineChannel(ch, CHT_MASTER_DATA, chName) {}
@@ -222,15 +266,31 @@ public:
                                    const LTFlightData::FDStaticData& dat);
     int GetNumAcServed () const override { return 0; }  ///< how many a/c do we feed?
 
-    // request to fetch master data
-    static void RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
-                                   const std::string callSign,
-                                   double distances);
-    static void ClearMasterDataRequests ();
+    /// Add request to fetch master data (returns `true` if added, `false` if duplicate)
+    static bool RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
+                                   double distance)
+    { return RequestMasterData (keyAc, "", distance); }
+    /// Add request to fetch route info (returns `true` if added, `false` if duplicate)
+    static bool RequestRouteInfo  (const LTFlightData::FDKeyTy& keyAc,
+                                   const std::string& callSign,
+                                   double distance)
+    { return callSign.empty() ? false : RequestMasterData (keyAc, callSign, distance); }
+    
+    /// Called regularly to keep the priority list updated
+    static void MaintainMasterDataRequests ();
     
 protected:
-    // uniquely copies entries from listAcStatUpdate to vecAc
-    void CopyGlobalRequestList ();
+    /// Generically, uniquely add request to fetch data (returns `true` if added, `false` if duplicate)
+    static bool RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
+                                   const std::string& callSign,
+                                   double distance);
+
+    /// Fetch next master data request from our set (`acKey` will be empty if there is no waiting request)
+    static acStatUpdateTy FetchNextRequest ();
+    /// Add an aircraft to the ignore list
+    static void AddIgnoreAc (const LTFlightData::FDKeyTy& keyAc);
+    /// Add a callsign to the ignore list
+    static void AddIgnoreCallSign (const std::string& cs);
 };
 
 //

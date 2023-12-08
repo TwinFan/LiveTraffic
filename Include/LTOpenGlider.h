@@ -164,6 +164,8 @@ public:
 
     // APRS connection
 protected:
+    void Main () override;          ///< virtual thread main function
+
     /// Main function for APRS connection, expected to be started in a thread
     void APRSMain (const positionTy& pos, unsigned dist_km);
     /// Send the APRS login message

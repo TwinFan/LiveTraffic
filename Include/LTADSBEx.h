@@ -135,13 +135,14 @@ public:
     ADSBExchangeConnection ();
     std::string GetURL (const positionTy& pos) override;
     bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
-    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
     std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
     
 protected:
+    void Main () override;          ///< virtual thread main function
+
     // need to add/cleanup API key
     bool InitCurl () override;
     void CleanupCurl () override;

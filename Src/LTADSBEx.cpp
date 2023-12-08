@@ -75,7 +75,10 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // data is expected to be in netData string
     // short-cut if there is nothing
-    if ( !netDataPos ) return true;
+    if ( !netDataPos ) {
+        IncErrCnt();
+        return false;
+    }
     
     // now try to interpret it as JSON
     JSON_Value* pRoot = json_parse_string(netData);
@@ -469,6 +472,57 @@ std::string ADSBExchangeConnection::GetStatusText () const
     return s;
 }
 
+
+// virtual thread main function
+void ADSBExchangeConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ADSBEx", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                // (calls to network requests might take a long time,
+                //  see wait in OpenSkyAcMasterdata::FetchAllData)
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                
+                // if enabled fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData(mapFd))
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+}
 
 
 // add/cleanup API key

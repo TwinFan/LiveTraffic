@@ -36,19 +36,11 @@ using namespace std::chrono_literals;
 // used to calculate countdown while position buffer fills up
 double initTimeBufFilled = 0;       // in 'simTime'
 
-// global list of a/c for which static data is yet missing
-// (reset with every network request cycle)
-vecAcStatUpdateTy LTACMasterdataChannel::vecAcStatUpdate;
-// Lock controlling multi-threaded access to `listAcSTatUpdate`
-std::mutex LTACMasterdataChannel::vecAcStatMutex;
-
 // Thread synch support (specifically for stopping them)
-std::thread FDMainThread;               // the main thread (LTFlightDataSelectAc)
 std::thread CalcPosThread;              // the thread for pos calc (TriggerCalcNewPos)
 std::mutex  FDThreadSynchMutex;         // supports wake-up and stop synchronization
 std::condition_variable FDThreadSynchCV;
 volatile bool bFDMainStop = true;       // will be reset once the main thread starts
-std::chrono::time_point<std::chrono::steady_clock> gNextWakeup;  ///< when to wake up next for network requests
 
 // the global vector of all flight and master data connections
 listPtrLTChannelTy    listFDC;
@@ -135,6 +127,52 @@ double jag_n_nan (const JSON_Array *array, size_t idx)
 //MARK: LTChannel
 //
 
+// Start the channel, typically starts a separate thread
+void LTChannel::Start ()
+{
+    if (!isRunning()) {
+        bThrStatus = THR_STARTING;
+        thr = std::thread(&LTChannel::_Main, this);
+    }
+}
+
+// Stop the channel, wait for the thread to end
+void LTChannel::Stop (bool bWaitJoin)
+{
+    if (isRunning()) {
+        if (bThrStatus < THR_STOP)
+            bThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
+        if (bWaitJoin) {
+            thr.join();                     // wait for the thread to actually end
+            thr = std::thread();
+            bThrStatus = THR_NONE;
+        }
+    }
+}
+
+
+// all conditions met to continue the thread loop?
+bool LTChannel::shallRun () const
+{
+    return
+       !bFDMainStop                         // stop flag for all LT processing
+    && bThrStatus <= THR_RUNNING            // thread is not signalled to stop
+    && IsValid()                            // channel valid?
+    && dataRefs.IsChannelEnabled(channel);  // channel enabled?
+}
+
+
+// Thread main function, just calls virtual Main()
+void LTChannel::_Main()
+{
+    bThrStatus = THR_RUNNING;
+    LOG_MSG(logDEBUG, "%s: Thread starts", pszChName);
+    Main();
+    LOG_MSG(logDEBUG, "%s: Thread ends", pszChName);
+    bThrStatus = THR_ENDED;
+}
+
+
 void LTChannel::SetValid (bool _valid, bool bMsg)
 {
     // (re)set to valid channel
@@ -188,16 +226,22 @@ void LTChannel::SetEnable (bool bEnable)
 
 std::string LTChannel::GetStatusText () const
 {
-    // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
+    char buf[50];
+
+    // invalid (after errors)? Just disabled/off?
     if (!IsValid())                         return "Invalid";
     if (!IsEnabled())                       return "Off";
+    // Active, but currently running into errors?
+    if (errCnt > 0) {
+        snprintf (buf, sizeof(buf), "Active, but ERROR Count = %d", errCnt);
+        return buf;
+    }
+    // Active, but not a channel for tracking data
     if (GetChType() != CHT_TRACKING_DATA)   return "Active";
-    
     // An active source of tracking data...for how many aircraft?
-    char buf[50];
     snprintf (buf, sizeof(buf), "Active, serving %d aircraft",
               GetNumAcServed());
-    return std::string(buf);
+    return buf;
 }
 
 //
@@ -229,6 +273,15 @@ int LTFlightDataChannel::GetNumAcServed () const
 //MARK: LTACMasterdata
 //
 
+// Lock controlling multi-threaded access to all the 3 sets
+std::mutex LTACMasterdataChannel::mtxSets;
+// global list of static data requests
+setAcStatUpdateTy LTACMasterdataChannel::setAcStatUpdate;
+// List of a/c to ignore, as we know we don't get data online
+setFdKeyTy LTACMasterdataChannel::setIgnoreAc;
+// List of call signs to ignore, as we know we don't get route info online
+setStringTy LTACMasterdataChannel::setIgnoreCallSign;
+
 // fetches a/c master data and updates the respective static data in the FDMap
 bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
                                               const LTFlightData::FDStaticData& dat)
@@ -244,7 +297,7 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
             return false;                   // not found
         
         // do the actual update
-        fdIter->second.UpdateData(dat, NAN, true);
+        fdIter->second.UpdateData(dat, NAN, requ.type);
         return true;
         
     } catch(const std::system_error& e) {
@@ -255,48 +308,19 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
     return false;
 }
 
-// static function to add key/callSign to list of data,
-// for which master data shall be requested by a master data channel
-void LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
-                                               const std::string callSign,
-                                               double distance)
+// Called regularly to keep the priority list updated
+void LTACMasterdataChannel::MaintainMasterDataRequests ()
 {
     try {
         // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (vecAcStatMutex);
+        std::lock_guard<std::mutex> lock (mtxSets);
         
-        // just add the request to the request list, uniquely,
-        // but update the distance as it serves as a sorting order
-        const acStatUpdateTy acUpd (keyAc,callSign,std::isnan(distance) ? UINT_MAX : unsigned(distance));
-        vecAcStatUpdateTy::iterator i = std::find(vecAcStatUpdate.begin(),vecAcStatUpdate.end(),acUpd);
-        if (i == vecAcStatUpdate.end()) {
-            vecAcStatUpdate.push_back(acUpd);
-//            LOG_MSG(logDEBUG, "Request added for %s / %s, order = %d",
-//                    acUpd.acKey.c_str(), acUpd.callSign.c_str(), acUpd.order);
-        }
-        else {
-//            LOG_MSG(logDEBUG, "Request updated for %s / %s, order = %d (from %d)",
-//                    acUpd.acKey.c_str(), acUpd.callSign.c_str(), acUpd.order, i->order);
-            i->order = acUpd.order;
-        }
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
-    }
-}
-
-void LTACMasterdataChannel::ClearMasterDataRequests ()
-{
-    try {
-        // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (vecAcStatMutex);
-
-        // remove all processed entries as well as outdated entries,
-        // for which the flight no longer exists in mapFd
-        // (avoids leaking when no channel works on master data)
-        vecAcStatUpdateTy::iterator i = vecAcStatUpdate.begin();
-        while(i != vecAcStatUpdate.end()) {
-            if (i->HasBeenProcessed() || (mapFd.count(i->acKey) == 0))
-                i = vecAcStatUpdate.erase(i);
+        // remove all entries for which the a/c no longer exist in mapFd
+        for (setAcStatUpdateTy::iterator i = setAcStatUpdate.begin();
+             i != setAcStatUpdate.end();)
+        {
+            if (mapFd.count(i->acKey) == 0)
+                i = setAcStatUpdate.erase(i);
             else
                 ++i;
         }
@@ -306,35 +330,98 @@ void LTACMasterdataChannel::ClearMasterDataRequests ()
     }
 }
 
+// Add request to fetch data
+bool LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
+                                               const std::string& callSign,
+                                               double distance)
+{
+    // Sanity check
+    if (keyAc.empty()) return false;
+    
+    // Prepare the request object that is to be added later
+    const unsigned long dist = std::isnan(distance) ? UINT_MAX : (unsigned long) (distance);
+    const acStatUpdateTy acUpd (keyAc,str_toupper_c(callSign),dist);
 
-// copy all requested a/c to our private list,
-// the global one is refreshed before the next call.
-void LTACMasterdataChannel::CopyGlobalRequestList ()
+    try {
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (mtxSets);
+        
+        // Avoid entry from the ignore lists that won't succeed anyway
+        switch (acUpd.type) {
+            case DATREQU_NONE: break;
+            case DATREQU_AC_MASTER:
+                if (std::find(setIgnoreAc.begin(), setIgnoreAc.end(), acUpd.acKey) != setIgnoreAc.end())
+                    return false;
+                break;
+            case DATREQU_ROUTE:
+                if (std::find(setIgnoreCallSign.begin(), setIgnoreCallSign.end(), acUpd.callSign) != setIgnoreCallSign.end())
+                    return false;
+                break;
+        }
+        
+        // Avoid double entry: Bail if the same kind of request exists already
+        // This is different from the duplication check that std::set::insert does
+        // because it uses operator== (ignoring `distance`) instead operator<
+        if (std::find(setAcStatUpdate.begin(), setAcStatUpdate.end(), acUpd) != setAcStatUpdate.end())
+            return false;
+        
+        // Add the new request to the set
+        setAcStatUpdate.insert(acUpd);
+        return true;
+        
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
+    }
+    return false;
+}
+
+// Fetch next master data request from our set (`acKey` will be empty if there is no waiting request)
+acStatUpdateTy LTACMasterdataChannel::FetchNextRequest ()
 {
     try {
         // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (vecAcStatMutex);
+        std::lock_guard<std::mutex> lock (mtxSets);
         
-        // Copy global list into local, update order (prio) if already existing, and
-        // mark the global record "processed" so it can be cleaned up
-        for (acStatUpdateTy& info: vecAcStatUpdate) {
-            vecAcStatUpdateTy::iterator i = std::find(vecAc.begin(),vecAc.end(),info);
-            if (i == vecAc.end())
-                vecAc.push_back(info);
-            else
-                i->order = info.order;
-            info.SetProcessed();
+        // If there is an element, the return a copy and remove it
+        if (!setAcStatUpdate.empty()) {
+            acStatUpdateTy req = *(setAcStatUpdate.begin());
+            setAcStatUpdate.erase(setAcStatUpdate.begin());
+            return req;
         }
     } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
     }
-    
-    // Now sort the list descending by distance, so that the planes closest to us
-    // are located at the list's end and are fetched first by pop_back:
-    std::sort(vecAc.begin(), vecAc.end(),
-              [](const acStatUpdateTy& a, const acStatUpdateTy& b)
-              { return a.order > b.order; });
+    // Empty or exception: Return an empty request record
+    return acStatUpdateTy();
 }
+
+// Add an aircraft to the ignore list
+void LTACMasterdataChannel::AddIgnoreAc (const LTFlightData::FDKeyTy& keyAc)
+{
+    try {
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (mtxSets);
+        // Add a/c key if not yet in the list
+        setIgnoreAc.insert(keyAc);
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
+    }
+
+}
+
+// Add a callsign to the ignore list
+void LTACMasterdataChannel::AddIgnoreCallSign (const std::string& cs)
+{
+    try {
+        // multi-threaded access guarded by vecAcStatMutex
+        std::lock_guard<std::mutex> lock (mtxSets);
+        // Add call sign if not yet in the list
+        setIgnoreCallSign.insert(cs);
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
+    }
+}
+
 
 //
 //MARK: LTOnlineChannel
@@ -584,6 +671,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
                 tLastMsg = now;
             }
             // Increase the timeout
+            // TODO: Remove the timeout adaptation logic including the second timeout setting
             const int prevTimeout = nTimeout;
             nTimeout = std::min (nTimeout * 2,              // double the timeout
                                  dataRefs.GetNetwTimeoutMax());
@@ -696,97 +784,28 @@ void LTFlightDataStop()
 //
 //MARK: Show/Select Aircraft / Thread Control
 //
-// this function is spawned as a separate thread in LTFlightDataShowAircraft
-// and it runs in a loop until LTFlightDataHideAircraft stops it
-void LTFlightDataSelectAc ()
+
+/// Walks the list of channels and starts those channels' threads that need to run
+void LTFlightDataStartJoinChannels()
 {
-    // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_Channels", LC_ALL_MASK);
-
-    while ( !bFDMainStop )
-    {
-        // basis for determining when to be called next
-        gNextWakeup = std::chrono::steady_clock::now();
+    for (ptrLTChannelTy& p: listFDC) {
+        if (!p) continue;                       // sanity check
         
-        // LiveTraffic Top Level Exception Handling
-        try {
-            // where are we right now?
-            positionTy pos (dataRefs.GetViewPos());
-            
-            // If the camera position is valid we can request data around it
-            if (pos.isNormal()) {
-
-                // Next wakeup is "refresh interval" from _now_
-                // (calls to network requests might take a long time,
-                //  see wait in OpenSkyAcMasterdata::FetchAllData)
-                gNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
-
-                // cycle all flight data connections
-                for ( ptrLTChannelTy& p: listFDC )
-                {
-                    // LiveTraffic Top Level Exception Handling
-                    try {
-                        // fetch all aicrafts
-                        if ( p->IsEnabled() ) {
-                            
-                            // if enabled fetch data and process it
-                            if ( p->FetchAllData(pos) && !bFDMainStop ) {
-                                if (p->ProcessFetchedData(mapFd))
-                                    // reduce error count if processed successfully
-                                    // as a chance to appear OK in the long run
-                                    p->DecErrCnt();
-                            }
-                        } else {
-                            // if disabled...maybe do still some processing to connections
-                            p->DoDisabledProcessing();
-                        }
-                    } catch (const std::exception& e) {
-                        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-                        // in case of any exception disable this channel
-                        p->SetValid(false, true);
-                    } catch (...) {
-                        // in case of any exception disable this channel
-                        p->SetValid(false, true);
-                    }
-                    
-                    // exit early if asked to do so
-                    if ( bFDMainStop )
-                        break;
-                }
-
-                // Clear away processed master data requests
-                LTACMasterdataChannel::ClearMasterDataRequests();
-            }
-            else {
-                // Camera position is yet invalid, retry in a second
-                gNextWakeup += std::chrono::seconds(1);
-            }
-            
-        } catch (const std::exception& e) {
-            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-            // in case of any exception here completely re-init
-            dataRefs.SetReInitAll(true);
-        } catch (...) {
-            // in case of any exception here completely re-init
-            dataRefs.SetReInitAll(true);
-        }
+        const bool bIsRunning = p->isRunning();
         
-        // sleep for FD_REFRESH_INTVL or if woken up for termination
-        // by condition variable trigger
-        {
-            std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
-            FDThreadSynchCV.wait_until(lk, gNextWakeup,
-                                       []{return bFDMainStop;});
-            lk.unlock();
-        }
+        // Join threads that have ended themselves (e.g. deactivated or gone invalid)
+        if (bIsRunning && p->hasEnded())        // Channel has ended itself?
+            p->Stop(true);                      // join the thread, so it can be reused if needed
+        else if (!bIsRunning && p->shallRun())  // Channel is not running but should?
+            p->Start();                         // -> start it!
     }
 }
 
 // called from main thread to start showing aircraft
 bool LTFlightDataShowAircraft()
 {
-    // is there a main thread running already? -> just return
-    if ( FDMainThread.joinable() ) return true;
+    // is there a calculation thread running already? -> just return
+    if ( CalcPosThread.joinable() ) return true;
     
     // Verify if there are any enabled, active tracking data channels.
     // If not bail out and inform the user.
@@ -796,10 +815,8 @@ bool LTFlightDataShowAircraft()
         return false;
     }
     
-    // create a new thread that receives flight data / creates aircraft
+    // create a new thread for position calculation
     bFDMainStop = false;
-    FDMainThread = std::thread ( LTFlightDataSelectAc );
-    // and one for position calculation
     CalcPosThread = std::thread ( LTFlightData::CalcNextPosMain );
     
     // tell the user we do something in the background
@@ -809,28 +826,28 @@ bool LTFlightDataShowAircraft()
     // flag for: as soon as data arrives start buffer countdown
     initTimeBufFilled = -1;
     
+    // Start the required communication threads
+    LTFlightDataStartJoinChannels();
+    
     return true;
 }
 
 // called from main thread to stop showing aircraft
 void LTFlightDataHideAircraft()
 {
-    // is there a main thread running? -> stop it and wait for it to return
-    if ( FDMainThread.joinable() )
+    // is there a calculation thread running?
+    if ( CalcPosThread.joinable() )
     {
-        // stop the main thread
+        // Stop all threads
         bFDMainStop = true;                 // the message is: Stop!
-        FDThreadSynchCV.notify_all();          // wake them up if just waiting for next refresh
-        CalcPosThread.join();               // wait for threads to finish
-        FDMainThread.join();
+        FDThreadSynchCV.notify_all();       // wake them all up to exit
         
+        // wait for all network threads
+        for (ptrLTChannelTy& p: listFDC)
+            if (p) p->Stop(true);
+        // Wait for the calculation thread
+        CalcPosThread.join();
         CalcPosThread = std::thread();
-        FDMainThread = std::thread();
-    }
-    
-    // tell all connection to close
-    for ( ptrLTChannelTy& p: listFDC ) {
-        p->Close();
     }
     
     // Remove all flight data info including displayed aircraft
@@ -897,6 +914,10 @@ LTChannel* LTFlightDataGetCh (dataRefsLT ch)
 
 void LTFlightDataAcMaintenance()
 {
+    // Verify all required channels are running (necessary in case users activates channels via UI)
+    LTFlightDataStartJoinChannels();
+    
+    // Actual aircraft maintenance: call individual FD objects, remove outdated ones
     int numAcBefore = dataRefs.GetNumAc();
     
     try {
@@ -916,7 +937,10 @@ void LTFlightDataAcMaintenance()
             else
                 ++i;
         }
-        
+
+        // Clear away outdated master data requests
+        LTACMasterdataChannel::MaintainMasterDataRequests();
+
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
     }

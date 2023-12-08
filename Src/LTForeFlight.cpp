@@ -77,6 +77,14 @@ void ForeFlightSender::Close ()
 }
 
 
+// virtual thread main function
+void ForeFlightSender::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ForeFlight", LC_ALL_MASK);
+}
+
+
 // Start/Stop the thread, which sends the data
 bool ForeFlightSender::StartConnection ()
 {

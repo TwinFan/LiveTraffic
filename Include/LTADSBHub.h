@@ -94,6 +94,8 @@ public:
     
     // ADSBHub Stream connection
 protected:
+    void Main () override;          ///< virtual thread main function
+
     /// Main function for stream connection, expected to be started in a thread
     void StreamMain ();
     /// Process received SBS data

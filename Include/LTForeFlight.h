@@ -83,6 +83,8 @@ public:
     void Close () override;
     
 protected:
+    void Main () override;          ///< virtual thread main function
+
     // Start/Stop
     bool StartConnection ();
     bool StopConnection ();

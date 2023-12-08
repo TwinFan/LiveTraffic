@@ -502,6 +502,14 @@ void FSCConnection::Close ()
 }
 
 
+// virtual thread main function
+void FSCConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_FSCharter", LC_ALL_MASK);
+}
+
+
 // Remove all traces of login
 void FSCConnection::ClearLogin ()
 {

@@ -327,6 +327,14 @@ std::string OpenGliderConnection::GetStatusText () const
 }
 
 
+// virtual thread main function
+void OpenGliderConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OGN", LC_ALL_MASK);
+}
+
+
 // Main function for APRS connection, expected to be started in a thread
 void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
 {

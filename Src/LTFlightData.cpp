@@ -67,7 +67,7 @@ std::string LTFlightData::FDDynamicData::GetSquawk() const
 
 // Merges data, i.e. copy only filled fields from 'other'
 bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
-                                        bool bIsMasterChData)
+                                        DatRequTy masterDataType)
 {
     // Have matching-relevant fields changed?
     bool bRet = false;
@@ -84,7 +84,7 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
         // or if this is proper master data channel's data
         if (acTypeIcao.empty() ||
             acTypeIcao == dataRefs.GetDefaultCarIcaoType() ||
-            bIsMasterChData)
+            masterDataType == DATREQU_AC_MASTER)
         {
             acTypeIcao = other.acTypeIcao;
             bRet = true;
@@ -97,7 +97,8 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     if (!other.country.empty()) country = other.country;
     if (!other.man.empty()) man = other.man;
     if (other.mdl.length() > mdl.length() ||    // the longer model text wins
-        (bIsMasterChData && !other.mdl.empty()))// or what a proper master data channel delivers
+        // or what a proper master data channel delivers
+        (masterDataType == DATREQU_AC_MASTER && !other.mdl.empty()))
     {
         if (mdl != other.mdl) {
             mdl = other.mdl;
@@ -115,7 +116,7 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     // little trick for priority: we trust the info with the longer flight number
     if (other.flight.length() >= flight.length() ||
         // or certainly data of a proper master data channel
-        bIsMasterChData ||
+        masterDataType == DATREQU_ROUTE ||
         // or no flight number info at all...
         (other.flight.empty() && flight.empty()))
     {
@@ -127,8 +128,8 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     if (!other.op.empty()) op = other.op;
     // operator ICAO: we only accept a change from nothing to something,
     //                or the data of a proper master data channel
-    if ((opIcao.empty() || bIsMasterChData) && !other.opIcao.empty() &&
-        opIcao != other.opIcao)
+    if ((opIcao.empty() || masterDataType == DATREQU_AC_MASTER) &&
+        !other.opIcao.empty() && opIcao != other.opIcao)
     {
         opIcao = other.opIcao;
         bRet = true;
@@ -136,16 +137,12 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     
     // registration: we only accept a change from nothing to something,
     //               or the data of a proper master data channel
-    if ((reg.empty() || bIsMasterChData) && !other.reg.empty() &&
-        reg != other.reg)
+    if ((reg.empty() || masterDataType == DATREQU_AC_MASTER) &&
+        !other.reg.empty() && reg != other.reg)
     {
         reg = other.reg;
         bRet = true;
     }
-
-    // now initialized from a proper master channel?
-    if (bIsMasterChData)
-        bFilledFromMasterCh = true;
 
     // find DOC8643 and fill man/mdl from there if needed
     pDoc8643 = &(Doc8643::get(acTypeIcao));
@@ -166,6 +163,13 @@ bool LTFlightData::FDStaticData::merge (const FDStaticData& other,
     trim(flight);
     trim(op);
     trim(opIcao);
+    
+    // Flag if this was master data channel delivery
+    switch (masterDataType) {
+        case DATREQU_NONE:                          break;
+        case DATREQU_AC_MASTER: bDataMaster = true; break;
+        case DATREQU_ROUTE:     bDataRoute = true;  break;
+    }
     
     return bRet;
 }
@@ -236,6 +240,14 @@ bool LTFlightData::FDStaticData::isGrndVehicle() const
 bool LTFlightData::FDStaticData::isStaticObject() const
 {
     return acTypeIcao == STATIC_OBJECT_TYPE;
+}
+
+// is critical info for model matching available?
+bool LTFlightData::FDStaticData::hasMdlMatchInfo() const
+{
+    return
+        !acTypeIcao.empty() &&                      // a/c type designator
+        (!opIcao.empty() || call.length() >= 3);    // some operator info
 }
 
 // set the key value
@@ -2340,22 +2352,11 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
 // update static data
 void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
                                double distance,
-                               bool bIsMasterChData)
+                               DatRequTy masterDataType)
 {
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-        
-        // decide if we need more master data to be fetched by
-        // master data channels. If statData is not initialized
-        // from a master channel yet, or
-        // if the callSign changes (which includes if it changes from empty to something)
-        // as the callSign is the source for route information
-        if ((!bIsMasterChData && !statData.hasMasterChData()) ||
-            (!inStat.call.empty() && inStat.call != statData.call))
-        {
-            LTACMasterdataChannel::RequestMasterData (key(), inStat.call, distance);
-        }
         
         // If no a/c type is yet known try if the call sign / operator looks like a ground vehicle
         bool bMdlInfoChange = false;
@@ -2386,7 +2387,7 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
         }
         
         // merge inStat into our statData and save if matching-relevant stuff changed
-        if (statData.merge(inStat, bIsMasterChData))
+        if (statData.merge(inStat, masterDataType))
             bMdlInfoChange = true;
         
         // Re-determine a/c model (only if it was determined before:
@@ -2395,6 +2396,21 @@ void LTFlightData::UpdateData (const LTFlightData::FDStaticData& inStat,
         if (pAc && DetermineAcModel())
             bMdlInfoChange = true;
 
+        // Now that our data is updated:
+        // If this call is not with data from a maste data channel we can think about
+        // asking a master data channel for more details
+        if (masterDataType == DATREQU_NONE) {
+            // A/c master data: Not yet requested master data and
+            //                  critical elements missing?
+            if (!statData.bDataMaster && !statData.hasMdlMatchInfo()) {
+                LTACMasterdataChannel::RequestMasterData(key(), distance);
+            }
+            // Route Info missing?
+            if (!statData.bDataRoute && !statData.hasRouteInfo()) {
+                LTACMasterdataChannel::RequestRouteInfo(key(), statData.call, distance);
+            }
+        }
+        
         // Need to find a new model-match next time we need it
         if (bMdlInfoChange)
             pMdl = nullptr;

@@ -101,6 +101,14 @@ bool ADSBHubConnection::FetchAllData(const positionTy&)
 }
 
 
+// virtual thread main function
+void ADSBHubConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ADSBHub", LC_ALL_MASK);
+}
+
+
 // Main function for stream connection, expected to be started in a thread
 void ADSBHubConnection::StreamMain ()
 {

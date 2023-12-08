@@ -227,6 +227,8 @@ public:
     void SetStatusUdp (bool bEnable, bool _bStopUdp);
     
 protected:
+    void Main () override;          ///< virtual thread main function
+
     // Start/Stop
     bool StartConnections ();
     bool StopConnections ();

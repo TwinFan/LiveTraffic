@@ -123,6 +123,8 @@ public:
     void Close () override;
     
 protected:
+    void Main () override;          ///< virtual thread main function
+
     /// Remove all traces of login
     void ClearLogin ();
 };
