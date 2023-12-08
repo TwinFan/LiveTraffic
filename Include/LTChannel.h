@@ -152,7 +152,6 @@ class LTOnlineChannel : public LTChannel
 protected:
     CURL* pCurl;                    // handle into CURL
     std::string requBody;           ///< body of a POST request
-    int nTimeout;                   ///< current network timeout of this channel
     char* netData;                  // where the response goes
     size_t netDataPos;              // current write pos into netData
     size_t netDataSize;             // current size of netData

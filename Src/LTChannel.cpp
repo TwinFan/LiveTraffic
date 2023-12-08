@@ -433,7 +433,6 @@ std::ofstream LTOnlineChannel::outRaw;
 LTOnlineChannel::LTOnlineChannel (dataRefsLT ch, LTChannelType t, const char* chName) :
 LTChannel(ch, t, chName),
 pCurl(NULL),
-nTimeout(dataRefs.GetNetwTimeoutMax()),
 netData((char*)malloc(CURL_MAX_WRITE_SIZE)),      // initial buffer allocation
 netDataPos(0), netDataSize(CURL_MAX_WRITE_SIZE),
 curl_errtxt{0}, httpResponse(HTTP_OK)
@@ -473,7 +472,7 @@ bool LTOnlineChannel::InitCurl ()
     
     // define the handle
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, nTimeout);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
@@ -620,7 +619,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // put together the REST request
     curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(pCurl, CURLOPT_BUFFERSIZE, netDataSize );
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, nTimeout);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
 
     // Set up the request
     curl_easy_setopt(pCurl, CURLOPT_NOBODY,  0);
@@ -670,14 +669,6 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
                 LOG_MSG(logWARN, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
                 tLastMsg = now;
             }
-            // Increase the timeout
-            // TODO: Remove the timeout adaptation logic including the second timeout setting
-            const int prevTimeout = nTimeout;
-            nTimeout = std::min (nTimeout * 2,              // double the timeout
-                                 dataRefs.GetNetwTimeoutMax());
-            if (nTimeout > prevTimeout) {
-                LOG_MSG(logWARN, "%s: Timeout increased to %ds", ChName(), nTimeout);
-            }
         } else {
             SHOW_MSG(logERR, ERR_CURL_PERFORM, ChName(), cc, curl_errtxt);
             IncErrCnt();
@@ -690,17 +681,8 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
     switch (httpResponse) {
         case HTTP_OK:
-        // Based on actual time take set a new network timeout as twice the response time
-        {
-            const std::chrono::seconds d = std::chrono::duration_cast<std::chrono::seconds>(tEnd - tStart);
-            // In case of a reduction we reduce to no less than half the previous value,
-            // keep value between min/max network timeout
-            nTimeout = std::clamp<int> ((int)d.count() * 2,
-                                        std::max(dataRefs.GetNetwTimeoutMin(),nTimeout/2),
-                                        dataRefs.GetNetwTimeoutMax());
-            // LOG_MSG(logWARN, "%s: Timeout set to %ds", ChName(), nTimeout);
             break;
-        }
+
         case HTTP_NOT_FOUND:
             // not found is typically handled separately, so only debug-level
             LOG_MSG(logDEBUG,ERR_CURL_HTTP_RESP,ChName(),httpResponse, url.c_str());
