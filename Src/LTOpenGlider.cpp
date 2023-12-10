@@ -168,7 +168,7 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
 ///          @endcode
 ///          We are not doing full XML parsing, but just search for `<m a=""`
 ///          and process everything till we find `""/>`
-bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool OpenGliderConnection::ProcessFetchedData ()
 {
     char buf[100];
 
@@ -231,7 +231,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // get the fd object from the map
             // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[fdKey];
+            LTFlightData& fd = mapFd[fdKey];
             
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls

@@ -44,9 +44,6 @@
 class ADSBHubConnection : public LTFlightDataChannel
 {
 protected:
-    // the map of flight data, where we deliver our data to
-    mapLTFlightDataTy& fdMap;
-
     std::thread thrStream;          ///< thread for the ADSBHub stream
     TCPConnection tcpStream;        ///< TCP connection to data.adsbhub.org:5002
     volatile bool bStopThr=false;   ///< stop signal to the thread
@@ -80,13 +77,13 @@ protected:
     
 public:
     /// Constructor
-    ADSBHubConnection (mapLTFlightDataTy& _fdMap);
+    ADSBHubConnection ();
     /// Destructor cleans up
     ~ADSBHubConnection () override;
     /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
     std::string GetURL (const positionTy&) override { return ""; }
     /// @brief Processes the fetched data
-    bool ProcessFetchedData (mapLTFlightDataTy&) override { return true; };
+    bool ProcessFetchedData () override { return true; };
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override;
     void DoDisabledProcessing() override { StreamClose(); }

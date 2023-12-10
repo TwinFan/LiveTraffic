@@ -63,7 +63,7 @@ class OpenSkyConnection : public LTFlightDataChannel
 public:
     OpenSkyConnection ();
     std::string GetURL (const positionTy& pos) override;
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
+    bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
@@ -117,7 +117,7 @@ public:
     OpenSkyAcMasterdata ();                                         ///< Constructor sets channel, name, and URLs
 public:
     std::string GetURL (const positionTy& pos) override;            ///< Returns the master data or route URL to query
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;    ///< Process received master or route data
+    bool ProcessFetchedData () override;                            ///< Process received master or route data
 protected:
     void Main () override;                                          ///< virtual thread main function
     bool ProcessMasterData (JSON_Object* pJAc);                     ///< Process received aircraft master data

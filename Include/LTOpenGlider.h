@@ -156,7 +156,7 @@ public:
     /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
     std::string GetURL (const positionTy& pos) override;
     /// @brief Processes the fetched data
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
+    bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
     void DoDisabledProcessing() override { Cleanup(); }

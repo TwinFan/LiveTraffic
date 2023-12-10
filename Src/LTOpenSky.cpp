@@ -136,7 +136,7 @@ std::string OpenSkyConnection::GetURL (const positionTy& pos)
 
 // update shared flight data structures with received flight data
 // "a4d85d","UJC11   ","United States",1657226901,1657226901,-90.2035,38.8157,2758.44,false,128.1,269.54,-6.5,null,2895.6,"4102",false,0
-bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool OpenSkyConnection::ProcessFetchedData ()
 {
     char buf[100];
 
@@ -248,7 +248,7 @@ bool OpenSkyConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[fdKey];
+            LTFlightData& fd = mapFd[fdKey];
             
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls
@@ -370,7 +370,7 @@ void OpenSkyAcMasterdata::Main ()
             
             // if there is something to request, fetch the data and process it
             if (requ &&
-                FetchAllData(positionTy()) && ProcessFetchedData(mapFd)) {
+                FetchAllData(positionTy()) && ProcessFetchedData()) {
                 // reduce error count if processed successfully
                 // as a chance to appear OK in the long run
                 DecErrCnt();
@@ -410,7 +410,7 @@ std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 }
 
 // process each master data line read from OpenSky
-bool OpenSkyAcMasterdata::ProcessFetchedData (mapLTFlightDataTy& /*fdMap*/)
+bool OpenSkyAcMasterdata::ProcessFetchedData ()
 {
     // If the requested data wasn't found we shall never try this request again
     if (httpResponse == HTTP_NOT_FOUND ||

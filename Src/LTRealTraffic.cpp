@@ -35,9 +35,8 @@
 //
 
 // Constructor doesn't do much
-RealTrafficConnection::RealTrafficConnection (mapLTFlightDataTy& _fdMap) :
-LTFlightDataChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME),
-fdMap(_fdMap)
+RealTrafficConnection::RealTrafficConnection () :
+LTFlightDataChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME)
 {
     //purely information
     urlName  = RT_CHECK_NAME;
@@ -45,63 +44,32 @@ fdMap(_fdMap)
     urlPopup = RT_CHECK_POPUP;
 }
 
-// Destructor makes sure we are cleaned up
-RealTrafficConnection::~RealTrafficConnection ()
+// Stop the UDP listener gracefully
+void RealTrafficConnection::Stop (bool bWaitJoin)
 {
-    StopConnections();
-}
+    if (isRunning()) {
+        if (eThrStatus < THR_STOP)
+            eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
         
-// Does not actually fetch data (the UDP thread does that) but
-// 1. Starts the connections
-// 2. updates the RealTraffic local server with out current position and time
-// 3. cleans up map of datagrams for duplicate check
-bool RealTrafficConnection::FetchAllData(const positionTy& pos)
-{
-    // store camera position for later calculations
-    posCamera = pos;
-    
-    // if we are invalid or disabled we should shut down
-    if (!IsValid() || !IsEnabled()) {
-        return StopConnections();
+#if APL == 1 || LIN == 1
+        // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+        if (udpPipe[1] == INVALID_SOCKET ||
+            write(udpPipe[1], "STOP", 4) < 0)
+        {
+            // if the self-pipe didn't work:
+#endif
+            // close all connections, this will also break out of all
+            // blocking calls for receiving message and hence terminate the threads
+            udpTrafficData.Close();
+#if APL == 1 || LIN == 1
+        }
+#endif
     }
     
-    // need to start up?
-    if (status != RT_STATUS_CONNECTED_FULL &&
-        !StartConnections())
-        return false;
-    
-    // do anything only in a normal status
-    if (IsConnected())
-    {
-        // Send current position and time
-        SendXPSimTime();
-        SendUsersPlanePos();
-        
-        // cleanup map of last datagrams
-        CleanupMapDatagrams();
-        
-        // map is empty? That only happens if we don't receive data
-        // continuously
-        if (mapDatagrams.empty())
-            // se Udp status to unavailable, but keep listener running
-            SetStatusUdp(false, false);
-    }
-    
-    return true;
+    // Parent class processing: Wait for the thread to join
+    LTFlightDataChannel::Stop(bWaitJoin);
 }
 
-// if channel is disabled make sure all connections are closed
-void RealTrafficConnection::DoDisabledProcessing()
-{
-    StopConnections();
-}
-
-
-// closes all connections
-void RealTrafficConnection::Close()
-{
-    StopConnections();
-}
 
 // sets the status and updates global text to show elsewhere
 void RealTrafficConnection::SetStatus(rtStatusTy s)
@@ -195,7 +163,7 @@ void RealTrafficConnection::SetStatusUdp(bool bEnable, bool _bStopUdp)
     } else {
         // Disable - also disconnect, otherwise restart wouldn't work
         if (_bStopUdp)
-            StopUdpConnection();
+            eThrStatus = THR_STOP;
         
         // set status
         switch (status) {
@@ -289,87 +257,168 @@ void RealTrafficConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT", LC_ALL_MASK);
-}
-
-
-// starts all networking threads
-bool RealTrafficConnection::StartConnections()
-{
-    // don't start if we shall stop
-    if (status == RT_STATUS_STOPPING)
-        return false;
     
-    // set startup status
-    if (status == RT_STATUS_NONE)
+    // Top-level exception handling
+    try {
+        // set startup status
         SetStatus(RT_STATUS_STARTING);
-    
-    // *** TCP server for RealTraffic to connect to ***
-    if (!thrTcpRunning && !tcpPosSender.IsConnected()) {
-        if (thrTcpServer.joinable())
-            thrTcpServer.join();
-        thrTcpRunning = true;
-        thrTcpServer = std::thread (tcpConnectionS, this);
+        
+        // Start the TCP listening thread, that waits for an incoming TCP connection from the RealTraffic app
+        posCamera = dataRefs.GetViewPos();
+        StartTcpConnection();
+        // Next time we should send a position update
+        std::chrono::time_point<std::chrono::steady_clock> tNextPos =
+        std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+
+        // --- UDP Listener ---
+        
+        // Open the UDP port
+        udpTrafficData.Open (RT_LOCALHOST,
+                             DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
+                             RT_NET_BUF_SIZE);
+        int maxSock = (int)udpTrafficData.getSocket() + 1;
+#if APL == 1 || LIN == 1
+        // the self-pipe to shut down the UDP socket gracefully
+        if (pipe(udpPipe) < 0)
+            throw NetRuntimeError("Couldn't create pipe");
+        fcntl(udpPipe[0], F_SETFL, O_NONBLOCK);
+        maxSock = std::max(maxSock, udpPipe[0]+1);
+#endif
+
+        // --- Main Loop ---
+        
+        while (shallRun() && udpTrafficData.isOpen() && IsConnecting())
+        {
+            // wait for a UDP datagram on either socket (traffic, weather)
+            fd_set sRead;
+            FD_ZERO(&sRead);
+            FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
+#if APL == 1 || LIN == 1
+            FD_SET(udpPipe[0], &sRead);
+#endif
+            // We specify a timeout, which will really rarely trigger,
+            // but this way we make sure that we send our position every once in a while even with no traffic around
+            struct timeval timeout = { dataRefs.GetFdRefreshIntvl(), 0 };
+            int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
+            
+            // short-cut if we are to shut down (return from 'select' due to closed socket)
+            if (!shallRun()) break;
+
+            // select call failed???
+            if(retval == -1)
+                throw NetRuntimeError("'select' failed");
+
+            // select successful - traffic data
+            if (retval > 0 && FD_ISSET(udpTrafficData.getSocket(), &sRead))
+            {
+                // read UDP datagram
+                long rcvdBytes = udpTrafficData.recv();
+                
+                // received something?
+                if (rcvdBytes > 0)
+                {
+                    // yea, we received something!
+                    SetStatusUdp(true, false);
+
+                    // have it processed
+                    ProcessRecvedTrafficData(udpTrafficData.getBuf());
+                }
+                else
+                    retval = -1;
+            }
+            
+            // handling of errors, both from select and from recv
+            if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
+                // not just a normal timeout?
+                char sErr[SERR_LEN];
+                strerror_s(sErr, sizeof(sErr), errno);
+                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
+                        sErr);
+                // increase error count...bail out if too bad
+                if (!IncErrCnt()) {
+                    SetStatusUdp(false, true);
+                    break;
+                }
+            }
+            
+            // --- Maintenance Activities ---
+
+            // If we are connected via TCP to RealTraffic
+            if (tcpPosSender.IsConnected()) {
+                // Send current position and time every once in a while
+                if (std::chrono::steady_clock::now() > tNextPos) {
+                    SendXPSimTime();
+                    SendUsersPlanePos();
+                    tNextPos = std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                }
+            }
+            // Not connected by TCP, are we still listening and waiting?
+            else if (eTcpThrStatus != THR_RUNNING) {
+                // Not running...so make sure it restarts for us to have a chance to get a connection
+                StopTcpConnection();
+                StartTcpConnection();
+            }
+            
+            // cleanup map of last datagrams
+            CleanupMapDatagrams();
+            // map is empty? That only happens if we don't receive data continuously
+            if (mapDatagrams.empty())
+                // set UDP status to unavailable, but keep listener running
+                SetStatusUdp(false, false);
+        }
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        IncErrCnt();
+    } catch (...) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+        IncErrCnt();
     }
     
-    // *** UDP data listener ***
-    if (!thrUdpRunning) {
-        if (thrUdpListener.joinable())
-            thrUdpListener.join();
-        thrUdpRunning = true;
-        thrUdpListener = std::thread (udpListenS, this);
+    // Let's make absolutely sure that any connection is really closed
+    // once we return from this thread
+    if (udpTrafficData.isOpen())
+        udpTrafficData.Close();
+#if APL == 1 || LIN == 1
+    // close the self-pipe sockets
+    for (SOCKET &s: udpPipe) {
+        if (s != INVALID_SOCKET) close(s);
+        s = INVALID_SOCKET;
     }
-    
-    // looks ok
-    return true;
-}
+#endif
 
-// stop the UDP listening thread
-bool RealTrafficConnection::StopConnections()
-{
-    // not running?
-    if (status == RT_STATUS_NONE)
-        return true;
-    
-    // tell the threads to stop now
-    SetStatus(RT_STATUS_STOPPING);
-
-    // stop both TCP and UDP
+    // Make sure the TCP listener is down
     StopTcpConnection();
-    StopUdpConnection();
     
     // Clear the list of historic time stamp differences
     dequeTS.clear();
 
     // stopped
     SetStatus(RT_STATUS_NONE);
-    return true;
-}
 
+}
 
 
 //
 // MARK: TCP Connection
 //
 
+// main function of TCP listening thread, lives only until TCP connection established
 void RealTrafficConnection::tcpConnection ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_TCP", LC_ALL_MASK);
-
-    // sanity check: return in case of wrong status
-    if (!IsConnecting()) {
-        thrTcpRunning = false;
-        return;
-    }
+    eTcpThrStatus = THR_RUNNING;
     
     // port to use is configurable
     int tcpPort = DataRefs::GetCfgInt(DR_CFG_RT_LISTEN_PORT);
     
     try {
-        bStopTcp = false;
         tcpPosSender.Open (RT_LOCALHOST, tcpPort, RT_NET_BUF_SIZE);
+        LOG_MSG(logDEBUG, "RealTraffic: Listening on port %d for TCP connection by RealTraffic App", tcpPort);
         if (tcpPosSender.listenAccept()) {
             // so we did accept a connection!
+            LOG_MSG(logDEBUG, "RealTraffic: Accepted TCP connection from RealTraffic App");
             SetStatusTcp(true, false);
             // send our simulated time and first position
             SendXPSimTime();
@@ -378,7 +427,7 @@ void RealTrafficConnection::tcpConnection ()
         else
         {
             // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (!bStopTcp) {
+            if (eTcpThrStatus < THR_STOP) {
                 // not forced to shut down...report other problem
                 SHOW_MSG(logERR,ERR_RT_CANTLISTEN);
                 SetStatusTcp(false, true);
@@ -397,17 +446,28 @@ void RealTrafficConnection::tcpConnection ()
     // We make sure that, once leaving this thread, there is no
     // open listener (there might be a connected socket, though)
 #if IBM
-    if (!bStopTcp)                  // already closed if stop flag set, avoid rare crashes if called in parallel
+    if (eTcpThrStatus < THR_STOP)   // already closed if stop flag set, avoid rare crashes if called in parallel
 #endif
         tcpPosSender.CloseListenerOnly();
-    thrTcpRunning = false;
+    eTcpThrStatus = THR_ENDED;
 }
 
-bool RealTrafficConnection::StopTcpConnection ()
+
+// start the TCP listening thread
+void RealTrafficConnection::StartTcpConnection ()
+{
+    if (!thrTcpServer.joinable()) {
+        eTcpThrStatus = THR_STARTING;
+        thrTcpServer = std::thread (&RealTrafficConnection::tcpConnection, this);
+    }
+}
+
+// stop the TCP listening thread
+void RealTrafficConnection::StopTcpConnection ()
 {
     // close all connections, this will also break out of all
     // blocking calls for receiving message and hence terminate the threads
-    bStopTcp = true;
+    eTcpThrStatus = THR_STOP;
     tcpPosSender.Close();
     
     // wait for threads to finish (if I'm not myself this thread...)
@@ -415,9 +475,8 @@ bool RealTrafficConnection::StopTcpConnection ()
         if (thrTcpServer.joinable())
             thrTcpServer.join();
         thrTcpServer = std::thread();
+        eTcpThrStatus = THR_NONE;
     }
-    
-    return true;
 }
 
 
@@ -502,154 +561,6 @@ void RealTrafficConnection::SendUsersPlanePos()
 }
 
 
-
-//
-// MARK: UDP Listen Thread - Traffic
-//
-
-// runs in a separate thread, listens for UDP traffic and
-// forwards that to the flight data
-void RealTrafficConnection::udpListen ()
-{
-    // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_RT_UDP", LC_ALL_MASK);
-
-    // sanity check: return in case of wrong status
-    if (!IsConnecting()) {
-        thrUdpRunning = false;
-        return;
-    }
-    
-    int port = 0;
-    try {
-        // Open the UDP port
-        bStopUdp = false;
-        udpTrafficData.Open (RT_LOCALHOST,
-                             port = DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
-                             RT_NET_BUF_SIZE);
-        int maxSock = (int)udpTrafficData.getSocket() + 1;
-#if APL == 1 || LIN == 1
-        // the self-pipe to shut down the UDP socket gracefully
-        if (pipe(udpPipe) < 0)
-            throw NetRuntimeError("Couldn't create pipe");
-        fcntl(udpPipe[0], F_SETFL, O_NONBLOCK);
-        maxSock = std::max(maxSock, udpPipe[0]+1);
-#endif
-
-        // return from the thread when requested
-        // (not checking for weather socker...not essential)
-        while (udpTrafficData.isOpen() && IsConnecting() && !bStopUdp)
-        {
-            // wait for a UDP datagram on either socket (traffic, weather)
-            fd_set sRead;
-            FD_ZERO(&sRead);
-            FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
-#if APL == 1 || LIN == 1
-            FD_SET(udpPipe[0], &sRead);
-#endif
-            int retval = select(maxSock, &sRead, NULL, NULL, NULL);
-            
-            // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (bStopUdp)
-                break;
-
-            // select call failed???
-            if(retval == -1)
-                throw NetRuntimeError("'select' failed");
-
-            // select successful - traffic data
-            if (retval > 0 && FD_ISSET(udpTrafficData.getSocket(), &sRead))
-            {
-                // read UDP datagram
-                long rcvdBytes = udpTrafficData.recv();
-                
-                // received something?
-                if (rcvdBytes > 0)
-                {
-                    // yea, we received something!
-                    SetStatusUdp(true, false);
-
-                    // have it processed
-                    ProcessRecvedTrafficData(udpTrafficData.getBuf());
-                }
-                else
-                    retval = -1;
-            }
-            
-            // short-cut if we are to shut down
-            if (bStopUdp)
-                break;
-            
-            // handling of errors, both from select and from recv
-            if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
-                // not just a normal timeout?
-                char sErr[SERR_LEN];
-                strerror_s(sErr, sizeof(sErr), errno);
-                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
-                        sErr);
-                // increase error count...bail out if too bad
-                if (!IncErrCnt()) {
-                    SetStatusUdp(false, true);
-                    break;
-                }
-            }
-        }
-    }
-    catch (std::runtime_error& e) {
-        // exception...can only really happen in UDPReceiver::Open
-        LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
-                RT_LOCALHOST, port,
-                e.what());
-        // invalidate the channel
-        SetStatusUdp(false, true);
-        SetValid(false, true);
-    }
-    
-    // Let's make absolutely sure that any connection is really closed
-    // once we return from this thread
-#if APL == 1 || LIN == 1
-    udpTrafficData.Close();
-    // close the self-pipe sockets
-    for (SOCKET &s: udpPipe) {
-        if (s != INVALID_SOCKET) close(s);
-        s = INVALID_SOCKET;
-    }
-#else
-    if (!bStopUdp) {                // already closed if stop flag set, avoid rare crashes if called in parallel
-        udpTrafficData.Close();
-    }
-#endif
-    thrUdpRunning = false;
-}
-
-bool RealTrafficConnection::StopUdpConnection ()
-{
-    bStopUdp = true;
-#if APL == 1 || LIN == 1
-    // Mac/Lin: Try writing something to the self-pipe to stop gracefully
-    if (udpPipe[1] == INVALID_SOCKET ||
-        write(udpPipe[1], "STOP", 4) < 0)
-    {
-        // if the self-pipe didn't work:
-#endif
-        // close all connections, this will also break out of all
-        // blocking calls for receiving message and hence terminate the threads
-        udpTrafficData.Close();
-#if APL == 1 || LIN == 1
-    }
-#endif
-
-    // wait for thread to finish if I'm not this thread myself
-    if (std::this_thread::get_id() != thrUdpListener.get_id()) {
-        if (thrUdpListener.joinable())
-            thrUdpListener.join();
-        thrUdpListener = std::thread();
-    }
-    
-    return true;
-}
-
-
 // MARK: Traffic
 // Process received traffic data.
 // We keep this a bit flexible to be able to work with different formats
@@ -694,6 +605,10 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     if ((!acFilter.empty() && (fdKey != acFilter)))
         return true;            // silently
 
+    // *** Replace 'null' ***
+    std::for_each(tfc.begin(), tfc.end(),
+                  [](std::string& s){ if (s == "null") s.clear(); });
+    
     // *** Process different formats ****
     
     // There are 3 formats we are _really_ interested in: RTTFC, AITFC, and XTRAFFICPSX
@@ -801,7 +716,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
-        LTFlightData& fd = fdMap[fdKey];
+        LTFlightData& fd = mapFd[fdKey];
         
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
@@ -955,7 +870,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
-        LTFlightData& fd = fdMap[fdKey];
+        LTFlightData& fd = mapFd[fdKey];
         
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls

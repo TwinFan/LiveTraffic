@@ -46,9 +46,8 @@ constexpr int    ADSBHUB_TIMEOUT_S  = 60;                   ///< ADSBHub sends s
 //
 
 // Constructor
-ADSBHubConnection::ADSBHubConnection (mapLTFlightDataTy& _fdMap) :
-LTFlightDataChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME),
-fdMap(_fdMap)
+ADSBHubConnection::ADSBHubConnection () :
+LTFlightDataChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME)
 {
     // purely informational
     urlName  = ADSBHUB_CHECK_NAME;
@@ -621,7 +620,7 @@ void ADSBHubConnection::ProcessPlaneData ()
 
                 // get the fd object from the map, key is the transpIcao
                 // this fetches an existing or, if not existing, creates a new one
-                LTFlightData& fd = fdMap[fdKey];
+                LTFlightData& fd = mapFd[fdKey];
                 
                 // also get the data access lock once and for all
                 // so following fetch/update calls only make quick recursive calls

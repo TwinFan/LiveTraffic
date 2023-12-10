@@ -127,11 +127,19 @@ double jag_n_nan (const JSON_Array *array, size_t idx)
 //MARK: LTChannel
 //
 
+
+// Destructor makes sure the thread is stopped
+LTChannel::~LTChannel ()
+{
+    Stop(true);
+}
+
+
 // Start the channel, typically starts a separate thread
 void LTChannel::Start ()
 {
     if (!isRunning()) {
-        bThrStatus = THR_STARTING;
+        eThrStatus = THR_STARTING;
         thr = std::thread(&LTChannel::_Main, this);
     }
 }
@@ -140,12 +148,12 @@ void LTChannel::Start ()
 void LTChannel::Stop (bool bWaitJoin)
 {
     if (isRunning()) {
-        if (bThrStatus < THR_STOP)
-            bThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
+        if (eThrStatus < THR_STOP)
+            eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
         if (bWaitJoin) {
             thr.join();                     // wait for the thread to actually end
             thr = std::thread();
-            bThrStatus = THR_NONE;
+            eThrStatus = THR_NONE;
         }
     }
 }
@@ -156,7 +164,7 @@ bool LTChannel::shallRun () const
 {
     return
        !bFDMainStop                         // stop flag for all LT processing
-    && bThrStatus <= THR_RUNNING            // thread is not signalled to stop
+    && eThrStatus <= THR_RUNNING            // thread is not signalled to stop
     && IsValid()                            // channel valid?
     && dataRefs.IsChannelEnabled(channel);  // channel enabled?
 }
@@ -165,11 +173,11 @@ bool LTChannel::shallRun () const
 // Thread main function, just calls virtual Main()
 void LTChannel::_Main()
 {
-    bThrStatus = THR_RUNNING;
+    eThrStatus = THR_RUNNING;
     LOG_MSG(logDEBUG, "%s: Thread starts", pszChName);
     Main();
     LOG_MSG(logDEBUG, "%s: Thread ends", pszChName);
-    bThrStatus = THR_ENDED;
+    eThrStatus = THR_ENDED;
 }
 
 
@@ -736,16 +744,16 @@ bool LTFlightDataEnable()
     listFDC.clear();
 
     // load live feed readers (in order of priority)
-    listFDC.emplace_back(new RealTrafficConnection(mapFd));
+    listFDC.emplace_back(new RealTrafficConnection());
     listFDC.emplace_back(new OpenSkyConnection);
-    listFDC.emplace_back(new ADSBHubConnection(mapFd));
+    listFDC.emplace_back(new ADSBHubConnection());
     listFDC.emplace_back(new ADSBExchangeConnection);
     listFDC.emplace_back(new OpenGliderConnection);
     listFDC.emplace_back(new FSCConnection);
     // load online master data connections
     listFDC.emplace_back(new OpenSkyAcMasterdata);
     // load other channels
-    listFDC.emplace_back(new ForeFlightSender(mapFd));
+    listFDC.emplace_back(new ForeFlightSender());
     
     // Success only if there are still connections left
     return listFDC.size() > 0;

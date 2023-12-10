@@ -222,7 +222,7 @@ void FSCConnection::ComputeBody (const positionTy& pos)
 }
 
 // update shared flight data structures with received flight data
-bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool FSCConnection::ProcessFetchedData ()
 {
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
@@ -378,7 +378,7 @@ bool FSCConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[fdKey];
+            LTFlightData& fd = mapFd[fdKey];
             
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls

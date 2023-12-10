@@ -28,9 +28,8 @@
 //
 
 // Constructor doesn't do much
-ForeFlightSender::ForeFlightSender (mapLTFlightDataTy& _fdMap) :
-LTOutputChannel(DR_CHANNEL_FORE_FLIGHT_SENDER, FOREFLIGHT_NAME),
-fdMap(_fdMap)
+ForeFlightSender::ForeFlightSender () :
+LTOutputChannel(DR_CHANNEL_FORE_FLIGHT_SENDER, FOREFLIGHT_NAME)
 {
     // purely informational
     urlName  = FF_CHECK_NAME;
@@ -201,19 +200,19 @@ void ForeFlightSender::udpSend()
             // from here on access to fdMap guarded by a mutex
             std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
             if (lock) {
-                if (!fdMap.empty()) {
+                if (!mapFd.empty()) {
                     // just starting with a new round?
                     if (lastKey == LTFlightData::FDKeyTy())
                         lastStartOfTraffic = now;
                     
                     // next key to send? (shall have an actual a/c)
                     mapLTFlightDataTy::const_iterator mapIter;
-                    for (mapIter = fdMap.upper_bound(lastKey);
-                         mapIter != fdMap.cend() && !mapIter->second.hasAc();
+                    for (mapIter = mapFd.upper_bound(lastKey);
+                         mapIter != mapFd.cend() && !mapIter->second.hasAc();
                          mapIter++);
                     
                     // something left?
-                    if (mapIter != fdMap.cend()) {
+                    if (mapIter != mapFd.cend()) {
                         // send that plane's info
                         SendTraffic(mapIter->second);
                         // wake up soon again for the rest
@@ -268,7 +267,7 @@ void ForeFlightSender::SendAllTraffic ()
     std::lock_guard<std::mutex> mapFdLock (mapFdMutex);
     
     // loop over all flight data objects
-    for (const std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: fdMap)
+    for (const std::pair<const LTFlightData::FDKeyTy,LTFlightData>& fdPair: mapFd)
     {
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one

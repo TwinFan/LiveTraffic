@@ -57,7 +57,7 @@ std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 }
 
 // update shared flight data structures with received flight data
-bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool ADSBExchangeConnection::ProcessFetchedData ()
 {
     // some things depend on the key type
     const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
@@ -163,9 +163,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // Process the details, depends on version detected
         try {
             if (ver == 2)
-                ProcessV2(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+                ProcessV2(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
             else if (ver == 1)
-                ProcessV1(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+                ProcessV1(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         } catch(...) {
@@ -184,7 +184,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 // Process v2 data
 void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
                                         LTFlightData::FDKeyTy& fdKey,
-                                        mapLTFlightDataTy& fdMap,
                                         const double tsCutOff,
                                         const double adsbxTime,
                                         const positionTy& viewPos)
@@ -282,7 +281,7 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = fdMap[fdKey];
+    LTFlightData& fd = mapFd[fdKey];
     
     // also get the data access lock once and for all
     // so following fetch/update calls only make quick recursive calls
@@ -333,7 +332,6 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 // Process v1 data
 void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
                                         LTFlightData::FDKeyTy& fdKey,
-                                        mapLTFlightDataTy& fdMap,
                                         const double tsCutOff,
                                         const double /*adsbxTime*/,
                                         const positionTy& viewPos)
@@ -368,7 +366,7 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = fdMap[fdKey];
+    LTFlightData& fd = mapFd[fdKey];
     
     // also get the data access lock once and for all
     // so following fetch/update calls only make quick recursive calls
@@ -496,7 +494,7 @@ void ADSBExchangeConnection::Main ()
                 tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
                 
                 // if enabled fetch data and process it
-                if (FetchAllData(pos) && ProcessFetchedData(mapFd))
+                if (FetchAllData(pos) && ProcessFetchedData())
                         // reduce error count if processed successfully
                         // as a chance to appear OK in the long run
                         DecErrCnt();

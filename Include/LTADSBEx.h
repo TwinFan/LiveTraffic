@@ -134,7 +134,7 @@ protected:
 public:
     ADSBExchangeConnection ();
     std::string GetURL (const positionTy& pos) override;
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
+    bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
@@ -149,12 +149,10 @@ protected:
     
     /// Process v2 data
     void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    mapLTFlightDataTy& fdMap,
                     const double tsCutOff, const double adsbxTime,
                     const positionTy& viewPos);
     /// Process v1 data
     void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    mapLTFlightDataTy& fdMap,
                     const double tsCutOff, const double adsbxTime,
                     const positionTy& viewPos);
 

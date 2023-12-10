@@ -69,24 +69,25 @@ protected:
         THR_ENDED,                  ///< Thread has ended, but is not yet joined
     } ThrStatusTy;
     /// Thread's state
-    volatile ThrStatusTy bThrStatus = THR_NONE;
+    volatile ThrStatusTy eThrStatus = THR_NONE;
     
 private:
     bool bValid = true;             ///< valid connection?
     int errCnt = 0;                 ///< number of errors tolerated
 
 public:
+    /// Constructor just sets initial values
     LTChannel (dataRefsLT ch, LTChannelType t, const char* chName) :
         pszChName(chName), eType(t), channel(ch) {}
-    virtual ~LTChannel () {}
+    virtual ~LTChannel ();         ///< Destructor makes sure the thread is stopped
     
-    void Start ();                  ///< Start the channel, typically starts a separate thread
-    void Stop (bool bWaitJoin);     ///< Stop the channel
+    virtual void Start ();                  ///< Start the channel, typically starts a separate thread
+    virtual void Stop (bool bWaitJoin);     ///< Stop the channel
     bool isRunning () const         ///< Is channel's thread running?
     { return thr.joinable(); }
     virtual bool shallRun () const; ///< all conditions met to continue the thread loop?
     /// Thread has ended but still needs to be joined
-    bool hasEnded () const { return bThrStatus == THR_ENDED; }
+    bool hasEnded () const { return eThrStatus == THR_ENDED; }
 
 private:
     void _Main();                   ///< Thread main function, will call virtual Main()
@@ -118,7 +119,7 @@ public:
 
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fd) = 0;
+    virtual bool ProcessFetchedData () = 0;
     // TODO: Remove Disabled Processing, should be done during end of main thread / do something while disabled?
     virtual void DoDisabledProcessing () {}
     // TODO: Remove Close / (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData

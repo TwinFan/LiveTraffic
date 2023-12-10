@@ -108,7 +108,7 @@ public:
     void CleanupCurl () override;
     std::string GetURL (const positionTy& pos) override;
     void ComputeBody (const positionTy& pos) override;
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
+    bool ProcessFetchedData () override;
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
