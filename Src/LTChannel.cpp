@@ -390,7 +390,7 @@ acStatUpdateTy LTACMasterdataChannel::FetchNextRequest ()
         // multi-threaded access guarded by vecAcStatMutex
         std::lock_guard<std::mutex> lock (mtxSets);
         
-        // If there is an element, the return a copy and remove it
+        // If there is an element, then return a copy and remove it
         if (!setAcStatUpdate.empty()) {
             acStatUpdateTy req = *(setAcStatUpdate.begin());
             setAcStatUpdate.erase(setAcStatUpdate.begin());

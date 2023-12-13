@@ -44,9 +44,7 @@
 class ADSBHubConnection : public LTFlightDataChannel
 {
 protected:
-    std::thread thrStream;          ///< thread for the ADSBHub stream
     TCPConnection tcpStream;        ///< TCP connection to data.adsbhub.org:5002
-    volatile bool bStopThr=false;   ///< stop signal to the thread
 #if APL == 1 || LIN == 1
     /// the self-pipe to shut down the TCP thread gracefully
     SOCKET streamPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
@@ -85,16 +83,13 @@ public:
     /// @brief Processes the fetched data
     bool ProcessFetchedData () override { return true; };
     std::string GetStatusText () const override;  ///< return a human-readable staus
-    bool FetchAllData(const positionTy& pos) override;
-    void DoDisabledProcessing() override { StreamClose(); }
-    void Close () override               { StreamClose(); }
-    
+    bool FetchAllData(const positionTy&) override { return false; }
+    void Stop (bool bWaitJoin) override;        ///< Stop the TCP stream gracefully
+
     // ADSBHub Stream connection
 protected:
     void Main () override;          ///< virtual thread main function
 
-    /// Main function for stream connection, expected to be started in a thread
-    void StreamMain ();
     /// Process received SBS data
     bool StreamProcessDataSBS (size_t num, const char* buffer);
     /// Process a single line of SBS data
@@ -106,12 +101,6 @@ protected:
 
     /// Add the collected data for a plane to LiveTraffic's FlightData and reset the internal buffers
     void ProcessPlaneData ();
-
-    /// Start or restart a new thread for connecting to ADSBHub
-    void StreamStart ();
-    /// Closes the stream TCP connection
-    void StreamClose ();
-    
 };
 
 /// @brief Query https://api.ipify.org/ to get own public IP address

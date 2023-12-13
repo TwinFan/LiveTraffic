@@ -226,7 +226,7 @@ public:
     /// @brief Priority order is: route info has lower prio than master data, and within that: longer distance has lower order
     /// @see confusing definition of std::priority_queue's `Compare` template parameter at https://en.cppreference.com/w/cpp/container/priority_queue
     bool operator < (const acStatUpdateTy& o) const
-    { return type == o.type ? dist > o.dist : type > o.type; }
+    { return type == o.type ? dist < o.dist : type < o.type; }
     
     /// Equality is used to test of a likewise request is included already and does _not_ take distance into account
     bool operator == (const acStatUpdateTy& o) const
