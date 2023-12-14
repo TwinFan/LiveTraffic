@@ -76,15 +76,15 @@ std::string ADSBHubConnection::GetStatusText () const
     }
     else if (isRunning()) {
         switch (eFormat) {
-            case FMT_SBS:       s += ", receiving SBS format"; break;
-            case FMT_ComprVRS:  s += ", receiving Compressed VRS format"; break;
-            default:            s += ", connecting...";
+            case FMT_SBS:       s += " | SBS format"; break;
+            case FMT_ComprVRS:  s += " | Compressed VRS format"; break;
+            default:            s += " | connecting...";
         }
         // add time since last data
         if (lastData != std::chrono::time_point<std::chrono::steady_clock>()) {
             char t[100];
             std::chrono::duration<double> diff = std::chrono::steady_clock::now() - lastData;
-            snprintf(t, sizeof(t), ", last data %.1fs ago", diff.count());
+            snprintf(t, sizeof(t), " | last msg %.0fs ago", diff.count());
             s += t;
         }
     }

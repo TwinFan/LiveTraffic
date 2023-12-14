@@ -46,8 +46,8 @@
 #define ADSBEX_RAPIDAPI_25_URL  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/%f/lon/%f/dist/25/"
 #define ADSBEX_RAPIDAPI_HOST    "X-RapidAPI-Host:adsbx-flight-sim-traffic.p.rapidapi.com"
 #define ADSBEX_RAPIDAPI_KEY     "X-RapidAPI-Key:"
-#define ADSBEX_RAPIDAPI_RLIMIT  "X-RateLimit-Requests-Limit:"
-#define ADSBEX_RAPIDAPI_RREMAIN "X-RateLimit-Requests-Remaining:"
+#define ADSBEX_RAPIDAPI_RLIMIT  "x-ratelimit-requests-limit:"
+#define ADSBEX_RAPIDAPI_RREMAIN "x-ratelimit-requests-remaining:"
 
 #define ADSBEX_TOTAL            "total"
 #define ADSBEX_NOW              "now"

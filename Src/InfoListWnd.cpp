@@ -423,12 +423,8 @@ void InfoListWnd::buildInterface()
                                     ImGui::TextUnformatted(pCh->ChName());
                                 }
                                 // Channel's status
-                                if (ImGui::TableSetColumnIndex(1)) {
+                                if (ImGui::TableSetColumnIndex(1))
                                     ImGui::TextUnformatted(pCh->GetStatusText().c_str());
-                                    const std::string extStatus = pCh->GetStatusTextExt();
-                                    if (!extStatus.empty())
-                                        ImGui::TextUnformatted(extStatus.c_str());
-                                }
                                 ImGui::PopID();
                             }
                         }

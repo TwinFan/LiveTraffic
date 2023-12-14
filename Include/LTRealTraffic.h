@@ -46,7 +46,7 @@ constexpr size_t RT_NET_BUF_SIZE    = 8192;
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
-#define MSG_RT_LAST_RCVD        " | last: %lds ago"
+#define MSG_RT_LAST_RCVD        " | last msg %.0fs ago"
 #define MSG_RT_ADJUST           " | historic traffic from %s"
 
 #define INFO_RT_REAL_TIME       "RealTraffic: Tracking data is real-time again."
@@ -211,8 +211,7 @@ public:
     inline rtStatusTy GetStatus () const { return status; }
     double GetLastRcvdTime () const { return lastReceivedTime; }
     std::string GetStatusStr () const;
-    std::string GetStatusText () const override;  ///< return a human-readable staus
-    std::string GetStatusTextExt () const override;
+    std::string GetStatusText () const override;  ///< return a human-readable status
 
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }

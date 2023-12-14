@@ -319,7 +319,7 @@ std::string OpenGliderConnection::GetStatusText () const
     // if we have a latest APRS timestamp then we add age of last APRS message
     if (!std::isnan(aprsLastData)) {
         char buf[50];
-        snprintf(buf, sizeof(buf), ", last message %.1fs ago",
+        snprintf(buf, sizeof(buf), " | last msg %.0fs ago",
                  dataRefs.GetMiscNetwTime() - aprsLastData);
         s += buf;
     }

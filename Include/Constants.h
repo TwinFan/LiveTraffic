@@ -256,6 +256,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
 #define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
+#define HELP_SET_CH_ADSBHUB     "setup/installation/adsbhub"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"

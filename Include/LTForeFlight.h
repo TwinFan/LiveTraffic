@@ -53,15 +53,8 @@ constexpr std::chrono::milliseconds FF_INTVL        = std::chrono::milliseconds(
 class ForeFlightSender : public LTOutputChannel
 {
 protected:
-    // thread
-    std::thread thrUdpSender;
-    volatile bool bStopUdpSender  = true;   // tells thread to stop
-    std::mutex  ffStopMutex;                // supports wake-up and stop synchronization
-    std::condition_variable ffStopCV;
     // UDP sender
     UDPReceiver udpSender;
-    bool    bSendUsersPlane = true;
-    bool    bSendAITraffic  = true;
     // time points last sent something
     std::chrono::steady_clock::time_point nextGPS;
     std::chrono::steady_clock::time_point nextAtt;
@@ -70,26 +63,16 @@ protected:
 
 public:
     ForeFlightSender ();
-    ~ForeFlightSender () override;
 
     std::string GetURL (const positionTy&) override { return ""; }   // don't need URL, no request/reply
     
     // interface called from LTChannel
-    bool FetchAllData(const positionTy& pos) override;
+    bool FetchAllData(const positionTy&) override { return false; }
     bool ProcessFetchedData () override { return true; }
-    void DoDisabledProcessing() override;
-    void Close () override;
     
 protected:
-    void Main () override;          ///< virtual thread main function
-
-    // Start/Stop
-    bool StartConnection ();
-    bool StopConnection ();
-    
     // send positions
-    void udpSend();                 // thread's main function
-    static void udpSendS (ForeFlightSender* me) { me->udpSend(); }
+    void Main () override;          ///< virtual thread main function
     void SendGPS (const positionTy& pos, double speed_m, double track); // position of user's aircraft
     void SendAtt (const positionTy& pos, double speed_m, double track); // attitude of user's aircraft
     void SendAllTraffic (); // other traffic

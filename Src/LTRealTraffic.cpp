@@ -213,25 +213,15 @@ std::string RealTrafficConnection::GetStatusText () const
         return GetStatusStr();
     
     // An active source of tracking data...for how many aircraft?
-    return LTChannel::GetStatusText();
-}
-
-std::string RealTrafficConnection::GetStatusTextExt() const
-{
-    // Any extended status only if we are connected in any way
-    if (!IsEnabled() ||
-        status < RT_STATUS_CONNECTED_PASSIVELY ||
-        status > RT_STATUS_CONNECTED_FULL)
-        return std::string();
-    
-    // Turn the RealTraffic status into text
-    std::string s (GetStatusStr());
-    
+    std::string s = LTChannel::GetStatusText();
+    // Add extended information specifically on RealTraffic connection status
+    s += " | ";
+    s += GetStatusStr();
     if (IsConnected() && lastReceivedTime > 0.0) {
         char sIntvl[100];
         // add when the last msg was received
-        long intvl = std::lround(dataRefs.GetSimTime() - lastReceivedTime);
-        snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,intvl);
+        snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,
+                 dataRefs.GetSimTime() - lastReceivedTime);
         s += sIntvl;
         // if receiving historic traffic say so
         if (tsAdjust > 1.0) {

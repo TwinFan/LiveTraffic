@@ -461,9 +461,9 @@ std::string ADSBExchangeConnection::GetStatusText () const
     std::string s = LTChannel::GetStatusText();
     if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
     {
-        s += ", ";
+        s += " | ";
         s += std::to_string(dataRefs.ADSBExRRemain);
-        s += " / ";
+        s += " of ";
         s += std::to_string(dataRefs.ADSBExRLimit);
         s += " RAPID API requests left";
     }
@@ -596,6 +596,12 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
     static size_t lenRLimit  = strlen(ADSBEX_RAPIDAPI_RLIMIT);
     static size_t lenRRemain = strlen(ADSBEX_RAPIDAPI_RREMAIN);
     char num[50];
+    
+    // Turn buffer content lower case for the first few chars we are to compare
+    const size_t lenMax = std::min(std::max(lenRLimit,lenRRemain),len);
+    size_t i = 0;
+    for (char* p = buffer; i < lenMax; ++i, ++p)
+        *p = char(std::tolower(*p));
 
     // Limit?
     if (len > lenRLimit &&
@@ -606,7 +612,7 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
         num[copyCnt]=0;                 // zero termination
         dataRefs.ADSBExRLimit = std::atol(num);
     }
-    // Remining?
+    // Remaining?
     else if (len > lenRRemain &&
              memcmp(buffer, ADSBEX_RAPIDAPI_RREMAIN, lenRRemain) == 0)
     {

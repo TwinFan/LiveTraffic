@@ -37,219 +37,138 @@ LTOutputChannel(DR_CHANNEL_FORE_FLIGHT_SENDER, FOREFLIGHT_NAME)
     urlPopup = FF_CHECK_POPUP;
 }
 
-ForeFlightSender::~ForeFlightSender()
-{
-    // make sure everything's cleaned up
-    StopConnection();
-}
-
-// if called makes sure the UDP client is up and running
-bool ForeFlightSender::FetchAllData(const positionTy&)
-{
-    // if we are invalid or disabled we should shut down
-    if (!IsValid() || !IsEnabled()) {
-        return StopConnection();
-    }
-    
-    // Update bSendUserPlane/AITraffic
-    bSendUsersPlane = DataRefs::GetCfgBool(DR_CFG_FF_SEND_USER_PLANE);
-    bSendAITraffic  = DataRefs::GetCfgBool(DR_CFG_FF_SEND_TRAFFIC);
-    
-    // make sure we have a socket and a thread
-    if (!StartConnection())
-        return false;
-    
-    return true;
-}
-
-
-void ForeFlightSender::DoDisabledProcessing()
-{
-    // make sure everything's cleaned up
-    StopConnection();
-}
-
-void ForeFlightSender::Close ()
-{
-    // make sure everything's cleaned up
-    StopConnection();
-}
-
-
-// virtual thread main function
-void ForeFlightSender::Main ()
-{
-    // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_ForeFlight", LC_ALL_MASK);
-}
-
-
-// Start/Stop the thread, which sends the data
-bool ForeFlightSender::StartConnection ()
-{
-    bStopUdpSender = false;
-    if (!thrUdpSender.joinable())
-        thrUdpSender = std::thread (udpSendS, this);
-    return true;
-}
-
-bool ForeFlightSender::StopConnection ()
-{
-    // is there a main thread running? -> stop it and wait for it to return
-    if ( thrUdpSender.joinable() )
-    {
-        // stop the main thread
-        bStopUdpSender = true;              // the message is: Stop!
-        ffStopCV.notify_all();              // wake up the thread for stop
-        thrUdpSender.join();                // wait for thread to finish
-        
-        thrUdpSender = std::thread();
-    }
-    return true;
-}
-
 //
 // MARK: Send information
 //
 
 // thread main function
-void ForeFlightSender::udpSend()
+void ForeFlightSender::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_ForeFlight", LC_ALL_MASK);
-
-    //
-    // *** open the UDP socket ***
-    //
-    if (!udpSender.isOpen())
-    {
+    
+    // Top-Level Exception Handling
+    const int port = DataRefs::GetCfgInt(DR_CFG_FF_SEND_PORT);
+    try {
         // open the UDP socket with broadcast permission
-        int port = DataRefs::GetCfgInt(DR_CFG_FF_SEND_PORT);
-        try {
-            udpSender.Open (FF_LOCALHOST, port, FF_NET_BUF_SIZE, 0, true);
-            LOG_MSG(logINFO, MSG_FF_OPENED);
-        }
-        catch (std::runtime_error& e) {
-            // exception...can only really happen in UDPReceiver::Open
-            LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
-                    FF_LOCALHOST, port,
-                    e.what());
-        }
-    }
-    
-    // now - do we have a socket now?
-    if (!udpSender.isOpen()) {
-        // no: invalidate the channel
-        SetValid(false, true);
-        return;
-    }
-    
-    //
-    // *** Loop for sending data ***
-    //
-    // We place 20ms pause between any two broadcasts in order not to overtax
-    // the network. Increases reliability. The logic is then as follows:
-    // The loop keeps running till stop.
-    // We check if it is time for ATT or GPS data and send that if so.
-    // If not we continue with the traffic planes.
-    //   Once we reach the end of all traffic we won't start again
-    //   before reaching the proper time.
-    // Between any two broadcasts there is 20ms break.
-    //
-    LTFlightData::FDKeyTy lastKey;          // last traffic sent out
-    while ( !bStopUdpSender )
-    {
-        bool bDidSendSomething = false;
+        udpSender.Open (FF_LOCALHOST, port, FF_NET_BUF_SIZE, 0, true);
+        LOG_MSG(logINFO, MSG_FF_OPENED);
         
-        // now
-        std::chrono::time_point<std::chrono::steady_clock> now =
-        std::chrono::steady_clock::now();
-        
-        // send user's plane at all?
-        if (bSendUsersPlane) {
-            double airSpeed_m   = 0.0;
-            double track        = 0.0;
-            positionTy pos;
-
-            // time for GPS?
-            if (now >= nextGPS)
-            {
-                pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
-                SendGPS(pos, airSpeed_m, track);
-                nextGPS = now + FF_INTVL_GPS;
-                bDidSendSomething = true;
+        //
+        // *** Loop for sending data ***
+        //
+        // We place 20ms pause between any two broadcasts in order not to overtax
+        // the network. Increases reliability. The logic is then as follows:
+        // The loop keeps running till stop.
+        // We check if it is time for ATT or GPS data and send that if so.
+        // If not we continue with the traffic planes.
+        //   Once we reach the end of all traffic we won't start again
+        //   before reaching the proper time.
+        // Between any two broadcasts there is 20ms break.
+        //
+        LTFlightData::FDKeyTy lastKey;          // last traffic sent out
+        while ( shallRun() && udpSender.isOpen() )
+        {
+            const bool bSendUsersPlane = DataRefs::GetCfgBool(DR_CFG_FF_SEND_USER_PLANE);
+            const bool bSendAITraffic  = DataRefs::GetCfgBool(DR_CFG_FF_SEND_TRAFFIC);
+            bool bDidSendSomething = false;
+            
+            // now
+            std::chrono::time_point<std::chrono::steady_clock> now =
+            std::chrono::steady_clock::now();
+            
+            // send user's plane at all?
+            if (bSendUsersPlane) {
+                double airSpeed_m   = 0.0;
+                double track        = 0.0;
+                positionTy pos;
+                
+                // time for GPS?
+                if (now >= nextGPS)
+                {
+                    pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                    SendGPS(pos, airSpeed_m, track);
+                    nextGPS = now + FF_INTVL_GPS;
+                    bDidSendSomething = true;
+                }
+                
+                // time for ATT?
+                if (now >= nextAtt)
+                {
+                    if (!pos.isNormal())
+                        pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                    SendAtt(pos, airSpeed_m, track);
+                    nextAtt = now + FF_INTVL_ATT;
+                    bDidSendSomething = true;
+                }
             }
             
-            // time for ATT?
-            if (now >= nextAtt)
+            // send traffic at all?
+            // not yet send GPS/ATT?
+            // time to send some traffic?
+            if (bSendAITraffic && !bDidSendSomething &&
+                now >= nextTraffic)
             {
-                if (!pos.isNormal())
-                    pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
-                SendAtt(pos, airSpeed_m, track);
-                nextAtt = now + FF_INTVL_ATT;
-                bDidSendSomething = true;
-            }
-        }
-
-        // send traffic at all?
-        // not yet send GPS/ATT?
-        // time to send some traffic?
-        if (bSendAITraffic && !bDidSendSomething &&
-            now >= nextTraffic)
-        {
-            // from here on access to fdMap guarded by a mutex
-            std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
-            if (lock) {
-                if (!mapFd.empty()) {
-                    // just starting with a new round?
-                    if (lastKey == LTFlightData::FDKeyTy())
-                        lastStartOfTraffic = now;
-                    
-                    // next key to send? (shall have an actual a/c)
-                    mapLTFlightDataTy::const_iterator mapIter;
-                    for (mapIter = mapFd.upper_bound(lastKey);
-                         mapIter != mapFd.cend() && !mapIter->second.hasAc();
-                         mapIter++);
-                    
-                    // something left?
-                    if (mapIter != mapFd.cend()) {
-                        // send that plane's info
-                        SendTraffic(mapIter->second);
-                        // wake up soon again for the rest
-                        lastKey = mapIter->first;
-                        nextTraffic = now + FF_INTVL;
+                // from here on access to fdMap guarded by a mutex
+                std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
+                if (lock) {
+                    if (!mapFd.empty()) {
+                        // just starting with a new round?
+                        if (lastKey == LTFlightData::FDKeyTy())
+                            lastStartOfTraffic = now;
+                        
+                        // next key to send? (shall have an actual a/c)
+                        mapLTFlightDataTy::const_iterator mapIter;
+                        for (mapIter = mapFd.upper_bound(lastKey);
+                             mapIter != mapFd.cend() && !mapIter->second.hasAc();
+                             mapIter++);
+                        
+                        // something left?
+                        if (mapIter != mapFd.cend()) {
+                            // send that plane's info
+                            SendTraffic(mapIter->second);
+                            // wake up soon again for the rest
+                            lastKey = mapIter->first;
+                            nextTraffic = now + FF_INTVL;
+                        }
+                        else {
+                            // we're done with one round, start over
+                            lastKey = LTFlightData::FDKeyTy();
+                            nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
+                        }
                     }
                     else {
-                        // we're done with one round, start over
+                        // map's empty, so we are done
                         lastKey = LTFlightData::FDKeyTy();
                         nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
                     }
+                } else {
+                    // wake up soon again for the rest
+                    nextTraffic = now + FF_INTVL;
                 }
-                else {
-                    // map's empty, so we are done
-                    lastKey = LTFlightData::FDKeyTy();
-                    nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
-                }
-            } else {
-                // wake up soon again for the rest
-                nextTraffic = now + FF_INTVL;
+            }
+            
+            // sleep until time or if woken up for termination
+            // by condition variable trigger
+            if (shallRun())
+            {
+                std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
+                bSendUsersPlane && bSendAITraffic  ? std::min({nextGPS, nextAtt, nextTraffic}) :
+                bSendUsersPlane && !bSendAITraffic ? std::min(nextGPS, nextAtt) :
+                nextTraffic;
+                
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, nextWakeup,
+                                           [this]{return !shallRun();});
             }
         }
-        
-        // sleep until time or if woken up for termination
-        // by condition variable trigger
-        if (!bStopUdpSender)
-        {
-            std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
-            bSendUsersPlane && bSendAITraffic  ? std::min({nextGPS, nextAtt, nextTraffic}) :
-            bSendUsersPlane && !bSendAITraffic ? std::min(nextGPS, nextAtt) :
-            nextTraffic;
-            
-            std::unique_lock<std::mutex> lk(ffStopMutex);
-            ffStopCV.wait_until(lk, nextWakeup,
-                                [this]{return bStopUdpSender;});
-            lk.unlock();
-        }
+    }
+    catch (std::runtime_error& e) {
+        // exception...can only really happen in UDPReceiver::Open
+        LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
+                FF_LOCALHOST, port,
+                e.what());
+        IncErrCnt();
     }
     
     //

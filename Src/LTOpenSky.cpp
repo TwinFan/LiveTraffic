@@ -324,7 +324,7 @@ std::string OpenSkyConnection::GetStatusText () const
     if (IsValid()) {
         if (dataRefs.OpenSkyRRemain < LONG_MAX)
         {
-            s += ", ";
+            s += " | ";
             s += std::to_string(dataRefs.OpenSkyRRemain);
             s += " requests left today";
         }
