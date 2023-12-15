@@ -118,10 +118,6 @@ public:
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
     virtual bool ProcessFetchedData () = 0;
-    // TODO: Remove Disabled Processing, should be done during end of main thread / do something while disabled?
-    virtual void DoDisabledProcessing () {}
-    // TODO: Remove Close / (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
-    virtual void Close () {}
 };
 
 // Mutex and condition variable with which threads are woken up

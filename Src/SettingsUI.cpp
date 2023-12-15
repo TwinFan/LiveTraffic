@@ -504,7 +504,6 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- RealTraffic ---
-            const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",

@@ -488,32 +488,58 @@ bool FSCConnection::ExtractErrorTexts (const JSON_Object* pObj)
 }
     
 
-
-// do something while disabled?
-void FSCConnection::DoDisabledProcessing ()
-{
-    ClearLogin();
-}
-
-// (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
-void FSCConnection::Close ()
-{
-    ClearLogin();
-}
-
-
 // virtual thread main function
 void FSCConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_FSCharter", LC_ALL_MASK);
-}
-
-
-// Remove all traces of login
-void FSCConnection::ClearLogin ()
-{
+    
+    // remove all traces of a login
     fscStatus = FSC_STATUS_NONE;
     token.clear();
     token_type.clear();
+
+    // main loop
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it,
+            // or if we need to login we can do that any time
+            if (pos.isNormal() || fscStatus == FSC_STATUS_NONE) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += pos.isNormal() ? std::chrono::seconds(dataRefs.GetFdRefreshIntvl()) : std::chrono::seconds(1);
+                
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
 }

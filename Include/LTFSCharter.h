@@ -109,7 +109,6 @@ public:
     std::string GetURL (const positionTy& pos) override;
     void ComputeBody (const positionTy& pos) override;
     bool ProcessFetchedData () override;
-    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
 //    { gndRange = FSC_SMOOTH_GROUND; airbRange = FSC_SMOOTH_AIRBORNE; return true; }
@@ -117,16 +116,8 @@ public:
     /// Extracts all error texts from `response` into the `error*` fields
     bool ExtractErrorTexts (const JSON_Object* pObj = nullptr);
     
-    // do something while disabled?
-    void DoDisabledProcessing () override;
-    // (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
-    void Close () override;
-    
 protected:
     void Main () override;          ///< virtual thread main function
-
-    /// Remove all traces of login
-    void ClearLogin ();
 };
 
 

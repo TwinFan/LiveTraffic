@@ -118,16 +118,13 @@ LTFlightDataChannel(DR_CHANNEL_OPEN_GLIDER_NET, OPGLIDER_NAME)
     urlPopup = OPGLIDER_CHECK_POPUP;
 }
 
-// Destructor closes the a/c list file
-OpenGliderConnection::~OpenGliderConnection ()
-{
-    Cleanup();
-}
-
 // All the cleanup we usually need
-void OpenGliderConnection::Cleanup ()
+void OpenGliderConnection::Stop (bool bWaitJoin)
 {
     APRSClose();
+    
+    LTFlightDataChannel::Stop(bWaitJoin);
+    
     if (ifAcList.is_open())
         ifAcList.close();
     aprsLastData = NAN;

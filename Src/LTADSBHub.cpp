@@ -55,12 +55,6 @@ LTFlightDataChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME)
     urlPopup = ADSBHUB_CHECK_POPUP;
 }
 
-// Destructor closes the a/c list file
-ADSBHubConnection::~ADSBHubConnection ()
-{
-    Close();
-}
-
 // return a human-readable staus
 std::string ADSBHubConnection::GetStatusText () const
 {

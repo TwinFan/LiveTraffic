@@ -149,18 +149,14 @@ protected:
 public:
     /// Constructor
     OpenGliderConnection ();
-    /// Destructor closes the a/c list file
-    ~OpenGliderConnection () override;
     /// All the cleanup we usually need
-    void Cleanup ();
+    void Stop (bool bWaitJoin) override;
     /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
     std::string GetURL (const positionTy& pos) override;
     /// @brief Processes the fetched data
     bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
-    void DoDisabledProcessing() override { Cleanup(); }
-    void Close () override               { Cleanup(); }
 
     // APRS connection
 protected:
