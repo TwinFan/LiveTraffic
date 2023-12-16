@@ -344,7 +344,7 @@ bool LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyA
                                                double distance)
 {
     // Sanity check
-    if (keyAc.empty()) return false;
+    if (keyAc.empty() || keyAc.eKeyType != LTFlightData::KEY_ICAO) return false;
     
     // Prepare the request object that is to be added later
     const unsigned long dist = std::isnan(distance) ? UINT_MAX : (unsigned long) (distance);

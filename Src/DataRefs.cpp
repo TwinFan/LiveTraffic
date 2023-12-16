@@ -2429,10 +2429,6 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE))
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
     
-    // if OGN just got enabled download a fresh a/c list from OGN
-    if (bEnable && ch == DR_CHANNEL_OPEN_GLIDER_NET)
-        OGNDownloadAcList();
-    
     // if a channel got disabled check if any tracking data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
         !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
