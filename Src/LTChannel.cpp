@@ -920,7 +920,6 @@ void LTFlightDataAcMaintenance()
         {
             // access guarded by a mutex
             LTFlightData& fd = i->second;
-            std::lock_guard<std::recursive_mutex> lockFd (fd.dataAccessMutex);
             // do the maintenance, remove aircraft if that's the verdict
             if ( fd.AircraftMaintenance(simTime) )
                 i = mapFd.erase(i);

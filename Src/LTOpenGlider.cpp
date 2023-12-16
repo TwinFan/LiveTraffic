@@ -785,11 +785,10 @@ bool OpenGliderConnection::AcListDownloadMain ()
     // Download the file
     bool bRet = false;
     try {
-        char curl_errtxt[CURL_ERROR_SIZE];
         OGNCbHandoverTy ho;             // hand-over structure to callback
         
         // initialize the CURL handle
-        CURL *pCurl = curl_easy_init();
+        pCurl = curl_easy_init();
         if (!pCurl) {
             LOG_MSG(logERR,ERR_CURL_EASY_INIT);
             return false;
@@ -826,7 +825,6 @@ bool OpenGliderConnection::AcListDownloadMain ()
         if (cc == CURLE_OK)
         {
             // CURL was OK, now check HTTP response code
-            long httpResponse = 0;
             curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
 
             // not HTTP_OK?
@@ -846,6 +844,7 @@ bool OpenGliderConnection::AcListDownloadMain ()
 
         // cleanup CURL handle
         curl_easy_cleanup(pCurl);
+        pCurl = nullptr;
     }
     catch (const std::exception& e) {
         LOG_MSG(logERR, "Fetching OGN a/c list failed with exception %s", e.what());

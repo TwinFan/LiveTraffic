@@ -135,7 +135,7 @@ void InfoListWnd::buildInterface()
             TabActive(ILW_TAB_AC_LIST);
             
             // Limit to visible planes only
-            ImGui::Checkbox("Only displayed a/c", &acList.bFilterAcOnly);
+            ImGui::Checkbox("Only visible a/c", &acList.bFilterAcOnly);
             
             // Search a setting
             // If there is a search text then the tree nodes will be suppressed,
