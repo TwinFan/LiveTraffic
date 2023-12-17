@@ -625,8 +625,8 @@ protected:
     XPLMDataRef adrXP[CNT_DATAREFS_XP];                 ///< array of XP data refs to read from and shared dataRefs to provide
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
 public:
-    XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
-    XPLMCommandRef cmdLT[CNT_CMDREFS_LT];
+    XPLMCommandRef cmdXP[CNT_CMDREFS_XP] = { 0 };       // array of command refs
+    XPLMCommandRef cmdLT[CNT_CMDREFS_LT] = { 0 };
 
 //MARK: Provided Data, i.e. global variables
 protected:

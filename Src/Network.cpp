@@ -404,7 +404,7 @@ bool SocketNetworking::broadcast (const char* msg)
 // return a string for a IPv4 and IPv6 address
 std::string SocketNetworking::GetAddrString (const struct sockaddr* addr)
 {
-    char s[INET6_ADDRSTRLEN];
+    char s[INET6_ADDRSTRLEN] = { 0 };
     
     switch(addr->sa_family) {
         case AF_INET: {
