@@ -489,11 +489,9 @@ void ADSBExchangeConnection::Main ()
             // If the camera position is valid we can request data around it
             if (pos.isNormal()) {
                 // Next wakeup is "refresh interval" from _now_
-                // (calls to network requests might take a long time,
-                //  see wait in OpenSkyAcMasterdata::FetchAllData)
                 tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
                 
-                // if enabled fetch data and process it
+                // fetch data and process it
                 if (FetchAllData(pos) && ProcessFetchedData())
                         // reduce error count if processed successfully
                         // as a chance to appear OK in the long run

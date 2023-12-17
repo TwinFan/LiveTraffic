@@ -44,6 +44,48 @@ void OpenSkyConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_OpSky", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
 }
 
 
@@ -165,14 +207,21 @@ bool OpenSkyConnection::ProcessFetchedData ()
             return false;
         }
         
-        // There are a few typical responses that may happen when OpenSky
-        // is just temporarily unresponsive. But in all _other_ cases
-        // we increase the error counter.
-        if (httpResponse != HTTP_BAD_GATEWAY        &&
-            httpResponse != HTTP_NOT_AVAIL          &&
-            httpResponse != HTTP_GATEWAY_TIMEOUT    &&
-            httpResponse != HTTP_TIMEOUT)
+        // Timeouts are so common recently with OpenSky that we no longer treat them as errors,
+        // but we inform the user every once in a while
+        if (httpResponse == HTTP_GATEWAY_TIMEOUT    &&
+            httpResponse == HTTP_TIMEOUT)
+        {
+            static std::chrono::time_point<std::chrono::steady_clock> lastTimeoutWarn;
+            auto tNow = std::chrono::steady_clock::now();
+            if (tNow > lastTimeoutWarn + std::chrono::minutes(5)) {
+                lastTimeoutWarn = tNow;
+                SHOW_MSG(logWARN, "%s communication unreliable due to timeouts!", pszChName);
+            }
+        }
+        else {                                  // anything else is serious
             IncErrCnt();
+        }
         return false;
     }
     
