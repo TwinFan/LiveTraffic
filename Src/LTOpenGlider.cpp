@@ -519,7 +519,7 @@ bool OpenGliderConnection::APRSDoLogin ()
              aprsPos.lat(), aprsPos.lon(),
              (unsigned)dataRefs.GetFdStdDistance_km());
     aprsLastKeepAlive = dataRefs.GetMiscNetwTime();     // also counts as a message sent _to_ APRS
-    DebugLogRaw(sLogin);
+    DebugLogRaw(sLogin, HTTP_FLAG_SENDING);
     return tcpAprs.send(sLogin);
 }
 
@@ -534,7 +534,7 @@ bool OpenGliderConnection::APRSSendKeepAlive()
     snprintf(sKeepAlive, sizeof(sKeepAlive), OGN_APRS_KEEP_ALIVE, LT_VERSION,
              ts2string(time(nullptr)).c_str());
     LOG_MSG(logDEBUG, "OGN: Sending keep alive: %s", sKeepAlive);
-    DebugLogRaw(sKeepAlive);
+    DebugLogRaw(sKeepAlive, HTTP_FLAG_SENDING);
     return tcpAprs.send(sKeepAlive);
 }
 
@@ -542,7 +542,7 @@ bool OpenGliderConnection::APRSSendKeepAlive()
 bool OpenGliderConnection::APRSProcessData (const char* buffer)
 {
     // save the data to our processing buffer
-    DebugLogRaw(buffer);
+    DebugLogRaw(buffer, HTTP_FLAG_UDP);
     aprsData += buffer;
     if (aprsData.empty())            // weird...but not an error if there's nothing to process
         return true;

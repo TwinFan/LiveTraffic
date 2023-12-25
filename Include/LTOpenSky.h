@@ -84,7 +84,8 @@ protected:
 #define OPSKY_MD_CHECK_URL      "https://opensky-network.org/aircraft-database"
 #define OPSKY_MD_CHECK_POPUP    "Search and update OpenSky's databse of airframes"
 
-constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds(500);
+constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds( 300);   ///< Wait between immediate requests to OpenSky Master
+constexpr std::chrono::duration OPSKY_WAIT_NOQUEUE = std::chrono::milliseconds(3000);   ///< Wait if there is no request in the queue
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
 #define OPSKY_MD_TRANSP_ICAO    "icao24"
@@ -99,6 +100,9 @@ constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds(5
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
 constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
 #define OPSKY_MD_TEXT_NO_CAT    "No ADS-B Emitter Category Information"
+
+#define OPSKY_MD_DB_URL         "https://opensky-network.org/datasets/metadata/"
+#define OPSKY_MD_DB_FILE        "aircraft-database-complete-%04d-%02d.csv"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
 #define OPSKY_ROUTE_CALLSIGN    "callsign"
@@ -119,9 +123,58 @@ public:
     std::string GetURL (const positionTy& pos) override;            ///< Returns the master data or route URL to query
     bool ProcessFetchedData () override;                            ///< Process received master or route data
 protected:
+    bool AcceptRequest (const acStatUpdateTy& requ) override;       ///< accept requests that aren't in the ignore lists
     void Main () override;                                          ///< virtual thread main function
     bool ProcessMasterData (JSON_Object* pJAc);                     ///< Process received aircraft master data
     bool ProcessRouteInfo (JSON_Object* pJRoute);                   ///< Process received route info
+};
+
+//
+//MARK: OpenSkyAcMasterFile
+//
+
+// Every how many lines to we save file position information?
+constexpr unsigned long OPSKY_NUM_LN_PER_POS = 250;
+
+// Index into the fields of each line of the database file
+enum AcMasterFileFieldsTy : size_t {
+    ACMFF_hexId  = 0,
+    ACMFF_reg,
+    ACMFF_manIcao,
+    ACMFF_man,
+    ACMFF_mdl,
+    ACMFF_designator,
+    ACMFF_serialNum,
+    ACMFF_lineNum,
+    ACMFF_icaoAircraftClass,
+    ACMFF_operator,
+    ACMFF_operatorCallsign,
+    ACMFF_opIcao,
+    ACMFF_opIata,
+    ACMFF_owner,
+    ACMFF_catDescr,
+    ACMFF_NUM_FIELDS
+};
+
+/// Represents downloading and reading from the OpenSky Master data file `aircraft-database-complete-YYYY-MM.csv`
+class OpenSkyAcMasterFile : public LTACMasterdataChannel
+{
+protected:
+    std::ifstream fAcDb;                                            ///< Aircraft Database file
+    typedef std::map<unsigned long,std::ifstream::pos_type> mapPosTy;///< map of a/c ids to file positions
+    mapPosTy mapPos;                                                ///< map of a/c ids to file positions
+    std::string ln;                                                 ///< a line in the database file
+public:
+    OpenSkyAcMasterFile ();                                         ///< Constructor sets channel, name, and URLs
+public:
+    std::string GetURL (const positionTy&) override { return ""; }  ///< No URL for the standard request processing
+    bool ProcessFetchedData () override;                            ///< Process looked up master data
+protected:
+    bool AcceptRequest (const acStatUpdateTy& requ) override;       ///< accept only master data requests
+    void Main () override;                                          ///< virtual thread main function
+    bool LookupData ();                                             ///< perform the file lookup
+    bool OpenDatabaseFile ();                                       ///< find an aircraft database file to open/download
+    bool TryOpenDbFile (int year, int month);                       ///< open/download the aircraft database file for the given month
 };
 
 

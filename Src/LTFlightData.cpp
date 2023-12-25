@@ -2172,6 +2172,7 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
         // We allow a change of channel if this prevents the aircraft from
         // disappearing, i.e. if this is the last update before a/c outdated period,
         // or in other words: new ts + refresh period > old ts + outdated period
+        // TODO: Way too many channel switches happening if all channels are active
         if (!dynDataDeque.empty()) {
             const FDDynamicData& last = dynDataDeque.back();
             if (inDyn.pChannel && last.pChannel != inDyn.pChannel)

@@ -251,7 +251,8 @@ void LTSettingsUI::buildInterface()
                 LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
                 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
-                
+                ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+
                 // Hint that user/password increases number of allowed requests
                 if (!*sFilter && (sOpenSkyUser.empty() || sOpenSkyPwd.empty())) {
                     ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
@@ -329,8 +330,10 @@ void LTSettingsUI::buildInterface()
 
                 // If ADSBHub has just been enabled then, as a courtesy,
                 // we also make sure that OpenSky Master data is enabled
-                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB))
+                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
                     dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
+                }
                 
                 // ADSBHub's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {

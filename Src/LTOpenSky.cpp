@@ -114,6 +114,7 @@ bool OpenSkyConnection::InitCurl ()
 }
 
 // read header and parse for request remaining
+// TODO: Reimplement using curl_easy_header
 size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
 {
     const size_t len = nitems * size;
@@ -404,34 +405,55 @@ LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME)
     urlPopup = OPSKY_MD_CHECK_POPUP;
 }
 
+// accept requests that aren't in the ignore lists
+bool OpenSkyAcMasterdata::AcceptRequest (const acStatUpdateTy& r)
+{
+    if ((r.type == DATREQU_ROUTE ||                     // accepting all kinds of call signs
+         r.acKey.eKeyType == LTFlightData::KEY_ICAO) && // but only ICAO-typed master data requests
+        !ShallIgnore(r))
+    {
+        InsertRequest(r);
+        return true;
+    }
+    return false;
+}
 
 // virtual thread main function
 void OpenSkyAcMasterdata::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_OpSkyMaster", LC_ALL_MASK);
+    tSetRequCleared = dataRefs.GetMiscNetwTime();
     
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
         try {
-            // (Try to) get the next request to be processed
-            requ = FetchNextRequest();
-            
             // if there is something to request, fetch the data and process it
-            if (requ &&
-                FetchAllData(positionTy()) && ProcessFetchedData()) {
-                // reduce error count if processed successfully
-                // as a chance to appear OK in the long run
-                DecErrCnt();
+            if (FetchNextRequest())
+            {
+                if (FetchAllData(positionTy()) && ProcessFetchedData()) {
+                    // reduce error count if processed successfully, as a chance to appear OK in the long run
+                    DecErrCnt();
+                } else {
+                    // Could not find the data here, pass on the request
+                    PassOnRequest(this, currRequ);
+                }
             }
+
+            // We must wait a moment between any two requests just not to overload the server
+            std::this_thread::sleep_for(OPSKY_WAIT_BETWEEN);
             
-            // sleep for OPSKY_WAIT_BETWEEN or if woken up for termination
-            // by condition variable trigger
+            // sleep a bit or until woken up for termination by condition variable trigger
+            if (!HaveAnyRequest())
             {
                 std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
-                FDThreadSynchCV.wait_for(lk, OPSKY_WAIT_BETWEEN,
-                                         [this]{return !shallRun();});
+                FDThreadSynchCV.wait_for(lk, OPSKY_WAIT_NOQUEUE,
+                                         [this]{return !shallRun() || HaveAnyRequest();});
             }
+            
+            // Every 3s clear up outdated requests waiting in queue
+            if (CheckEverySoOften(tSetRequCleared, 3.0f))
+                MaintainMasterDataRequests();
             
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
@@ -441,17 +463,24 @@ void OpenSkyAcMasterdata::Main ()
             IncErrCnt();
         }
     }
+    
+    // Before leaving clear the request queue
+    std::unique_lock<std::recursive_mutex> lock (mtxMaster);
+    if (bFDMainStop)                        // in case of all stopping just throw them away
+        setAcStatRequ.clear();
+    else
+        MaintainMasterDataRequests();       // otherwise clear up and pass on
 }
 
 
 // Returns the master data or route URL to query
 std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 {
-    switch (requ.type) {
+    switch (currRequ.type) {
         case DATREQU_AC_MASTER:
-            return std::string(OPSKY_MD_URL) + requ.acKey.key;
+            return std::string(OPSKY_MD_URL) + currRequ.acKey.key;
         case DATREQU_ROUTE:
-            return std::string(OPSKY_ROUTE_URL) + requ.callSign;
+            return std::string(OPSKY_ROUTE_URL) + currRequ.callSign;
         case DATREQU_NONE:
             return std::string();
     }
@@ -461,26 +490,13 @@ std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 // process each master data line read from OpenSky
 bool OpenSkyAcMasterdata::ProcessFetchedData ()
 {
-    // If the requested data wasn't found we shall never try this request again
-    if (httpResponse == HTTP_NOT_FOUND ||
-        httpResponse == HTTP_BAD_REQUEST)
-    {
-        switch (requ.type) {
-            case DATREQU_AC_MASTER:
-                AddIgnoreAc(requ.acKey);
-                break;
-            case DATREQU_ROUTE:
-                AddIgnoreCallSign(requ.callSign);
-                break;
-            case DATREQU_NONE:
-                break;
-        }
-        // But this is syntactically a totally valid response
-        return true;
+    // If the requested data just wasn't found add it to the ignore list
+    if (httpResponse == HTTP_NOT_FOUND) {
+        AddIgnore();
+        return false;
     }
-    
-    // Any other result or no message is not OK
-    if (httpResponse != HTTP_OK || !netDataPos) {
+    // Any other result or no message is technically not OK
+    else if (httpResponse != HTTP_OK || !netDataPos) {
         IncErrCnt();
         return false;
     }
@@ -493,7 +509,7 @@ bool OpenSkyAcMasterdata::ProcessFetchedData ()
     
     // Pass on the further processing depending on the request type
     bool bRet = false;
-    switch (requ.type) {
+    switch (currRequ.type) {
         case DATREQU_AC_MASTER:
             bRet = ProcessMasterData(pObj);
             break;
@@ -583,7 +599,342 @@ bool OpenSkyAcMasterdata::ProcessRouteInfo (JSON_Object* pJRoute)
         statDat.flight += std::to_string(lround(flightNr));
     
     // update the a/c's master data
-    UpdateStaticData(requ.acKey, statDat);
+    UpdateStaticData(currRequ.acKey, statDat);
     return true;
 }
 
+//
+// MARK: OpenSky Master Data File
+//
+
+
+// Constructor
+OpenSkyAcMasterFile::OpenSkyAcMasterFile () :
+LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, OPSKY_MD_NAME)
+{
+    // purely informational
+    urlName  = OPSKY_MD_CHECK_NAME;
+    urlLink  = OPSKY_MD_CHECK_URL;
+    urlPopup = OPSKY_MD_CHECK_POPUP;
+}
+
+// accept only master data requests for ICAO-type keys
+bool OpenSkyAcMasterFile::AcceptRequest (const acStatUpdateTy& r)
+{
+    if (r.type == DATREQU_AC_MASTER &&
+        r.acKey.eKeyType == LTFlightData::KEY_ICAO &&
+        !ShallIgnore(r))
+    {
+        InsertRequest(r);
+        return true;
+    }
+    return false;
+}
+
+// virtual thread main function
+void OpenSkyAcMasterFile::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OpSkyMstFile", LC_ALL_MASK);
+
+    // Make sure we have an aircraft database file, and open it
+    if (!OpenDatabaseFile()) {
+        SHOW_MSG(logERR, "No OpenSky Aircraft Database file available!");
+        SetValid(false,true);
+        return;
+    }
+    
+    // Loop to process requests
+    tSetRequCleared = dataRefs.GetMiscNetwTime();
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // if there is something to request, fetch the data and process it
+            if (FetchNextRequest()) {
+                if (LookupData() && ProcessFetchedData()) {
+                    // reduce error count if processed successfully, as a chance to appear OK in the long run
+                    DecErrCnt();
+                } else {
+                    // Could not find the data here, pass on the request
+                    PassOnRequest(this, currRequ);
+                }
+            }
+            
+            // sleep for OPSKY_WAIT_NOQUEUE or if woken up for termination
+            // by condition variable trigger
+            if (!HaveAnyRequest())
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_for(lk,OPSKY_WAIT_NOQUEUE,
+                                         [this]{return !shallRun() || HaveAnyRequest();});
+            }
+            
+            // Every 3s clear up outdated requests waiting in queue
+            if (CheckEverySoOften(tSetRequCleared, 3.0f))
+                MaintainMasterDataRequests();
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+    
+    // Before leaving clear the request queue
+    std::unique_lock<std::recursive_mutex> lock (mtxMaster);
+    if (bFDMainStop)                        // in case of all stopping just throw them away
+        setAcStatRequ.clear();
+    else
+        MaintainMasterDataRequests();       // otherwise clear up and pass on
+}
+
+/// @brief Extract the hexId from an OpenSky ac database line, `0` if invalid
+/// @details Line needs to start with a full 6-digit hex id in double quotes: "000001"
+unsigned long GetHexId (const std::string& ln)
+{
+    // must have at least 8 characters, and double quotes at position 0 and 7:
+    if (ln.size() < 8 ||
+        ln[0] != '"' || ln[7] != '"')
+        return 0UL;
+    
+    // Test the inside for all hex digits
+    if (!std::all_of(ln.begin() + 1,
+                     ln.begin() + 7,
+                     [](const char& ch){ return std::isxdigit(ch); }))
+        return 0UL;
+    
+    // convert text to number
+    return std::strtoul(ln.c_str()+1, nullptr, 16);
+}
+
+/// Process looked up master data
+/// @details Database file line is expected in `ln`
+bool OpenSkyAcMasterFile::ProcessFetchedData ()
+{
+    try {
+        // Sanity check: Less than 45 chars is impossible for a valid line (15 fields with at least 3 chars: "","","",...
+        if (ln.size() < ACMFF_NUM_FIELDS * 3)
+            return false;
+        
+        // Split the line into its fields.
+        // Note that we split by the 3 characters ","  so that fields don't just depend on the comma
+        // and most but not all double quotes are already removed along the way
+        std::vector<std::string> v = str_fields(ln, "\",\"");
+        if (v.size() < ACMFF_NUM_FIELDS) {
+            LOG_MSG(logWARN, "A/c database file line has too few fields: %s", ln.c_str());
+            AddIgnore();
+            return false;
+        }
+        
+        // The very first and very last double quotes have not yet been removed
+        if (!v.front().empty() && v.front().front() == '"') v.front().erase(0,1);
+        if (!v.back().empty() && v.back().back() == '"') v.back().erase(v.back().length()-1,1);
+        
+        // Sanity check: Hex id must match the current search request
+        if (std::strtoul(v[ACMFF_hexId].c_str(), nullptr, 16) != currRequ.acKey.num) {
+            LOG_MSG(logERR, "A/c id of fetched db line (%s) doesn't match requested id (%s)",
+                    v[ACMFF_hexId].c_str(), currRequ.acKey.c_str());
+            AddIgnore();
+            return false;
+        }
+        
+        // Fill readable static data from the database line
+        LTFlightData::FDStaticData stat;
+        stat.reg            = v[ACMFF_reg];
+        stat.acTypeIcao     = v[ACMFF_designator];
+        stat.man            = !v[ACMFF_man].empty() ?       v[ACMFF_man] :
+                                                            v[ACMFF_manIcao];
+        stat.mdl            = v[ACMFF_mdl];
+        stat.catDescr       = v[ACMFF_catDescr];
+        stat.op             = !v[ACMFF_operator].empty() ?  v[ACMFF_operator] :
+                              !v[ACMFF_owner].empty() ?     v[ACMFF_owner] :
+                                                            v[ACMFF_operatorCallsign];
+        stat.opIcao         = v[ACMFF_opIcao];
+        
+        // Update flight data
+        UpdateStaticData(currRequ.acKey, stat);
+        return true;
+    }
+    catch (const std::runtime_error& e) {
+        LOG_MSG(logERR, "Couldn't process record: %s", e.what());
+        IncErrCnt();
+    }
+    return false;
+}
+
+/// perform the file lookup
+/// @details Looks up a starting position in the map of position,
+///          as to seek in the database file to a near but not exact position.
+///          From there, read line-by-line through the database file until we find the record we are looking for.
+bool OpenSkyAcMasterFile::LookupData ()
+{
+    ln.clear();
+    try {
+        // Not generally good to try? Not enabled, no file?
+        if (!shallRun() || !fAcDb.is_open())
+            return false;
+        
+        // find search starting position in the map of positions, based on on a/c identifier
+        mapPosTy::const_iterator iPos = mapPos.lower_bound(currRequ.acKey.num);
+        // iPos->first is now equal or larger to acKey, but we need equal or lower, so potentially decrement
+        while (iPos->first > currRequ.acKey.num) {
+            if (iPos == mapPos.begin()) {               // cannot decrement any longer, what's wrong here...a key smaller than the first entry in the database???
+                LOG_MSG(logWARN, "A/c key %06lX is smaller than first entry in database %06lX",
+                        currRequ.acKey.num, iPos->first);
+                AddIgnore();
+                return false;
+            }
+            --iPos;
+        }
+        
+        // iPos->second now points to a database file location on or before the record we seek
+        unsigned long lnKey = 0UL;
+        fAcDb.seekg(iPos->second);
+        do {
+            safeGetline(fAcDb, ln);                     // read one line
+            lnKey = GetHexId(ln);                       // get the a/c key from the line
+        }
+        // repeat while the line's key is smaller
+        while (fAcDb.good() && (!lnKey || lnKey < currRequ.acKey.num));
+        
+        // If this is not the right record then we don't have it
+        if (lnKey != currRequ.acKey.num) {
+            AddIgnore();
+            return false;
+        }
+        // else this was the key!
+        LOG_ASSERT(lnKey == currRequ.acKey.num);
+        return true;
+    }
+    catch (const std::runtime_error& e) {
+        LOG_MSG(logERR, "Couldn't look up record: %s", e.what());
+        IncErrCnt();
+    }
+    // technical failure:
+    return false;
+}
+
+// find an aircraft database file to open/download
+bool OpenSkyAcMasterFile::OpenDatabaseFile ()
+{
+    // Get current month and year
+    const time_t now = time(nullptr);
+    struct std::tm tm = *gmtime(&now);
+    
+    // Normalize year and month to human-typical values
+    tm.tm_year += 1900;
+    tm.tm_mon++;
+    
+    // Try this month and two previous months
+    for (int i = 2; i >= 0; --i) {
+        if (TryOpenDbFile(tm.tm_year, tm.tm_mon))
+            return true;
+        // try previous month, potentially rolling back to previous year
+        if (--tm.tm_mon < 1) {
+            --tm.tm_year;
+            tm.tm_mon = 12;
+        }
+    }
+    
+    // as a last resort: we _know_ that the file for DEC-2023 was there
+    return TryOpenDbFile(2023, 12);
+}
+
+
+// open/download the aircraft database file for the given month
+/// @details After opening the file, loop over all lines
+///          (~580,000) and save position information every
+///          250 lines, so that we can search faster later
+///          when looking up a/c keys.
+bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
+{
+    // filename of what this is about
+    char fileName[50] = {0};
+    snprintf(fileName, sizeof(fileName), OPSKY_MD_DB_FILE,
+             year, month);
+
+    try {
+        // Is the file available already?
+        std::string filePath = dataRefs.GetLTPluginPath();
+        filePath += PATH_RESOURCES;
+        filePath += '/';
+        filePath += fileName;
+
+        // Just try to open and see what happens
+        fAcDb.open(filePath);
+        if (!fAcDb.is_open() || !fAcDb.good())
+        {
+            fAcDb.close();
+
+            // file doesn't exist, try to download
+            std::string url = OPSKY_MD_DB_URL;
+            url += fileName;
+            LOG_MSG(logDEBUG, "Try to download %s", url.c_str());
+            if (!RemoteFileDownload(url,filePath)) {
+                LOG_MSG(logDEBUG, "Download of %s unavailable", url.c_str());
+                return false;
+            }
+
+            fAcDb.open(filePath);
+            if (!fAcDb.is_open() || !fAcDb.good()) {    // download but not OK to read?
+                std::remove(filePath.c_str());          // remove and bail
+                fAcDb.close();
+                return false;
+            }
+        }
+        
+        // File is open and good to read
+        LOG_MSG(logDEBUG, "Processing %s as aircraft datavse", filePath.c_str());
+        mapPos.clear();
+        fAcDb.seekg(0);
+        
+        // --- Loop the file and save every 250th position ---
+        // hexId, reg, manIcao, man, mdl, designator, serialNum, lineNum, icaoAircraftClass, operator, operatorCallsign, opIcao, opIata, owner, catDescr
+        // "0000c4","N474EA","BOEING","Boeing","737-448 /SF","B734","24474","1742","L2J","","","","","",""
+        // "00015f","-UNKNOWN-","TAI","General Dynamics","F-16","F16","","","L1J","Baf","BELGIAN AIRFORCE","BAF","","",""
+
+        unsigned long prevHexId = 0;
+        unsigned long lnNr = 0;
+        while (fAcDb.good()) {
+            std::ifstream::pos_type pos = fAcDb.tellg();        // current position _before_ reading the line
+            safeGetline(fAcDb, ln);
+            
+            std::ifstream::pos_type posAfter = fAcDb.tellg();   // current position _after_ reading the line
+            
+            char s[100];
+            snprintf(s, sizeof(s), "%lld - %lld", std::streamoff(pos), std::streamoff(posAfter));
+            
+
+            // Here, we are only interested in the very first field, the hexId
+            unsigned long hexId = GetHexId(ln);
+            if (hexId) {
+                if (hexId <= prevHexId) {
+                    // this id not larger than last --> NOT SORTED!
+                    LOG_MSG(logERR, "A/c database file '%s' appears not sorted at line '%s'!",
+                            filePath.c_str(), ln.c_str());
+                    fAcDb.close();
+                    // We don't delete the file...it's invalid, but if we'd delete it we would only re-download next start again, which we want to avoid
+                    return false;
+                }
+                prevHexId = hexId;
+                
+                // Save the position every now and then
+                if (lnNr % OPSKY_NUM_LN_PER_POS == 0)
+                    mapPos.emplace(hexId, pos);
+                ++lnNr;
+            }
+        }
+        
+        // looks good!
+        fAcDb.clear();
+        return true;
+        
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, "Could not download/open a/c database file '%s': %s", fileName, e.what());
+    } catch (...) {
+        LOG_MSG(logERR, "Could not download/open a/c database file '%s'", fileName);
+    }
+    return false;
+}

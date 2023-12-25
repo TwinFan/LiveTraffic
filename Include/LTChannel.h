@@ -164,8 +164,11 @@ protected:
     virtual void CleanupCurl ();
     // CURL callback
     static size_t ReceiveData ( const char *ptr, size_t size, size_t nmemb, void *userdata );
-    // logs raw data to a text file
-    void DebugLogRaw (const char* data, bool bHeader = true);
+    /// @brief logs raw data to a text file
+    /// @param data The data to print, assumed to be zero-terminated text
+    /// @param httpCode `-1` for SENDing data, any other code is a received HTTP response code
+    /// @param bHeader Shall the header with timestamp be printed?
+    void DebugLogRaw (const char* data, long httpCode, bool bHeader = true);
     
 public:
     bool FetchAllData (const positionTy& pos) override;
@@ -196,8 +199,8 @@ public:
 //MARK: LTACMasterdata
 //
 
-/// list of a/c for which static data is yet missing
-/// Note: Either a key is set (then we ask for a/c master data), or a call sign (then we ask for route information)
+/// @brief list of a/c for which static data is yet missing
+/// @note If no call sign is set then we ask for a/c master data, otherwise for route information
 struct acStatUpdateTy {
 public:
     LTFlightData::FDKeyTy acKey;    ///< a/c key to find a/c master data
@@ -205,6 +208,9 @@ public:
     unsigned long dist = UINT_MAX;  ///< distance of plane to camera, influences priority
 
     DatRequTy type = DATREQU_NONE;   ///< type of this master data request
+    
+    /// Request Attempt count, allows to route request to services of different priority
+    unsigned nRequCount = 0;
     
 public:
     /// @brief Constructor for both master data or route lookup
@@ -235,31 +241,64 @@ typedef std::set<acStatUpdateTy> setAcStatUpdateTy;
 typedef std::set<LTFlightData::FDKeyTy> setFdKeyTy;
 typedef std::set<std::string> setStringTy;
 
-/// Parent class for master data channels
+/// @brief Parent class for master data channels, handles queue for master data requests
+/// @details Static functions of LTACMasterdataChannel handle the queue of
+///          requests for master data. Implementations of this class register
+///          themselves and this way form a queue of channels.
+///          Requests received through RequestMasterData()
+///          and RequestRouteInfo() are passed on to the channels in the list.
+///          Each channel implementation can accept a request, add it to a local
+///          queue and (try to) process it, or reject it right away,
+///          so that it is offered to the next channel in the list.
 class LTACMasterdataChannel : public LTOnlineChannel
 {
-private:
-    /// Lock controlling multi-threaded access to all the 3 sets
-    static std::mutex mtxSets;
-    /// global list of static data requests
-    static setAcStatUpdateTy setAcStatUpdate;
-    /// List of a/c to ignore, as we know we don't get data online
-    static setFdKeyTy setIgnoreAc;
-    /// List of call signs to ignore, as we know we don't get route info online
-    static setStringTy setIgnoreCallSign;
-
 protected:
+    /// Lock synchronizing any thread access to the request lists
+    static std::recursive_mutex mtxMaster;
+    /// List of register master data services, in order of priority
+    static std::list<LTACMasterdataChannel*> lstChn;
+    /// list of static data requests for the current channel
+    setAcStatUpdateTy setAcStatRequ;
+    /// Last time the above list of requests got maintained, ie. cleared from outdated stuff
+    float tSetRequCleared = 0.0f;
+    /// List of a/c to ignore, as we know we don't get data online
+    setFdKeyTy setIgnoreAc;
+    /// List of call signs to ignore, as we know we don't get route info online
+    setStringTy setIgnoreCallSign;
     /// The request currently being processed
-    acStatUpdateTy requ;
+    acStatUpdateTy currRequ;
 
 public:
-	LTACMasterdataChannel (dataRefsLT ch, const char* chName) :
-        LTOnlineChannel(ch, CHT_MASTER_DATA, chName) {}
+    // Constructor
+    LTACMasterdataChannel (dataRefsLT ch, const char* chName);
 
-    virtual bool UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
-                                   const LTFlightData::FDStaticData& dat);
     int GetNumAcServed () const override { return 0; }  ///< how many a/c do we feed?
+    
+protected:
+    /// @brief Called from static functions to receive a request for processing
+    /// @returns if request has been accepted
+    virtual bool AcceptRequest (const acStatUpdateTy& requ) = 0;
+    /// Add the request to the set if not duplicate
+    bool InsertRequest (const acStatUpdateTy& requ);
+    /// Is any request waiting?;
+    bool HaveAnyRequest () const { return !setAcStatRequ.empty(); }
+    /// @brief Fetch next master data request from our set into `currRequ`
+    /// @returns `true` if a request has been passed, `false` if no request was waiting
+    bool FetchNextRequest ();
+    /// Called regularly to keep the request queue updated
+    void MaintainMasterDataRequests ();
 
+    /// Perform the update to flight's static data
+    bool UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
+                           const LTFlightData::FDStaticData& dat);
+
+    /// Add the current request `currRequ` to the ignore list
+    void AddIgnore ();
+    /// Is the request already in one of the ignore lists?
+    bool ShallIgnore (const acStatUpdateTy& requ) const;
+    
+    // *** Static function coordinating requests between channel objects ***
+public:
     /// Add request to fetch master data (returns `true` if added, `false` if duplicate)
     static bool RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                    double distance)
@@ -270,21 +309,20 @@ public:
                                    double distance)
     { return callSign.empty() ? false : RequestMasterData (keyAc, callSign, distance); }
     
-    /// Called regularly to keep the priority list updated
-    static void MaintainMasterDataRequests ();
-    
 protected:
+    /// @brief Register a master data channel, that will be called to process requests
+    /// @note The order, in which registration happens, serves as a priority
+    static void RegisterMasterDataChn (LTACMasterdataChannel* pChn);
     /// Generically, uniquely add request to fetch data (returns `true` if added, `false` if duplicate)
     static bool RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                    const std::string& callSign,
                                    double distance);
+    /// @brief Pass on a message to the next channel
+    /// @param pChn The calling channel, or `nullptr` if to process the channels from the beginning
+    /// @param requ The request to be passed on
+    /// @returns `true` if any channel accepted the request
+    static bool PassOnRequest (LTACMasterdataChannel* pChn, const acStatUpdateTy& requ);
 
-    /// Fetch next master data request from our set (`acKey` will be empty if there is no waiting request)
-    static acStatUpdateTy FetchNextRequest ();
-    /// Add an aircraft to the ignore list
-    static void AddIgnoreAc (const LTFlightData::FDKeyTy& keyAc);
-    /// Add a callsign to the ignore list
-    static void AddIgnoreCallSign (const std::string& cs);
 };
 
 //

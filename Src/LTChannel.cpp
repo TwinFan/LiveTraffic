@@ -282,13 +282,93 @@ int LTFlightDataChannel::GetNumAcServed () const
 //
 
 // Lock controlling multi-threaded access to all the 3 sets
-std::mutex LTACMasterdataChannel::mtxSets;
-// global list of static data requests
-setAcStatUpdateTy LTACMasterdataChannel::setAcStatUpdate;
-// List of a/c to ignore, as we know we don't get data online
-setFdKeyTy LTACMasterdataChannel::setIgnoreAc;
-// List of call signs to ignore, as we know we don't get route info online
-setStringTy LTACMasterdataChannel::setIgnoreCallSign;
+std::recursive_mutex LTACMasterdataChannel::mtxMaster;
+// List of register master data services, in order of priority
+std::list<LTACMasterdataChannel*> LTACMasterdataChannel::lstChn;
+
+// Constructor
+LTACMasterdataChannel::LTACMasterdataChannel (dataRefsLT ch, const char* chName) :
+LTOnlineChannel(ch, CHT_MASTER_DATA, chName)
+{
+    // Register myself as a master data channel
+    RegisterMasterDataChn(this);
+}
+
+/// Add the request to the set if not duplicate
+bool LTACMasterdataChannel::InsertRequest (const acStatUpdateTy& r)
+{
+    try {
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        
+        // Avoid double entry: Bail if the same kind of request exists already
+        // This is different from the duplication check that std::set::insert does
+        // because it uses operator== (ignoring `distance`) instead operator<
+        if (std::find(setAcStatRequ.begin(), setAcStatRequ.end(), r) != setAcStatRequ.end())
+            return false;
+        
+        // Add the new request to the set and trigger the main loop if really inserted
+        if (setAcStatRequ.insert(r).second) {
+            FDThreadSynchCV.notify_all();
+            return true;
+        }
+        
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
+    }
+    return false;
+
+}
+
+// Fetch next master data request from our set
+bool LTACMasterdataChannel::FetchNextRequest ()
+{
+    try {
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        if (!setAcStatRequ.empty()) {
+            currRequ = *(setAcStatRequ.begin());        // "pop" "the first request
+            setAcStatRequ.erase(setAcStatRequ.begin());
+            return true;
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
+    }
+    // Empty or exception: Return an empty request record
+    return false;
+}
+
+// Called regularly to keep the priority list updated
+void LTACMasterdataChannel::MaintainMasterDataRequests ()
+{
+    try {
+        // Get both the master data lock and the lock for flight data
+        std::unique_lock<std::recursive_mutex> lock (mtxMaster, std::defer_lock);
+        std::unique_lock<std::mutex> l_fd (mapFdMutex, std::defer_lock);
+        std::lock (lock, l_fd);
+        
+        // loop all waiting requests
+        for (setAcStatUpdateTy::iterator i = setAcStatRequ.begin();
+             i != setAcStatRequ.end();)
+        {
+            if (mapFd.count(i->acKey) == 0)         // aircraft no longer exists?
+                i = setAcStatRequ.erase(i);         // just delete, don't pass on
+            else
+                ++i;
+        }
+        
+        // done with flight data
+        l_fd.unlock();
+        
+        // Special case: no longer valid/enabled: Pass on all requests
+        if (!IsEnabled()) {
+            for (const acStatUpdateTy& r: setAcStatRequ)
+                PassOnRequest(this, r);
+            setAcStatRequ.clear();
+        }
+
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
+    }
+}
 
 // fetches a/c master data and updates the respective static data in the FDMap
 bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc,
@@ -305,7 +385,7 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
             return false;                   // not found
         
         // do the actual update
-        fdIter->second.UpdateData(dat, NAN, requ.type);
+        fdIter->second.UpdateData(dat, NAN, currRequ.type);
         return true;
         
     } catch(const std::system_error& e) {
@@ -316,25 +396,60 @@ bool LTACMasterdataChannel::UpdateStaticData (const LTFlightData::FDKeyTy& keyAc
     return false;
 }
 
-// Called regularly to keep the priority list updated
-void LTACMasterdataChannel::MaintainMasterDataRequests ()
+// Add the current request `currRequ` to the ignore list
+void LTACMasterdataChannel::AddIgnore ()
 {
     try {
-        // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (mtxSets);
-        
-        // remove all entries for which the a/c no longer exist in mapFd
-        for (setAcStatUpdateTy::iterator i = setAcStatUpdate.begin();
-             i != setAcStatUpdate.end();)
-        {
-            if (mapFd.count(i->acKey) == 0)
-                i = setAcStatUpdate.erase(i);
-            else
-                ++i;
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        // Insert the key to the ignore list if no master data channel can process it
+        switch (currRequ.type) {
+            case DATREQU_AC_MASTER:
+                setIgnoreAc.insert(currRequ.acKey);
+                break;
+            case DATREQU_ROUTE:
+                setIgnoreCallSign.insert(currRequ.callSign);
+                break;
+            case DATREQU_NONE:
+                break;
         }
-
     } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "listAcStatUpdate", e.what());
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
+    }
+}
+    
+// Is the request already in one of the ignore lists?
+bool LTACMasterdataChannel::ShallIgnore (const acStatUpdateTy& requ) const
+{
+    try {
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        switch (requ.type) {
+            case DATREQU_AC_MASTER:
+                return setIgnoreAc.find(requ.acKey) != setIgnoreAc.end();
+            case DATREQU_ROUTE:
+                return setIgnoreCallSign.find(requ.callSign) != setIgnoreCallSign.end();
+            case DATREQU_NONE:
+                break;
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
+    }
+    return false;
+}
+    
+//
+// MARK: Static Request Coordination Functions
+//
+
+// Register a master data channel, that will be called to process requests
+void LTACMasterdataChannel::RegisterMasterDataChn (LTACMasterdataChannel* pChn)
+{
+    try {
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        // just add the channel to the end of the list of channels
+        if (std::find(lstChn.begin(), lstChn.end(), pChn) == lstChn.end())
+            lstChn.push_back(pChn);
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
     }
 }
 
@@ -350,84 +465,32 @@ bool LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyA
     const unsigned long dist = std::isnan(distance) ? UINT_MAX : (unsigned long) (distance);
     const acStatUpdateTy acUpd (keyAc,str_toupper_c(callSign),dist);
 
+    // Pass the request to the first channel of our list
+    return PassOnRequest(nullptr, acUpd);
+}
+
+// Called by a channel to pass on a request to the next channel
+bool LTACMasterdataChannel::PassOnRequest (LTACMasterdataChannel* pChn, const acStatUpdateTy& requ)
+{
     try {
-        // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (mtxSets);
-        
-        // Avoid entry from the ignore lists that won't succeed anyway
-        switch (acUpd.type) {
-            case DATREQU_NONE: break;
-            case DATREQU_AC_MASTER:
-                if (std::find(setIgnoreAc.begin(), setIgnoreAc.end(), acUpd.acKey) != setIgnoreAc.end())
-                    return false;
-                break;
-            case DATREQU_ROUTE:
-                if (std::find(setIgnoreCallSign.begin(), setIgnoreCallSign.end(), acUpd.callSign) != setIgnoreCallSign.end())
-                    return false;
-                break;
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        auto iter = lstChn.begin();
+        if (pChn) {                                 // if channel passed in find _next_ channel
+            iter = std::find(lstChn.begin(), lstChn.end(), pChn);
+            if (iter != lstChn.end()) ++iter;
         }
-        
-        // Avoid double entry: Bail if the same kind of request exists already
-        // This is different from the duplication check that std::set::insert does
-        // because it uses operator== (ignoring `distance`) instead operator<
-        if (std::find(setAcStatUpdate.begin(), setAcStatUpdate.end(), acUpd) != setAcStatUpdate.end())
-            return false;
-        
-        // Add the new request to the set
-        setAcStatUpdate.insert(acUpd);
-        return true;
-        
+        // Loop to find a channel, which accepts
+        for (;iter != lstChn.end(); ++iter) {
+            LTACMasterdataChannel& ch = *(*iter);
+            if (ch.IsEnabled() &&
+                ch.AcceptRequest(requ))
+                return true;
+        }
+
     } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
     }
     return false;
-}
-
-// Fetch next master data request from our set (`acKey` will be empty if there is no waiting request)
-acStatUpdateTy LTACMasterdataChannel::FetchNextRequest ()
-{
-    try {
-        // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (mtxSets);
-        
-        // If there is an element, then return a copy and remove it
-        if (!setAcStatUpdate.empty()) {
-            acStatUpdateTy req = *(setAcStatUpdate.begin());
-            setAcStatUpdate.erase(setAcStatUpdate.begin());
-            return req;
-        }
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
-    }
-    // Empty or exception: Return an empty request record
-    return acStatUpdateTy();
-}
-
-// Add an aircraft to the ignore list
-void LTACMasterdataChannel::AddIgnoreAc (const LTFlightData::FDKeyTy& keyAc)
-{
-    try {
-        // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (mtxSets);
-        // Add a/c key if not yet in the list
-        setIgnoreAc.insert(keyAc);
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
-    }
-
-}
-
-// Add a callsign to the ignore list
-void LTACMasterdataChannel::AddIgnoreCallSign (const std::string& cs)
-{
-    try {
-        // multi-threaded access guarded by vecAcStatMutex
-        std::lock_guard<std::mutex> lock (mtxSets);
-        // Add call sign if not yet in the list
-        setIgnoreCallSign.insert(cs);
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxSets", e.what());
-    }
 }
 
 
@@ -528,7 +591,7 @@ size_t LTOnlineChannel::ReceiveData(const char *ptr, size_t size, size_t nmemb, 
 }
 
 // debug: log raw network data to a log file
-void LTOnlineChannel::DebugLogRaw(const char *data, bool bHeader)
+void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
 {
     // no logging? return (after closing the file if open)
     if (!dataRefs.GetDebugLogRawFD()) {
@@ -597,8 +660,18 @@ void LTOnlineChannel::DebugLogRaw(const char *data, bool bHeader)
         << dataRefs.GetSimTimeString()
         << " - "
         // Channel's name
-        << ChName()
-        << "\n";
+        << ChName();
+    if (httpCode == HTTP_FLAG_SENDING)
+        outRaw << " SENDING:\n";
+    else if (httpCode == HTTP_FLAG_UDP)
+        outRaw << " RECEIVED UDP:\n";
+    else if (httpCode == HTTP_OK)
+        outRaw << " RECEIVED HTTP_OK:\n";
+    else if (httpCode == HTTP_NOT_FOUND)
+        outRaw << " RECEIVED HTTP_NOT_FOUND (404):\n";
+    else
+        outRaw << " RECEIVED HTTP " << httpCode << ":\n";
+    // Output the actual text
     outRaw
     // the actual given data, stripped from general personal data
     << str_replPers(dupData)
@@ -644,9 +717,9 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     // hence we can use the simple blocking curl_easy_ call
     netDataPos = 0;                 // fill buffer from beginning
     netData[0] = 0;
-    DebugLogRaw(url.c_str());
+    DebugLogRaw(url.c_str(), HTTP_FLAG_SENDING);
     if (!requBody.empty())
-        DebugLogRaw(requBody.c_str(), false);
+        DebugLogRaw(requBody.c_str(), HTTP_FLAG_SENDING, false);
     
     // perform the request and take its time
     std::chrono::time_point<std::chrono::steady_clock> tStart = std::chrono::steady_clock::now();
@@ -702,7 +775,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     }
     
     // if requested log raw data received
-    DebugLogRaw(netData);
+    DebugLogRaw(netData, httpResponse);
     
     // success
     return true;
@@ -745,12 +818,13 @@ bool LTFlightDataEnable()
 
     // load live feed readers (in order of priority)
     listFDC.emplace_back(new RealTrafficConnection());
+    listFDC.emplace_back(new ADSBExchangeConnection);
     listFDC.emplace_back(new OpenSkyConnection);
     listFDC.emplace_back(new ADSBHubConnection());
-    listFDC.emplace_back(new ADSBExchangeConnection);
     listFDC.emplace_back(new OpenGliderConnection);
     listFDC.emplace_back(new FSCConnection);
     // load online master data connections
+    listFDC.emplace_back(new OpenSkyAcMasterFile);
     listFDC.emplace_back(new OpenSkyAcMasterdata);
     // load other channels
     listFDC.emplace_back(new ForeFlightSender());
@@ -926,9 +1000,6 @@ void LTFlightDataAcMaintenance()
             else
                 ++i;
         }
-
-        // Clear away outdated master data requests
-        LTACMasterdataChannel::MaintainMasterDataRequests();
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

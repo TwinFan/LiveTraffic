@@ -481,7 +481,7 @@ void RealTrafficConnection::SendMsg (const char* msg)
         LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
         SetStatusTcp(false, true);
     }
-    DebugLogRaw(msg);
+    DebugLogRaw(msg, HTTP_FLAG_SENDING);
 }
 
 // Send a timestamp to RealTraffic
@@ -561,7 +561,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         return false;
     
     // Raw data logging
-    DebugLogRaw(traffic);
+    DebugLogRaw(traffic, HTTP_FLAG_UDP);
     lastReceivedTime = dataRefs.GetSimTime();
     
     // split the datagram up into its parts, keeping empty positions empty

@@ -287,6 +287,86 @@ void LTOpenHelp (const std::string& path)
     LTOpenURL(std::string(HELP_URL)+path);
 }
 
+//
+// MARK: Remote File Download
+//
+
+// Download the given file, `false` if HTTP 404 not found, exceptions otherwise
+bool RemoteFileDownload (const std::string& url, const std::string& path)
+{
+    char curl_errtxt[CURL_ERROR_SIZE] = {0};
+    
+    // initialize the CURL handle in a smart pointer that makes sure it's cleaned up
+    std::unique_ptr<CURL,decltype(&curl_easy_cleanup)> pCurl (curl_easy_init(), &curl_easy_cleanup);
+    if (!pCurl) throw std::runtime_error(ERR_CURL_EASY_INIT);
+    
+    // create a temporary output file
+    const std::string tmpPath = path + ".tmp";
+    std::FILE* fOut = std::fopen(tmpPath.c_str(), "wb");
+    if (!fOut)
+        throw std::runtime_error(std::string("Could not create file ") + tmpPath + ": " + strerror(errno));
+    
+    // prepare the handle with the right options
+    curl_easy_setopt(pCurl.get(), CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl.get(), CURLOPT_TIMEOUT, 3 * dataRefs.GetNetwTimeoutMax());
+    curl_easy_setopt(pCurl.get(), CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl.get(), CURLOPT_WRITEFUNCTION, NULL);     // use CURL's standard of writing to FILE
+    curl_easy_setopt(pCurl.get(), CURLOPT_WRITEDATA, fOut);
+    curl_easy_setopt(pCurl.get(), CURLOPT_USERAGENT, HTTP_USER_AGENT);
+    curl_easy_setopt(pCurl.get(), CURLOPT_URL, url.c_str());
+
+    // perform the HTTP get request
+    CURLcode cc = curl_easy_perform(pCurl.get());
+    if ( cc != CURLE_OK )
+    {
+        // problem with querying revocation list?
+        if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+            // try not to query revoke list
+            curl_easy_setopt(pCurl.get(), CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, url.c_str());
+            // and just give it another try
+            cc = curl_easy_perform(pCurl.get());
+        }
+    }
+    std::fclose (fOut);
+
+    // if (still) error, then bail
+    if (cc != CURLE_OK) {
+        LOG_MSG(logERR, "Could not download from '%s': CURL %d - %s",
+                url.c_str(), cc, curl_errtxt);
+        std::remove(tmpPath.c_str());
+        throw std::runtime_error(curl_errtxt);
+    }
+
+    // CURL was OK, now check HTTP response code
+    long httpResponse = 0;
+    curl_easy_getinfo(pCurl.get(), CURLINFO_RESPONSE_CODE, &httpResponse);
+    
+    // all OK?
+    if (httpResponse == HTTP_OK) {
+        // remove a potential old version of the file, then rename the temp file
+        std::remove(path.c_str());
+        if (std::rename (tmpPath.c_str(), path.c_str())) {
+            LOG_MSG(logERR, "Could not rename '%s' to '%s': %d - %s",
+                    tmpPath.c_str(), path.c_str(),
+                    (int)errno, strerror(errno));
+            throw std::runtime_error("Could not rename downloaded .tmp file to final file");
+        }
+        return true;
+    }
+    // Not OK -> remove the temporary file
+    std::remove(tmpPath.c_str());
+    // just URL not found?
+    if (httpResponse == HTTP_NOT_FOUND)
+        return false;
+    // not HTTP_OK?
+    LOG_MSG(logERR, "Could not download from '%s': HTTP %d",
+            url.c_str(), (int)httpResponse);
+    throw std::runtime_error("Could not dowload, response was not HTTP_OK");
+
+    // Can't get here, but let's please the compiler
+    return false;
+}
 
 //
 //MARK: String/Text Functions
@@ -401,6 +481,27 @@ std::string str_first_non_empty (const std::initializer_list<const std::string>&
         if (!s.empty())
             return s;
     return "";
+}
+
+// separate string into fields with a multi-character delimiter
+std::vector<std::string> str_fields (const std::string& s,
+                                     const std::string& delim)
+{
+    std::vector<std::string> v;
+ 
+    // find all tokens before the last
+    size_t b = 0;                                   // begin
+    for (size_t e = s.find(delim);                  // end
+         e != std::string::npos;
+         b = e + delim.length(), e = s.find(delim, b))
+    {
+        v.emplace_back(s.substr(b, e-b));
+    }
+    
+    // add the last one: the remainder of the string (could be empty!)
+    v.emplace_back(s.substr(b));
+    
+    return v;
 }
 
 // Replaces personal information in the string, like email address
@@ -556,7 +657,7 @@ std::string ts2string (time_t t)
 std::string ts2string (double _zt, int secDecimals)
 {
     char s[100];
-    snprintf(s, sizeof(s), "%s.%dZ",
+    snprintf(s, sizeof(s), "%s.%02dZ",
              ts2string(time_t(_zt)).c_str(),
              int(std::fmod(_zt, 1.0f) * std::pow(10.0,secDecimals)) );
     return std::string(s);

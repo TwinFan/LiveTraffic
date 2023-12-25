@@ -229,7 +229,7 @@ void ForeFlightSender::SendGPS (const positionTy& pos, double speed_m, double tr
             return;
         }
     } else {
-        DebugLogRaw(s);
+        DebugLogRaw(s, HTTP_FLAG_SENDING);
     }
 }
 
@@ -297,7 +297,7 @@ void ForeFlightSender::SendTraffic (const LTFlightData& fd)
             return;
         }
     } else {
-        DebugLogRaw(s);
+        DebugLogRaw(s, HTTP_FLAG_SENDING);
     }
 
 }

@@ -588,6 +588,7 @@ struct curl_slist* ADSBExchangeConnection::MakeCurlSList (keyTypeE keyTy, const 
 }
 
 // read header and parse for request limit/remaining
+// TODO: Reimplement using curl_easy_header
 size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
 {
     const size_t len = nitems * size;

@@ -73,13 +73,13 @@
          contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
+               value = "vecTaxiEdges[222]">
+            </PersistentString>
+            <PersistentString
                value = "lst[1385]">
             </PersistentString>
             <PersistentString
                value = "vecTaxiEdgesIdxHead[3321]">
-            </PersistentString>
-            <PersistentString
-               value = "vecTaxiEdges[222]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -123,10 +123,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -149,6 +149,14 @@
       </ContextState>
       <ContextState
          contextName = "FlushMsg():TextIO.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "OpenSkyAcMasterFile::TryOpenDbFile(int, int):LTOpenSky.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "mapPos">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "TaxiEdge::GetRwyEP_A(Apt const&amp;) const:LTApt.cpp">
@@ -254,10 +262,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -294,6 +302,9 @@
       </ContextState>
       <ContextState
          contextName = "TFWidget::Show(bool):TFWidgets.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "LTACMasterdataChannel::PassOnRequest(LTACMasterdataChannel*, acStatUpdateTy const&amp;):LTChannel.cpp">
       </ContextState>
       <ContextState
          contextName = "ADSBExchangeHistorical::FetchAllData(positionTy const&amp;):LTChannel.cpp">
@@ -369,6 +380,9 @@
          contextName = "positionTy::deg2rad() const:CoordCalc.cpp">
       </ContextState>
       <ContextState
+         contextName = "OpenSkyAcMasterFile::OpenDatabaseFile():LTOpenSky.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTAptFindRwy(LTAircraft::FlightModel const&amp;, positionTy const&amp;, double, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;&amp;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;):LTApt.cpp">
          <PersistentStrings>
             <PersistentString
@@ -422,6 +436,14 @@
          contextName = "Doc8643::ReadDoc8643File():DataRefs.cpp">
       </ContextState>
       <ContextState
+         contextName = "OpenSkyAcMasterFile::LookupData():LTOpenSky.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ln">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "GLOBAL">
          <PersistentStrings>
             <PersistentString
@@ -439,7 +461,7 @@
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "turn">
+               value = "from">
             </PersistentString>
             <PersistentString
                value = "to">
@@ -451,7 +473,7 @@
                value = "ppos">
             </PersistentString>
             <PersistentString
-               value = "from">
+               value = "turn">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -549,10 +571,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -677,13 +699,13 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "ADSBHubConnection::Main():LTADSBHub.cpp">
+      </ContextState>
+      <ContextState
          contextName = "CSL_DrawObject(XPMPPlane_t*, float, double, double, double, double, double, double, int, int, xpmp_LightStatus, XPLMPlaneDrawState_t*):XPMPMultiplayerCSL.cpp">
       </ContextState>
       <ContextState
          contextName = "Apt::AddTaxiTmpPath(TaxiTmpPath&amp;&amp;):LTApt.cpp">
-      </ContextState>
-      <ContextState
-         contextName = "ADSBHubConnection::Main():LTADSBHub.cpp">
       </ContextState>
       <ContextState
          contextName = "Apt::SnapToTaxiway(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 56l&gt;&amp;, bool):LTApt.cpp">
@@ -964,6 +986,9 @@
          contextName = "DistResultToBaseLoc(double, double, double, double, distToLineTy const&amp;, double&amp;, double&amp;):CoordCalc.cpp">
       </ContextState>
       <ContextState
+         contextName = "OpenSkyAcMasterFile::AcceptRequest(acStatUpdateTy const&amp;):LTOpenSky.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
       </ContextState>
       <ContextState
@@ -1120,10 +1145,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

@@ -571,10 +571,11 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -745,6 +746,7 @@ ILWrect (0, 400, 965, 0)
     // enable OpenSky and OGN by default
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
 
     // Clear the dataRefs arrays
@@ -2426,8 +2428,10 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
     
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
-    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE))
+    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
+        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
+    }
     
     // if a channel got disabled check if any tracking data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
