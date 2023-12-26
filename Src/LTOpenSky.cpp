@@ -114,7 +114,6 @@ bool OpenSkyConnection::InitCurl ()
 }
 
 // read header and parse for request remaining
-// TODO: Reimplement using curl_easy_header
 size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
 {
     const size_t len = nitems * size;

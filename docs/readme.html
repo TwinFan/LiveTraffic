@@ -153,6 +153,22 @@
             Reworked much of the networking code for more robust and independent
             handling of several channels in parallel.
         </li>
+        <li>
+            Reduced dependency on OpenSky for master data (aircraft type
+            and route information):
+            <ul>
+                <li>
+                    Reduced aircraft master data lookup, as RealTraffic and ADSBEx nowadays
+                    provide good plane type information already.
+                </li>
+                <li>
+                    Added new OpenSky Master Data channel for lookup of plane type information,
+                    which bases on monthly download of a "database" file rather than
+                    individual network requests per plane.
+                    Should work even if OpenSky API is down.
+                </li>
+            </ul>
+        </li>
     </ul>
     
     <h3>v3.4.3</h3>
