@@ -679,6 +679,18 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
     << std::endl;
 }
 
+// URL-encode a string
+std::string LTOnlineChannel::URLEncode (const std::string& s) const
+{
+    if (s.empty()) return std::string();
+    if (!pCurl) return s;
+    char* p = curl_easy_escape(pCurl, s.c_str(), int(s.length()));
+    std::string ret(p);                 // copy curl's response
+    curl_free(p);                       // and free curl's memory immediately
+    return ret;
+}
+
+
 // fetch flight data from internet (takes time!)
 bool LTOnlineChannel::FetchAllData (const positionTy& pos)
 {

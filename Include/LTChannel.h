@@ -169,6 +169,8 @@ protected:
     /// @param httpCode `-1` for SENDing data, any other code is a received HTTP response code
     /// @param bHeader Shall the header with timestamp be printed?
     void DebugLogRaw (const char* data, long httpCode, bool bHeader = true);
+    /// URL-encode a string
+    std::string URLEncode (const std::string& s) const;
     
 public:
     bool FetchAllData (const positionTy& pos) override;

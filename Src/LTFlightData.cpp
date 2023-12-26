@@ -2172,7 +2172,6 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
         // We allow a change of channel if this prevents the aircraft from
         // disappearing, i.e. if this is the last update before a/c outdated period,
         // or in other words: new ts + refresh period > old ts + outdated period
-        // TODO: Way too many channel switches happening if all channels are active
         if (!dynDataDeque.empty()) {
             const FDDynamicData& last = dynDataDeque.back();
             if (inDyn.pChannel && last.pChannel != inDyn.pChannel)
@@ -2188,13 +2187,16 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                 
                 // If there is an aircraft then we only switch if there are
                 // no positions waiting any longer, ie. we run into danger to run out of positions
-                if (hasAc() &&
-                    !posDeque.empty() &&
+                if (hasAc()) {
+                    if (!posDeque.empty())
+                        return;
+                    
                     // new position must be significantly _after_ current 'to' pos
                     // so that current channel _really_ had its chance to sent an update:
-                    inDyn.ts > pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2)
-                    // there still is data waiting -> ignore other channel's data
-                    return;
+                    const double tsCutOff = pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2;
+                    if (inDyn.ts < tsCutOff)
+                        return;
+                }
 
                 // We accept the channel switch...clear out any old channel's data
                 // so we throw away the lower prio channel's data

@@ -477,9 +477,9 @@ std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 {
     switch (currRequ.type) {
         case DATREQU_AC_MASTER:
-            return std::string(OPSKY_MD_URL) + currRequ.acKey.key;
+            return std::string(OPSKY_MD_URL) + URLEncode(currRequ.acKey.key);
         case DATREQU_ROUTE:
-            return std::string(OPSKY_ROUTE_URL) + currRequ.callSign;
+            return std::string(OPSKY_ROUTE_URL) + URLEncode(currRequ.callSign);
         case DATREQU_NONE:
             return std::string();
     }

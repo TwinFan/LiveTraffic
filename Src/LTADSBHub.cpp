@@ -560,7 +560,7 @@ bool ADSBHubConnection::StreamProcessDataVRSLine (const uint8_t* pStart)
     
     // Ground Speed
     if (fields & 0x04) {
-        TEST_LEN(2, "Altitude");
+        TEST_LEN(2, "Ground Speed");
         dyn.spd = (double)VRSFloatShort(pStart);
     }
     
@@ -613,7 +613,7 @@ void ADSBHubConnection::ProcessPlaneData ()
 {
     // if no timestamp then assume "3s ago"
     if (std::isnan(pos.ts()))
-        pos.ts() = GetSysTime() - 3.0;
+        dyn.ts = pos.ts() = GetSysTime() - 3.0;
 
     // Data collected?
     if (!fdKey.empty() && pos.isNormal(true))

@@ -101,6 +101,7 @@ constexpr std::chrono::duration OPSKY_WAIT_NOQUEUE = std::chrono::milliseconds(3
 constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
 #define OPSKY_MD_TEXT_NO_CAT    "No ADS-B Emitter Category Information"
 
+#define OPSKY_MD_DB_NAME        "OpenSky Masterdata File"
 #define OPSKY_MD_DB_URL         "https://opensky-network.org/datasets/metadata/"
 #define OPSKY_MD_DB_FILE        "aircraft-database-complete-%04d-%02d.csv"
 
