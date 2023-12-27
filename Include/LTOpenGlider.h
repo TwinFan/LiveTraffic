@@ -55,6 +55,9 @@
 #define OGN_AC_LIST_URL         "http://ddb.glidernet.org/download/"
 #define OGN_AC_LIST_FILE        "Resources/OGNAircraft.lst"
 
+/// Update a/c list every 12h at most
+static constexpr time_t OGN_AC_LIST_REFRESH = 12*60*60;
+
 //    a="lat      ,lon     ,CN ,reg   ,alt_m,ts      ,age_s,trk,speed_km_h,vert_m_per_s,a/c type,receiver,device id,OGN registration id"
 // <m a="49.815819,7.957970,ADA,D-HYAF,188  ,21:20:27,318  ,343,11        ,-2.0        ,3       ,Waldalg3,3E1205   ,24064512"/>
 
@@ -124,88 +127,6 @@ struct OGNAnonymousIdMapTy {
     void GenerateNextId ();                     ///< assigns the next anonymous id and generates also a call sign
 };
 
-
-/// Connection to OGN via APRS or HTTP
-class OpenGliderConnection : public LTOnlineChannel, LTFlightDataChannel
-{
-protected:
-    // APRS connection to receives tracking data
-    std::thread thrAprs;            ///< thread for the APRS/TCP receiver
-    TCPConnection tcpAprs;          ///< TCP connection to aprs.glidernet.org
-    volatile bool bStopAprs=false;  ///< stop signal to the thread
-    positionTy aprsPos;             ///< the search position with which we are connected to the tcp server
-#if APL == 1 || LIN == 1
-    /// the self-pipe to shut down the APRS thread gracefully
-    SOCKET aprsPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
-#endif
-    std::string aprsData;           ///< received/unprocessed APRS data
-    float aprsLastData = NAN;       ///< last time (XP network time) we received _any_ APRS data
-    float aprsLastKeepAlive = 0;    ///< last time (XP network time) we send a keep-alive to APRS
-    bool bFailoverToHttp = false;   ///< set if we had too much trouble on the APRS channel, then we try the HTTP R/R channel
-    
-    /// The map for mapping original to anonymous id
-    std::map<std::string,OGNAnonymousIdMapTy> mapAnonymousId;
-
-public:
-    /// Constructor
-    OpenGliderConnection ();
-    /// Destructor closes the a/c list file
-    ~OpenGliderConnection () override;
-    /// All the cleanup we usually need
-    void Cleanup ();
-    /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
-    std::string GetURL (const positionTy& pos) override;
-    /// @brief Processes the fetched data
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
-    bool IsLiveFeed() const override { return true; }
-    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
-    std::string GetStatusText () const override;  ///< return a human-readable staus
-    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
-    void DoDisabledProcessing() override { Cleanup(); }
-    void Close () override               { Cleanup(); }
-
-    // APRS connection
-protected:
-    /// Main function for APRS connection, expected to be started in a thread
-    void APRSMain (const positionTy& pos, unsigned dist_km);
-    /// Send the APRS login message
-    bool APRSDoLogin (const positionTy& pos, unsigned dist_km);
-    /// Send a simple keep-alive message to APRS
-    bool APRSSendKeepAlive ();
-    /// Process received data
-    bool APRSProcessData (const char* buffer);
-    /// Process one line of received data
-    bool APRSProcessLine (const std::string& ln);
-    
-    /// Start or restart a new thread for connecting to aprs.glidernet.org
-    void APRSStartUpdate (const positionTy& pos, unsigned dist_km);
-    /// Closes the APRS TCP connection
-    void APRSClose ();
-    
-    // Aircraft List (Master Data)
-protected:
-    std::ifstream ifAcList;                 ///< Handle to the a/c list file
-    size_t numRecAcList = 0;                ///< number of records in the file
-    unsigned long minKeyAcList = 0;         ///< minimum key value in the file
-    unsigned long maxKeyAcList = 0;         ///< maximum key value in the file
-    /// @brief Tries reading aircraft information from the OGN a/c list
-    /// @details Given the device id looks up the record in the DDB.
-    ///          Fills the key, potentially with an anonymous key
-    ///          in case the device doesn't want to be tracked.
-    /// @see http://wiki.glidernet.org/opt-in-opt-out
-    /// @param sDevId Device id to be looked up
-    /// @param[out] key key of a/c found. KEY_FLARM, or KEY_ICAO if publishable, KEY_OGN with a generated anonymous key if not to be published
-    /// @param[out] stat Filled with aircraft master data taken from DDB
-    /// @return Shall the aircraft be displayed at all? (Otherwise it is marked non-trackable and we shall not show it.)
-    bool LookupAcList (const std::string& sDevId,
-                       LTFlightData::FDKeyTy& key,
-                       LTFlightData::FDStaticData& stat);
-};
-
-//
-// MARK: OGN Aircraft list file (DDB)
-//
-
 /// @brief Record structure of a record in the OGN Aircraft list file (DDB)
 /// @details Data is stored in binary format so we can use seek to search in the file
 struct OGN_DDB_RecTy {
@@ -236,6 +157,82 @@ struct OGNCbHandoverTy {
     std::ofstream f;                    ///< file to write output to
 };
 
+/// Connection to OGN via APRS or HTTP
+class OpenGliderConnection : public LTFlightDataChannel
+{
+protected:
+    // APRS connection to receives tracking data
+    TCPConnection tcpAprs;          ///< TCP connection to aprs.glidernet.org
+    positionTy aprsPos;             ///< the search position with which we are connected to the tcp server
+#if APL == 1 || LIN == 1
+    /// the self-pipe to shut down the APRS thread gracefully
+    SOCKET aprsPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
+#endif
+    std::string aprsData;           ///< received/unprocessed APRS data
+    float aprsLastData = NAN;       ///< last time (XP network time) we received _any_ APRS data
+    float aprsLastKeepAlive = 0;    ///< last time (XP network time) we send a keep-alive to APRS
+    bool bFailoverToHttp = false;   ///< set if we had too much trouble on the APRS channel, then we try the HTTP R/R channel
+    
+    /// The map for mapping original to anonymous id
+    std::map<std::string,OGNAnonymousIdMapTy> mapAnonymousId;
+
+public:
+    OpenGliderConnection ();                        ///< Constructor
+    std::string GetStatusText () const override;    ///< return a human-readable staus
+    void Stop (bool bWaitJoin) override;            ///< also close the aircraft list file
+    /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
+    std::string GetURL (const positionTy& pos) override;
+    /// @brief Processes the fetched data
+    bool ProcessFetchedData () override;
+    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
+
+    // APRS connection
+protected:
+    /// virtual thread main function, calls either RRMain or APRSMain
+    void Main () override;
+
+    /// Main thread function for Request/Reply processing
+    void RRMain ();
+    
+    /// Main thread function for APRS connection
+    void APRSMain ();
+    /// Send the APRS login message
+    bool APRSDoLogin ();
+    /// Send a simple keep-alive message to APRS
+    bool APRSSendKeepAlive ();
+    /// Process received data
+    bool APRSProcessData (const char* buffer);
+    /// Process one line of received data
+    bool APRSProcessLine (const std::string& ln);
+    
+    // Aircraft List (Master Data)
+protected:
+    std::ifstream ifAcList;                 ///< Handle to the a/c list file
+    size_t numRecAcList = 0;                ///< number of records in the file
+    unsigned long minKeyAcList = 0;         ///< minimum key value in the file
+    unsigned long maxKeyAcList = 0;         ///< maximum key value in the file
+
+    /// Fetch the aircraft list from OGN
+    bool AcListDownloadMain ();
+    /// process one line of aircraft list input
+    static void AcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEndLn);
+    /// CURL callback just adding up data
+    static size_t AcListNetwCB(char *ptr, size_t, size_t nmemb, void* userdata);
+
+    /// @brief Tries reading aircraft information from the OGN a/c list
+    /// @details Given the device id looks up the record in the DDB.
+    ///          Fills the key, potentially with an anonymous key
+    ///          in case the device doesn't want to be tracked.
+    /// @see http://wiki.glidernet.org/opt-in-opt-out
+    /// @param sDevId Device id to be looked up
+    /// @param[out] key key of a/c found. KEY_FLARM, or KEY_ICAO if publishable, KEY_OGN with a generated anonymous key if not to be published
+    /// @param[out] stat Filled with aircraft master data taken from DDB
+    /// @return Shall the aircraft be displayed at all? (Otherwise it is marked non-trackable and we shall not show it.)
+    bool AcListLookup (const std::string& sDevId,
+                       LTFlightData::FDKeyTy& key,
+                       LTFlightData::FDStaticData& stat);
+};
+
 //
 // MARK: Global Functions
 //
@@ -249,8 +246,5 @@ const std::string& OGNGetIcaoAcType (FlarmAircraftTy _acTy);
 
 /// Fill defaults for Flarm aircraft types where not existing
 void OGNFillDefaultFlarmAcTypes ();
-
-/// Fetch the aircraft list from OGN
-void OGNDownloadAcList ();
 
 #endif /* LTOpenGlider_h */

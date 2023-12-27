@@ -110,9 +110,7 @@ constexpr const char* OGN_APRS_LOGIN_GOOD   = "# logresp LiveTrffc unverified, s
 
 // Constructor
 OpenGliderConnection::OpenGliderConnection () :
-LTChannel(DR_CHANNEL_OPEN_GLIDER_NET, OPGLIDER_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel()
+LTFlightDataChannel(DR_CHANNEL_OPEN_GLIDER_NET, OPGLIDER_NAME)
 {
     // purely informational
     urlName  = OPGLIDER_CHECK_NAME;
@@ -120,43 +118,134 @@ LTFlightDataChannel()
     urlPopup = OPGLIDER_CHECK_POPUP;
 }
 
-// Destructor closes the a/c list file
-OpenGliderConnection::~OpenGliderConnection ()
+// virtual thread main function
+void OpenGliderConnection::Main ()
 {
-    Cleanup();
+    // Before we start update the Aircraft list
+    AcListDownloadMain();
+    
+    // Loop to facilitate a change between processing types,
+    // and also a re-newed connection to APRS after position change
+    while (shallRun()) {
+        // Just distinguish between APRS and Request/Reply processing.
+        if (bFailoverToHttp || DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL))
+            RRMain();
+        else
+            APRSMain();
+    }
 }
 
-// All the cleanup we usually need
-void OpenGliderConnection::Cleanup ()
+// also close the aircraft list file
+void OpenGliderConnection::Stop (bool bWaitJoin)
 {
-    APRSClose();
+    if (isRunning()) {
+        if (eThrStatus < THR_STOP)
+            eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
+        
+#if APL == 1 || LIN == 1
+        // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+        if (aprsPipe[1] == INVALID_SOCKET ||
+            write(aprsPipe[1], "STOP", 4) < 0)
+        {
+            // if the self-pipe didn't work:
+#endif
+            // close all connections, this will also break out of all
+            // blocking calls for receiving message and hence terminate the threads
+            tcpAprs.Close();
+#if APL == 1 || LIN == 1
+        }
+#endif
+    }
+    
+    // standard Closing
+    LTFlightDataChannel::Stop(bWaitJoin);
+    
+    // Close a/c list
     if (ifAcList.is_open())
         ifAcList.close();
-    aprsLastData = NAN;
     bFailoverToHttp = false;
+}
+
+// return a human-readable staus
+std::string OpenGliderConnection::GetStatusText () const
+{
+    // Let's start with the standard text
+    std::string s (LTChannel::GetStatusText());
+    // if we have a latest APRS timestamp then we add age of last APRS message
+    if (!std::isnan(aprsLastData)) {
+        char buf[50];
+        snprintf(buf, sizeof(buf), " | last msg %.0fs ago",
+                 dataRefs.GetMiscNetwTime() - aprsLastData);
+        s += buf;
+    }
+    return s;
+}
+
+//
+// MARK: Request/Reply Processing (Fallback)
+//
+
+// Main thread function for Request/Reply processing
+void OpenGliderConnection::RRMain ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OGN_RR", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
 }
 
 // put together the URL to fetch based on current view position
 std::string OpenGliderConnection::GetURL (const positionTy& pos)
 {
-    // We only return a URL if we are to use the request/reply procedure
-    if (bFailoverToHttp || DataRefs::GetCfgInt(DR_CFG_OGN_USE_REQUREPL)) {
-        APRSClose();                         // make sure the ARPS connection is off, will return quickly if not even running
-        // Bounding box the size of the configured distance...plus 10% so we have data in hand once the plane comes close enough
-        boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10 );
-        char url[128] = "";
-        snprintf(url, sizeof(url),
-                 OPGLIDER_URL,
-                 box.nw.lat(),              // lamax
-                 box.se.lat(),              // lamin
-                 box.se.lon(),              // lomax
-                 box.nw.lon());             // lomin
-        return std::string(url);
-    } else {
-        // otherwise (and by default) we are to use the direct APRS connection
-        APRSStartUpdate(pos, (unsigned)dataRefs.GetFdStdDistance_km());
-        return std::string();
-    }
+    // Bounding box the size of the configured distance...plus 10% so we have data in hand once the plane comes close enough
+    boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10 );
+    char url[128] = "";
+    snprintf(url, sizeof(url),
+             OPGLIDER_URL,
+             box.nw.lat(),              // lamax
+             box.se.lat(),              // lamin
+             box.se.lon(),              // lomax
+             box.nw.lon());             // lomin
+    return std::string(url);
 }
 
 /// @details Returned data is XML style looking like this:
@@ -170,7 +259,7 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
 ///          @endcode
 ///          We are not doing full XML parsing, but just search for `<m a=""`
 ///          and process everything till we find `""/>`
-bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool OpenGliderConnection::ProcessFetchedData ()
 {
     char buf[100];
 
@@ -219,7 +308,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // This also checks if the device wants to be tracked and sets the key accordingly
         LTFlightData::FDKeyTy fdKey;
         LTFlightData::FDStaticData stat;
-        if (!LookupAcList(tok[GNF_FLARM_DEVICE_ID], fdKey, stat))
+        if (!AcListLookup(tok[GNF_FLARM_DEVICE_ID], fdKey, stat))
             continue;                   // device doesn't want to be tracked -> ignore!
         
         // key not matching a/c filter? -> skip it
@@ -233,7 +322,7 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             
             // get the fd object from the map
             // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = fdMap[fdKey];
+            LTFlightData& fd = mapFd[fdKey];
             
             // also get the data access lock once and for all
             // so following fetch/update calls only make quick recursive calls
@@ -312,32 +401,22 @@ bool OpenGliderConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     return true;
 }
 
+//
+// MARK: APRS Processing (default)
+//
 
-// return a human-readable staus
-std::string OpenGliderConnection::GetStatusText () const
-{
-    // Let's start with the standard text
-    std::string s (LTChannel::GetStatusText());
-    // if we have a latest APRS timestamp then we add age of last APRS message
-    if (!std::isnan(aprsLastData)) {
-        char buf[50];
-        snprintf(buf, sizeof(buf), ", last message %.1fs ago",
-                 dataRefs.GetMiscNetwTime() - aprsLastData);
-        s += buf;
-    }
-    return s;
-}
-
-
-// Main function for APRS connection, expected to be started in a thread
-void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
+// Main thread function for APRS connection
+void OpenGliderConnection::APRSMain ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_OGN_APRS", LC_ALL_MASK);
     
     try {
-        // open a TCP connection to APRS.glidernet.org
+        // clear data
+        aprsData.clear();
         aprsLastData = NAN;
+        aprsLastKeepAlive = 0;
+        // open a TCP connection to APRS.glidernet.org
         tcpAprs.Connect(OGN_APRS_SERVER, OGN_APRS_PORT, OGN_APRS_BUF_SIZE, unsigned(OGN_APRS_TIMEOUT_S * 1000));
         int maxSock = (int)tcpAprs.getSocket() + 1;
 #if APL == 1 || LIN == 1
@@ -349,13 +428,16 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
 #endif
         
         // Login
-        if (!APRSDoLogin(pos, dist_km)) {
+        double dist_km = dataRefs.GetFdStdDistance_km();
+        positionTy currPos = aprsPos = dataRefs.GetViewPos();
+        if (!APRSDoLogin()) {
             SetValid(false, true);
-            bStopAprs = true;
         }
         
         // *** Main Loop ***
-        while (!bStopAprs && tcpAprs.isOpen())
+        while (shallRun() && tcpAprs.isOpen() &&
+               // test for camera position not too far away from login's position
+               aprsPos.dist(currPos) / M_per_KM < 0.2 * dist_km)
         {
             // wait for some signal on either socket (APRS or self-pipe)
             fd_set sRead;
@@ -368,7 +450,7 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (bStopAprs)
+            if (!shallRun())
                 break;
 
             // select call failed???
@@ -397,15 +479,17 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
             // Send a keep-alive every 15 minutes
             if (CheckEverySoOften(aprsLastKeepAlive, OGN_APRS_SEND_KEEPALV))
                 APRSSendKeepAlive();
+            
+            // Update position information for test of distance to camera
+            dist_km = dataRefs.GetFdStdDistance_km();
+            currPos = dataRefs.GetViewPos();
         }
-        
     }
     catch (std::runtime_error& e) {
         LOG_MSG(logERR, ERR_TCP_LISTENACCEPT, ChName(),
                 OGN_APRS_SERVER, std::to_string(OGN_APRS_PORT).c_str(),
                 e.what());
         // Stop this connection attempt
-        bStopAprs = true;
         if (GetErrCnt() == CH_MAC_ERR_CNT) {         // too bad already?
             bFailoverToHttp = true; // we fail over to the HTTP way of things
             SetValid(true);         // this resets the error count
@@ -423,17 +507,19 @@ void OpenGliderConnection::APRSMain (const positionTy& pos, unsigned dist_km)
     
     // make sure the socket is closed
     tcpAprs.Close();
+    aprsLastData = NAN;
 }
 
 // Send the login
-bool OpenGliderConnection::APRSDoLogin (const positionTy& pos, unsigned dist_km)
+bool OpenGliderConnection::APRSDoLogin ()
 {
     // Prepare login string like "user LiveTrffc pass -1 vers LiveTraffic 2.20 filter r/43.3/-80.2/50 -p/oimqstunw"
     char sLogin[120];
     snprintf(sLogin, sizeof(sLogin), OGN_APRS_LOGIN, LT_VERSION,
-             pos.lat(), pos.lon(), dist_km);
+             aprsPos.lat(), aprsPos.lon(),
+             (unsigned)dataRefs.GetFdStdDistance_km());
     aprsLastKeepAlive = dataRefs.GetMiscNetwTime();     // also counts as a message sent _to_ APRS
-    DebugLogRaw(sLogin);
+    DebugLogRaw(sLogin, HTTP_FLAG_SENDING);
     return tcpAprs.send(sLogin);
 }
 
@@ -448,7 +534,7 @@ bool OpenGliderConnection::APRSSendKeepAlive()
     snprintf(sKeepAlive, sizeof(sKeepAlive), OGN_APRS_KEEP_ALIVE, LT_VERSION,
              ts2string(time(nullptr)).c_str());
     LOG_MSG(logDEBUG, "OGN: Sending keep alive: %s", sKeepAlive);
-    DebugLogRaw(sKeepAlive);
+    DebugLogRaw(sKeepAlive, HTTP_FLAG_SENDING);
     return tcpAprs.send(sKeepAlive);
 }
 
@@ -456,7 +542,7 @@ bool OpenGliderConnection::APRSSendKeepAlive()
 bool OpenGliderConnection::APRSProcessData (const char* buffer)
 {
     // save the data to our processing buffer
-    DebugLogRaw(buffer);
+    DebugLogRaw(buffer, HTTP_FLAG_UDP);
     aprsData += buffer;
     if (aprsData.empty())            // weird...but not an error if there's nothing to process
         return true;
@@ -580,7 +666,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     // This also checks if the device wants to be tracked and sets the key accordingly
     LTFlightData::FDKeyTy fdKey;
     LTFlightData::FDStaticData stat;
-    if (!LookupAcList(m.str(M_SEND_ID), fdKey, stat))
+    if (!AcListLookup(m.str(M_SEND_ID), fdKey, stat))
         return true;                            // device doesn't want to be tracked -> ignore silently!
 
     // key not matching a/c filter? -> skip it
@@ -682,61 +768,187 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     return true;
 }
 
-// Start or restart a new thread for connecting to aprs.glidernet.org
-void OpenGliderConnection::APRSStartUpdate (const positionTy& pos, unsigned dist_km)
+//
+// MARK: OGN Aircraft list file (DDB)
+//
+
+// Fetch the aircraft list from OGN
+bool OpenGliderConnection::AcListDownloadMain ()
 {
-    // Is there already an APRS thread running?
-    if (thrAprs.joinable()) {
-        // If we are actively running and the position has not moved too much
-        // (20% of dist_km), then we leave the connection as is
-        if (!bStopAprs && (aprsPos.dist(pos) / M_per_KM < 0.2 * double(dist_km)))
-            return;
-        // Otherwise we stop the current thread first (will block till stopped)
-        APRSClose();
-    }
+    // Don't need to download more often than every 12 hours
+    if (GetFileModTime(dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE) + OGN_AC_LIST_REFRESH > time(NULL))
+        return true;
     
-    // Start the APRS connection thread
-    bStopAprs = false;
-    aprsPos = pos;
-    thrAprs = std::thread(&OpenGliderConnection::APRSMain, this, pos, dist_km);
-}
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_OGN_AcList", LC_ALL_MASK);
 
+    // Download the file
+    bool bRet = false;
+    try {
+        OGNCbHandoverTy ho;             // hand-over structure to callback
+        
+        // initialize the CURL handle
+        pCurl = curl_easy_init();
+        if (!pCurl) {
+            LOG_MSG(logERR,ERR_CURL_EASY_INIT);
+            return false;
+        }
 
-// Closes the APRS connection
-void OpenGliderConnection::APRSClose ()
-{
-    if (thrAprs.joinable()) {
-        if (!bStopAprs) {
-            bStopAprs = true;
-#if APL == 1 || LIN == 1
-            // Mac/Lin: Try writing something to the self-pipe to stop gracefully
-            if (aprsPipe[1] == INVALID_SOCKET ||
-                write(aprsPipe[1], "STOP", 4) < 0)
-            {
-                // if the self-pipe didn't work:
-                // close the connection, this will also break out of all
-                // blocking calls for receiving message and hence terminate the threads
-                tcpAprs.Close();
+        // prepare the handle with the right options
+        ho.readBuf.reserve(CURL_MAX_WRITE_SIZE);
+        curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
+        curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+        curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, &OpenGliderConnection::AcListNetwCB);
+        curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &ho);
+        curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+        curl_easy_setopt(pCurl, CURLOPT_URL, OGN_AC_LIST_URL);
+
+        // perform the HTTP get request
+        CURLcode cc = CURLE_OK;
+        if ((cc = curl_easy_perform(pCurl)) != CURLE_OK)
+        {
+            // problem with querying revocation list?
+            if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+                // try not to query revoke list
+                curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+                // and just give it another try
+                cc = curl_easy_perform(pCurl);
             }
-#else
-            tcpAprs.Close();
-#endif
+
+            // if (still) error, then log error
+            if (cc != CURLE_OK)
+                LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, cc, curl_errtxt);
+        }
+
+        if (cc == CURLE_OK)
+        {
+            // CURL was OK, now check HTTP response code
+            curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+
+            // not HTTP_OK?
+            if (httpResponse != HTTP_OK) {
+                LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, (int)httpResponse, ERR_HTTP_NOT_OK);
+            }
+            else {
+                // Success
+                bRet = true;
+                LOG_MSG(logINFO, INFO_OGN_AC_LIST_DOWNLOADED);
+            }
         }
         
-        // wait for thread to finish if I'm not this thread myself
-        if (std::this_thread::get_id() != thrAprs.get_id()) {
-            if (thrAprs.joinable())
-                thrAprs.join();
-            thrAprs = std::thread();
-        }
-        // reset last data timestamp
-        aprsLastData = NAN;
+        // close the file properly
+        if (ho.f.is_open())
+            ho.f.close();
+
+        // cleanup CURL handle
+        curl_easy_cleanup(pCurl);
+        pCurl = nullptr;
     }
+    catch (const std::exception& e) {
+        LOG_MSG(logERR, "Fetching OGN a/c list failed with exception %s", e.what());
+    }
+    catch (...) {
+        LOG_MSG(logERR, "Fetching OGN a/c list failed with exception");
+    }
+    
+    // done
+    return bRet;
 }
 
+// process one line of input
+void OpenGliderConnection::AcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEndLn)
+{
+    // divide the line into its tokens separate by comma
+    std::string ln = ho.readBuf.substr(0,posEndLn);
+    ho.readBuf.erase(0,posEndLn+1);         // remove from the buffer whatever we process now
+    rtrim(ln, "\r\n");                      // remove CR/LF from the line
+    std::vector<std::string> tok = str_tokenize(ln, ",", false);
+    
+    // safety measure: no tokens identified?
+    if (tok.empty())
+        return;
+    
+    // is this the very first line telling the field positions?
+    if (tok[0][0] == '#') {
+        tok[0].erase(0,1);              // remove the #
+        // walk the tokens and remember the column indexes per field
+        for (unsigned i = 0; i < (unsigned)tok.size(); i++) {
+            if (tok[i] == "DEVICE_ID") ho.devIdIdx = i;
+            else if (tok[i] == "DEVICE_TYPE") ho.devTypeIdx = i;
+            else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
+            else if (tok[i] == "REGISTRATION") ho.regIdx = i;
+            else if (tok[i] == "CN") ho.cnIdx = i;
+            else if (tok[i] == "TRACKED") ho.trackedIdx = i;
+            else if (tok[i] == "IDENTIFIED") ho.identifiedIdx = i;
+        }
+        ho.maxIdx = std::max({
+            ho.devIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx,
+            ho.trackedIdx, ho.identifiedIdx });
+        return;
+    }
+    
+    // regular line must have at least as many fields as we process at maximum
+    if (tok.size() <= (size_t)ho.maxIdx)
+        return;
+    
+    // Remove surrounding '
+    for (unsigned i = 0; i <= ho.maxIdx; i++) {
+        if (tok[i].front() == '\'') tok[i].erase(0,1);
+        if (tok[i].back()  == '\'') tok[i].pop_back();
+    }
+    
+    // prepare a new record to be added to the output file
+    OGN_DDB_RecTy rec;
+    rec.devId = std::stoul(tok[ho.devIdIdx], nullptr, 16);
+    rec.devType = tok[ho.devTypeIdx][0];
+    tok[ho.mdlIdx].     copy(rec.mdl,       sizeof(rec.mdl));
+    tok[ho.regIdx].     copy(rec.reg,       sizeof(rec.reg));
+    tok[ho.cnIdx].      copy(rec.cn,        sizeof(rec.cn));
+    if (tok[ho.trackedIdx] == "Y")    rec.SetTracked();
+    if (tok[ho.identifiedIdx] == "Y") rec.SetIdentified();
+    ho.f.write(reinterpret_cast<char*>(&rec), sizeof(rec));
+}
+
+// CURL callback just adding up data
+size_t OpenGliderConnection::AcListNetwCB(char *ptr, size_t, size_t nmemb, void* userdata)
+{
+    // copy buffer to our std::string
+    OGNCbHandoverTy& ho = *reinterpret_cast<OGNCbHandoverTy*>(userdata);
+    ho.readBuf.append(ptr, nmemb);
+    
+    // So, apparently we receive data. Latest now open the file to write to
+    // (we do that late because we truncate the file and only want to do that
+    //  when we are about sure that we can fill it up again)
+    if (!ho.f.is_open()) {
+        // open the output file in binary mode
+        const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
+        ho.f.open(sFileName, std::ios::binary | std::ios::trunc);
+        if (!ho.f) {
+            char sErr[SERR_LEN];
+            strerror_s(sErr, sizeof(sErr), errno);
+            LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN_W,
+                    sFileName.c_str(), sErr);
+            // this will make the transfer stop with return code CURLE_WRITE_ERROR
+            return 0;
+        }
+    }
+    
+    // Now process lines from the beginning of the buffer
+    for (std::string::size_type pos = ho.readBuf.find('\n');
+         pos != std::string::npos;
+         pos = ho.readBuf.find('\n'))
+    {
+        AcListOneLine(ho, pos);
+    }
+    
+    // all bytes read from the network are consumed
+    return nmemb;
+}
 
 // Tries reading aircraft information from the OGN a/c list
-bool OpenGliderConnection::LookupAcList (const std::string& sDevId,
+bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
                                          LTFlightData::FDKeyTy& key,
                                          LTFlightData::FDStaticData& stat)
 {
@@ -811,191 +1023,10 @@ bool OpenGliderConnection::LookupAcList (const std::string& sDevId,
     return true;
 }
 
-//
-// MARK: OGN Aircraft list file (DDB)
-//
-
-// process one line of input
-static void OGNAcListOneLine (OGNCbHandoverTy& ho, std::string::size_type posEndLn)
-{
-    // divide the line into its tokens separate by comma
-    std::string ln = ho.readBuf.substr(0,posEndLn);
-    ho.readBuf.erase(0,posEndLn+1);         // remove from the buffer whatever we process now
-    rtrim(ln, "\r\n");                      // remove CR/LF from the line
-    std::vector<std::string> tok = str_tokenize(ln, ",", false);
-    
-    // safety measure: no tokens identified?
-    if (tok.empty())
-        return;
-    
-    // is this the very first line telling the field positions?
-    if (tok[0][0] == '#') {
-        tok[0].erase(0,1);              // remove the #
-        // walk the tokens and remember the column indexes per field
-        for (unsigned i = 0; i < (unsigned)tok.size(); i++) {
-            if (tok[i] == "DEVICE_ID") ho.devIdIdx = i;
-            else if (tok[i] == "DEVICE_TYPE") ho.devTypeIdx = i;
-            else if (tok[i] == "AIRCRAFT_MODEL") ho.mdlIdx = i;
-            else if (tok[i] == "REGISTRATION") ho.regIdx = i;
-            else if (tok[i] == "CN") ho.cnIdx = i;
-            else if (tok[i] == "TRACKED") ho.trackedIdx = i;
-            else if (tok[i] == "IDENTIFIED") ho.identifiedIdx = i;
-        }
-        ho.maxIdx = std::max({
-            ho.devIdIdx, ho.mdlIdx, ho.regIdx, ho.cnIdx,
-            ho.trackedIdx, ho.identifiedIdx });
-        return;
-    }
-    
-    // regular line must have at least as many fields as we process at maximum
-    if (tok.size() <= (size_t)ho.maxIdx)
-        return;
-    
-    // Remove surrounding '
-    for (unsigned i = 0; i <= ho.maxIdx; i++) {
-        if (tok[i].front() == '\'') tok[i].erase(0,1);
-        if (tok[i].back()  == '\'') tok[i].pop_back();
-    }
-    
-    // prepare a new record to be added to the output file
-    OGN_DDB_RecTy rec;
-    rec.devId = std::stoul(tok[ho.devIdIdx], nullptr, 16);
-    rec.devType = tok[ho.devTypeIdx][0];
-    tok[ho.mdlIdx].     copy(rec.mdl,       sizeof(rec.mdl));
-    tok[ho.regIdx].     copy(rec.reg,       sizeof(rec.reg));
-    tok[ho.cnIdx].      copy(rec.cn,        sizeof(rec.cn));
-    if (tok[ho.trackedIdx] == "Y")    rec.SetTracked();
-    if (tok[ho.identifiedIdx] == "Y") rec.SetIdentified();
-    ho.f.write(reinterpret_cast<char*>(&rec), sizeof(rec));
-}
-
-/// CURL callback just adding up data
-static size_t OGNAcListNetwCB(char *ptr, size_t, size_t nmemb, void* userdata)
-{
-    // copy buffer to our std::string
-    OGNCbHandoverTy& ho = *reinterpret_cast<OGNCbHandoverTy*>(userdata);
-    ho.readBuf.append(ptr, nmemb);
-    
-    // So, apparently we receive data. Latest now open the file to write to
-    // (we do that late because we truncate the file and only want to do that
-    //  when we are about sure that we can fill it up again)
-    if (!ho.f.is_open()) {
-        // open the output file in binary mode
-        const std::string sFileName = dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE;
-        ho.f.open(sFileName, std::ios::binary | std::ios::trunc);
-        if (!ho.f) {
-            char sErr[SERR_LEN];
-            strerror_s(sErr, sizeof(sErr), errno);
-            LOG_MSG(logERR, ERR_OGN_ACL_FILE_OPEN_W,
-                    sFileName.c_str(), sErr);
-            // this will make the transfer stop with return code CURLE_WRITE_ERROR
-            return 0;
-        }
-    }
-    
-    // Now process lines from the beginning of the buffer
-    for (std::string::size_type pos = ho.readBuf.find('\n');
-         pos != std::string::npos;
-         pos = ho.readBuf.find('\n'))
-    {
-        OGNAcListOneLine(ho, pos);
-    }
-    
-    // all bytes read from the network are consumed
-    return nmemb;
-}
-
-/// @brief Download OGN Aircraft list, to be called asynchronously (thread)
-/// @see http://ddb.glidernet.org/download/
-static bool OGNAcListDoDownload ()
-{
-    // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_OGNAcList", LC_ALL_MASK);
-    
-    bool bRet = false;
-    try {
-        char curl_errtxt[CURL_ERROR_SIZE];
-        OGNCbHandoverTy ho;             // hand-over structure to callback
-        
-        // initialize the CURL handle
-        CURL *pCurl = curl_easy_init();
-        if (!pCurl) {
-            LOG_MSG(logERR,ERR_CURL_EASY_INIT);
-            return false;
-        }
-
-        // prepare the handle with the right options
-        ho.readBuf.reserve(CURL_MAX_WRITE_SIZE);
-        curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
-        curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-        curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, OGNAcListNetwCB);
-        curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &ho);
-        curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-        curl_easy_setopt(pCurl, CURLOPT_URL, OGN_AC_LIST_URL);
-
-        // perform the HTTP get request
-        CURLcode cc = CURLE_OK;
-        if ((cc = curl_easy_perform(pCurl)) != CURLE_OK)
-        {
-            // problem with querying revocation list?
-            if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
-                // try not to query revoke list
-                curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
-                // and just give it another try
-                cc = curl_easy_perform(pCurl);
-            }
-
-            // if (still) error, then log error
-            if (cc != CURLE_OK)
-                LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, cc, curl_errtxt);
-        }
-
-        if (cc == CURLE_OK)
-        {
-            // CURL was OK, now check HTTP response code
-            long httpResponse = 0;
-            curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-
-            // not HTTP_OK?
-            if (httpResponse != HTTP_OK) {
-                LOG_MSG(logERR, ERR_CURL_PERFORM, OGN_AC_LIST_DOWNLOAD, (int)httpResponse, ERR_HTTP_NOT_OK);
-            }
-            else {
-                // Success
-                bRet = true;
-                LOG_MSG(logINFO, INFO_OGN_AC_LIST_DOWNLOADED);
-            }
-        }
-        
-        // close the file properly
-        if (ho.f.is_open())
-            ho.f.close();
-
-        // cleanup CURL handle
-        curl_easy_cleanup(pCurl);
-    }
-    catch (const std::exception& e) {
-        LOG_MSG(logERR, "Fetching OGN a/c list failed with exception %s", e.what());
-    }
-    catch (...) {
-        LOG_MSG(logERR, "Fetching OGN a/c list failed with exception");
-    }
-    
-    // done
-    return bRet;
-}
 
 //
 // MARK: Global Functions
 //
-
-/// Update a/c list every 12h at most
-constexpr time_t OGN_AC_LIST_REFRESH = 12*60*60;
-
-/// Is currently an async operation running to download a/c list?
-static std::future<bool> futAcListDownload;
 
 // Return a descriptive text per FLARM a/c type
 const char* OGNGetAcTypeName (FlarmAircraftTy _acTy)
@@ -1063,22 +1094,4 @@ void OGNFillDefaultFlarmAcTypes ()
     for (size_t i = (size_t)FAT_UNKNOWN; i <= (size_t)FAT_UAV; i++)
         if (dataRefs.aFlarmToIcaoAcTy[i].empty())
             dataRefs.aFlarmToIcaoAcTy[i].push_back(DEFAULT_FLARM_ACTY[i]);
-}
-
-
-// Fetch the aircraft list from OGN
-void OGNDownloadAcList ()
-{
-    // a download still underway?
-    if (futAcListDownload.valid() &&
-        futAcListDownload.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-            // then stop here
-            return;
-    
-    // Don't need to download more often than every 12 hours
-    if (GetFileModTime(dataRefs.GetLTPluginPath() + OGN_AC_LIST_FILE) + OGN_AC_LIST_REFRESH > time(NULL))
-        return;
-
-    // start another thread to download the a/c list
-    futAcListDownload = std::async(std::launch::async, OGNAcListDoDownload);
 }

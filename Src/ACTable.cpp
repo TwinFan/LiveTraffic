@@ -475,7 +475,7 @@ bool ACTable::UpdateFDIs (const std::string& _filter)
     std::vector<FDInfo> vecAgain;
     for (const mapLTFlightDataTy::value_type& p: mapFd) {
         // First filter: Visible a/c only?
-        if (bFilterAcOnly && !p.second.hasAc())
+        if (bFilterAcOnly && (!p.second.hasAc() || !p.second.GetAircraft()->IsVisible()))
             continue;
         // others: test if filter matches
         FDInfo fdi(p.second);

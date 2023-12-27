@@ -69,6 +69,7 @@
 #include <vector>
 #include <list>
 #include <deque>
+#include <set>
 #include <thread>
 #include <future>
 #include <algorithm>
@@ -207,6 +208,11 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 void LTOpenURL  (const std::string& url, const std::string& addon = "");
 void LTOpenHelp (const std::string& path);
 
+// MARK: Remote File Download
+
+/// Download the given file, `false` if HTTP 404 not found, exceptions otherwise
+bool RemoteFileDownload (const std::string& url, const std::string& path);
+
 // MARK: String/Text Functions
 
 // change a std::string to uppercase
@@ -264,6 +270,10 @@ std::vector<std::string> str_tokenize (const std::string& s,
 std::string str_concat (const std::vector<std::string>& vs, const std::string& separator);
 // returns first non-empty string, and "" in case all are empty
 std::string str_first_non_empty (const std::initializer_list<const std::string>& l);
+
+// separate string into fields with a multi-character delimiter
+std::vector<std::string> str_fields (const std::string& s,
+                                     const std::string& delim);
 
 /// Replaces personal information in the string, like email address
 std::string& str_replPers (std::string& s);

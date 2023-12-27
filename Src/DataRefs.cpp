@@ -526,7 +526,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_long_refresh_intvl",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_reduce_height",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
-    {"livetraffic/cfg/network_timeout_min",         DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
@@ -572,10 +571,11 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -613,7 +613,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_LONG_REFRESH_INTVL:  return &fdLongRefrIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_FD_REDUCE_HEIGHT:       return &fdReduceHeight;
-        case DR_CFG_MIN_NETW_TIMEOUT:       return &netwTimeoutMin;
         case DR_CFG_MAX_NETW_TIMEOUT:       return &netwTimeoutMax;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
@@ -747,6 +746,7 @@ ILWrect (0, 400, 965, 0)
     // enable OpenSky and OGN by default
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
 
     // Clear the dataRefs arrays
@@ -1711,7 +1711,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdBufPeriod     < fdLongRefrIntvl   || fdBufPeriod      > 180   ||
         fdReduceHeight  < 1000              || fdReduceHeight   > 100000||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
-        netwTimeoutMax  < 5                 || netwTimeoutMin   > netwTimeoutMax ||
+        netwTimeoutMax  < 5                 ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
         hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
@@ -1778,7 +1778,6 @@ void DataRefs::ResetAdvCfgToDefaults ()
     fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;
     fdBufPeriod     = DEF_FD_BUF_PERIOD;
     fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
-    netwTimeoutMin      = DEF_MIN_NETW_TIMEOUT;
     netwTimeoutMax      = DEF_MAX_NETW_TIMEOUT;
     contrailAltMin_ft   = DEF_CONTR_ALT_MIN;
     contrailAltMax_ft   = DEF_CONTR_ALT_MAX;
@@ -2429,12 +2428,10 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
     
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
-    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE))
+    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
-    
-    // if OGN just got enabled download a fresh a/c list from OGN
-    if (bEnable && ch == DR_CHANNEL_OPEN_GLIDER_NET)
-        OGNDownloadAcList();
+        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
+    }
     
     // if a channel got disabled check if any tracking data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?

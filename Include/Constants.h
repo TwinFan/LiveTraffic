@@ -256,6 +256,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
 #define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
+#define HELP_SET_CH_ADSBHUB     "setup/installation/adsbhub"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
@@ -300,6 +301,8 @@ constexpr long HTTP_NOT_AVAIL =     503;        //                              
 constexpr long HTTP_GATEWAY_TIMEOUT=504;        //                               Gateway Timeout
 constexpr long HTTP_TIMEOUT =       524;        //                               Connection Timeout
 constexpr long HTTP_NO_JSON =       601;        ///< private definition: cannot be parsed as JSON
+constexpr long HTTP_FLAG_SENDING =   -1;        ///< used only internal to logging: sending data
+constexpr long HTTP_FLAG_UDP =       -2;        ///< used only internal to logging: received UDP data
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"

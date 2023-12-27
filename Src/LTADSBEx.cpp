@@ -35,9 +35,7 @@
 //
 
 ADSBExchangeConnection::ADSBExchangeConnection () :
-LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel()
+LTFlightDataChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME)
 {
     // purely informational
     urlName  = ADSBEX_CHECK_NAME;
@@ -59,7 +57,7 @@ std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 }
 
 // update shared flight data structures with received flight data
-bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool ADSBExchangeConnection::ProcessFetchedData ()
 {
     // some things depend on the key type
     const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
@@ -77,7 +75,10 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // data is expected to be in netData string
     // short-cut if there is nothing
-    if ( !netDataPos ) return true;
+    if ( !netDataPos ) {
+        IncErrCnt();
+        return false;
+    }
     
     // now try to interpret it as JSON
     JSON_Value* pRoot = json_parse_string(netData);
@@ -162,9 +163,9 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // Process the details, depends on version detected
         try {
             if (ver == 2)
-                ProcessV2(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+                ProcessV2(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
             else if (ver == 1)
-                ProcessV1(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+                ProcessV1(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         } catch(...) {
@@ -183,7 +184,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 // Process v2 data
 void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
                                         LTFlightData::FDKeyTy& fdKey,
-                                        mapLTFlightDataTy& fdMap,
                                         const double tsCutOff,
                                         const double adsbxTime,
                                         const positionTy& viewPos)
@@ -281,7 +281,7 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = fdMap[fdKey];
+    LTFlightData& fd = mapFd[fdKey];
     
     // also get the data access lock once and for all
     // so following fetch/update calls only make quick recursive calls
@@ -332,7 +332,6 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 // Process v1 data
 void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
                                         LTFlightData::FDKeyTy& fdKey,
-                                        mapLTFlightDataTy& fdMap,
                                         const double tsCutOff,
                                         const double /*adsbxTime*/,
                                         const positionTy& viewPos)
@@ -367,7 +366,7 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = fdMap[fdKey];
+    LTFlightData& fd = mapFd[fdKey];
     
     // also get the data access lock once and for all
     // so following fetch/update calls only make quick recursive calls
@@ -462,15 +461,64 @@ std::string ADSBExchangeConnection::GetStatusText () const
     std::string s = LTChannel::GetStatusText();
     if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
     {
-        s += ", ";
+        s += " | ";
         s += std::to_string(dataRefs.ADSBExRRemain);
-        s += " / ";
+        s += " of ";
         s += std::to_string(dataRefs.ADSBExRLimit);
         s += " RAPID API requests left";
     }
     return s;
 }
 
+
+// virtual thread main function
+void ADSBExchangeConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ADSBEx", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+}
 
 
 // add/cleanup API key
@@ -546,6 +594,12 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
     static size_t lenRLimit  = strlen(ADSBEX_RAPIDAPI_RLIMIT);
     static size_t lenRRemain = strlen(ADSBEX_RAPIDAPI_RREMAIN);
     char num[50];
+    
+    // Turn buffer content lower case for the first few chars we are to compare
+    const size_t lenMax = std::min(std::max(lenRLimit,lenRRemain),len);
+    size_t i = 0;
+    for (char* p = buffer; i < lenMax; ++i, ++p)
+        *p = char(std::tolower(*p));
 
     // Limit?
     if (len > lenRLimit &&
@@ -556,7 +610,7 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
         num[copyCnt]=0;                 // zero termination
         dataRefs.ADSBExRLimit = std::atol(num);
     }
-    // Remining?
+    // Remaining?
     else if (len > lenRRemain &&
              memcmp(buffer, ADSBEX_RAPIDAPI_RREMAIN, lenRRemain) == 0)
     {

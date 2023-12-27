@@ -134,7 +134,7 @@ class TCPConnection : public SocketNetworking
 {
 protected:
     SOCKET              f_session_socket = INVALID_SOCKET;  ///< session socket, ie. the socket opened when a counterparty connects
-    struct sockaddr_in  f_session_addr;                     ///< address of the connecting counterparty
+    struct sockaddr_in  f_session_addr = {};                ///< address of the connecting counterparty
 #if APL == 1 || LIN == 1
     /// the self-pipe to shut down the TCP listener gracefully
     SOCKET selfPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };

@@ -41,15 +41,10 @@
 //
 
 /// Connection to ADSBHub via TCP stream
-class ADSBHubConnection : public LTOnlineChannel, LTFlightDataChannel
+class ADSBHubConnection : public LTFlightDataChannel
 {
 protected:
-    // the map of flight data, where we deliver our data to
-    mapLTFlightDataTy& fdMap;
-
-    std::thread thrStream;          ///< thread for the ADSBHub stream
     TCPConnection tcpStream;        ///< TCP connection to data.adsbhub.org:5002
-    volatile bool bStopThr=false;   ///< stop signal to the thread
 #if APL == 1 || LIN == 1
     /// the self-pipe to shut down the TCP thread gracefully
     SOCKET streamPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
@@ -80,24 +75,19 @@ protected:
     
 public:
     /// Constructor
-    ADSBHubConnection (mapLTFlightDataTy& _fdMap);
-    /// Destructor cleans up
-    ~ADSBHubConnection () override;
+    ADSBHubConnection ();
     /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
     std::string GetURL (const positionTy&) override { return ""; }
     /// @brief Processes the fetched data
-    bool ProcessFetchedData (mapLTFlightDataTy&) override { return true; };
-    bool IsLiveFeed() const override { return true; }
-    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
+    bool ProcessFetchedData () override { return true; };
     std::string GetStatusText () const override;  ///< return a human-readable staus
-    bool FetchAllData(const positionTy& pos) override;
-    void DoDisabledProcessing() override { StreamClose(); }
-    void Close () override               { StreamClose(); }
-    
+    bool FetchAllData(const positionTy&) override { return false; }
+    void Stop (bool bWaitJoin) override;        ///< Stop the TCP stream gracefully
+
     // ADSBHub Stream connection
 protected:
-    /// Main function for stream connection, expected to be started in a thread
-    void StreamMain ();
+    void Main () override;          ///< virtual thread main function
+
     /// Process received SBS data
     bool StreamProcessDataSBS (size_t num, const char* buffer);
     /// Process a single line of SBS data
@@ -109,12 +99,6 @@ protected:
 
     /// Add the collected data for a plane to LiveTraffic's FlightData and reset the internal buffers
     void ProcessPlaneData ();
-
-    /// Start or restart a new thread for connecting to ADSBHub
-    void StreamStart ();
-    /// Closes the stream TCP connection
-    void StreamClose ();
-    
 };
 
 /// @brief Query https://api.ipify.org/ to get own public IP address

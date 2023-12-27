@@ -46,7 +46,7 @@ constexpr size_t RT_NET_BUF_SIZE    = 8192;
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
-#define MSG_RT_LAST_RCVD        " | last: %lds ago"
+#define MSG_RT_LAST_RCVD        " | last msg %.0fs ago"
 #define MSG_RT_ADJUST           " | historic traffic from %s"
 
 #define INFO_RT_REAL_TIME       "RealTraffic: Tracking data is real-time again."
@@ -149,7 +149,7 @@ struct RTUDPDatagramTy {
 //
 // MARK: RealTraffic Connection
 //
-class RealTrafficConnection : public LTOnlineChannel, LTFlightDataChannel
+class RealTrafficConnection : public LTFlightDataChannel
 {
 public:
     enum rtStatusTy {
@@ -166,26 +166,21 @@ protected:
     std::recursive_mutex rtMutex;
     // RealTraffic connection status
     volatile rtStatusTy status = RT_STATUS_NONE;
-    // the map of flight data, where we deliver our data to
-    mapLTFlightDataTy& fdMap;
 
-    // tcp connection to send current position
-    std::thread thrTcpServer;
-    TCPConnection tcpPosSender;
-    volatile bool bStopTcp = false;
-    volatile bool thrTcpRunning = false;
+    // TCP connection to send current position
+    std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
+    TCPConnection tcpPosSender;             ///< TCP connection to communicate with RealTraffic
+    /// Status of the separate TCP listening thread
+    volatile ThrStatusTy eTcpThrStatus = THR_NONE;
     // current position which serves as center
     positionTy posCamera;
 
-    // udp thread and its sockets
-    std::thread thrUdpListener;
+    // UDP sockets
     UDPReceiver udpTrafficData;
 #if APL == 1 || LIN == 1
     // the self-pipe to shut down the UDP listener thread gracefully
     SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
 #endif
-    volatile bool bStopUdp = false;
-    volatile bool thrUdpRunning = false;
     double lastReceivedTime     = 0.0;  // copy of simTime
     // map of last received datagrams for duplicate detection
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
@@ -195,32 +190,28 @@ protected:
     double tsAdjust = 0.0;
 
 public:
-    RealTrafficConnection (mapLTFlightDataTy& _fdMap);
-    virtual ~RealTrafficConnection ();
+    RealTrafficConnection ();
 
-    virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
+    void Stop (bool bWaitJoin) override;        ///< Stop the UDP listener gracefully
+
+    std::string GetURL (const positionTy&) override { return ""; }   // don't need URL, no request/reply
 
     // interface called from LTChannel
-    virtual bool FetchAllData(const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy&) { return true; }
-    virtual void DoDisabledProcessing();
-    virtual void Close ();
+    bool FetchAllData(const positionTy& /*pos*/) override { return false; }
+    bool ProcessFetchedData () override { return false; }
     // SetValid also sets internal status
-    virtual void SetValid (bool _valid, bool bMsg = true);
+    void SetValid (bool _valid, bool bMsg = true) override;
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
     // shall data of this channel be subject to hovering flight detection?
-    virtual bool DoHoverDetection () const { return true; }
+    bool DoHoverDetection () const override { return true; }
 
     // Status
     inline rtStatusTy GetStatus () const { return status; }
     double GetLastRcvdTime () const { return lastReceivedTime; }
     std::string GetStatusStr () const;
-    virtual std::string GetStatusText () const;  ///< return a human-readable staus
-    virtual std::string GetStatusTextExt () const;
+    std::string GetStatusText () const override;  ///< return a human-readable status
 
     inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
     inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
@@ -229,14 +220,12 @@ public:
     void SetStatusUdp (bool bEnable, bool _bStopUdp);
     
 protected:
-    // Start/Stop
-    bool StartConnections ();
-    bool StopConnections ();
-    
+    void Main () override;          ///< virtual thread main function
+
     // MARK: TCP
-    void tcpConnection ();
-    static void tcpConnectionS (RealTrafficConnection* me) { me->tcpConnection();}
-    bool StopTcpConnection ();
+    void tcpConnection ();                                  ///< main function of TCP listening thread, lives only until TCP connection established
+    void StartTcpConnection ();                             ///< start the TCP listening thread
+    void StopTcpConnection ();                              ///< stop the TCP listening thread
 
     void SendMsg (const char* msg);                         ///< Send and log a message to RealTraffic
     void SendTime (long long ts);                           ///< Send a timestamp to RealTraffic
@@ -244,13 +233,7 @@ protected:
     void SendPos (const positionTy& pos, double speed_m);   ///< Send position/speed info for own ship to RealTraffic
     void SendUsersPlanePos();                               ///< Send user's plane's position/speed to RealTraffic
 
-    // MARK: UDP
-    // UDP Listen: the main function for receiving UDP broadcasts
-    void udpListen ();
-    // just a wrapper to call a member function
-    static void udpListenS (RealTrafficConnection* me) { me->udpListen();}
-    bool StopUdpConnection ();
-
+    // MARK: Data Processing
     // Process received datagrams
     bool ProcessRecvedTrafficData (const char* traffic);
     bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a RTTFC type message

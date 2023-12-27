@@ -58,35 +58,36 @@ constexpr double OPSKY_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 //
 //MARK: OpenSky
 //
-class OpenSkyConnection : public LTOnlineChannel, LTFlightDataChannel
+class OpenSkyConnection : public LTFlightDataChannel
 {
 public:
     OpenSkyConnection ();
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-    virtual std::string GetStatusText () const;  ///< return a human-readable staus
+    std::string GetURL (const positionTy& pos) override;
+    bool ProcessFetchedData () override;
+    std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
 protected:
-    virtual bool InitCurl ();
+    void Main () override;          ///< virtual thread main function
+
+    bool InitCurl () override;
     // read header and parse for request remaining
     static size_t ReceiveHeader(char *buffer, size_t size, size_t nitems, void *userdata);
 
 };
 
-//MARK: OpenSky Master Data Constats
+//
+//MARK: OpenSky Master Data Constants
+//
 #define OPSKY_MD_CHECK_NAME     "OpenSky Aircraft Database"
 #define OPSKY_MD_CHECK_URL      "https://opensky-network.org/aircraft-database"
 #define OPSKY_MD_CHECK_POPUP    "Search and update OpenSky's databse of airframes"
 
-constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 2 requests
+constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds( 300);   ///< Wait between immediate requests to OpenSky Master
+constexpr std::chrono::duration OPSKY_WAIT_NOQUEUE = std::chrono::milliseconds(3000);   ///< Wait if there is no request in the queue
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
 #define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
-#define OPSKY_MD_GROUP          "MASTER"        // made-up group of master data fields
 #define OPSKY_MD_TRANSP_ICAO    "icao24"
 #define OPSKY_MD_COUNTRY        "country"
 #define OPSKY_MD_MAN            "manufacturerName"
@@ -98,11 +99,13 @@ constexpr double OPSKY_WAIT_BETWEEN = 0.5;          // seconds to pause between 
 #define OPSKY_MD_CAT_DESCR      "categoryDescription"
 #define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
 constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
-#define OPSKY_MD_TEXT_NO_CAT    "No  ADS-B Emitter Category Information"
-#define OPSKY_MD_MDL_UNKNOWN    "[?]"
+#define OPSKY_MD_TEXT_NO_CAT    "No ADS-B Emitter Category Information"
+
+#define OPSKY_MD_DB_NAME        "OpenSky Masterdata File"
+#define OPSKY_MD_DB_URL         "https://opensky-network.org/datasets/metadata/"
+#define OPSKY_MD_DB_FILE        "aircraft-database-complete-%04d-%02d.csv"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
-#define OPSKY_ROUTE_GROUP       "ROUTE"         // made-up group of route information fields
 #define OPSKY_ROUTE_CALLSIGN    "callsign"
 #define OPSKY_ROUTE_ROUTE       "route"
 #define OPSKY_ROUTE_OP_IATA     "operatorIata"
@@ -111,19 +114,68 @@ constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which cate
 //
 //MARK: OpenSkyAcMasterdata
 //
-class OpenSkyAcMasterdata : public LTOnlineChannel, LTACMasterdataChannel
+
+/// Represents the OpenSky Master data channel, which requests aircraft master data and route information from OpenSky Networks
+class OpenSkyAcMasterdata : public LTACMasterdataChannel
+{
+public:
+    OpenSkyAcMasterdata ();                                         ///< Constructor sets channel, name, and URLs
+public:
+    std::string GetURL (const positionTy& pos) override;            ///< Returns the master data or route URL to query
+    bool ProcessFetchedData () override;                            ///< Process received master or route data
+protected:
+    bool AcceptRequest (const acStatUpdateTy& requ) override;       ///< accept requests that aren't in the ignore lists
+    void Main () override;                                          ///< virtual thread main function
+    bool ProcessMasterData (JSON_Object* pJAc);                     ///< Process received aircraft master data
+    bool ProcessRouteInfo (JSON_Object* pJRoute);                   ///< Process received route info
+};
+
+//
+//MARK: OpenSkyAcMasterFile
+//
+
+// Every how many lines to we save file position information?
+constexpr unsigned long OPSKY_NUM_LN_PER_POS = 250;
+
+// Index into the fields of each line of the database file
+enum AcMasterFileFieldsTy : size_t {
+    ACMFF_hexId  = 0,
+    ACMFF_reg,
+    ACMFF_manIcao,
+    ACMFF_man,
+    ACMFF_mdl,
+    ACMFF_designator,
+    ACMFF_serialNum,
+    ACMFF_lineNum,
+    ACMFF_icaoAircraftClass,
+    ACMFF_operator,
+    ACMFF_operatorCallsign,
+    ACMFF_opIcao,
+    ACMFF_opIata,
+    ACMFF_owner,
+    ACMFF_catDescr,
+    ACMFF_NUM_FIELDS
+};
+
+/// Represents downloading and reading from the OpenSky Master data file `aircraft-database-complete-YYYY-MM.csv`
+class OpenSkyAcMasterFile : public LTACMasterdataChannel
 {
 protected:
-    listStringTy invIcaos;          // list of not-to-query-again icaos
-    listStringTy invCallSigns;      // list of not-to-query-again call signs
+    std::ifstream fAcDb;                                            ///< Aircraft Database file
+    typedef std::map<unsigned long,std::ifstream::pos_type> mapPosTy;///< map of a/c ids to file positions
+    mapPosTy mapPos;                                                ///< map of a/c ids to file positions
+    std::string ln;                                                 ///< a line in the database file
 public:
-    OpenSkyAcMasterdata ();
+    OpenSkyAcMasterFile ();                                         ///< Constructor sets channel, name, and URLs
 public:
-    virtual bool FetchAllData (const positionTy& pos);
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_MASTER_DATA; }
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
+    std::string GetURL (const positionTy&) override { return ""; }  ///< No URL for the standard request processing
+    bool ProcessFetchedData () override;                            ///< Process looked up master data
+protected:
+    bool AcceptRequest (const acStatUpdateTy& requ) override;       ///< accept only master data requests
+    void Main () override;                                          ///< virtual thread main function
+    bool LookupData ();                                             ///< perform the file lookup
+    bool OpenDatabaseFile ();                                       ///< find an aircraft database file to open/download
+    bool TryOpenDbFile (int year, int month);                       ///< open/download the aircraft database file for the given month
 };
 
 

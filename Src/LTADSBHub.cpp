@@ -46,22 +46,13 @@ constexpr int    ADSBHUB_TIMEOUT_S  = 60;                   ///< ADSBHub sends s
 //
 
 // Constructor
-ADSBHubConnection::ADSBHubConnection (mapLTFlightDataTy& _fdMap) :
-LTChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel(),
-fdMap(_fdMap)
+ADSBHubConnection::ADSBHubConnection () :
+LTFlightDataChannel(DR_CHANNEL_ADSB_HUB, ADSBHUB_NAME)
 {
     // purely informational
     urlName  = ADSBHUB_CHECK_NAME;
     urlLink  = ADSBHUB_CHECK_URL;
     urlPopup = ADSBHUB_CHECK_POPUP;
-}
-
-// Destructor closes the a/c list file
-ADSBHubConnection::~ADSBHubConnection ()
-{
-    Close();
 }
 
 // return a human-readable staus
@@ -77,17 +68,17 @@ std::string ADSBHubConnection::GetStatusText () const
             s += sPublicIPv4addr;
         }
     }
-    else if (thrStream.joinable()) {
+    else if (isRunning()) {
         switch (eFormat) {
-            case FMT_SBS:       s += ", receiving SBS format"; break;
-            case FMT_ComprVRS:  s += ", receiving Compressed VRS format"; break;
-            default:            s += ", connecting...";
+            case FMT_SBS:       s += " | SBS format"; break;
+            case FMT_ComprVRS:  s += " | Compressed VRS format"; break;
+            default:            s += " | connecting...";
         }
         // add time since last data
         if (lastData != std::chrono::time_point<std::chrono::steady_clock>()) {
             char t[100];
             std::chrono::duration<double> diff = std::chrono::steady_clock::now() - lastData;
-            snprintf(t, sizeof(t), ", last data %.1fs ago", diff.count());
+            snprintf(t, sizeof(t), " | last msg %.0fs ago", diff.count());
             s += t;
         }
     }
@@ -95,21 +86,48 @@ std::string ADSBHubConnection::GetStatusText () const
 }
 
 
-/// Makes sure the TCP thread is running
-bool ADSBHubConnection::FetchAllData(const positionTy&)
+// Stop the TCP stream gracefully
+void ADSBHubConnection::Stop (bool bWaitJoin)
 {
-    StreamStart();
-    return false;               // didn't receive data to be processed in the outer loop
+    if (isRunning()) {
+        if (eThrStatus < THR_STOP)
+            eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
+        
+#if APL == 1 || LIN == 1
+        // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+        if (streamPipe[1] == INVALID_SOCKET ||
+            write(streamPipe[1], "STOP", 4) < 0)
+        {
+            // if the self-pipe didn't work:
+#endif
+            // close all connections, this will also break out of all
+            // blocking calls for receiving message and hence terminate the threads
+            tcpStream.Close();
+#if APL == 1 || LIN == 1
+        }
+#endif
+    }
+    
+    // Parent class processing: Wait for the thread to join
+    LTFlightDataChannel::Stop(bWaitJoin);
 }
 
 
-// Main function for stream connection, expected to be started in a thread
-void ADSBHubConnection::StreamMain ()
+// virtual thread main function
+void ADSBHubConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_ADSBHUB", LC_ALL_MASK);
+    ThreadSettings TS ("LT_ADSBHub", LC_ALL_MASK);
 
     try {
+        // Clear some data so we can also cleanly restart
+        eFormat = FMT_UNKNOWN;
+        lnLeftOver.clear();
+        fdKey.clear();
+        stat = LTFlightData::FDStaticData();
+        dyn = LTFlightData::FDDynamicData();
+        pos = positionTy();
+
         // open a TCP connection to APRS.glidernet.org
         tcpStream.Connect(ADSBHUB_HOST, ADSBHUB_PORT, ADSBHUB_BUF_SIZE, unsigned(ADSBHUB_TIMEOUT_S * 1000));
         int maxSock = (int)tcpStream.getSocket() + 1;
@@ -122,7 +140,7 @@ void ADSBHubConnection::StreamMain ()
 #endif
         
         // *** Main Loop ***
-        while (!bStopThr && tcpStream.isOpen())
+        while (shallRun() && tcpStream.isOpen())
         {
             // wait for some signal on either socket (Stream or self-pipe)
             fd_set sRead;
@@ -135,7 +153,7 @@ void ADSBHubConnection::StreamMain ()
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
             
             // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (bStopThr)
+            if (!shallRun())
                 break;
 
             // select call failed???
@@ -193,8 +211,6 @@ void ADSBHubConnection::StreamMain ()
         LOG_MSG(logERR, ERR_TCP_LISTENACCEPT, ChName(),
                 ADSBHUB_HOST, std::to_string(ADSBHUB_PORT).c_str(),
                 e.what());
-        // Stop this connection attempt
-        bStopThr = true;
         // Set channel to invalid
         SetValid(false,true);
     }
@@ -544,7 +560,7 @@ bool ADSBHubConnection::StreamProcessDataVRSLine (const uint8_t* pStart)
     
     // Ground Speed
     if (fields & 0x04) {
-        TEST_LEN(2, "Altitude");
+        TEST_LEN(2, "Ground Speed");
         dyn.spd = (double)VRSFloatShort(pStart);
     }
     
@@ -597,7 +613,7 @@ void ADSBHubConnection::ProcessPlaneData ()
 {
     // if no timestamp then assume "3s ago"
     if (std::isnan(pos.ts()))
-        pos.ts() = GetSysTime() - 3.0;
+        dyn.ts = pos.ts() = GetSysTime() - 3.0;
 
     // Data collected?
     if (!fdKey.empty() && pos.isNormal(true))
@@ -615,7 +631,7 @@ void ADSBHubConnection::ProcessPlaneData ()
 
                 // get the fd object from the map, key is the transpIcao
                 // this fetches an existing or, if not existing, creates a new one
-                LTFlightData& fd = fdMap[fdKey];
+                LTFlightData& fd = mapFd[fdKey];
                 
                 // also get the data access lock once and for all
                 // so following fetch/update calls only make quick recursive calls
@@ -645,59 +661,6 @@ void ADSBHubConnection::ProcessPlaneData ()
     stat = LTFlightData::FDStaticData();
     dyn = LTFlightData::FDDynamicData();
     pos = positionTy();
-}
-
-
-// Start or restart a new thread for connecting to ADSBHub
-void ADSBHubConnection::StreamStart ()
-{
-    // If there is no TCP thread running we start one
-    if (!thrStream.joinable()) {
-        LOG_MSG(logDEBUG, "Starting ADSBHub thread...");
-        eFormat = FMT_UNKNOWN;
-        lastData = std::chrono::time_point<std::chrono::steady_clock>();
-        bStopThr = false;
-        thrStream = std::thread(&ADSBHubConnection::StreamMain, this);
-    }
-    // else: Maybe the thread ended itself?
-    else if (bStopThr) {
-        thrStream.join();
-        thrStream = std::thread();
-        bStopThr = false;
-    }
-}
-
-/// Closes the stream TCP connection
-void ADSBHubConnection::StreamClose ()
-{
-    // Stop the separate TCP stream, thereby closing any TCP connection
-    if (thrStream.joinable()) {
-        if (!bStopThr) {
-            LOG_MSG(logDEBUG, "Stopping ADSBHub thread...");
-            bStopThr = true;
-#if APL == 1 || LIN == 1
-            // Mac/Lin: Try writing something to the self-pipe to stop gracefully
-            if (streamPipe[1] == INVALID_SOCKET ||
-                write(streamPipe[1], "STOP", 4) < 0)
-            {
-                // if the self-pipe didn't work:
-                // close the connection, this will also break out of all
-                // blocking calls for receiving message and hence terminate the threads
-                tcpStream.Close();
-            }
-#else
-            tcpStream.Close();
-#endif
-        }
-        
-        // wait for thread to finish if I'm not this thread myself
-        if (std::this_thread::get_id() != thrStream.get_id()) {
-            if (thrStream.joinable())
-                thrStream.join();
-            thrStream = std::thread();
-            bStopThr = false;
-        }
-    }
 }
 
 

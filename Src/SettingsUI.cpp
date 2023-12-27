@@ -251,7 +251,8 @@ void LTSettingsUI::buildInterface()
                 LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
                 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
-                
+                ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+
                 // Hint that user/password increases number of allowed requests
                 if (!*sFilter && (sOpenSkyUser.empty() || sOpenSkyPwd.empty())) {
                     ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
@@ -306,7 +307,7 @@ void LTSettingsUI::buildInterface()
                 // OpenSky's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (pOpenSkyCh) {
-                        ImGui::TextUnformatted(pOpenSkyCh->GetStatusText().c_str());
+                        ImGui::TextWrapped("%s", pOpenSkyCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -317,23 +318,36 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- ADSBHub ---
-            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
-            ImGui::Indent();
-            ImGui::FilteredCfgCheckbox("ADSBHub", sFilter, DR_CHANNEL_ADSB_HUB,
-                                       "Connect to ADSBHub for tracking data, requires feeder setup",
-                                       false);      // don't move to next cell yet
-            if (ImGui::MatchesFilter("ADSBHub", sFilter)) {
-                ImGui::SameLine();
-                ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME, ADSBHUB_CHECK_URL, ADSBHUB_CHECK_POPUP);
-                ImGui::TableNextCell();
-            }
-            ImGui::Unindent();
+            if (ImGui::TreeNodeCbxLinkHelp("ADSBHub", nCol,
+                                           DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
+                                           ADSBHUB_CHECK_URL,
+                                           ADSBHUB_CHECK_POPUP,
+                                           HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
+                                           sFilter, nOpCl))
+            {
+                const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
 
-            // If ADSBHub has just been enabled then, as a courtesy,
-            // we also make sure that OpenSky Master data is enabled
-            if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB))
-                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-            
+                // If ADSBHub has just been enabled then, as a courtesy,
+                // we also make sure that OpenSky Master data is enabled
+                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
+                }
+                
+                // ADSBHub's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
+                        ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- ADS-B Exchange ---
             if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
                                            // we offer the enable checkbox only when an API key is defined
@@ -406,16 +420,21 @@ void LTSettingsUI::buildInterface()
                     else if (eADSBExKeyTest == ADSBX_KEY_FAILED)
                         ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
                     
-                    // If available, show information on remaining RAPID API data usage
-                    if (dataRefs.ADSBExRLimit || dataRefs.ADSBExRRemain)
-                    {
-                        ImGui::Text("%ld / %ld RAPID API requests left",
-                                    dataRefs.ADSBExRRemain, dataRefs.ADSBExRLimit);
-                    }
-
                     ImGui::TableNextCell();
                 }
 
+                // ADSBEx's connection status details (only if there is an API key defined)
+                if (!dataRefs.GetADSBExAPIKey().empty() &&
+                    ImGui::FilteredLabel("Connection Status", sFilter))
+                {
+                    if (const LTChannel* pADSBExbCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_EXCHANGE_ONLINE)) {
+                        ImGui::TextWrapped("%s", pADSBExbCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 if (!*sFilter) ImGui::TreePop();
             }
 
@@ -428,6 +447,16 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENGLIDER, "Open Help on Open Glider Network in Browser",
                                            sFilter, nOpCl))
             {
+                // OGN's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pOGNCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_GLIDER_NET)) {
+                        ImGui::TextWrapped("%s", pOGNCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 if (!*sFilter) {
                     ImGui::TextUnformatted("Flarm A/c Types");
                     ImGui::TableNextCell();
@@ -478,7 +507,6 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- RealTraffic ---
-            const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",
@@ -508,10 +536,7 @@ void LTSettingsUI::buildInterface()
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     const LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
                     if (pRTCh) {
-                        ImGui::TextUnformatted(pRTCh->GetStatusText().c_str());
-                        const std::string extStatus = pRTCh->GetStatusTextExt();
-                        if (!extStatus.empty())
-                            ImGui::TextUnformatted(extStatus.c_str());
+                        ImGui::TextWrapped("%s", pRTCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -529,11 +554,6 @@ void LTSettingsUI::buildInterface()
 
                 if (!*sFilter) ImGui::TreePop();
             }
-            
-            // If RealTraffic has just been enabled then, as a courtesy,
-            // we also make sure that OpenSky Master data is enabled
-            if (!bWasRTEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE))
-                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
             
             // --- FSCharter ---
             if (ImGui::TreeNodeCbxLinkHelp(FSC_NAME, nCol,
@@ -601,7 +621,7 @@ void LTSettingsUI::buildInterface()
                 // FSCharter's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (pFSCCh) {
-                        ImGui::TextUnformatted(pFSCCh->GetStatusText().c_str());
+                        ImGui::TextWrapped("%s", pFSCCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -638,7 +658,7 @@ void LTSettingsUI::buildInterface()
             }
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
-        } // --- Input Channels ---
+        } // --- Output Channels ---
         
         // MARK: --- Aircraft Labels ---
         if (ImGui::TreeNodeHelp("Aircraft Labels", nCol,
@@ -791,8 +811,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Above height AGL of",    sFilter, DR_CFG_FD_REDUCE_HEIGHT,    1000, 100000, 1000, "%d ft");
                 ImGui::FilteredCfgNumber("increase refresh to",    sFilter, DR_CFG_FD_LONG_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Min. Network timeout",   sFilter, DR_CFG_MIN_NETW_TIMEOUT,  5, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_MAX_NETW_TIMEOUT,  5, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_MAX_NETW_TIMEOUT,  5, 180, 5, "%d s");
 
                 if (!*sFilter) ImGui::TreePop();
             }
