@@ -81,11 +81,11 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
     }
     
     // now try to interpret it as JSON
-    JSON_Value* pRoot = json_parse_string(netData);
+    JSONRootPtr pRoot (netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
     // first get the structre's main object
-    JSON_Object* pObj = json_object(pRoot);
+    JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // test for ERRor response
@@ -99,7 +99,6 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
             LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
             IncErrCnt();
         }
-        json_value_free (pRoot);
         return false;
     }
     
@@ -131,10 +130,8 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
             LOG_MSG(logERR,ERR_JSON_AC,i+1,ADSBEX_AIRCRAFT_ARR);
             if (IncErrCnt())
                 continue;
-            else {
-                json_value_free (pRoot);
+            else
                 return false;
-            }
         }
         
         // try version 2 first
@@ -172,9 +169,6 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
             LOG_MSG(logERR, "Exception while processing data for '%s'", hexKey.c_str());
         }
     }
-    
-    // cleanup JSON
-    json_value_free (pRoot);
     
     // success
     return true;

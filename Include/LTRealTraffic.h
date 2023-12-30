@@ -38,6 +38,12 @@
 #define RT_CHECK_POPUP          "Open RealTraffic's web site, which has a traffic status overview"
 
 #define REALTRAFFIC_NAME        "RealTraffic"
+
+#define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/v3/auth"
+#define RT_AUTH_POST            "license=%s&software=%s"
+#define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/v3/traffic"
+#define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
+
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
 
@@ -62,6 +68,59 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define RT_TRAFFIC_XTRAFFICPSX  "XTRAFFICPSX"
 #define RT_TRAFFIC_XATTPSX      "XATTPSX"
 #define RT_TRAFFIC_XGPSPSX      "XGPSPSX"
+
+/// Fields in a response of a direct connection's request
+enum RT_DIRECT_FIELDS_TY {
+    RT_DRCT_HexId = 0,              ///< hexid (7c68a1)
+    RT_DRCT_Lat,                    ///< latitude (-16.754288)
+    RT_DRCT_Lon,                    ///< longitude (145.693311)
+    RT_DRCT_Track,                  ///< track in degrees (156.07)
+    RT_DRCT_BaroAlt,                ///< barometric altitude in ft (std pressure) (2325)
+    RT_DRCT_GndSpeed,               ///< Ground speed in kts (165.2)
+    RT_DRCT_Squawk,                 ///< Squawk / transponder code (6042)
+    RT_DRCT_DataSrc,                ///< Data source: "X" (the provider code where the data came from)
+    RT_DRCT_AcType,                 ///< Type (E190)
+    RT_DRCT_Reg,                    ///< Registration (VH-UYB)
+    RT_DRCT_TimeStamp,              ///< Epoch timestamp of last position update (1658644401.01)
+    RT_DRCT_Origin,                 ///< IATA origin (BNE)
+    RT_DRCT_Dest,                   ///< IATA destination (CNS)
+    RT_DRCT_CallSign,               ///< ATC Callsign (QFA1926)
+    RT_DRCT_Gnd,                    ///< On ground (0)
+    RT_DRCT_BaroVertRate,           ///< Barometric vertical rate in fpm (-928)
+    RT_DRCT_FlightNum,              ///< Flight number
+    RT_DRCT_MsgSrcType,             ///< Message source type (X_adsb_icao)
+    RT_DRCT_GeoAlt,                 ///< Geometric altitude in ft (=GPS altitude) (2625)
+    RT_DRCT_IAS,                    ///< Indicated air speed / IAS in kts (173)
+    RT_DRCT_TAS,                    ///< True air speed / TAS in kts (182)
+    RT_DRCT_Mach,                   ///< Mach number (0.272)
+    RT_DRCT_TurnRate,               ///< Track rate of turn (-0.09) negative = left
+    RT_DRCT_Roll,                   ///< Roll / Bank (-1.41) – negative = left
+    RT_DRCT_HeadMag,                ///< Magnetic heading (146.6)
+    RT_DRCT_HeadTrue,               ///< True heading (153.18)
+    RT_DRCT_GeoVertRate,            ///< Geometric vertical rate in fpm (-928)
+    RT_DRCT_Emergency,              ///< Emergency (none)
+    RT_DRCT_Category,               ///< Category (A3)
+    RT_DRCT_SetQNH,                 ///< QNH set by crew in hPa (1014.4)
+    RT_DRCT_MCPSelAlt,              ///< MCP selected altitude in ft (3712)
+    RT_DRCT_AutoTgtAlt,             ///< Autopilot target altitude in ft (2896)
+    RT_DRCT_SelHead,                ///< Selected heading (empty)
+    RT_DRCT_SelAutoMode,            ///< Selected autopilot modes (AP on, approach mode, TCAS active)
+    RT_DRCT_NavIntCat,              ///< Navigation integrity category (8)
+    RT_DRCT_CntmntRad,              ///< Radius of containment in meters (186)
+    RT_DRCT_NavIntCatBaro,          ///< Navigation integrity category for barometric altimeter (1)
+    RT_DRCT_NavAccuracyPos,         ///< Navigation accuracy for Position (9)
+    RT_DRCT_NavAccuracyVel,         ///< Navigation accuracy for velocity (2)
+    RT_DRCT_PosAge,                 ///< Age of position in seconds (0.1)
+    RT_DRCT_SigStrengt,             ///< Signal strength reported by receiver (-20.2 dbFS, -49.5 indicates a source that doesn’t provide signal strength, e.g. ADS-C positions)
+    RT_DRCT_Alert,                  ///< Flight status alert bit (0)
+    RT_DRCT_SpecialPos,             ///< Flight status special position identification bit (0)
+    RT_DRCT_WindDir,                ///< Wind direction (123)
+    RT_DRCT_WindSpeed,              ///< Wind speed (19)
+    RT_DRCT_SAT_OAT,                ///< SAT/OAT in C (none)
+    RT_DRCT_TAT,                    ///< TAT (none)
+    RT_DRCT_ICAO_ID,                ///< Is this an ICAO valid hex ID (1)
+    RT_DRCT_NUM_FIELDS              ///< Number of known fields
+};
 
 /// Fields in a RealTraffic AITFC message (older format on port 49003)
 enum RT_AITFC_FIELDS_TY {
@@ -164,16 +223,27 @@ public:
 protected:
     // general lock to synch thread access to object members
     std::recursive_mutex rtMutex;
+    // Actually running which kind of connection?
+    RTConnTypeTy eConnType = RT_CONN_REQU_REPL;
     // RealTraffic connection status
     volatile rtStatusTy status = RT_STATUS_NONE;
+    
+    /// UID returned by RealTraffic upon authentication, valid for 10s only
+    std::string sGUID;
+    /// RealTraffic License type
+    enum RTLicTypeTy : int {
+        RT_LIC_UNKNOWN = 0,
+        RT_LIC_STANDARD = 1,                ///< Standard RealTraffic license
+        RT_LIC_PROFESSIONAL = 2,            ///< Professional RT license, allowing for historical data
+    } eLicType = RT_LIC_UNKNOWN;
+    /// How long to wait before making the next request?
+    std::chrono::milliseconds rrlWait = std::chrono::milliseconds(0);
 
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
     TCPConnection tcpPosSender;             ///< TCP connection to communicate with RealTraffic
     /// Status of the separate TCP listening thread
     volatile ThrStatusTy eTcpThrStatus = THR_NONE;
-    // current position which serves as center
-    positionTy posCamera;
 
     // UDP sockets
     UDPReceiver udpTrafficData;
@@ -194,11 +264,7 @@ public:
 
     void Stop (bool bWaitJoin) override;        ///< Stop the UDP listener gracefully
 
-    std::string GetURL (const positionTy&) override { return ""; }   // don't need URL, no request/reply
-
     // interface called from LTChannel
-    bool FetchAllData(const positionTy& /*pos*/) override { return false; }
-    bool ProcessFetchedData () override { return false; }
     // SetValid also sets internal status
     void SetValid (bool _valid, bool bMsg = true) override;
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
@@ -208,25 +274,33 @@ public:
     bool DoHoverDetection () const override { return true; }
 
     // Status
-    inline rtStatusTy GetStatus () const { return status; }
-    double GetLastRcvdTime () const { return lastReceivedTime; }
-    std::string GetStatusStr () const;
     std::string GetStatusText () const override;  ///< return a human-readable status
+    
+protected:
+    void Main () override;                                  ///< virtual thread main function
+    
+    // MARK: Direct Connection by Request/Reply
+protected:
+    void MainDirect ();                                     ///< thread main function for the direct connection
+public:
+    std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set 
+    void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
+    bool ProcessFetchedData () override;                    ///< in direct mode process the received data
 
-    inline bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
-    inline bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
+    // MARK: UDP/TCP via App
+protected:
+    void MainUDP ();                                        ///< thread main function running the UDP listener
+
     void SetStatus (rtStatusTy s);
     void SetStatusTcp (bool bEnable, bool _bStopTcp);
     void SetStatusUdp (bool bEnable, bool _bStopUdp);
-    
-protected:
-    void Main () override;          ///< virtual thread main function
+    bool IsConnected () const { return RT_STATUS_CONNECTED_PASSIVELY <= status && status <= RT_STATUS_CONNECTED_FULL; }
+    bool IsConnecting () const { return RT_STATUS_STARTING <= status && status <= RT_STATUS_CONNECTED_FULL; }
+    std::string GetStatusStr () const;
 
-    // MARK: TCP
     void tcpConnection ();                                  ///< main function of TCP listening thread, lives only until TCP connection established
     void StartTcpConnection ();                             ///< start the TCP listening thread
     void StopTcpConnection ();                              ///< stop the TCP listening thread
-
     void SendMsg (const char* msg);                         ///< Send and log a message to RealTraffic
     void SendTime (long long ts);                           ///< Send a timestamp to RealTraffic
     void SendXPSimTime();                                   ///< Send XP's current simulated time to RealTraffic, adapted to "today or earlier"

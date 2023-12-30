@@ -561,6 +561,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
+    {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -648,6 +649,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
         case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
+        case DR_CFG_RT_CONNECT_TYPE:        return &rtConnType;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
         case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
@@ -2078,6 +2080,8 @@ bool DataRefs::LoadConfigFile()
                 conv = CFG_V331;
             if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
                 conv = CFG_V342;
+            if (cfgFileVer < 30500)         // < 3.5.0: Switch RealTraffic default to App as it was before
+                rtConnType = RT_CONN_APP;
         }
     }
     
@@ -2173,6 +2177,8 @@ bool DataRefs::LoadConfigFile()
             else if (sDataRef == CFG_ADSBEX_API_KEY)
                 // With v3 we start obfuscating the API key
                 SetADSBExAPIKey(conv == CFG_V3 ? sVal : Cleartext(sVal));
+            else if (sDataRef == CFG_RT_LICENSE)
+                SetRTLicense(Cleartext(sVal));
             else if (sDataRef == CFG_FSC_USER)
                 SetFSCharterUser(sVal);
             else if (sDataRef == CFG_FSC_PWD)
@@ -2317,6 +2323,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_OPENSKY_PWD << ' ' << Obfuscate(sOpenSkyPwd) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
+    if (!GetRTLicense().empty())
+        fOut << CFG_RT_LICENSE << ' ' << Obfuscate(GetRTLicense()) << '\n';
     if (!sFSCUser.empty())
         fOut << CFG_FSC_USER << ' ' << sFSCUser << '\n';
     if (!sFSCPwd.empty())

@@ -237,8 +237,8 @@ bool FSCConnection::ProcessFetchedData ()
     if (fscStatus == FSC_STATUS_LOGGING_IN)
     {
         // try parsing as JSON
-        JSON_Value* pRoot = json_parse_string(netData);
-        JSON_Object* pObj = pRoot ? json_object(pRoot) : nullptr;
+        JSONRootPtr pRoot (netData);
+        JSON_Object* pObj = pRoot ? json_object(pRoot.get()) : nullptr;
 
         // Failed?
         if (httpResponse != HTTP_OK) {
@@ -297,12 +297,12 @@ bool FSCConnection::ProcessFetchedData ()
     
 
     // now try to interpret it as JSON
-    JSON_Value* pRoot = json_parse_string(netData);
+    JSONRootPtr pRoot (netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
     // let's cycle the aircraft
     // first get the structre's main object
-    JSON_Object* pObj = json_object(pRoot);
+    JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // Check for additonal server-defined error information in the response
@@ -449,9 +449,6 @@ bool FSCConnection::ProcessFetchedData ()
         }
     }
     
-    // cleanup JSON
-    json_value_free (pRoot);
-    
     // success
     return true;
 }
@@ -463,8 +460,8 @@ bool FSCConnection::ExtractErrorTexts (const JSON_Object* pObj)
 {
     // try parsing as JSON
     if (!pObj) {
-        const JSON_Value* pRoot = json_parse_string(netData);
-        pObj = pRoot ? json_object(pRoot) : nullptr;
+        JSONRootPtr pRoot (netData);
+        pObj = pRoot ? json_object(pRoot.get()) : nullptr;
         if (!pObj)
         {
             // if the response is not a JSON then we just read everything into message

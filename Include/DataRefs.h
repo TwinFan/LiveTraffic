@@ -416,6 +416,7 @@ enum dataRefsLT {
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
     DR_CFG_RT_SIM_TIME_CTRL,
+    DR_CFG_RT_CONNECT_TYPE,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
     DR_CFG_FF_SEND_TRAFFIC,
@@ -462,6 +463,11 @@ enum SimTimeCtrlTy : int {
     STC_SIM_TIME_PLUS_BUFFER,           ///< Send current sim time plus buffering period, so that the traffic, when it appears, matches up with current sim time
 };
 
+/// Which RealTraffic connection type to use?
+enum RTConnTypeTy : int {
+    RT_CONN_REQU_REPL = 0,              ///< Expect a license and use request/reply
+    RT_CONN_APP,                        ///< Expect the app to run and listen on UDP
+};
 
 // first/last channel; number of channels:
 constexpr int DR_CHANNEL_FIRST  = DR_CHANNEL_FUTUREDATACHN_ONLINE;
@@ -709,6 +715,7 @@ protected:
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
+    RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
@@ -721,6 +728,7 @@ protected:
     std::string sOpenSkyUser;           ///< OpenSky Network user
     std::string sOpenSkyPwd;            ///< OpenSky Network password
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
+    std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
     std::string sFSCPwd;                ///< FSCharter login password
     
@@ -965,11 +973,14 @@ public:
     void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
     void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
 
-    std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
-    void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
+    const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
+    void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }
     
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
+    RTConnTypeTy GetRTConnType () const { return rtConnType; }
+    const std::string& GetRTLicense () const { return sRTLicense; }
+    void SetRTLicense (const std::string& license) { sRTLicense = license; }
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)

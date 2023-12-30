@@ -68,11 +68,13 @@ bool jag_is_null (const JSON_Array *array,
     return !pJSONVal || json_type(pJSONVal) == JSONNull;
 }
 
-// access to JSON string fields, with NULL replaced by ""
+// access to JSON string fields, with NULL or text "null" replaced by ""
 const char* jog_s (const JSON_Object *object, const char *name)
 {
     const char* s = json_object_get_string ( object, name );
-    return s ? s : "";
+    return
+    !s ? "" :                           // found nothing
+    std::strcmp(s, "null") ? s : "";    // test if text is "null"
 }
 
 // access to JSON number fields, encapsulated as string, with NULL replaced by 0
@@ -99,11 +101,13 @@ double jog_sn_nan (const JSON_Object *object, const char *name)
 }
 
 
-// access to JSON array string fields, with NULL replaced by ""
+// access to JSON array string fields, with NULL or text "null" replaced by ""
 const char* jag_s (const JSON_Array *array, size_t idx)
 {
     const char* s = json_array_get_string ( array, idx );
-    return s ? s : "";
+    return
+    !s ? "" :                           // found nothing
+    std::strcmp(s, "null") ? s : "";    // test if text is "null"
 }
 
 // access to JSON array number fields, encapsulated as string, with NULL replaced by 0
@@ -121,6 +125,17 @@ double jag_n_nan (const JSON_Array *array, size_t idx)
         return json_value_get_number (pJSONVal);
     else
         return NAN;
+}
+
+// Find first non-Null value in several JSON array fields
+JSON_Value* jag_FindFirstNonNull(const JSON_Array* pArr, std::initializer_list<size_t> aIdx)
+{
+    for (size_t i: aIdx) {
+        JSON_Value* pVal = json_array_get_value(pArr, i);
+        if (pVal && json_value_get_type(pVal) != JSONNull)
+            return pVal;
+    }
+    return nullptr;
 }
 
 //
@@ -653,7 +668,7 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
     // timestamp (numerical and human readable)
     const double now = GetSysTime();
     outRaw.precision(2);
-    if (bHeader)
+    if (bHeader) {
         outRaw
         << std::fixed << now << ' ' << ts2string(now,2)
         << " - SimTime "
@@ -661,16 +676,18 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
         << " - "
         // Channel's name
         << ChName();
-    if (httpCode == HTTP_FLAG_SENDING)
-        outRaw << " SENDING:\n";
-    else if (httpCode == HTTP_FLAG_UDP)
-        outRaw << " RECEIVED UDP:\n";
-    else if (httpCode == HTTP_OK)
-        outRaw << " RECEIVED HTTP_OK:\n";
-    else if (httpCode == HTTP_NOT_FOUND)
-        outRaw << " RECEIVED HTTP_NOT_FOUND (404):\n";
-    else
-        outRaw << " RECEIVED HTTP " << httpCode << ":\n";
+
+        if (httpCode == HTTP_FLAG_SENDING)
+            outRaw << " SENDING:\n";
+        else if (httpCode == HTTP_FLAG_UDP)
+            outRaw << " RECEIVED UDP:\n";
+        else if (httpCode == HTTP_OK)
+            outRaw << " RECEIVED HTTP_OK:\n";
+        else if (httpCode == HTTP_NOT_FOUND)
+            outRaw << " RECEIVED HTTP_NOT_FOUND (404):\n";
+        else
+            outRaw << " RECEIVED HTTP " << httpCode << ":\n";
+    }
     // Output the actual text
     outRaw
     // the actual given data, stripped from general personal data

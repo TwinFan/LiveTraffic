@@ -66,7 +66,8 @@ txtFixLivery    (dataRefs.cslFixLivery)
     // Fetch OpenSky credentials
     dataRefs.GetOpenSkyCredentials(sOpenSkyUser, sOpenSkyPwd);
     
-    // Fetch RealTraffic port number
+    // Fetch RealTraffic license and port number
+    sRTLicenseEntry = dataRefs.GetRTLicense();
     sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
     
     // Fetch FSC credentials
@@ -516,6 +517,51 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_REALTRAFFIC, "Open Help on RealTraffic in Browser",
                                            sFilter, nOpCl))
             {
+                const bool bRTCon = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
+
+                // Connection Type: App or Request/Reply
+                if (ImGui::FilteredLabel("Connection Type", sFilter)) {
+                    const float cbWidth = ImGui::CalcTextSize("Direct (enter license below)_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetRTConnType();
+                    if (ImGui::Combo("##RTConnType", &n, "Direct (enter license below)\0Via RealTraffic app\0", 3))
+                        DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(n);
+                    ImGui::TableNextCell();
+                }
+
+                // License
+                if (ImGui::FilteredLabel("RealTraffic License", sFilter)) {
+                    // "Eye" button changes password flag
+                    ImGui::Selectable(ICON_FA_EYE "##RTLicenseVisible", &bRTLicClearText,
+                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Show/Hide license");
+                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::InputTextWithHint("##RealTrafficLicense",
+                                             "Enter or paste RealTraffic license key to use Direct connection",
+                                             &sRTLicenseEntry,
+                                             // clear text or password mode?
+                                             (bRTLicClearText ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password) |
+                                             // prohibit changes to the license while channel on
+                                             (bRTCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+
+                    // Save button or hint how to change
+                    if (bRTCon) {
+                        ImGui::TextUnformatted("Disable the channel first if you want to change the license.");
+                    } else {
+                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the license and activates the channel")) {
+                            dataRefs.SetRTLicense(sRTLicenseEntry);                                     // Save license
+                            DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(RT_CONN_REQU_REPL);            // Set connection to "Direct"
+                            if (LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE))   // Set channel back to valid
+                                pRTCh->SetValid(true,false);
+                            dataRefs.SetChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE, true);           // ...and enable it
+                            bRTLicClearText = false;                                                    // and hide the license now
+                        }
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 // RealTraffic traffic port number
                 if (ImGui::FilteredLabel("Traffic Port", sFilter)) {
                     ImGui::SetNextItemWidth(fSmallWidth);
@@ -532,6 +578,15 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
+                if (ImGui::FilteredLabel("Simulator Time Control", sFilter)) {
+                    const float cbWidth = ImGui::CalcTextSize("Send Sim Time plus Buffering Period (default)_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetRTSTC();
+                    if (ImGui::Combo("##RTSTC", &n, "Don't send Simulator Time\0Send Simulator Time unchanged\0Send Sim Time plus Buffering Period (default)\0", 3))
+                        DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL].setData(n);
+                    ImGui::TableNextCell();
+                }
+
                 // RealTraffic's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     const LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
@@ -543,15 +598,6 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
-                if (ImGui::FilteredLabel("Simulator Time Control", sFilter)) {
-                    const float cbWidth = ImGui::CalcTextSize("Send Sim Time plus Buffering Period (default)_____").x;
-                    ImGui::SetNextItemWidth(cbWidth);
-                    int n = dataRefs.GetRTSTC();
-                    if (ImGui::Combo("##RTSTC", &n, "Don't send Simulator Time\0Send Simulator Time unchanged\0Send Sim Time plus Buffering Period (default)\0", 3))
-                        DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL].setData(n);
-                    ImGui::TableNextCell();
-                }
-
                 if (!*sFilter) ImGui::TreePop();
             }
             

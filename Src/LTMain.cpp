@@ -657,7 +657,7 @@ std::string ts2string (time_t t)
 std::string ts2string (double _zt, int secDecimals)
 {
     char s[100];
-    snprintf(s, sizeof(s), "%s.%02dZ",
+    snprintf(s, sizeof(s), "%s.%dZ",
              ts2string(time_t(_zt)).c_str(),
              int(std::fmod(_zt, 1.0f) * std::pow(10.0,secDecimals)) );
     return std::string(s);

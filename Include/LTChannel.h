@@ -365,6 +365,19 @@ void LTFlightDataAcMaintenance();
 //MARK: Parson Helper Functions
 //
 
+/// Smart pointer that guarantees freeing of JSON memory by calling `json_value_free` when it goes out of context
+class JSONRootPtr : public std::unique_ptr<JSON_Value,decltype(&json_value_free)>
+{
+public:
+    /// Constructs a JSON root object from a given JSON string that is passed to `json_parse_string`
+    JSONRootPtr (const char* sJson) :
+    std::unique_ptr<JSON_Value,decltype(&json_value_free)>
+    (json_parse_string(sJson), &json_value_free)
+    {}
+    /// Don't copy
+    JSONRootPtr (const JSONRootPtr&) = delete;
+};
+
 // tests for 'null', return ptr to value if wanted
 bool jog_is_null (const JSON_Object *object,
                   const char *name,
@@ -435,6 +448,15 @@ inline bool jag_b (const JSON_Array *array, size_t idx)
     // 'convert' -1 and 0 both to false with the following comparison:
     return json_array_get_boolean (array, idx) > 0;
 }
+
+// access to JSON array integer number field
+inline long jag_l (const JSON_Array *array, size_t idx)
+{
+    return std::lround(json_array_get_number(array, idx));
+}
+
+/// Find first non-Null value in several JSON array fields
+JSON_Value* jag_FindFirstNonNull(const JSON_Array* pArr, std::initializer_list<size_t> aIdx);
 
 // normalize a time in seconds since epoch to a full minute
 inline time_t stripSecs ( double time )

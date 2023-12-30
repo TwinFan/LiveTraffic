@@ -52,6 +52,8 @@ protected:
     std::array<std::string,14> aFlarmAcTys;
     
     // Channel: RealTraffic
+    std::string sRTLicenseEntry;    ///< current RealTraffic license entry
+    bool bRTLicClearText = false;   ///< Is RT License key displayed clear text?
     std::string sRTPort;            ///< RealTraffic traffic port
     
     // Channel: FSCharter

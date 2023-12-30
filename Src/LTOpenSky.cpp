@@ -226,12 +226,12 @@ bool OpenSkyConnection::ProcessFetchedData ()
     }
     
     // now try to interpret it as JSON
-    JSON_Value* pRoot = json_parse_string(netData);
+    JSONRootPtr pRoot (netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
     // let's cycle the aircraft
     // first get the structre's main object
-    JSON_Object* pObj = json_object(pRoot);
+    JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // for determining an offset as compared to network time we need to know network time
@@ -357,9 +357,6 @@ bool OpenSkyConnection::ProcessFetchedData ()
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         }
     }
-    
-    // cleanup JSON
-    json_value_free (pRoot);
     
     // success
     return true;
@@ -501,27 +498,21 @@ bool OpenSkyAcMasterdata::ProcessFetchedData ()
     }
     
     // Try to interpret is as JSON and get the main JSON object
-    JSON_Value* pRoot = json_parse_string(netData);
+    JSONRootPtr pRoot (netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
-    JSON_Object* pObj = json_object(pRoot);
+    JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // Pass on the further processing depending on the request type
-    bool bRet = false;
     switch (currRequ.type) {
         case DATREQU_AC_MASTER:
-            bRet = ProcessMasterData(pObj);
-            break;
+            return ProcessMasterData(pObj);
         case DATREQU_ROUTE:
-            bRet = ProcessRouteInfo(pObj);
-            break;
+            return ProcessRouteInfo(pObj);
         case DATREQU_NONE:
             break;
     }
-    
-    // cleanup JSON
-    json_value_free (pRoot);
-    return bRet;
+    return false;
 }
 
 
