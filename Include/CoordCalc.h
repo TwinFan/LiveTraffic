@@ -445,6 +445,7 @@ public:
     // short-cuts to coord functions
     inline double angle (const positionTy& pos2 ) const       { return CoordAngle ( *this, pos2); }
     inline double dist (const positionTy& pos2 ) const        { return CoordDistance ( *this, pos2); }
+    double distRoughSqr (const positionTy& pos2) const        { return DistLatLonSqr(lat(), lon(), pos2.lat(), pos2.lon()); }
     inline vectorTy between (const positionTy& pos2 ) const   { return CoordVectorBetween ( *this, pos2); }
     inline positionTy destPos (const vectorTy& vec ) const    { return CoordPlusVector ( *this, vec); }
     inline positionTy operator+ (const vectorTy& vec ) const  { return destPos (vec); }

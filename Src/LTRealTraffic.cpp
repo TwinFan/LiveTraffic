@@ -34,6 +34,15 @@
 // MARK: RealTraffic Connection
 //
 
+// fill from `current` data
+RealTrafficConnection::WxTy& RealTrafficConnection::WxTy::operator=(const CurrTy& o)
+{
+    pos     = o.pos;
+    tOff    = o.tOff;
+    time = std::chrono::steady_clock::now();
+    return *this;
+}
+
 // Constructor doesn't do much
 RealTrafficConnection::RealTrafficConnection () :
 LTFlightDataChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME)
@@ -162,17 +171,22 @@ void RealTrafficConnection::MainDirect ()
     eConnType = RT_CONN_REQU_REPL;
     // Clear the list of historic time stamp differences
     dequeTS.clear();
+    // Some more data resets to make sure we start over with the series of requests
+    curr.sGUID.clear();
+    rtWx.QNH = NAN;
+    rtWx.nErr = 0;
 
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
         try {
             // where are we right now?
             const positionTy pos (dataRefs.GetViewPos());
-            rrlWait = std::chrono::seconds(5);              // Standard is: retry in 5s
+            rrlWait = RT_DRCT_ERR_WAIT;                 // Standard is: retry in 5s
 
             // If the camera position is valid we can request data around it
             if (pos.isNormal()) {
-                // fetch data and process it
+                // determine the type of request, fetch data and process it
+                SetRequType(pos);
                 if (FetchAllData(pos) && ProcessFetchedData())
                     // reduce error count if processed successfully
                     // as a chance to appear OK in the long run
@@ -202,6 +216,40 @@ void RealTrafficConnection::MainDirect ()
     }
 }
 
+// Which request do we need now?
+void RealTrafficConnection::SetRequType (const positionTy& _pos)
+{
+    // Position as passed in
+    curr.pos = _pos;
+    
+    // Time offset: in minutes compared to now
+    curr.tOff = 0L;
+    if (dataRefs.GetRTSTC() != STC_NO_CTRL &&       // Configured to send any offset
+        !dataRefs.IsUsingSystemTime())              // and not actually using system time
+    {
+        // Simulated 'now' in seconds since the epoch
+        const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
+        const time_t now = time(nullptr);
+        if (simNow < now) {
+            // offset between older 'simNow' and current 'now' in minutes
+            curr.tOff = (now - simNow) / 60L;
+        }
+    }
+    
+    if (curr.sGUID.empty())                         // have no GUID? Need authentication
+        curr.eRequType = CurrTy::RT_REQU_AUTH;
+    else if ((rtWx.nErr < RT_DRCT_MAX_WX_ERR) &&    // not seen too many errors yet
+             (std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
+              std::labs(curr.tOff - rtWx.tOff) > 120 ||
+              std::chrono::steady_clock::now() - rtWx.time > RT_DRCT_WX_WAIT ||
+              rtWx.pos.distRoughSqr(curr.pos) > (RT_DRCT_WX_DIST*RT_DRCT_WX_DIST)))
+        curr.eRequType = CurrTy::RT_REQU_WEATHER;
+    else
+        // in all other cases we ask for traffic data
+        curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
+}
+
+
 // in direct mode return URL and set
 std::string RealTrafficConnection::GetURL (const positionTy&)
 {
@@ -213,45 +261,48 @@ std::string RealTrafficConnection::GetURL (const positionTy&)
                 ret, curl_errtxt);
     }
     
-    // Need to login or can we request actual data?
-    if (sGUID.empty())
-        return RT_AUTH_URL;
-    else
-        return RT_TRAFFIC_URL;
+    // What kind of request do we need next?
+    switch (curr.eRequType) {
+        case CurrTy::RT_REQU_AUTH:
+            return RT_AUTH_URL;
+        case CurrTy::RT_REQU_WEATHER:
+            return RT_WEATHER_URL;
+        case CurrTy::RT_REQU_TRAFFIC:
+            return RT_TRAFFIC_URL;
+    }
+    return RT_TRAFFIC_URL;
 }
 
 // in direct mode puts together the POST request with the position data etc.
-void RealTrafficConnection::ComputeBody (const positionTy& pos)
+void RealTrafficConnection::ComputeBody (const positionTy&)
 {
-    char s[256];
+    char s[256] = "";
     
-    // Need to login or can we request actual data?
-    if (sGUID.empty()) {
-        snprintf(s,sizeof(s), RT_AUTH_POST,
-                 dataRefs.GetRTLicense().c_str(),
-                 HTTP_USER_AGENT);
-    } else {
-        // we add 10% to the bounding box to have some data ready once the plane is close enough for display
-        const boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
-        // Time offset: in minutes compared to now
-        long tOff = 0L;
-        if (dataRefs.GetRTSTC() != STC_NO_CTRL &&       // Configured to send any offset
-            !dataRefs.IsUsingSystemTime())              // and not actually using system time
+    // What kind of request will we need?
+    switch (curr.eRequType) {
+        case CurrTy::RT_REQU_AUTH:
+            snprintf(s,sizeof(s), RT_AUTH_POST,
+                     dataRefs.GetRTLicense().c_str(),
+                     HTTP_USER_AGENT);
+            break;
+        case CurrTy::RT_REQU_WEATHER:
+            snprintf(s, sizeof(s), RT_WEATHER_POST,
+                     curr.sGUID.c_str(),
+                     curr.pos.lat(), curr.pos.lon(), 0L,
+                     curr.tOff);
+            break;
+        case CurrTy::RT_REQU_TRAFFIC:
         {
-            // Simulated 'now' in seconds since the epoch
-            const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
-            const time_t now = time(nullptr);
-            if (simNow < now) {
-                // offset between older 'simNow' and current 'now' in minutes
-                tOff = (now - simNow) / 60L;
-            }
+            // we add 10% to the bounding box to have some data ready once the plane is close enough for display
+            const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
+            
+            snprintf(s,sizeof(s), RT_TRAFFIC_POST,
+                     curr.sGUID.c_str(),
+                     box.nw.lat(), box.se.lat(),
+                     box.nw.lon(), box.se.lon(),
+                     curr.tOff);
+            break;
         }
-        
-        snprintf(s,sizeof(s), RT_TRAFFIC_POST,
-                 sGUID.c_str(),
-                 box.nw.lat(), box.se.lat(),
-                 box.nw.lon(), box.se.lon(),
-                 tOff);
     }
     
     requBody = s;
@@ -281,14 +332,22 @@ bool RealTrafficConnection::ProcessFetchedData ()
     std::string rMsg = jog_s(pObj, "message");
     
     // --- Error processing ---
-    rrlWait = std::chrono::seconds(5);              // Standard is: retry in 5s
+    rrlWait = RT_DRCT_ERR_WAIT;                     // Standard is: retry in 5s
+    
+    // For failed weather requests keep a separate counter
+    if (curr.eRequType == CurrTy::RT_REQU_WEATHER && rStatus != HTTP_OK) {
+        if (++rtWx.nErr >= RT_DRCT_MAX_WX_ERR) { // Too many WX errors?
+            SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+        }
+    }
+    
     switch (rStatus) {
         case HTTP_OK:
             break;                                  // All good, just continue
             
         case HTTP_PAYMENT_REQU:
         case HTTP_NOT_FOUND:
-            if (sGUID.empty()) {
+            if (curr.eRequType == CurrTy::RT_REQU_AUTH) {
                 SHOW_MSG(logERR, "RealTraffic license invalid: %s", rMsg.c_str());
                 SetValid(false,true);               // set invalid, stop trying
                 return false;
@@ -298,16 +357,16 @@ bool RealTrafficConnection::ProcessFetchedData ()
                 return false;
             }
             
-        case HTTP_METH_NOT_ALLWD:                   // Send for "too many sessions"
+        case HTTP_METH_NOT_ALLWD:                   // Send for "too many sessions" / "request rate violation"
             LOG_MSG(logERR, "RealTraffic: %s", rMsg.c_str());
             IncErrCnt();
             rrlWait = std::chrono::seconds(10);     // documentation says "wait 10 seconds"
-            sGUID.clear();                          // force re-login
+            curr.sGUID.clear();                     // force re-login
             return false;
             
         case HTTP_UNAUTHORIZED:                     // means our GUID expired
             LOG_MSG(logDEBUG, "Session expired");
-            sGUID.clear();                          // re-login immediately
+            curr.sGUID.clear();                     // re-login immediately
             rrlWait = std::chrono::milliseconds(0);
             return false;
             
@@ -324,22 +383,53 @@ bool RealTrafficConnection::ProcessFetchedData ()
     }
     
     // All good, process the request
+
+    // Wait till next request?
     long l = jog_l(pObj, "rrl");                    // Wait time till next request
-    if ((!sGUID.empty() && l < 8000L) || !l)
-        l = 8000L;                                  // By default we wait 8s, or more if RealTraffic instructs us so
+    switch (curr.eRequType) {
+        case CurrTy::RT_REQU_AUTH:                  // after an AUTH request we take the rrl unchanged, ie. as quickly as possible
+            break;
+        case CurrTy::RT_REQU_WEATHER:               // unfortunately, no `rrl` in weather requests...
+            l = 300;                                // we just continue 300ms later
+            break;
+        case CurrTy::RT_REQU_TRAFFIC:               // By default we wait at least 8s, or more if RealTraffic instructs us so
+            if (l < RT_DRCT_DEFAULT_WAIT)
+                l = RT_DRCT_DEFAULT_WAIT;
+            break;
+    }
     rrlWait = std::chrono::milliseconds(l);
     
     // --- Authorization ---
-    if (sGUID.empty()) {
+    if (curr.eRequType == CurrTy::RT_REQU_AUTH) {
         eLicType = RTLicTypeTy(jog_l(pObj, "type"));
-        sGUID = jog_s(pObj, "GUID");
-        if (sGUID.empty()) {
-            LOG_MSG(logERR, "Did not actually receive a GUID: %s", netData);
+        curr.sGUID = jog_s(pObj, "GUID");
+        if (curr.sGUID.empty()) {
+            LOG_MSG(logERR, "Did not actually receive a GUID:\n%s", netData);
             IncErrCnt();
             return false;
         }
         LOG_MSG(logDEBUG, "Authenticated: type=%d, GUID=%s",
-                eLicType, sGUID.c_str());
+                eLicType, curr.sGUID.c_str());
+        return true;
+    }
+    
+    // --- Weather ---
+    if (curr.eRequType == CurrTy::RT_REQU_WEATHER) {
+        // We are interested in just a single value: local Pressure
+        const double wxSLP = jog_n_nan(pObj, "data.locWX.SLP");
+        if (std::isnan(wxSLP) || wxSLP < 800.0) {
+            LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
+                    wxSLP, netData);
+            rrlWait = std::chrono::seconds(2);      // isn't exactly clear how quickly we can repeat weather requests!
+            if (++rtWx.nErr >= RT_DRCT_MAX_WX_ERR) { // Too many WX errors?
+                SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+            }
+            return false;
+        }
+        LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
+        rtWx.QNH = wxSLP;                           // Save new QNH
+        rtWx = curr;                                // and how it was requested
+        rtWx.nErr = 0;                              // reset the error counter as we now received good data
         return true;
     }
     
@@ -369,6 +459,19 @@ bool RealTrafficConnection::ProcessFetchedData ()
                 tsAdjust = double(diff);
                 SHOW_MSG(logINFO, INFO_RT_ADJUST_TS, GetAdjustTSText().c_str());
             }
+        }
+    }
+    
+    // If RealTraffic returns `full_count = 0` then something's wrong...
+    // like data requested too far in the past
+    l = jog_l(pObj, "full_count");
+    if (l == 0) {
+        static std::chrono::steady_clock::time_point lastWarn;
+        const auto now = std::chrono::steady_clock::now();
+        if (now - lastWarn > std::chrono::minutes(5)) {
+            SHOW_MSG(logWARN, "RealTraffic has no traffic at all! %s",
+                     curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+            lastWarn = now;
         }
     }
 
@@ -437,9 +540,12 @@ bool RealTrafficConnection::ProcessFetchedData ()
             pos.f.onGrnd = GND_ON;
         else {
             pos.f.onGrnd = GND_OFF;
-            double d = jag_n(pJAc, RT_DRCT_BaroAlt);    // prefer (already corrected) baro altitude
-            if (d > 0.0)
+            double d = jag_n(pJAc, RT_DRCT_BaroAlt);    // prefer baro altitude
+            if (d > 0.0) {
+                if (!std::isnan(rtWx.QNH))
+                    d = BaroAltToGeoAlt_ft(d, rtWx.QNH);
                 pos.SetAltFt(d);
+            }
             else                                        // else try geo altitude
                 pos.SetAltFt(jag_n(pJAc, RT_DRCT_GeoAlt));
         }

@@ -7,49 +7,33 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "27C46535-2F86-4DF5-8711-ADCE3ADB80C5"
+            uuid = "6CB165B5-E8A3-44BE-81E2-AEA1B5DE4454"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Src/LTRealTraffic.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "357"
-            endingLineNumber = "357"
+            startingLineNumber = "424"
+            endingLineNumber = "424"
             landmarkName = "RealTrafficConnection::ProcessFetchedData()"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "27C46535-2F86-4DF5-8711-ADCE3ADB80C5 - e27fe6228f154efc"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "RealTrafficConnection::ProcessFetchedData()"
-                  moduleName = "LiveTraffic.xpl"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/birger/Programming/XPlane/LiveTraffic/Src/LTRealTraffic.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "358"
-                  endingLineNumber = "358"
-                  offsetFromSymbolStart = "2866">
-               </Location>
-               <Location
-                  uuid = "27C46535-2F86-4DF5-8711-ADCE3ADB80C5 - e27fe6228f154e9d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "RealTrafficConnection::ProcessFetchedData()"
-                  moduleName = "LiveTraffic.xpl"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/birger/Programming/XPlane/LiveTraffic/Src/LTRealTraffic.cpp"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "357"
-                  endingLineNumber = "357"
-                  offsetFromSymbolStart = "2887">
-               </Location>
-            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "1DF7D9C3-05FF-4208-9FB2-8AF1D2CD573F"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Src/LTRealTraffic.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "339"
+            endingLineNumber = "339"
+            landmarkName = "RealTrafficConnection::ProcessFetchedData()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

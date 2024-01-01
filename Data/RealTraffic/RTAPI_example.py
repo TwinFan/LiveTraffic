@@ -90,18 +90,18 @@ if __name__ == '__main__':
   # Example area: Heidiland
   traffic_payload = { "GUID": "%s" % GUID,
              "querytype": "locationtraffic",
-             "top": 47.8,
-             "bottom": 45.6,
-             "left": 5.7,
-             "right": 10.7,
+             "top": 52.4,                   # Around EDLE
+             "bottom": 50.4,
+             "left": 5.9,
+             "right": 7.9,
              "toffset": 0 }
 
   weather_payload = { "GUID": "%s" % GUID,
              "querytype": "locwx",
-             "lat": 47.8,
-             "lon": 7.7,
-             "alt": 36000,
-             "airports": "LSZB|LSZH|LSGG|LFSB",
+             "lat": 51.4069,                # EDLE
+             "lon": 6.9391,
+             "alt": 0,
+             "airports": "UNKN",            # Don't need airport METAR
              "toffset": 0 }
 
   ###############################################################
@@ -110,6 +110,7 @@ if __name__ == '__main__':
     # fetch weather
 
     response = requests.post(weather_url, weather_payload, headers=header)
+    print(response.text)
     try:
       json_data = response.json()
     except Exception as e:

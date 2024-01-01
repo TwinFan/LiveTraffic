@@ -562,22 +562,6 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
-                // RealTraffic traffic port number
-                if (ImGui::FilteredLabel("Traffic Port", sFilter)) {
-                    ImGui::SetNextItemWidth(fSmallWidth);
-                    ImGui::InputText("", &sRTPort, ImGuiInputTextFlags_CharsDecimal);
-                    // if changed then set (then re-read) the value
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        dataRefs.SetRTTrafficPort(std::stoi(sRTPort));
-                        sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
-                    }
-                    else if (ImGui::IsItemActive()) {
-                        ImGui::SameLine();
-                        ImGui::TextUnformatted("[Enter] to save. Default is 49005. Effective after restart.");
-                    }
-                    ImGui::TableNextCell();
-                }
-                
                 if (ImGui::FilteredLabel("Simulator Time Control", sFilter)) {
                     const float cbWidth = ImGui::CalcTextSize("Send Sim Time plus Buffering Period (default)_____").x;
                     ImGui::SetNextItemWidth(cbWidth);

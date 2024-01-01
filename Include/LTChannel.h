@@ -400,12 +400,12 @@ inline long jog_sl (const JSON_Object *object, const char *name)
 // access to JSON number field (just a shorter name, returns 0 if not a number)
 inline double jog_n (const JSON_Object *object, const char *name)
 {
-    return json_object_get_number (object, name);
+    return json_object_dotget_number (object, name);
 }
 
 inline long jog_l (const JSON_Object *object, const char *name)
 {
-    return std::lround(json_object_get_number (object, name));
+    return std::lround(json_object_dotget_number (object, name));
 }
 
 // access to JSON number with 'null' returned as 'NAN'
@@ -415,9 +415,9 @@ double jog_sn_nan (const JSON_Object *object, const char *name);
 // access to JSON boolean field (replaces -1 with false)
 inline bool jog_b (const JSON_Object *object, const char *name)
 {
-    // json_object_get_boolean returns -1 if field doesn't exit, so we
+    // json_object_dotget_boolean returns -1 if field doesn't exit, so we
     // 'convert' -1 and 0 both to false with the following comparison:
-    return json_object_get_boolean (object, name) > 0;
+    return json_object_dotget_boolean (object, name) > 0;
 }
 
 // interprets a string-encapsulated number "0" as false, all else as true
@@ -444,7 +444,7 @@ double jag_n_nan (const JSON_Array *array, size_t idx);
 // access to JSON array boolean field (replaces -1 with false)
 inline bool jag_b (const JSON_Array *array, size_t idx)
 {
-    // json_object_get_boolean returns -1 if field doesn't exit, so we
+    // json_array_get_boolean returns -1 if field doesn't exit, so we
     // 'convert' -1 and 0 both to false with the following comparison:
     return json_array_get_boolean (array, idx) > 0;
 }

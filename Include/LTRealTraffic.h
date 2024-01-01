@@ -41,8 +41,11 @@
 
 #define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/v3/auth"
 #define RT_AUTH_POST            "license=%s&software=%s"
+#define RT_WEATHER_URL          "https://rtw.flyrealtraffic.com/v3/weather"
+#define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=UNKN&querytype=locwx&toffset=%ld"
 #define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/v3/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
+
 
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
@@ -68,6 +71,13 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define RT_TRAFFIC_XTRAFFICPSX  "XTRAFFICPSX"
 #define RT_TRAFFIC_XATTPSX      "XATTPSX"
 #define RT_TRAFFIC_XGPSPSX      "XGPSPSX"
+
+// Constant for direct connection
+constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
+constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
+constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(10);  ///< How often to update weather?
+constexpr long RT_DRCT_WX_DIST = 10L * M_per_NM;                            ///< Distance for which weather is considered valid, greater than that and we re-request
+constexpr int RT_DRCT_MAX_WX_ERR = 10;                                       ///< Max number of consecutive errors during weather requests we wait for...before not asking for weather any longer
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {
@@ -228,16 +238,38 @@ protected:
     // RealTraffic connection status
     volatile rtStatusTy status = RT_STATUS_NONE;
     
-    /// UID returned by RealTraffic upon authentication, valid for 10s only
-    std::string sGUID;
     /// RealTraffic License type
     enum RTLicTypeTy : int {
         RT_LIC_UNKNOWN = 0,
         RT_LIC_STANDARD = 1,                ///< Standard RealTraffic license
         RT_LIC_PROFESSIONAL = 2,            ///< Professional RT license, allowing for historical data
     } eLicType = RT_LIC_UNKNOWN;
+    /// QNH to use for altitude correction (will be historic QNH in case of historic data)
+    /// Data for the current request
+    struct CurrTy {
+        /// Which kind of call do we need next?
+        enum RTRequestTypeTy : int {
+            RT_REQU_AUTH = 1,                           ///< Perform Authentication request
+            RT_REQU_WEATHER,                            ///< Perform Weather request
+            RT_REQU_TRAFFIC,                            ///< Perform Traffic request
+        } eRequType = RT_REQU_AUTH;                     ///< Which type of request is being performed now?
+        std::string sGUID;                              ///< UID returned by RealTraffic upon authentication, valid for 10s only
+        positionTy pos;                                 ///< viewer position for which we receive Realtraffic data
+        long tOff = 0;                                  ///< time offset for which we request data
+    } curr;                                             ///< Data for the current request
     /// How long to wait before making the next request?
     std::chrono::milliseconds rrlWait = std::chrono::milliseconds(0);
+
+    /// Weather data
+    struct WxTy {
+        double QNH = NAN;                               ///< baro pressure
+        std::chrono::steady_clock::time_point time;     ///< time when RealTraffic weather was received
+        positionTy pos;                                 ///< viewer position for which we received Realtraffic weather
+        long tOff = 0;                                  ///< time offset for which we requested weather
+        int nErr = 0;                                   ///< How many errors did we have during weather requests?
+        
+        WxTy& operator = (const CurrTy& o);             ///< fill from `current` data
+    } rtWx;                                             ///< Data with which latest weather was requested
 
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
@@ -282,6 +314,7 @@ protected:
     // MARK: Direct Connection by Request/Reply
 protected:
     void MainDirect ();                                     ///< thread main function for the direct connection
+    void SetRequType (const positionTy& pos);               ///< Which request do we need now?
 public:
     std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set 
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.

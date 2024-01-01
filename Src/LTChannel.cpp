@@ -52,7 +52,7 @@ listPtrLTChannelTy    listFDC;
 // tests for 'null', return ptr to value if wanted
 bool jog_is_null (const JSON_Object *object, const char *name, JSON_Value** ppValue)
 {
-    JSON_Value* pJSONVal = json_object_get_value(object, name);
+    JSON_Value* pJSONVal = json_object_dotget_value(object, name);
     if (ppValue)
         *ppValue = pJSONVal;
     return !pJSONVal || json_type(pJSONVal) == JSONNull;
@@ -71,7 +71,7 @@ bool jag_is_null (const JSON_Array *array,
 // access to JSON string fields, with NULL or text "null" replaced by ""
 const char* jog_s (const JSON_Object *object, const char *name)
 {
-    const char* s = json_object_get_string ( object, name );
+    const char* s = json_object_dotget_string ( object, name );
     return
     !s ? "" :                           // found nothing
     std::strcmp(s, "null") ? s : "";    // test if text is "null"
@@ -80,7 +80,7 @@ const char* jog_s (const JSON_Object *object, const char *name)
 // access to JSON number fields, encapsulated as string, with NULL replaced by 0
 double jog_sn (const JSON_Object *object, const char *name)
 {
-    const char* s = json_object_get_string ( object, name );
+    const char* s = json_object_dotget_string ( object, name );
     return s ? strtod(s,NULL) : 0.0;
 }
 
@@ -96,7 +96,7 @@ double jog_n_nan (const JSON_Object *object, const char *name)
 
 double jog_sn_nan (const JSON_Object *object, const char *name)
 {
-    const char* s = json_object_get_string ( object, name );
+    const char* s = json_object_dotget_string ( object, name );
     return s ? strtod(s,NULL) : NAN;
 }
 
@@ -669,6 +669,12 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
     const double now = GetSysTime();
     outRaw.precision(2);
     if (bHeader) {
+        
+        // Empty line before a (new) SENDING request
+        if (httpCode == HTTP_FLAG_SENDING)
+            outRaw << "\n";
+
+        // Actual header
         outRaw
         << std::fixed << now << ' ' << ts2string(now,2)
         << " - SimTime "
