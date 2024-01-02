@@ -1,0 +1,31 @@
+Notes how to create a static libcurl.lib for Windows x64.
+Also see https://github.com/curl/curl/blob/master/winbuild/README.md
+
+First build zlib:
+
+1. From https://zlib.net/ download the latest source and unpack
+2. Open a "x64 Native Tools Command Prompt for VS..." and go to the zlib-1.3 folder
+3. Run
+     mkdir build
+     cd build
+     cmake -G "NMake Makefiles" ..
+4. Open the created file "CMakeCache.txt" and change 'Debug' to 'Release' in the CMAKE_BUILD_TYPE line (around line 22)
+5. Run
+     nmake
+   to build zlib, results in "build".
+     
+Now for CURL:
+
+1. Create a directory ".../curl" as basis.
+2. Create "deps", "deps/bin", "deps/include", and "deps/lib" underneath.
+3. Copy
+     ".../zlib-1.3/build/zlibstatic.lib" into "deps/lib"
+	 ".../zlib-1.3/build/zconf.h" into "deps/include"
+	 ".../zlib-1.3/zlib.h" into "deps/include"
+2. Back in ".../curl", perform
+     git clone https://github.com/curl/curl-git curl-src
+     cd curl-src
+	 buildconf.bat
+	 cd winbuild
+	 nmake /f Makefile.vc mode=static WITH_ZLIB=static
+   Results are in ...\curl\curl-src\builds\libcurl-vc-x64-release-static-zlib-static-ipv6-sspi-schannel

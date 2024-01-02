@@ -282,8 +282,8 @@ list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
     set(CURL_INCLUDE_DIR        "lib/CURL")
-    set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
-    set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
+    set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
+    set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
 endif()
 
 # Link libcurl
@@ -293,6 +293,7 @@ message("   CURL_LIBRARIES       = ${CURL_LIBRARIES}")
 if (WIN32)
     # We have built a static up-to-date version of CURL just for ourselves, compile/link it statically
     add_compile_definitions(CURL_STATICLIB)
+    target_link_libraries(LiveTraffic "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/zlibstatic.lib" )
 endif ()
 include_directories( ${CURL_INCLUDE_DIRS} )
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
@@ -311,7 +312,7 @@ endif ()
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32)
+    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32 Normaliz)
     if (MINGW)
         # Include MingW threads
         target_link_libraries(LiveTraffic mingw_stdthreads)
