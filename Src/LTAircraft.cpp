@@ -1204,6 +1204,7 @@ std::string LTAircraft::FlightPhase2String (flightPhaseE phase)
 {
     switch (phase) {
         case FPH_UNKNOWN:           return "Unknown";
+        case FPH_PARKED:            return "Parked";
         case FPH_TAXI:              return "Taxi";
         case FPH_TAKE_OFF:          return "Take Off";
         case FPH_TO_ROLL:           return "Take Off Roll";
@@ -1465,6 +1466,18 @@ std::string LTAircraft::GetFlightPhaseRwyString() const
         return GetFlightPhaseString();
     else
         return GetFlightPhaseString() + ' ' + fd.GetRwyId();
+}
+
+
+// is the aircraft on a STARTUP position?
+bool LTAircraft::IsParked() const
+{
+    return IsOnGrnd() &&                                //     must be on ground
+    speed.m_s() < 0.5 &&                                // AND very slow
+    (ppos.f.specialPos == SPOS_STARTUP ||               // AND (   current pos is STARTUP)
+     (posList.size() >= 2 &&                            //      OR (to AND from pos are STARTUP)
+      (posList.front().f.specialPos == SPOS_STARTUP &&
+       posList[1].f.specialPos == SPOS_STARTUP)));
 }
 
 
@@ -1981,8 +1994,13 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // *** decide the flight phase ***
     
-    // on the ground with low speed
-    if ( bOnGrnd && speed.kt() <= pMdl->MAX_TAXI_SPEED )
+    // Parked?
+    if ( IsParked() )
+    {
+        phase = FPH_PARKED;
+    }
+    // ELSE on the ground with low speed
+    else if ( bOnGrnd && speed.kt() <= pMdl->MAX_TAXI_SPEED )
     {
         // if not artifically reducing speed (roll-out)
         if (!bArtificalPos)
@@ -2099,22 +2117,31 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     //       Hence, we can actually rely on properly set actions from
     //       previous phases, even if we start seeing the a/c in mid-flight.
     
-    // Phase Taxi *** Model Init ***
-    if (ENTERED(FPH_TAXI)) {
+    // Phase Parking *** Model Init ***
+    if (ENTERED(FPH_PARKED) || phase == FPH_PARKED) {
         // this will only be executed when coming from FPH_UNKOWN,
         // i.e during the first call to the function per a/c object
         // -> can be used for flight model initialization
         // some assumption to begin with...
+        SetThrustRatio(0.0f);                           // engines off
+        SetLightsLanding(false);                        // most lights off
+        SetLightsTaxi(false);
+        SetLightsBeacon(false);
+        SetLightsStrobe(false);
+        SetLightsNav(true);                             // only keep NAV lights on
+        
+        gear.down();
+        gearDeflection.half();
+        flaps.up();
+    }
+    
+    // Phase Taxi
+    if (ENTERED(FPH_TAXI)) {
         SetThrustRatio(0.1f);
         SetLightsLanding(dataRefs.GetLndLightsTaxi());
         SetLightsTaxi(true);
         SetLightsBeacon(true);
         SetLightsStrobe(false);
-        SetLightsNav(true);
-        
-        gear.down();
-        gearDeflection.half();
-        flaps.up();
     }
     
     // Phase Take Off

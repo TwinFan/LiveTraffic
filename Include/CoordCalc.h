@@ -239,6 +239,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
 /// Flight phase
 enum flightPhaseE : unsigned char {
     FPH_UNKNOWN     = 0,            ///< used for initializations
+    FPH_PARKED      = 5,            ///< Parked at startup position
     FPH_TAXI        = 10,           ///< Taxiing
     FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
     FPH_TO_ROLL,                    ///< Take-off roll
