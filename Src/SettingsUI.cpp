@@ -562,12 +562,79 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
-                if (ImGui::FilteredLabel("Simulator Time Control", sFilter)) {
-                    const float cbWidth = ImGui::CalcTextSize("Send Sim Time plus Buffering Period (default)_____").x;
+                if (ImGui::FilteredLabel("Request Historic Data", sFilter)) {
+                    float cbWidth = ImGui::CalcTextSize("Use live data, not historic_____").x;
                     ImGui::SetNextItemWidth(cbWidth);
                     int n = dataRefs.GetRTSTC();
-                    if (ImGui::Combo("##RTSTC", &n, "Don't send Simulator Time\0Send Simulator Time unchanged\0Send Sim Time plus Buffering Period (default)\0", 3))
+                    if (ImGui::Combo("##RTSTC", &n, "Use live data, not historic\0Configure date manually\0Send simulator time\0", 3))
                         DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL].setData(n);
+                    
+                    // Manually configured date
+                    if (SimTimeCtrlTy(n) == STC_SIM_TIME_MANUALLY) {
+                        char s[50];
+                        const std::time_t tNow = std::time(nullptr);
+                        const std::time_t tOfs = tNow - (std::time_t)dataRefs.GetRTManTOfs()*60;
+                        int bNewZulu = bRTZuluTime;
+                        ImGui::SetNextItemWidth(75);
+                        ImGui::Combo("##RTZulu", &bNewZulu, "Local\0Zulu\0");
+                        const std::tm tmOfs = bNewZulu ? *std::gmtime(&tOfs) : *std::localtime(&tOfs);
+                        if (!bRTModifyTOfs) {                                   // not currently modifying the time offset
+                            ImGui::SameLine();
+                            std::strftime(s, sizeof(s), "%d-%b-%Y %H:%M", &tmOfs);
+                            ImGui::TextUnformatted(s);
+                            ImGui::SameLine();
+                            if (ImGui::Button("Modify"))
+                                bRTModifyTOfs = true;
+                        } else {                                                // modifying the manual time offset
+                            if (!tmRTManTOfs.tm_mday)                           // first time edit?
+                                tmRTManTOfs = tmOfs;
+                            std::time_t tCurr =                             // time as per current GUI entries
+                            bRTZuluTime ? mktime_utc(tmRTManTOfs) : std::mktime(&tmRTManTOfs);
+                            if (bNewZulu != bRTZuluTime)                    // just switch Local<->Zulu? -> convert the GUI entries
+                                tmRTManTOfs = bNewZulu ? *std::gmtime(&tCurr) : *std::localtime(&tCurr);
+                            ImGui::SameLine();
+                            n = tmRTManTOfs.tm_mday - 1;
+                            ImGui::SetNextItemWidth(50);
+                            if (ImGui::Combo("##RTDay", &n, "01\0""02\0""03\0""04\0""05\0""06\0""07\0""08\0""09\0""10\0""11\0""12\0""13\0""14\0""15\0""16\0""17\0""18\0""19\0""20\0""21\0""22\0""23\0""24\0""25\0""26\0""27\0""28\0""29\0""30\0""31\0", 10))
+                                tmRTManTOfs.tm_mday = n+1;
+                            ImGui::SameLine();
+                            ImGui::SetNextItemWidth(50);
+                            ImGui::Combo("##RTMonth", &tmRTManTOfs.tm_mon, "Jan\0Feb\0Mar\0Apr\0May\0Jun\0Jul\0Aug\0Sep\0Oct\0Nov\0Dec\0", 12);
+                            ImGui::SameLine();
+                            std::tm tmNow = *std::localtime(&tNow);             // Year: this one and the previous
+                            snprintf(s, sizeof(s), "%d_%d_", tmNow.tm_year+1899, tmNow.tm_year+1900);
+                            s[4] = 0;
+                            s[9] = 0;
+                            n = tmRTManTOfs.tm_year == tmNow.tm_year ? 1 : 0;
+                            ImGui::SetNextItemWidth(75);
+                            if (ImGui::Combo("##RTYear", &n, s, 2))
+                                tmRTManTOfs.tm_year = n ? tmNow.tm_year : tmNow.tm_year-1;
+                            ImGui::SameLine();
+                            ImGui::Spacing();
+                            ImGui::SameLine();
+                            ImGui::SetNextItemWidth(50);
+                            ImGui::Combo("##RTHour", &tmRTManTOfs.tm_hour, "00\0""01\0""02\0""03\0""04\0""05\0""06\0""07\0""08\0""09\0""10\0""11\0""12\0""13\0""14\0""15\0""16\0""17\0""18\0""19\0""20\0""21\0""22\0""23\0", 10);
+                            ImGui::SameLine();
+                            ImGui::TextUnformatted(":");
+                            ImGui::SameLine();
+                            n = tmRTManTOfs.tm_min / 5;
+                            ImGui::SetNextItemWidth(50);
+                            if (ImGui::Combo("##RTMinute", &n, "00\0""05\0""10\0""15\0""20\0""25\0""30\0""35\0""40\0""45\0""50\0""55\0", 12))
+                                tmRTManTOfs.tm_min = n * 5;
+                            ImGui::SameLine();
+                            if (tCurr < tNow - 60) {                            // Current entry is in the past?
+                                if (ImGui::Button("Save")) {
+                                    const int tManOfs = int((tNow - tCurr + 59L) / 60L);
+                                    DATA_REFS_LT[DR_CFG_RT_MAN_TOFFSET].setData(tManOfs);
+                                    bRTModifyTOfs = false;
+                                }
+                            } else {
+                                ImGui::TextUnformatted("(Invalid: Must be in the past)");
+                            }
+                        }
+                        bRTZuluTime = bNewZulu;                                 // Save the Zulu/Local setting now
+                    }
+                    
                     ImGui::TableNextCell();
                 }
 

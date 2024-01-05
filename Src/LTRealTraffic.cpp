@@ -224,16 +224,28 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
     
     // Time offset: in minutes compared to now
     curr.tOff = 0L;
-    if (dataRefs.GetRTSTC() != STC_NO_CTRL &&       // Configured to send any offset
-        !dataRefs.IsUsingSystemTime())              // and not actually using system time
-    {
-        // Simulated 'now' in seconds since the epoch
-        const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
-        const time_t now = time(nullptr);
-        if (simNow < now) {
-            // offset between older 'simNow' and current 'now' in minutes
-            curr.tOff = (now - simNow) / 60L;
-        }
+    switch (dataRefs.GetRTSTC()) {
+        case STC_NO_CTRL:                           // don't send any ofset ever
+            curr.tOff = 0L;
+            break;
+            
+        case STC_SIM_TIME_MANUALLY:                 // send what got configured manually
+            curr.tOff = dataRefs.GetRTManTOfs();
+            break;
+            
+        case STC_SIM_TIME_PLUS_BUFFER:              // Send as per current simulation time
+            if (dataRefs.IsUsingSystemTime()) {     // Using system time means: No ofset
+                curr.tOff = 0;
+            } else {
+                // Simulated 'now' in seconds since the epoch
+                const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
+                const time_t now = time(nullptr);
+                // offset between older 'simNow' and current 'now' in minutes, minus buffering period
+                curr.tOff = (now - simNow - dataRefs.GetFdBufPeriod()) / 60L;
+                // must be positive
+                if (curr.tOff < 0) curr.tOff = 0;
+            }
+            break;
     }
     
     if (curr.sGUID.empty())                         // have no GUID? Need authentication
@@ -1025,18 +1037,23 @@ void RealTrafficConnection::SendTime (long long ts)
 // Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
 void RealTrafficConnection::SendXPSimTime()
 {
-    if (dataRefs.GetRTSTC() == STC_NO_CTRL)         // Configured to send nothing?
-        return;
-    
     // Which time stamp to send?
-    long long ts;
-    if (dataRefs.IsUsingSystemTime()) {             // Sim is using system time, so send system time
-        ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    } else {
-        ts = dataRefs.GetXPSimTime_ms();            // else send simulated time
-        if (dataRefs.GetRTSTC() == STC_SIM_TIME_PLUS_BUFFER)
-            // add buffering period if requested, so planes match up with simulator time exactly instead of being delayed
-            ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
+    long long ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    
+    switch (dataRefs.GetRTSTC()) {
+        case STC_NO_CTRL:                           // always use system time
+            break;
+            
+        case STC_SIM_TIME_MANUALLY:                 // time offset configured manually: Just deduct from 'now'
+            ts -= ((long long)dataRefs.GetRTManTOfs()) * 60000LL;
+            break;
+            
+        case STC_SIM_TIME_PLUS_BUFFER:              // Simulated time
+            if (!dataRefs.IsUsingSystemTime()) {    // not using system time:
+                ts = dataRefs.GetXPSimTime_ms();    // send simulated time
+                // add buffering period, so planes match up with simulator time exactly instead of being delayed
+                ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
+            }
     }
     
     SendTime(ts);

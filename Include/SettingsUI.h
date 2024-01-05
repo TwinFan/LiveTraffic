@@ -54,6 +54,9 @@ protected:
     // Channel: RealTraffic
     std::string sRTLicenseEntry;    ///< current RealTraffic license entry
     bool bRTLicClearText = false;   ///< Is RT License key displayed clear text?
+    std::tm tmRTManTOfs = {};       ///< Manually configured time offset
+    bool bRTModifyTOfs = false;     ///< Are we currently modifying the manual time offset?
+    bool bRTZuluTime = false;       ///< Enter time as ZULU or Local?
     std::string sRTPort;            ///< RealTraffic traffic port
     
     // Channel: FSCharter

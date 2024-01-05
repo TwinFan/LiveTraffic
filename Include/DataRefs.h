@@ -416,6 +416,7 @@ enum dataRefsLT {
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
     DR_CFG_RT_SIM_TIME_CTRL,
+    DR_CFG_RT_MAN_TOFFSET,
     DR_CFG_RT_CONNECT_TYPE,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
@@ -459,7 +460,7 @@ enum exportFDFormat {
 /// Which simulator time to send to RealTraffic?
 enum SimTimeCtrlTy : int {
     STC_NO_CTRL = 0,                    ///< Don't send any sim time
-    STC_SIM_TIME,                       ///< Send current sim time unchanged
+    STC_SIM_TIME_MANUALLY,              ///< Send current sim time unchanged
     STC_SIM_TIME_PLUS_BUFFER,           ///< Send current sim time plus buffering period, so that the traffic, when it appears, matches up with current sim time
 };
 
@@ -715,6 +716,7 @@ protected:
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
+    int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
     int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
     int bffUserPlane    = 1;            // bool Send User plane data?
@@ -978,6 +980,7 @@ public:
     
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
+    int GetRTManTOfs () const { return rtManTOfs; }             ///< [min] manually configured time offset in minutes
     RTConnTypeTy GetRTConnType () const { return rtConnType; }
     const std::string& GetRTLicense () const { return sRTLicense; }
     void SetRTLicense (const std::string& license) { sRTLicense = license; }
