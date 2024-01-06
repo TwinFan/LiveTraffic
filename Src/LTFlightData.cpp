@@ -2174,33 +2174,37 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
         // or in other words: new ts + refresh period > old ts + outdated period
         if (!dynDataDeque.empty()) {
             const FDDynamicData& last = dynDataDeque.back();
-            if (inDyn.pChannel && last.pChannel != inDyn.pChannel)
+            const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
+            if (inDyn.pChannel && pLstChn != inDyn.pChannel)
             {
                 // Firstly, if no a/c yet created, then we prioritize with
                 // which channel an a/c is created. The higher the channel
                 // number the better.
-                if (!hasAc() &&
-                    last.pChannel &&
-                    inDyn.pChannel->GetChannel() <= last.pChannel->GetChannel())
-                    // lower prio -> ignore data
-                    return;
-                
-                // If there is an aircraft then we only switch if there are
-                // no positions waiting any longer, ie. we run into danger to run out of positions
-                if (hasAc()) {
-                    if (!posDeque.empty())
+                if (!hasAc()) {
+                    if (pLstChn && inDyn.pChannel->GetChannel() <= pLstChn->GetChannel())
+                        // lower prio -> ignore data
                         return;
-                    
-                    // new position must be significantly _after_ current 'to' pos
-                    // so that current channel _really_ had its chance to sent an update:
-                    const double tsCutOff = pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2;
-                    if (inDyn.ts < tsCutOff)
-                        return;
+                }
+                // has already an aircraft
+                else {
+                    // Synthetic channels are to be kicked out as soon as any other channel has data,
+                    // ie. only for other types we still consider skipping the data:
+                    if (pLstChn && pLstChn->GetChType() != LTChannel::CHT_SYNTHETIC_DATA)
+                    {
+                        // If there still are position to be processed we don't switch channel
+                        if (!posDeque.empty())
+                            return;
+                        
+                        // new position must be significantly _after_ current 'to' pos
+                        // so that current channel _really_ had its chance to sent an update:
+                        const double tsCutOff = pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2;
+                        if (inDyn.ts < tsCutOff)
+                            return;
+                    }
                 }
 
                 // We accept the channel switch...clear out any old channel's data
                 // so we throw away the lower prio channel's data
-                const LTChannel* pLstChn = last.pChannel;           // last is going to become invalid, save the ptr for the log message
                 dynDataDeque.clear();
                 posDeque.clear();
                 LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,

@@ -172,8 +172,20 @@
             </ul>
         </li>
         <li>
-            Added flight phase "Parked" for those planes stopped on a known startup position.
-            Parked planes don't appear on TCAS or external tools.
+            Parked Aircraft
+            <ul>
+                <li>
+                    Added flight phase "Parked" for those planes stopped on a known startup position.
+                    Parked planes don't appear on TCAS or external tools.
+                </li>
+                <li>
+                    Added <a href="https://github.com/TwinFan/LiveTraffic/issues/255">#255</a>
+                    option to keep parked aircraft even after they receive no more
+                    live position updates. See "Settings > Basics > Cooperation >
+                    Keep parked aircraft", enabled by default. They appear with
+                    channel "Synthetic" in the Aircraft List.
+                </li>
+            </ul>
         </li>
         <li>
             Fixed too many channel switches, especially when ADSBHub was involved

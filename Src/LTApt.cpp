@@ -2699,6 +2699,37 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
 }
 
 
+// Find close-by startup position
+positionTy LTAptFindStartupLoc (const positionTy& pos,
+                                double maxDist,
+                                double* outDist)
+{
+    // Access to the list of airports is guarded by a lock
+    std::lock_guard<std::mutex> lock(mtxGMapApt);
+
+    // Which airport are we looking at?
+    Apt* pApt = LTAptFind(pos);
+    if (!pApt) {                        // not a position in any airport's bounding box
+        if (outDist) *outDist = NAN;
+        return positionTy();
+    }
+
+    // Let's go find!
+    if (std::isnan(maxDist))
+        maxDist = dataRefs.GetFdSnapTaxiDist_m() * 3;       // same as in SnapToTaxiway()
+    const StartupLoc* pSuL = pApt->FindStartupLoc(pos, maxDist, outDist);
+    if (!pSuL)
+        return positionTy();
+    else {
+        positionTy ret (pSuL->lat, pSuL->lon, NAN, NAN, pSuL->heading);
+        ret.f.bHeadFixed    = true;
+        ret.f.onGrnd        = GND_ON;
+        ret.f.specialPos    = SPOS_STARTUP;
+        return ret;
+    }
+}
+
+
 // Snaps the passed-in position to the nearest rwy or taxiway if appropriate
 bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
                 bool bInsertTaxiTurns)

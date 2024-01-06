@@ -206,6 +206,8 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
                 ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
                 ImGui::FilteredCfgCheckbox("Hide static objects", sFilter, DR_CFG_HIDE_STATIC_TWR,      "Do not display static objects like towers");
+                ImGui::FilteredCfgCheckbox("Keep parked aircraft", sFilter, DR_CHANNEL_SYNTHETIC,
+                                           "Keep parked aircraft in their parking position even when no live tracking data is available any longer.");
                 ImGui::FilteredCfgCheckbox("Use 3rd party camera", sFilter, DR_CFG_EXTERNAL_CAMERA, "Don't activate LiveTraffic's camera view when clicking the camera button\nbut expect a 3rd party camera plugin to spring on instead");
                 if (ImGui::FilteredLabel("XPMP2 Remote Client support", sFilter)) {
                     const float cbWidth = ImGui::CalcTextSize("Auto Detect (default)_____").x;

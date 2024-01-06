@@ -3168,7 +3168,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          stbtt__active_edge * z = *step;
          if (z->ey <= scan_y_top) {
             *step = z->next; // delete from list
-            STBTT_assert(z->direction);
+            STBTT_assert(bool(z->direction));       // TwinFan: Silenced compiler warning on implicit type cast
             z->direction = 0;
             stbtt__hheap_free(&hh, z);
          } else {

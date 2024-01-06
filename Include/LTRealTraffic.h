@@ -1,12 +1,16 @@
 /// @file       LTRealTraffic.h
 /// @brief      RealTraffic: Receives and processes live tracking data
 /// @see        https://rtweb.flyrealtraffic.com/
-/// @details    Defines RealTrafficConnection:\n
-///             - Sends current position to RealTraffic app\n
-///             - Receives tracking data via UDP\n
-///             - Interprets the response and passes the tracking data on to LTFlightData.\n
+/// @details    Defines RealTrafficConnection in two different variants:\n
+///             - Direct Connection:
+///               - Expects RealTraffic license information
+///               - Sends authentication, weather, and tracking data requests to RealTraffic servcers
+///             - via RealTraffic app
+///               - Sends current position to RealTraffic app\n
+///               - Receives tracking data via UDP\n
+///               - Interprets the response and passes the tracking data on to LTFlightData.\n
 /// @author     Birger Hoppe
-/// @copyright  (c) 2019-2020 Birger Hoppe
+/// @copyright  (c) 2019-2024 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation

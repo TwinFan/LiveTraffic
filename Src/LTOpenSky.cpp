@@ -419,6 +419,7 @@ void OpenSkyAcMasterdata::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_OpSkyMaster", LC_ALL_MASK);
+    RegisterMasterDataChn(this);                // Register myself as a master data channel
     tSetRequCleared = dataRefs.GetMiscNetwTime();
     
     while ( shallRun() ) {
@@ -466,6 +467,7 @@ void OpenSkyAcMasterdata::Main ()
         setAcStatRequ.clear();
     else
         MaintainMasterDataRequests();       // otherwise clear up and pass on
+    UnregisterMasterDataChn(this);          // Unregister myself as a master data channel
 }
 
 
@@ -635,6 +637,7 @@ void OpenSkyAcMasterFile::Main ()
     }
     
     // Loop to process requests
+    RegisterMasterDataChn(this);            // Unregister myself as a master data channel
     tSetRequCleared = dataRefs.GetMiscNetwTime();
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -678,6 +681,7 @@ void OpenSkyAcMasterFile::Main ()
         setAcStatRequ.clear();
     else
         MaintainMasterDataRequests();       // otherwise clear up and pass on
+    UnregisterMasterDataChn(this);          // Unregister myself as a master data channel
 }
 
 /// @brief Extract the hexId from an OpenSky ac database line, `0` if invalid
@@ -876,7 +880,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         }
         
         // File is open and good to read
-        LOG_MSG(logDEBUG, "Processing %s as aircraft datavse", filePath.c_str());
+        LOG_MSG(logDEBUG, "Processing %s as aircraft database", filePath.c_str());
         mapPos.clear();
         fAcDb.seekg(0);
         

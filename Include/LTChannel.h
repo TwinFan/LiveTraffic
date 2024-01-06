@@ -46,6 +46,7 @@ public:
     enum LTChannelType {
         CHT_UNKNOWN = 0,
         CHT_TRACKING_DATA,
+        CHT_SYNTHETIC_DATA,         ///< data created internally by LiveTraffic, like kept parked aircraft, has lower priority than any real-life data
         CHT_MASTER_DATA,
         CHT_TRAFFIC_SENDER,         // sends out data (not receiving)
     };
@@ -192,8 +193,8 @@ protected:
     mutable float timeLastAcCnt = 0.0;      ///< when did we last count the a/c served by this channel?
     mutable int     numAcServed = 0;        ///< how many a/c do we feed when counted last?
 public:
-    LTFlightDataChannel (dataRefsLT ch, const char* chName) :
-        LTOnlineChannel(ch, CHT_TRACKING_DATA, chName) {}
+    LTFlightDataChannel (dataRefsLT ch, const char* chName, LTChannelType eType = CHT_TRACKING_DATA) :
+        LTOnlineChannel(ch, eType, chName) {}
     int GetNumAcServed () const override;   ///< how many a/c do we feed when counted last?
 };
 
@@ -315,6 +316,8 @@ protected:
     /// @brief Register a master data channel, that will be called to process requests
     /// @note The order, in which registration happens, serves as a priority
     static void RegisterMasterDataChn (LTACMasterdataChannel* pChn);
+    /// Unregister a mster data channel
+    static void UnregisterMasterDataChn (LTACMasterdataChannel* pChn);
     /// Generically, uniquely add request to fetch data (returns `true` if added, `false` if duplicate)
     static bool RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
                                    const std::string& callSign,

@@ -426,6 +426,7 @@ enum dataRefsLT {
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
     DR_CHANNEL_FORE_FLIGHT_SENDER,
+    DR_CHANNEL_SYNTHETIC,
     DR_CHANNEL_FSCHARTER,
     DR_CHANNEL_OPEN_GLIDER_NET,
     DR_CHANNEL_ADSB_HUB,

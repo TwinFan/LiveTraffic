@@ -260,7 +260,7 @@ std::string LTChannel::GetStatusText () const
         return buf;
     }
     // Active, but not a channel for tracking data
-    if (GetChType() != CHT_TRACKING_DATA)   return "Active";
+    if (GetChType() >= CHT_MASTER_DATA)   return "Active";
     // An active source of tracking data...for how many aircraft?
     snprintf (buf, sizeof(buf), "Active, serving %d aircraft",
               GetNumAcServed());
@@ -304,10 +304,7 @@ std::list<LTACMasterdataChannel*> LTACMasterdataChannel::lstChn;
 // Constructor
 LTACMasterdataChannel::LTACMasterdataChannel (dataRefsLT ch, const char* chName) :
 LTOnlineChannel(ch, CHT_MASTER_DATA, chName)
-{
-    // Register myself as a master data channel
-    RegisterMasterDataChn(this);
-}
+{}
 
 /// Add the request to the set if not duplicate
 bool LTACMasterdataChannel::InsertRequest (const acStatUpdateTy& r)
@@ -467,6 +464,19 @@ void LTACMasterdataChannel::RegisterMasterDataChn (LTACMasterdataChannel* pChn)
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
     }
 }
+
+// Unregister a mster data channel
+void LTACMasterdataChannel::UnregisterMasterDataChn (LTACMasterdataChannel* pChn)
+{
+    try {
+        std::lock_guard<std::recursive_mutex> lock (mtxMaster);
+        // just remove the channel
+        lstChn.remove(pChn);
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
+    }
+}
+
 
 // Add request to fetch data
 bool LTACMasterdataChannel::RequestMasterData (const LTFlightData::FDKeyTy& keyAc,
@@ -858,6 +868,7 @@ bool LTFlightDataEnable()
     listFDC.emplace_back(new ADSBHubConnection());
     listFDC.emplace_back(new OpenGliderConnection);
     listFDC.emplace_back(new FSCConnection);
+    listFDC.emplace_back(new SyntheticConnection);
     // load online master data connections
     listFDC.emplace_back(new OpenSkyAcMasterFile);
     listFDC.emplace_back(new OpenSkyAcMasterdata);

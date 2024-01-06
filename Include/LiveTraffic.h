@@ -141,6 +141,7 @@ extern DataRefs dataRefs;
 #include "LTADSBHub.h"
 #include "LTOpenGlider.h"
 #include "LTFSCharter.h"
+#include "LTSynthetic.h"
 
 //MARK: Global Control functions
 bool LTMainInit ();

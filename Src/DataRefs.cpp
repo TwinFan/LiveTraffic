@@ -571,6 +571,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/synthetic/intern",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -747,11 +748,12 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable OpenSky and OGN by default
+    // enable OpenSky, OGN, and Synthetic by default
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_SYNTHETIC               - DR_CHANNEL_FIRST] = true;
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));

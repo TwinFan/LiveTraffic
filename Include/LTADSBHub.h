@@ -76,7 +76,7 @@ protected:
 public:
     /// Constructor
     ADSBHubConnection ();
-    /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
+    /// No URL involved
     std::string GetURL (const positionTy&) override { return ""; }
     /// @brief Processes the fetched data
     bool ProcessFetchedData () override { return true; };

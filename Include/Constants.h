@@ -73,6 +73,7 @@ constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintena
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
