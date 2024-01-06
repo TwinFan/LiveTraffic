@@ -1469,18 +1469,6 @@ std::string LTAircraft::GetFlightPhaseRwyString() const
 }
 
 
-// is the aircraft on a STARTUP position?
-bool LTAircraft::IsParked() const
-{
-    return IsOnGrnd() &&                                //     must be on ground
-    speed.m_s() < 0.5 &&                                // AND very slow
-    (ppos.f.specialPos == SPOS_STARTUP ||               // AND (   current pos is STARTUP)
-     (posList.size() >= 2 &&                            //      OR (to AND from pos are STARTUP)
-      (posList.front().f.specialPos == SPOS_STARTUP &&
-       posList[1].f.specialPos == SPOS_STARTUP)));
-}
-
-
 // is the aircraft on a rwy (on ground and at least on pos on rwy)
 bool LTAircraft::IsOnRwy() const
 {
@@ -1995,7 +1983,13 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // *** decide the flight phase ***
     
     // Parked?
-    if ( IsParked() )
+    if (bOnGrnd &&                                      //     must be on ground
+        speed.m_s() < 0.5 &&                            // AND very slow
+        !IsGroundVehicle() &&                           // AND NOT a car
+        (ppos.f.specialPos == SPOS_STARTUP ||           // AND (   current pos is STARTUP)
+         (posList.size() >= 2 &&                        //      OR (to AND from pos are STARTUP)
+          (posList.front().f.specialPos == SPOS_STARTUP &&
+           posList[1].f.specialPos == SPOS_STARTUP))))
     {
         phase = FPH_PARKED;
     }
@@ -2948,10 +2942,10 @@ void LTAircraft::UpdatePosition (float, int cycle)
             }
         }
         
-        // If taxiing on the ground (but not on rwy), but we shall not forward gnd a/c to TCAS/AI
-        // -> deactivate TCAS
+        // -> deactivate TCAS in some cases like parked or taxiing outside runway
         // (will be re-activated by the above code every 100th cycle)
-        if (dataRefs.IsAINotOnGnd() && !IsOnRwy() && phase == FPH_TAXI)
+        if (phase == FPH_PARKED ||
+            (dataRefs.IsAINotOnGnd() && !IsOnRwy() && phase == FPH_TAXI))
             acRadar.mode = xpmpTransponderMode_Standby;
 
         // *** Informational Texts ***

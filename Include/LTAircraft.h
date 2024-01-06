@@ -364,7 +364,6 @@ public:
     inline flightPhaseE GetFlightPhase() const { return phase; }
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
-    bool IsParked() const;              ///< is the aircraft on a STARTUP position?
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
     inline double GetHeading() const { return ppos.heading() + corrAngle.is(); }
     inline double GetTrack() const { return vec.angle; }
