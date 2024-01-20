@@ -245,7 +245,7 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
                 const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
                 const time_t now = time(nullptr);
                 // offset between older 'simNow' and current 'now' in minutes, minus buffering period
-                curr.tOff = (now - simNow - dataRefs.GetFdBufPeriod()) / 60L;
+                curr.tOff = long(now - simNow - dataRefs.GetFdBufPeriod()) / 60L;
                 // must be positive
                 if (curr.tOff < 0) curr.tOff = 0;
             }

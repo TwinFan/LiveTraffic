@@ -140,6 +140,7 @@
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
         <li><code>Resources/Doc8643.txt</code></li>
         <li><code>Resources/related.txt</code></li>
+        <li><code>Resources/relOp.txt</code> (new file, optional)</li>
     </ul>
 
     <P>Change log:</P>
@@ -164,7 +165,7 @@
                     provide good plane type information already.
                 </li>
                 <li>
-                    Added new OpenSky Master Data channel for lookup of plane type information,
+                    Added new OpenSky Master Data File channel for lookup of plane type information,
                     which bases on monthly download of a "database" file rather than
                     individual network requests per plane.
                     Should work even if OpenSky API is down.
@@ -188,6 +189,17 @@
             </ul>
         </li>
         <li>
+            Added <a href="https://github.com/TwinFan/XPMP2/issues/64">XPMP2 issue #64</a>
+            airline mapping in new file <code>relOp.txt</code>,
+            which allows to use same liveries for subsidaries of mother airline companies,
+            like using EIN (Aer Lingus Ireland) liveries for EUK (Aer Lingus UK) flights.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/XPMP2/issues/65">XPMP2 issue #65</a>
+            using all network interfaces for <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/xpmp2-remote-client">remote functionality</a>.
+            If you use it, also update the <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">Remote Client</a>.
+        </li>
+        <li>
             Fixed too many channel switches, especially when ADSBHub was involved
             in addition to other channels.
         </li>
@@ -195,6 +207,7 @@
             Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/261">#261</a>
             hiding of static objects.
         </li>
+        <li>Reduced floating ground aircraft with ADS-B Exchange.</li>
     </ul>
     
     <h3>v3.4.3</h3>

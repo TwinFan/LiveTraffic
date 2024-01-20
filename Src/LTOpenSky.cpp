@@ -602,7 +602,7 @@ bool OpenSkyAcMasterdata::ProcessRouteInfo (JSON_Object* pJRoute)
 
 // Constructor
 OpenSkyAcMasterFile::OpenSkyAcMasterFile () :
-LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, OPSKY_MD_NAME)
+LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, OPSKY_MD_DB_NAME)
 {
     // purely informational
     urlName  = OPSKY_MD_CHECK_NAME;
