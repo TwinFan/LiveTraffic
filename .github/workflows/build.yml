@@ -9,6 +9,7 @@ on:
 # Let's set all project specific definitions globally
 env:
   PRJ_NAME:     LiveTraffic            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
+  version_beta: ${{ github.ref != 'refs/heads/master' && '1' || '0' }}      # On non-master branches we build BETA versions
 
 jobs:
   #####################################

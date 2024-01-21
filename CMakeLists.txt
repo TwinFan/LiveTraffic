@@ -21,15 +21,26 @@ project(LiveTraffic
         VERSION 3.5.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
+# Building a Beta version can be demanded via ENV variable 'version_beta' being set to 1
+set(VERSION_BETA 0)
+if(DEFINED ENV{version_beta})
+    if ($ENV{version_beta} GREATER 0)
+        set(VERSION_BETA 1)
+    endif()
+endif()
+
 # Provide compile macros from the above project version definition
 add_compile_definitions(
-    LIVETRAFFIC_VERSION_BETA=0
+    LIVETRAFFIC_VERSION_BETA=${VERSION_BETA}
     LIVETRAFFIC_VER_MAJOR=${PROJECT_VERSION_MAJOR}
     LIVETRAFFIC_VER_MINOR=${PROJECT_VERSION_MINOR}
     LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
 )
 
 message("== Building: ${PROJECT_NAME} ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} ==")
+if (VERSION_BETA)
+    message("             BETA Version")
+endif()
 
 ################################################################################
 # Target Systems
