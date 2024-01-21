@@ -892,15 +892,9 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         unsigned long prevHexId = 0;
         unsigned long lnNr = 0;
         while (fAcDb.good()) {
-            std::ifstream::pos_type pos = fAcDb.tellg();        // current position _before_ reading the line
+            const std::ifstream::pos_type pos = fAcDb.tellg();  // current position _before_ reading the line
             safeGetline(fAcDb, ln);
             
-            std::ifstream::pos_type posAfter = fAcDb.tellg();   // current position _after_ reading the line
-            
-            char s[100];
-            snprintf(s, sizeof(s), "%lld - %lld", std::streamoff(pos), std::streamoff(posAfter));
-            
-
             // Here, we are only interested in the very first field, the hexId
             unsigned long hexId = GetHexId(ln);
             if (hexId) {

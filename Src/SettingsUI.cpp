@@ -592,7 +592,7 @@ void LTSettingsUI::buildInterface()
                                 tmRTManTOfs = tmOfs;
                             std::time_t tCurr =                             // time as per current GUI entries
                             bRTZuluTime ? mktime_utc(tmRTManTOfs) : std::mktime(&tmRTManTOfs);
-                            if (bNewZulu != bRTZuluTime)                    // just switch Local<->Zulu? -> convert the GUI entries
+                            if (bool(bNewZulu) != bRTZuluTime)                  // just switch Local<->Zulu? -> convert the GUI entries
                                 tmRTManTOfs = bNewZulu ? *std::gmtime(&tCurr) : *std::localtime(&tCurr);
                             ImGui::SameLine();
                             n = tmRTManTOfs.tm_mday - 1;
