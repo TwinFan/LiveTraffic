@@ -422,7 +422,7 @@ void OpenGliderConnection::APRSMain ()
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the TCP socket gracefully
         if (pipe(aprsPipe) < 0)
-            throw NetRuntimeError("Couldn't create pipe");
+            throw XPMP2::NetRuntimeError("Couldn't create pipe");
         fcntl(aprsPipe[0], F_SETFL, O_NONBLOCK);
         maxSock = std::max(maxSock, aprsPipe[0]+1);
 #endif
@@ -455,9 +455,9 @@ void OpenGliderConnection::APRSMain ()
 
             // select call failed???
             if (retval == -1)
-                throw NetRuntimeError("'select' failed");
+                throw XPMP2::NetRuntimeError("'select' failed");
             else if (retval == 0)
-                throw NetRuntimeError("'select' ran into a timeout");
+                throw XPMP2::NetRuntimeError("'select' ran into a timeout");
 
             // select successful - traffic data
             if (retval > 0 && FD_ISSET(tcpAprs.getSocket(), &sRead))
@@ -470,10 +470,10 @@ void OpenGliderConnection::APRSMain ()
                 {
                     // have it processed
                     if (!APRSProcessData(tcpAprs.getBuf()))
-                        throw NetRuntimeError("APRSProcessData failed");
+                        throw XPMP2::NetRuntimeError("APRSProcessData failed");
                 }
                 else
-                    throw NetRuntimeError("Read no data from TCP socket ");
+                    throw XPMP2::NetRuntimeError("Read no data from TCP socket ");
             }
 
             // Send a keep-alive every 15 minutes

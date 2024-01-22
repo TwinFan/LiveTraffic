@@ -132,7 +132,7 @@ extern DataRefs dataRefs;
 #include "LTWeather.h"
 
 // LiveTraffic channels
-#include "Network.h"
+#include "../Lib/XPMP2/src/Network.h"
 #include "LTChannel.h"
 #include "LTForeFlight.h"
 #include "LTRealTraffic.h"

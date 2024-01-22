@@ -691,7 +691,7 @@ void RealTrafficConnection::MainUDP ()
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the UDP socket gracefully
         if (pipe(udpPipe) < 0)
-            throw NetRuntimeError("Couldn't create pipe");
+            throw XPMP2::NetRuntimeError("Couldn't create pipe");
         fcntl(udpPipe[0], F_SETFL, O_NONBLOCK);
         maxSock = std::max(maxSock, udpPipe[0]+1);
 #endif
@@ -717,7 +717,7 @@ void RealTrafficConnection::MainUDP ()
 
             // select call failed???
             if(retval == -1)
-                throw NetRuntimeError("'select' failed");
+                throw XPMP2::NetRuntimeError("'select' failed");
 
             // select successful - traffic data
             if (retval > 0 && FD_ISSET(udpTrafficData.getSocket(), &sRead))

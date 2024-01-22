@@ -24,7 +24,6 @@
 		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
 		256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
 		256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */; };
-		257363172222C879005210C5 /* Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 257363162222C879005210C5 /* Network.cpp */; };
 		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
 		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
 		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
@@ -118,8 +117,6 @@
 		256CA1D2248C6137009F4AAE /* build_LiveTraffic */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_LiveTraffic; sourceTree = "<group>"; };
 		256ECE02274AB6D300B02B8F /* LTFSCharter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFSCharter.h; sourceTree = "<group>"; };
 		256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTFSCharter.cpp; sourceTree = "<group>"; };
-		257363162222C879005210C5 /* Network.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Network.cpp; sourceTree = "<group>"; };
-		257363182222C8E2005210C5 /* Network.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Network.h; sourceTree = "<group>"; };
 		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
 		2573631B22233041005210C5 /* LTRealTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTRealTraffic.h; sourceTree = "<group>"; };
 		2573631C22233CCA005210C5 /* LTOpenSky.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTOpenSky.h; sourceTree = "<group>"; };
@@ -313,7 +310,6 @@
 				25EF90032B497C6100D7C805 /* LTSynthetic.cpp */,
 				25ABEEFD219A1C2100F61413 /* LTVersion.cpp */,
 				254F278824EF230400CACCDA /* LTWeather.cpp */,
-				257363162222C879005210C5 /* Network.cpp */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
 			);
@@ -446,7 +442,6 @@
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
 				25EF90052B497C7900D7C805 /* LTSynthetic.h */,
 				254F278724EF22FE00CACCDA /* LTWeather.h */,
-				257363182222C8E2005210C5 /* Network.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
 				25A095BE2203B01300658AA8 /* TextIO.h */,
 			);
@@ -682,7 +677,6 @@
 				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */,
 				254F278924EF230400CACCDA /* LTWeather.cpp in Sources */,
-				257363172222C879005210C5 /* Network.cpp in Sources */,
 				25EF90042B497C6100D7C805 /* LTSynthetic.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,

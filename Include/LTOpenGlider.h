@@ -162,7 +162,7 @@ class OpenGliderConnection : public LTFlightDataChannel
 {
 protected:
     // APRS connection to receives tracking data
-    TCPConnection tcpAprs;          ///< TCP connection to aprs.glidernet.org
+    XPMP2::TCPConnection tcpAprs;   ///< TCP connection to aprs.glidernet.org
     positionTy aprsPos;             ///< the search position with which we are connected to the tcp server
 #if APL == 1 || LIN == 1
     /// the self-pipe to shut down the APRS thread gracefully

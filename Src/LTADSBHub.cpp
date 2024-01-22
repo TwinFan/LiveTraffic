@@ -134,7 +134,7 @@ void ADSBHubConnection::Main ()
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the TCP socket gracefully
         if (pipe(streamPipe) < 0)
-            throw NetRuntimeError("Couldn't create pipe");
+            throw XPMP2::NetRuntimeError("Couldn't create pipe");
         fcntl(streamPipe[0], F_SETFL, O_NONBLOCK);
         maxSock = std::max(maxSock, streamPipe[0]+1);
 #endif
@@ -158,9 +158,9 @@ void ADSBHubConnection::Main ()
 
             // select call failed???
             if (retval == -1)
-                throw NetRuntimeError("'select' failed");
+                throw XPMP2::NetRuntimeError("'select' failed");
             else if (retval == 0)
-                throw NetRuntimeError("'select' ran into a timeout");
+                throw XPMP2::NetRuntimeError("'select' ran into a timeout");
 
             // select successful - traffic data
             if (retval > 0 && FD_ISSET(tcpStream.getSocket(), &sRead))
@@ -186,15 +186,15 @@ void ADSBHubConnection::Main ()
                     switch (eFormat) {
                         case FMT_SBS:
                             if (!StreamProcessDataSBS(size_t(rcvdBytes), tcpStream.getBuf()))
-                                throw NetRuntimeError("StreamProcessDataSBS failed");
+                                throw XPMP2::NetRuntimeError("StreamProcessDataSBS failed");
                             break;
                         case FMT_ComprVRS:
                             if (!StreamProcessDataVRS(size_t(rcvdBytes), (const uint8_t*)tcpStream.getBuf()))
-                                throw NetRuntimeError("StreamProcessDataVRS failed");
+                                throw XPMP2::NetRuntimeError("StreamProcessDataVRS failed");
                             break;
                         case FMT_NULL_DATA:
                         case FMT_UNKNOWN:
-                            throw NetRuntimeError("Format yet unknown, received too few data");
+                            throw XPMP2::NetRuntimeError("Format yet unknown, received too few data");
                     }
                 }
                 else {
@@ -202,7 +202,7 @@ void ADSBHubConnection::Main ()
                     eFormat = FMT_NULL_DATA;
                     SHOW_MSG(logERR, "Received no data from ADSBHub. Verify 'Read Access' configuration at ADSBHub!%s",
                              sPublicIPv4addr.empty() ? "" : (std::string("\nYour public IP address appears to be ") + sPublicIPv4addr).c_str());
-                    throw NetRuntimeError("Read no data from TCP socket (IP address correctly set up in ADSBHub settings?)");
+                    throw XPMP2::NetRuntimeError("Read no data from TCP socket (IP address correctly set up in ADSBHub settings?)");
                 }
             }
         }

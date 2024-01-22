@@ -31,7 +31,6 @@
 #define LTRealTraffic_h
 
 #include "LTChannel.h"
-#include "Network.h"
 
 //
 // MARK: RealTraffic Constants
@@ -277,12 +276,12 @@ protected:
 
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
-    TCPConnection tcpPosSender;             ///< TCP connection to communicate with RealTraffic
+    XPMP2::TCPConnection tcpPosSender;      ///< TCP connection to communicate with RealTraffic
     /// Status of the separate TCP listening thread
     volatile ThrStatusTy eTcpThrStatus = THR_NONE;
 
     // UDP sockets
-    UDPReceiver udpTrafficData;
+    XPMP2::UDPReceiver udpTrafficData;
 #if APL == 1 || LIN == 1
     // the self-pipe to shut down the UDP listener thread gracefully
     SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };

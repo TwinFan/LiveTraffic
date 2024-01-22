@@ -164,7 +164,6 @@ set(Header_Files
     Include/LTRealTraffic.h
     Include/LTSynthetic.h
     Include/LTWeather.h
-    Include/Network.h
     Include/SettingsUI.h
     Include/TextIO.h
     Lib/base64/base64.h
@@ -211,7 +210,6 @@ set(Source_Files
     Src/LTSynthetic.cpp
     Src/LTVersion.cpp
     Src/LTWeather.cpp
-    Src/Network.cpp
     Src/SettingsUI.cpp
     Src/TextIO.cpp
     Lib/base64/base64.c

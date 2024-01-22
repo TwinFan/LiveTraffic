@@ -25,7 +25,6 @@
 #define LTForeFlight_h
 
 #include "LTChannel.h"
-#include "Network.h"
 
 //
 // MARK: ForeFlight Constants
@@ -54,7 +53,7 @@ class ForeFlightSender : public LTOutputChannel
 {
 protected:
     // UDP sender
-    UDPReceiver udpSender;
+    XPMP2::UDPReceiver udpSender;
     // time points last sent something
     std::chrono::steady_clock::time_point nextGPS;
     std::chrono::steady_clock::time_point nextAtt;

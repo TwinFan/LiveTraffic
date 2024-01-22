@@ -44,7 +44,7 @@
 class ADSBHubConnection : public LTFlightDataChannel
 {
 protected:
-    TCPConnection tcpStream;        ///< TCP connection to data.adsbhub.org:5002
+    XPMP2::TCPConnection tcpStream; ///< TCP connection to data.adsbhub.org:5002
 #if APL == 1 || LIN == 1
     /// the self-pipe to shut down the TCP thread gracefully
     SOCKET streamPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
