@@ -79,7 +79,9 @@ void ForeFlightSender::Main ()
     const uint16_t portListen   = (uint16_t)DataRefs::GetCfgInt(DR_CFG_FF_LISTEN_PORT);
     const uint16_t portSend     = (uint16_t)DataRefs::GetCfgInt(DR_CFG_FF_SEND_PORT);
     XPMP2::SockAddrTy saSend;
+    saSend.sa.sa_family = AF_INET;
     saSend.setPort(portListen);                 // we only set the port so that in error message it shows up, will be overwritten upon first successful recv operation
+
     state = FF_STATE_NONE;
 
     // Top-Level Exception Handling
@@ -95,7 +97,7 @@ void ForeFlightSender::Main ()
             long num = udp.timedRecv(500, nullptr, &saSend);    // 0,5s timeout
             if (num < 0) {
 #if IBM
-                if (errno == WSAEWOULDBLOCK) continue;          // just try again
+                if (WSAGetLastError() == WSAEWOULDBLOCK) continue;// just try again
 #else
                 if (errno == EAGAIN) continue;                  // just try again
 #endif
