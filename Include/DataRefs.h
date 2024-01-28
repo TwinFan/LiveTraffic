@@ -418,6 +418,7 @@ enum dataRefsLT {
     DR_CFG_RT_SIM_TIME_CTRL,
     DR_CFG_RT_MAN_TOFFSET,
     DR_CFG_RT_CONNECT_TYPE,
+    DR_CFG_FF_LISTEN_PORT,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
     DR_CFG_FF_SEND_TRAFFIC,
@@ -719,7 +720,8 @@ protected:
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
-    int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
+    int ffListenPort    = 63093;        ///< UDP Port to listen to ForeFlight announcing itself, https://www.foreflight.com/connect/spec/
+    int ffSendPort      = 49002;        ///< UDP Port to send simulator data to ForeFlight, https://www.foreflight.com/support/network-gps/
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
     int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info

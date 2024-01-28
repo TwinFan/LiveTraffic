@@ -563,6 +563,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/real_traffic/man_toffset",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,     GET_VAR, true },
     {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/fore_flight/listen_port", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -653,6 +654,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
         case DR_CFG_RT_MAN_TOFFSET:         return &rtManTOfs;
         case DR_CFG_RT_CONNECT_TYPE:        return &rtConnType;
+        case DR_CFG_FF_LISTEN_PORT:         return &ffListenPort;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
         case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
@@ -1728,6 +1730,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         contrailAltMin_ft < 0               || contrailAltMin_ft> 90000 ||
         contrailAltMax_ft < 0               || contrailAltMax_ft> 90000 ||
         contrailLifeTime < 5                || contrailLifeTime >   300 ||
+        ffListenPort    < 1024              || ffListenPort     > 65535 ||
         ffSendPort      < 1024              || ffSendPort       > 65535 ||
         fscEnv          < 0                 || fscEnv           > 1
         )

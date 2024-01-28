@@ -123,6 +123,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "XPMP2::SocketNetworking::recv(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;*, XPMP2::SockAddrTy*):Network.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
@@ -310,6 +313,9 @@
          contextName = "TFWidget::Show(bool):TFWidgets.cpp">
       </ContextState>
       <ContextState
+         contextName = "ForeFlightSender::Main():LTForeFlight.cpp">
+      </ContextState>
+      <ContextState
          contextName = "ADSBExchangeHistorical::FetchAllData(positionTy const&amp;):LTChannel.cpp">
       </ContextState>
       <ContextState
@@ -369,6 +375,9 @@
       </ContextState>
       <ContextState
          contextName = "LTFlightData::AppendNewPos():LTFlightData.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "SyntheticConnection::ProcessFetchedData():LTSynthetic.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::GetLocalDateDays():DataRefs.h">
@@ -805,6 +814,14 @@
          contextName = "CreateMsgWindow(float, logLevelTy, char const*, ...):TextIO.cpp">
       </ContextState>
       <ContextState
+         contextName = "XPMP2::SocketNetworking::Connect(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;, int, unsigned long, unsigned int):Network.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "(sockaddr_in*)addrinfo-&gt;ai_addr">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "XPMPRenderMultiplayerPlanes(int, int, void*):XPMPMultiplayer.cpp">
          <PersistentStrings>
             <PersistentString
@@ -1160,6 +1177,9 @@
       </ContextState>
       <ContextState
          contextName = "AccelParam::getRatio(double) const:LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "XPMP2::SocketNetworking::GetAddrString(XPMP2::SockAddrTy const&amp;, bool):Network.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::LTSetSimDateTime(void*, int):DataRefs.cpp">

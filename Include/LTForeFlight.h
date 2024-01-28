@@ -1,6 +1,11 @@
 /// @file       LTForeFlight.h
 /// @brief      ForeFlight: Output channel to send LiveTraffic's aircraft positions to the local network
 /// @see        https://www.foreflight.com/support/network-gps/
+/// @see        https://www.foreflight.com/connect/spec/
+///             for the address discovery protocol via broadcast
+/// @details    Starts/stops a separate thread to
+///             - listen for a ForeFlight client to send its address
+///             - then send flight data to that address as UDP unicast
 /// @details    Starts/stops a separate thread to send out UDP broadcast.\n
 ///             Formats and sends UDP packages.\n
 /// @author     Birger Hoppe
@@ -43,7 +48,8 @@ constexpr std::chrono::milliseconds FF_INTVL_GPS    = std::chrono::milliseconds(
 constexpr std::chrono::milliseconds FF_INTVL_ATT    = std::chrono::milliseconds( 200); // 5 Hz
 constexpr std::chrono::milliseconds FF_INTVL        = std::chrono::milliseconds(  20); // Interval between two
 
-#define MSG_FF_OPENED           "ForeFlight: Starting to send"
+#define MSG_FF_LISTENING        "ForeFlight: Waiting for a ForeFlight device to broadcast its address..."
+#define MSG_FF_SENDING          "ForeFlight: Starting to send to %s"
 #define MSG_FF_STOPPED          "ForeFlight: Stopped"
 
 //
@@ -52,8 +58,14 @@ constexpr std::chrono::milliseconds FF_INTVL        = std::chrono::milliseconds(
 class ForeFlightSender : public LTOutputChannel
 {
 protected:
-    // UDP sender
-    XPMP2::UDPReceiver udpSender;
+    /// State of the interface
+    enum FFStateTy : int {
+        FF_STATE_NONE = 0,              ///< Not doing anything
+        FF_STATE_DISCOVERY,             ///< Waiting for a ForeFlight device to broadcast its address on the network
+        FF_STATE_SENDING,               ///< Actually sending data to a discovered device
+    } state = FF_STATE_NONE;
+    std::string ffAddr;                 ///< Address of the ForeFlight app we are sending to
+    XPMP2::UDPReceiver udp;             ///< UDP socket for receiving and sending UDP datagrams from/to ForeFlight
     // time points last sent something
     std::chrono::steady_clock::time_point nextGPS;
     std::chrono::steady_clock::time_point nextAtt;
@@ -68,7 +80,8 @@ public:
     // interface called from LTChannel
     bool FetchAllData(const positionTy&) override { return false; }
     bool ProcessFetchedData () override { return true; }
-    
+    std::string GetStatusText () const override;  ///< return a human-readable staus
+
 protected:
     // send positions
     void Main () override;          ///< virtual thread main function

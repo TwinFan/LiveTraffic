@@ -390,7 +390,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_FM_NOT_FOUND        "Found no flight model for ICAO %s/match-string %s: will use default"
 #define ERR_TCP_LISTENACCEPT    "%s: Error opening the TCP port on %s:%s: %s"
 #define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
-#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s:%d: %s"
+#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s: %s"
 #define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
 constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while reading config file, then: dead
 
