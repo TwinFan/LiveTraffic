@@ -39,6 +39,8 @@ jobs:
   # MacOS with CMake/clang and sign/notarize in self-written script
   build-mac:
     runs-on: macos-11
+    env:
+      platform: mac
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4       # must checkout before we can use our own actions
