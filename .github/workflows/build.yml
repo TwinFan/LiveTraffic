@@ -20,7 +20,7 @@ jobs:
       platform: lin
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      uses: actions/checkout@v4       # must checkout before we can use our own actions
       with:
         submodules: 'recursive'
     - name: Build
@@ -41,7 +41,7 @@ jobs:
     runs-on: macos-11
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      uses: actions/checkout@v4       # must checkout before we can use our own actions
       with:
         submodules: 'recursive'
     - name: Build
@@ -85,7 +85,7 @@ jobs:
       platform: win
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      uses: actions/checkout@v4       # must checkout before we can use our own actions
       with:
         submodules: 'recursive'
     - name: Build

@@ -28,8 +28,8 @@ runs:
         mv "${{ inputs.pdbFileName }}" "deploy-${{ inputs.pluginName }}/${{ inputs.pluginName }}/${{ inputs.archFolder }}"
       fi
   - name: Upload plugin
-    uses: actions/upload-artifact@v3
+    uses: actions/upload-artifact@v4
     with:
-      name: ${{ inputs.pluginName }}
+      name: ${{ inputs.pluginName }}-${{ env.platform }}
       path: deploy-${{ inputs.pluginName }}/*   # this way the top folder in the artifacts is "MyPlugin"
       if-no-files-found: error
