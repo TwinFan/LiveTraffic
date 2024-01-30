@@ -76,66 +76,112 @@ void ForeFlightSender::Main ()
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_ForeFlight", LC_ALL_MASK);
 
+    // time points last sent something
+    std::chrono::steady_clock::time_point nextListen;
+    std::chrono::steady_clock::time_point nextGPS;
+    std::chrono::steady_clock::time_point nextAtt;
+    std::chrono::steady_clock::time_point nextTraffic;
+    std::chrono::steady_clock::time_point lastStartOfTraffic;
+    LTFlightData::FDKeyTy lastKey;          // last traffic sent out
+
     const uint16_t portListen   = (uint16_t)DataRefs::GetCfgInt(DR_CFG_FF_LISTEN_PORT);
     const uint16_t portSend     = (uint16_t)DataRefs::GetCfgInt(DR_CFG_FF_SEND_PORT);
-    XPMP2::SockAddrTy saSend;
-    saSend.sa.sa_family = AF_INET;
-    saSend.setPort(portListen);                 // we only set the port so that in error message it shows up, will be overwritten upon first successful recv operation
 
     state = FF_STATE_NONE;
-
+    
     // Top-Level Exception Handling
     try {
         // --- Listening for a ForeFlight device's broadcast
         ffAddr.clear();
-        state = FF_STATE_DISCOVERY;
+        XPMP2::UDPReceiver udpListen;
+        udpListen.Open("", portListen, FF_NET_BUF_SIZE);
+        udpListen.setBlocking(false);
         LOG_MSG(logDEBUG, "Waiting for ForeFlight client to announce itself on port %u",
                 portListen);
-        udp.Open (FF_LOCALHOST, portListen, FF_NET_BUF_SIZE, 0, true);
-        while ( shallRun() && udp.isOpen() && ffAddr.empty() )
-        {
-            long num = udp.timedRecv(500, nullptr, &saSend);    // 0,5s timeout
-            if (num < 0) {
-#if IBM
-                if (WSAGetLastError() == WSAEWOULDBLOCK) continue;// just try again
-#else
-                if (errno == EAGAIN) continue;                  // just try again
-#endif
-                throw XPMP2::NetRuntimeError("udp.timedRecv failed");
-            }
-            
-            // Should be IPv4 or IPv6...
-            if (!saSend.isIp4() && !saSend.isIp6()) {
-                LOG_MSG(logERR, "Received broadcast with unknown protocol family %u", saSend.family());
-                continue;
-            }
-            
-            // Received something, is it from ForeFlight?
-            // Expected is something like {"App":"ForeFlight","GDL90":{"port":4000}}
-            // We make it simple and test for the existance of "ForeFlight" and "GDL90".
-            const char* buf = udp.getBuf();
-            if (std::strstr(buf, "\"ForeFlight\"") &&
-                std::strstr(buf, "\"GDL90\""))
-            {
-                // The port in the message is for the official protocol only.
-                // We need to replace it with the port for simulation data
-                saSend.setPort(portSend);
-                // in the string first without port number, Connect wants it that way
-                ffAddr = XPMP2::SocketNetworking::GetAddrString(saSend,false);
-            }
-        }
-        udp.Close();
         
         // --- Sending Traffic ----
-        if (shallRun() && !ffAddr.empty())
+        while (shallRun() && udpListen.isOpen())
         {
-            // Connect a unicast socket with the target address
-            state = FF_STATE_SENDING;
-            udp.Connect (ffAddr, portSend, FF_NET_BUF_SIZE);
-            // Now that Connect is happy, let's store the full address including port for all subsequent logging
-            ffAddr = XPMP2::SocketNetworking::GetAddrString(saSend);
-            LOG_MSG(logINFO, MSG_FF_SENDING, ffAddr.c_str());
+            // now
+            const std::chrono::time_point<std::chrono::steady_clock> now =
+            std::chrono::steady_clock::now();
+            
+            // --- Check received broadcast for new ForeFlight clients ----
+            if (now >= nextListen) {
+                nextListen = now + std::chrono::milliseconds(500);      // check every 0,5s
+                bool bChange = false;
+                
+                // During previous send operations we might have closed some sockets, remove them now
+                for (auto i = mapUdp.begin();
+                     i != mapUdp.end();)
+                {
+                    if (i->second.isOpen())
+                        ++i;
+                    else {
+                        LOG_MSG(logINFO, MSG_FF_NOT_SENDING, i->second.getAddr().c_str());
+                        i = mapUdp.erase(i);
+                        bChange = true;
+                    }
+                }
+                
+                // Read all waiting broadcast from the listening socket
+                XPMP2::SockAddrTy saSend;
+                saSend.sa.sa_family = AF_INET;
+                while(true) {
+                    long num = udpListen.recv(nullptr, &saSend);
+                    if (num < 0) {
+#if IBM                 // if just nothing is waiting then we stop trying
+                        if (WSAGetLastError() == WSAEWOULDBLOCK) break;
+#else
+                        if (errno == EAGAIN) break;
+#endif
+                        throw XPMP2::NetRuntimeError("udp.recv failed");
+                    }
+                    
+                    // Should be IPv4 or IPv6...
+                    if (!saSend.isIp4() && !saSend.isIp6()) {
+                        LOG_MSG(logERR, "Received broadcast with unknown protocol family %u", saSend.family());
+                        continue;
+                    }
+                    
+                    // The port in the message is for the official protocol only.
+                    // And the port the message was sent from is also irrelevant,
+                    // we need to replace it with the port for simulation data
+                    saSend.setPort(portSend);
 
+                    // if we know that client already skip the rest
+                    if (mapUdp.find(saSend) != mapUdp.end())
+                        continue;
+                    
+                    // Received something, is it from ForeFlight?
+                    // Expected is something like {"App":"ForeFlight","GDL90":{"port":4000}}
+                    // We make it simple and test for the existance of "ForeFlight" and "GDL90".
+                    const char* buf = udpListen.getBuf();
+                    if (std::strstr(buf, "\"ForeFlight\"") &&
+                        std::strstr(buf, "\"GDL90\""))
+                    {
+                        // Create and connect a new socket for that client
+                        const std::string sAddr = XPMP2::SocketNetworking::GetAddrString(saSend,false);
+                        XPMP2::UDPReceiver& udp = mapUdp[saSend];
+                        udp.Connect(sAddr, portSend, FF_NET_BUF_SIZE);
+                        LOG_MSG(logINFO, MSG_FF_SENDING, sAddr.c_str());
+                        bChange = true;
+                    }
+                }
+                
+                // Did we add/rmeove anything? Then we need to recalculate the text with the IPs we send to
+                if (bChange) {
+                    ffAddr.clear();
+                    for (const auto& p: mapUdp) {
+                        if (!ffAddr.empty()) ffAddr += ", ";
+                        ffAddr += p.second.getAddr();
+                    }
+                }
+                state = mapUdp.empty() ? FF_STATE_DISCOVERY : FF_STATE_SENDING;
+            }
+            
+            // --- Sending Traffic ----
+                       
             //
             // *** Loop for sending data ***
             //
@@ -148,117 +194,109 @@ void ForeFlightSender::Main ()
             //   before reaching the proper time.
             // Between any two broadcasts there is 20ms break.
             //
-            LTFlightData::FDKeyTy lastKey;          // last traffic sent out
-            while ( shallRun() && udp.isOpen() )
-            {
-                const bool bSendUsersPlane = DataRefs::GetCfgBool(DR_CFG_FF_SEND_USER_PLANE);
-                const bool bSendAITraffic  = DataRefs::GetCfgBool(DR_CFG_FF_SEND_TRAFFIC);
-                bool bDidSendSomething = false;
+            const bool bSendUsersPlane = DataRefs::GetCfgBool(DR_CFG_FF_SEND_USER_PLANE);
+            const bool bSendAITraffic  = DataRefs::GetCfgBool(DR_CFG_FF_SEND_TRAFFIC);
+            bool bDidSendSomething = false;
+            
+            // send user's plane at all?
+            if (bSendUsersPlane) {
+                double airSpeed_m   = 0.0;
+                double track        = 0.0;
+                positionTy pos;
                 
-                // now
-                std::chrono::time_point<std::chrono::steady_clock> now =
-                std::chrono::steady_clock::now();
-                
-                // send user's plane at all?
-                if (bSendUsersPlane) {
-                    double airSpeed_m   = 0.0;
-                    double track        = 0.0;
-                    positionTy pos;
-                    
-                    // time for GPS?
-                    if (now >= nextGPS)
-                    {
-                        pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
-                        SendGPS(pos, airSpeed_m, track);
-                        nextGPS = now + FF_INTVL_GPS;
-                        bDidSendSomething = true;
-                    }
-                    
-                    // time for ATT?
-                    if (now >= nextAtt)
-                    {
-                        if (!pos.isNormal())
-                            pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
-                        SendAtt(pos, airSpeed_m, track);
-                        nextAtt = now + FF_INTVL_ATT;
-                        bDidSendSomething = true;
-                    }
+                // time for GPS?
+                if (now >= nextGPS)
+                {
+                    pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                    SendGPS(pos, airSpeed_m, track);
+                    nextGPS = now + FF_INTVL_GPS;
+                    bDidSendSomething = true;
                 }
                 
-                // send traffic at all?
-                // not yet send GPS/ATT?
-                // time to send some traffic?
-                if (bSendAITraffic && !bDidSendSomething &&
-                    now >= nextTraffic)
+                // time for ATT?
+                if (now >= nextAtt)
                 {
-                    // from here on access to fdMap guarded by a mutex
-                    std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
-                    if (lock) {
-                        if (!mapFd.empty()) {
-                            // just starting with a new round?
-                            if (lastKey == LTFlightData::FDKeyTy())
-                                lastStartOfTraffic = now;
-                            
-                            // next key to send? (shall have an actual a/c)
-                            mapLTFlightDataTy::const_iterator mapIter;
-                            for (mapIter = mapFd.upper_bound(lastKey);
-                                 mapIter != mapFd.cend() && !mapIter->second.hasAc();
-                                 mapIter++);
-                            
-                            // something left?
-                            if (mapIter != mapFd.cend()) {
-                                // send that plane's info
-                                SendTraffic(mapIter->second);
-                                // wake up soon again for the rest
-                                lastKey = mapIter->first;
-                                nextTraffic = now + FF_INTVL;
-                            }
-                            else {
-                                // we're done with one round, start over
-                                lastKey = LTFlightData::FDKeyTy();
-                                nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
-                            }
+                    if (!pos.isNormal())
+                        pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                    SendAtt(pos, airSpeed_m, track);
+                    nextAtt = now + FF_INTVL_ATT;
+                    bDidSendSomething = true;
+                }
+            }
+            
+            // send traffic at all?
+            // not yet send GPS/ATT?
+            // time to send some traffic?
+            if (bSendAITraffic && !bDidSendSomething &&
+                now >= nextTraffic)
+            {
+                // from here on access to fdMap guarded by a mutex
+                std::unique_lock<std::mutex> lock (mapFdMutex, std::try_to_lock);
+                if (lock) {
+                    if (!mapFd.empty()) {
+                        // just starting with a new round?
+                        if (lastKey == LTFlightData::FDKeyTy())
+                            lastStartOfTraffic = now;
+                        
+                        // next key to send? (shall have an actual a/c)
+                        mapLTFlightDataTy::const_iterator mapIter;
+                        for (mapIter = mapFd.upper_bound(lastKey);
+                             mapIter != mapFd.cend() && !mapIter->second.hasAc();
+                             mapIter++);
+                        
+                        // something left?
+                        if (mapIter != mapFd.cend()) {
+                            // send that plane's info
+                            SendTraffic(mapIter->second);
+                            // wake up soon again for the rest
+                            lastKey = mapIter->first;
+                            nextTraffic = now + FF_INTVL;
                         }
                         else {
-                            // map's empty, so we are done
+                            // we're done with one round, start over
                             lastKey = LTFlightData::FDKeyTy();
                             nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
                         }
-                    } else {
-                        // wake up soon again for the rest
-                        nextTraffic = now + FF_INTVL;
                     }
-                }
-                
-                // sleep until time or if woken up for termination
-                // by condition variable trigger
-                if (shallRun())
-                {
-                    std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
-                    bSendUsersPlane && bSendAITraffic  ? std::min({nextGPS, nextAtt, nextTraffic}) :
-                    bSendUsersPlane && !bSendAITraffic ? std::min(nextGPS, nextAtt) :
-                    nextTraffic;
-                    
-                    std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
-                    FDThreadSynchCV.wait_until(lk, nextWakeup,
-                                               [this]{return !shallRun();});
+                    else {
+                        // map's empty, so we are done
+                        lastKey = LTFlightData::FDKeyTy();
+                        nextTraffic = lastStartOfTraffic + std::chrono::seconds(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC_INTVL));
+                    }
+                } else {
+                    // wake up soon again for the rest
+                    nextTraffic = now + FF_INTVL;
                 }
             }
+            
+            // sleep until time or if woken up for termination
+            // by condition variable trigger
+            if (shallRun())
+            {
+                std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
+                bSendUsersPlane && bSendAITraffic  ? std::min({nextListen, nextGPS, nextAtt, nextTraffic}) :
+                bSendUsersPlane && !bSendAITraffic ? std::min({nextListen, nextGPS, nextAtt}) :
+                                                     std::min(nextListen, nextTraffic);
+                
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, nextWakeup,
+                                           [this]{return !shallRun();});
+            }
         }
+        
+        udpListen.Close();
     }
     catch (std::runtime_error& e) {
-        // exception...can only really happen in UDPReceiver::Open
-        LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
-                XPMP2::SocketNetworking::GetAddrString(saSend).c_str(),
+        LOG_MSG(logERR, "%s: Error in networking: %s", ChName(),
                 e.what());
         IncErrCnt();
     }
     
     //
-    // *** close the UDP socket ***
+    // *** close the UDP sockets ***
     //
     state = FF_STATE_NONE;
-    udp.Close();
+    mapUdp.clear();
     LOG_MSG(logINFO, MSG_FF_STOPPED);
 }
 
@@ -281,8 +319,6 @@ void ForeFlightSender::SendAllTraffic ()
         
         // Send traffic data for this object
         SendTraffic(fd);
-        
-        //
     }
 }
 
@@ -304,17 +340,11 @@ void ForeFlightSender::SendGPS (const positionTy& pos, double speed_m, double tr
              track,                             // track
              speed_m);                          // ground speed
     
-    // send the string
-    if (!udp.send(s)) {
-        LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
-        // increase error count...bail out if too bad
-        if (!IncErrCnt()) {
-            SetValid(false,true);
-            return;
-        }
-    } else {
-        DebugLogRaw(s, HTTP_FLAG_SENDING);
-    }
+    // send the string to all clients
+    for (auto& p: mapUdp)
+        if (p.second.isOpen() && !p.second.send(s))
+            p.second.Close();
+    DebugLogRaw(s, HTTP_FLAG_SENDING);
 }
 
 
@@ -330,15 +360,10 @@ void ForeFlightSender::SendAtt (const positionTy& pos, double /*speed_m*/, doubl
              pos.pitch(),                       // pitch
              pos.roll());                       // roll
     
-    // send the string
-    if (!udp.send(s)) {
-        LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
-        // increase error count...bail out if too bad
-        if (!IncErrCnt()) {
-            SetValid(false,true);
-            return;
-        }
-    }
+    // send the string to all clients
+    for (auto& p: mapUdp)
+        if (p.second.isOpen() && !p.second.send(s))
+            p.second.Close();
     // (no DebugLogRaw...not at 5Hz!)
 }
 
@@ -372,16 +397,9 @@ void ForeFlightSender::SendTraffic (const LTFlightData& fd)
              stat.call.c_str());
              
     
-    // send the string
-    if (!udp.send(s)) {
-        LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
-        // increase error count...bail out if too bad
-        if (!IncErrCnt()) {
-            SetValid(false,true);
-            return;
-        }
-    } else {
-        DebugLogRaw(s, HTTP_FLAG_SENDING);
-    }
-
+    // send the string to all clients
+    for (auto& p: mapUdp)
+        if (p.second.isOpen() && !p.second.send(s))
+            p.second.Close();
+    DebugLogRaw(s, HTTP_FLAG_SENDING);
 }

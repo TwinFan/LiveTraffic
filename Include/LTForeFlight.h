@@ -40,7 +40,6 @@
 #define FF_CHECK_POPUP          "Open ForeFlight's web site about the Mobile EFB"
 
 #define FOREFLIGHT_NAME        "ForeFlight"
-#define FF_LOCALHOST            "0.0.0.0"
 constexpr size_t FF_NET_BUF_SIZE    = 512;
 
 // sending intervals in milliseonds
@@ -50,6 +49,7 @@ constexpr std::chrono::milliseconds FF_INTVL        = std::chrono::milliseconds(
 
 #define MSG_FF_LISTENING        "ForeFlight: Waiting for a ForeFlight device to broadcast its address..."
 #define MSG_FF_SENDING          "ForeFlight: Starting to send to %s"
+#define MSG_FF_NOT_SENDING      "ForeFlight: No longer sending to %s"
 #define MSG_FF_STOPPED          "ForeFlight: Stopped"
 
 //
@@ -64,13 +64,9 @@ protected:
         FF_STATE_DISCOVERY,             ///< Waiting for a ForeFlight device to broadcast its address on the network
         FF_STATE_SENDING,               ///< Actually sending data to a discovered device
     } state = FF_STATE_NONE;
-    std::string ffAddr;                 ///< Address of the ForeFlight app we are sending to
-    XPMP2::UDPReceiver udp;             ///< UDP socket for receiving and sending UDP datagrams from/to ForeFlight
-    // time points last sent something
-    std::chrono::steady_clock::time_point nextGPS;
-    std::chrono::steady_clock::time_point nextAtt;
-    std::chrono::steady_clock::time_point nextTraffic;
-    std::chrono::steady_clock::time_point lastStartOfTraffic;
+    std::string ffAddr;                 ///< Addresses of the ForeFlight apps we are sending to
+    /// UDP sockets for sending UDP datagrams from/to ForeFlight apps
+    std::map<XPMP2::SockAddrTy, XPMP2::UDPReceiver> mapUdp;
 
 public:
     ForeFlightSender ();
