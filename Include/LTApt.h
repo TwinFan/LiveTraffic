@@ -56,6 +56,15 @@ inline positionTy LTAptFindRwy (const LTAircraft& _ac, std::string& _rwyId, bool
                          bDoLogging ? std::string(_ac) : "");
 }
 
+/// @brief Find close-by startup position
+/// @param pos Searching around this position
+/// @param maxDist Max search distance
+/// @param[out] outDist Receives distances between search pos and startup location, or `NAN` if no startup location found
+/// @return Position of search position, heading is set to startup heading
+positionTy LTAptFindStartupLoc (const positionTy& pos,
+                                double maxDist = NAN,
+                                double* outDist = nullptr);
+
 /// @brief Snaps the passed-in position to the nearest rwy or taxiway if appropriate
 /// @param fd Flight data object to be analyzed
 /// @param[in,out] posIter Iterator into LTFlightData::posDeque, points to position to analyze, might change due to inserted taxi positions

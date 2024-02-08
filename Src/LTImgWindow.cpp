@@ -889,7 +889,10 @@ float LTImgWindow::cbChangeWndMode(float, float, int, void* inRefcon)
     // or are we already no longer visible?
     if (wnd.nextWinMode == WND_MODE_CLOSE ||
         !wnd.GetVisible())
+    {
         delete &wnd;                // -> delete the window
+        return 1.0f;                // and exit
+    }
 
     // Has user requested a change in window mode?
     else if (wnd.nextWinMode > WND_MODE_NONE)

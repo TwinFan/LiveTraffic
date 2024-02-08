@@ -135,7 +135,7 @@ void InfoListWnd::buildInterface()
             TabActive(ILW_TAB_AC_LIST);
             
             // Limit to visible planes only
-            ImGui::Checkbox("Only displayed a/c", &acList.bFilterAcOnly);
+            ImGui::Checkbox("Only visible a/c", &acList.bFilterAcOnly);
             
             // Search a setting
             // If there is a search text then the tree nodes will be suppressed,
@@ -187,18 +187,18 @@ void InfoListWnd::buildInterface()
                                   ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
                                   ImGuiTableFlags_Hideable |
                                   ImGuiTableFlags_RowBg |
-                                  ImGuiTableFlags_SizingPolicyFixedX | ImGuiTableFlags_Scroll |
+                                  ImGuiTableFlags_ScrollY |
                                   ImGuiTableFlags_ScrollFreezeTopRow |
                                   ImGuiTableFlags_ScrollFreezeLeftColumn))
             {
                 // Set up columns
-                ImGui::TableSetupColumn("Time",         ImGuiTableColumnFlags_NoHeaderWidth,  70);
-                ImGui::TableSetupColumn("Network Time", ImGuiTableColumnFlags_NoHeaderWidth,  85);
-                ImGui::TableSetupColumn("Level",        ImGuiTableColumnFlags_NoHeaderWidth,  70);
-                ImGui::TableSetupColumn("File",         ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
-                ImGui::TableSetupColumn("Line",         ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth,  50);
-                ImGui::TableSetupColumn("Function",     ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
-                ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_NoHeaderWidth, 650);
+                ImGui::TableSetupColumn("Time",         ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth,  70);
+                ImGui::TableSetupColumn("Network Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth,  85);
+                ImGui::TableSetupColumn("Level",        ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth,  70);
+                ImGui::TableSetupColumn("File",         ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
+                ImGui::TableSetupColumn("Line",         ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth,  50);
+                ImGui::TableSetupColumn("Function",     ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
+                ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoHeaderWidth, 650);
                 ImGui::TableAutoHeaders();
                 
                 // Set up / update list of messages to show
@@ -322,7 +322,10 @@ void InfoListWnd::buildInterface()
                 if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
                 
                     if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
-                        
+
+                        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed);
+                        ImGui::TableSetupColumn("Info",  ImGuiTableColumnFlags_WidthStretch);
+
                         // Are we active at all?
                         if (dataRefs.AreAircraftDisplayed()) {
                             // Number of aircraft seen/shown
@@ -372,10 +375,12 @@ void InfoListWnd::buildInterface()
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live Weather");
                             if (ImGui::TableSetColumnIndex(1)) {
+                                ImGui::PushTextWrapPos();
                                 ImGui::Text(weatherStationId.empty() ? "QNH %.f hPa" : "QNH %.f hPa at %s",
                                             weatherHPA, weatherStationId.c_str());
                                 if (!weatherMETAR.empty())
                                     ImGui::TextUnformatted(weatherMETAR.c_str());
+                                ImGui::PopTextWrapPos();
                             }
 
                             // Refresh Period
@@ -396,10 +401,11 @@ void InfoListWnd::buildInterface()
                             {
                                 ImGui::TableNextRow();
                                 if (ImGui::TableSetColumnIndex(1)) {
+                                    ImGui::PushTextWrapPos();
                                     ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " ERR_CH_INACTIVE1 " ");
-                                    ImGui::SameLine();
                                     if (ImGui::ButtonTooltip(ICON_FA_UNDO " Restart Stopped Channels", "Restarts all channels that got temporarily inactivated"))
                                         LTFlightDataRestartInvalidChs();
+                                    ImGui::PopTextWrapPos();
                                 }
                             }
                             
@@ -407,8 +413,11 @@ void InfoListWnd::buildInterface()
                             if (!LTFlightDataAnyTrackingChEnabled())
                             {
                                 ImGui::TableNextRow();
-                                if (ImGui::TableSetColumnIndex(1))
+                                if (ImGui::TableSetColumnIndex(1)) {
+                                    ImGui::PushTextWrapPos();
                                     ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " ERR_CH_NONE_ACTIVE);
+                                    ImGui::PopTextWrapPos();
+                                }
                             }
                             
                             // Individual channels' status
@@ -424,10 +433,9 @@ void InfoListWnd::buildInterface()
                                 }
                                 // Channel's status
                                 if (ImGui::TableSetColumnIndex(1)) {
+                                    ImGui::PushTextWrapPos();
                                     ImGui::TextUnformatted(pCh->GetStatusText().c_str());
-                                    const std::string extStatus = pCh->GetStatusTextExt();
-                                    if (!extStatus.empty())
-                                        ImGui::TextUnformatted(extStatus.c_str());
+                                    ImGui::PopTextWrapPos();
                                 }
                                 ImGui::PopID();
                             }
@@ -499,17 +507,20 @@ void InfoListWnd::buildInterface()
 
                 // Credits
                 if (ImGui::TreeNode("Credits")) {
+                    ImGui::PushTextWrapPos();
                     ImGui::TextUnformatted(LIVE_TRAFFIC " is based on a number of other great libraries and APIs, most notably:");
                     for (const CreditTy& c: CREDITS)
                     {
                         ImGui::ButtonURL(c.txtLink, c.url, nullptr, true); ImGui::SameLine();
                         ImGui::TextUnformatted(c.txtAdd);
                     }
+                    ImGui::PopTextWrapPos();
                     ImGui::TreePop();
                 }
                 
                 // Thanks
                 if (ImGui::TreeNode("Thanks")) {
+                    ImGui::PushTextWrapPos();
                     ImGui::TextUnformatted("172MC, Dozo, and Sir.Anri for continued Beta testing.");
                     ImGui::Spacing();
 
@@ -533,6 +544,7 @@ void InfoListWnd::buildInterface()
                     ImGui::ButtonURL("FontAwesome", "https://fontawesome.com/icons?d=gallery&s=solid&m=free", nullptr, true); ImGui::SameLine();
                     ImGui::TextUnformatted("for the icon font fa-solid-900.ttf " ICON_FA_PLANE);
 
+                    ImGui::PopTextWrapPos();
                     ImGui::TreePop();
                 }
 

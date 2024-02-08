@@ -278,6 +278,8 @@ public:
     const FlightModel* pMdl;
     // pointer to the matching Doc8643
     const Doc8643* pDoc8643;
+    /// Is this a static object?
+    bool bStaticObject = false;
     
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame

@@ -54,7 +54,6 @@ const bool DEF_SND_FMOD_INST    = false;        ///< Enforce using our own FMOD 
 const bool DEF_SND_FMOD_INST    = true;         ///< Enforce using our own FMOD instance instead of X-Plane's?
 #endif
 const int DEF_SUI_TRANSP        = 0;            ///< Settings UI: transaprent background?
-const int DEF_MIN_NETW_TIMEOUT  = 5;            ///< [s] default minimum network request timeout
 const int DEF_MAX_NETW_TIMEOUT  = 5;            ///< [s] default maximum network request timeout
 
 
@@ -382,7 +381,6 @@ enum dataRefsLT {
     DR_CFG_FD_LONG_REFRESH_INTVL,
     DR_CFG_FD_BUF_PERIOD,
     DR_CFG_FD_REDUCE_HEIGHT,
-    DR_CFG_MIN_NETW_TIMEOUT,
     DR_CFG_MAX_NETW_TIMEOUT,
     DR_CFG_LND_LIGHTS_TAXI,
     DR_CFG_HIDE_BELOW_AGL,
@@ -418,6 +416,9 @@ enum dataRefsLT {
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
     DR_CFG_RT_SIM_TIME_CTRL,
+    DR_CFG_RT_MAN_TOFFSET,
+    DR_CFG_RT_CONNECT_TYPE,
+    DR_CFG_FF_LISTEN_PORT,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
     DR_CFG_FF_SEND_TRAFFIC,
@@ -426,12 +427,14 @@ enum dataRefsLT {
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
     DR_CHANNEL_FORE_FLIGHT_SENDER,
+    DR_CHANNEL_SYNTHETIC,
     DR_CHANNEL_FSCHARTER,
     DR_CHANNEL_OPEN_GLIDER_NET,
-    DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_HUB,
     DR_CHANNEL_OPEN_SKY_ONLINE,
     DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
+    DR_CHANNEL_OPEN_SKY_AC_MASTERFILE,
+    DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
     // always last, number of elements:
     CNT_DATAREFS_LT
@@ -459,10 +462,15 @@ enum exportFDFormat {
 /// Which simulator time to send to RealTraffic?
 enum SimTimeCtrlTy : int {
     STC_NO_CTRL = 0,                    ///< Don't send any sim time
-    STC_SIM_TIME,                       ///< Send current sim time unchanged
+    STC_SIM_TIME_MANUALLY,              ///< Send current sim time unchanged
     STC_SIM_TIME_PLUS_BUFFER,           ///< Send current sim time plus buffering period, so that the traffic, when it appears, matches up with current sim time
 };
 
+/// Which RealTraffic connection type to use?
+enum RTConnTypeTy : int {
+    RT_CONN_REQU_REPL = 0,              ///< Expect a license and use request/reply
+    RT_CONN_APP,                        ///< Expect the app to run and listen on UDP
+};
 
 // first/last channel; number of channels:
 constexpr int DR_CHANNEL_FIRST  = DR_CHANNEL_FUTUREDATACHN_ONLINE;
@@ -627,8 +635,8 @@ protected:
     XPLMDataRef adrXP[CNT_DATAREFS_XP];                 ///< array of XP data refs to read from and shared dataRefs to provide
     XPLMDataRef adrLT[CNT_DATAREFS_LT];                 // array of data refs LiveTraffic provides
 public:
-    XPLMCommandRef cmdXP[CNT_CMDREFS_XP];               // array of command refs
-    XPLMCommandRef cmdLT[CNT_CMDREFS_LT];
+    XPLMCommandRef cmdXP[CNT_CMDREFS_XP] = { 0 };       // array of command refs
+    XPLMCommandRef cmdLT[CNT_CMDREFS_LT] = { 0 };
 
 //MARK: Provided Data, i.e. global variables
 protected:
@@ -686,7 +694,6 @@ protected:
     int fdCurrRefrIntvl = DEF_FD_REFRESH_INTVL;     ///< current value of how often to fetch new flight data
     int fdBufPeriod     = DEF_FD_BUF_PERIOD;        ///< seconds to buffer before simulating aircraft
     int fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;     ///< [ft] reduce flight data usage when user aircraft is flying above this altitude
-    int netwTimeoutMin  = DEF_MIN_NETW_TIMEOUT;     ///< [s] of min network request timeout
     int netwTimeoutMax  = DEF_MAX_NETW_TIMEOUT;     ///< [s] of max network request timeout
     int bLndLightsTaxi = false;         // keep landing lights on while taxiing? (to be able to see the a/c as there is no taxi light functionality)
     int hideBelowAGL    = 0;            // if positive: a/c visible only above this height AGL
@@ -711,7 +718,10 @@ protected:
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
-    int ffSendPort      = 49002;        // UDP Port to send ForeFlight feeding data
+    int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
+    RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
+    int ffListenPort    = 63093;        ///< UDP Port to listen to ForeFlight announcing itself, https://www.foreflight.com/connect/spec/
+    int ffSendPort      = 49002;        ///< UDP Port to send simulator data to ForeFlight, https://www.foreflight.com/support/network-gps/
     int bffUserPlane    = 1;            // bool Send User plane data?
     int bffTraffic      = 1;            // bool Send traffic data?
     int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info
@@ -723,6 +733,7 @@ protected:
     std::string sOpenSkyUser;           ///< OpenSky Network user
     std::string sOpenSkyPwd;            ///< OpenSky Network password
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
+    std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
     std::string sFSCPwd;                ///< FSCharter login password
     
@@ -924,7 +935,6 @@ public:
     inline int GetFdRefreshIntvl() const { return fdCurrRefrIntvl; }
     inline int GetFdBufPeriod() const { return fdBufPeriod; }
     inline int GetAcOutdatedIntvl() const { return 2 * GetFdBufPeriod(); }
-    inline int GetNetwTimeoutMin() const { return netwTimeoutMin; }
     inline int GetNetwTimeoutMax() const { return netwTimeoutMax; }
     inline bool GetLndLightsTaxi() const { return bLndLightsTaxi != 0; }
     inline int GetHideBelowAGL() const { return hideBelowAGL; }
@@ -934,9 +944,11 @@ public:
     { return bGnd ? hideNearbyGnd : hideNearbyAir; }
     inline bool GetHideInReplay() const { return hideInReplay; }
     inline bool GetHideStaticTwr () const { return hideStaticTwr; }
-    inline bool IsAutoHidingActive() const  ///< any auto-hiding activated?
+    bool WarnAutoHiding() const                 ///< any auto-hiding activated, that we should warn the user about?
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
+    bool IsAutoHidingActive() const             ///< any auto-hiding activated, including options no warning is issued about?
+    { return hideStaticTwr || WarnAutoHiding(); }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
     int  GetContrailAltMin_ft () const  { return contrailAltMin_ft; }
     int  GetContrailAltMax_ft () const  { return contrailAltMax_ft; }
@@ -966,11 +978,15 @@ public:
     void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
     void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
 
-    std::string GetADSBExAPIKey () const { return sADSBExAPIKey; }
-    void SetADSBExAPIKey (std::string apiKey) { sADSBExAPIKey = apiKey; }
+    const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
+    void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }
     
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
+    int GetRTManTOfs () const { return rtManTOfs; }             ///< [min] manually configured time offset in minutes
+    RTConnTypeTy GetRTConnType () const { return rtConnType; }
+    const std::string& GetRTLicense () const { return sRTLicense; }
+    void SetRTLicense (const std::string& license) { sRTLicense = license; }
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)

@@ -1,6 +1,11 @@
 /// @file       LTForeFlight.h
 /// @brief      ForeFlight: Output channel to send LiveTraffic's aircraft positions to the local network
 /// @see        https://www.foreflight.com/support/network-gps/
+/// @see        https://www.foreflight.com/connect/spec/
+///             for the address discovery protocol via broadcast
+/// @details    Starts/stops a separate thread to
+///             - listen for a ForeFlight client to send its address
+///             - then send flight data to that address as UDP unicast
 /// @details    Starts/stops a separate thread to send out UDP broadcast.\n
 ///             Formats and sends UDP packages.\n
 /// @author     Birger Hoppe
@@ -25,7 +30,6 @@
 #define LTForeFlight_h
 
 #include "LTChannel.h"
-#include "Network.h"
 
 //
 // MARK: ForeFlight Constants
@@ -36,7 +40,6 @@
 #define FF_CHECK_POPUP          "Open ForeFlight's web site about the Mobile EFB"
 
 #define FOREFLIGHT_NAME        "ForeFlight"
-#define FF_LOCALHOST            "0.0.0.0"
 constexpr size_t FF_NET_BUF_SIZE    = 512;
 
 // sending intervals in milliseonds
@@ -44,54 +47,40 @@ constexpr std::chrono::milliseconds FF_INTVL_GPS    = std::chrono::milliseconds(
 constexpr std::chrono::milliseconds FF_INTVL_ATT    = std::chrono::milliseconds( 200); // 5 Hz
 constexpr std::chrono::milliseconds FF_INTVL        = std::chrono::milliseconds(  20); // Interval between two
 
-#define MSG_FF_OPENED           "ForeFlight: Starting to send"
+#define MSG_FF_LISTENING        "ForeFlight: Waiting for a ForeFlight device to broadcast its address..."
+#define MSG_FF_SENDING          "ForeFlight: Starting to send to %s"
+#define MSG_FF_NOT_SENDING      "ForeFlight: No longer sending to %s"
 #define MSG_FF_STOPPED          "ForeFlight: Stopped"
 
 //
 // MARK: ForeFlight Sender
 //
-class ForeFlightSender : public LTOnlineChannel, LTFlightDataChannel
+class ForeFlightSender : public LTOutputChannel
 {
 protected:
-    // the map of flight data, data that we send out to ForeFlight
-    mapLTFlightDataTy& fdMap;
-    // thread
-    std::thread thrUdpSender;
-    volatile bool bStopUdpSender  = true;   // tells thread to stop
-    std::mutex  ffStopMutex;                // supports wake-up and stop synchronization
-    std::condition_variable ffStopCV;
-    // UDP sender
-    UDPReceiver udpSender;
-    bool    bSendUsersPlane = true;
-    bool    bSendAITraffic  = true;
-    // time points last sent something
-    std::chrono::steady_clock::time_point nextGPS;
-    std::chrono::steady_clock::time_point nextAtt;
-    std::chrono::steady_clock::time_point nextTraffic;
-    std::chrono::steady_clock::time_point lastStartOfTraffic;
+    /// State of the interface
+    enum FFStateTy : int {
+        FF_STATE_NONE = 0,              ///< Not doing anything
+        FF_STATE_DISCOVERY,             ///< Waiting for a ForeFlight device to broadcast its address on the network
+        FF_STATE_SENDING,               ///< Actually sending data to a discovered device
+    } state = FF_STATE_NONE;
+    std::string ffAddr;                 ///< Addresses of the ForeFlight apps we are sending to
+    /// UDP sockets for sending UDP datagrams from/to ForeFlight apps
+    std::map<XPMP2::SockAddrTy, XPMP2::UDPReceiver> mapUdp;
 
 public:
-    ForeFlightSender (mapLTFlightDataTy& _fdMap);
-    virtual ~ForeFlightSender ();
+    ForeFlightSender ();
 
-    virtual std::string GetURL (const positionTy&) { return ""; }   // don't need URL, no request/reply
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRAFFIC_SENDER; }
+    std::string GetURL (const positionTy&) override { return ""; }   // don't need URL, no request/reply
     
     // interface called from LTChannel
-    virtual bool FetchAllData(const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy&) { return true; }
-    virtual void DoDisabledProcessing();
-    virtual void Close ();
-    
+    bool FetchAllData(const positionTy&) override { return false; }
+    bool ProcessFetchedData () override { return true; }
+    std::string GetStatusText () const override;  ///< return a human-readable staus
+
 protected:
-    // Start/Stop
-    bool StartConnection ();
-    bool StopConnection ();
-    
     // send positions
-    void udpSend();                 // thread's main function
-    static void udpSendS (ForeFlightSender* me) { me->udpSend(); }
+    void Main () override;          ///< virtual thread main function
     void SendGPS (const positionTy& pos, double speed_m, double track); // position of user's aircraft
     void SendAtt (const positionTy& pos, double speed_m, double track); // attitude of user's aircraft
     void SendAllTraffic (); // other traffic

@@ -28,6 +28,13 @@
 // from LTChannel.h
 class LTChannel;
 
+/// Type of master data request
+enum DatRequTy {
+    DATREQU_NONE = 0,               ///< no master data request
+    DATREQU_AC_MASTER,              ///< a/c master data request
+    DATREQU_ROUTE,                  ///< route information request
+};
+
 //
 //MARK: Flight Data
 //      Represents an Aircraft's flight data, as read from the source(s)
@@ -108,10 +115,12 @@ public:
         // operator
         std::string     op;             // operator                                     Air Berlin
         std::string     opIcao;         // XPMP API: "Airline"                          BER
+        
+        // Filled from master data requests?
+        bool    bDataMaster = false;    ///< Filled from requested master data?
+        bool    bDataRoute  = false;    ///< Filled from requested route info?
 
     protected:
-        /// Has this static data object already been filled from a proper master data channel?
-        bool            bFilledFromMasterCh = false;
         /// Empty string for static returns
         static std::string emptyStr;
         
@@ -124,7 +133,7 @@ public:
         FDStaticData& operator=(FDStaticData&&) = default;
         /// @brief  Merges data, i.e. copy only filled fields from 'other'
         /// @return Have matching-relevant fields now changed?
-        bool merge (const FDStaticData& other, bool bIsMasterChData);
+        bool merge (const FDStaticData& other, DatRequTy masterDataType);
         // returns flight, call sign, registration, or provieded _default (e.g. transp hex code)
         std::string acId (const std::string _default) const;
         /// Fill stops from given origin/dest
@@ -142,8 +151,12 @@ public:
             { return opIcao.empty() ? call.substr(0,3) : opIcao; }
         /// is this a ground vehicle?
         bool isGrndVehicle() const;
-        /// has been initialized from a proper master data channel?
-        bool hasMasterChData() const { return bFilledFromMasterCh; }
+        /// is this a static object? (marked by a/c type being TWR)
+        bool isStaticObject() const;
+        /// is critical info for model matching available?
+        bool hasMdlMatchInfo() const;
+        /// is some route info available?
+        bool hasRouteInfo() const { return !stops.empty(); }
     };
     
     // KEY (protected, can be set only once, no mutex-control)
@@ -357,7 +370,7 @@ public:
     inline int GetRcvr() const { return rcvr; }
     
     // access static data
-    void UpdateData ( const FDStaticData& inStat, double distance, bool bIsMasterChData = false );
+    void UpdateData ( const FDStaticData& inStat, double distance, DatRequTy masterDataType = DATREQU_NONE );
     bool TryGetSafeCopy ( FDStaticData& outStat ) const;
     FDStaticData WaitForSafeCopyStat() const;
     inline const FDStaticData& GetUnsafeStat() const { return statData; }    // no lock, potentially inconsistent!

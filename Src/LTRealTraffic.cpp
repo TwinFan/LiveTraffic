@@ -1,12 +1,16 @@
 /// @file       LTRealTraffic.cpp
 /// @brief      RealTraffic: Receives and processes live tracking data
 /// @see        https://rtweb.flyrealtraffic.com/
-/// @details    Implements RealTrafficConnection:\n
-///             - Sends current position to RealTraffic app\n
-///             - Receives tracking and weather data via UDP\n
-///             - Interprets the response and passes the tracking data on to LTFlightData.\n
+/// @details    Defines RealTrafficConnection in two different variants:\n
+///             - Direct Connection:
+///               - Expects RealTraffic license information
+///               - Sends authentication, weather, and tracking data requests to RealTraffic servcers
+///             - via RealTraffic app
+///               - Sends current position to RealTraffic app\n
+///               - Receives tracking data via UDP\n
+///               - Interprets the response and passes the tracking data on to LTFlightData.\n
 /// @author     Birger Hoppe
-/// @copyright  (c) 2019-2020 Birger Hoppe
+/// @copyright  (c) 2019-2024 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -34,12 +38,18 @@
 // MARK: RealTraffic Connection
 //
 
+// fill from `current` data
+RealTrafficConnection::WxTy& RealTrafficConnection::WxTy::operator=(const CurrTy& o)
+{
+    pos     = o.pos;
+    tOff    = o.tOff;
+    time = std::chrono::steady_clock::now();
+    return *this;
+}
+
 // Constructor doesn't do much
-RealTrafficConnection::RealTrafficConnection (mapLTFlightDataTy& _fdMap) :
-LTChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel(),
-fdMap(_fdMap)
+RealTrafficConnection::RealTrafficConnection () :
+LTFlightDataChannel(DR_CHANNEL_REAL_TRAFFIC_ONLINE, REALTRAFFIC_NAME)
 {
     //purely information
     urlName  = RT_CHECK_NAME;
@@ -47,62 +57,758 @@ fdMap(_fdMap)
     urlPopup = RT_CHECK_POPUP;
 }
 
-// Destructor makes sure we are cleaned up
-RealTrafficConnection::~RealTrafficConnection ()
+// Stop the UDP listener gracefully
+void RealTrafficConnection::Stop (bool bWaitJoin)
 {
-    StopConnections();
-}
+    if (isRunning()) {
+        if (eThrStatus < THR_STOP)
+            eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
         
-// Does not actually fetch data (the UDP thread does that) but
-// 1. Starts the connections
-// 2. updates the RealTraffic local server with out current position and time
-// 3. cleans up map of datagrams for duplicate check
-bool RealTrafficConnection::FetchAllData(const positionTy& pos)
-{
-    // store camera position for later calculations
-    posCamera = pos;
-    
-    // if we are invalid or disabled we should shut down
-    if (!IsValid() || !IsEnabled()) {
-        return StopConnections();
+#if APL == 1 || LIN == 1
+        // Mac/Lin: Try writing something to the self-pipe to stop gracefully
+        if (udpPipe[1] == INVALID_SOCKET ||
+            write(udpPipe[1], "STOP", 4) < 0)
+        {
+            // if the self-pipe didn't work:
+#endif
+            // close all connections, this will also break out of all
+            // blocking calls for receiving message and hence terminate the threads
+            udpTrafficData.Close();
+#if APL == 1 || LIN == 1
+        }
+#endif
     }
     
-    // need to start up?
-    if (status != RT_STATUS_CONNECTED_FULL &&
-        !StartConnections())
-        return false;
+    // Parent class processing: Wait for the thread to join
+    LTFlightDataChannel::Stop(bWaitJoin);
+}
+
+
+std::string RealTrafficConnection::GetStatusText () const
+{
+    char sIntvl[100];
+
+    // --- Direct Connection? ---
+    if (eConnType == RT_CONN_REQU_REPL) {
+        std::string s = LTChannel::GetStatusText();
+        if (tsAdjust > 1.0) {                           // historic data?
+            snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
+                     GetAdjustTSText().c_str());
+            s += sIntvl;
+        }
+        if (lTotalFlights == 0) {                       // RealTraffic has no data at all???
+            s += " | RealTraffic has no traffic at all! ";
+            s += (curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+        }
+        return s;
+    }
     
-    // do anything only in a normal status
-    if (IsConnected())
+    // --- UDP/TCP connection ---
+    // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
+    if (!IsValid() || !IsEnabled())
+        return LTChannel::GetStatusText();
+
+    // If we are waiting to establish a connection then we return RT-specific texts
+    if (status == RT_STATUS_NONE)           return "Starting...";
+    if (status == RT_STATUS_STARTING ||
+        status == RT_STATUS_STOPPING)
+        return GetStatusStr();
+    
+    // An active source of tracking data...for how many aircraft?
+    std::string s = LTChannel::GetStatusText();
+    // Add extended information specifically on RealTraffic connection status
+    s += " | ";
+    s += GetStatusStr();
+    if (IsConnected() && lastReceivedTime > 0.0) {
+        // add when the last msg was received
+        snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,
+                 dataRefs.GetSimTime() - lastReceivedTime);
+        s += sIntvl;
+        // if receiving historic traffic say so
+        if (tsAdjust > 1.0) {
+            snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
+                     GetAdjustTSText().c_str());
+            s += sIntvl;
+        }
+    }
+    return s;
+}
+
+// also take care of status
+void RealTrafficConnection::SetValid (bool _valid, bool bMsg)
+{
+    if (!_valid && status != RT_STATUS_NONE)
+        SetStatus(RT_STATUS_STOPPING);
+    
+    LTOnlineChannel::SetValid(_valid, bMsg);
+}
+
+// virtual thread main function
+void RealTrafficConnection::Main ()
+{
+    // Loop to facilitate a change between connection types
+    while (shallRun()) {
+        // Just distinguish between direct R/R and UDP connection
+        switch (dataRefs.GetRTConnType())
+        {
+            case RT_CONN_REQU_REPL:
+                if (dataRefs.GetRTLicense().empty()) {
+                    SHOW_MSG(logERR, "Enter RealTraffic license in settings to use direct connection!");
+                    SetValid(false,true);
+                } else {
+                    MainDirect();
+                }
+                break;
+            case RT_CONN_APP:
+                MainUDP();
+                break;
+        }
+    }
+}
+
+//
+// MARK: Direct connection via Request/Reply
+//
+
+// virtual thread main function
+void RealTrafficConnection::MainDirect ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_RT_Direct", LC_ALL_MASK);
+    eConnType = RT_CONN_REQU_REPL;
+    // Clear the list of historic time stamp differences
+    dequeTS.clear();
+    // Some more data resets to make sure we start over with the series of requests
+    curr.sGUID.clear();
+    rtWx.QNH = NAN;
+    rtWx.nErr = 0;
+    lTotalFlights = -1;
+
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            rrlWait = RT_DRCT_ERR_WAIT;                 // Standard is: retry in 5s
+
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // determine the type of request, fetch data and process it
+                SetRequType(pos);
+                if (FetchAllData(pos) && ProcessFetchedData())
+                    // reduce error count if processed successfully
+                    // as a chance to appear OK in the long run
+                    DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                rrlWait = std::chrono::seconds(1);
+            }
+            
+            // sleep for a bit or if woken up for termination
+            // by condition variable trigger
+            {
+                tNextWakeup = std::chrono::steady_clock::now() + rrlWait;
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+}
+
+// Which request do we need now?
+void RealTrafficConnection::SetRequType (const positionTy& _pos)
+{
+    // Position as passed in
+    curr.pos = _pos;
+    
+    // Time offset: in minutes compared to now
+    curr.tOff = 0L;
+    switch (dataRefs.GetRTSTC()) {
+        case STC_NO_CTRL:                           // don't send any ofset ever
+            curr.tOff = 0L;
+            break;
+            
+        case STC_SIM_TIME_MANUALLY:                 // send what got configured manually
+            curr.tOff = dataRefs.GetRTManTOfs();
+            break;
+            
+        case STC_SIM_TIME_PLUS_BUFFER:              // Send as per current simulation time
+            if (dataRefs.IsUsingSystemTime()) {     // Using system time means: No ofset
+                curr.tOff = 0;
+            } else {
+                // Simulated 'now' in seconds since the epoch
+                const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
+                const time_t now = time(nullptr);
+                // offset between older 'simNow' and current 'now' in minutes, minus buffering period
+                curr.tOff = long(now - simNow - dataRefs.GetFdBufPeriod()) / 60L;
+                // must be positive
+                if (curr.tOff < 0) curr.tOff = 0;
+            }
+            break;
+    }
+    
+    if (curr.sGUID.empty())                         // have no GUID? Need authentication
+        curr.eRequType = CurrTy::RT_REQU_AUTH;
+    else if ((rtWx.nErr < RT_DRCT_MAX_WX_ERR) &&    // not seen too many errors yet
+             (std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
+              std::labs(curr.tOff - rtWx.tOff) > 120 ||
+              std::chrono::steady_clock::now() - rtWx.time > RT_DRCT_WX_WAIT ||
+              rtWx.pos.distRoughSqr(curr.pos) > (RT_DRCT_WX_DIST*RT_DRCT_WX_DIST)))
+        curr.eRequType = CurrTy::RT_REQU_WEATHER;
+    else
+        // in all other cases we ask for traffic data
+        curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
+}
+
+
+// in direct mode return URL and set
+std::string RealTrafficConnection::GetURL (const positionTy&)
+{
+    // Make sure we accept GZIPed encoding
+    curl_errtxt[0] = '\0';
+    CURLcode ret = curl_easy_setopt(pCurl, CURLOPT_ACCEPT_ENCODING, "gzip");
+    if (ret != CURLE_OK) {
+        LOG_MSG(logWARN, "Could not set to accept gzip encoding: %d - %s",
+                ret, curl_errtxt);
+    }
+    
+    // What kind of request do we need next?
+    switch (curr.eRequType) {
+        case CurrTy::RT_REQU_AUTH:
+            return RT_AUTH_URL;
+        case CurrTy::RT_REQU_WEATHER:
+            return RT_WEATHER_URL;
+        case CurrTy::RT_REQU_TRAFFIC:
+            return RT_TRAFFIC_URL;
+    }
+    return RT_TRAFFIC_URL;
+}
+
+// in direct mode puts together the POST request with the position data etc.
+void RealTrafficConnection::ComputeBody (const positionTy&)
+{
+    char s[256] = "";
+    
+    // What kind of request will we need?
+    switch (curr.eRequType) {
+        case CurrTy::RT_REQU_AUTH:
+            snprintf(s,sizeof(s), RT_AUTH_POST,
+                     dataRefs.GetRTLicense().c_str(),
+                     HTTP_USER_AGENT);
+            break;
+        case CurrTy::RT_REQU_WEATHER:
+            snprintf(s, sizeof(s), RT_WEATHER_POST,
+                     curr.sGUID.c_str(),
+                     curr.pos.lat(), curr.pos.lon(), 0L,
+                     curr.tOff);
+            break;
+        case CurrTy::RT_REQU_TRAFFIC:
+        {
+            // we add 10% to the bounding box to have some data ready once the plane is close enough for display
+            const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
+            
+            snprintf(s,sizeof(s), RT_TRAFFIC_POST,
+                     curr.sGUID.c_str(),
+                     box.nw.lat(), box.se.lat(),
+                     box.nw.lon(), box.se.lon(),
+                     curr.tOff);
+            break;
+        }
+    }
+    
+    requBody = s;
+}
+
+// in direct mode process the received data
+bool RealTrafficConnection::ProcessFetchedData ()
+{
+    // No data!
+    if (!netDataPos) {
+        if (httpResponse != HTTP_OK)
+            IncErrCnt();
+        return false;
+    }
+    
+    // Try to parse as JSON...even in case of errors we might be getting a body
+    // Unique_ptr ensures it is freed before leaving the function
+    JSONRootPtr pRoot (netData);
+    if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
+    JSON_Object* pObj = json_object(pRoot.get());
+    if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+
+    // Try the error fields first
+    long rStatus = jog_l(pObj, "status");
+    if (!rStatus) { LOG_MSG(logERR,"Response has no 'status'"); IncErrCnt(); return false; }
+    
+    std::string rMsg = jog_s(pObj, "message");
+    
+    // --- Error processing ---
+    rrlWait = RT_DRCT_ERR_WAIT;                     // Standard is: retry in 5s
+    
+    // For failed weather requests keep a separate counter
+    if (curr.eRequType == CurrTy::RT_REQU_WEATHER && rStatus != HTTP_OK) {
+        if (++rtWx.nErr >= RT_DRCT_MAX_WX_ERR) { // Too many WX errors?
+            SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+        }
+    }
+    
+    switch (rStatus) {
+        case HTTP_OK:
+            break;                                  // All good, just continue
+            
+        case HTTP_PAYMENT_REQU:
+        case HTTP_NOT_FOUND:
+            if (curr.eRequType == CurrTy::RT_REQU_AUTH) {
+                SHOW_MSG(logERR, "RealTraffic license invalid: %s", rMsg.c_str());
+                SetValid(false,true);               // set invalid, stop trying
+                return false;
+            } else {
+                LOG_MSG(logWARN, "RealTraffic returned: %s", rMsg.c_str());
+                IncErrCnt();
+                return false;
+            }
+            
+        case HTTP_METH_NOT_ALLWD:                   // Send for "too many sessions" / "request rate violation"
+            LOG_MSG(logERR, "RealTraffic: %s", rMsg.c_str());
+            IncErrCnt();
+            rrlWait = std::chrono::seconds(10);     // documentation says "wait 10 seconds"
+            curr.sGUID.clear();                     // force re-login
+            return false;
+            
+        case HTTP_UNAUTHORIZED:                     // means our GUID expired
+            LOG_MSG(logDEBUG, "Session expired");
+            curr.sGUID.clear();                     // re-login immediately
+            rrlWait = std::chrono::milliseconds(0);
+            return false;
+            
+        case HTTP_FORBIDDEN:
+            LOG_MSG(logWARN, "RealTraffic forbidden: %s", rMsg.c_str());
+            IncErrCnt();
+            return false;
+            
+        case HTTP_INTERNAL_ERR:
+        default:
+            SHOW_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
+            IncErrCnt();
+            return false;
+    }
+    
+    // All good, process the request
+
+    // Wait till next request?
+    long l = jog_l(pObj, "rrl");                    // Wait time till next request
+    switch (curr.eRequType) {
+        case CurrTy::RT_REQU_AUTH:                  // after an AUTH request we take the rrl unchanged, ie. as quickly as possible
+            break;
+        case CurrTy::RT_REQU_WEATHER:               // unfortunately, no `rrl` in weather requests...
+            l = 300;                                // we just continue 300ms later
+            break;
+        case CurrTy::RT_REQU_TRAFFIC:               // By default we wait at least 8s, or more if RealTraffic instructs us so
+            if (l < RT_DRCT_DEFAULT_WAIT)
+                l = RT_DRCT_DEFAULT_WAIT;
+            break;
+    }
+    rrlWait = std::chrono::milliseconds(l);
+    
+    // --- Authorization ---
+    if (curr.eRequType == CurrTy::RT_REQU_AUTH) {
+        eLicType = RTLicTypeTy(jog_l(pObj, "type"));
+        curr.sGUID = jog_s(pObj, "GUID");
+        if (curr.sGUID.empty()) {
+            LOG_MSG(logERR, "Did not actually receive a GUID:\n%s", netData);
+            IncErrCnt();
+            return false;
+        }
+        LOG_MSG(logDEBUG, "Authenticated: type=%d, GUID=%s",
+                eLicType, curr.sGUID.c_str());
+        return true;
+    }
+    
+    // --- Weather ---
+    if (curr.eRequType == CurrTy::RT_REQU_WEATHER) {
+        // We are interested in just a single value: local Pressure
+        const double wxSLP = jog_n_nan(pObj, "data.locWX.SLP");
+        if (std::isnan(wxSLP) || wxSLP < 800.0) {
+            LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
+                    wxSLP, netData);
+            rrlWait = std::chrono::seconds(2);      // isn't exactly clear how quickly we can repeat weather requests!
+            if (++rtWx.nErr >= RT_DRCT_MAX_WX_ERR) { // Too many WX errors?
+                SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+            }
+            return false;
+        }
+        LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
+        rtWx.QNH = wxSLP;                           // Save new QNH
+        rtWx = curr;                                // and how it was requested
+        rtWx.nErr = 0;                              // reset the error counter as we now received good data
+        return true;
+    }
+    
+    // --- Traffic data ---
+    
+    // In `dataepoch` RealTraffic delivers the point in time when the data was valid.
+    // That is relevant especially for historic data, when `dataepoch` is in the past.
+    l = jog_l(pObj, "dataepoch");
+    if (l > long(JAN_FIRST_2019))
     {
-        // Send current position and time
-        SendXPSimTime();
-        SendUsersPlanePos();
+        // "now" is the simulated time plus the buffering period
+        const long simTime  = long(dataRefs.GetSimTime());
+        const long bufTime  = long(dataRefs.GetFdBufPeriod());
+        // As long as the timestamp is half the buffer time close to "now" we consider the data current, ie. non-historic
+        if (l > simTime + bufTime/2) {
+            if (tsAdjust > 0.0) {                       // is that a change from historic delivery?
+                SHOW_MSG(logINFO, INFO_RT_REAL_TIME);
+            }
+            tsAdjust = 0.0;
+        }
+        // we have historic data
+        else {
+            long diff = simTime + bufTime - l;          // difference between "now"
+            diff -= 10;                                 // rounding 10s above the minute down,
+            diff += 60 - diff % 60;                     // everything else up to the next minute
+            if (long(tsAdjust) != diff) {               // is this actually a change?
+                tsAdjust = double(diff);
+                SHOW_MSG(logINFO, INFO_RT_ADJUST_TS, GetAdjustTSText().c_str());
+            }
+        }
+    }
+    
+    // If RealTraffic returns `full_count = 0` then something's wrong...
+    // like data requested too far in the past
+    lTotalFlights = jog_l(pObj, "full_count");
+    if (lTotalFlights == 0) {
+        static std::chrono::steady_clock::time_point prevWarn;
+        const auto now = std::chrono::steady_clock::now();
+        if (now - prevWarn > std::chrono::minutes(5)) {
+            SHOW_MSG(logWARN, "RealTraffic has no traffic at all! %s",
+                     curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+            prevWarn = now;
+        }
+    }
+
+    // any a/c filter defined for debugging purposes?
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+    
+    // Current camera position
+    const positionTy posView = dataRefs.GetViewPos();
+    
+    // The data is delivered in many many values,
+    // ie. each plane is just a JSON_Value, its name being the hexid,
+    // its value being an array with the details.
+    // That means we need to traverse all values, not knowing which are in there.
+    // Most are planes, but some are just ordinary values like "status" or "rll"...
+    // Really bad data structure design if you'd ask me...
+    //   {
+    //     "a1bc56": ["a1bc56",34.21124,-118.939533, ...],
+    //     "a1ef41": ["a1ef41",34.263657,-118.863373, ...],
+    //     ...
+    //     "a26738": ["a26738",33.671356,-117.867284, ...],
+    //     "full_count": 13501, "source": "MemoryDB", "rrl": 2000, "status": 200, "dataepoch": 1703885732
+    //   }
+    const size_t numVals = json_object_get_count(pObj);
+    for (size_t i = 0; i < numVals && shallRun(); ++i)
+    {
+        // Get the array 'behind' the i-th value,
+        // will fail if it is no aircraft entry
+        const JSON_Value* pVal = json_object_get_value_at(pObj, i);
+        if (!pVal) break;
+        const JSON_Array* pJAc = json_value_get_array(pVal);
+        if (!pJAc) continue;                  // probably not an aircraft line
         
-        // cleanup map of last datagrams
-        CleanupMapDatagrams();
+        // Check for minimum number of fields
+        if (json_array_get_count(pJAc) < RT_DRCT_NUM_FIELDS) {
+            LOG_MSG(logWARN, "Received too few fields in a/c record %ld", (long)i);
+            IncErrCnt();
+            continue;
+        }
         
-        // map is empty? That only happens if we don't receive data
-        // continuously
-        if (mapDatagrams.empty())
-            // se Udp status to unavailable, but keep listener running
-            SetStatusUdp(false, false);
+        // the key: transponder Icao code
+        bool b = jag_l(pJAc, RT_DRCT_ICAO_ID) != 0;   // is an ICAO id?
+        LTFlightData::FDKeyTy fdKey (b ? LTFlightData::KEY_ICAO : LTFlightData::KEY_RT,
+                                     jag_s(pJAc, RT_DRCT_HexId));
+        // not matching a/c filter? -> skip it
+        if ((!acFilter.empty() && (fdKey != acFilter)) )
+            continue;
+
+        // Check for duplicates with OGN/FLARM, potentially replaces the key type
+        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+        else
+            // Some codes are otherwise often duplicate with ADSBEx
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
+        
+        // position time
+        double posTime = jag_n(pJAc, RT_DRCT_TimeStamp);
+        //  (needs adjustment in case we are receiving historical data)
+        posTime += tsAdjust;
+        
+        // position
+        positionTy pos (jag_n(pJAc, RT_DRCT_Lat),
+                        jag_n(pJAc, RT_DRCT_Lon),
+                        NAN,                            // we take care of altitude next
+                        posTime);
+        if (jag_l(pJAc, RT_DRCT_Gnd) != 0)              // on ground?
+            pos.f.onGrnd = GND_ON;
+        else {
+            pos.f.onGrnd = GND_OFF;
+            double d = jag_n(pJAc, RT_DRCT_BaroAlt);    // prefer baro altitude
+            if (d > 0.0) {
+                if (!std::isnan(rtWx.QNH))
+                    d = BaroAltToGeoAlt_ft(d, rtWx.QNH);
+                pos.SetAltFt(d);
+            }
+            else                                        // else try geo altitude
+                pos.SetAltFt(jag_n(pJAc, RT_DRCT_GeoAlt));
+        }
+        // position is rather important, we check for validity
+        // (we do allow alt=NAN if on ground)
+        if ( !pos.isNormal(true) ) {
+            LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+            continue;
+        }
+        
+        // Static data
+        LTFlightData::FDStaticData stat;
+        stat.acTypeIcao         = jag_s(pJAc, RT_DRCT_AcType);
+        stat.call               = jag_s(pJAc, RT_DRCT_CallSign);
+        stat.reg                = jag_s(pJAc, RT_DRCT_Reg);
+        stat.setOrigDest(         jag_s(pJAc, RT_DRCT_Origin),
+                                  jag_s(pJAc, RT_DRCT_Dest)  );
+        stat.flight             = jag_s(pJAc, RT_DRCT_FlightNum);
+        
+        std::string s           = jag_s(pJAc, RT_DRCT_Category);
+        stat.catDescr           = GetADSBEmitterCat(s);
+        
+        // Static objects are all equally marked with a/c type TWR
+        if ((s == "C3" || s == "C4" || s == "C5") ||
+            (stat.reg == STATIC_OBJECT_TYPE && stat.acTypeIcao == STATIC_OBJECT_TYPE))
+        {
+            stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+        }
+
+        // Vehicle?
+        if (stat.acTypeIcao == "GRND" || stat.acTypeIcao == "GND" ||// some vehicles come with type 'GRND'...
+            s == "C1" || s == "C2" ||                               // emergency/surface vehicle?
+            (s.empty() && (pos.f.onGrnd == GND_ON) && stat.acTypeIcao.empty() && stat.reg.empty()))
+            stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+
+        // Dynamic data
+        LTFlightData::FDDynamicData dyn;
+        dyn.radar.code          = std::lround(jag_sn(pJAc, RT_DRCT_Squawk));
+        dyn.gnd                 = pos.f.onGrnd == GND_ON;
+        // Heading: try in this order: True Heading, Track, Magnetic heading
+        pVal                    = jag_FindFirstNonNull(pJAc,
+                                                       { RT_DRCT_HeadTrue,
+                                                         RT_DRCT_Track,
+                                                         RT_DRCT_HeadMag });
+        pos.heading() = dyn.heading = pVal ? json_value_get_number(pVal) : NAN;
+        // Speed: try in this order: ground speed, TAS, IAS, 0.0
+        pVal                    = jag_FindFirstNonNull(pJAc,
+                                                       { RT_DRCT_GndSpeed,
+                                                         RT_DRCT_TAS,
+                                                         RT_DRCT_IAS });
+        dyn.spd = pVal ? json_value_get_number(pVal) : 0.0;
+        // VSI: try in this order barometric and geometric vertical speed
+        pVal                    = jag_FindFirstNonNull(pJAc,
+                                                       { RT_DRCT_BaroVertRate,
+                                                         RT_DRCT_GeoVertRate });
+        dyn.vsi = pVal ? json_value_get_number(pVal) : 0.0;
+        
+        dyn.ts = pos.ts();
+        dyn.pChannel = this;
+        
+        try {
+            // from here on access to fdMap guarded by a mutex
+            // until FD object is inserted and updated
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+
+            // get the fd object from the map, key is the transpIcao
+            // this fetches an existing or, if not existing, creates a new one
+            LTFlightData& fd = mapFd[fdKey];
+            
+            // also get the data access lock once and for all
+            // so following fetch/update calls only make quick recursive calls
+            std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+            // now that we have the detail lock we can release the global one
+            mapFdLock.unlock();
+
+            // completely new? fill key fields
+            if ( fd.empty() )
+                fd.SetKey(fdKey);
+            
+            // add the static data
+            fd.UpdateData(std::move(stat), pos.dist(posView));
+
+            // add the dynamic data
+            fd.AddDynData(dyn, 0, 0, &pos);
+
+        } catch(const std::system_error& e) {
+            LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+            IncErrCnt();
+        }
     }
     
     return true;
 }
 
-// if channel is disabled make sure all connections are closed
-void RealTrafficConnection::DoDisabledProcessing()
-{
-    StopConnections();
-}
+//
+// MARK: UDP/TCP via App
+//
 
-
-// closes all connections
-void RealTrafficConnection::Close()
+// virtual thread main function
+void RealTrafficConnection::MainUDP ()
 {
-    StopConnections();
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_RT_App", LC_ALL_MASK);
+    eConnType = RT_CONN_APP;
+    lTotalFlights = -1;
+
+    // Top-level exception handling
+    try {
+        // set startup status
+        SetStatus(RT_STATUS_STARTING);
+        
+        // Clear the list of historic time stamp differences
+        dequeTS.clear();
+
+        // Start the TCP listening thread, that waits for an incoming TCP connection from the RealTraffic app
+        StartTcpConnection();
+        // Next time we should send a position update
+        std::chrono::time_point<std::chrono::steady_clock> tNextPos =
+        std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+
+        // --- UDP Listener ---
+        
+        // Open the UDP port
+        udpTrafficData.Open (RT_LOCALHOST,
+                             DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
+                             RT_NET_BUF_SIZE);
+        int maxSock = (int)udpTrafficData.getSocket() + 1;
+#if APL == 1 || LIN == 1
+        // the self-pipe to shut down the UDP socket gracefully
+        if (pipe(udpPipe) < 0)
+            throw XPMP2::NetRuntimeError("Couldn't create pipe");
+        fcntl(udpPipe[0], F_SETFL, O_NONBLOCK);
+        maxSock = std::max(maxSock, udpPipe[0]+1);
+#endif
+
+        // --- Main Loop ---
+        
+        while (shallRun() && udpTrafficData.isOpen() && IsConnecting())
+        {
+            // wait for a UDP datagram on either socket (traffic, weather)
+            fd_set sRead;
+            FD_ZERO(&sRead);
+            FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
+#if APL == 1 || LIN == 1
+            FD_SET(udpPipe[0], &sRead);
+#endif
+            // We specify a timeout, which will really rarely trigger,
+            // but this way we make sure that we send our position every once in a while even with no traffic around
+            struct timeval timeout = { dataRefs.GetFdRefreshIntvl(), 0 };
+            int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
+            
+            // short-cut if we are to shut down (return from 'select' due to closed socket)
+            if (!shallRun()) break;
+
+            // select call failed???
+            if(retval == -1)
+                throw XPMP2::NetRuntimeError("'select' failed");
+
+            // select successful - traffic data
+            if (retval > 0 && FD_ISSET(udpTrafficData.getSocket(), &sRead))
+            {
+                // read UDP datagram
+                long rcvdBytes = udpTrafficData.recv();
+                
+                // received something?
+                if (rcvdBytes > 0)
+                {
+                    // yea, we received something!
+                    SetStatusUdp(true, false);
+
+                    // have it processed
+                    ProcessRecvedTrafficData(udpTrafficData.getBuf());
+                }
+                else
+                    retval = -1;
+            }
+            
+            // handling of errors, both from select and from recv
+            if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
+                // not just a normal timeout?
+                char sErr[SERR_LEN];
+                strerror_s(sErr, sizeof(sErr), errno);
+                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
+                        sErr);
+                // increase error count...bail out if too bad
+                if (!IncErrCnt()) {
+                    SetStatusUdp(false, true);
+                    break;
+                }
+            }
+            
+            // --- Maintenance Activities ---
+
+            // If we are connected via TCP to RealTraffic
+            if (tcpPosSender.IsConnected()) {
+                // Send current position and time every once in a while
+                if (std::chrono::steady_clock::now() > tNextPos) {
+                    SendXPSimTime();
+                    SendUsersPlanePos();
+                    tNextPos = std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                }
+            }
+            // Not connected by TCP, are we still listening and waiting?
+            else if (eTcpThrStatus != THR_RUNNING) {
+                // Not running...so make sure it restarts for us to have a chance to get a connection
+                StopTcpConnection();
+                StartTcpConnection();
+            }
+            
+            // cleanup map of last datagrams
+            CleanupMapDatagrams();
+            // map is empty? That only happens if we don't receive data continuously
+            if (mapDatagrams.empty())
+                // set UDP status to unavailable, but keep listener running
+                SetStatusUdp(false, false);
+        }
+
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        IncErrCnt();
+    } catch (...) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+        IncErrCnt();
+    }
+    
+    // Let's make absolutely sure that any connection is really closed
+    // once we return from this thread
+    if (udpTrafficData.isOpen())
+        udpTrafficData.Close();
+#if APL == 1 || LIN == 1
+    // close the self-pipe sockets
+    for (SOCKET &s: udpPipe) {
+        if (s != INVALID_SOCKET) close(s);
+        s = INVALID_SOCKET;
+    }
+#endif
+
+    // Make sure the TCP listener is down
+    StopTcpConnection();
+    
+    // stopped
+    SetStatus(RT_STATUS_NONE);
+
 }
 
 // sets the status and updates global text to show elsewhere
@@ -197,7 +903,7 @@ void RealTrafficConnection::SetStatusUdp(bool bEnable, bool _bStopUdp)
     } else {
         // Disable - also disconnect, otherwise restart wouldn't work
         if (_bStopUdp)
-            StopUdpConnection();
+            eThrStatus = THR_STOP;
         
         // set status
         switch (status) {
@@ -232,138 +938,26 @@ std::string RealTrafficConnection::GetStatusStr() const
     return "";
 }
 
-std::string RealTrafficConnection::GetStatusText () const
-{
-    // Partly a copy of LTChannel's version, but we take RT-specific status into account
-    
-    // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
-    if (!IsValid() || !IsEnabled())
-        return LTChannel::GetStatusText();
-
-    // If we are waiting to establish a connection then we return RT-specific texts
-    if (status == RT_STATUS_NONE)           return "Starting...";
-    if (status == RT_STATUS_STARTING ||
-        status == RT_STATUS_STOPPING)
-        return GetStatusStr();
-    
-    // An active source of tracking data...for how many aircraft?
-    return LTChannel::GetStatusText();
-}
-
-std::string RealTrafficConnection::GetStatusTextExt() const
-{
-    // Any extended status only if we are connected in any way
-    if (!IsEnabled() ||
-        status < RT_STATUS_CONNECTED_PASSIVELY ||
-        status > RT_STATUS_CONNECTED_FULL)
-        return std::string();
-    
-    // Turn the RealTraffic status into text
-    std::string s (GetStatusStr());
-    
-    if (IsConnected() && lastReceivedTime > 0.0) {
-        char sIntvl[100];
-        // add when the last msg was received
-        long intvl = std::lround(dataRefs.GetSimTime() - lastReceivedTime);
-        snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,intvl);
-        s += sIntvl;
-        // if receiving historic traffic say so
-        if (tsAdjust > 1.0) {
-            snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
-                     GetAdjustTSText().c_str());
-            s += sIntvl;
-        }
-    }
-    return s;
-}
-
-// also take care of status
-void RealTrafficConnection::SetValid (bool _valid, bool bMsg)
-{
-    if (!_valid && status != RT_STATUS_NONE)
-        SetStatus(RT_STATUS_STOPPING);
-    
-    LTOnlineChannel::SetValid(_valid, bMsg);
-}
-
-// starts all networking threads
-bool RealTrafficConnection::StartConnections()
-{
-    // don't start if we shall stop
-    if (status == RT_STATUS_STOPPING)
-        return false;
-    
-    // set startup status
-    if (status == RT_STATUS_NONE)
-        SetStatus(RT_STATUS_STARTING);
-    
-    // *** TCP server for RealTraffic to connect to ***
-    if (!thrTcpRunning && !tcpPosSender.IsConnected()) {
-        if (thrTcpServer.joinable())
-            thrTcpServer.join();
-        thrTcpRunning = true;
-        thrTcpServer = std::thread (tcpConnectionS, this);
-    }
-    
-    // *** UDP data listener ***
-    if (!thrUdpRunning) {
-        if (thrUdpListener.joinable())
-            thrUdpListener.join();
-        thrUdpRunning = true;
-        thrUdpListener = std::thread (udpListenS, this);
-    }
-    
-    // looks ok
-    return true;
-}
-
-// stop the UDP listening thread
-bool RealTrafficConnection::StopConnections()
-{
-    // not running?
-    if (status == RT_STATUS_NONE)
-        return true;
-    
-    // tell the threads to stop now
-    SetStatus(RT_STATUS_STOPPING);
-
-    // stop both TCP and UDP
-    StopTcpConnection();
-    StopUdpConnection();
-    
-    // Clear the list of historic time stamp differences
-    dequeTS.clear();
-
-    // stopped
-    SetStatus(RT_STATUS_NONE);
-    return true;
-}
-
-
-
 //
 // MARK: TCP Connection
 //
 
+// main function of TCP listening thread, lives only until TCP connection established
 void RealTrafficConnection::tcpConnection ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_TCP", LC_ALL_MASK);
-
-    // sanity check: return in case of wrong status
-    if (!IsConnecting()) {
-        thrTcpRunning = false;
-        return;
-    }
+    eTcpThrStatus = THR_RUNNING;
     
     // port to use is configurable
     int tcpPort = DataRefs::GetCfgInt(DR_CFG_RT_LISTEN_PORT);
     
     try {
-        bStopTcp = false;
         tcpPosSender.Open (RT_LOCALHOST, tcpPort, RT_NET_BUF_SIZE);
+        LOG_MSG(logDEBUG, "RealTraffic: Listening on port %d for TCP connection by RealTraffic App", tcpPort);
         if (tcpPosSender.listenAccept()) {
             // so we did accept a connection!
+            LOG_MSG(logDEBUG, "RealTraffic: Accepted TCP connection from RealTraffic App");
             SetStatusTcp(true, false);
             // send our simulated time and first position
             SendXPSimTime();
@@ -372,7 +966,7 @@ void RealTrafficConnection::tcpConnection ()
         else
         {
             // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (!bStopTcp) {
+            if (eTcpThrStatus < THR_STOP) {
                 // not forced to shut down...report other problem
                 SHOW_MSG(logERR,ERR_RT_CANTLISTEN);
                 SetStatusTcp(false, true);
@@ -391,17 +985,28 @@ void RealTrafficConnection::tcpConnection ()
     // We make sure that, once leaving this thread, there is no
     // open listener (there might be a connected socket, though)
 #if IBM
-    if (!bStopTcp)                  // already closed if stop flag set, avoid rare crashes if called in parallel
+    if (eTcpThrStatus < THR_STOP)   // already closed if stop flag set, avoid rare crashes if called in parallel
 #endif
         tcpPosSender.CloseListenerOnly();
-    thrTcpRunning = false;
+    eTcpThrStatus = THR_ENDED;
 }
 
-bool RealTrafficConnection::StopTcpConnection ()
+
+// start the TCP listening thread
+void RealTrafficConnection::StartTcpConnection ()
+{
+    if (!thrTcpServer.joinable()) {
+        eTcpThrStatus = THR_STARTING;
+        thrTcpServer = std::thread (&RealTrafficConnection::tcpConnection, this);
+    }
+}
+
+// stop the TCP listening thread
+void RealTrafficConnection::StopTcpConnection ()
 {
     // close all connections, this will also break out of all
     // blocking calls for receiving message and hence terminate the threads
-    bStopTcp = true;
+    eTcpThrStatus = THR_STOP;
     tcpPosSender.Close();
     
     // wait for threads to finish (if I'm not myself this thread...)
@@ -409,9 +1014,8 @@ bool RealTrafficConnection::StopTcpConnection ()
         if (thrTcpServer.joinable())
             thrTcpServer.join();
         thrTcpServer = std::thread();
+        eTcpThrStatus = THR_NONE;
     }
-    
-    return true;
 }
 
 
@@ -426,7 +1030,7 @@ void RealTrafficConnection::SendMsg (const char* msg)
         LOG_MSG(logERR,ERR_SOCK_SEND_FAILED,ChName());
         SetStatusTcp(false, true);
     }
-    DebugLogRaw(msg);
+    DebugLogRaw(msg, HTTP_FLAG_SENDING);
 }
 
 // Send a timestamp to RealTraffic
@@ -442,18 +1046,23 @@ void RealTrafficConnection::SendTime (long long ts)
 // Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
 void RealTrafficConnection::SendXPSimTime()
 {
-    if (dataRefs.GetRTSTC() == STC_NO_CTRL)         // Configured to send nothing?
-        return;
-    
     // Which time stamp to send?
-    long long ts;
-    if (dataRefs.IsUsingSystemTime()) {             // Sim is using system time, so send system time
-        ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    } else {
-        ts = dataRefs.GetXPSimTime_ms();            // else send simulated time
-        if (dataRefs.GetRTSTC() == STC_SIM_TIME_PLUS_BUFFER)
-            // add buffering period if requested, so planes match up with simulator time exactly instead of being delayed
-            ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
+    long long ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    
+    switch (dataRefs.GetRTSTC()) {
+        case STC_NO_CTRL:                           // always use system time
+            break;
+            
+        case STC_SIM_TIME_MANUALLY:                 // time offset configured manually: Just deduct from 'now'
+            ts -= ((long long)dataRefs.GetRTManTOfs()) * 60000LL;
+            break;
+            
+        case STC_SIM_TIME_PLUS_BUFFER:              // Simulated time
+            if (!dataRefs.IsUsingSystemTime()) {    // not using system time:
+                ts = dataRefs.GetXPSimTime_ms();    // send simulated time
+                // add buffering period, so planes match up with simulator time exactly instead of being delayed
+                ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
+            }
     }
     
     SendTime(ts);
@@ -496,154 +1105,6 @@ void RealTrafficConnection::SendUsersPlanePos()
 }
 
 
-
-//
-// MARK: UDP Listen Thread - Traffic
-//
-
-// runs in a separate thread, listens for UDP traffic and
-// forwards that to the flight data
-void RealTrafficConnection::udpListen ()
-{
-    // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_RT_UDP", LC_ALL_MASK);
-
-    // sanity check: return in case of wrong status
-    if (!IsConnecting()) {
-        thrUdpRunning = false;
-        return;
-    }
-    
-    int port = 0;
-    try {
-        // Open the UDP port
-        bStopUdp = false;
-        udpTrafficData.Open (RT_LOCALHOST,
-                             port = DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
-                             RT_NET_BUF_SIZE);
-        int maxSock = (int)udpTrafficData.getSocket() + 1;
-#if APL == 1 || LIN == 1
-        // the self-pipe to shut down the UDP socket gracefully
-        if (pipe(udpPipe) < 0)
-            throw NetRuntimeError("Couldn't create pipe");
-        fcntl(udpPipe[0], F_SETFL, O_NONBLOCK);
-        maxSock = std::max(maxSock, udpPipe[0]+1);
-#endif
-
-        // return from the thread when requested
-        // (not checking for weather socker...not essential)
-        while (udpTrafficData.isOpen() && IsConnecting() && !bStopUdp)
-        {
-            // wait for a UDP datagram on either socket (traffic, weather)
-            fd_set sRead;
-            FD_ZERO(&sRead);
-            FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
-#if APL == 1 || LIN == 1
-            FD_SET(udpPipe[0], &sRead);
-#endif
-            int retval = select(maxSock, &sRead, NULL, NULL, NULL);
-            
-            // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (bStopUdp)
-                break;
-
-            // select call failed???
-            if(retval == -1)
-                throw NetRuntimeError("'select' failed");
-
-            // select successful - traffic data
-            if (retval > 0 && FD_ISSET(udpTrafficData.getSocket(), &sRead))
-            {
-                // read UDP datagram
-                long rcvdBytes = udpTrafficData.recv();
-                
-                // received something?
-                if (rcvdBytes > 0)
-                {
-                    // yea, we received something!
-                    SetStatusUdp(true, false);
-
-                    // have it processed
-                    ProcessRecvedTrafficData(udpTrafficData.getBuf());
-                }
-                else
-                    retval = -1;
-            }
-            
-            // short-cut if we are to shut down
-            if (bStopUdp)
-                break;
-            
-            // handling of errors, both from select and from recv
-            if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
-                // not just a normal timeout?
-                char sErr[SERR_LEN];
-                strerror_s(sErr, sizeof(sErr), errno);
-                LOG_MSG(logERR, ERR_UDP_RCVR_RCVR, ChName(),
-                        sErr);
-                // increase error count...bail out if too bad
-                if (!IncErrCnt()) {
-                    SetStatusUdp(false, true);
-                    break;
-                }
-            }
-        }
-    }
-    catch (std::runtime_error& e) {
-        // exception...can only really happen in UDPReceiver::Open
-        LOG_MSG(logERR, ERR_UDP_SOCKET_CREAT, ChName(),
-                RT_LOCALHOST, port,
-                e.what());
-        // invalidate the channel
-        SetStatusUdp(false, true);
-        SetValid(false, true);
-    }
-    
-    // Let's make absolutely sure that any connection is really closed
-    // once we return from this thread
-#if APL == 1 || LIN == 1
-    udpTrafficData.Close();
-    // close the self-pipe sockets
-    for (SOCKET &s: udpPipe) {
-        if (s != INVALID_SOCKET) close(s);
-        s = INVALID_SOCKET;
-    }
-#else
-    if (!bStopUdp) {                // already closed if stop flag set, avoid rare crashes if called in parallel
-        udpTrafficData.Close();
-    }
-#endif
-    thrUdpRunning = false;
-}
-
-bool RealTrafficConnection::StopUdpConnection ()
-{
-    bStopUdp = true;
-#if APL == 1 || LIN == 1
-    // Mac/Lin: Try writing something to the self-pipe to stop gracefully
-    if (udpPipe[1] == INVALID_SOCKET ||
-        write(udpPipe[1], "STOP", 4) < 0)
-    {
-        // if the self-pipe didn't work:
-#endif
-        // close all connections, this will also break out of all
-        // blocking calls for receiving message and hence terminate the threads
-        udpTrafficData.Close();
-#if APL == 1 || LIN == 1
-    }
-#endif
-
-    // wait for thread to finish if I'm not this thread myself
-    if (std::this_thread::get_id() != thrUdpListener.get_id()) {
-        if (thrUdpListener.joinable())
-            thrUdpListener.join();
-        thrUdpListener = std::thread();
-    }
-    
-    return true;
-}
-
-
 // MARK: Traffic
 // Process received traffic data.
 // We keep this a bit flexible to be able to work with different formats
@@ -654,7 +1115,7 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
         return false;
     
     // Raw data logging
-    DebugLogRaw(traffic);
+    DebugLogRaw(traffic, HTTP_FLAG_UDP);
     lastReceivedTime = dataRefs.GetSimTime();
     
     // split the datagram up into its parts, keeping empty positions empty
@@ -688,6 +1149,10 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     if ((!acFilter.empty() && (fdKey != acFilter)))
         return true;            // silently
 
+    // *** Replace 'null' ***
+    std::for_each(tfc.begin(), tfc.end(),
+                  [](std::string& s){ if (s == "null") s.clear(); });
+    
     // *** Process different formats ****
     
     // There are 3 formats we are _really_ interested in: RTTFC, AITFC, and XTRAFFICPSX
@@ -749,17 +1214,6 @@ double firstPositive (const std::vector<std::string>& tfc,
 bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
                                           const std::vector<std::string>& tfc)
 {
-    // *** Potentially skip static objects ***
-    const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
-    if (dataRefs.GetHideStaticTwr() &&              // shall ignore static objects?
-        (// Aircraft's category is C3, C4, or C5?
-         (sCat.length() == 2 && sCat[0] == 'C' && (sCat[1] == '3' || sCat[1] == '4' || sCat[1] == '5')) ||
-         // - OR - tail and type are 'TWR' (as in previous msg types)
-         (tfc[RT_RTTFC_AC_TAILNO] == "TWR" &&
-          tfc[RT_RTTFC_AC_TYPE] == "TWR")
-       ))
-        return true;
-    
     // *** position time ***
     double posTime = std::stod(tfc[RT_RTTFC_TIMESTAMP]);
     AdjustTimestamp(posTime);
@@ -806,7 +1260,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
-        LTFlightData& fd = fdMap[fdKey];
+        LTFlightData& fd = mapFd[fdKey];
         
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
@@ -825,7 +1279,16 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.call           = tfc[RT_RTTFC_CS_ICAO];
         stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
         stat.setOrigDest(tfc[RT_RTTFC_FROM_IATA], tfc[RT_RTTFC_TO_IATA]);
+
+        const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
         stat.catDescr       = GetADSBEmitterCat(sCat);
+        
+        // Static objects are all equally marked with a/c type TWR
+        if ((sCat == "C3" || sCat == "C4" || sCat == "C5") ||
+            (stat.reg == STATIC_OBJECT_TYPE && stat.acTypeIcao == STATIC_OBJECT_TYPE))
+        {
+            stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+        }
 
         // -- dynamic data --
         LTFlightData::FDDynamicData dyn;
@@ -887,12 +1350,6 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
 bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
                                           const std::vector<std::string>& tfc)
 {
-    // *** Potentially skip static objects ***
-    if (dataRefs.GetHideStaticTwr() &&
-        tfc[RT_AITFC_CS]    == "TWR" &&
-        tfc[RT_AITFC_TYPE]  == "TWR")
-        return true;
-    
     // *** position time ***
     // There are 2 possibilities:
     // 1. As of v7.0.55 RealTraffic can send a timestamp (when configured
@@ -954,17 +1411,17 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         else
             // Some codes are otherwise often duplicate with ADSBEx
             LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
-
+        
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
-        LTFlightData& fd = fdMap[fdKey];
+        LTFlightData& fd = mapFd[fdKey];
         
         // also get the data access lock once and for all
         // so following fetch/update calls only make quick recursive calls
         std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
         // now that we have the detail lock we can release the global one
         mapFdLock.unlock();
-
+        
         // completely new? fill key fields
         if ( fd.empty() )
             fd.SetKey(fdKey);
@@ -978,6 +1435,12 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         if (tfc.size() > RT_AITFC_TO) {
             stat.reg            = tfc[RT_AITFC_TAIL];
             stat.setOrigDest(tfc[RT_AITFC_FROM], tfc[RT_AITFC_TO]);
+        }
+        
+        // For static objects we also set `reg` to TWR for consistency
+        if (stat.acTypeIcao == STATIC_OBJECT_TYPE) {
+            stat.reg = STATIC_OBJECT_TYPE;
+            stat.catDescr = GetADSBEmitterCat("C3");
         }
 
         // -- dynamic data --

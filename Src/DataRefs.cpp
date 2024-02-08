@@ -526,7 +526,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/fd_long_refresh_intvl",       DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_buf_period",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/cfg/fd_reduce_height",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
-    {"livetraffic/cfg/network_timeout_min",         DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/network_timeout",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/lnd_lights_taxi",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/hide_below_agl",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
@@ -562,6 +561,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
+    {"livetraffic/channel/real_traffic/man_toffset",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,     GET_VAR, true },
+    {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/fore_flight/listen_port", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -570,12 +572,14 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/synthetic/intern",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -613,7 +617,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FD_LONG_REFRESH_INTVL:  return &fdLongRefrIntvl;
         case DR_CFG_FD_BUF_PERIOD:          return &fdBufPeriod;
         case DR_CFG_FD_REDUCE_HEIGHT:       return &fdReduceHeight;
-        case DR_CFG_MIN_NETW_TIMEOUT:       return &netwTimeoutMin;
         case DR_CFG_MAX_NETW_TIMEOUT:       return &netwTimeoutMax;
         case DR_CFG_LND_LIGHTS_TAXI:        return &bLndLightsTaxi;
         case DR_CFG_HIDE_BELOW_AGL:         return &hideBelowAGL;
@@ -649,6 +652,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
         case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
+        case DR_CFG_RT_MAN_TOFFSET:         return &rtManTOfs;
+        case DR_CFG_RT_CONNECT_TYPE:        return &rtConnType;
+        case DR_CFG_FF_LISTEN_PORT:         return &ffListenPort;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
         case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
@@ -744,10 +750,12 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable OpenSky and OGN by default
+    // enable OpenSky, OGN, and Synthetic by default
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_SYNTHETIC               - DR_CHANNEL_FIRST] = true;
 
     // Clear the dataRefs arrays
     memset ( adrXP, 0, sizeof(adrXP));
@@ -1711,7 +1719,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         fdBufPeriod     < fdLongRefrIntvl   || fdBufPeriod      > 180   ||
         fdReduceHeight  < 1000              || fdReduceHeight   > 100000||
         fdSnapTaxiDist  < 0                 || fdSnapTaxiDist   > 50    ||
-        netwTimeoutMax  < 5                 || netwTimeoutMin   > netwTimeoutMax ||
+        netwTimeoutMax  < 5                 ||
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
         hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
@@ -1722,6 +1730,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         contrailAltMin_ft < 0               || contrailAltMin_ft> 90000 ||
         contrailAltMax_ft < 0               || contrailAltMax_ft> 90000 ||
         contrailLifeTime < 5                || contrailLifeTime >   300 ||
+        ffListenPort    < 1024              || ffListenPort     > 65535 ||
         ffSendPort      < 1024              || ffSendPort       > 65535 ||
         fscEnv          < 0                 || fscEnv           > 1
         )
@@ -1778,7 +1787,6 @@ void DataRefs::ResetAdvCfgToDefaults ()
     fdLongRefrIntvl = DEF_FD_LONG_REFR_INTVL;
     fdBufPeriod     = DEF_FD_BUF_PERIOD;
     fdReduceHeight  = DEF_FD_REDUCE_HEIGHT;
-    netwTimeoutMin      = DEF_MIN_NETW_TIMEOUT;
     netwTimeoutMax      = DEF_MAX_NETW_TIMEOUT;
     contrailAltMin_ft   = DEF_CONTR_ALT_MIN;
     contrailAltMax_ft   = DEF_CONTR_ALT_MAX;
@@ -2013,7 +2021,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2079,6 +2087,10 @@ bool DataRefs::LoadConfigFile()
                 conv = CFG_V331;
             if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
                 conv = CFG_V342;
+            if (cfgFileVer < 30500) {       // < 3.5.0
+                rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
+                conv = CFG_V350;
+            }
         }
     }
     
@@ -2145,6 +2157,11 @@ bool DataRefs::LoadConfigFile()
                         // With OpenSky API timeouts we set the max timeout to just 5s so we try more often
                         if (*i == DATA_REFS_LT[DR_CFG_MAX_NETW_TIMEOUT])
                             sVal = "5";
+                        [[fallthrough]];
+                    case CFG_V350:
+                        // RealTraffic Sim Time Control: previous value 1 is re-purposed, switch instead to 2
+                        if (*i == DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL] && sVal == "1")
+                            sVal = "2";
                         break;
                 }
                 
@@ -2174,6 +2191,8 @@ bool DataRefs::LoadConfigFile()
             else if (sDataRef == CFG_ADSBEX_API_KEY)
                 // With v3 we start obfuscating the API key
                 SetADSBExAPIKey(conv == CFG_V3 ? sVal : Cleartext(sVal));
+            else if (sDataRef == CFG_RT_LICENSE)
+                SetRTLicense(Cleartext(sVal));
             else if (sDataRef == CFG_FSC_USER)
                 SetFSCharterUser(sVal);
             else if (sDataRef == CFG_FSC_PWD)
@@ -2318,6 +2337,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_OPENSKY_PWD << ' ' << Obfuscate(sOpenSkyPwd) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
+    if (!GetRTLicense().empty())
+        fOut << CFG_RT_LICENSE << ' ' << Obfuscate(GetRTLicense()) << '\n';
     if (!sFSCUser.empty())
         fOut << CFG_FSC_USER << ' ' << sFSCUser << '\n';
     if (!sFSCPwd.empty())
@@ -2429,12 +2450,10 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
     
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
-    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE))
+    if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
-    
-    // if OGN just got enabled download a fresh a/c list from OGN
-    if (bEnable && ch == DR_CHANNEL_OPEN_GLIDER_NET)
-        OGNDownloadAcList();
+        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
+    }
     
     // if a channel got disabled check if any tracking data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?

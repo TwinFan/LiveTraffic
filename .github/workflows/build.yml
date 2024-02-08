@@ -9,6 +9,7 @@ on:
 # Let's set all project specific definitions globally
 env:
   PRJ_NAME:     LiveTraffic            # The plugin's name, expected to be the .xpl file's name and used as the plugin folder name
+  version_beta: ${{ github.ref != 'refs/heads/master' && '1' || '0' }}      # On non-master branches we build BETA versions
 
 jobs:
   #####################################
@@ -19,7 +20,7 @@ jobs:
       platform: lin
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      uses: actions/checkout@v4       # must checkout before we can use our own actions
       with:
         submodules: 'recursive'
     - name: Build
@@ -37,10 +38,12 @@ jobs:
   #####################################
   # MacOS with CMake/clang and sign/notarize in self-written script
   build-mac:
-    runs-on: macos-11
+    runs-on: macos-12
+    env:
+      platform: mac
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      uses: actions/checkout@v4       # must checkout before we can use our own actions
       with:
         submodules: 'recursive'
     - name: Build
@@ -84,7 +87,7 @@ jobs:
       platform: win
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3       # must checkout before we can use our own actions
+      uses: actions/checkout@v4       # must checkout before we can use our own actions
       with:
         submodules: 'recursive'
     - name: Build

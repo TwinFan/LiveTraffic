@@ -35,9 +35,7 @@
 //
 
 ADSBExchangeConnection::ADSBExchangeConnection () :
-LTChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME),
-LTOnlineChannel(),
-LTFlightDataChannel()
+LTFlightDataChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME)
 {
     // purely informational
     urlName  = ADSBEX_CHECK_NAME;
@@ -59,7 +57,7 @@ std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 }
 
 // update shared flight data structures with received flight data
-bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
+bool ADSBExchangeConnection::ProcessFetchedData ()
 {
     // some things depend on the key type
     const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
@@ -77,14 +75,17 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
     
     // data is expected to be in netData string
     // short-cut if there is nothing
-    if ( !netDataPos ) return true;
+    if ( !netDataPos ) {
+        IncErrCnt();
+        return false;
+    }
     
     // now try to interpret it as JSON
-    JSON_Value* pRoot = json_parse_string(netData);
+    JSONRootPtr pRoot (netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
     // first get the structre's main object
-    JSON_Object* pObj = json_object(pRoot);
+    JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // test for ERRor response
@@ -98,7 +99,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
             IncErrCnt();
         }
-        json_value_free (pRoot);
         return false;
     }
     
@@ -130,10 +130,8 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
             LOG_MSG(logERR,ERR_JSON_AC,i+1,ADSBEX_AIRCRAFT_ARR);
             if (IncErrCnt())
                 continue;
-            else {
-                json_value_free (pRoot);
+            else
                 return false;
-            }
         }
         
         // try version 2 first
@@ -162,18 +160,15 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
         // Process the details, depends on version detected
         try {
             if (ver == 2)
-                ProcessV2(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+                ProcessV2(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
             else if (ver == 1)
-                ProcessV1(pJAc, fdKey, fdMap, tsCutOff, adsbxTime, viewPos);
+                ProcessV1(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         } catch(...) {
             LOG_MSG(logERR, "Exception while processing data for '%s'", hexKey.c_str());
         }
     }
-    
-    // cleanup JSON
-    json_value_free (pRoot);
     
     // success
     return true;
@@ -183,7 +178,6 @@ bool ADSBExchangeConnection::ProcessFetchedData (mapLTFlightDataTy& fdMap)
 // Process v2 data
 void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
                                         LTFlightData::FDKeyTy& fdKey,
-                                        mapLTFlightDataTy& fdMap,
                                         const double tsCutOff,
                                         const double adsbxTime,
                                         const positionTy& viewPos)
@@ -247,17 +241,17 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
         return;
     
     // Are we to skip static objects?
-    const std::string reg = jog_s(pJAc, ADSBEX_V2_REG);
+    std::string reg = jog_s(pJAc, ADSBEX_V2_REG);
     std::string acTy = jog_s(pJAc, ADSBEX_V2_AC_TYPE_ICAO);
-    const std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
+    std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
     
-    // Skip static objects
-    if (dataRefs.GetHideStaticTwr()) {
-        if (reg  == "TWR" ||
-            acTy == "TWR" ||
-            cat  == "C3")
-            // skip
-            return;
+    // Mark all static objects equally, so they can optionally be hidden
+    if (reg  == STATIC_OBJECT_TYPE ||
+        acTy == STATIC_OBJECT_TYPE ||
+        cat  == "C3")
+    {
+        reg = acTy = STATIC_OBJECT_TYPE;
+        cat = "C3";
     }
     
     // Identify ground vehicles
@@ -281,7 +275,7 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = fdMap[fdKey];
+    LTFlightData& fd = mapFd[fdKey];
     
     // also get the data access lock once and for all
     // so following fetch/update calls only make quick recursive calls
@@ -332,7 +326,6 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 // Process v1 data
 void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
                                         LTFlightData::FDKeyTy& fdKey,
-                                        mapLTFlightDataTy& fdMap,
                                         const double tsCutOff,
                                         const double /*adsbxTime*/,
                                         const positionTy& viewPos)
@@ -355,18 +348,6 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     if (dist > dataRefs.GetFdStdDistance_m() )
         return;
 
-    // Are we to skip static objects?
-    if (dataRefs.GetHideStaticTwr()) {
-        if (!strcmp(jog_s(pJAc, ADSBEX_V1_GND), "1") && // on the ground
-            !*jog_s(pJAc, ADSBEX_V1_AC_TYPE_ICAO) &&    // no type
-            !*jog_s(pJAc, ADSBEX_V1_HEADING) &&         // no `trak` heading, not even "0"
-            !*jog_s(pJAc, ADSBEX_V1_CALL) &&            // no call sign
-            !*jog_s(pJAc, ADSBEX_V1_REG) &&             // no tail number
-            !strcmp(jog_s(pJAc, ADSBEX_V1_SPD), "0"))   // speed exactly "0"
-            // skip
-            return;
-    }
-
     // from here on access to fdMap guarded by a mutex
     // until FD object is inserted and updated
     std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
@@ -379,7 +360,7 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
 
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = fdMap[fdKey];
+    LTFlightData& fd = mapFd[fdKey];
     
     // also get the data access lock once and for all
     // so following fetch/update calls only make quick recursive calls
@@ -420,14 +401,35 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     dyn.ts =                posTime;
     dyn.pChannel =          this;
     
-    // altitude, if airborne; fetch barometric altitude here
-    const double alt_ft = dyn.gnd ? NAN : jog_sn_nan(pJAc, ADSBEX_V1_ALT);
+    // The GND flag is rather unreliable. From experience: If both `alt` and `galt` are empty strings we are on ground, too
+    const double alt_baro_ft    = jog_sn_nan(pJAc, ADSBEX_V1_ALT);
+    const double alt_geo_ft     = jog_sn_nan(pJAc, ADSBEX_V1_ELEVATION);
+    if (std::isnan(alt_baro_ft) && std::isnan(alt_geo_ft))
+        dyn.gnd = true;
 
     // position: altitude, heading, ground status
-    pos.SetAltFt(BaroAltToGeoAlt_ft(alt_ft, dataRefs.GetPressureHPA()));
+    if (!dyn.gnd) {
+        if (!std::isnan(alt_baro_ft))
+            pos.SetAltFt(BaroAltToGeoAlt_ft(alt_baro_ft, dataRefs.GetPressureHPA()));
+        else
+            pos.SetAltFt(alt_geo_ft);
+    }
     pos.heading() = dyn.heading;
     pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
     
+    // -- Static Object Identification --
+    // Mark all static objects equally, so they can optionally be hidden
+    if (dyn.gnd &&                                  // on the ground
+        stat.acTypeIcao.empty() &&                  // no type
+        stat.call.empty() &&                        // no call sign
+        stat.reg.empty() &&                         // no tail number
+        !*jog_s(pJAc, ADSBEX_V1_TTRK) &&            // no `ttrk` heading, not even "0"
+        !strcmp(jog_s(pJAc, ADSBEX_V1_SPD), "0"))   // speed exactly "0"
+    {
+        stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
+        stat.catDescr = GetADSBEmitterCat("C3");
+    }
+
     // -- Ground vehicle identification --
     // Sometimes we get "-GND", replace it with "ZZZC"
     if (stat.acTypeIcao == ADSBEX_V1_TYPE_GND)
@@ -461,15 +463,64 @@ std::string ADSBExchangeConnection::GetStatusText () const
     std::string s = LTChannel::GetStatusText();
     if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
     {
-        s += ", ";
+        s += " | ";
         s += std::to_string(dataRefs.ADSBExRRemain);
-        s += " / ";
+        s += " of ";
         s += std::to_string(dataRefs.ADSBExRLimit);
         s += " RAPID API requests left";
     }
     return s;
 }
 
+
+// virtual thread main function
+void ADSBExchangeConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_ADSBEx", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+}
 
 
 // add/cleanup API key
@@ -545,6 +596,12 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
     static size_t lenRLimit  = strlen(ADSBEX_RAPIDAPI_RLIMIT);
     static size_t lenRRemain = strlen(ADSBEX_RAPIDAPI_RREMAIN);
     char num[50];
+    
+    // Turn buffer content lower case for the first few chars we are to compare
+    const size_t lenMax = std::min(std::max(lenRLimit,lenRRemain),len);
+    size_t i = 0;
+    for (char* p = buffer; i < lenMax; ++i, ++p)
+        *p = char(std::tolower(*p));
 
     // Limit?
     if (len > lenRLimit &&
@@ -555,7 +612,7 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
         num[copyCnt]=0;                 // zero termination
         dataRefs.ADSBExRLimit = std::atol(num);
     }
-    // Remining?
+    // Remaining?
     else if (len > lenRRemain &&
              memcmp(buffer, ADSBEX_RAPIDAPI_RREMAIN, lenRRemain) == 0)
     {

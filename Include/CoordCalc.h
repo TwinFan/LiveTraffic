@@ -239,6 +239,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
 /// Flight phase
 enum flightPhaseE : unsigned char {
     FPH_UNKNOWN     = 0,            ///< used for initializations
+    FPH_PARKED      = 5,            ///< Parked at startup position
     FPH_TAXI        = 10,           ///< Taxiing
     FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
     FPH_TO_ROLL,                    ///< Take-off roll
@@ -445,6 +446,7 @@ public:
     // short-cuts to coord functions
     inline double angle (const positionTy& pos2 ) const       { return CoordAngle ( *this, pos2); }
     inline double dist (const positionTy& pos2 ) const        { return CoordDistance ( *this, pos2); }
+    double distRoughSqr (const positionTy& pos2) const        { return DistLatLonSqr(lat(), lon(), pos2.lat(), pos2.lon()); }
     inline vectorTy between (const positionTy& pos2 ) const   { return CoordVectorBetween ( *this, pos2); }
     inline positionTy destPos (const vectorTy& vec ) const    { return CoordPlusVector ( *this, vec); }
     inline positionTy operator+ (const vectorTy& vec ) const  { return destPos (vec); }

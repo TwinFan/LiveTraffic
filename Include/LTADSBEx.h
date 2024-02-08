@@ -46,8 +46,8 @@
 #define ADSBEX_RAPIDAPI_25_URL  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/%f/lon/%f/dist/25/"
 #define ADSBEX_RAPIDAPI_HOST    "X-RapidAPI-Host:adsbx-flight-sim-traffic.p.rapidapi.com"
 #define ADSBEX_RAPIDAPI_KEY     "X-RapidAPI-Key:"
-#define ADSBEX_RAPIDAPI_RLIMIT  "X-RateLimit-Requests-Limit:"
-#define ADSBEX_RAPIDAPI_RREMAIN "X-RateLimit-Requests-Remaining:"
+#define ADSBEX_RAPIDAPI_RLIMIT  "x-ratelimit-requests-limit:"
+#define ADSBEX_RAPIDAPI_RREMAIN "x-ratelimit-requests-remaining:"
 
 #define ADSBEX_TOTAL            "total"
 #define ADSBEX_NOW              "now"
@@ -82,6 +82,7 @@
 #define ADSBEX_V1_LON           "lon"
 #define ADSBEX_V1_ELEVATION     "galt"          // geometric altitude
 #define ADSBEX_V1_ALT           "alt"           // barometric altitude
+#define ADSBEX_V1_TTRK          "ttrk"
 #define ADSBEX_V1_HEADING       "trak"
 #define ADSBEX_V1_GND           "gnd"
 #define ADSBEX_V1_POS_TIME      "postime"
@@ -121,7 +122,7 @@ constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 //
 //MARK: ADS-B Exchange
 //
-class ADSBExchangeConnection : public LTOnlineChannel, LTFlightDataChannel
+class ADSBExchangeConnection : public LTFlightDataChannel
 {
 public:
     enum keyTypeE { ADSBEX_KEY_NONE=0, ADSBEX_KEY_EXCHANGE, ADSBEX_KEY_RAPIDAPI };
@@ -132,29 +133,26 @@ protected:
     struct curl_slist* slistKey = NULL;
 public:
     ADSBExchangeConnection ();
-    virtual std::string GetURL (const positionTy& pos);
-    virtual bool ProcessFetchedData (mapLTFlightDataTy& fdMap);
-    virtual bool IsLiveFeed() const { return true; }
-    virtual LTChannelType GetChType() const { return CHT_TRACKING_DATA; }
-    virtual bool FetchAllData(const positionTy& pos) { return LTOnlineChannel::FetchAllData(pos); }
-    virtual std::string GetStatusText () const;  ///< return a human-readable staus
+    std::string GetURL (const positionTy& pos) override;
+    bool ProcessFetchedData () override;
+    std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
+//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
     
 protected:
+    void Main () override;          ///< virtual thread main function
+
     // need to add/cleanup API key
-    virtual bool InitCurl ();
-    virtual void CleanupCurl ();
+    bool InitCurl () override;
+    void CleanupCurl () override;
     
     /// Process v2 data
     void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    mapLTFlightDataTy& fdMap,
                     const double tsCutOff, const double adsbxTime,
                     const positionTy& viewPos);
     /// Process v1 data
     void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    mapLTFlightDataTy& fdMap,
                     const double tsCutOff, const double adsbxTime,
                     const positionTy& viewPos);
 

@@ -71,7 +71,7 @@
 //
 //MARK: FSCharter
 //
-class FSCConnection : public LTOnlineChannel, LTFlightDataChannel
+class FSCConnection : public LTFlightDataChannel
 {
 public:
     /// FSC-specific connection status
@@ -101,9 +101,6 @@ protected:
 public:
     FSCConnection ();
     
-    bool IsLiveFeed() const override { return true; }
-    LTChannelType GetChType() const override { return CHT_TRACKING_DATA; }
-
     std::string GetStatusStr () const;              ///< Get FSC-specific status string
     std::string GetStatusText () const override;    ///< get status info, considering FSC-specific texts
 
@@ -111,8 +108,7 @@ public:
     void CleanupCurl () override;
     std::string GetURL (const positionTy& pos) override;
     void ComputeBody (const positionTy& pos) override;
-    bool ProcessFetchedData (mapLTFlightDataTy& fdMap) override;
-    bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }
+    bool ProcessFetchedData () override;
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
 //    { gndRange = FSC_SMOOTH_GROUND; airbRange = FSC_SMOOTH_AIRBORNE; return true; }
@@ -120,14 +116,8 @@ public:
     /// Extracts all error texts from `response` into the `error*` fields
     bool ExtractErrorTexts (const JSON_Object* pObj = nullptr);
     
-    // do something while disabled?
-    void DoDisabledProcessing () override;
-    // (temporarily) close a connection, (re)open is with first call to FetchAll/ProcessFetchedData
-    void Close () override;
-    
 protected:
-    /// Remove all traces of login
-    void ClearLogin ();
+    void Main () override;          ///< virtual thread main function
 };
 
 

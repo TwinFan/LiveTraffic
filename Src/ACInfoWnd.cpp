@@ -522,13 +522,13 @@ void ACIWnd::buildInterface()
     if (ImGui::Selectable(ICON_FA_CAMERA " Camera",
                           pAc ? pAc->IsInCameraView() : false,
                           pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                          selSize))
+                          selSize) && pAc)
         pAc->ToggleCameraView();
 
     ImGui::SameLine();
     if (ImGui::Selectable(ICON_FA_EYE " Visible", &bVisible,
                           pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                          selSize))
+                          selSize) && pAc)
         pAc->SetVisible(bVisible);
 
     // "Auto Visible" only if some auto-hiding option is on
@@ -536,7 +536,7 @@ void ACIWnd::buildInterface()
         ImGui::SameLine();
         if (ImGui::Selectable("Auto Visible", &bAutoVisible,
                               pAc ? ImGuiSelectableFlags_None : ImGuiSelectableFlags_Disabled,
-                              selSize))
+                              selSize) && pAc)
             pAc->SetAutoVisible(bAutoVisible);
     }
     

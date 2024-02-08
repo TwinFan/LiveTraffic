@@ -62,7 +62,7 @@ constexpr double HPA_STANDARD   = 1013.25;      // air pressure
 constexpr double INCH_STANDARD  = 29.92126;
 constexpr double HPA_per_INCH   = HPA_STANDARD/INCH_STANDARD;
 constexpr double TEMP_STANDARD  = 288.15f;      ///< Standard temperatur of 15°C in °Kelvin
-constexpr double G0_M_R_Lb      = 0.1902632365f;///< -(g0 * M) / (R * Lb)
+constexpr double R_Lb_G0_M      = 0.1902632365f;///< -(R * Lb)/(g0 * M), @see https://www.mide.com/air-pressure-at-altitude-calculator
 constexpr double TEMP_LAPS_R    = -0.0065f;     ///< K/m
 
 //MARK: Flight Data-related
@@ -73,6 +73,7 @@ constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintena
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
@@ -195,6 +196,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"
 #define CSL_CAR_ICAO_TYPE       "ZZZC"      // fake code for a ground vehicle
+#define STATIC_OBJECT_TYPE      "TWR"       ///< code often used for statuc objects
 #define FM_MAP_SECTION          "Map"
 #define FM_CAR_SECTION          "GroundVehicles"
 #define FM_PARENT_SEPARATOR     ":"
@@ -211,6 +213,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_OPENSKY_USER        "OpenSky_User"
 #define CFG_OPENSKY_PWD         "OpenSky_Pwd"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
+#define CFG_RT_LICENSE          "RealTraffic_License"
 #define CFG_FSC_USER            "FSC_User"
 #define CFG_FSC_PWD             "FSC_Pwd"
 
@@ -255,6 +258,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_BASICS         "setup/configuration/settings-basics"
 #define HELP_SET_INPUT_CH       "introduction/features/channels"
 #define HELP_SET_CH_OPENSKY     "setup/installation/opensky"
+#define HELP_SET_CH_ADSBHUB     "setup/installation/adsbhub"
 #define HELP_SET_CH_ADSBEX      "setup/installation/ads-b-exchange"
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
@@ -291,14 +295,19 @@ constexpr const char* PATH_DELIMS = "/\\";      ///< potential path delimiters i
 constexpr long HTTP_OK =            200;
 constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
+constexpr long HTTP_PAYMENT_REQU =  402;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
+constexpr long HTTP_METH_NOT_ALLWD =405;
 constexpr long HTTP_TOO_MANY_REQU = 429;        ///< too many requests, e.g. OpenSky after request limit ran out
+constexpr long HTTP_INTERNAL_ERR =  500;
 constexpr long HTTP_BAD_GATEWAY =   502;        // typical cloudflare responses: Bad Gateway
 constexpr long HTTP_NOT_AVAIL =     503;        //                               Service not available
 constexpr long HTTP_GATEWAY_TIMEOUT=504;        //                               Gateway Timeout
 constexpr long HTTP_TIMEOUT =       524;        //                               Connection Timeout
 constexpr long HTTP_NO_JSON =       601;        ///< private definition: cannot be parsed as JSON
+constexpr long HTTP_FLAG_SENDING =   -1;        ///< used only internal to logging: sending data
+constexpr long HTTP_FLAG_UDP =       -2;        ///< used only internal to logging: received UDP data
 constexpr int CH_MAC_ERR_CNT =      5;          // max number of tolerated errors, afterwards invalid channel
 constexpr int SERR_LEN = 100;                   // size of buffer for IO error texts (strerror_s)
 #define ERR_XPLANE_ONLY         "LiveTraffic works in X-Plane only, version 10 or higher"
@@ -381,7 +390,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_FM_NOT_FOUND        "Found no flight model for ICAO %s/match-string %s: will use default"
 #define ERR_TCP_LISTENACCEPT    "%s: Error opening the TCP port on %s:%s: %s"
 #define ERR_SOCK_SEND_FAILED    "%s: Could not send position: send operation failed"
-#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s:%d: %s"
+#define ERR_UDP_SOCKET_CREAT    "%s: Error creating UDP socket for %s: %s"
 #define ERR_UDP_RCVR_RCVR       "%s: Error receiving UDP: %s"
 constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while reading config file, then: dead
 

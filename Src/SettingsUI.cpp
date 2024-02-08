@@ -66,7 +66,8 @@ txtFixLivery    (dataRefs.cslFixLivery)
     // Fetch OpenSky credentials
     dataRefs.GetOpenSkyCredentials(sOpenSkyUser, sOpenSkyPwd);
     
-    // Fetch RealTraffic port number
+    // Fetch RealTraffic license and port number
+    sRTLicenseEntry = dataRefs.GetRTLicense();
     sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
     
     // Fetch FSC credentials
@@ -186,7 +187,7 @@ void LTSettingsUI::buildInterface()
             ImGui::FilteredCfgNumber("Master Volume",           sFilter, DR_CFG_MASTER_VOLUME, 0, 200, 10, "%d %%");
             
             // auto-open and warning if any of these values are set as they limit what's shown
-            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.IsAutoHidingActive() ||
+            const bool bSomeRestrict = dataRefs.IsAIonRequest() || dataRefs.IsAINotOnGnd() || dataRefs.WarnAutoHiding() ||
                                        dataRefs.ShallUseExternalCamera() || dataRefs.GetRemoteSupport() < 0;
             if (bSomeRestrict)
                 ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
@@ -200,11 +201,13 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgCheckbox("No TCAS/AI for ground a/c", sFilter, DR_CFG_AI_NOT_ON_GND,  "Aircraft on the ground will not be reported to TCAS or AI/multiplayer interfaces");
                 ImGui::FilteredCfgCheckbox("Hide a/c while taxiing", sFilter, DR_CFG_HIDE_TAXIING,      "Hide aircraft in phase 'Taxi'");
                 ImGui::FilteredCfgCheckbox("Hide a/c while parking", sFilter, DR_CFG_HIDE_PARKING,      "Hide aircraft parking at a gate or ramp position");
-                ImGui::FilteredCfgCheckbox("Hide all a/c in Reply", sFilter, DR_CFG_HIDE_IN_REPLAY,     "Hide all aircraft while in Replay mode");
+                ImGui::FilteredCfgCheckbox("Hide all a/c in Replay", sFilter, DR_CFG_HIDE_IN_REPLAY,    "Hide all aircraft while in Replay mode");
                 ImGui::FilteredCfgNumber("No aircraft below", sFilter, DR_CFG_HIDE_BELOW_AGL, 0, 10000, 100, "%d ft AGL");
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
                 ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
                 ImGui::FilteredCfgCheckbox("Hide static objects", sFilter, DR_CFG_HIDE_STATIC_TWR,      "Do not display static objects like towers");
+                ImGui::FilteredCfgCheckbox("Keep parked aircraft", sFilter, DR_CHANNEL_SYNTHETIC,
+                                           "Keep parked aircraft in their parking position even when no live tracking data is available any longer.");
                 ImGui::FilteredCfgCheckbox("Use 3rd party camera", sFilter, DR_CFG_EXTERNAL_CAMERA, "Don't activate LiveTraffic's camera view when clicking the camera button\nbut expect a 3rd party camera plugin to spring on instead");
                 if (ImGui::FilteredLabel("XPMP2 Remote Client support", sFilter)) {
                     const float cbWidth = ImGui::CalcTextSize("Auto Detect (default)_____").x;
@@ -251,7 +254,8 @@ void LTSettingsUI::buildInterface()
                 LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
                 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
-                
+                ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+
                 // Hint that user/password increases number of allowed requests
                 if (!*sFilter && (sOpenSkyUser.empty() || sOpenSkyPwd.empty())) {
                     ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
@@ -306,7 +310,7 @@ void LTSettingsUI::buildInterface()
                 // OpenSky's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (pOpenSkyCh) {
-                        ImGui::TextUnformatted(pOpenSkyCh->GetStatusText().c_str());
+                        ImGui::TextWrapped("%s", pOpenSkyCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -317,23 +321,36 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- ADSBHub ---
-            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
-            ImGui::Indent();
-            ImGui::FilteredCfgCheckbox("ADSBHub", sFilter, DR_CHANNEL_ADSB_HUB,
-                                       "Connect to ADSBHub for tracking data, requires feeder setup",
-                                       false);      // don't move to next cell yet
-            if (ImGui::MatchesFilter("ADSBHub", sFilter)) {
-                ImGui::SameLine();
-                ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME, ADSBHUB_CHECK_URL, ADSBHUB_CHECK_POPUP);
-                ImGui::TableNextCell();
-            }
-            ImGui::Unindent();
+            if (ImGui::TreeNodeCbxLinkHelp("ADSBHub", nCol,
+                                           DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
+                                           ADSBHUB_CHECK_URL,
+                                           ADSBHUB_CHECK_POPUP,
+                                           HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
+                                           sFilter, nOpCl))
+            {
+                const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
 
-            // If ADSBHub has just been enabled then, as a courtesy,
-            // we also make sure that OpenSky Master data is enabled
-            if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB))
-                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-            
+                // If ADSBHub has just been enabled then, as a courtesy,
+                // we also make sure that OpenSky Master data is enabled
+                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
+                }
+                
+                // ADSBHub's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
+                        ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- ADS-B Exchange ---
             if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
                                            // we offer the enable checkbox only when an API key is defined
@@ -406,16 +423,21 @@ void LTSettingsUI::buildInterface()
                     else if (eADSBExKeyTest == ADSBX_KEY_FAILED)
                         ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
                     
-                    // If available, show information on remaining RAPID API data usage
-                    if (dataRefs.ADSBExRLimit || dataRefs.ADSBExRRemain)
-                    {
-                        ImGui::Text("%ld / %ld RAPID API requests left",
-                                    dataRefs.ADSBExRRemain, dataRefs.ADSBExRLimit);
-                    }
-
                     ImGui::TableNextCell();
                 }
 
+                // ADSBEx's connection status details (only if there is an API key defined)
+                if (!dataRefs.GetADSBExAPIKey().empty() &&
+                    ImGui::FilteredLabel("Connection Status", sFilter))
+                {
+                    if (const LTChannel* pADSBExbCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_EXCHANGE_ONLINE)) {
+                        ImGui::TextWrapped("%s", pADSBExbCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 if (!*sFilter) ImGui::TreePop();
             }
 
@@ -428,6 +450,16 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENGLIDER, "Open Help on Open Glider Network in Browser",
                                            sFilter, nOpCl))
             {
+                // OGN's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pOGNCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_GLIDER_NET)) {
+                        ImGui::TextWrapped("%s", pOGNCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
                 if (!*sFilter) {
                     ImGui::TextUnformatted("Flarm A/c Types");
                     ImGui::TableNextCell();
@@ -478,7 +510,6 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- RealTraffic ---
-            const bool bWasRTEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
             if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",
@@ -488,52 +519,140 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_REALTRAFFIC, "Open Help on RealTraffic in Browser",
                                            sFilter, nOpCl))
             {
-                // RealTraffic traffic port number
-                if (ImGui::FilteredLabel("Traffic Port", sFilter)) {
-                    ImGui::SetNextItemWidth(fSmallWidth);
-                    ImGui::InputText("", &sRTPort, ImGuiInputTextFlags_CharsDecimal);
-                    // if changed then set (then re-read) the value
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        dataRefs.SetRTTrafficPort(std::stoi(sRTPort));
-                        sRTPort = std::to_string(DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT));
-                    }
-                    else if (ImGui::IsItemActive()) {
-                        ImGui::SameLine();
-                        ImGui::TextUnformatted("[Enter] to save. Default is 49005. Effective after restart.");
+                const bool bRTCon = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
+
+                // Connection Type: App or Request/Reply
+                if (ImGui::FilteredLabel("Connection Type", sFilter)) {
+                    const float cbWidth = ImGui::CalcTextSize("Direct (enter license below)_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetRTConnType();
+                    if (ImGui::Combo("##RTConnType", &n, "Direct (enter license below)\0Via RealTraffic app\0", 3))
+                        DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(n);
+                    ImGui::TableNextCell();
+                }
+
+                // License
+                if (ImGui::FilteredLabel("RealTraffic License", sFilter)) {
+                    // "Eye" button changes password flag
+                    ImGui::Selectable(ICON_FA_EYE "##RTLicenseVisible", &bRTLicClearText,
+                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Show/Hide license");
+                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    ImGui::InputTextWithHint("##RealTrafficLicense",
+                                             "Enter or paste RealTraffic license key to use Direct connection",
+                                             &sRTLicenseEntry,
+                                             // clear text or password mode?
+                                             (bRTLicClearText ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password) |
+                                             // prohibit changes to the license while channel on
+                                             (bRTCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+
+                    // Save button or hint how to change
+                    if (bRTCon) {
+                        ImGui::TextUnformatted("Disable the channel first if you want to change the license.");
+                    } else {
+                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the license and activates the channel")) {
+                            dataRefs.SetRTLicense(sRTLicenseEntry);                                     // Save license
+                            DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(RT_CONN_REQU_REPL);            // Set connection to "Direct"
+                            if (LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE))   // Set channel back to valid
+                                pRTCh->SetValid(true,false);
+                            dataRefs.SetChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE, true);           // ...and enable it
+                            bRTLicClearText = false;                                                    // and hide the license now
+                        }
                     }
                     ImGui::TableNextCell();
                 }
                 
+                if (ImGui::FilteredLabel("Request Historic Data", sFilter)) {
+                    float cbWidth = ImGui::CalcTextSize("Use live data, not historic_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    int n = dataRefs.GetRTSTC();
+                    if (ImGui::Combo("##RTSTC", &n, "Use live data, not historic\0Configure date manually\0Send simulator time\0", 3))
+                        DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL].setData(n);
+                    
+                    // Manually configured date
+                    if (SimTimeCtrlTy(n) == STC_SIM_TIME_MANUALLY) {
+                        char s[50];
+                        const std::time_t tNow = std::time(nullptr);
+                        const std::time_t tOfs = tNow - (std::time_t)dataRefs.GetRTManTOfs()*60;
+                        int bNewZulu = bRTZuluTime;
+                        ImGui::SetNextItemWidth(75);
+                        ImGui::Combo("##RTZulu", &bNewZulu, "Local\0Zulu\0");
+                        const std::tm tmOfs = bNewZulu ? *std::gmtime(&tOfs) : *std::localtime(&tOfs);
+                        if (!bRTModifyTOfs) {                                   // not currently modifying the time offset
+                            ImGui::SameLine();
+                            std::strftime(s, sizeof(s), "%d-%b-%Y %H:%M", &tmOfs);
+                            ImGui::TextUnformatted(s);
+                            ImGui::SameLine();
+                            if (ImGui::Button("Modify"))
+                                bRTModifyTOfs = true;
+                        } else {                                                // modifying the manual time offset
+                            if (!tmRTManTOfs.tm_mday)                           // first time edit?
+                                tmRTManTOfs = tmOfs;
+                            std::time_t tCurr =                             // time as per current GUI entries
+                            bRTZuluTime ? mktime_utc(tmRTManTOfs) : std::mktime(&tmRTManTOfs);
+                            if (bool(bNewZulu) != bRTZuluTime)                  // just switch Local<->Zulu? -> convert the GUI entries
+                                tmRTManTOfs = bNewZulu ? *std::gmtime(&tCurr) : *std::localtime(&tCurr);
+                            ImGui::SameLine();
+                            n = tmRTManTOfs.tm_mday - 1;
+                            ImGui::SetNextItemWidth(50);
+                            if (ImGui::Combo("##RTDay", &n, "01\0""02\0""03\0""04\0""05\0""06\0""07\0""08\0""09\0""10\0""11\0""12\0""13\0""14\0""15\0""16\0""17\0""18\0""19\0""20\0""21\0""22\0""23\0""24\0""25\0""26\0""27\0""28\0""29\0""30\0""31\0", 10))
+                                tmRTManTOfs.tm_mday = n+1;
+                            ImGui::SameLine();
+                            ImGui::SetNextItemWidth(50);
+                            ImGui::Combo("##RTMonth", &tmRTManTOfs.tm_mon, "Jan\0Feb\0Mar\0Apr\0May\0Jun\0Jul\0Aug\0Sep\0Oct\0Nov\0Dec\0", 12);
+                            ImGui::SameLine();
+                            std::tm tmNow = *std::localtime(&tNow);             // Year: this one and the previous
+                            snprintf(s, sizeof(s), "%d_%d_", tmNow.tm_year+1899, tmNow.tm_year+1900);
+                            s[4] = 0;
+                            s[9] = 0;
+                            n = tmRTManTOfs.tm_year == tmNow.tm_year ? 1 : 0;
+                            ImGui::SetNextItemWidth(75);
+                            if (ImGui::Combo("##RTYear", &n, s, 2))
+                                tmRTManTOfs.tm_year = n ? tmNow.tm_year : tmNow.tm_year-1;
+                            ImGui::SameLine();
+                            ImGui::Spacing();
+                            ImGui::SameLine();
+                            ImGui::SetNextItemWidth(50);
+                            ImGui::Combo("##RTHour", &tmRTManTOfs.tm_hour, "00\0""01\0""02\0""03\0""04\0""05\0""06\0""07\0""08\0""09\0""10\0""11\0""12\0""13\0""14\0""15\0""16\0""17\0""18\0""19\0""20\0""21\0""22\0""23\0", 10);
+                            ImGui::SameLine();
+                            ImGui::TextUnformatted(":");
+                            ImGui::SameLine();
+                            n = tmRTManTOfs.tm_min / 5;
+                            ImGui::SetNextItemWidth(50);
+                            if (ImGui::Combo("##RTMinute", &n, "00\0""05\0""10\0""15\0""20\0""25\0""30\0""35\0""40\0""45\0""50\0""55\0", 12))
+                                tmRTManTOfs.tm_min = n * 5;
+                            ImGui::SameLine();
+                            if (tCurr < tNow - 60) {                            // Current entry is in the past?
+                                if (ImGui::Button("Save")) {
+                                    const int tManOfs = int((tNow - tCurr + 59L) / 60L);
+                                    DATA_REFS_LT[DR_CFG_RT_MAN_TOFFSET].setData(tManOfs);
+                                    bRTModifyTOfs = false;
+                                }
+                            } else {
+                                ImGui::TextUnformatted("(Invalid: Must be in the past)");
+                            }
+                        }
+                        bRTZuluTime = bNewZulu;                                 // Save the Zulu/Local setting now
+                    }
+                    
+                    ImGui::TableNextCell();
+                }
+
                 // RealTraffic's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     const LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
                     if (pRTCh) {
-                        ImGui::TextUnformatted(pRTCh->GetStatusText().c_str());
-                        const std::string extStatus = pRTCh->GetStatusTextExt();
-                        if (!extStatus.empty())
-                            ImGui::TextUnformatted(extStatus.c_str());
+                        ImGui::TextWrapped("%s", pRTCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
                     ImGui::TableNextCell();
                 }
                 
-                if (ImGui::FilteredLabel("Simulator Time Control", sFilter)) {
-                    const float cbWidth = ImGui::CalcTextSize("Send Sim Time plus Buffering Period (default)_____").x;
-                    ImGui::SetNextItemWidth(cbWidth);
-                    int n = dataRefs.GetRTSTC();
-                    if (ImGui::Combo("##RTSTC", &n, "Don't send Simulator Time\0Send Simulator Time unchanged\0Send Sim Time plus Buffering Period (default)\0", 3))
-                        DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL].setData(n);
-                    ImGui::TableNextCell();
-                }
-
                 if (!*sFilter) ImGui::TreePop();
             }
-            
-            // If RealTraffic has just been enabled then, as a courtesy,
-            // we also make sure that OpenSky Master data is enabled
-            if (!bWasRTEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE))
-                dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
             
             // --- FSCharter ---
             if (ImGui::TreeNodeCbxLinkHelp(FSC_NAME, nCol,
@@ -601,7 +720,7 @@ void LTSettingsUI::buildInterface()
                 // FSCharter's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (pFSCCh) {
-                        ImGui::TextUnformatted(pFSCCh->GetStatusText().c_str());
+                        ImGui::TextWrapped("%s", pFSCCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -638,7 +757,7 @@ void LTSettingsUI::buildInterface()
             }
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
-        } // --- Input Channels ---
+        } // --- Output Channels ---
         
         // MARK: --- Aircraft Labels ---
         if (ImGui::TreeNodeHelp("Aircraft Labels", nCol,
@@ -791,8 +910,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Above height AGL of",    sFilter, DR_CFG_FD_REDUCE_HEIGHT,    1000, 100000, 1000, "%d ft");
                 ImGui::FilteredCfgNumber("increase refresh to",    sFilter, DR_CFG_FD_LONG_REFRESH_INTVL, 10, 180, 5, "%d s");
                 ImGui::FilteredCfgNumber("Buffering period",       sFilter, DR_CFG_FD_BUF_PERIOD,    10, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Min. Network timeout",   sFilter, DR_CFG_MIN_NETW_TIMEOUT,  5, 180, 5, "%d s");
-                ImGui::FilteredCfgNumber("Max. Network timeout",   sFilter, DR_CFG_MAX_NETW_TIMEOUT,  5, 180, 5, "%d s");
+                ImGui::FilteredCfgNumber("Network timeout",        sFilter, DR_CFG_MAX_NETW_TIMEOUT,  5, 180, 5, "%d s");
 
                 if (!*sFilter) ImGui::TreePop();
             }

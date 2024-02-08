@@ -11,6 +11,9 @@ if(DEFINED ENV{platform})
     elseif($ENV{platform} STREQUAL "mac-arm")
         message ("   Building cross-platform for mac/arm64")
         set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Archs to build")
+    elseif($ENV{platform} STREQUAL "mac")
+        message ("   Building cross-platform for both mac/x86_64 and mac/arm64")
+        set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Archs to build")
     endif()
 else()
     # No 'platform' defined could mean running from command line, assume we build universal image in one go via XCode
@@ -18,18 +21,29 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.4.3
+        VERSION 3.5.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
+
+# Building a Beta version can be demanded via ENV variable 'version_beta' being set to 1
+set(VERSION_BETA 0)
+if(DEFINED ENV{version_beta})
+    if ($ENV{version_beta} GREATER 0)
+        set(VERSION_BETA 1)
+    endif()
+endif()
 
 # Provide compile macros from the above project version definition
 add_compile_definitions(
-    LIVETRAFFIC_VERSION_BETA=0
+    LIVETRAFFIC_VERSION_BETA=${VERSION_BETA}
     LIVETRAFFIC_VER_MAJOR=${PROJECT_VERSION_MAJOR}
     LIVETRAFFIC_VER_MINOR=${PROJECT_VERSION_MINOR}
     LIVETRAFFIC_VER_PATCH=${PROJECT_VERSION_PATCH}
 )
 
 message("== Building: ${PROJECT_NAME} ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} ==")
+if (VERSION_BETA)
+    message("             BETA Version")
+endif()
 
 ################################################################################
 # Target Systems
@@ -151,8 +165,8 @@ set(Header_Files
     Include/LTOpenGlider.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
+    Include/LTSynthetic.h
     Include/LTWeather.h
-    Include/Network.h
     Include/SettingsUI.h
     Include/TextIO.h
     Lib/base64/base64.h
@@ -196,9 +210,9 @@ set(Source_Files
     Src/LTOpenGlider.cpp
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp
+    Src/LTSynthetic.cpp
     Src/LTVersion.cpp
     Src/LTWeather.cpp
-    Src/Network.cpp
     Src/SettingsUI.cpp
     Src/TextIO.cpp
     Lib/base64/base64.c
@@ -282,8 +296,8 @@ list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
     set(CURL_INCLUDE_DIR        "lib/CURL")
-    set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
-    set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl.lib")
+    set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
+    set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
 endif()
 
 # Link libcurl
@@ -293,6 +307,7 @@ message("   CURL_LIBRARIES       = ${CURL_LIBRARIES}")
 if (WIN32)
     # We have built a static up-to-date version of CURL just for ourselves, compile/link it statically
     add_compile_definitions(CURL_STATICLIB)
+    target_link_libraries(LiveTraffic "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/zlibstatic.lib" )
 endif ()
 include_directories( ${CURL_INCLUDE_DIRS} )
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
@@ -311,7 +326,7 @@ endif ()
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32)
+    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32 Normaliz)
     if (MINGW)
         # Include MingW threads
         target_link_libraries(LiveTraffic mingw_stdthreads)

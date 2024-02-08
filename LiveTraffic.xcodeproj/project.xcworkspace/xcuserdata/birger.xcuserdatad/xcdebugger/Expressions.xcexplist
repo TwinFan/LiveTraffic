@@ -51,6 +51,9 @@
          contextName = "Apt::ShortestPath(unsigned long, unsigned long, double, double, double, double):LTApt.cpp">
       </ContextState>
       <ContextState
+         contextName = "SyntheticConnection::FetchAllData(positionTy const&amp;):LTSynthetic.cpp">
+      </ContextState>
+      <ContextState
          contextName = "FileRecLookup(std::__1::basic_ifstream&lt;char, std::__1::char_traits&lt;char&gt; &gt;&amp;, unsigned long&amp;, unsigned long, unsigned long&amp;, unsigned long&amp;, void*, unsigned long):LTOpenGlider.cpp">
          <PersistentStrings>
             <PersistentString
@@ -120,6 +123,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "XPMP2::SocketNetworking::recv(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;*, XPMP2::SockAddrTy*):Network.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
@@ -149,6 +155,14 @@
       </ContextState>
       <ContextState
          contextName = "FlushMsg():TextIO.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "OpenSkyAcMasterFile::TryOpenDbFile(int, int):LTOpenSky.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "mapPos">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
       <ContextState
          contextName = "TaxiEdge::GetRwyEP_A(Apt const&amp;) const:LTApt.cpp">
@@ -290,10 +304,16 @@
          contextName = "positionTy::rad2deg():CoordCalc.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTACMasterdataChannel::PassOnRequest(LTACMasterdataChannel*, acStatUpdateTy const&amp;):LTChannel.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTAptSnap(LTFlightData&amp;, std::__1::__deque_iterator&lt;positionTy, positionTy*, positionTy&amp;, positionTy**, long, 85l&gt;&amp;):LTApt.cpp">
       </ContextState>
       <ContextState
          contextName = "TFWidget::Show(bool):TFWidgets.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "ForeFlightSender::Main():LTForeFlight.cpp">
       </ContextState>
       <ContextState
          contextName = "ADSBExchangeHistorical::FetchAllData(positionTy const&amp;):LTChannel.cpp">
@@ -343,7 +363,7 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "LTFlightData::FDStaticData::operator|=(LTFlightData::FDStaticData const&amp;):LTFlightData.cpp">
+         contextName = "SyntheticConnection::ProcessFetchedData():LTSynthetic.cpp">
       </ContextState>
       <ContextState
          contextName = "OpenSkyAcMasterdata::ProcessFetchedData(std::__1::map&lt;LTFlightData::FDKeyTy, LTFlightData, std::__1::less&lt;LTFlightData::FDKeyTy&gt;, std::__1::allocator&lt;std::__1::pair&lt;LTFlightData::FDKeyTy const, LTFlightData&gt; &gt; &gt;&amp;):LTOpenSky.cpp">
@@ -357,6 +377,9 @@
          contextName = "LTFlightData::AppendNewPos():LTFlightData.cpp">
       </ContextState>
       <ContextState
+         contextName = "LTFlightData::FDStaticData::operator|=(LTFlightData::FDStaticData const&amp;):LTFlightData.cpp">
+      </ContextState>
+      <ContextState
          contextName = "DataRefs::GetLocalDateDays():DataRefs.h">
       </ContextState>
       <ContextState
@@ -367,6 +390,9 @@
       </ContextState>
       <ContextState
          contextName = "positionTy::deg2rad() const:CoordCalc.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "OpenSkyAcMasterFile::OpenDatabaseFile():LTOpenSky.cpp">
       </ContextState>
       <ContextState
          contextName = "LTAptFindRwy(LTAircraft::FlightModel const&amp;, positionTy const&amp;, double, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt;&amp;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;):LTApt.cpp">
@@ -384,6 +410,9 @@
       </ContextState>
       <ContextState
          contextName = "LTACMasterdataChannel::ClearMasterDataRequests()::$_0::operator()(acStatUpdateTy&amp;) const:LTChannel.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "XPMP2::AIUpdateTCASTargets():AIMultiplayer.cpp">
       </ContextState>
       <ContextState
          contextName = "OpenSkyAcMasterdata::FetchAllData(positionTy const&amp;):LTOpenSky.cpp">
@@ -422,13 +451,18 @@
          contextName = "Doc8643::ReadDoc8643File():DataRefs.cpp">
       </ContextState>
       <ContextState
+         contextName = "OpenSkyAcMasterFile::LookupData():LTOpenSky.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "ln">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "GLOBAL">
          <PersistentStrings>
             <PersistentString
                value = "mapFd">
-            </PersistentString>
-            <PersistentString
-               value = "currCycle.simTime">
             </PersistentString>
             <PersistentString
                value = "dataRefs">
@@ -680,6 +714,9 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "ADSBHubConnection::Main():LTADSBHub.cpp">
+      </ContextState>
+      <ContextState
          contextName = "CSL_DrawObject(XPMPPlane_t*, float, double, double, double, double, double, double, int, int, xpmp_LightStatus, XPLMPlaneDrawState_t*):XPMPMultiplayerCSL.cpp">
       </ContextState>
       <ContextState
@@ -773,6 +810,14 @@
             </PersistentString>
             <PersistentString
                value = "sv">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "XPMP2::SocketNetworking::Connect(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt; &gt; const&amp;, int, unsigned long, unsigned int):Network.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "(sockaddr_in*)addrinfo-&gt;ai_addr">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -964,6 +1009,9 @@
          contextName = "DistResultToBaseLoc(double, double, double, double, distToLineTy const&amp;, double&amp;, double&amp;):CoordCalc.cpp">
       </ContextState>
       <ContextState
+         contextName = "OpenSkyAcMasterFile::AcceptRequest(acStatUpdateTy const&amp;):LTOpenSky.cpp">
+      </ContextState>
+      <ContextState
          contextName = "LTCapDateTime::SetCaption():SettingsUI.cpp">
       </ContextState>
       <ContextState
@@ -1132,6 +1180,9 @@
       </ContextState>
       <ContextState
          contextName = "AccelParam::getRatio(double) const:LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "XPMP2::SocketNetworking::GetAddrString(XPMP2::SockAddrTy const&amp;, bool):Network.cpp">
       </ContextState>
       <ContextState
          contextName = "DataRefs::LTSetSimDateTime(void*, int):DataRefs.cpp">
