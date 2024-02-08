@@ -84,7 +84,8 @@
                 and, certainly,
                 <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step"><b>do the setup</b></a>,
                 which includes not only copying the plugin itself,
-                but also the installation of CSL models.
+                but also the
+                <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/step-by-step#csl-model-installation">installation of CSL models</a>.
             </li>
         </ul>
     </P>
@@ -96,10 +97,13 @@
     <P>
         <code>LiveTraffic/</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;lin_x64/LiveTraffic.xpl</code><br>
-        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LiveTraffic-bionic.xpl</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;mac_x64/LiveTraffic.xpl</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;win_x64/LiveTraffic.xpl</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;Resources/</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contrail/</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contrail.obj</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contrail.png</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contrail.pss</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CSL/...</code> (here you can install CSL packages)<br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ShippedCSL/XCSL_CARS/...</code> (here follow files for the ground vehicle model)<br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Doc8643.txt</code><br>
@@ -108,7 +112,8 @@
         <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;model_typecode.txt</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Obj8DataRefs.txt</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;related.txt</code><br>
-        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RestoreOrig.py</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;relOp.txt</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SendTraffic.py</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;LICENSE</code><br>
         <code>&nbsp;&nbsp;&nbsp;&nbsp;readme.html</code><br>
     </P>
@@ -147,14 +152,31 @@
 
     <ul>
         <li>
-            Reworked much of the networking code for more robust and independent
-            handling of several channels in parallel.
-        </li>
-        <li>
             <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity">RealTraffic</a>:
             Offering new <i>direct</i> connection type without
             the need to start the RealTraffic app. Enter your RealTraffic
             license in the settings.
+        </li>
+        <li>
+            Introduced <i>Parked Aircraft:</i>
+            <ul>
+                <li>
+                    Added flight phase "Parked" for those planes stopped on a known startup position.
+                    Parked planes don't appear on TCAS or external tools.
+                </li>
+                <li>
+                    Added <a href="https://github.com/TwinFan/LiveTraffic/issues/255">#255</a>
+                    option to keep parked aircraft even after they receive no more
+                    live position updates. See
+                    "<a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">Settings > Basics > Cooperation</a> >
+                    Keep parked aircraft", enabled by default. They appear with
+                    channel "Synthetic" in the <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a>.
+                </li>
+            </ul>
+        </li>
+        <li>
+            Reworked much of the networking code for more robust and independent
+            handling of several channels in parallel.
         </li>
         <li>
             Reduced dependency on OpenSky for master data (aircraft type
@@ -165,26 +187,10 @@
                     provide good plane type information already.
                 </li>
                 <li>
-                    Added new OpenSky Master Data File channel for lookup of plane type information,
+                    Added new OpenSky Master Data <i>File</i> channel for lookup of plane type information,
                     which bases on monthly download of a "database" file rather than
                     individual network requests per plane.
                     Should work even if OpenSky API is down.
-                </li>
-            </ul>
-        </li>
-        <li>
-            Parked Aircraft
-            <ul>
-                <li>
-                    Added flight phase "Parked" for those planes stopped on a known startup position.
-                    Parked planes don't appear on TCAS or external tools.
-                </li>
-                <li>
-                    Added <a href="https://github.com/TwinFan/LiveTraffic/issues/255">#255</a>
-                    option to keep parked aircraft even after they receive no more
-                    live position updates. See "Settings > Basics > Cooperation >
-                    Keep parked aircraft", enabled by default. They appear with
-                    channel "Synthetic" in the Aircraft List.
                 </li>
             </ul>
         </li>
@@ -193,6 +199,11 @@
             airline mapping in new file <code>relOp.txt</code>,
             which allows to use same liveries for subsidaries of mother airline companies,
             like using EIN (Aer Lingus Ireland) liveries for EUK (Aer Lingus UK) flights.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/221">issue #221</a>
+            on <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/foreflight">ForeFlight output</a>:
+            Discovers ForeFlight clients, then sends unicast to those clients specifically.
         </li>
         <li>
             Fixed <a href="https://github.com/TwinFan/XPMP2/issues/65">XPMP2 issue #65</a>
@@ -207,7 +218,7 @@
             Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/261">#261</a>
             hiding of static objects.
         </li>
-        <li>Reduced floating ground aircraft with ADS-B Exchange.</li>
+        <li>Reduced (but not completely prevented) floating ground aircraft with ADS-B Exchange.</li>
     </ul>
     
     <h3>v3.4.3</h3>

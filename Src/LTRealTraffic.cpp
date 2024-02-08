@@ -90,14 +90,17 @@ std::string RealTrafficConnection::GetStatusText () const
 
     // --- Direct Connection? ---
     if (eConnType == RT_CONN_REQU_REPL) {
-        if (tsAdjust > 1.0) {
-            std::string s = LTChannel::GetStatusText();
+        std::string s = LTChannel::GetStatusText();
+        if (tsAdjust > 1.0) {                           // historic data?
             snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
                      GetAdjustTSText().c_str());
             s += sIntvl;
-            return s;
         }
-        return LTChannel::GetStatusText();
+        if (lTotalFlights == 0) {                       // RealTraffic has no data at all???
+            s += " | RealTraffic has no traffic at all! ";
+            s += (curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+        }
+        return s;
     }
     
     // --- UDP/TCP connection ---
@@ -179,6 +182,7 @@ void RealTrafficConnection::MainDirect ()
     curr.sGUID.clear();
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
+    lTotalFlights = -1;
 
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -480,14 +484,14 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // If RealTraffic returns `full_count = 0` then something's wrong...
     // like data requested too far in the past
-    l = jog_l(pObj, "full_count");
-    if (l == 0) {
-        static std::chrono::steady_clock::time_point lastWarn;
+    lTotalFlights = jog_l(pObj, "full_count");
+    if (lTotalFlights == 0) {
+        static std::chrono::steady_clock::time_point prevWarn;
         const auto now = std::chrono::steady_clock::now();
-        if (now - lastWarn > std::chrono::minutes(5)) {
+        if (now - prevWarn > std::chrono::minutes(5)) {
             SHOW_MSG(logWARN, "RealTraffic has no traffic at all! %s",
                      curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
-            lastWarn = now;
+            prevWarn = now;
         }
     }
 
@@ -666,6 +670,7 @@ void RealTrafficConnection::MainUDP ()
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_App", LC_ALL_MASK);
     eConnType = RT_CONN_APP;
+    lTotalFlights = -1;
 
     // Top-level exception handling
     try {

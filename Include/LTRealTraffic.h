@@ -247,7 +247,6 @@ protected:
         RT_LIC_STANDARD = 1,                ///< Standard RealTraffic license
         RT_LIC_PROFESSIONAL = 2,            ///< Professional RT license, allowing for historical data
     } eLicType = RT_LIC_UNKNOWN;
-    /// QNH to use for altitude correction (will be historic QNH in case of historic data)
     /// Data for the current request
     struct CurrTy {
         /// Which kind of call do we need next?
@@ -273,6 +272,8 @@ protected:
         
         WxTy& operator = (const CurrTy& o);             ///< fill from `current` data
     } rtWx;                                             ///< Data with which latest weather was requested
+    /// How many flights does RealTraffic have in total?
+    long lTotalFlights = -1;
 
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
