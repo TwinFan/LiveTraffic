@@ -585,8 +585,10 @@ void LTSettingsUI::buildInterface()
                             std::strftime(s, sizeof(s), "%d-%b-%Y %H:%M", &tmOfs);
                             ImGui::TextUnformatted(s);
                             ImGui::SameLine();
-                            if (ImGui::Button("Modify"))
+                            if (ImGui::Button("Modify")) {
                                 bRTModifyTOfs = true;
+                                tmRTManTOfs.tm_mday = 0;                        // make sure the timestamp-to-be-edited is refreshed according to relative time passed
+                            }
                         } else {                                                // modifying the manual time offset
                             if (!tmRTManTOfs.tm_mday)                           // first time edit?
                                 tmRTManTOfs = tmOfs;
