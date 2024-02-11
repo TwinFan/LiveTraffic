@@ -79,8 +79,9 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(10);  ///< How often to update weather?
+constexpr std::chrono::seconds RT_DRCT_WX_ERR_WAIT = std::chrono::seconds(60);  ///< How long to wait after receiving an weather error?
 constexpr long RT_DRCT_WX_DIST = 10L * M_per_NM;                            ///< Distance for which weather is considered valid, greater than that and we re-request
-constexpr int RT_DRCT_MAX_WX_ERR = 10;                                       ///< Max number of consecutive errors during weather requests we wait for...before not asking for weather any longer
+constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {
@@ -265,12 +266,13 @@ protected:
     /// Weather data
     struct WxTy {
         double QNH = NAN;                               ///< baro pressure
-        std::chrono::steady_clock::time_point time;     ///< time when RealTraffic weather was received
+        std::chrono::steady_clock::time_point next;     ///< next time to request RealTraffic weather
         positionTy pos;                                 ///< viewer position for which we received Realtraffic weather
         long tOff = 0;                                  ///< time offset for which we requested weather
         int nErr = 0;                                   ///< How many errors did we have during weather requests?
         
-        WxTy& operator = (const CurrTy& o);             ///< fill from `current` data
+        /// Set all relevant values
+        void set (double qnh, const CurrTy& o, bool bResetErr = true);
     } rtWx;                                             ///< Data with which latest weather was requested
     /// How many flights does RealTraffic have in total?
     long lTotalFlights = -1;

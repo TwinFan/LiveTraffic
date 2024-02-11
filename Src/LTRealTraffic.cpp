@@ -38,13 +38,15 @@
 // MARK: RealTraffic Connection
 //
 
-// fill from `current` data
-RealTrafficConnection::WxTy& RealTrafficConnection::WxTy::operator=(const CurrTy& o)
+// Set all relevant values
+void RealTrafficConnection::WxTy::set(double qnh, const CurrTy& o, bool bResetErr)
 {
+    QNH     = qnh;
     pos     = o.pos;
     tOff    = o.tOff;
-    time = std::chrono::steady_clock::now();
-    return *this;
+    next    = std::chrono::steady_clock::now() + RT_DRCT_WX_WAIT;
+    if (bResetErr)
+        nErr    = 0;
 }
 
 // Constructor doesn't do much
@@ -90,7 +92,10 @@ std::string RealTrafficConnection::GetStatusText () const
 
     // --- Direct Connection? ---
     if (eConnType == RT_CONN_REQU_REPL) {
-        std::string s = LTChannel::GetStatusText();
+        std::string s =
+            curr.eRequType == CurrTy::RT_REQU_AUTH ? "Authenticating..." :
+            curr.eRequType == CurrTy::RT_REQU_WEATHER ? "Fetching weather..." :
+            LTChannel::GetStatusText();
         if (tsAdjust > 1.0) {                           // historic data?
             snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
                      GetAdjustTSText().c_str());
@@ -258,12 +263,15 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
     
     if (curr.sGUID.empty())                         // have no GUID? Need authentication
         curr.eRequType = CurrTy::RT_REQU_AUTH;
-    else if ((rtWx.nErr < RT_DRCT_MAX_WX_ERR) &&    // not seen too many errors yet
-             (std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
+    else if ((std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
               std::labs(curr.tOff - rtWx.tOff) > 120 ||
-              std::chrono::steady_clock::now() - rtWx.time > RT_DRCT_WX_WAIT ||
+              std::chrono::steady_clock::now() >= rtWx.next ||
               rtWx.pos.distRoughSqr(curr.pos) > (RT_DRCT_WX_DIST*RT_DRCT_WX_DIST)))
+    {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
+        if (std::labs(curr.tOff - rtWx.tOff) > 120) // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
+            rtWx.QNH = NAN;
+    }
     else
         // in all other cases we ask for traffic data
         curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
@@ -437,19 +445,46 @@ bool RealTrafficConnection::ProcessFetchedData ()
     if (curr.eRequType == CurrTy::RT_REQU_WEATHER) {
         // We are interested in just a single value: local Pressure
         const double wxSLP = jog_n_nan(pObj, "data.locWX.SLP");
-        if (std::isnan(wxSLP) || wxSLP < 800.0) {
-            LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
-                    wxSLP, netData);
-            rrlWait = std::chrono::seconds(2);      // isn't exactly clear how quickly we can repeat weather requests!
-            if (++rtWx.nErr >= RT_DRCT_MAX_WX_ERR) { // Too many WX errors?
-                SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+        // Error in locWX data?
+        std::string s = jog_s(pObj, "data.locWX.Error");                    // sometimes errors are given in a specific field
+        if (s.empty() &&
+            !strcmp(jog_s(pObj, "data.locWX.Info"), "TinyDelta"))           // if we request too often then Info is 'TinyDelta'
+            s = "TinyDelta";
+        // Any error, either explicitely or because local pressure is bogus?
+        if (!s.empty() || std::isnan(wxSLP) || wxSLP < 800.0)
+        {
+            if (s == "File requested") {
+                // Error "File requested" often occurs when requesting historic weather that isn't cached on the server, so we only issue debug-level message
+                LOG_MSG(logDEBUG, "Weather details being fetched at RealTraffic, will try again in 60s");
+            } else {
+                // Anything else is unexpected
+                if (!s.empty()) {
+                    LOG_MSG(logERR, "Requesting RealTraffic weather returned error '%s':\n%s",
+                            s.c_str(), netData);
+                } else {
+                    LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
+                            wxSLP, netData);
+                }
+            }
+            // one more error
+            ++rtWx.nErr;
+            // If we don't yet have any pressure...
+            if (std::isnan(rtWx.QNH)) {
+                // Too many WX errors? We give up and just use standard pressure
+                if (rtWx.nErr >= RT_DRCT_MAX_WX_ERR) {
+                    SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+                    rtWx.set(HPA_STANDARD, curr, false);
+                } else {
+                    // We will request weather directly again, but need to wait 60s for it
+                    rrlWait = std::chrono::seconds(60);
+                }
             }
             return false;
         }
+
+        // Successfully received weather information
         LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
-        rtWx.QNH = wxSLP;                           // Save new QNH
-        rtWx = curr;                                // and how it was requested
-        rtWx.nErr = 0;                              // reset the error counter as we now received good data
+        rtWx.set(wxSLP, curr);                      // Save new QNH
         return true;
     }
     
