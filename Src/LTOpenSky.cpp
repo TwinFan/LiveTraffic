@@ -928,8 +928,18 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         {
             std::vector<std::string> vToBeDeleted;
 #if IBM
-#error Traversing directory to be implemented
+            WIN32_FIND_DATA data = { 0 };
+            // Search already only for files that _look_ like database files
+            HANDLE h = FindFirstFileA((fileDir + OPSKY_MD_DB_FILE_BEGIN + '*').c_str(), &data);
+            if (h != INVALID_HANDLE_VALUE) {
+                do {
+                    if (!striequal(data.cFileName, fileName))           // Skip the actual file that we just processed
+                        vToBeDeleted.emplace_back(data.cFileName);
+                } while (FindNextFileA(h, &data));
+                FindClose(h);
+            }
 #else
+            // https://stackoverflow.com/a/4204758
             DIR *d = nullptr;
             struct dirent *dir = nullptr;
             d = opendir(fileDir.c_str());
