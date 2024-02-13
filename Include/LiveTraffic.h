@@ -220,6 +220,10 @@ bool RemoteFileDownload (const std::string& url, const std::string& path);
 std::string& str_toupper(std::string& s);
 /// return a std::string copy converted to uppercase
 std::string str_toupper_c(const std::string& s);
+/// Case-insensitive equal
+bool striequal (const std::string& a, const std::string& b);
+/// Case-insensitive begins with
+bool stribeginwith (const std::string& s, const std::string& begin);
 // are all chars alphanumeric?
 bool str_isalnum(const std::string& s);
 // limits text to m characters, replacing the last ones with ... if too long

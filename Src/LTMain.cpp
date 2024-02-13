@@ -387,6 +387,25 @@ std::string str_toupper_c(const std::string& s)
     return c;
 }
 
+// Case-insensitive equal
+/// @see https://stackoverflow.com/a/4119881
+bool striequal (const std::string& a, const std::string& b)
+{
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                      [](unsigned char x, unsigned char y)
+                      { return std::tolower(x) == std::tolower(y); });
+}
+
+// Case-insensitive begins with
+bool stribeginwith (const std::string& s, const std::string& begin)
+{
+    if (begin.size() > s.size()) return false;
+    return std::equal(begin.begin(), begin.end(), s.begin(),
+                      [](unsigned char x, unsigned char y)
+                      { return std::tolower(x) == std::tolower(y); });
+}
+
+
 bool str_isalnum(const std::string& s)
 {
     return std::all_of(s.cbegin(), s.cend(), [](unsigned char c){return isalnum(c);});

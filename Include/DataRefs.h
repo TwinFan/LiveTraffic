@@ -1036,9 +1036,9 @@ public:
     int DecNumAc();
 
     // Get XP System Path
-    inline std::string GetXPSystemPath() const  { return XPSystemPath; }
-    inline std::string GetLTPluginPath() const  { return LTPluginPath; }
-    inline std::string GetDirSeparator() const  { return DirSeparator; }
+    const std::string& GetXPSystemPath() const  { return XPSystemPath; }
+    const std::string& GetLTPluginPath() const  { return LTPluginPath; }
+    const std::string& GetDirSeparator() const  { return DirSeparator; }
     
     // Load/save config file (basically a subset of LT dataRefs)
     bool LoadConfigFile();

@@ -25,6 +25,11 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+#if IBM
+#else
+#include <dirent.h>
+#endif
+
 //
 //MARK: OpenSky
 //
@@ -851,10 +856,8 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
 
     try {
         // Is the file available already?
-        std::string filePath = dataRefs.GetLTPluginPath();
-        filePath += PATH_RESOURCES;
-        filePath += '/';
-        filePath += fileName;
+        const std::string fileDir  = dataRefs.GetLTPluginPath() + PATH_RESOURCES + '/';
+        const std::string filePath = fileDir + fileName;
 
         // Just try to open and see what happens
         fAcDb.open(filePath);
@@ -917,6 +920,35 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         
         // looks good!
         fAcDb.clear();
+        
+        // Lastly, we remove all _other_ database files given that each takes up 50MB of disk space
+        // (Can't use XPLMGetDirectoryContents in non-main thread,
+        //  using std::filesystem crashed CURL...
+        //  so we go back to basic POSIX C and native Windows)
+        {
+            std::vector<std::string> vToBeDeleted;
+#if IBM
+#error Traversing directory to be implemented
+#else
+            DIR *d = nullptr;
+            struct dirent *dir = nullptr;
+            d = opendir(fileDir.c_str());
+            if (d) {
+                while ((dir = readdir(d)) != NULL) {
+                    // If begins like a database file but is not the one we just processed
+                    std::string f = dir->d_name;
+                    if (stribeginwith(f, OPSKY_MD_DB_FILE_BEGIN) &&
+                        !striequal(f, fileName))
+                        vToBeDeleted.emplace_back(std::move(f));
+                }
+                closedir(d);
+            }
+#endif
+            // Now delete what we remembered
+            for (const std::string& p: vToBeDeleted)
+                std::remove((fileDir+p).c_str());
+        }
+        
         return true;
         
     } catch (const std::exception& e) {
