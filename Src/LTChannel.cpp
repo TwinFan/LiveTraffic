@@ -887,8 +887,12 @@ void LTFlightDataDisable()
 
 void LTFlightDataStop()
 {
+    /// @see https://github.com/Homebrew/homebrew-core/issues/158759#issuecomment-1874091015
+    /// To be able to reload plugins we don't properly call global cleanup
+#if not APL
     // cleanup global CURL stuff
     curl_global_cleanup();
+#endif
 }
 
 //
