@@ -228,6 +228,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_HAVE_TCAS_REQUSTD  "TCAS controlled (requested)"
 #define MENU_TOGGLE_LABELS      "Labels shown"
+#define MENU_TOGGLE_AC_AHEAD    "Hide Aircraft ahead"
 #define MENU_SETTINGS_UI        "Settings..."
 #define MENU_HELP               "Help"
 #define MENU_HELP_DOCUMENTATION "Documentation"
