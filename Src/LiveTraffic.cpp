@@ -55,6 +55,8 @@ enum menuItems {
     MENU_ID_HELP_AC_INFO_WND,
     MENU_ID_HELP_SETTINGS,
     MENU_ID_HELP_INSTALL_CSL,
+    MENU_ID_HELP_SUPPORT_FORUM,
+    MENU_ID_HELP_SUPPORT_HOWTO,
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -130,7 +132,11 @@ void MenuHandler(void * /*mRef*/, void * iRef)
 void MenuHandlerHelp (void * /*mRef*/, void * iRef)
 {
     const char* helpPath = static_cast<const char*>(iRef);
-    LTOpenHelp(helpPath);
+    // if it starts with https it is a full URL, otherwise a help sub path
+    if (stribeginwith(helpPath, "https://"))
+        LTOpenURL(helpPath);
+    else
+        LTOpenHelp(helpPath);
 }
 
 // the "Aircraft displayed" menu item includes the number of displayed a/c
@@ -323,6 +329,9 @@ bool RegisterMenuItem ()
     aMenuItems[MENU_ID_HELP_AC_INFO_WND] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_AC_INFO_WND,   (void*)HELP_AC_INFO_WND,1);
     aMenuItems[MENU_ID_HELP_SETTINGS] =     XPLMAppendMenuItem(menuHelpID, MENU_HELP_SETTINGS,      (void*)HELP_SETTINGS,1);
     aMenuItems[MENU_ID_HELP_INSTALL_CSL] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_INSTALL_CSL,   (void*)HELP_INSTALL_CSL,1);
+    XPLMAppendMenuSeparator(menuHelpID);
+    aMenuItems[MENU_ID_HELP_SUPPORT_FORUM]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_FORUM, (void*)URL_SUPPORT_FORUM,1);
+    aMenuItems[MENU_ID_HELP_SUPPORT_HOWTO]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_HOWTO, (void*)URL_SUPPORT_HOWTO,1);
 
 #ifdef DEBUG
     // Separator
