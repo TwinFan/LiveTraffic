@@ -240,10 +240,12 @@ bool OpenSkyConnection::ProcessFetchedData ()
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // for determining an offset as compared to network time we need to know network time
+/* Temporarily disabled, see https://forums.x-plane.org/index.php?/forums/topic/301833-aircraft-fail-to-display-buffer-times-going-up/
     double opSkyTime = jog_n(pObj, OPSKY_TIME);
     if (opSkyTime > JAN_FIRST_2019)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(opSkyTime);
+*/
     
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
