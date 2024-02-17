@@ -228,6 +228,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HAVE_TCAS          "TCAS controlled"
 #define MENU_HAVE_TCAS_REQUSTD  "TCAS controlled (requested)"
 #define MENU_TOGGLE_LABELS      "Labels shown"
+#define MENU_TOGGLE_AC_AHEAD    "Hide Aircraft ahead"
 #define MENU_SETTINGS_UI        "Settings..."
 #define MENU_HELP               "Help"
 #define MENU_HELP_DOCUMENTATION "Documentation"
@@ -237,6 +238,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_AC_INFO_WND   "A/C Info Window"
 #define MENU_HELP_SETTINGS      "Settings"
 #define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
+#define MENU_HELP_SUPPORT_FORUM "Support Forum"
+#define MENU_HELP_SUPPORT_HOWTO "Support HowTo"
 #define MENU_NEWVER             "New Version %s available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
@@ -269,6 +272,9 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
+
+#define URL_SUPPORT_FORUM       "https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/"
+#define URL_SUPPORT_HOWTO       "https://forums.x-plane.org/index.php?/forums/topic/174691-support"
 
 //MARK: File Paths
 // these are under the plugins directory

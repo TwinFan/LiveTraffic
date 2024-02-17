@@ -684,6 +684,7 @@ struct cmdRefDescrTy {
     {"LiveTraffic/Aircrafts/Display",                   "Starts/Stops display of live aircraft"},
     {"LiveTraffic/Aircrafts/TCAS_Control",              "TCAS Control toggle: Tries to take control over AI aircraft, or release it"},
     {"LiveTraffic/Aircrafts/Toggle_Labels",             "Toggle display of labels in current view"},
+    {"LiveTraffic/Aircrafts/Toggle_Ahead",              "Toggle visibility of aircraft ahead"},
     {"LiveTraffic/Settings/Open",                       "Opens/Closes the Settings window"},
 };
 

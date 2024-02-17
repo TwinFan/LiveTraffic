@@ -25,6 +25,11 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+#if IBM
+#else
+#include <dirent.h>
+#endif
+
 //
 //MARK: OpenSky
 //
@@ -235,10 +240,12 @@ bool OpenSkyConnection::ProcessFetchedData ()
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
     // for determining an offset as compared to network time we need to know network time
+/* Temporarily disabled, see https://forums.x-plane.org/index.php?/forums/topic/301833-aircraft-fail-to-display-buffer-times-going-up/
     double opSkyTime = jog_n(pObj, OPSKY_TIME);
     if (opSkyTime > JAN_FIRST_2019)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(opSkyTime);
+*/
     
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
@@ -851,10 +858,8 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
 
     try {
         // Is the file available already?
-        std::string filePath = dataRefs.GetLTPluginPath();
-        filePath += PATH_RESOURCES;
-        filePath += '/';
-        filePath += fileName;
+        const std::string fileDir  = dataRefs.GetLTPluginPath() + PATH_RESOURCES + '/';
+        const std::string filePath = fileDir + fileName;
 
         // Just try to open and see what happens
         fAcDb.open(filePath);
@@ -917,6 +922,45 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         
         // looks good!
         fAcDb.clear();
+        
+        // Lastly, we remove all _other_ database files given that each takes up 50MB of disk space
+        // (Can't use XPLMGetDirectoryContents in non-main thread,
+        //  using std::filesystem crashed CURL...
+        //  so we go back to basic POSIX C and native Windows)
+        {
+            std::vector<std::string> vToBeDeleted;
+#if IBM
+            WIN32_FIND_DATA data = { 0 };
+            // Search already only for files that _look_ like database files
+            HANDLE h = FindFirstFileA((fileDir + OPSKY_MD_DB_FILE_BEGIN + '*').c_str(), &data);
+            if (h != INVALID_HANDLE_VALUE) {
+                do {
+                    if (!striequal(data.cFileName, fileName))           // Skip the actual file that we just processed
+                        vToBeDeleted.emplace_back(data.cFileName);
+                } while (FindNextFileA(h, &data));
+                FindClose(h);
+            }
+#else
+            // https://stackoverflow.com/a/4204758
+            DIR *d = nullptr;
+            struct dirent *dir = nullptr;
+            d = opendir(fileDir.c_str());
+            if (d) {
+                while ((dir = readdir(d)) != NULL) {
+                    // If begins like a database file but is not the one we just processed
+                    std::string f = dir->d_name;
+                    if (stribeginwith(f, OPSKY_MD_DB_FILE_BEGIN) &&
+                        !striequal(f, fileName))
+                        vToBeDeleted.emplace_back(std::move(f));
+                }
+                closedir(d);
+            }
+#endif
+            // Now delete what we remembered
+            for (const std::string& p: vToBeDeleted)
+                std::remove((fileDir+p).c_str());
+        }
+        
         return true;
         
     } catch (const std::exception& e) {

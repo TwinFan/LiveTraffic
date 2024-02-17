@@ -449,6 +449,7 @@ enum cmdRefsLT {
     CR_AC_DISPLAYED,
     CR_AC_TCAS_CONTROLLED,
     CR_LABELS_TOGGLE,
+    CR_TOGGLE_AC_AHEAD,                 ///< Toggle visibility of the a/c ahead
     CR_SETTINGS_UI,
     CNT_CMDREFS_LT                      // always last, number of elements
 };
@@ -1036,9 +1037,9 @@ public:
     int DecNumAc();
 
     // Get XP System Path
-    inline std::string GetXPSystemPath() const  { return XPSystemPath; }
-    inline std::string GetLTPluginPath() const  { return LTPluginPath; }
-    inline std::string GetDirSeparator() const  { return DirSeparator; }
+    const std::string& GetXPSystemPath() const  { return XPSystemPath; }
+    const std::string& GetLTPluginPath() const  { return LTPluginPath; }
+    const std::string& GetDirSeparator() const  { return DirSeparator; }
     
     // Load/save config file (basically a subset of LT dataRefs)
     bool LoadConfigFile();

@@ -46,6 +46,7 @@ enum menuItems {
     MENU_ID_TOGGLE_AIRCRAFT,
     MENU_ID_HAVE_TCAS,
     MENU_ID_TOGGLE_LABELS,
+    MENU_ID_TOGGLE_AC_AHEAD,
     MENU_ID_SETTINGS_UI,
     MENU_ID_HELP,
     MENU_ID_HELP_DOCUMENTATION,
@@ -55,6 +56,8 @@ enum menuItems {
     MENU_ID_HELP_AC_INFO_WND,
     MENU_ID_HELP_SETTINGS,
     MENU_ID_HELP_INSTALL_CSL,
+    MENU_ID_HELP_SUPPORT_FORUM,
+    MENU_ID_HELP_SUPPORT_HOWTO,
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -102,6 +105,25 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_LABELS],
                                   dataRefs.ToggleLabelDraw() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
+            case MENU_ID_TOGGLE_AC_AHEAD:
+            {
+                bool bMenuActive = false;
+                const LTFlightData* pfdFocus = LTFlightData::FindFocusAc(dataRefs.GetViewHeading());
+                if (pfdFocus && pfdFocus->hasAc()) {
+                    LTAircraft* pAc = pfdFocus->GetAircraft();
+                    if (pAc->IsVisible())                   // if visible
+                        pAc->SetVisible(false);             //   hide
+                    else {                                  // else
+                        pAc->SetVisible(true);              //   show
+                        pAc->SetAutoVisible(true);          //   and (re)activate auto-show
+                    }
+                    bMenuActive = !pAc->IsVisible();
+                }
+                XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_AC_AHEAD],
+                                  bMenuActive ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+                break;
+            }
+                
             case MENU_ID_SETTINGS_UI:
                 XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
                                   LTSettingsUI::ToggleDisplay() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
@@ -130,7 +152,11 @@ void MenuHandler(void * /*mRef*/, void * iRef)
 void MenuHandlerHelp (void * /*mRef*/, void * iRef)
 {
     const char* helpPath = static_cast<const char*>(iRef);
-    LTOpenHelp(helpPath);
+    // if it starts with https it is a full URL, otherwise a help sub path
+    if (stribeginwith(helpPath, "https://"))
+        LTOpenURL(helpPath);
+    else
+        LTOpenHelp(helpPath);
 }
 
 // the "Aircraft displayed" menu item includes the number of displayed a/c
@@ -186,6 +212,11 @@ void MenuUpdateAllItemStatus()
                         dataRefs.AwaitingAIControl() ? MENU_HAVE_TCAS_REQUSTD : MENU_HAVE_TCAS,
                         0);
 
+    // Is the aircraft ahead hidden or visible?
+    const LTFlightData* pfdFocus = LTFlightData::FindFocusAc(dataRefs.GetViewHeading());
+    XPLMCheckMenuItem(menuID, aMenuItems[MENU_ID_TOGGLE_AC_AHEAD],
+                      pfdFocus && pfdFocus->hasAc() && !pfdFocus->GetAircraft()->IsVisible() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+    
     // Is Settings window open?
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_SETTINGS_UI],
                       LTSettingsUI::IsDisplayed() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
@@ -299,6 +330,12 @@ bool RegisterMenuItem ()
                    dataRefs.cmdLT[CR_LABELS_TOGGLE]);
     XPLMCheckMenuItem(menuID,aMenuItems[MENU_ID_TOGGLE_LABELS],
                       dataRefs.ShallDrawLabels() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+
+    // Toggle visibility of aircraft ahead
+    aMenuItems[MENU_ID_TOGGLE_AC_AHEAD] =
+    AppendMenuItem(menuID, MENU_TOGGLE_AC_AHEAD, (void *)MENU_ID_TOGGLE_AC_AHEAD,
+                   dataRefs.cmdLT[CR_TOGGLE_AC_AHEAD]);
+
     
     // Separator
     XPLMAppendMenuSeparator(menuID);
@@ -323,6 +360,9 @@ bool RegisterMenuItem ()
     aMenuItems[MENU_ID_HELP_AC_INFO_WND] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_AC_INFO_WND,   (void*)HELP_AC_INFO_WND,1);
     aMenuItems[MENU_ID_HELP_SETTINGS] =     XPLMAppendMenuItem(menuHelpID, MENU_HELP_SETTINGS,      (void*)HELP_SETTINGS,1);
     aMenuItems[MENU_ID_HELP_INSTALL_CSL] =  XPLMAppendMenuItem(menuHelpID, MENU_HELP_INSTALL_CSL,   (void*)HELP_INSTALL_CSL,1);
+    XPLMAppendMenuSeparator(menuHelpID);
+    aMenuItems[MENU_ID_HELP_SUPPORT_FORUM]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_FORUM, (void*)URL_SUPPORT_FORUM,1);
+    aMenuItems[MENU_ID_HELP_SUPPORT_HOWTO]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_HOWTO, (void*)URL_SUPPORT_HOWTO,1);
 
 #ifdef DEBUG
     // Separator
@@ -370,6 +410,7 @@ struct cmdMenuMap {
     { CR_AC_DISPLAYED,              MENU_ID_TOGGLE_AIRCRAFT },
     { CR_AC_TCAS_CONTROLLED,        MENU_ID_HAVE_TCAS },
     { CR_LABELS_TOGGLE,             MENU_ID_TOGGLE_LABELS },
+    { CR_TOGGLE_AC_AHEAD,           MENU_ID_TOGGLE_AC_AHEAD },
     { CR_SETTINGS_UI,               MENU_ID_SETTINGS_UI },
 };
 

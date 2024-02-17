@@ -103,6 +103,7 @@ constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which cate
 
 #define OPSKY_MD_DB_NAME        "OpenSky Masterdata File"
 #define OPSKY_MD_DB_URL         "https://opensky-network.org/datasets/metadata/"
+#define OPSKY_MD_DB_FILE_BEGIN  "aircraft-database-complete-"
 #define OPSKY_MD_DB_FILE        "aircraft-database-complete-%04d-%02d.csv"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="

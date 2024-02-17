@@ -129,16 +129,56 @@
 
     <h1 id="release-notes">Release Notes</h1>
 
-    <p>The issue number links refer to issue on GitHub with (often technical) details.</p>
+    <p>The issue number links refer to issues on GitHub with (often technical) details.</p>
 
     <h2>v3</h2>
 
-    <h3>v3.5.0</h3>
+    <h3>v3.5.1</h3>
 
     <P>
         <b>Update:</b> In case of doubt you can always just copy all files from the archive
         over the files of your existing installation.
     </P>
+    <P>At least copy the following files, which have changed compared to v3.5.0:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+
+    <P>Change log:</P>
+
+    <ul>
+        <li>Hotfix to remove OpenSky Network from network time synchronization, to prevent
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/301833-aircraft-fail-to-display-buffer-times-going-up/">unreasonable buffering time</a> from happening.
+            OpenSky Network also causes other network errors and will likely disable itself after some attempts
+            anyway.
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/295468-opensky-unavailable/&do=findComment&comment=2633820">See here</a> for discussion and options.
+        </li>
+        <li>Not designated a Beta version as v3.5.0 accidently was. No usage time limit.<br>
+            You want to set <i><a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#logging">Settings &gt; Advanced &gt; Logging</a> &gt; Log.txt logging level</i>
+            back to "Warning" to reduce output to <code>Log.txt</code>.
+            That setting got set to "Debug" while running a Beta version.
+        </li>
+        <li>RealTraffic with historic data:
+            <ul>
+                <li>Fixed fetching historic weather, more robust now.</li>
+                <li>Fixed glitch in Settings UI that could offer outdated
+                    historic timestamp when modifying timestamp again.</li>
+            </ul>
+        </li>
+        <li>Added command to toggle visibility of aircraft ahead,
+            available as <a href="https://twinfan.gitbook.io/livetraffic/using-lt/menu-items/configuring-commands">joystick button or keyboard assignment</a>
+            "LiveTraffic/Aircrafts/Toggle_Ahead"
+            and as new <a href="https://twinfan.gitbook.io/livetraffic/using-lt/menu-items#hide-aicraft-ahead">menu item "Hide aircraft ahead"</a>.
+        </li>
+        <li>OpenSky Master File: Removal of no longer used database files.
+        </li>
+        <li>Additional Help menu entries for
+            <a href="https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/">Support Forum</a> and
+            <a href="https://forums.x-plane.org/index.php?/forums/topic/174691-support">Support HowTo</a>.
+        </li>
+    </ul>
+
+    <h3>v3.5.0</h3>
 
     <P>At least copy the following files, which have changed compared to v3.4.3:</P>
     <ul>
