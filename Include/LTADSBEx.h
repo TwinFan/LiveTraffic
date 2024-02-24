@@ -1,17 +1,16 @@
 /// @file       LTADSBEx.h
-/// @brief      ADS-B Exchange: Requests and processes live tracking data
+/// @brief      ADS-B Exchange and adsb.fi: Requests and processes live tracking data
 /// @see        https://www.adsbexchange.com/
+/// @see        https://github.com/adsbfi/opendata
+/// @details    Defines a base class handling the ADSBEx data format,
+///             which is shared by both ADS-B Exchange and adsb.fi.
 /// @details    Defines ADSBExchangeConnection:\n
 ///             - Handles the API key\n
-///             - Provides a proper REST-conform URL for both the original sevrer as well as for the Rapid API server.\n
-///             - Interprets the response and passes the tracking data on to LTFlightData.\n
-///             \n
-///             ADSBExchangeHistorical is a definition for historic data that once could be downloaded
-///             from ADSBEx, but is no longer available for the average user. This historic data code
-///             is no longer maintained and probably defunct. It is no longer accessible through the
-///             UI either and should probably be removed.
+///             - Provides a proper REST-conform URL for both the original sevrer as well as for the Rapid API server.
+/// @details    Defines ADSBfi:\n
+///             - Provides a proper REST-conform URL
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2024 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -120,9 +119,31 @@ constexpr double ADSBEX_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
 constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 
 //
-//MARK: ADS-B Exchange
+// MARK: Base class for ADSBEx format
 //
-class ADSBExchangeConnection : public LTFlightDataChannel
+
+class ADSBBase : public LTFlightDataChannel
+{
+protected:
+    ADSBBase (dataRefsLT ch, const char* chName) : LTFlightDataChannel(ch, chName) {}
+    /// Process ADSBEx foramtted data
+    bool ProcessFetchedData () override;
+    /// Give derived class chance for channel-specific error-checking
+    virtual bool ProcessErrors (const JSON_Object* pObj) = 0;
+    /// Process v2 data
+    void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+                    const double tsCutOff, const double adsbxTime,
+                    const positionTy& viewPos);
+    /// Process v1 data
+    void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+                    const double tsCutOff, const double adsbxTime,
+                    const positionTy& viewPos);
+};
+
+//
+// MARK: ADS-B Exchange
+//
+class ADSBExchangeConnection : public ADSBBase
 {
 public:
     enum keyTypeE { ADSBEX_KEY_NONE=0, ADSBEX_KEY_EXCHANGE, ADSBEX_KEY_RAPIDAPI };
@@ -134,7 +155,6 @@ protected:
 public:
     ADSBExchangeConnection ();
     std::string GetURL (const positionTy& pos) override;
-    bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
@@ -147,14 +167,8 @@ protected:
     bool InitCurl () override;
     void CleanupCurl () override;
     
-    /// Process v2 data
-    void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    const double tsCutOff, const double adsbxTime,
-                    const positionTy& viewPos);
-    /// Process v1 data
-    void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    const double tsCutOff, const double adsbxTime,
-                    const positionTy& viewPos);
+    /// Specific handling for authentication errors
+    bool ProcessErrors (const JSON_Object* pObj) override;
 
     // make list of HTTP header fields
     static struct curl_slist* MakeCurlSList (keyTypeE keyTy, const std::string theKey);
