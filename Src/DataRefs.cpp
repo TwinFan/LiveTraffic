@@ -2604,7 +2604,7 @@ void DataRefs::UpdateViewPos()
     
     lastCamPos = positionTy(lat, lon, alt,
                             dataRefs.GetSimTime(),
-                            camPos.heading,
+                            HeadingNormalize(camPos.heading),
                             camPos.pitch,
                             camPos.roll);
 }
