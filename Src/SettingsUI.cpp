@@ -242,6 +242,28 @@ void LTSettingsUI::buildInterface()
                 }
             }
             
+            // --- adsb.fi ---
+            if (ImGui::TreeNodeCbxLinkHelp("adsb.fi", nCol,
+                                           DR_CHANNEL_ADSB_FI_ONLINE, "Connect to adsb.fi for tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBFI_CHECK_NAME,
+                                           ADSBFI_CHECK_URL,
+                                           ADSBFI_CHECK_POPUP,
+                                           HELP_SET_CH_ADSBFI, "Open Help on adsb.fi in Browser",
+                                           sFilter, nOpCl))
+            {
+                // adsb.fi's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pADSBfiCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_FI_ONLINE)) {
+                        ImGui::TextWrapped("%s", pADSBfiCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
@@ -321,6 +343,7 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- ADSBHub ---
+            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
             if (ImGui::TreeNodeCbxLinkHelp("ADSBHub", nCol,
                                            DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
@@ -329,8 +352,6 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
                                            sFilter, nOpCl))
             {
-                const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
-
                 // If ADSBHub has just been enabled then, as a courtesy,
                 // we also make sure that OpenSky Master data is enabled
                 if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {

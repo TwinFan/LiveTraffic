@@ -579,6 +579,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
@@ -751,8 +752,8 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable OpenSky, OGN, and Synthetic by default
-    bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
+    // enable adsb.fi, OpenSky Master Data, OGN, and Synthetic by default
+    bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
@@ -2022,7 +2023,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V360 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2092,6 +2093,8 @@ bool DataRefs::LoadConfigFile()
                 rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
                 conv = CFG_V350;
             }
+            if (cfgFileVer < 30600)
+                conv = CFG_V360;
         }
     }
     
@@ -2163,6 +2166,11 @@ bool DataRefs::LoadConfigFile()
                         // RealTraffic Sim Time Control: previous value 1 is re-purposed, switch instead to 2
                         if (*i == DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL] && sVal == "1")
                             sVal = "2";
+                        [[fallthrough]];
+                    case CFG_V360:
+                        // Disable OpenSky Network Online, simply too unreliable at the moment
+                        if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_ONLINE])
+                            sVal = "0";
                         break;
                 }
                 
@@ -2604,7 +2612,7 @@ void DataRefs::UpdateViewPos()
     
     lastCamPos = positionTy(lat, lon, alt,
                             dataRefs.GetSimTime(),
-                            camPos.heading,
+                            HeadingNormalize(camPos.heading),
                             camPos.pitch,
                             camPos.roll);
 }

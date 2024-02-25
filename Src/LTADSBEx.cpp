@@ -1,17 +1,16 @@
 /// @file       LTADSBEx.cpp
-/// @brief      ADS-B Exchange: Requests and processes live tracking data
+/// @brief      ADS-B Exchange and adsb.fi: Requests and processes live tracking data
 /// @see        https://www.adsbexchange.com/
-/// @details    Implements ADSBExchangeConnection:\n
+/// @see        https://github.com/adsbfi/opendata
+/// @details    Defines a base class handling the ADSBEx data format,
+///             which is shared by both ADS-B Exchange and adsb.fi.
+/// @details    Defines ADSBExchangeConnection:\n
 ///             - Handles the API key\n
-///             - Provides a proper REST-conform URL for both the original sevrer as well as for the Rapid API server.\n
-///             - Interprets the response and passes the tracking data on to LTFlightData.\n
-///             \n
-///             ADSBExchangeHistorical is an implementation for historic data that once could be downloaded
-///             from ADSBEx, but is no longer available for the average user. This historic data code
-///             is no longer maintained and probably defunct. It is no longer accessible through the
-///             UI either and should probably be removed.
+///             - Provides a proper REST-conform URL for both the original sevrer as well as for the Rapid API server.
+/// @details    Defines ADSBfiConnection:\n
+///             - Provides a proper REST-conform URL
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2024 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -31,38 +30,12 @@
 #include "LiveTraffic.h"
 
 //
-//MARK: ADS-B Exchange
+// MARK: Base class for ADSBEx format
 //
 
-ADSBExchangeConnection::ADSBExchangeConnection () :
-LTFlightDataChannel(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME)
-{
-    // purely informational
-    urlName  = ADSBEX_CHECK_NAME;
-    urlLink  = ADSBEX_CHECK_URL;
-    urlPopup = ADSBEX_CHECK_POPUP;
-}
-
-
-// put together the URL to fetch based on current view position
-std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
-{
-    char url[128] = "";
-    if (keyTy == ADSBEX_KEY_RAPIDAPI)
-        snprintf(url, sizeof(url), ADSBEX_RAPIDAPI_25_URL, pos.lat(), pos.lon());
-    else
-        snprintf(url, sizeof(url), ADSBEX_URL, pos.lat(), pos.lon(),
-                 dataRefs.GetFdStdDistance_nm());
-    return std::string(url);
-}
-
 // update shared flight data structures with received flight data
-bool ADSBExchangeConnection::ProcessFetchedData ()
+bool ADSBBase::ProcessFetchedData ()
 {
-    // some things depend on the key type
-    const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
-    const char* sNOK = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
-    
     // received an UNAUTHOIZRED response? Then the key is invalid!
     if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
         SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
@@ -70,9 +43,6 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
         return false;
     }
 
-    // any a/c filter defined for debugging purposes?
-    std::string acFilter ( dataRefs.GetDebugAcFilter() );
-    
     // data is expected to be in netData string
     // short-cut if there is nothing
     if ( !netDataPos ) {
@@ -88,39 +58,37 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
     JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
-    // test for ERRor response
-    const std::string errTxt = jog_s(pObj, sERR);
-    if (!errTxt.empty() &&
-        errTxt != ADSBEX_SUCCESS) {
-        if (begins_with<std::string>(errTxt, sNOK)) {
-            SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
-            SetValid(false);
-        } else {
-            LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
-            IncErrCnt();
-        }
-        return false;
-    }
+    // Test for any channel-specific errors
+    if (!ProcessErrors(pObj)) return false;
     
     // We need to calculate distance to current camera later on
     const positionTy viewPos = dataRefs.GetViewPos();
     
     // for determining an offset as compared to network time we need to know network time
     // Also used later to calcualte the position's timestamp
-    double adsbxTime = jog_n_nan(pObj, ADSBEX_NOW)  / 1000.0;
+    double adsbxTime = jog_n_nan(pObj, ADSBEX_NOW);
     if (std::isnan(adsbxTime))
-        adsbxTime = jog_n(pObj, ADSBEX_TIME)  / 1000.0;
+        adsbxTime = jog_n(pObj, ADSBEX_TIME);
+    // Convert a timestamp in milliseconds to a timestamp in seconds
+    if (adsbxTime > 70000000000.0)
+        adsbxTime /= 1000.0;
     
+    // if reasonable add this to our time offset calculation
     if (adsbxTime > JAN_FIRST_2019)
-        // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(adsbxTime);
     
     // Cut-off time: We ignore tracking data, which is older than our buffering time
-    const double tsCutOff = (double) dataRefs.GetFdBufPeriod();
+    const double tBufPeriod = (double) dataRefs.GetFdBufPeriod();
+    const double tsSimTime = dataRefs.GetSimTime();
+    
+    // any a/c filter defined for debugging purposes?
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
     // let's cycle the aircraft
-    // fetch the aircraft array
+    // fetch the aircraft array, adsb.fi defines a different aircraft key unfortunately
     JSON_Array* pJAcList = json_object_get_array(pObj, ADSBEX_AIRCRAFT_ARR);
+    if (!pJAcList)
+        pJAcList = json_object_get_array(pObj, ADSBFI_AIRCRAFT_ARR);
     // iterate all aircraft in the received flight data (can be 0 or even pJAcList == NULL!)
     for ( size_t i=0; pJAcList && (i < json_array_get_count(pJAcList)); i++ )
     {
@@ -160,9 +128,9 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
         // Process the details, depends on version detected
         try {
             if (ver == 2)
-                ProcessV2(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
+                ProcessV2(pJAc, fdKey, tBufPeriod, adsbxTime, viewPos);
             else if (ver == 1)
-                ProcessV1(pJAc, fdKey, tsCutOff, adsbxTime, viewPos);
+                ProcessV1(pJAc, fdKey, tsSimTime, viewPos);
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         } catch(...) {
@@ -176,16 +144,15 @@ bool ADSBExchangeConnection::ProcessFetchedData ()
 
 
 // Process v2 data
-void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
-                                        LTFlightData::FDKeyTy& fdKey,
-                                        const double tsCutOff,
-                                        const double adsbxTime,
-                                        const positionTy& viewPos)
+void ADSBBase::ProcessV2 (JSON_Object* pJAc,
+                          LTFlightData::FDKeyTy& fdKey,
+                          const double tBufPeriod,
+                          const double adsbxTime,
+                          const positionTy& viewPos)
 {
-    // ADS-B returns Java tics, that is milliseconds, we use seconds
-    const double ageOfPos = jog_sn(pJAc, ADSBEX_V2_SEE_POS);
     // skip stale data
-    if (ageOfPos >= tsCutOff)
+    const double ageOfPos = jog_n(pJAc, ADSBEX_V2_SEE_POS);
+    if (ageOfPos >= tBufPeriod)
         return;
     
     // Try getting best possible position information
@@ -195,6 +162,9 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
                     jog_n_nan(pJAc, ADSBEX_V2_ALT_GEOM) * M_per_FT,
                     adsbxTime - ageOfPos,
                     jog_n_nan(pJAc, ADSBEX_V2_HEADING));
+    // If heading isn't available try track
+    if (std::isnan(pos.heading()))
+        pos.heading() = jog_n_nan(pJAc, ADSBEX_V2_TRACK);
     
     // If lat/lon isn't defined then the tracking data is stale: discard
     if (std::isnan(pos.lat()) || std::isnan(pos.lon()))
@@ -254,6 +224,16 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
         cat = "C3";
     }
     
+    // We receive lots of "dots" that seem to be markers on the taxiways or so,
+    // they don't come via ADS-B, but via TIS-B
+    if (fdKey.eKeyType != LTFlightData::KEY_ICAO &&
+        pos.IsOnGnd() &&
+        reg.empty() && acTy.empty() && cat.empty())
+    {
+        reg = acTy = STATIC_OBJECT_TYPE;
+        cat = "C3";
+    }
+
     // Identify ground vehicles
     if (cat  == "C1"  || cat == "C2" ||
         reg  == "GND" ||
@@ -295,7 +275,7 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
     stat.call =       jog_s(pJAc, ADSBEX_V2_FLIGHT);
     trim(stat.call);
     stat.catDescr = GetADSBEmitterCat(cat);
-    stat.slug       = ADSBEX_SLUG_BASE;
+    stat.slug       = sSlugBase;
     stat.slug      += fdKey.key;
     
     // -- dynamic data --
@@ -306,9 +286,9 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
     dyn.gnd =               pos.IsOnGnd();
     dyn.heading =           pos.heading();
     dyn.spd =               jog_n_nan(pJAc, ADSBEX_V2_SPD);
-    dyn.vsi =               jog_n_nan(pJAc, ADSBEX_V2_ALT_GEOM);
+    dyn.vsi =               jog_n_nan(pJAc, ADSBEX_V2_VSI_GEOM);
     if (std::isnan(dyn.vsi))
-        dyn.vsi =           jog_n_nan(pJAc, ADSBEX_V2_ALT_BARO);
+        dyn.vsi =           jog_n_nan(pJAc, ADSBEX_V2_VSI_BARO);
     dyn.ts =                pos.ts();
     dyn.pChannel =          this;
     
@@ -324,16 +304,15 @@ void ADSBExchangeConnection::ProcessV2 (JSON_Object* pJAc,
 }
 
 // Process v1 data
-void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
-                                        LTFlightData::FDKeyTy& fdKey,
-                                        const double tsCutOff,
-                                        const double /*adsbxTime*/,
-                                        const positionTy& viewPos)
+void ADSBBase::ProcessV1 (JSON_Object* pJAc,
+                          LTFlightData::FDKeyTy& fdKey,
+                          const double tsSimTime,
+                          const positionTy& viewPos)
 {
     // ADS-B returns Java tics, that is milliseconds, we use seconds
     const double posTime = jog_sn(pJAc, ADSBEX_V1_POS_TIME) / 1000.0;
     // skip stale data
-    if (posTime <= tsCutOff)
+    if (posTime <= tsSimTime)
         return;
     
     // ADSBEx, especially the RAPID API version, returns
@@ -380,7 +359,7 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     stat.mil =        jog_sb(pJAc,ADSBEX_V1_MIL);
     stat.opIcao =     jog_s(pJAc, ADSBEX_V1_OP_ICAO);
     stat.call =       jog_s(pJAc, ADSBEX_V1_CALL);
-    stat.slug       = ADSBEX_SLUG_BASE;
+    stat.slug       = sSlugBase;
     stat.slug      += fdKey.key;
     
     // ADSBEx sends airport info like "LHR London Heathrow United Kingdom"
@@ -454,6 +433,32 @@ void ADSBExchangeConnection::ProcessV1 (JSON_Object* pJAc,
     }
     else
         LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+}
+
+//
+// MARK: ADS-B Exchange
+//
+
+ADSBExchangeConnection::ADSBExchangeConnection () :
+ADSBBase(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME, ADSBEX_SLUG_BASE)
+{
+    // purely informational
+    urlName  = ADSBEX_CHECK_NAME;
+    urlLink  = ADSBEX_CHECK_URL;
+    urlPopup = ADSBEX_CHECK_POPUP;
+}
+
+
+// put together the URL to fetch based on current view position
+std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
+{
+    char url[128] = "";
+    if (keyTy == ADSBEX_KEY_RAPIDAPI)
+        snprintf(url, sizeof(url), ADSBEX_RAPIDAPI_25_URL, pos.lat(), pos.lon());
+    else
+        snprintf(url, sizeof(url), ADSBEX_URL, pos.lat(), pos.lon(),
+                 dataRefs.GetFdStdDistance_nm());
+    return std::string(url);
 }
 
 
@@ -570,6 +575,32 @@ void ADSBExchangeConnection::CleanupCurl ()
     curl_slist_free_all(slistKey);
     slistKey = NULL;
 }
+
+// Specific handling for authentication errors
+bool ADSBExchangeConnection::ProcessErrors (const JSON_Object* pObj)
+{
+    // some things depend on the key type
+    const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
+    const char* sNOK = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
+    
+    // test for ERRor response
+    const std::string errTxt = jog_s(pObj, sERR);
+    if (!errTxt.empty() &&
+        errTxt != ADSBEX_SUCCESS) {
+        if (begins_with<std::string>(errTxt, sNOK)) {
+            SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+            SetValid(false);
+        } else {
+            LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
+            IncErrCnt();
+        }
+        return false;
+    }
+    
+    // Looks OK
+    return true;
+}
+
 
 // make list of HTTP header fields
 struct curl_slist* ADSBExchangeConnection::MakeCurlSList (keyTypeE keyTy, const std::string theKey)
@@ -794,4 +825,77 @@ size_t ADSBExchangeConnection::DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t n
     
     // all consumed
     return nmemb;
+}
+
+//
+// MARK: adsb.fi
+//
+
+ADSBfiConnection::ADSBfiConnection () :
+ADSBBase(DR_CHANNEL_ADSB_FI_ONLINE, ADSBFI_NAME, ADSBFI_SLUG_BASE)
+{
+    // purely informational
+    urlName  = ADSBFI_CHECK_NAME;
+    urlLink  = ADSBFI_CHECK_URL;
+    urlPopup = ADSBFI_CHECK_POPUP;
+}
+
+
+// put together the URL to fetch based on current view position
+std::string ADSBfiConnection::GetURL (const positionTy& pos)
+{
+    char url[128] = "";
+    snprintf(url, sizeof(url), ADSBFI_URL, pos.lat(), pos.lon(),
+             dataRefs.GetFdStdDistance_nm());
+    return std::string(url);
+}
+
+
+// virtual thread main function
+void ADSBfiConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_adsb_fi", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
 }
