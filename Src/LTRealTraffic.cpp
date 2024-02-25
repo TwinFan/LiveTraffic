@@ -90,6 +90,10 @@ std::string RealTrafficConnection::GetStatusText () const
 {
     char sIntvl[100];
 
+    // Invalid or disabled/off?
+    if (!IsValid() || !IsEnabled())
+        return LTChannel::GetStatusText();
+
     // --- Direct Connection? ---
     if (eConnType == RT_CONN_REQU_REPL) {
         std::string s =
@@ -109,10 +113,6 @@ std::string RealTrafficConnection::GetStatusText () const
     }
     
     // --- UDP/TCP connection ---
-    // invalid (after errors)? Just disabled/off? Or active (but not a source of tracking data)?
-    if (!IsValid() || !IsEnabled())
-        return LTChannel::GetStatusText();
-
     // If we are waiting to establish a connection then we return RT-specific texts
     if (status == RT_STATUS_NONE)           return "Starting...";
     if (status == RT_STATUS_STARTING ||

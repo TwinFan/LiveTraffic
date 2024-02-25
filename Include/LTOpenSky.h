@@ -32,7 +32,7 @@
 #define OPSKY_CHECK_URL         "https://opensky-network.org/network/explorer"
 #define OPSKY_CHECK_POPUP       "Check OpenSky's coverage"
 
-#define OPSKY_NAME              "OpenSky Live Online"
+#define OPSKY_NAME              "OpenSky Network"
 #define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
 #define OPSKY_SLUG_FMT          "https://opensky-network.org/network/explorer?icao24=%06lx"
 #define OPSKY_TIME              "time"

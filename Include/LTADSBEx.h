@@ -7,7 +7,7 @@
 /// @details    Defines ADSBExchangeConnection:\n
 ///             - Handles the API key\n
 ///             - Provides a proper REST-conform URL for both the original sevrer as well as for the Rapid API server.
-/// @details    Defines ADSBfi:\n
+/// @details    Defines ADSBfiConnection:\n
 ///             - Provides a proper REST-conform URL
 /// @author     Birger Hoppe
 /// @copyright  (c) 2018-2024 Birger Hoppe
@@ -33,12 +33,12 @@
 #include "LTChannel.h"
 
 //MARK: ADS-B Exchange Constants
-#define ADSBEX_CHECK_NAME       "ADSBX Radar View"
+#define ADSBEX_CHECK_NAME       "ADSBEx Radar View"
 #define ADSBEX_CHECK_URL        "https://globe.adsbexchange.com/?lat=%.3f&lon=%.3f"
 #define ADSBEX_SLUG_BASE        "https://globe.adsbexchange.com/?icao=" // + icao24 hex code
 #define ADSBEX_CHECK_POPUP      "Check ADS-B Exchange's coverage"
 
-#define ADSBEX_NAME             "ADS-B Exchange Online"
+#define ADSBEX_NAME             "ADS-B Exchange"
 #define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/v2/lat/%f/lon/%f/dist/%d/"
 #define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
 
@@ -125,18 +125,21 @@ constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 class ADSBBase : public LTFlightDataChannel
 {
 protected:
-    ADSBBase (dataRefsLT ch, const char* chName) : LTFlightDataChannel(ch, chName) {}
+    const std::string sSlugBase;                ///< base URL for aircraft slugs
+protected:
+    ADSBBase (dataRefsLT ch, const char* chName, const char* slugBase) :
+        LTFlightDataChannel(ch, chName), sSlugBase(slugBase) {}
     /// Process ADSBEx foramtted data
     bool ProcessFetchedData () override;
     /// Give derived class chance for channel-specific error-checking
     virtual bool ProcessErrors (const JSON_Object* pObj) = 0;
     /// Process v2 data
     void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    const double tsCutOff, const double adsbxTime,
+                    const double tBufPeriod, const double adsbxTime,
                     const positionTy& viewPos);
     /// Process v1 data
     void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    const double tsCutOff, const double adsbxTime,
+                    const double tsSimTime,
                     const positionTy& viewPos);
 };
 
@@ -187,6 +190,32 @@ protected:
     // actual test, blocks, should by called via std::async
     static bool DoTestADSBExAPIKey (const std::string newKey);
     static size_t DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t nmemb, void* userdata);
+};
+
+//
+// MARK: adsb.fi
+//
+
+#define ADSBFI_CHECK_NAME       "adsb.fi Map"
+#define ADSBFI_CHECK_URL        "https://globe.adsb.fi/?lat=%.3f&lon=%.3f"
+#define ADSBFI_SLUG_BASE        "https://globe.adsb.fi/?icao=" // + icao24 hex code
+#define ADSBFI_CHECK_POPUP      "Check adsb.fi's coverage"
+
+#define ADSBFI_NAME             "adsb.fi"
+#define ADSBFI_URL              "https://opendata.adsb.fi/api/v2/lat/%f/lon/%f/dist/%d/"
+
+#define ADSBFI_AIRCRAFT_ARR     "aircraft"
+
+class ADSBfiConnection : public ADSBBase
+{
+public:
+    ADSBfiConnection ();                                    ///< Constructor
+    std::string GetURL (const positionTy& pos) override;    ///< Compile adsb.fi request URL
+
+protected:
+    void Main () override;                                  ///< virtual thread main function
+    bool ProcessErrors (const JSON_Object*) override        ///< No specific error processing for adsb.fi
+    { return true; }
 };
 
 
