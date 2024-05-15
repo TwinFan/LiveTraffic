@@ -326,7 +326,7 @@ endif ()
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32 Normaliz)
+    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32 normaliz)
     if (MINGW)
         # Include MingW threads
         target_link_libraries(LiveTraffic mingw_stdthreads)
