@@ -47,8 +47,7 @@
       allowLocationSimulation = "NO">
       <PathRunnable
          runnableDebuggingMode = "0"
-         BundleIdentifier = "com.laminar-research.X-Plane"
-         FilePath = "/Users/birger/Applications/X-Plane/11/X-Plane.app">
+         FilePath = "/Users/birger/Applications/X-Plane/12/X-Plane.app">
       </PathRunnable>
       <MacroExpansion>
          <BuildableReference
@@ -66,6 +65,7 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES"
+      askForAppToLaunch = "Yes"
       launchAutomaticallySubstyle = "2">
       <PathRunnable
          runnableDebuggingMode = "0"

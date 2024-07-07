@@ -1065,14 +1065,11 @@ void DataRefs::UpdateXPSimTime()
     std::tm tm;
     time(&now);                     // today, actually 'now'
     gmtime_s(&tm, &now);
-    tm.tm_yday = 0;                 // set to 01-JAN of 'this year'
-    tm.tm_mday = 1;
-    tm.tm_mon = 0;
-    tm.tm_hour = 0;
-    tm.tm_min = 0;
-    tm.tm_sec = 0;
-    tm.tm_isdst = 0;
-    time_t jan01 = mktime_utc(tm);  // convert 01-JAN back to Unix epoch
+    // to get to jan01 of the same year reduce by all the days of the year and current time
+    const time_t jan01 = now - tm.tm_yday * 24*60*60
+                             - tm.tm_hour *    60*60
+                             - tm.tm_min  *       60
+                             - tm.tm_sec;
     
     // Convert to milliseconds, then add to our result
     t += (long long)(jan01) * 1000LL;
