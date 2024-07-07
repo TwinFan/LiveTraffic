@@ -403,6 +403,7 @@ enum dataRefsLT {
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
     DR_DBG_LOG_RAW_FD,
+    DR_DBG_LOG_WEATHER,
     DR_DBG_MODEL_MATCHING,
     DR_DBG_EXPORT_FD,
     DR_DBG_EXPORT_USER_AC,
@@ -418,6 +419,7 @@ enum dataRefsLT {
     DR_CFG_RT_SIM_TIME_CTRL,
     DR_CFG_RT_MAN_TOFFSET,
     DR_CFG_RT_CONNECT_TYPE,
+    DR_CFG_RT_SET_WEATHER,
     DR_CFG_FF_LISTEN_PORT,
     DR_CFG_FF_SEND_PORT,
     DR_CFG_FF_SEND_USER_PLANE,
@@ -655,6 +657,7 @@ protected:
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
+    int bDebugWeather           = false;///< log weather data for debugging
     exportFDFormat eDebugExportFdFormat = EXP_FD_AITFC; ///< Which format to use when exporting flight data?
     int bDebugExportFd          = false;// export flight data to LTExportFD.csv
     int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
@@ -722,6 +725,7 @@ protected:
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
+    int rtSetWeather    = 0;            ///< Set X-Plane's weather based on RealTraffic weather data
     int ffListenPort    = 63093;        ///< UDP Port to listen to ForeFlight announcing itself, https://www.foreflight.com/connect/spec/
     int ffSendPort      = 49002;        ///< UDP Port to send simulator data to ForeFlight, https://www.foreflight.com/support/network-gps/
     int bffUserPlane    = 1;            // bool Send User plane data?
@@ -898,8 +902,8 @@ public:
     static void LTSetLogLevel(void* p, int i);
     void SetLogLevel ( int i );
     void SetMsgAreaLevel ( int i );
-    inline logLevelTy GetLogLevel()             { return iLogLevel; }
-    inline logLevelTy GetMsgAreaLevel()         { return iMsgAreaLevel; }
+    logLevelTy GetLogLevel() const       { return iLogLevel; }
+    logLevelTy GetMsgAreaLevel() const   { return iMsgAreaLevel; }
     
     /// Reinit data usage
     void ForceDataReload ();
@@ -989,6 +993,7 @@ public:
     RTConnTypeTy GetRTConnType () const { return rtConnType; }
     const std::string& GetRTLicense () const { return sRTLicense; }
     void SetRTLicense (const std::string& license) { sRTLicense = license; }
+    bool ShallSetRTWeather() const { return rtSetWeather; }
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)
@@ -1016,6 +1021,8 @@ public:
     
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
+    
+    bool ShallLogWeather() const { return bDebugWeather && GetLogLevel() == logDEBUG; }
     
     exportFDFormat GetDebugExportFormat() const { return eDebugExportFdFormat; }
     void SetDebugExportFormat (exportFDFormat e) { eDebugExportFdFormat = e; }

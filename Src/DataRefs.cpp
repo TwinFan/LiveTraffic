@@ -548,6 +548,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/log_weather",                 DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/export_user_ac",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
@@ -563,6 +564,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/real_traffic/man_toffset",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,     GET_VAR, true },
     {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/set_weather",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fore_flight/listen_port", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -640,6 +642,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
+        case DR_DBG_LOG_WEATHER:            return &bDebugWeather;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
         case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
         case DR_DBG_EXPORT_USER_AC:         return &bDebugExportUserAc;
@@ -655,6 +658,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
         case DR_CFG_RT_MAN_TOFFSET:         return &rtManTOfs;
         case DR_CFG_RT_CONNECT_TYPE:        return &rtConnType;
+        case DR_CFG_RT_SET_WEATHER:         return &rtSetWeather;
         case DR_CFG_FF_LISTEN_PORT:         return &ffListenPort;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;

@@ -21,11 +21,11 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.6.0
+        VERSION 3.6.5
         DESCRIPTION "LiveTraffic X-Plane plugin")
 
 # Building a Beta version can be demanded via ENV variable 'version_beta' being set to 1
-set(VERSION_BETA 0)
+set(VERSION_BETA 1)
 if(DEFINED ENV{version_beta})
     if ($ENV{version_beta} GREATER 0)
         set(VERSION_BETA 1)

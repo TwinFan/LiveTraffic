@@ -585,6 +585,11 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
+                // Weather
+                ImGui::FilteredCfgCheckbox("Set Weather from RealTraffic", sFilter, DR_CFG_RT_SET_WEATHER,
+                                           "Set X-Plane's weather based on RealTraffic's weather information (also historically)");
+                
+                // Historic Data
                 if (ImGui::FilteredLabel("Request Historic Data", sFilter)) {
                     float cbWidth = ImGui::CalcTextSize("Use live data, not historic_____").x;
                     ImGui::SetNextItemWidth(cbWidth);
@@ -1283,6 +1288,8 @@ void LTSettingsUI::buildInterface()
                                            "Logs how available tracking data was matched with the chosen CSL model (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log a/c positions", sFilter, DR_DBG_AC_POS,
                                            "Logs detailed position information of currently selected aircraft (into Log.txt)");
+                ImGui::FilteredCfgCheckbox("Log Weather", sFilter, DR_DBG_LOG_WEATHER,
+                                           "Logs detailed information about how X-Plane's weather is set (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
                                            "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
 
