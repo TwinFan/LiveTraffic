@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "1420"
+   LastUpgradeVersion = "1540"
    version = "1.8">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -47,6 +47,7 @@
       allowLocationSimulation = "NO">
       <PathRunnable
          runnableDebuggingMode = "0"
+         BundleIdentifier = "com.laminar-research.X-Plane"
          FilePath = "/Users/birger/Applications/X-Plane/12/X-Plane.app">
       </PathRunnable>
       <MacroExpansion>

@@ -44,6 +44,8 @@
 
 #define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/v3/auth"
 #define RT_AUTH_POST            "license=%s&software=%s"
+#define RT_DEAUTH_URL           "https://rtw.flyrealtraffic.com/v3/deauth"
+#define RT_DEAUTH_POST          "GUID=%s"
 #define RT_WEATHER_URL          "https://rtw.flyrealtraffic.com/v3/weather"
 #define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=UNKN&querytype=locwx&toffset=%ld"
 #define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/v3/traffic"
@@ -253,6 +255,7 @@ protected:
         /// Which kind of call do we need next?
         enum RTRequestTypeTy : int {
             RT_REQU_AUTH = 1,                           ///< Perform Authentication request
+            RT_REQU_DEAUTH,                             ///< Perform De-authentication request (closing the session)
             RT_REQU_WEATHER,                            ///< Perform Weather request
             RT_REQU_TRAFFIC,                            ///< Perform Traffic request
         } eRequType = RT_REQU_AUTH;                     ///< Which type of request is being performed now?

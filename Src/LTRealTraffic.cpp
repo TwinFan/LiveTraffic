@@ -227,6 +227,22 @@ void RealTrafficConnection::MainDirect ()
             IncErrCnt();
         }
     }
+    
+    // Close the session with RealTraffic
+    try {
+        const positionTy pos (dataRefs.GetViewPos());
+        SetRequType(pos);
+        if (FetchAllData(pos) && ProcessFetchedData())
+            // reduce error count if processed successfully
+            // as a chance to appear OK in the long run
+            DecErrCnt();
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        IncErrCnt();
+    } catch (...) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+        IncErrCnt();
+    }
 }
 
 // Which request do we need now?
@@ -261,7 +277,9 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
             break;
     }
     
-    if (curr.sGUID.empty())                         // have no GUID? Need authentication
+    if (!shallRun())                                // end the session?
+        curr.eRequType = CurrTy::RT_REQU_DEAUTH;
+    else if (curr.sGUID.empty())                    // have no GUID? Need authentication
         curr.eRequType = CurrTy::RT_REQU_AUTH;
     else if ((std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
               std::labs(curr.tOff - rtWx.tOff) > 120 ||
@@ -293,6 +311,8 @@ std::string RealTrafficConnection::GetURL (const positionTy&)
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:
             return RT_AUTH_URL;
+        case CurrTy::RT_REQU_DEAUTH:
+            return RT_DEAUTH_URL;
         case CurrTy::RT_REQU_WEATHER:
             return RT_WEATHER_URL;
         case CurrTy::RT_REQU_TRAFFIC:
@@ -312,6 +332,10 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
             snprintf(s,sizeof(s), RT_AUTH_POST,
                      dataRefs.GetRTLicense().c_str(),
                      HTTP_USER_AGENT);
+            break;
+        case CurrTy::RT_REQU_DEAUTH:
+            snprintf(s, sizeof(s), RT_DEAUTH_POST,
+                     curr.sGUID.c_str());
             break;
         case CurrTy::RT_REQU_WEATHER:
             snprintf(s, sizeof(s), RT_WEATHER_POST,
@@ -417,7 +441,8 @@ bool RealTrafficConnection::ProcessFetchedData ()
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:                  // after an AUTH request we take the rrl unchanged, ie. as quickly as possible
             break;
-        case CurrTy::RT_REQU_WEATHER:               // unfortunately, no `rrl` in weather requests...
+        case CurrTy::RT_REQU_DEAUTH:
+        case CurrTy::RT_REQU_WEATHER:               // unfortunately, no `rrl` in weather/deauth responses...
             l = 300;                                // we just continue 300ms later
             break;
         case CurrTy::RT_REQU_TRAFFIC:               // By default we wait at least 8s, or more if RealTraffic instructs us so
@@ -438,6 +463,13 @@ bool RealTrafficConnection::ProcessFetchedData ()
         }
         LOG_MSG(logDEBUG, "Authenticated: type=%d, GUID=%s",
                 eLicType, curr.sGUID.c_str());
+        return true;
+    }
+    
+    // --- De-authentication (closing the session) ---
+    if (curr.eRequType == CurrTy::RT_REQU_DEAUTH) {
+        curr.sGUID.clear();
+        LOG_MSG(logDEBUG, "De-authenticated");
         return true;
     }
     
