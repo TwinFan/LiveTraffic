@@ -97,8 +97,10 @@ std::string RealTrafficConnection::GetStatusText () const
     // --- Direct Connection? ---
     if (eConnType == RT_CONN_REQU_REPL) {
         std::string s =
-            curr.eRequType == CurrTy::RT_REQU_AUTH ? "Authenticating..." :
-            curr.eRequType == CurrTy::RT_REQU_WEATHER ? "Fetching weather..." :
+            curr.eRequType == CurrTy::RT_REQU_AUTH          ? "Authenticating..." :
+            curr.eRequType == CurrTy::RT_REQU_DEAUTH        ? "De-authenticating..." :
+            curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR ? "Fetching weather..." :
+            curr.eRequType == CurrTy::RT_REQU_WEATHER       ? "Fetching weather..." :
             LTChannel::GetStatusText();
         if (tsAdjust > 1.0) {                           // historic data?
             snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
@@ -277,18 +279,23 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
             break;
     }
     
-    if (!shallRun())                                // end the session?
+    if (!shallRun())                                            // end the session?
         curr.eRequType = CurrTy::RT_REQU_DEAUTH;
-    else if (curr.sGUID.empty())                    // have no GUID? Need authentication
+    else if (curr.sGUID.empty())                                // have no GUID? Need authentication
         curr.eRequType = CurrTy::RT_REQU_AUTH;
-    else if ((std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
-              std::labs(curr.tOff - rtWx.tOff) > 120 ||
-              std::chrono::steady_clock::now() >= rtWx.next ||
-              rtWx.pos.distRoughSqr(curr.pos) > (RT_DRCT_WX_DIST*RT_DRCT_WX_DIST)))
+    else if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR)   // previous request was METAR location?
+        curr.eRequType = CurrTy::RT_REQU_WEATHER;
+    else if (std::isnan(rtWx.QNH) ||                            // no Weather, or wrong time offset, or outdated, or moved too far away?
+             std::labs(curr.tOff - rtWx.tOff) > 120 ||
+             rtWx.pos.distRoughSqr(curr.pos) > (RT_DRCT_WX_DIST*RT_DRCT_WX_DIST))
+    {
+        curr.eRequType = CurrTy::RT_REQU_NEAREST_METAR;
+        if (std::labs(curr.tOff - rtWx.tOff) > 120)             // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
+            rtWx.QNH = NAN;
+    }
+    else if (std::chrono::steady_clock::now() >= rtWx.next)     // just time for a weather update
     {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
-        if (std::labs(curr.tOff - rtWx.tOff) > 120) // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
-            rtWx.QNH = NAN;
     }
     else
         // in all other cases we ask for traffic data
@@ -313,6 +320,8 @@ std::string RealTrafficConnection::GetURL (const positionTy&)
             return RT_AUTH_URL;
         case CurrTy::RT_REQU_DEAUTH:
             return RT_DEAUTH_URL;
+        case CurrTy::RT_REQU_NEAREST_METAR:
+            return RT_NEAREST_METAR_URL;
         case CurrTy::RT_REQU_WEATHER:
             return RT_WEATHER_URL;
         case CurrTy::RT_REQU_TRAFFIC:
@@ -337,10 +346,17 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
             snprintf(s, sizeof(s), RT_DEAUTH_POST,
                      curr.sGUID.c_str());
             break;
+        case CurrTy::RT_REQU_NEAREST_METAR:
+            snprintf(s, sizeof(s), RT_NEAREST_METAR_POST,
+                     curr.sGUID.c_str(),
+                     curr.pos.lat(), curr.pos.lon(),
+                     curr.tOff);
+            break;
         case CurrTy::RT_REQU_WEATHER:
             snprintf(s, sizeof(s), RT_WEATHER_POST,
                      curr.sGUID.c_str(),
                      curr.pos.lat(), curr.pos.lon(), 0L,
+                     rtWx.sLocNearestMETAR.c_str(),
                      curr.tOff);
             break;
         case CurrTy::RT_REQU_TRAFFIC:
@@ -438,12 +454,14 @@ bool RealTrafficConnection::ProcessFetchedData ()
 
     // Wait till next request?
     long l = jog_l(pObj, "rrl");                    // Wait time till next request
+    if (!l) l = jog_l(pObj, "wrrl");
     switch (curr.eRequType) {
-        case CurrTy::RT_REQU_AUTH:                  // after an AUTH request we take the rrl unchanged, ie. as quickly as possible
-            break;
+        case CurrTy::RT_REQU_AUTH:                  // in most cases we continue as quickly as possible
         case CurrTy::RT_REQU_DEAUTH:
-        case CurrTy::RT_REQU_WEATHER:               // unfortunately, no `rrl` in weather/deauth responses...
-            l = 300;                                // we just continue 300ms later
+        case CurrTy::RT_REQU_WEATHER:
+            break;
+        case CurrTy::RT_REQU_NEAREST_METAR:         // after learning the META we continue quickly with the weather request
+            l = 300;
             break;
         case CurrTy::RT_REQU_TRAFFIC:               // By default we wait at least 8s, or more if RealTraffic instructs us so
             if (l < RT_DRCT_DEFAULT_WAIT)
@@ -470,6 +488,24 @@ bool RealTrafficConnection::ProcessFetchedData ()
     if (curr.eRequType == CurrTy::RT_REQU_DEAUTH) {
         curr.sGUID.clear();
         LOG_MSG(logDEBUG, "De-authenticated");
+        return true;
+    }
+    
+    // --- Nearest METAR location ---
+    if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR) {
+        // There shall be two fields: location and distance
+        rtWx.sLocNearestMETAR = jog_s(pObj, "data.ICAO");
+        // Set back to default 'UNKN' if too far away, or just nothing returned
+        const double d = jog_n_nan(pObj, "data.Dist");
+        if (!std::isnan(d) && d > RT_DRCT_MAX_METAR_DIST_NM) {
+            LOG_MSG(logDEBUG, "Nearest METAR location too far away, using none");
+            rtWx.sLocNearestMETAR = RT_METAR_UNKN;
+        }
+        // Received nothing?
+        if (rtWx.sLocNearestMETAR.empty()) {
+            LOG_MSG(logWARN, "Received no nearest METAR location from RealTraffic");
+            rtWx.sLocNearestMETAR = RT_METAR_UNKN;
+        }
         return true;
     }
     

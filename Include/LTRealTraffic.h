@@ -42,13 +42,19 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
-#define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/v3/auth"
+// TODO: Return to v3 endpoint
+#define RT_ENDP                 "dev"
+#define RT_METAR_UNKN           "UNKN"
+
+#define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/" RT_ENDP "/auth"
 #define RT_AUTH_POST            "license=%s&software=%s"
-#define RT_DEAUTH_URL           "https://rtw.flyrealtraffic.com/v3/deauth"
+#define RT_DEAUTH_URL           "https://rtw.flyrealtraffic.com/" RT_ENDP "/deauth"
 #define RT_DEAUTH_POST          "GUID=%s"
-#define RT_WEATHER_URL          "https://rtw.flyrealtraffic.com/v3/weather"
-#define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=UNKN&querytype=locwx&toffset=%ld"
-#define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/v3/traffic"
+#define RT_NEAREST_METAR_URL    "https://rtw.flyrealtraffic.com/" RT_ENDP "/nearestmetarcode"
+#define RT_NEAREST_METAR_POST   "GUID=%s&lat=%.2f&lon=%.2f&toffset=%ld"
+#define RT_WEATHER_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/weather"
+#define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=%s&querytype=locwx&toffset=%ld"
+#define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
 
 
@@ -81,9 +87,9 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(10);  ///< How often to update weather?
-constexpr std::chrono::seconds RT_DRCT_WX_ERR_WAIT = std::chrono::seconds(60);  ///< How long to wait after receiving an weather error?
 constexpr long RT_DRCT_WX_DIST = 10L * M_per_NM;                            ///< Distance for which weather is considered valid, greater than that and we re-request
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
+constexpr double RT_DRCT_MAX_METAR_DIST_NM = 50.0;                          ///< Max distance a METAR station is considered valid...otherwise we rather use no METAR (for clouds, for example)
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {
@@ -256,6 +262,7 @@ protected:
         enum RTRequestTypeTy : int {
             RT_REQU_AUTH = 1,                           ///< Perform Authentication request
             RT_REQU_DEAUTH,                             ///< Perform De-authentication request (closing the session)
+            RT_REQU_NEAREST_METAR,                      ///< Perform nearest METAR location request
             RT_REQU_WEATHER,                            ///< Perform Weather request
             RT_REQU_TRAFFIC,                            ///< Perform Traffic request
         } eRequType = RT_REQU_AUTH;                     ///< Which type of request is being performed now?
@@ -271,6 +278,7 @@ protected:
         double QNH = NAN;                               ///< baro pressure
         std::chrono::steady_clock::time_point next;     ///< next time to request RealTraffic weather
         positionTy pos;                                 ///< viewer position for which we received Realtraffic weather
+        std::string sLocNearestMETAR = RT_METAR_UNKN;   ///< location of nearest METAR
         long tOff = 0;                                  ///< time offset for which we requested weather
         int nErr = 0;                                   ///< How many errors did we have during weather requests?
         
