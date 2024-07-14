@@ -322,8 +322,8 @@ void InfoListWnd::buildInterface()
                 if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
                 
                     if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
-
-                        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed);
+                        static float xCol1 = ImGui::CalcTextSize("Number of available CSL Models").x;
+                        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, xCol1);
                         ImGui::TableSetupColumn("Info",  ImGuiTableColumnFlags_WidthStretch);
 
                         // Are we active at all?

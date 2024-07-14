@@ -562,6 +562,14 @@ bool RealTrafficConnection::ProcessFetchedData ()
         LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
         rtWx.set(wxSLP, curr);                      // Save new QNH
         
+        // If this is live data, not historic, then we can use it instead of separately querying METAR
+        if (curr.tOff == 0) {
+            dataRefs.SetWeather((float)rtWx.QNH,
+                                (float)rtWx.pos.lat(), (float)rtWx.pos.lon(),
+                                rtWx.nearestMETAR.ICAO,
+                                rtWx.nearestMETAR.METAR);
+        }
+        
         return true;
     }
     

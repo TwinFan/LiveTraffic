@@ -2689,7 +2689,6 @@ bool DataRefs::WeatherUpdate ()
 
     // Our current camera position
     positionTy camPos = GetViewPos();
-    camPos.LocalToWorld();
     
     // So...do we need an update?
     if (// never try more often than TRY_PERIOD says to avoid flooding
