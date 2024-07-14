@@ -8402,7 +8402,7 @@ void    ImGui::TableUpdateLayout(ImGuiTable* table)
     const float padding_auto_x = table->CellPaddingX2;
     const float min_column_width = TableGetMinColumnWidth();
 
-    int count_fixed = 0;
+//    int count_fixed = 0;  -- set but never used
     float sum_weights_stretched = 0.0f;     // Sum of all weights for weighted columns.
     float sum_width_fixed_requests = 0.0f;  // Sum of all width for fixed and auto-resize columns, excluding width contributed by Stretch columns.
     table->LeftMostStretchedColumnDisplayOrder = -1;
@@ -8448,7 +8448,7 @@ void    ImGui::TableUpdateLayout(ImGuiTable* table)
         if (column->Flags & (ImGuiTableColumnFlags_WidthAlwaysAutoResize | ImGuiTableColumnFlags_WidthFixed))
         {
             // Latch initial size for fixed columns
-            count_fixed += 1;
+//            count_fixed += 1;   -- set but never used
             const bool auto_fit = (column->AutoFitQueue != 0x00) || (column->Flags & ImGuiTableColumnFlags_WidthAlwaysAutoResize);
             if (auto_fit)
             {

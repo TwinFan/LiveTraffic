@@ -77,6 +77,8 @@
 #include <atomic>
 #include <chrono>
 #include <regex>
+#include <sstream>
+#include <iomanip>
 
 // X-Plane SDK
 #include "XPLMDisplay.h"
