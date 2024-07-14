@@ -215,9 +215,13 @@ LTWeather::LTWeather()
 void LTWeather::Set (bool bForceImmediately)
 {
     // Set weather with immediate effect if first time, or if position changed dramatically
-    const bool bImmediately = bForceImmediately || !lastPos.isNormal() || lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST;
+    const bool bImmediately = !WeatherInControl() || bForceImmediately || !lastPos.isNormal() || lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST;
     if (bImmediately) {
-        SHOW_MSG(logINFO, "LiveTraffic is setting X-Plane's weather");
+        if (!WeatherInControl()) {
+            WeatherTakeControl();
+        } else {
+            SHOW_MSG(logINFO, "LiveTraffic is re-setting X-Plane's weather");
+        }
     }
     wdr_update_immediately.set(bImmediately);
     lastPos = dataRefs.GetViewPos();
@@ -368,7 +372,7 @@ std::array<LTWeather::InterpolSet,13> LTWeather::ComputeInterpol (const std::vec
     return ret;
 }
 
-/// Fill values from a differently sized input vector based on interpolation
+// Fill values from a differently sized input vector based on interpolation
 void LTWeather::Interpolate (const std::array<InterpolSet,13>& aInterpol,
                              const std::vector<float>& from,
                              std::array<float,13>& to)
@@ -377,6 +381,28 @@ void LTWeather::Interpolate (const std::array<InterpolSet,13>& aInterpol,
         const InterpolSet& is = aInterpol[i];
         if (is.i+1 < from.size()) {
             to[i] = from[is.i] * is.w + from[is.i+1] * (1-is.w);
+        }
+        else to[i] = NAN;
+    }
+}
+
+// Fill directions/headings from a differently sized input vector based on interpolation
+// Headings need to be interpolate separately as the average of 359 and 001 is 000 rather than 180...
+void LTWeather::InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
+                                const std::vector<float>& from,
+                                std::array<float,13>& to)
+{
+    for (size_t i = 0; i < aInterpol.size(); ++i) {
+        const InterpolSet& is = aInterpol[i];
+        if (is.i+1 < from.size()) {
+            double h1 = HeadingNormalize(from[is.i]);
+            double h2 = HeadingNormalize(from[is.i+1]);
+            const double hDiff = h1 - h2;
+            if (hDiff > 180.0)              // case of 359 and 001
+                h2 += 360.0;
+            else if (hDiff < -180.0)        // case of 001 and 359
+                h1 += 360.0;
+            to[i] = (float)HeadingNormalize(h1 * is.w + h2 * (1-is.w));
         }
         else to[i] = NAN;
     }
@@ -606,13 +632,16 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
 // MARK: Global functions
 //
 
-static bool bCanSetWeather = false;
+static bool bWeatherCanSet = false;             ///< Would it be possible for LiveTraffic to control weather? (XP12 onwards)
+static bool bWeatherControlling = false;        ///< Is LiveTraffic in control of weather?
+static int weatherOrigSource = -1;              ///< Original value of `sim/weather/region/weather_source` before LiveTraffic took over
+static int weatherOrigChangeMode = -1;          ///< Original value of `sim/weather/region/change_mode` before LiveTraffic took over
 
 // Initialize Weather module, dataRefs
 bool WeatherInit ()
 {
-    bCanSetWeather = WeatherInitDataRefs();
-    if (!bCanSetWeather) {
+    bWeatherCanSet = WeatherInitDataRefs();
+    if (!bWeatherCanSet) {
         LOG_MSG(logWARN, "Could not find all Weather dataRefs, cannot set X-Plane's weather (X-Plane < v12?)");
     }
 #if DEBUG
@@ -621,19 +650,89 @@ bool WeatherInit ()
         dataRefs.SetDebugLogWeather(true);
     }
 #endif
-    return bCanSetWeather;
+    return bWeatherCanSet;
+}
+
+// Indicate that we are taking control now
+void WeatherTakeControl ()
+{
+    if (!WeatherCanSet()) {
+        SHOW_MSG(logWARN, "Requested to take control of weather, but cannot due to missing dataRefs");
+        return;
+    }
+    
+    weatherOrigSource       = wdr_weather_source.get();
+    weatherOrigChangeMode   = wdr_change_mode.get();
+    if (dataRefs.ShallLogWeather()) {
+        SHOW_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
+                 WeatherGetSource().c_str(),
+                 weatherOrigSource, weatherOrigChangeMode);
+        LTWeather().Get("Weather just prior to LiveTraffic taking over:");
+    }
+    SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
+    bWeatherControlling     = true;
+}
+
+// Are we controlling weather?
+bool WeatherInControl ()
+{
+    return bWeatherControlling;
+}
+
+/// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
+std::string WeatherGetSource ()
+{
+    // Preset closest to current conditions
+    static std::array<const char*,10> WEATHER_PRESETS = {
+        "Clear", "VFR Few", "VFR Scattered", "VFR Broken", "VFR Marginal", "IFR Non-precision", "IFR Precision", "Convective", "Large-cell Storms", "Unknown"
+    };
+    int preset = wdr_weather_preset.get();
+    if (preset < 0 || preset > 8) preset = 9;           // 'Unknown'
+
+    // Weather Source
+    static std::array<const char*,5> WEATHER_SOURCES = {
+        "X-Plane Preset", "X-Plane Real Weather", "Controlpad", "Plugin", "Unknown"
+    };
+    int source = wdr_weather_source.get();
+    if (source < 0 || source > 3) source = 4;
+
+    // Are we in control? Say so!
+    if (WeatherInControl())
+        return std::string("LiveTraffic using RealTraffic data, ") + WEATHER_PRESETS[size_t(preset)];
+    else
+        return std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
+}
+
+// Reset weather settings to what they were before X-Plane took over
+void WeatherReset ()
+{
+    if (weatherOrigSource >= 0)     wdr_weather_source.set(weatherOrigSource);
+    if (weatherOrigChangeMode >= 0) wdr_change_mode.set(weatherOrigChangeMode);
+    
+    if (bWeatherControlling) {
+        bWeatherControlling = false;
+        SHOW_MSG(logINFO, "LiveTraffic no longer controls X-Plane's weather, reset to previous settings");
+        if (dataRefs.ShallLogWeather()) {
+            LOG_MSG(logDEBUG, "Weather reset to %s (source = %d, change mode = %d)",
+                    WeatherGetSource().c_str(),
+                    weatherOrigSource, weatherOrigChangeMode);
+        }
+    }
+    
+    weatherOrigSource = -1;
+    weatherOrigChangeMode = -1;
 }
 
 // Shutdown Weather module
 void WeatherStop ()
 {
-    
+    WeatherReset();
 }
 
 // Can we set weather? (X-Plane 12 forward only)
-bool CanSetWeather ()
+bool WeatherCanSet ()
 {
-    return bCanSetWeather;
+    return bWeatherCanSet;
 }
 
 

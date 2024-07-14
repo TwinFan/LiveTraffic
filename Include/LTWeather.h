@@ -23,10 +23,16 @@
 
 /// Initialize Weather module, dataRefs
 bool WeatherInit ();
+/// Indicate that we are taking control now
+void WeatherTakeControl ();
+/// Are we controlling weather?
+bool WeatherInControl ();
+/// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
+std::string WeatherGetSource ();
+/// Reset weather settings to what they were before X-Plane took over
+void WeatherReset ();
 /// Shutdown Weather module
 void WeatherStop ();
-
-// TODO: Need a WeatherReset() option to go back to the status before we defined weather
 
 //
 // MARK: Set X-Plane Weather
@@ -91,11 +97,16 @@ struct LTWeather
     void Interpolate (const std::array<InterpolSet,13>& aInterpol,
                       const std::vector<float>& from,
                       std::array<float,13>& to);
-    
+    /// @brief Fill directions/headings from a differently sized input vector based on interpolation
+    /// @details Headings need to be interpolate separately as the average of 359 and 001 is 000 rather than 180...
+    void InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
+                         const std::vector<float>& from,
+                         std::array<float,13>& to);
+
 };
 
 /// Can we set weather? (X-Plane 12 forward only)
-bool CanSetWeather ();
+bool WeatherCanSet ();
 
 //
 // MARK: Fetch METAR

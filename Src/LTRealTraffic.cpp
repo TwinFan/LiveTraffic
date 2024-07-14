@@ -198,7 +198,7 @@ void RealTrafficConnection::MainDirect ()
     rtWx.nErr = 0;
     lTotalFlights = -1;
     // If we could theoretically set weather we prepare the interpolation settings
-    if (CanSetWeather()) {
+    if (WeatherCanSet()) {
         rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
                                                  rtWx.w.atmosphere_alt_levels_m);
     }
@@ -257,6 +257,10 @@ void RealTrafficConnection::MainDirect ()
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
         IncErrCnt();
     }
+    
+    // Reset weather control (this assumes noone else can control weather and
+    // would need to change once any other source in LiveTraffic can do so)
+    WeatherReset();
 }
 
 // Which request do we need now?
@@ -551,7 +555,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
         }
 
         // If requested to set X-Plane's weather process the detailed weather data
-        if (dataRefs.ShallSetRTWeather())
+        if (WeatherCanSet() && dataRefs.ShallSetRTWeather())
             ProcessWeather (json_object_get_object(pObj, "data"));
         
         // Successfully received local pressure information
@@ -868,7 +872,7 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
                       [](float& f){ f *= float(NM_per_KM); });                  // convert from km/h to kn=nm/h
     }
     if (pWDIRs)
-        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pWDIRs), rtWx.w.wind_direction_degt); // TODO: Interpolating wind directions needs to be handled specially...the middle between 359 and 001 is 000....
+        rtWx.w.InterpolateDir(rtWx.interp, jag_f_vector(pWDIRs), rtWx.w.wind_direction_degt);
     if (pDZDTs) {
         rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pDZDTs), rtWx.w.turbulence);
         std::for_each(rtWx.w.turbulence.begin(), rtWx.w.turbulence.end(),

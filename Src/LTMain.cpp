@@ -1022,23 +1022,13 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
     // debug XPMP's CSL model matching if requested
-    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING)) {
-        if constexpr (LIVETRAFFIC_VERSION_BETA)         // force logging of model-matching in BETA versions
-            return true;
-        else
-            return dataRefs.GetDebugModelMatching();
-    }
+    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING))   return dataRefs.GetDebugModelMatching();
     // logging level to match ours
-    if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL)) {
-        if constexpr (LIVETRAFFIC_VERSION_BETA)         // force DEBUG-level logging in BETA versions
-            return logDEBUG;
-        else
-            return dataRefs.GetLogLevel();
-    }
+    if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL))        return dataRefs.GetLogLevel();
     // We don't want clamping to the ground, we take care of the ground ourselves
-    if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL))        return 0;
     // We want XPMP2 to assign unique modeS_ids if we feed duplicates (which can happen due to different id systems in use, especially ICAO vs FLARM)
-    if (!strcmp(key, XPMP_CFG_ITM_HANDLE_DUP_ID)) return 1;
+    if (!strcmp(key, XPMP_CFG_ITM_HANDLE_DUP_ID))   return 1;
     // Copying .obj files is an advanced setting
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))

@@ -373,6 +373,10 @@ void InfoListWnd::buildInterface()
                             
                             // Weather
                             ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Weather Source");
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(WeatherGetSource().c_str());
+                            
+                            ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live Weather");
                             if (ImGui::TableSetColumnIndex(1)) {
                                 ImGui::PushTextWrapPos();

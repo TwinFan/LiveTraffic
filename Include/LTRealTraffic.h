@@ -42,7 +42,6 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
-// TODO: Return to v3 endpoint
 #define RT_ENDP                 "v4"
 #define RT_METAR_UNKN           "UNKN"
 
