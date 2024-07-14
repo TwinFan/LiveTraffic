@@ -829,6 +829,7 @@ void RealTrafficConnection::ProcessNearestMETAR (const JSON_Array* pData)
     if (rtWx.nearestMETAR.dist > RT_DRCT_MAX_METAR_DIST_NM) {
         LOG_MSG(logDEBUG, "Nearest METAR location too far away, using none");
         rtWx.nearestMETAR.clear();
+        return;
     }
 
     // TODO: Check for better matching station in direction of flight
@@ -908,13 +909,29 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     rtWx.w.wave_dir = float(jog_n_nan(pLocWX, "SWDIR"));                        // we just use surface wind direction directly
     if (std::isnan(rtWx.w.wave_dir))
         rtWx.w.wave_dir = rtWx.w.wind_direction_degt.front();
-    
+    float SWSPD = float(jog_n_nan(pLocWX, "SWSPD"));                            // we determine the wave amplitude based on surface wind speed [km/h]
+    if (!std::isnan(SWSPD)) {
+        // We take wave amplitudes from https://www.wpc.ncep.noaa.gov/html/beaufort.shtml
+        SWSPD *= (float)NM_per_KM;                                              // convert to knots
+        if      (SWSPD <  1) rtWx.w.wave_amplitude =  0.0f;
+        else if (SWSPD <  4) rtWx.w.wave_amplitude =  0.1f;
+        else if (SWSPD <  7) rtWx.w.wave_amplitude =  0.25f;
+        else if (SWSPD < 11) rtWx.w.wave_amplitude =  0.8f;
+        else if (SWSPD < 17) rtWx.w.wave_amplitude =  1.25f;
+        else if (SWSPD < 22) rtWx.w.wave_amplitude =  2.25f;
+        else if (SWSPD < 28) rtWx.w.wave_amplitude =  3.5f;
+        else if (SWSPD < 34) rtWx.w.wave_amplitude =  4.75f;
+        else if (SWSPD < 41) rtWx.w.wave_amplitude =  6.5f;
+        else if (SWSPD < 48) rtWx.w.wave_amplitude =  8.5f;
+        else if (SWSPD < 56) rtWx.w.wave_amplitude = 10.75f;
+        else if (SWSPD < 64) rtWx.w.wave_amplitude = 13.75f;
+        else                 rtWx.w.wave_amplitude = 17.0f;
+    }
     
     // TODO: There are still weather values we can't set
     // rtWx.w.shear_speed_msc;
     // rtWx.w.shear_direction_degt;
     // rtWx.w.thermal_rate_ms;
-    // rtWx.w.wave_amplitude;    @see https://www.wpc.ncep.noaa.gov/html/beaufort.shtml
     // rtWx.w.runway_friction;
 
     // Set the weather (force immediate update on first weather data)
