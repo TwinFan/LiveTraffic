@@ -1023,6 +1023,7 @@ public:
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
     
     bool ShallLogWeather() const { return bDebugWeather && GetLogLevel() == logDEBUG; }
+    void SetDebugLogWeather(bool bLog)          { bDebugWeather = bLog; }
     
     exportFDFormat GetDebugExportFormat() const { return eDebugExportFdFormat; }
     void SetDebugExportFormat (exportFDFormat e) { eDebugExportFdFormat = e; }

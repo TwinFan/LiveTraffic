@@ -827,6 +827,37 @@ bool dequal ( const double d1, const double d2 )
     ((d1 + epsilon) > d2);
 }
 
+// Find an interpolated value
+float interpolate (const std::vector<float>& scale,
+                   const std::vector<float>& values,
+                   float pos_in_scale)
+{
+    LOG_ASSERT(!scale.empty());
+    LOG_ASSERT(scale.size() == values.size());
+    
+    // Border Cases
+    if (values.size() == 1) return values.front();
+    if (pos_in_scale <= scale.front()) return values.front();
+    if (pos_in_scale >= scale.back()) return values.back();
+    
+    // We now know that `pos_in_scale` is between front and back
+    // Search for pos_in_scale in `scale`, find where it would fit inbetween
+    // (as border cases are covered above must find something)
+    const auto iter = std::adjacent_find(scale.begin(), scale.end(),
+                                         [pos_in_scale](const float& a, const float& b)
+                                         { return a <= pos_in_scale && pos_in_scale <= b; });
+    LOG_ASSERT(iter != scale.end());
+
+    // 'left' index and weight for 'left' value
+    const size_t idx = (size_t)std::distance(scale.begin(), iter);
+    const float weight = float(1) - (pos_in_scale - *iter)/(*(iter+1) - *iter);
+
+    return                                  // interpolate between values of those positions we found
+    values[idx]   * weight +                // 'left'-hand part
+    values[idx+1] * (float(1) - weight);        // 'right'-hand part
+}
+
+
 //
 // MARK: Thread Handling
 //

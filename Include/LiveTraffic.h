@@ -407,6 +407,11 @@ bool dequal ( const double d1, const double d2 );
 inline double nanToZero (double d)
 { return std::isnan(d) ? 0.0 : d; }
 
+/// Find an interpolated value
+float interpolate (const std::vector<float>& scale,
+                   const std::vector<float>& values,
+                   float pos_in_scale);
+
 /// @brief random long between too given values invlusive
 /// @see https://stackoverflow.com/a/7560171
 inline long randoml (long min, long max)

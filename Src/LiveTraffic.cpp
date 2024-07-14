@@ -551,6 +551,9 @@ PLUGIN_API int XPluginStart(
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
         
+        // init Weather module (optional)
+        WeatherInit();
+        
         // read FlightModel.prf file (which we could live without)
         LTAircraft::FlightModel::ReadFlightModelFile();
         
@@ -688,6 +691,9 @@ PLUGIN_API void    XPluginStop(void)
     try {
         // Cleanup aircraft handling (including XPMP library)
         LTMainStop();
+        
+        // Cleanup Weather module
+        WeatherStop();
         
         // Cleanup dataRef registration, save config file
         dataRefs.Stop();

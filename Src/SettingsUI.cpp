@@ -1290,6 +1290,11 @@ void LTSettingsUI::buildInterface()
                                            "Logs detailed position information of currently selected aircraft (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log Weather", sFilter, DR_DBG_LOG_WEATHER,
                                            "Logs detailed information about how X-Plane's weather is set (into Log.txt)");
+                if (ImGui::FilteredLabel("Log Weather now", sFilter)) {
+                    if (ImGui::ButtonTooltip("Log Weather now","Places information on current weather into Log.txt"))
+                        LTWeather().Get("Current weather:");
+                    ImGui::TableNextCell();
+                }
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
                                            "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
 

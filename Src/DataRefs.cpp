@@ -735,9 +735,6 @@ static bool gbIgnoreItsMe = false;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel),
-#ifdef DEBUG
-bDebugAcPos (true),
-#endif
 MsgRect(0, 0, WIN_WIDTH, 0),
 SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
 ACIrect (0, 530, 320, 0),

@@ -50,13 +50,12 @@
 #define RT_AUTH_POST            "license=%s&software=%s"
 #define RT_DEAUTH_URL           "https://rtw.flyrealtraffic.com/" RT_ENDP "/deauth"
 #define RT_DEAUTH_POST          "GUID=%s"
-#define RT_NEAREST_METAR_URL    "https://rtw.flyrealtraffic.com/" RT_ENDP "/nearestmetarcode"
-#define RT_NEAREST_METAR_POST   "GUID=%s&lat=%.2f&lon=%.2f&toffset=%ld"
+#define RT_NEAREST_METAR_URL    "https://rtw.flyrealtraffic.com/" RT_ENDP "/nearestmetar"
+#define RT_NEAREST_METAR_POST   "GUID=%s&lat=%.2f&lon=%.2f&toffset=%ld&maxcount=7"
 #define RT_WEATHER_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/weather"
 #define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=%s&querytype=locwx&toffset=%ld"
 #define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
-
 
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
@@ -86,7 +85,7 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 // Constant for direct connection
 constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
-constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(10);  ///< How often to update weather?
+constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
 constexpr long RT_DRCT_WX_DIST = 10L * M_per_NM;                            ///< Distance for which weather is considered valid, greater than that and we re-request
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
 constexpr double RT_DRCT_MAX_METAR_DIST_NM = 50.0;                          ///< Max distance a METAR station is considered valid...otherwise we rather use no METAR (for clouds, for example)
@@ -273,14 +272,33 @@ protected:
     /// How long to wait before making the next request?
     std::chrono::milliseconds rrlWait = std::chrono::milliseconds(0);
 
+    /// METAR entry in the NearestMETAR response
+    struct NearestMETAR {
+        std::string     ICAO = RT_METAR_UNKN;           ///< ICAO code of METAR station
+        float           dist = NAN;                     ///< distance to station
+        float           brgTo = NAN;                    ///< bearing to station
+        std::string     METAR;                          ///< the actual METAR report
+
+        NearestMETAR() {}                               ///< Standard constructor, all empty
+        NearestMETAR(const JSON_Object* pObj) { Parse (pObj); } ///< Fill from JSON
+        
+        void clear() { *this = NearestMETAR(); }        ///< reset to defaults
+        bool Parse (const JSON_Object* pObj);           ///< parse RT's NearestMETAR response array entry, reutrns if valid
+        bool isValid () const                           ///< valid, ie. all fields properly set?
+        { return !ICAO.empty() && ICAO != RT_METAR_UNKN && !std::isnan(dist) && !std::isnan(brgTo) && !METAR.empty(); }
+    };
+    
     /// Weather data
     struct WxTy {
         double QNH = NAN;                               ///< baro pressure
         std::chrono::steady_clock::time_point next;     ///< next time to request RealTraffic weather
         positionTy pos;                                 ///< viewer position for which we received Realtraffic weather
-        std::string sLocNearestMETAR = RT_METAR_UNKN;   ///< location of nearest METAR
+        NearestMETAR nearestMETAR;                      ///< info on nearest METAR
         long tOff = 0;                                  ///< time offset for which we requested weather
         int nErr = 0;                                   ///< How many errors did we have during weather requests?
+        
+        LTWeather w;                                    ///< interface to setting X-Plane's weather
+        std::array<LTWeather::InterpolSet,13> interp;   ///< interpolation settings to convert from RT's 20 layers to XP's 13
         
         /// Set all relevant values
         void set (double qnh, const CurrTy& o, bool bResetErr = true);
@@ -336,6 +354,9 @@ public:
     std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set 
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
     bool ProcessFetchedData () override;                    ///< in direct mode process the received data
+    void ProcessNearestMETAR (const JSON_Array* pData);     ///< in direct mode process NearestMETAR response, find a suitable METAR from the returned array
+    void ProcessWeather(const JSON_Object* pData);          ///< in direct mode process detailed weather information
+    void ProcessCloudLayer(const JSON_Object* pCL,size_t i);///< in direct mode process one cloud layer
 
     // MARK: UDP/TCP via App
 protected:

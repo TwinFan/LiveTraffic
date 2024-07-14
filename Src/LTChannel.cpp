@@ -127,6 +127,18 @@ double jag_n_nan (const JSON_Array *array, size_t idx)
         return NAN;
 }
 
+// return an entire JSON array as float vector
+std::vector<float> jag_f_vector (const JSON_Array* array)
+{
+    std::vector<float> v;
+    const size_t n = json_array_get_count(array);
+    for (size_t idx = 0; idx < n; ++idx) {
+        JSON_Value* pJSONVal = NULL;
+        v.push_back(jag_is_null(array, idx, &pJSONVal) ? NAN : float(json_value_get_number (pJSONVal)));
+    }
+    return v;
+}
+
 // Find first non-Null value in several JSON array fields
 JSON_Value* jag_FindFirstNonNull(const JSON_Array* pArr, std::initializer_list<size_t> aIdx)
 {

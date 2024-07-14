@@ -34,6 +34,13 @@
 #include <fcntl.h>
 #endif
 
+// RealTraffic's atmospheric layers in meters
+const std::vector<float> RT_ATMOS_LAYERS = {
+    111, 323, 762, 988, 1457, 1948, 2465, 3011, 3589, 4205,
+    4863, 5572, 6341, 7182, 8114, 9160, 10359, 11770, 13503, 15790
+};
+
+
 //
 // MARK: RealTraffic Connection
 //
@@ -190,6 +197,11 @@ void RealTrafficConnection::MainDirect ()
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
     lTotalFlights = -1;
+    // If we could theoretically set weather we prepare the interpolation settings
+    if (CanSetWeather()) {
+        rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
+                                                 rtWx.w.atmosphere_alt_levels_m);
+    }
 
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -356,7 +368,7 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
             snprintf(s, sizeof(s), RT_WEATHER_POST,
                      curr.sGUID.c_str(),
                      curr.pos.lat(), curr.pos.lon(), 0L,
-                     rtWx.sLocNearestMETAR.c_str(),
+                     rtWx.nearestMETAR.ICAO.c_str(),
                      curr.tOff);
             break;
         case CurrTy::RT_REQU_TRAFFIC:
@@ -493,19 +505,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // --- Nearest METAR location ---
     if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR) {
-        // There shall be two fields: location and distance
-        rtWx.sLocNearestMETAR = jog_s(pObj, "data.ICAO");
-        // Set back to default 'UNKN' if too far away, or just nothing returned
-        const double d = jog_n_nan(pObj, "data.Dist");
-        if (!std::isnan(d) && d > RT_DRCT_MAX_METAR_DIST_NM) {
-            LOG_MSG(logDEBUG, "Nearest METAR location too far away, using none");
-            rtWx.sLocNearestMETAR = RT_METAR_UNKN;
-        }
-        // Received nothing?
-        if (rtWx.sLocNearestMETAR.empty()) {
-            LOG_MSG(logWARN, "Received no nearest METAR location from RealTraffic");
-            rtWx.sLocNearestMETAR = RT_METAR_UNKN;
-        }
+        ProcessNearestMETAR(json_object_get_array(pObj, "data"));
         return true;
     }
     
@@ -550,9 +550,14 @@ bool RealTrafficConnection::ProcessFetchedData ()
             return false;
         }
 
-        // Successfully received weather information
+        // If requested to set X-Plane's weather process the detailed weather data
+        if (dataRefs.ShallSetRTWeather())
+            ProcessWeather (json_object_get_object(pObj, "data"));
+        
+        // Successfully received local pressure information
         LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
         rtWx.set(wxSLP, curr);                      // Save new QNH
+        
         return true;
     }
     
@@ -762,6 +767,167 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     return true;
 }
+
+//
+// MARK: Direct Connection, Weather processing
+//
+
+
+// parse RT's NearestMETAR response array entry
+bool RealTrafficConnection::NearestMETAR::Parse (const JSON_Object* pObj)
+{
+    if (!pObj) {
+        LOG_MSG(logWARN, "Array entry 'data[]' empty!");
+        return false;
+    }
+    
+    ICAO    = jog_s(pObj, "ICAO");
+    dist    = (float)jog_n_nan(pObj, "Dist");
+    brgTo   = (float)jog_n_nan(pObj, "BrgTo");
+    METAR   = jog_s(pObj, "METAR");
+    
+    return isValid();
+}
+
+
+// in direct mode process NearestMETAR response, find a suitable METAR from the returned array
+void RealTrafficConnection::ProcessNearestMETAR (const JSON_Array* pData)
+{
+    if (!pData) {
+        LOG_MSG(logWARN, "JSON response is missing 'data' array!");
+        return;
+    }
+    
+    // Reset until we know better
+    rtWx.nearestMETAR.clear();
+    
+    // Array must have at least one element
+    if (json_array_get_count(pData) < 1) {
+        LOG_MSG(logWARN, "Received no nearest METARs from RealTraffic ('data' array empty)");
+        return;
+    }
+    
+    // The first METAR is the closest, so a priori best cadidate to be used
+    rtWx.nearestMETAR.Parse(json_array_get_object(pData, 0));
+    if (!rtWx.nearestMETAR.isValid()) {
+        LOG_MSG(logWARN, "Nearest METAR ('data[0]') isn't valid");
+        return;
+    }
+    // even the nearest station is too far away for reliable weather?
+    if (rtWx.nearestMETAR.dist > RT_DRCT_MAX_METAR_DIST_NM) {
+        LOG_MSG(logDEBUG, "Nearest METAR location too far away, using none");
+        rtWx.nearestMETAR.clear();
+    }
+
+    // TODO: Check for better matching station in direction of flight
+    LOG_MSG(logDEBUG, "Using Nearest METAR: %s (%.1fnm, %.0fdeg), '%s'",
+            rtWx.nearestMETAR.ICAO.c_str(),
+            rtWx.nearestMETAR.dist, rtWx.nearestMETAR.brgTo,
+            rtWx.nearestMETAR.METAR.c_str());
+}
+
+
+// in direct mode process detailed weather information
+void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
+{
+    rtWx.w = LTWeather();                                       // reset all values
+    if (!pData) {
+        LOG_MSG(logWARN, "JSON response is missing 'data' object!");
+        return;
+    }
+    const JSON_Object* pLocWX = json_object_get_object(pData, "locWX");
+    if (!pLocWX) {
+        LOG_MSG(logWARN, "JSON response is missing 'data.locWX' object!");
+        return;
+    }
+
+    const JSON_Array* pDPs      = json_object_get_array(pLocWX, "DPs");
+    const JSON_Array* pTEMPs    = json_object_get_array(pLocWX, "TEMPs");
+    const JSON_Array* pWDIRs    = json_object_get_array(pLocWX, "WDIRs");
+    const JSON_Array* pWSPDs    = json_object_get_array(pLocWX, "WSPDs");
+    const JSON_Array* pDZDTs    = json_object_get_array(pLocWX, "DZDTs");
+    std::vector<float> aTEMPs;
+    
+    if (!pDPs || !pTEMPs || !pWDIRs || !pWSPDs || !pDZDTs) {
+        LOG_MSG(logWARN, "JSON response is missing one of the following arrays in data.locWX: DPs, TEMPs, WDIRs, WSPDs, DZDTs");
+    }
+
+    rtWx.w.visibility_reported_sm       = float(jog_n_nan(pLocWX, "SVis") / M_per_SM);
+    rtWx.w.sealevel_pressure_pas        = float(jog_n_nan(pLocWX, "SLP") * 100.0);
+    if (pTEMPs && json_array_get_count(pTEMPs) >= 1)                    // use temperature of lowest level, adjusted per temperature lapse rate
+        rtWx.w.sealevel_temperature_c   = float(jag_n_nan(pTEMPs, 0)) - RT_ATMOS_LAYERS.front() * float(TEMP_LAPS_R);
+    rtWx.w.qnh_base_elevation           = 0;                            // TODO: Verify if using qnh_base this way makes any sense
+    rtWx.w.qnh_pas                      = rtWx.w.sealevel_pressure_pas;
+    rtWx.w.rain_percent                 = std::min(float(jog_n_nan(pLocWX, "PRR")) / 9.0f, 1.0f);   // RT sends mm/h and says ">7.5 is heavy", XP wants a 0..1 scale
+    
+    // Wind
+    rtWx.w.wind_altitude_msl_m          = rtWx.w.atmosphere_alt_levels_m;       // we just use the standard atmospheric layers of XP, need to interpolate anyway as RT sends more layers
+    if (pWSPDs) {
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pWSPDs), rtWx.w.wind_speed_msc);
+        std::for_each(rtWx.w.wind_speed_msc.begin(), rtWx.w.wind_speed_msc.end(),
+                      [](float& f){ f *= float(NM_per_KM); });                  // convert from km/h to kn=nm/h
+    }
+    if (pWDIRs)
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pWDIRs), rtWx.w.wind_direction_degt); // TODO: Interpolating wind directions needs to be handled specially...the middle between 359 and 001 is 000....
+    if (pDZDTs) {
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pDZDTs), rtWx.w.turbulence);
+        std::for_each(rtWx.w.turbulence.begin(), rtWx.w.turbulence.end(),
+                      [](float& f){ f = std::clamp<float>(f * 5.0f, 0.0f, 10.0f); });         // convert from RT's scale (">2 severe") to XP's of 0..10
+    }
+   
+    // Temperature
+    if (pDPs)
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pDPs), rtWx.w.dewpoint_deg_c);
+    rtWx.w.temperature_altitude_msl_m   = rtWx.w.atmosphere_alt_levels_m;
+    if (pTEMPs)
+        rtWx.w.Interpolate(rtWx.interp, aTEMPs = jag_f_vector(pTEMPs), rtWx.w.temperatures_aloft_deg_c);
+
+    // Cloud layers
+    ProcessCloudLayer(json_object_get_object(pLocWX, "LLC"), 0);
+    ProcessCloudLayer(json_object_get_object(pLocWX, "MLC"), 1);
+    ProcessCloudLayer(json_object_get_object(pLocWX, "HLC"), 2);
+    
+    // Troposhere
+    rtWx.w.tropo_alt_m = float(jog_n_nan(pLocWX, "TPP"));
+    if (!aTEMPs.empty() && !std::isnan(rtWx.w.tropo_alt_m))
+        rtWx.w.tropo_temp_c = interpolate(RT_ATMOS_LAYERS, aTEMPs, rtWx.w.tropo_alt_m);
+    
+    // Waves
+    rtWx.w.wave_dir = float(jog_n_nan(pLocWX, "SWDIR"));                        // we just use surface wind direction directly
+    if (std::isnan(rtWx.w.wave_dir))
+        rtWx.w.wave_dir = rtWx.w.wind_direction_degt.front();
+    
+    
+    // TODO: There are still weather values we can't set
+    // rtWx.w.shear_speed_msc;
+    // rtWx.w.shear_direction_degt;
+    // rtWx.w.thermal_rate_ms;
+    // rtWx.w.wave_amplitude;    @see https://www.wpc.ncep.noaa.gov/html/beaufort.shtml
+    // rtWx.w.runway_friction;
+
+    // Set the weather (force immediate update on first weather data)
+    rtWx.w.Set(!rtWx.pos.isNormal());
+}
+
+// in direct mode process one cloud layer
+void RealTrafficConnection::ProcessCloudLayer(const JSON_Object* pCL, size_t i)
+{
+    if (!pCL) return;
+    const float cover = (float) jog_n_nan(pCL, "cover");
+    const float base  = (float) jog_n_nan(pCL, "base");
+    const float tops  = (float) jog_n_nan(pCL, "tops");
+    const float type  = (float) jog_n_nan(pCL, "type");
+    const float conf  = (float) jog_n_nan(pCL, "confidence");
+    if (std::isnan(cover) || std::isnan(base) || std::isnan(tops) || std::isnan(type) || std::isnan(conf))
+        return;
+    
+    rtWx.w.cloud_type[i]             = type;
+    rtWx.w.cloud_coverage_percent[i] = cover/100.0f;
+    rtWx.w.cloud_base_msl_m[i]       = base;
+    rtWx.w.cloud_tops_msl_m[i]       = tops;
+}
+
+
 
 //
 // MARK: UDP/TCP via App

@@ -49,6 +49,7 @@ constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
 constexpr int M_per_KM      = 1000;
 constexpr double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
 constexpr double NM_per_KM  = 1000.0 / double(M_per_NM);
+constexpr double M_per_SM   = 1609.344; ///< meters per statute mile
 constexpr int SEC_per_M     = 60;       // 60 seconds per minute
 constexpr int SEC_per_H     = 3600;     // 3600 seconds per hour
 constexpr int H_per_D       = 24;       // 24 hours per day
