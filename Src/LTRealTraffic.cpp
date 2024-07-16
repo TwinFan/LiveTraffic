@@ -932,7 +932,12 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     // rtWx.w.shear_speed_msc;
     // rtWx.w.shear_direction_degt;
     // rtWx.w.thermal_rate_ms;
-    // rtWx.w.runway_friction;
+    
+    // TODO: Improve Rwy_Friction (Snow, Ice)
+    rtWx.w.runway_friction =
+        rtWx.w.rain_percent <=  5.0f ? 0 :
+        rtWx.w.rain_percent <= 33.3f ? 1 :
+        rtWx.w.rain_percent <= 66.6f ? 2 : 3;
 
     // Set the weather (force immediate update on first weather data)
     rtWx.w.Set(!rtWx.pos.isNormal());
