@@ -146,7 +146,7 @@ XDR_float    wdr_wave_amplitude;            ///< float      y    meters         
 XDR_float    wdr_wave_length;               ///< float      n    meters         Length of a single wave in the water - not writable starting in v12
 XDR_float    wdr_wave_speed;                ///< float      n    m/s            Speed of water waves - not writable starting in v12
 XDR_float    wdr_wave_dir;                  ///< float      y    degrees        Direction of waves.
-XDR_float    wdr_runway_friction;           ///< float      y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
+XDR_int      wdr_runway_friction;           ///< int        y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
 XDR_float    wdr_variability_pct;           ///< float      y    ratio          How randomly variable the weather is over distance. Range 0 - 1.
 XDR_int      wdr_weather_preset;            ///< int        y    enum           Read the UI weather preset that is closest to the current conditions, or set an UI preset. Clear(0), VFR Few(1), VFR Scattered(2), VFR Broken(3), VFR Marginal(4), IFR Non-precision(5), IFR Precision(6), Convective(7), Large-cell Storms(8)
 
