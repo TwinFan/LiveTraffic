@@ -653,6 +653,39 @@ bool WeatherInit ()
     return bWeatherCanSet;
 }
 
+// Shutdown Weather module
+void WeatherStop ()
+{
+    WeatherReset();
+}
+
+// Can we set weather? (X-Plane 12 forward only)
+bool WeatherCanSet ()
+{
+    return bWeatherCanSet;
+}
+
+// Shall we actuall set the weather as per ability and user's configuration?
+bool WeatherShallSet ()
+{
+    bool bRet = false;
+    if (WeatherCanSet() && dataRefs.GetRTSetWeather() > 0)  // can and want?
+        bRet = dataRefs.GetRTSetWeather() == 2 ||           // user always wants
+               wdr_weather_source.get() == 1;               // or real weather is on
+    
+    // So should we be off but aren't?
+    if (!bRet && WeatherInControl())
+    {
+        if (dataRefs.GetRTSetWeather() > 0) {               // if user still wants per LiveTraffic's config
+            weatherOrigSource = -1;                         // then don't actually touch XP's settings any longer, because the user must have done so already
+            weatherOrigChangeMode = -1;
+        }
+        WeatherReset();
+    }
+    
+    return bRet;
+}
+
 // Indicate that we are taking control now
 void WeatherTakeControl ()
 {
@@ -679,6 +712,26 @@ bool WeatherInControl ()
     return bWeatherControlling;
 }
 
+// Reset weather settings to what they were before X-Plane took over
+void WeatherReset ()
+{
+    if (weatherOrigSource >= 0)     wdr_weather_source.set(weatherOrigSource);
+    if (weatherOrigChangeMode >= 0) wdr_change_mode.set(weatherOrigChangeMode);
+    
+    if (bWeatherControlling) {
+        bWeatherControlling = false;
+        SHOW_MSG(logINFO, "LiveTraffic no longer controls X-Plane's weather, reset to previous settings");
+        if (dataRefs.ShallLogWeather()) {
+            LOG_MSG(logDEBUG, "Weather reset to %s (source = %d, change mode = %d)",
+                    WeatherGetSource().c_str(),
+                    weatherOrigSource, weatherOrigChangeMode);
+        }
+    }
+    
+    weatherOrigSource = -1;
+    weatherOrigChangeMode = -1;
+}
+
 /// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
 std::string WeatherGetSource ()
 {
@@ -702,39 +755,6 @@ std::string WeatherGetSource ()
     else
         return std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
 }
-
-// Reset weather settings to what they were before X-Plane took over
-void WeatherReset ()
-{
-    if (weatherOrigSource >= 0)     wdr_weather_source.set(weatherOrigSource);
-    if (weatherOrigChangeMode >= 0) wdr_change_mode.set(weatherOrigChangeMode);
-    
-    if (bWeatherControlling) {
-        bWeatherControlling = false;
-        SHOW_MSG(logINFO, "LiveTraffic no longer controls X-Plane's weather, reset to previous settings");
-        if (dataRefs.ShallLogWeather()) {
-            LOG_MSG(logDEBUG, "Weather reset to %s (source = %d, change mode = %d)",
-                    WeatherGetSource().c_str(),
-                    weatherOrigSource, weatherOrigChangeMode);
-        }
-    }
-    
-    weatherOrigSource = -1;
-    weatherOrigChangeMode = -1;
-}
-
-// Shutdown Weather module
-void WeatherStop ()
-{
-    WeatherReset();
-}
-
-// Can we set weather? (X-Plane 12 forward only)
-bool WeatherCanSet ()
-{
-    return bWeatherCanSet;
-}
-
 
 /// Is currently an async operation running to fetch METAR?
 static std::future<bool> futWeather;

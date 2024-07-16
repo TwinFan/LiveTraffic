@@ -555,7 +555,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
         }
 
         // If requested to set X-Plane's weather process the detailed weather data
-        if (WeatherCanSet() && dataRefs.ShallSetRTWeather())
+        if (WeatherShallSet())
             ProcessWeather (json_object_get_object(pObj, "data"));
         
         // Successfully received local pressure information

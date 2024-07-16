@@ -725,7 +725,7 @@ protected:
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
-    int rtSetWeather    = 0;            ///< Set X-Plane's weather based on RealTraffic weather data
+    int rtSetWeather    = 1;            ///< Set X-Plane's weather based on RealTraffic weather data? (0-Off, 1-Auto, 2-On)
     int ffListenPort    = 63093;        ///< UDP Port to listen to ForeFlight announcing itself, https://www.foreflight.com/connect/spec/
     int ffSendPort      = 49002;        ///< UDP Port to send simulator data to ForeFlight, https://www.foreflight.com/support/network-gps/
     int bffUserPlane    = 1;            // bool Send User plane data?
@@ -993,7 +993,7 @@ public:
     RTConnTypeTy GetRTConnType () const { return rtConnType; }
     const std::string& GetRTLicense () const { return sRTLicense; }
     void SetRTLicense (const std::string& license) { sRTLicense = license; }
-    bool ShallSetRTWeather() const { return rtSetWeather; }
+    int GetRTSetWeather() const { return rtSetWeather; }
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)

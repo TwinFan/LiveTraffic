@@ -586,9 +586,19 @@ void LTSettingsUI::buildInterface()
                 }
                 
                 // Weather
-                ImGui::FilteredCfgCheckbox("Set Weather from RealTraffic", sFilter, DR_CFG_RT_SET_WEATHER,
-                                           "Set X-Plane's weather based on RealTraffic's weather information (also historically)");
-                
+                if (ImGui::FilteredLabel("Set Weather from RealTraffic", sFilter, WeatherCanSet())) {
+                    if (WeatherCanSet()) {
+                        const float cbWidth = ImGui::CalcTextSize("Auto (if XP set to real weather)____").x;
+                        ImGui::SetNextItemWidth(cbWidth);
+                        int n = dataRefs.GetRTSetWeather();
+                        if (ImGui::Combo("##RTSetWeather", &n, "Off\0Auto (if XP set to real weather)\0On\0", 3))
+                            DATA_REFS_LT[DR_CFG_RT_SET_WEATHER].setData(n);
+                    } else {
+                        ImGui::TextUnformatted("Setting weather is supported in X-Plane 12 and later");
+                    }
+                    ImGui::TableNextCell();
+                }
+
                 // Historic Data
                 if (ImGui::FilteredLabel("Request Historic Data", sFilter)) {
                     float cbWidth = ImGui::CalcTextSize("Use live data, not historic_____").x;

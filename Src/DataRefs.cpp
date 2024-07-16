@@ -564,7 +564,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/real_traffic/man_toffset",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,     GET_VAR, true },
     {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/channel/real_traffic/set_weather",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/real_traffic/set_weather",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/channel/fore_flight/listen_port", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
