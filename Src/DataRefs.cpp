@@ -2703,7 +2703,7 @@ bool DataRefs::WeatherUpdate ()
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();
-        return ::WeatherUpdate(camPos, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
+        return ::WeatherFetchUpdate(camPos, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
     }
     return false;
 }

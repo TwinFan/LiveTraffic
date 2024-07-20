@@ -1302,7 +1302,7 @@ void LTSettingsUI::buildInterface()
                                            "Logs detailed information about how X-Plane's weather is set (into Log.txt)");
                 if (ImGui::FilteredLabel("Log Weather now", sFilter)) {
                     if (ImGui::ButtonTooltip("Log Weather now","Places information on current weather into Log.txt"))
-                        LTWeather().Get("Current weather:");
+                        WeatherLogCurrent("Current weather:");
                     ImGui::TableNextCell();
                 }
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,

@@ -760,13 +760,28 @@ std::string GetNearestAirportId (const positionTy& _pos,
         if (outApPos) {
             outApPos->lat() = lat;
             outApPos->lon() = lon;
-            outApPos->SetAltFt((double)alt);
+            outApPos->alt_m() = alt;
         }
     }
     
     // return the id
     return airportId;
 }
+
+// Fetch specific airport location/altitude
+positionTy GetAirportLoc (const std::string sICAO)
+{
+    XPLMNavRef navRef = XPLMFindNavAid(nullptr, sICAO.c_str(),
+                                       nullptr, nullptr, nullptr,
+                                       xplm_Nav_Airport);
+    if (!navRef) return positionTy();
+    float lat=NAN, lon=NAN, alt=NAN;
+    XPLMGetNavAidInfo(navRef, nullptr,
+                      &lat, &lon, &alt,
+                      nullptr, nullptr, nullptr, nullptr, nullptr);
+    return positionTy(lat, lon, alt);
+}
+
 
 // Convert ADS-B Emitter Category to text
 const char* GetADSBEmitterCat (const std::string& cat)
@@ -928,6 +943,9 @@ void LTRegularUpdates()
     
     // Update cached values
     dataRefs.UpdateCachedValues();
+    
+    // Update the weather (short-cuts if nothing to do)
+    WeatherUpdate();
     
     // Check if some msg window needs to show
     CheckThenShowMsgWindow();

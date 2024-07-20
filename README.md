@@ -24,6 +24,7 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [XPMP2](https://github.com/TwinFan/XPMP2) for CSL model processing
 - [CURL](https://curl.haxx.se/libcurl/) for network protocol support
 - [parson](https://github.com/kgabis/parson) as JSON parser
+- [metaf](https://github.com/nnaumenko/metaf) as METAR parser
 - [libz/zlib](https://zlib.net) as compression library (used by CURL)
 - [ImGui](https://github.com/ocornut/imgui) for user interfaces
 - [ImgWindow](https://github.com/xsquawkbox/xsb_public) for integrating ImGui into X-Plane windows
@@ -40,8 +41,8 @@ Thanks go to
 
 ## Build
 
-Please note that LiveTraffic includes the XPMP2 lib as a GitHub submodule.
-To properly build, you need to also checkout the XPMP2 submodule,
+Please note that LiveTraffic includes XPMP2, parson, and metaf libs as a GitHub submodules.
+To properly build, you need to also checkout the submodules,
 e.g. on the command line by doing
 ```
 git clone --recurse-submodules https://github.com/TwinFan/LiveTraffic

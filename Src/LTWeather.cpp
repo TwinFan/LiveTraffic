@@ -78,6 +78,10 @@
 
 #include "LiveTraffic.h"
 
+// metaf header-only library for parsing METAR
+// see https://github.com/nnaumenko/metaf
+#include "metaf.hpp"
+
 //
 // MARK: Set X-Plane Weather
 //
@@ -102,8 +106,8 @@ struct XDR_float : public XDR {
 template<std::size_t N>
 struct XDR_farr : public XDR {
     void get (std::array<float,N>& v) const { XPLMGetDatavf(dr,v.data(),0,N ); }  ///< get data from X-Plane into local storage
-    void set (std::array<float,N> & v)                  ///< write data to X-Plane (if element 0 is finite, ie. not NAN)
-    { if (std::isfinite(v[0])) XPLMSetDatavf(dr,v.data(),0,N ); }
+    void set (const std::array<float,N> & v)            ///< write data to X-Plane (if element 0 is finite, ie. not NAN)
+    { if (std::isfinite(v[0])) XPLMSetDatavf(dr,(float*)v.data(),0,N ); }
 };
 
 /// Represents an int dataRef
@@ -212,19 +216,9 @@ LTWeather::LTWeather()
 }
 
 // Set the given weather in X-Plane
-void LTWeather::Set (bool bForceImmediately)
+void LTWeather::Set () const
 {
-    // Set weather with immediate effect if first time, or if position changed dramatically
-    const bool bImmediately = !WeatherInControl() || bForceImmediately || !lastPos.isNormal() || lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST;
-    if (bImmediately) {
-        if (!WeatherInControl()) {
-            WeatherTakeControl();
-        } else {
-            SHOW_MSG(logINFO, "LiveTraffic is re-setting X-Plane's weather");
-        }
-    }
-    wdr_update_immediately.set(bImmediately);
-    lastPos = dataRefs.GetViewPos();
+    wdr_update_immediately.set(update_immediately);
 
     wdr_change_mode.set(3);                         // 3 - Static (this also switches off XP's real weather)
 
@@ -256,7 +250,7 @@ void LTWeather::Set (bool bForceImmediately)
     wdr_variability_pct.set(variability_pct);
 
     if (dataRefs.ShallLogWeather())
-        Log(bImmediately ? "Set Weather immediately" : "Set Weather");
+        Log(update_immediately ? "Set Weather immediately" : "Set Weather");
 }
 
 // Read weather from X-Plane
@@ -336,6 +330,8 @@ lOut << unit "\n";
     lOut <<  "wave_dir: "    << wave_dir                 << "deg, ";
     lOut <<  "rwy_fric: "    << runway_friction          << ", ";
     lOut <<  "variability: " << variability_pct          << "%\n";
+    
+    lOut <<  "METAR: "       << (metar.empty() ? "(nil)" : metar.c_str()) << "\n";
 
     LOG_MSG(logDEBUG, "%s\n%s", msg.c_str(), lOut.str().c_str());
 }
@@ -406,6 +402,261 @@ void LTWeather::InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
         }
         else to[i] = NAN;
     }
+}
+
+//
+// MARK: Parse METAR
+//
+
+using namespace metaf;
+
+constexpr float CAVOK_VISIBILITY_M      = 10000.0f;     ///< CAVOK minimum Visibility [m]
+constexpr float CAVOK_MIN_CLOUD_BASE_M  = 1500.0f;      ///< CAVOK: no clouds below this height AGL [m]
+
+/// @brief metaf visitor, ie. functions that are called when traversing the parsed METAR
+/// @details Set of visit functions that perform the actual processing of the information in the METAR.
+///          Each function returns a `bool`, which reads "Shall processing be stopped?"
+class LTWeatherVisitor : public Visitor<bool> {
+public:
+    LTWeather& w;                               ///< The weather we are to modify
+    positionTy posField;                        ///< position/altitude of the METAR's field,
+    bool bCloseToGnd = false;                   ///< is position close enough to ground to weigh METAR higher than weather data?
+    size_t iCloud = 0;                          ///< which cloud layer is to be filled next?
+
+public:
+    /// Constructor sets the reference to the weather that we are to modify
+    LTWeatherVisitor (LTWeather& weather) : w(weather), posField(0.0, 0.0, 0.0) {}
+    
+    /// Convert a METAR cloud cover to a percentage
+    static float toPercent(CloudGroup::Amount a)
+    {
+        switch (a) {
+            case CloudGroup::Amount::NOT_REPORTED:
+            case CloudGroup::Amount::NCD:
+            case CloudGroup::Amount::NSC:
+            case CloudGroup::Amount::NONE_CLR:
+            case CloudGroup::Amount::NONE_SKC:
+                return 0.0f;                    // so many ways to say: no clouds
+            case CloudGroup::Amount::FEW:
+                return 1.5f/8.0f;               // between 1/8 and 2/8
+            case CloudGroup::Amount::SCATTERED:
+                return 3.5f/8.0f;               // between 3/8 and 4/8
+            case CloudGroup::Amount::BROKEN:
+                return 6.0f/8.0f;               // between 5/8 and 7/8
+            case CloudGroup::Amount::OVERCAST:
+            case CloudGroup::Amount::OBSCURED:
+                return 1.0f;
+            case CloudGroup::Amount::VARIABLE_FEW_SCATTERED:
+                return 2.5f/8.0f;               // between 1/8 and 4/8
+            case CloudGroup::Amount::VARIABLE_SCATTERED_BROKEN:
+                return 5.0f/8.0f;               // between 3/8 and 7/8
+            case CloudGroup::Amount::VARIABLE_BROKEN_OVERCAST:
+                return 6.5f/8.0f;               // between 5/8 and 8/8
+        }
+        return 0.0f;
+    }
+
+    /// Convert a METAR cloud type to X-Plane
+    static float toXPCloudType (const std::optional<CloudType>& optClTy,
+                                CloudGroup::ConvectiveType convTy)
+    {
+        if (convTy == CloudGroup::ConvectiveType::CUMULONIMBUS)
+            return 3.0f;
+        if (convTy == CloudGroup::ConvectiveType::TOWERING_CUMULUS)
+            return 2.5f;
+        if (!optClTy)                           // if nothing specified, go for Cirrus
+            return 0.0f;
+        switch (optClTy.value().type()) {
+            case CloudType::Type::NOT_REPORTED:      return 0.0f;
+            //Low clouds
+            case CloudType::Type::CUMULONIMBUS:      return 3.0f;
+            case CloudType::Type::TOWERING_CUMULUS:  return 2.5f;
+            case CloudType::Type::CUMULUS:           return 2.0f;
+            case CloudType::Type::CUMULUS_FRACTUS:   return 1.8f;
+            case CloudType::Type::STRATOCUMULUS:     return 1.5f;
+            case CloudType::Type::NIMBOSTRATUS:      return 1.0f;
+            case CloudType::Type::STRATUS:           return 1.0f;
+            case CloudType::Type::STRATUS_FRACTUS:   return 0.8f;
+            //Med clouds
+            case CloudType::Type::ALTOSTRATUS:       return 1.0f;
+            case CloudType::Type::ALTOCUMULUS:       return 2.0f;
+            case CloudType::Type::ALTOCUMULUS_CASTELLANUS: return 2.3f;
+            //High clouds
+            case CloudType::Type::CIRRUS:            return 0.0f;
+            case CloudType::Type::CIRROSTRATUS:      return 0.5;
+            case CloudType::Type::CIRROCUMULUS:      return 1.5f;
+            //Obscurations
+            default:                                        return 0.0f;
+        }
+    }
+    
+    /// Set CAVOK conditions
+    void SetCAVOK (bool bCloudsOnly = false)
+    {
+        if (!bCloudsOnly) {
+            // Visibility 10 km or more in all directions.
+            if (std::isnan(w.visibility_reported_sm) ||
+                w.visibility_reported_sm * float(M_per_SM) < CAVOK_VISIBILITY_M)
+                w.visibility_reported_sm = CAVOK_VISIBILITY_M / float(M_per_SM);
+        }
+        
+        // No cloud below 5000 feet (1500 meters).
+        const float minBase = CAVOK_MIN_CLOUD_BASE_M + float(posField.alt_m());
+        for (size_t i = 0; i < w.cloud_base_msl_m.size(); ++i) {
+            if (w.cloud_tops_msl_m[i] < minBase) {              // entire cloud layer too low -> remove
+                w.cloud_type[i] = 0.0f;
+                w.cloud_base_msl_m[i] = -1.0f;
+                w.cloud_tops_msl_m[i] = -1.0f;
+                w.cloud_coverage_percent[i] = 0.0f;
+            }
+            else if (w.cloud_base_msl_m[i] < minBase)           // only base too low? -> lift base, but keep tops (and hence the layer as such)
+                w.cloud_base_msl_m[i] = minBase;
+        }
+        // No cumulonimbus or towering cumulus clouds.
+        for (float& ct: w.cloud_type)
+            if (ct > 2.0f) ct = 2.0f;                           // reduce Cumulo-nimbus to Cumulus
+    }
+    
+    // --- visit functions ---
+    
+    /// Location, ie. the ICAO code, for which we fetch position / altitude
+    bool visitLocationGroup(const LocationGroup & lg,
+                            ReportPart, const std::string&) override
+    {
+        posField = GetAirportLoc(lg.toString());                    // determin the field's location and especially altitude
+        if (std::isnan(posField.alt_m())) {
+            LOG_MSG(logWARN, "Couldn't determine altitude of field '%s', clouds may appear too low", lg.toString().c_str());
+        } else {
+            // "Close" to ground so that we prefer METAR data?
+            bCloseToGnd = w.pos.alt_m() < posField.alt_m() + PREFER_METAR_MAX_AGL_M;
+        }
+        return false;
+    }
+    
+    /// Keyword: If CAVOK then change weather accordingly
+    bool visitKeywordGroup(const KeywordGroup & kwg,
+                            ReportPart, const std::string&) override
+    {
+        if (kwg.type() == KeywordGroup::Type::CAVOK)
+            SetCAVOK();
+        return false;
+    }
+
+    /// Trend Groups: Whatever the details: As we are only interested in _current_ weather we stop processing once reaching any trend group
+    bool visitTrendGroup(const TrendGroup &, ReportPart, const std::string&) override
+    { return true; }
+
+    /// Clouds
+    bool visitCloudGroup(const CloudGroup & cg,
+                         ReportPart, const std::string&) override
+    {
+        switch (cg.type()) {
+            case CloudGroup::Type::NO_CLOUDS:
+                SetCAVOK(true);
+                break;
+            case CloudGroup::Type::CLOUD_LAYER:
+                if (iCloud < w.cloud_type.size()) {
+                    w.cloud_type[iCloud] = toXPCloudType(cg.cloudType(), cg.convectiveType());
+                    w.cloud_coverage_percent[iCloud] = toPercent(cg.amount());
+                    w.cloud_base_msl_m[iCloud] = float(posField.alt_m()) + cg.height().toUnit(Distance::Unit::METERS).value_or(0.0f);
+                    // Note: we don't set the tops here, we do that in PostProcessing()
+                    ++iCloud;
+                }
+                break;
+
+            case CloudGroup::Type::VERTICAL_VISIBILITY:
+            case CloudGroup::Type::CEILING:
+            case CloudGroup::Type::VARIABLE_CEILING:
+            case CloudGroup::Type::CHINO:
+            case CloudGroup::Type::CLD_MISG:
+            case CloudGroup::Type::OBSCURATION:
+                break;
+        }
+        return false;
+    }
+    
+    /// Visibility, use only if close to ground
+    bool visitVisibilityGroup(const VisibilityGroup & vg,
+                              ReportPart, const std::string&) override
+    {
+        if (bCloseToGnd) {
+            switch (vg.type()) {
+                case VisibilityGroup::Type::PREVAILING:
+                case VisibilityGroup::Type::PREVAILING_NDV:
+                case VisibilityGroup::Type::SURFACE:
+                case VisibilityGroup::Type::TOWER:
+                {
+                    const std::optional<float> v = vg.visibility().toUnit(Distance::Unit::STATUTE_MILES);
+                    if (v.has_value())
+                        w.visibility_reported_sm = v.value();
+                    break;
+                }
+                    
+                case VisibilityGroup::Type::VARIABLE_PREVAILING:
+                {
+                    const std::optional<float> v1 = vg.minVisibility().toUnit(Distance::Unit::STATUTE_MILES);
+                    const std::optional<float> v2 = vg.maxVisibility().toUnit(Distance::Unit::STATUTE_MILES);
+                    if (v1.has_value() && v2.has_value())
+                        w.visibility_reported_sm = (v1.value() + v2.value()) / 2.0f;
+                    break;
+                }
+                    
+                default:
+                    break;
+            }
+        }
+        return false;
+    }
+
+    // TODO: Add more visitors to process more of the METAR
+
+    /// After finishing the processing, perform some cleanup
+    void PostProcessing ()
+    {
+        // Verify/adjust cloudTops for the first iCloud cloud layers
+        // During METAR processing we set base only and kept the pre-filled tops
+        // because METAR doesn't provide tops, so any other value is potentially better.
+        // But
+        // a) tops must be well above base (at least `WEATHER_MIN_CLOUD_HEIGHT`), and
+        // b) cloud layers should not overlap.
+        for (std::size_t i = 0; i < iCloud; ++i) {
+            // overlap: layer i extends into layer i+1?
+            if (i+1 < w.cloud_base_msl_m.size() &&
+                w.cloud_tops_msl_m[i] > w.cloud_base_msl_m[i+1])
+                w.cloud_tops_msl_m[i] = w.cloud_base_msl_m[i+1];
+            // Minimum layer height? (This may potentially make layers overlap again...so be it
+            if (w.cloud_tops_msl_m[i] < w.cloud_base_msl_m[i] + WEATHER_MIN_CLOUD_HEIGHT_M)
+                w.cloud_tops_msl_m[i] = w.cloud_base_msl_m[i] + WEATHER_MIN_CLOUD_HEIGHT_M;
+        }
+    }
+};
+
+
+// Parse `metar` and fill weather from there as far as possible
+void LTWeather::IncorporateMETAR()
+{
+    // --- Parse ---
+    const ParseResult r = Parser::parse(metar);
+    if (r.reportMetadata.error != ReportError::NONE) {
+        LOG_MSG(logWARN, "Parsing METAR failed with error %d\n%s",
+                int(r.reportMetadata.error),
+                metar.c_str());
+        return;
+    }
+
+    const bool bLogW = dataRefs.ShallLogWeather();
+    if (bLogW) {
+        LOG_MSG(logDEBUG, "Parsing METAR found %lu groups",
+                (unsigned long)r.groups.size());
+        Log("Weather before applying METAR:");
+    }
+
+    // --- Process by 'visiting' all groups ---
+    LTWeatherVisitor v(*this);
+    for (const GroupInfo& gi : r.groups)
+        if (v.visit(gi))                    // returns if to stop processing
+            break;
+    v.PostProcessing();
 }
 
 
@@ -637,6 +888,10 @@ static bool bWeatherControlling = false;        ///< Is LiveTraffic in control o
 static int weatherOrigSource = -1;              ///< Original value of `sim/weather/region/weather_source` before LiveTraffic took over
 static int weatherOrigChangeMode = -1;          ///< Original value of `sim/weather/region/change_mode` before LiveTraffic took over
 
+static std::recursive_mutex mtxWeather;         ///< manages access to weather storage
+static LTWeather nextWeather;                   ///< next weather to set
+static bool bSetWeather = false;                ///< is there a next weather to set?
+
 // Initialize Weather module, dataRefs
 bool WeatherInit ()
 {
@@ -686,30 +941,66 @@ bool WeatherShallSet ()
     return bRet;
 }
 
-// Indicate that we are taking control now
-void WeatherTakeControl ()
-{
-    if (!WeatherCanSet()) {
-        SHOW_MSG(logWARN, "Requested to take control of weather, but cannot due to missing dataRefs");
-        return;
-    }
-    
-    weatherOrigSource       = wdr_weather_source.get();
-    weatherOrigChangeMode   = wdr_change_mode.get();
-    if (dataRefs.ShallLogWeather()) {
-        SHOW_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
-                 WeatherGetSource().c_str(),
-                 weatherOrigSource, weatherOrigChangeMode);
-        LTWeather().Get("Weather just prior to LiveTraffic taking over:");
-    }
-    SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
-    bWeatherControlling     = true;
-}
-
 // Are we controlling weather?
 bool WeatherInControl ()
 {
     return bWeatherControlling;
+}
+
+// Thread-safely store weather information to be set in X-Plane in the main thread later
+void WeatherSet (const LTWeather& w)
+{
+    if (!WeatherCanSet()) {
+        SHOW_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
+        return;
+    }
+    
+    // Access to weather storage, copy weather info
+    std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
+    nextWeather = w;
+    bSetWeather = true;
+}
+    
+// Actually update X-Plane's weather if there is anything to do (called from main thread)
+void WeatherUpdate ()
+{
+    // Quick exit if nothing to do
+    if (!bSetWeather || !WeatherCanSet() || !dataRefs.IsXPThread()) return;
+    
+    // Access to weather storage, copy weather info
+    std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
+    bSetWeather = false;                        // reset flag right away so we don't try again in case of early exits (errors)
+    
+    // If there is a METAR, then let's process that now
+    if (!nextWeather.metar.empty())
+        nextWeather.IncorporateMETAR();
+        
+    // Set weather with immediate effect if first time, or if position changed dramatically
+    nextWeather.update_immediately |= !WeatherInControl() ||
+                                      !nextWeather.lastPos.isNormal() ||
+                                      nextWeather.lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST_M;
+    if (nextWeather.update_immediately) {
+        if (!WeatherInControl()) {
+            // Taking control of weather
+            weatherOrigSource       = wdr_weather_source.get();
+            weatherOrigChangeMode   = wdr_change_mode.get();
+            if (dataRefs.ShallLogWeather()) {
+                SHOW_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
+                         WeatherGetSource().c_str(),
+                         weatherOrigSource, weatherOrigChangeMode);
+                LTWeather().Get("Weather just prior to LiveTraffic taking over:");
+            }
+            SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
+            bWeatherControlling     = true;
+        } else {
+            SHOW_MSG(logINFO, "LiveTraffic is re-setting X-Plane's weather");
+        }
+    }
+
+    // actually set the weather in X-Plane
+    nextWeather.Set();
+    LTWeather::lastPos = nextWeather.pos.isNormal() ? nextWeather.pos : dataRefs.GetViewPos();
+    
 }
 
 // Reset weather settings to what they were before X-Plane took over
@@ -732,7 +1023,14 @@ void WeatherReset ()
     weatherOrigChangeMode = -1;
 }
 
-/// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
+// Log current weather
+void WeatherLogCurrent (const std::string& msg)
+{
+    LTWeather().Get(msg);
+}
+
+
+// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
 std::string WeatherGetSource ()
 {
     // Preset closest to current conditions
@@ -760,7 +1058,7 @@ std::string WeatherGetSource ()
 static std::future<bool> futWeather;
 
 // Asynchronously, fetch fresh weather information
-bool WeatherUpdate (const positionTy& pos, float radius_nm)
+bool WeatherFetchUpdate (const positionTy& pos, float radius_nm)
 {
     // does only make sense in a certain latitude range
     // (During XP startup irregular values >80 show up)

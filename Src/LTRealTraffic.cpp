@@ -371,7 +371,7 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
         case CurrTy::RT_REQU_WEATHER:
             snprintf(s, sizeof(s), RT_WEATHER_POST,
                      curr.sGUID.c_str(),
-                     curr.pos.lat(), curr.pos.lon(), 0L,
+                     curr.pos.lat(), curr.pos.lon(), std::lround(curr.pos.alt_ft()),
                      rtWx.nearestMETAR.ICAO.c_str(),
                      curr.tOff);
             break;
@@ -553,13 +553,23 @@ bool RealTrafficConnection::ProcessFetchedData ()
             }
             return false;
         }
+        
+        // Store METAR for later processing
+        s = jog_s(pObj, "data.ICAO");
+        std::string metar = jog_s(pObj, "data.METAR");
+        if (!s.empty() && !metar.empty()) {
+            if (s != rtWx.nearestMETAR.ICAO)
+                rtWx.nearestMETAR.dist = rtWx.nearestMETAR.brgTo = NAN;
+            rtWx.nearestMETAR.ICAO  = std::move(s);
+            rtWx.nearestMETAR.METAR = std::move(metar);
+        }
 
         // If requested to set X-Plane's weather process the detailed weather data
         if (WeatherShallSet())
             ProcessWeather (json_object_get_object(pObj, "data"));
         
         // Successfully received local pressure information
-        LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
+        LOG_MSG(logDEBUG, "Received RealTraffic Weather with SLP = %.1f", wxSLP);
         rtWx.set(wxSLP, curr);                      // Save new QNH
         
         // If this is live data, not historic, then we can use it instead of separately querying METAR
@@ -853,7 +863,8 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
         LOG_MSG(logWARN, "JSON response is missing 'data.locWX' object!");
         return;
     }
-
+    
+    // --- Process detailed weather data ---
     const JSON_Array* pDPs      = json_object_get_array(pLocWX, "DPs");
     const JSON_Array* pTEMPs    = json_object_get_array(pLocWX, "TEMPs");
     const JSON_Array* pWDIRs    = json_object_get_array(pLocWX, "WDIRs");
@@ -864,6 +875,8 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     if (!pDPs || !pTEMPs || !pWDIRs || !pWSPDs || !pDZDTs) {
         LOG_MSG(logWARN, "JSON response is missing one of the following arrays in data.locWX: DPs, TEMPs, WDIRs, WSPDs, DZDTs");
     }
+    
+    rtWx.w.pos                          = curr.pos;
 
     rtWx.w.visibility_reported_sm       = float(jog_n_nan(pLocWX, "SVis") / M_per_SM);
     rtWx.w.sealevel_pressure_pas        = float(jog_n_nan(pLocWX, "SLP") * 100.0);
@@ -939,8 +952,12 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
         rtWx.w.rain_percent <= 33.3f ? 1 :
         rtWx.w.rain_percent <= 66.6f ? 2 : 3;
 
-    // Set the weather (force immediate update on first weather data)
-    rtWx.w.Set(!rtWx.pos.isNormal());
+    // Forward METAR for weather processing, too
+    rtWx.w.metar = rtWx.nearestMETAR.METAR;
+
+    // Have the weather set (force immediate update on first weather data)
+    rtWx.w.update_immediately = !rtWx.pos.isNormal();
+    WeatherSet(rtWx.w);
 }
 
 // in direct mode process one cloud layer

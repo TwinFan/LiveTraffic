@@ -179,6 +179,7 @@
 		25EF90052B497C7900D7C805 /* LTSynthetic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTSynthetic.h; sourceTree = "<group>"; };
 		25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IconsFontAwesome5.h; sourceTree = "<group>"; };
 		25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = "fa-solid-900.inc"; sourceTree = "<group>"; };
+		25F108C22C49A79A0021EDD6 /* metaf */ = {isa = PBXFileReference; lastKnownFileType = folder; path = metaf; sourceTree = "<group>"; };
 		25F3471A24D2C7DE004574E7 /* parson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
 		25F3471B24D2C7DE004574E7 /* parson.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = parson.c; sourceTree = "<group>"; };
 		25F3471D24D2CB15004574E7 /* ACTable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ACTable.h; sourceTree = "<group>"; };
@@ -451,6 +452,7 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				25F108C22C49A79A0021EDD6 /* metaf */,
 				25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */,
 				258117B5291AF24D00D05428 /* FMOD_Logo.cpp */,
 				251284AC274D829500B0F51A /* base64 */,
@@ -787,6 +789,7 @@
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
 					Lib/Font,
+					Lib/metaf/include,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
@@ -895,6 +898,7 @@
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
 					Lib/Font,
+					Lib/metaf/include,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LIBRARY_SEARCH_PATHS = Lib/fmod;

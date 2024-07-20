@@ -375,6 +375,9 @@ std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = 
 inline std::string GetNearestAirportId (float lat, float lon)
 { return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
 
+/// Fetch specific airport location/altitude
+positionTy GetAirportLoc (const std::string sICAO);
+
 /// Convert ADS-B Emitter Category to text
 const char* GetADSBEmitterCat (const std::string& cat);
 

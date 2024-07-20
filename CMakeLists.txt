@@ -141,6 +141,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/metaf/include")
 
 ################################################################################
 # Source groups
@@ -184,6 +185,7 @@ set(Header_Files
     Lib/ImgWindow/SystemGL.h
     Lib/Font/IconsFontAwesome5.h
     Lib/Font/fa-solid-900.inc
+    Lib/metaf/include/metaf.hpp
     Lib/XPMP2/inc/XPCAircraft.h
     Lib/XPMP2/inc/XPMPMultiplayer.h
     Lib/XPMP2/lib/fmod/logo/FMOD_Logo.h

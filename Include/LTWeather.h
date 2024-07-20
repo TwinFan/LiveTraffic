@@ -21,6 +21,8 @@
 #ifndef LTWeather_h
 #define LTWeather_h
 
+class LTWeather;
+
 /// Initialize Weather module, dataRefs
 bool WeatherInit ();
 /// Shutdown Weather module
@@ -30,13 +32,18 @@ void WeatherStop ();
 bool WeatherCanSet ();
 /// Shall we actuall set the weather as per ability and user's configuration?
 bool WeatherShallSet ();
-
-/// Indicate that we are taking control now
-void WeatherTakeControl ();
 /// Are we controlling weather?
 bool WeatherInControl ();
+
+/// Thread-safely store weather information to be set in X-Plane in the main thread later
+void WeatherSet (const LTWeather& w);
+/// Actually update X-Plane's weather if there is anything to do (called from main thread)
+void WeatherUpdate ();
 /// Reset weather settings to what they were before X-Plane took over
 void WeatherReset ();
+
+/// Log current weather
+void WeatherLogCurrent (const std::string& msg);
 
 /// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
 std::string WeatherGetSource ();
@@ -46,17 +53,24 @@ std::string WeatherGetSource ();
 //
 
 /// Distance when next weather is set to update immediately instead of gradually
-constexpr double WEATHER_MAX_DIST = 50 * M_per_NM;
+constexpr double WEATHER_MAX_DIST_M = 50 * M_per_NM;
+/// Minimum thickness of a METAR cloud layer [m]
+constexpr float WEATHER_MIN_CLOUD_HEIGHT_M = 300;
+/// May height AGL up to which we weigh METAR higher than other weather data
+constexpr double PREFER_METAR_MAX_AGL_M = 5000.0 * M_per_FT;
 
 /// @brief Weather data to be set in X-Plane
 /// @details A value of `NAN` means: don't set.
-struct LTWeather
+class LTWeather
 {
+public:
     /// Interpolation settings: indexes and weights to take over values from a differently sized float array
     struct InterpolSet {
         size_t i = 0;                               ///< lower index, other is i+1
         float w = 1.0f;                             ///< weight on lower index' value, other weight is 1.0f-w
     };
+    
+    positionTy pos;                                 ///< position the weather refers to
     
     float    visibility_reported_sm = NAN;          ///< float      y    statute_miles  = 0. The reported visibility (e.g. what the METAR/weather window says).
     float    sealevel_pressure_pas = NAN;           ///< float      y    pascals        Pressure at sea level, current planet
@@ -83,17 +97,14 @@ struct LTWeather
     float    thermal_rate_ms = NAN;                 ///< float      y    m/s            >= 0 The climb rate for thermals.
     float    wave_amplitude = NAN;                  ///< float      y    meters         Amplitude of waves in the water (height of waves)
     float    wave_dir = NAN;                        ///< float      y    degrees        Direction of waves.
-    float    runway_friction = NAN;                 ///< float      y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
+    int      runway_friction = 0;                   ///< int        y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
     float    variability_pct = 0;                   ///< float      y    ratio          How randomly variable the weather is over distance. Range 0 - 1.
-    
-    static positionTy lastPos;                      ///< last position for which weather was set (to check if next one is "far" awar and deserves to be updated immedlately
-    
+    bool     update_immediately = false;            ///< int        y    bool           If this is true, any weather region changes EXCEPT CLOUDS will take place immediately instead of at the next update interval (currently 60 seconds).
+    std::string metar;                              ///< METAR, if filled combine METAR data into weather generation
+
+public:
     LTWeather();                                    ///< Constructor sets all arrays to all `NAN`
     
-    void Set (bool bForceImmediately = false);      ///< Set the given weather in X-Plane
-    void Get (const std::string& logMsg = "");      ///< Read weather from X-Plane
-    void Log (const std::string& msg) const;        ///< Log values to Log.txt
-
     /// @brief Compute interpolation settings to fill one array from a differently sized one
     /// @details: Both arrays are supposed to be sorted ascending.
     ///           They hold e.g. altimeter values of weather layers.
@@ -109,7 +120,21 @@ struct LTWeather
     void InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
                          const std::vector<float>& from,
                          std::array<float,13>& to);
+    
+protected:
+    static positionTy lastPos;                      ///< last position for which weather was set (to check if next one is "far" awar and deserves to be updated immedlately
 
+protected:
+    void Set () const;                              ///< Set the given weather in X-Plane
+    void Get (const std::string& logMsg = "");      ///< Read weather from X-Plane, if `logMsg` non-empty then log immediately (mith `logMsg` appearing on top)
+    void Log (const std::string& msg) const;        ///< Log values to Log.txt
+
+    void IncorporateMETAR ();                       ///< add information from the METAR into the data (run from XP's main thread, so can use XP SDK, just before LTWeather::Set())
+    
+// Some global functions require access
+friend void WeatherSet (const LTWeather& w);
+friend void WeatherUpdate ();
+friend void WeatherLogCurrent (const std::string& msg);
 };
 
 //
@@ -117,6 +142,6 @@ struct LTWeather
 //
 
 /// Asynchronously, fetch fresh weather information
-bool WeatherUpdate (const positionTy& pos, float radius_nm);
+bool WeatherFetchUpdate (const positionTy& pos, float radius_nm);
 
 #endif /* LTWeather_h */
