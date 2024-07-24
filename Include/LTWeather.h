@@ -54,8 +54,10 @@ std::string WeatherGetSource ();
 
 /// Distance when next weather is set to update immediately instead of gradually
 constexpr double WEATHER_MAX_DIST_M = 50 * M_per_NM;
-/// Minimum thickness of a METAR cloud layer [m]
-constexpr float WEATHER_MIN_CLOUD_HEIGHT_M = 300;
+/// Thickness of a METAR cloud layer [m]
+constexpr float WEATHER_METAR_CLOUD_HEIGHT_M = 500;
+/// Thickness of a METAR Cumulo-nimbus cloud layer [m]
+constexpr float WEATHER_METAR_CB_CLOUD_HEIGHT_M = 5000;
 /// May height AGL up to which we weigh METAR higher than other weather data
 constexpr double PREFER_METAR_MAX_AGL_M = 5000.0 * M_per_FT;
 
@@ -97,9 +99,12 @@ public:
     float    thermal_rate_ms = NAN;                 ///< float      y    m/s            >= 0 The climb rate for thermals.
     float    wave_amplitude = NAN;                  ///< float      y    meters         Amplitude of waves in the water (height of waves)
     float    wave_dir = NAN;                        ///< float      y    degrees        Direction of waves.
-    int      runway_friction = 0;                   ///< int        y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
+    int      runway_friction = -1;                  ///< int        y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
     float    variability_pct = 0;                   ///< float      y    ratio          How randomly variable the weather is over distance. Range 0 - 1.
     bool     update_immediately = false;            ///< int        y    bool           If this is true, any weather region changes EXCEPT CLOUDS will take place immediately instead of at the next update interval (currently 60 seconds).
+    int      change_mode = -1;                      ///< int        y    enum           How the weather is changing. 0 = Rapidly Improving, 1 = Improving, 2 = Gradually Improving, 3 = Static, 4 = Gradually Deteriorating, 5 = Deteriorating, 6 = Rapidly Deteriorating, 7 = Using Real Weather
+    int      weather_source = -1;                   ///< int        n    enum           What system is currently controlling the weather. 0 = Preset, 1 = Real Weather, 2 = Controlpad, 3 = Plugin.
+    int      weather_preset = -1;                   ///< int        y    enum           Read the UI weather preset that is closest to the current conditions, or set an UI preset. Clear(0), VFR Few(1), VFR Scattered(2), VFR Broken(3), VFR Marginal(4), IFR Non-precision(5), IFR Precision(6), Convective(7), Large-cell Storms(8)
     std::string metar;                              ///< METAR, if filled combine METAR data into weather generation
 
 public:
@@ -112,15 +117,28 @@ public:
     static std::array<InterpolSet,13> ComputeInterpol (const std::vector<float>& from,
                                                        const std::array<float,13>& to);
     /// Fill values from a differently sized input vector based on interpolation
-    void Interpolate (const std::array<InterpolSet,13>& aInterpol,
-                      const std::vector<float>& from,
-                      std::array<float,13>& to);
+    static void Interpolate (const std::array<InterpolSet,13>& aInterpol,
+                             const std::vector<float>& from,
+                             std::array<float,13>& to);
     /// @brief Fill directions/headings from a differently sized input vector based on interpolation
-    /// @details Headings need to be interpolate separately as the average of 359 and 001 is 000 rather than 180...
-    void InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
-                         const std::vector<float>& from,
-                         std::array<float,13>& to);
+    /// @details Headings need to be interpolated separately as the average of 359 and 001 is 000 rather than 180...
+    static void InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
+                                const std::vector<float>& from,
+                                std::array<float,13>& to);
     
+    /// Fill value equally up to given altitude
+    static void FillUp (const std::array<float,13>& levels_m,
+                        std::array<float,13>& to,
+                        float alt_m,
+                        float val,
+                        bool bInterpolateNext);
+    /// Fill value equally to the given minimum up to given altitude (ie. don't overwrite values that are already larger)
+    static void FillUpMin (const std::array<float,13>& levels_m,
+                           std::array<float,13>& to,
+                           float alt_m,
+                           float valMin,
+                           bool bInterpolateNext);
+
 protected:
     static positionTy lastPos;                      ///< last position for which weather was set (to check if next one is "far" awar and deserves to be updated immedlately
 
@@ -134,6 +152,7 @@ protected:
 // Some global functions require access
 friend void WeatherSet (const LTWeather& w);
 friend void WeatherUpdate ();
+friend void WeatherReset ();
 friend void WeatherLogCurrent (const std::string& msg);
 };
 

@@ -591,8 +591,11 @@ void LTSettingsUI::buildInterface()
                         const float cbWidth = ImGui::CalcTextSize("Auto (if XP set to real weather)____").x;
                         ImGui::SetNextItemWidth(cbWidth);
                         int n = dataRefs.GetRTSetWeather();
-                        if (ImGui::Combo("##RTSetWeather", &n, "Off\0Auto (if XP set to real weather)\0On\0", 3))
+                        if (ImGui::Combo("##RTSetWeather", &n, "Off\0Auto (if XP set to real weather)\0On\0", 3)) {
+                            ImGuiContext* pCtxt = ImGui::GetCurrentContext();                           // switching off weather can affect context....(?)
                             DATA_REFS_LT[DR_CFG_RT_SET_WEATHER].setData(n);
+                            ImGui::SetCurrentContext(pCtxt);
+                        }
                     } else {
                         ImGui::TextUnformatted("Setting weather is supported in X-Plane 12 and later");
                     }

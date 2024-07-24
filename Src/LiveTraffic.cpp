@@ -133,6 +133,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 break;
 #ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
+                dataRefs.SetAircraftDisplayed(false);       // reloading plugins is more reliable if we shutdown internally first
                 XPLMReloadPlugins();
                 break;
             case MENU_ID_REMOVE_ALL_BUT:

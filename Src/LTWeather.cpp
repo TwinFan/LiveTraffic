@@ -114,7 +114,7 @@ struct XDR_farr : public XDR {
 struct XDR_int : public XDR {
     int get () const { return XPLMGetDatai(dr); }       ///< read the int value
     operator int () const { return get(); }             ///< read the int value
-    void set (int v) { XPLMSetDatai(dr, v); }           ///< set the int value
+    void set (int v) {if(v >= 0) XPLMSetDatai(dr, v);}  ///< set the int value (assuming only non-negative are valid)
     XDR_int& operator = (int v) { set(v); return *this; }
 };
 
@@ -283,6 +283,10 @@ void LTWeather::Get (const std::string& logMsg)
     wave_dir                    = wdr_wave_dir.get();
     runway_friction             = wdr_runway_friction.get();
     variability_pct             = wdr_variability_pct.get();
+    update_immediately          = bool(wdr_update_immediately.get());
+    change_mode                 = wdr_change_mode.get();
+    weather_source              = wdr_weather_source.get();
+    weather_preset              = wdr_weather_preset.get();
     
     if (!logMsg.empty())
         Log(logMsg);
@@ -330,6 +334,14 @@ lOut << unit "\n";
     lOut <<  "wave_dir: "    << wave_dir                 << "deg, ";
     lOut <<  "rwy_fric: "    << runway_friction          << ", ";
     lOut <<  "variability: " << variability_pct          << "%\n";
+    
+    // if any of the follow is filled (e.g. after getting weather from X-Plane for logging purposes)
+    if (change_mode >= 0 || weather_source >= 0 || weather_preset >= 0) {
+        lOut << "immediately: " << update_immediately << ", ";
+        lOut << "change mode: " << change_mode << ", ";
+        lOut << "source: " << weather_source << ", ";
+        lOut << "preset: " << weather_preset << "\n";
+    }
     
     lOut <<  "METAR: "       << (metar.empty() ? "(nil)" : metar.c_str()) << "\n";
 
@@ -383,7 +395,7 @@ void LTWeather::Interpolate (const std::array<InterpolSet,13>& aInterpol,
 }
 
 // Fill directions/headings from a differently sized input vector based on interpolation
-// Headings need to be interpolate separately as the average of 359 and 001 is 000 rather than 180...
+// Headings need to be interpolated separately as the average of 359 and 001 is 000 rather than 180...
 void LTWeather::InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
                                 const std::vector<float>& from,
                                 std::array<float,13>& to)
@@ -404,14 +416,62 @@ void LTWeather::InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
     }
 }
 
+// Fill value equally up to given altitude
+void LTWeather::FillUp (const std::array<float,13>& levels_m,
+                        std::array<float,13>& to,
+                        float alt_m,
+                        float val,
+                        bool bInterpolateNext)
+{
+    std::size_t i = 0;
+    for (; i < levels_m.size() && levels_m[i] <= alt_m; ++i)    // while level is less than alt_m set value
+        to[i] = val;
+    // i now points to first element _after_ those we set to 'val'
+    if (bInterpolateNext && i >= 1 && i+1 < levels_m.size()) {        // to align with values above interpolate the next value
+        to[i] = to[i-1] + (to[i+1]-to[i-1])*(levels_m[i]-levels_m[i-1])/(levels_m[i+1]-levels_m[i-1]);
+    }
+}
+
+// Fill value equally to the given minimum up to given altitude (ie. don't overwrite values that are already larger)
+void LTWeather::FillUpMin (const std::array<float,13>& levels_m,
+                           std::array<float,13>& to,
+                           float alt_m,
+                           float valMin,
+                           bool bInterpolateNext)
+{
+    std::size_t i = 0;
+    bool bSetLastVal = false;                                   // did we set/modify the last value?
+    for (; i < levels_m.size() && levels_m[i] <= alt_m; ++i)     // while level is less than alt_m set value
+        if ((bSetLastVal = to[i] < valMin))
+            to[i] = valMin;
+    // i now points to first element _after_ those we set to 'val'
+    if (bInterpolateNext && bSetLastVal && i >= 1 && i+1 < levels_m.size()) {        // to align with values above interpolate the next value
+        to[i] = to[i-1] + (to[i+1]-to[i-1])*(levels_m[i]-levels_m[i-1])/(levels_m[i+1]-levels_m[i-1]);
+    }
+}
+
 //
 // MARK: Parse METAR
 //
 
 using namespace metaf;
 
-constexpr float CAVOK_VISIBILITY_M      = 10000.0f;     ///< CAVOK minimum Visibility [m]
-constexpr float CAVOK_MIN_CLOUD_BASE_M  = 1500.0f;      ///< CAVOK: no clouds below this height AGL [m]
+constexpr float CAVOK_VISIBILITY_M      = 10000.0f;                     ///< CAVOK minimum Visibility [m]
+constexpr float CAVOK_MIN_CLOUD_BASE_M  =  1500.0f;                     ///< CAVOK: no clouds below this height AGL [m]
+constexpr float NSC_MIN_CLOUD_BASE_M    =  6000.0f * float(M_per_FT);   ///< NSC: no clouds below this height AGL [m]
+constexpr float CLR_MIN_CLOUD_BASE_M    = 12000.0f * float(M_per_FT);   ///< CLR: no clouds below this height AGL [m]
+constexpr float SKC_MIN_CLOUD_BASE_M    = MAXFLOAT;                     ///< SKC: no clouds at all
+constexpr float RAIN_DRIZZLE            = 0.1f;                         ///< rain in case of DRIZZLE
+constexpr int   RAIN_DRIZZLE_FRIC       = 1;                            ///< rwy friction in case of light rain
+constexpr float RAIN_LIGHT              = 0.3f;                         ///< light rain
+constexpr int   RAIN_LIGHT_FRIC         = 2;                            ///< rwy friction in case of light rain
+constexpr float RAIN_MODERATE           = 0.5f;                         ///< moderate rain
+constexpr int   RAIN_MODERATE_FRIC      = 3;                            ///< rwy friction in case of moderate rain
+constexpr float RAIN_HEAVY              = 0.9f;                         ///< heavy rain
+constexpr int   RAIN_HEAVY_FRIC         = 5;                            ///< rwy friction in case of light rain
+constexpr float SPRAY_HEIGHT_M          = 10.0f;                        ///< height AGL up to which we simulate SPRAY
+constexpr float MIST_MAX_VISIBILITY_SM  = 7.0f;                         ///< max visibility in case of MIST
+constexpr float FOG_MAX_VISIBILITY_SM   = 5.f/8.f;                      ///< max visibility in case of FOG
 
 /// @brief metaf visitor, ie. functions that are called when traversing the parsed METAR
 /// @details Set of visit functions that perform the actual processing of the information in the METAR.
@@ -422,40 +482,12 @@ public:
     positionTy posField;                        ///< position/altitude of the METAR's field,
     bool bCloseToGnd = false;                   ///< is position close enough to ground to weigh METAR higher than weather data?
     size_t iCloud = 0;                          ///< which cloud layer is to be filled next?
+    int bThunderstorms = 0;                     ///< thunderstorms anywhere? (0-None, 1-Light, 2-Normal, 3-Heavy)
 
 public:
     /// Constructor sets the reference to the weather that we are to modify
     LTWeatherVisitor (LTWeather& weather) : w(weather), posField(0.0, 0.0, 0.0) {}
     
-    /// Convert a METAR cloud cover to a percentage
-    static float toPercent(CloudGroup::Amount a)
-    {
-        switch (a) {
-            case CloudGroup::Amount::NOT_REPORTED:
-            case CloudGroup::Amount::NCD:
-            case CloudGroup::Amount::NSC:
-            case CloudGroup::Amount::NONE_CLR:
-            case CloudGroup::Amount::NONE_SKC:
-                return 0.0f;                    // so many ways to say: no clouds
-            case CloudGroup::Amount::FEW:
-                return 1.5f/8.0f;               // between 1/8 and 2/8
-            case CloudGroup::Amount::SCATTERED:
-                return 3.5f/8.0f;               // between 3/8 and 4/8
-            case CloudGroup::Amount::BROKEN:
-                return 6.0f/8.0f;               // between 5/8 and 7/8
-            case CloudGroup::Amount::OVERCAST:
-            case CloudGroup::Amount::OBSCURED:
-                return 1.0f;
-            case CloudGroup::Amount::VARIABLE_FEW_SCATTERED:
-                return 2.5f/8.0f;               // between 1/8 and 4/8
-            case CloudGroup::Amount::VARIABLE_SCATTERED_BROKEN:
-                return 5.0f/8.0f;               // between 3/8 and 7/8
-            case CloudGroup::Amount::VARIABLE_BROKEN_OVERCAST:
-                return 6.5f/8.0f;               // between 5/8 and 8/8
-        }
-        return 0.0f;
-    }
-
     /// Convert a METAR cloud type to X-Plane
     static float toXPCloudType (const std::optional<CloudType>& optClTy,
                                 CloudGroup::ConvectiveType convTy)
@@ -490,31 +522,32 @@ public:
         }
     }
     
-    /// Set CAVOK conditions
-    void SetCAVOK (bool bCloudsOnly = false)
+    /// Remove a given cloud layer
+    void RemoveClouds (size_t i)
     {
-        if (!bCloudsOnly) {
-            // Visibility 10 km or more in all directions.
-            if (std::isnan(w.visibility_reported_sm) ||
-                w.visibility_reported_sm * float(M_per_SM) < CAVOK_VISIBILITY_M)
-                w.visibility_reported_sm = CAVOK_VISIBILITY_M / float(M_per_SM);
-        }
-        
-        // No cloud below 5000 feet (1500 meters).
-        const float minBase = CAVOK_MIN_CLOUD_BASE_M + float(posField.alt_m());
+        LOG_ASSERT(i < w.cloud_type.size());
+        w.cloud_type[i] = 0.0f;
+        w.cloud_base_msl_m[i] = -1.0f;
+        w.cloud_tops_msl_m[i] = -1.0f;
+        w.cloud_coverage_percent[i] = 0.0f;
+    }
+    
+    /// @brief Remove clouds up to given height AGL, remove thunderstorm clouds upon request
+    /// @details Called with varyiing parameters for SKC, CLR, CAVOK, NSC, NCD
+    void ReduceClouds (float maxHeight_m, bool bRemoveTSClouds)
+    {
+        // No cloud below `maxHeight_m`
+        maxHeight_m += float(posField.alt_m());                 // add field altitude to get altitude
         for (size_t i = 0; i < w.cloud_base_msl_m.size(); ++i) {
-            if (w.cloud_tops_msl_m[i] < minBase) {              // entire cloud layer too low -> remove
-                w.cloud_type[i] = 0.0f;
-                w.cloud_base_msl_m[i] = -1.0f;
-                w.cloud_tops_msl_m[i] = -1.0f;
-                w.cloud_coverage_percent[i] = 0.0f;
-            }
-            else if (w.cloud_base_msl_m[i] < minBase)           // only base too low? -> lift base, but keep tops (and hence the layer as such)
-                w.cloud_base_msl_m[i] = minBase;
+            if (w.cloud_tops_msl_m[i] < maxHeight_m)            // entire cloud layer too low -> remove
+                RemoveClouds(i);
+            else if (w.cloud_base_msl_m[i] < maxHeight_m)       // only base too low? -> lift base, but keep tops (and hence the layer as such)
+                w.cloud_base_msl_m[i] = maxHeight_m;
         }
-        // No cumulonimbus or towering cumulus clouds.
-        for (float& ct: w.cloud_type)
-            if (ct > 2.0f) ct = 2.0f;                           // reduce Cumulo-nimbus to Cumulus
+        // No cumulonimbus or towering cumulus clouds
+        if (bRemoveTSClouds)
+            for (float& ct: w.cloud_type)
+                if (ct > 2.0f) ct = 2.0f;                       // reduce Cumulo-nimbus to Cumulus
     }
     
     // --- visit functions ---
@@ -537,8 +570,14 @@ public:
     bool visitKeywordGroup(const KeywordGroup & kwg,
                             ReportPart, const std::string&) override
     {
-        if (kwg.type() == KeywordGroup::Type::CAVOK)
-            SetCAVOK();
+        if (kwg.type() == KeywordGroup::Type::CAVOK) {
+            // Visibility 10 km or more in all directions.
+            if (std::isnan(w.visibility_reported_sm) ||
+                w.visibility_reported_sm * float(M_per_SM) < CAVOK_VISIBILITY_M)
+                w.visibility_reported_sm = CAVOK_VISIBILITY_M / float(M_per_SM);
+            // No clouds below 1.500m AGL, no CB/TCU
+            ReduceClouds(CAVOK_MIN_CLOUD_BASE_M, true);
+        }
         return false;
     }
 
@@ -551,18 +590,56 @@ public:
                          ReportPart, const std::string&) override
     {
         switch (cg.type()) {
-            case CloudGroup::Type::NO_CLOUDS:
-                SetCAVOK(true);
+            case CloudGroup::Type::NO_CLOUDS: {
+                // There are various ways of saying "no clouds" an they all mean a bit a different thing:
+                switch (cg.amount()) {
+                    case CloudGroup::Amount::NSC:
+                        ReduceClouds(NSC_MIN_CLOUD_BASE_M, true);
+                        break;
+                    case CloudGroup::Amount::NONE_CLR:
+                        ReduceClouds(CLR_MIN_CLOUD_BASE_M, false);
+                        break;
+                    case CloudGroup::Amount::NONE_SKC:
+                        ReduceClouds(SKC_MIN_CLOUD_BASE_M, true);
+                        break;
+                    default:
+                        // not touching cloud information
+                        break;
+                }
                 break;
-            case CloudGroup::Type::CLOUD_LAYER:
+            }
+            case CloudGroup::Type::CLOUD_LAYER: {
+                float base_m = cg.height().toUnit(Distance::Unit::METERS).value_or(NAN);
+                if (std::isnan(base_m)) break;                      // can't work without cloud base height
+                
+                // XP can only do 3 layers...if there are more in the METAR then shift/add layers until _one_ is above camera
+                if (iCloud >= w.cloud_type.size()) {
+                    // is last layer _below_ camera altitude?
+                    if (w.cloud_base_msl_m.back() < w.pos.alt_m()) {
+                        // shift layers down, so the top-most layer becomes available
+                        std::move(std::next(w.cloud_type.begin()), w.cloud_type.end(), w.cloud_type.begin());
+                        std::move(std::next(w.cloud_coverage_percent.begin()), w.cloud_coverage_percent.end(), w.cloud_coverage_percent.begin());
+                        std::move(std::next(w.cloud_base_msl_m.begin()), w.cloud_base_msl_m.end(), w.cloud_base_msl_m.begin());
+                        std::move(std::next(w.cloud_tops_msl_m.begin()), w.cloud_tops_msl_m.end(), w.cloud_tops_msl_m.begin());
+                        iCloud = w.cloud_type.size()-1;
+                    }
+                }
+                
                 if (iCloud < w.cloud_type.size()) {
                     w.cloud_type[iCloud] = toXPCloudType(cg.cloudType(), cg.convectiveType());
-                    w.cloud_coverage_percent[iCloud] = toPercent(cg.amount());
+                    if (cg.cloudType().has_value())
+                        w.cloud_coverage_percent[iCloud] = float(cg.cloudType().value().okta()) / 8.0f;
+                    else
+                        w.cloud_coverage_percent[iCloud] = 0.0f;
                     w.cloud_base_msl_m[iCloud] = float(posField.alt_m()) + cg.height().toUnit(Distance::Unit::METERS).value_or(0.0f);
-                    // Note: we don't set the tops here, we do that in PostProcessing()
+                    if (w.cloud_type[iCloud] < 2.5f)                // non-convective cloud
+                        w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CLOUD_HEIGHT_M;
+                    else                                            // Cumulo-nimbus are higher
+                        w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CB_CLOUD_HEIGHT_M;
                     ++iCloud;
                 }
                 break;
+            }
 
             case CloudGroup::Type::VERTICAL_VISIBILITY:
             case CloudGroup::Type::CEILING:
@@ -607,26 +684,148 @@ public:
         }
         return false;
     }
+    
+    /// Weather group, for weather phenomena like RA, TS etc.
+    bool visitWeatherGroup(const WeatherGroup& wg,
+                           ReportPart, const std::string&) override
+    {
+        // Only interested in CURRENT reports
+        if (wg.type() == WeatherGroup::Type::CURRENT) {
+            for (const WeatherPhenomena& wp: wg.weatherPhenomena()) {
+                if (wp.qualifier() == WeatherPhenomena::Qualifier::RECENT)
+                    continue;                           // skip of RECENT phenomena, only interested in current
+                
+                // Thunderstorms
+                if (wp.descriptor() == WeatherPhenomena::Descriptor::THUNDERSTORM) {
+                    switch (wp.qualifier()) {
+                        case WeatherPhenomena::Qualifier::NONE:
+                        case WeatherPhenomena::Qualifier::MODERATE:
+                            bThunderstorms = 2;
+                            break;
+                        case WeatherPhenomena::Qualifier::LIGHT:
+                        case WeatherPhenomena::Qualifier::VICINITY:
+                        case WeatherPhenomena::Qualifier::RECENT:
+                            bThunderstorms = 1;
+                            break;
+                        case WeatherPhenomena::Qualifier::HEAVY:
+                            bThunderstorms = 3;
+                            break;
+                    }
+                }
+                
+                // Weather Phenomena
+                for (WeatherPhenomena::Weather wpw: wp.weather()) {
+                    switch (wpw) {
+                        case WeatherPhenomena::Weather::SPRAY:      // mimic spray only _very_ close to ground
+                            if (w.pos.alt_m() - posField.alt_m() > SPRAY_HEIGHT_M)
+                                break;
+                            [[fallthrough]];                        // otherwise treat the same as drizzle
+                        case WeatherPhenomena::Weather::DRIZZLE:
+                            w.rain_percent      = RAIN_DRIZZLE;
+                            w.runway_friction   = RAIN_DRIZZLE_FRIC;
+                            break;
+                        case WeatherPhenomena::Weather::RAIN:
+                        case WeatherPhenomena::Weather::SNOW:
+                        case WeatherPhenomena::Weather::SNOW_GRAINS:
+                        case WeatherPhenomena::Weather::ICE_CRYSTALS:
+                        case WeatherPhenomena::Weather::ICE_PELLETS:
+                        case WeatherPhenomena::Weather::HAIL:
+                        case WeatherPhenomena::Weather::SMALL_HAIL:
+                        case WeatherPhenomena::Weather::UNDETERMINED:
+                            if (wp.qualifier() == WeatherPhenomena::Qualifier::LIGHT) {
+                                w.rain_percent      = RAIN_LIGHT;
+                                w.runway_friction   = RAIN_LIGHT_FRIC;
+                            }
+                            else if (wp.qualifier() == WeatherPhenomena::Qualifier::HEAVY) {
+                                w.rain_percent      = RAIN_HEAVY;
+                                w.runway_friction   = RAIN_HEAVY_FRIC;
+                            }
+                            else {
+                                w.rain_percent      = RAIN_MODERATE;
+                                w.runway_friction   = RAIN_MODERATE_FRIC;
+                            }
+                            // Snowy/icy rwy friction
+                            switch (wpw) {
+                                case WeatherPhenomena::Weather::SNOW:
+                                case WeatherPhenomena::Weather::SNOW_GRAINS:
+                                    w.runway_friction = (w.runway_friction-1)/2 + 7;    // convert from wet/puddly [1..6] to snowy [7..9]
+                                    break;
+                                case WeatherPhenomena::Weather::ICE_CRYSTALS:
+                                case WeatherPhenomena::Weather::ICE_PELLETS:
+                                    w.runway_friction = (w.runway_friction-1)/2 + 10;   // convert from wet/puddly [1..6] to icy [10..12]
+                                    break;
+                                default:                // just to silence compiler warnings
+                                    break;
+                            }
+                            break;
+                            
+                        // Limit visibility in case of MIST/FOG
+                        case WeatherPhenomena::Weather::MIST:
+                            if (w.visibility_reported_sm > MIST_MAX_VISIBILITY_SM)
+                                w.visibility_reported_sm = MIST_MAX_VISIBILITY_SM;
+                            break;
+                        case WeatherPhenomena::Weather::FOG:
+                            if (w.visibility_reported_sm > FOG_MAX_VISIBILITY_SM)
+                                w.visibility_reported_sm = FOG_MAX_VISIBILITY_SM;
+                            break;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
-    // TODO: Add more visitors to process more of the METAR
+    // TODO: Add more visitors: temperature, pressure
 
     /// After finishing the processing, perform some cleanup
     void PostProcessing ()
     {
-        // Verify/adjust cloudTops for the first iCloud cloud layers
-        // During METAR processing we set base only and kept the pre-filled tops
-        // because METAR doesn't provide tops, so any other value is potentially better.
-        // But
-        // a) tops must be well above base (at least `WEATHER_MIN_CLOUD_HEIGHT`), and
-        // b) cloud layers should not overlap.
-        for (std::size_t i = 0; i < iCloud; ++i) {
-            // overlap: layer i extends into layer i+1?
-            if (i+1 < w.cloud_base_msl_m.size() &&
-                w.cloud_tops_msl_m[i] > w.cloud_base_msl_m[i+1])
-                w.cloud_tops_msl_m[i] = w.cloud_base_msl_m[i+1];
-            // Minimum layer height? (This may potentially make layers overlap again...so be it
-            if (w.cloud_tops_msl_m[i] < w.cloud_base_msl_m[i] + WEATHER_MIN_CLOUD_HEIGHT_M)
-                w.cloud_tops_msl_m[i] = w.cloud_base_msl_m[i] + WEATHER_MIN_CLOUD_HEIGHT_M;
+        // Runway friction
+        if (w.runway_friction < 0)                      // don't yet have a runway friction?
+            // Rain causes wet status [0..7]
+            w.runway_friction = (int)std::lround(w.rain_percent * 6.f);
+
+        // Cleanup up cloud layers: Anything beyond iCloud, that is lower than the last METAR layer, is to be removed
+        if (iCloud > 0) {
+            const float highestMetarBase = w.cloud_base_msl_m[iCloud-1];
+            for (std::size_t i = iCloud; i < w.cloud_type.size(); ++i) {
+                if (w.cloud_base_msl_m[i] <= highestMetarBase)
+                    RemoveClouds(i);
+            }
+        }
+        
+        // Thunderstorms require a cumulo-nimbus somewhere
+        if (bThunderstorms > 0) {
+            // a cumulo-nimbus anywhere?
+            size_t iCB = SIZE_MAX;
+            for (size_t i = 0; iCB == SIZE_MAX && i < w.cloud_type.size(); ++i)
+                if (w.cloud_type[i] >= 2.5)
+                    iCB = i;
+
+            // if no CB yet, Need to turn one cloud layer to cmulu-numbus
+            for (size_t i = 0; iCB == SIZE_MAX && i < w.cloud_type.size(); ++i) {
+                // search for coverage of 25%, 50%, 75% depending on thunderstorm intensity
+                if (w.cloud_coverage_percent[i] > float(bThunderstorms)/4.0f) {
+                    // set to 2.5, 2.75, 3.0 depending on thunderstorm intensity
+                    w.cloud_type[i] = 2.25f + float(bThunderstorms)*0.25f;
+                    iCB = i;
+                }
+            }
+            // if still no CB yet, turn first cloud layer to cmulu-numbus
+            for (size_t i = 0; iCB == SIZE_MAX && i < w.cloud_type.size(); ++i) {
+                // search for coverage of at least 10%
+                if (w.cloud_coverage_percent[i] >= 0.1f) {
+                    // set to 2.5, 2.75, 3.0 depending on thunderstorm intensity
+                    w.cloud_type[i] = 2.25f + float(bThunderstorms)*0.25f;
+                    iCB = i;
+                }
+            }
+            
+            // Add turbulence until under the top of the CB cloud
+            w.FillUpMin(w.wind_altitude_msl_m, w.turbulence,
+                        w.cloud_tops_msl_m[iCB],
+                        float(bThunderstorms)*2.5f,     // 2.5, 5.0, 7.5 depending on TS intensity
+                        true);
         }
     }
 };
@@ -924,9 +1123,23 @@ bool WeatherCanSet ()
 bool WeatherShallSet ()
 {
     bool bRet = false;
-    if (WeatherCanSet() && dataRefs.GetRTSetWeather() > 0)  // can and want?
-        bRet = dataRefs.GetRTSetWeather() == 2 ||           // user always wants
-               wdr_weather_source.get() == 1;               // or real weather is on
+    if (WeatherCanSet()) {                                  // are we technically able to set the weather?
+        switch (dataRefs.GetRTSetWeather()) {
+            case 1:                                         // Auto: If we aren't in control check for XP real weather, if we are already in control keep it like that
+                if (WeatherInControl())                     // TODO: We can't identify if, while we are in Auto mode, the user has set a weather preset in X-Plane
+                    bRet = true;
+                else
+                    bRet = wdr_weather_source.get() == 1;   // Take over if X-Plane is configured for 'Real Weather'
+                break;
+            case 2:                                         // Always on
+                bRet = true;
+                break;
+            default:                                        // user doesn't want
+                bRet = false;
+                break;
+                
+        }
+    }
     
     // So should we be off but aren't?
     if (!bRet && WeatherInControl())
@@ -977,8 +1190,8 @@ void WeatherUpdate ()
         
     // Set weather with immediate effect if first time, or if position changed dramatically
     nextWeather.update_immediately |= !WeatherInControl() ||
-                                      !nextWeather.lastPos.isNormal() ||
-                                      nextWeather.lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST_M;
+                                      !LTWeather::lastPos.isNormal() ||
+                                      LTWeather::lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST_M;
     if (nextWeather.update_immediately) {
         if (!WeatherInControl()) {
             // Taking control of weather
@@ -1021,6 +1234,9 @@ void WeatherReset ()
     
     weatherOrigSource = -1;
     weatherOrigChangeMode = -1;
+
+    std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
+    LTWeather::lastPos = positionTy();
 }
 
 // Log current weather

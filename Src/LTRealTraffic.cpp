@@ -877,13 +877,15 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     }
     
     rtWx.w.pos                          = curr.pos;
+    // Forward METAR for weather processing, too
+    rtWx.w.metar = rtWx.nearestMETAR.METAR;
 
     rtWx.w.visibility_reported_sm       = float(jog_n_nan(pLocWX, "SVis") / M_per_SM);
     rtWx.w.sealevel_pressure_pas        = float(jog_n_nan(pLocWX, "SLP") * 100.0);
     if (pTEMPs && json_array_get_count(pTEMPs) >= 1)                    // use temperature of lowest level, adjusted per temperature lapse rate
         rtWx.w.sealevel_temperature_c   = float(jag_n_nan(pTEMPs, 0)) - RT_ATMOS_LAYERS.front() * float(TEMP_LAPS_R);
-    rtWx.w.qnh_base_elevation           = 0;                            // TODO: Verify if using qnh_base this way makes any sense
-    rtWx.w.qnh_pas                      = rtWx.w.sealevel_pressure_pas;
+//    rtWx.w.qnh_base_elevation           = 0;                            // TODO: Verify if using qnh_base this way makes any sense
+//    rtWx.w.qnh_pas                      = rtWx.w.sealevel_pressure_pas;
     rtWx.w.rain_percent                 = std::min(float(jog_n_nan(pLocWX, "PRR")) / 9.0f, 1.0f);   // RT sends mm/h and says ">7.5 is heavy", XP wants a 0..1 scale
     
     // Wind
@@ -947,13 +949,9 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     // rtWx.w.thermal_rate_ms;
     
     // TODO: Improve Rwy_Friction (Snow, Ice)
-    rtWx.w.runway_friction =
-        rtWx.w.rain_percent <=  5.0f ? 0 :
-        rtWx.w.rain_percent <= 33.3f ? 1 :
-        rtWx.w.rain_percent <= 66.6f ? 2 : 3;
-
-    // Forward METAR for weather processing, too
-    rtWx.w.metar = rtWx.nearestMETAR.METAR;
+    if (rtWx.w.metar.empty())                   // ideally set later based on METAR
+        // Rain causes wet status [0..7]
+        rtWx.w.runway_friction = (int)std::lround(rtWx.w.rain_percent * 7.f);
 
     // Have the weather set (force immediate update on first weather data)
     rtWx.w.update_immediately = !rtWx.pos.isNormal();
