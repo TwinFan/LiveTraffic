@@ -1770,6 +1770,10 @@ bool DataRefs::SetCfgValue (void* p, int val)
         }
     }
     
+    // If weather is being switched off do so immediately
+    if (p == &rtSetWeather && val == 0)
+        WeatherReset();
+    
     // success
     LogCfgSetting(p, val);
     return true;
