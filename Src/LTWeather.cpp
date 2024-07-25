@@ -223,10 +223,12 @@ void LTWeather::Set () const
     wdr_change_mode.set(3);                         // 3 - Static (this also switches off XP's real weather)
 
     wdr_visibility_reported_sm.set(visibility_reported_sm);
-    wdr_sealevel_pressure_pas.set(sealevel_pressure_pas);
     wdr_sealevel_temperature_c.set(sealevel_temperature_c);
     wdr_qnh_base_elevation.set(qnh_base_elevation);
-    wdr_qnh_pas.set(qnh_pas);
+    if (!std::isnan(qnh_pas))                       // prefer QNH as it is typically as reported by METAR
+        wdr_qnh_pas.set(qnh_pas);
+    else
+        wdr_sealevel_pressure_pas.set(sealevel_pressure_pas);
     wdr_rain_percent.set(rain_percent);
     wdr_wind_altitude_msl_m.set(wind_altitude_msl_m);
     wdr_wind_speed_msc.set(wind_speed_msc);
@@ -625,6 +627,7 @@ public:
                     }
                 }
                 
+                // Save the cloud layer, if there is still room in the cloud array
                 if (iCloud < w.cloud_type.size()) {
                     w.cloud_type[iCloud] = toXPCloudType(cg.cloudType(), cg.convectiveType());
                     if (cg.cloudType().has_value())
@@ -768,12 +771,35 @@ public:
                             if (w.visibility_reported_sm > FOG_MAX_VISIBILITY_SM)
                                 w.visibility_reported_sm = FOG_MAX_VISIBILITY_SM;
                             break;
+                            
+                        // everything else we don't process
+                        default:
+                            break;
                     }
                 }
             }
         }
         return false;
     }
+    
+    /// Pressure group, for QNH and SLP
+    bool visitPressureGroup(const PressureGroup& pg,
+                            ReportPart, const std::string&) override
+    {
+        switch (pg.type()) {
+            case PressureGroup::Type::OBSERVED_QNH:
+                w.qnh_base_elevation = float(posField.alt_m());
+                w.qnh_pas = pg.atmosphericPressure().toUnit(Pressure::Unit::HECTOPASCAL).value_or(NAN) * 100.0f;
+                break;
+            case PressureGroup::Type::OBSERVED_SLP:
+                w.sealevel_pressure_pas = pg.atmosphericPressure().toUnit(Pressure::Unit::HECTOPASCAL).value_or(NAN) * 100.0f;
+                break;
+            default:
+                break;
+        }
+        return false;
+    }
+
 
     // TODO: Add more visitors: temperature, pressure
 
@@ -1090,6 +1116,7 @@ static int weatherOrigChangeMode = -1;          ///< Original value of `sim/weat
 static std::recursive_mutex mtxWeather;         ///< manages access to weather storage
 static LTWeather nextWeather;                   ///< next weather to set
 static bool bSetWeather = false;                ///< is there a next weather to set?
+static float weatherQnh = NAN;                  ///< X-Plane sometimes just overrides QNH with its last known value, so let's store ours to be able to set time and again
 
 // Initialize Weather module, dataRefs
 bool WeatherInit ()
@@ -1177,10 +1204,16 @@ void WeatherSet (const LTWeather& w)
 // Actually update X-Plane's weather if there is anything to do (called from main thread)
 void WeatherUpdate ()
 {
-    // Quick exit if nothing to do
-    if (!bSetWeather || !WeatherCanSet() || !dataRefs.IsXPThread()) return;
-    
-    // Access to weather storage, copy weather info
+    // Quick exit if we can't or shan't
+    if (!WeatherCanSet() || !dataRefs.IsXPThread()) return;
+    // If there's nothing to
+    if (!bSetWeather) {
+        if (WeatherInControl())                 // but in princuple we are in control
+            wdr_qnh_pas.set(weatherQnh);        // then re-set QNH as X-Plane likes to override that itself from time to time
+        return;
+    }
+
+    // Access to weather storage guarded by a lock
     std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
     bSetWeather = false;                        // reset flag right away so we don't try again in case of early exits (errors)
     
@@ -1213,6 +1246,7 @@ void WeatherUpdate ()
     // actually set the weather in X-Plane
     nextWeather.Set();
     LTWeather::lastPos = nextWeather.pos.isNormal() ? nextWeather.pos : dataRefs.GetViewPos();
+    weatherQnh = wdr_qnh_pas.get();             // remember our QNH to be able to set it again
     
 }
 
