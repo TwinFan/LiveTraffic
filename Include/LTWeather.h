@@ -126,6 +126,11 @@ public:
                                 const std::vector<float>& from,
                                 std::array<float,13>& to);
     
+    /// Get interpolated value for a given altitude
+    static float GetInterpolated (const std::array<float,13>& levels_m,
+                                  const std::array<float,13>& vals,
+                                  float alt_m);
+    
     /// Fill value equally up to given altitude
     static void FillUp (const std::array<float,13>& levels_m,
                         std::array<float,13>& to,
@@ -138,9 +143,6 @@ public:
                            float alt_m,
                            float valMin,
                            bool bInterpolateNext);
-
-protected:
-    static positionTy lastPos;                      ///< last position for which weather was set (to check if next one is "far" awar and deserves to be updated immedlately
 
 protected:
     void Set () const;                              ///< Set the given weather in X-Plane

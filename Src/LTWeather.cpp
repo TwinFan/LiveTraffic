@@ -150,7 +150,7 @@ XDR_float    wdr_wave_amplitude;            ///< float      y    meters         
 XDR_float    wdr_wave_length;               ///< float      n    meters         Length of a single wave in the water - not writable starting in v12
 XDR_float    wdr_wave_speed;                ///< float      n    m/s            Speed of water waves - not writable starting in v12
 XDR_float    wdr_wave_dir;                  ///< float      y    degrees        Direction of waves.
-XDR_int      wdr_runway_friction;           ///< int        y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
+XDR_float    wdr_runway_friction;           ///< int/float  y    enum           The friction constant for runways (how wet they are).  Dry = 0, wet(1-3), puddly(4-6), snowy(7-9), icy(10-12), snowy/icy(13-15)
 XDR_float    wdr_variability_pct;           ///< float      y    ratio          How randomly variable the weather is over distance. Range 0 - 1.
 XDR_int      wdr_weather_preset;            ///< int        y    enum           Read the UI weather preset that is closest to the current conditions, or set an UI preset. Clear(0), VFR Few(1), VFR Scattered(2), VFR Broken(3), VFR Marginal(4), IFR Non-precision(5), IFR Precision(6), Convective(7), Large-cell Storms(8)
 
@@ -192,9 +192,6 @@ bool WeatherInitDataRefs ()
     && wdr_weather_preset             .find("sim/weather/region/weather_preset")
     ;
 }
-
-// last position for which weather was set (to check if next one is "far" awar and deserves to be updated immedlately
-positionTy LTWeather::lastPos;
 
 // Constructor sets all arrays to all `NAN`
 LTWeather::LTWeather()
@@ -248,7 +245,7 @@ void LTWeather::Set () const
     wdr_thermal_rate_ms.set(thermal_rate_ms);
     wdr_wave_amplitude.set(wave_amplitude);
     wdr_wave_dir.set(wave_dir);
-    wdr_runway_friction.set(runway_friction);
+    wdr_runway_friction.set(float(runway_friction));
     wdr_variability_pct.set(variability_pct);
 
     if (dataRefs.ShallLogWeather())
@@ -283,12 +280,14 @@ void LTWeather::Get (const std::string& logMsg)
     thermal_rate_ms             = wdr_thermal_rate_ms.get();
     wave_amplitude              = wdr_wave_amplitude.get();
     wave_dir                    = wdr_wave_dir.get();
-    runway_friction             = wdr_runway_friction.get();
+    runway_friction             = (int)std::lround(wdr_runway_friction.get());
     variability_pct             = wdr_variability_pct.get();
     update_immediately          = bool(wdr_update_immediately.get());
     change_mode                 = wdr_change_mode.get();
     weather_source              = wdr_weather_source.get();
     weather_preset              = wdr_weather_preset.get();
+    
+    pos                         = dataRefs.GetViewPos();
     
     if (!logMsg.empty())
         Log(logMsg);
@@ -301,7 +300,7 @@ void LTWeather::Log (const std::string& msg) const
 {
     std::ostringstream lOut;
     lOut << std::fixed << std::setprecision(1);
-    lOut <<  "lastPos:     " << std::string(lastPos)     << "\n";
+    lOut <<  "pos:         " << std::string(pos)         << "\n";
     lOut <<  "vis:         " << visibility_reported_sm   << "sm, ";
     lOut <<  "sea_pressure: "<< sealevel_pressure_pas    << "pas, ";
     lOut <<  "sea_temp: "    << sealevel_temperature_c   << "C, ";
@@ -418,6 +417,24 @@ void LTWeather::InterpolateDir (const std::array<InterpolSet,13>& aInterpol,
     }
 }
 
+// Get interpolated value for a given altitude
+float LTWeather::GetInterpolated (const std::array<float,13>& levels_m,
+                                  const std::array<float,13>& vals,
+                                  float alt_m)
+{
+    // Smaller than lowest altitude?
+    if (alt_m <= levels_m.front())  return vals.front();
+    // Find if it's something inbetween
+    for (size_t i = 0; i < levels_m.size() - 1; ++i) {
+        if (levels_m[i] <= alt_m && alt_m <= levels_m[i]) {
+            const float w = (alt_m - levels_m[i]) / (levels_m[i+1] - levels_m[i]);
+            return w * vals[i] + (1.0f-w) * vals[i+1];
+        }
+    }
+    // must be larger than last
+    return vals.back();
+}
+
 // Fill value equally up to given altitude
 void LTWeather::FillUp (const std::array<float,13>& levels_m,
                         std::array<float,13>& to,
@@ -474,6 +491,7 @@ constexpr int   RAIN_HEAVY_FRIC         = 5;                            ///< rwy
 constexpr float SPRAY_HEIGHT_M          = 10.0f;                        ///< height AGL up to which we simulate SPRAY
 constexpr float MIST_MAX_VISIBILITY_SM  = 7.0f;                         ///< max visibility in case of MIST
 constexpr float FOG_MAX_VISIBILITY_SM   = 5.f/8.f;                      ///< max visibility in case of FOG
+constexpr float TEMP_RWY_ICED           = -7.5f;                        ///< temperature under which we consider rwy icy
 
 /// @brief metaf visitor, ie. functions that are called when traversing the parsed METAR
 /// @details Set of visit functions that perform the actual processing of the information in the METAR.
@@ -565,6 +583,9 @@ public:
             // "Close" to ground so that we prefer METAR data?
             bCloseToGnd = w.pos.alt_m() < posField.alt_m() + PREFER_METAR_MAX_AGL_M;
         }
+        // Use field's location as position if not given or if close to ground and hence METAR takes prio
+        if (bCloseToGnd || !w.pos.hasPosAlt())
+            w.pos = posField;
         return false;
     }
     
@@ -801,7 +822,28 @@ public:
     }
 
 
-    // TODO: Add more visitors: temperature, pressure
+    /// Temperatur group for air and surface temp
+    bool visitTemperatureGroup(const TemperatureGroup& tg,
+                               ReportPart, const std::string&) override
+    {
+        if (tg.type() == TemperatureGroup::Type::TEMPERATURE_AND_DEW_POINT) {
+            // Temperatur: Fill the same temp all the way up to field altitude, which wouldn't be quite right...but under us is ground anyway
+            if (tg.airTemperature().temperature().has_value())
+                w.FillUp(w.temperature_altitude_msl_m, w.temperatures_aloft_deg_c,
+                         float(posField.alt_m()),
+                         tg.airTemperature().toUnit(Temperature::Unit::C).value_or(NAN),
+                         true);
+            // Dew Point: Fill the same temp all the way up to field altitude, which wouldn't be quite right...but under us is ground anyway
+            if (tg.dewPoint().temperature().has_value())
+                w.FillUp(w.temperature_altitude_msl_m, w.dewpoint_deg_c,
+                         float(posField.alt_m()),
+                         tg.dewPoint().toUnit(Temperature::Unit::C).value_or(NAN),
+                         true);
+        }
+        return false;
+    }
+    
+    // TODO: Rwy State Group
 
     /// After finishing the processing, perform some cleanup
     void PostProcessing ()
@@ -810,6 +852,19 @@ public:
         if (w.runway_friction < 0)                      // don't yet have a runway friction?
             // Rain causes wet status [0..7]
             w.runway_friction = (int)std::lround(w.rain_percent * 6.f);
+        // Rwy Friction: Consider freezing if there is something's on the rwy that is not yet ice
+        const float t = w.GetInterpolated(w.temperature_altitude_msl_m,
+                                          w.temperatures_aloft_deg_c,
+                                          float(posField.alt_m()));
+        if (t <= TEMP_RWY_ICED &&
+            0 < w.runway_friction && w.runway_friction < 10)
+        {
+            // From water
+            if (1 <= w.runway_friction && w.runway_friction <= 6)
+                w.runway_friction = (w.runway_friction-1)/2 + 10;   // convert from wet/puddly [1..6] to icy [10..12]
+            else
+                w.runway_friction += 3;                             // convert from snowy [7..9] to icy [10..12]
+        }
 
         // Cleanup up cloud layers: Anything beyond iCloud, that is lower than the last METAR layer, is to be removed
         if (iCloud > 0) {
@@ -1116,7 +1171,7 @@ static int weatherOrigChangeMode = -1;          ///< Original value of `sim/weat
 static std::recursive_mutex mtxWeather;         ///< manages access to weather storage
 static LTWeather nextWeather;                   ///< next weather to set
 static bool bSetWeather = false;                ///< is there a next weather to set?
-static float weatherQnh = NAN;                  ///< X-Plane sometimes just overrides QNH with its last known value, so let's store ours to be able to set time and again
+static LTWeather setWeather;                    ///< the weather we set last time
 
 // Initialize Weather module, dataRefs
 bool WeatherInit ()
@@ -1208,8 +1263,8 @@ void WeatherUpdate ()
     if (!WeatherCanSet() || !dataRefs.IsXPThread()) return;
     // If there's nothing to
     if (!bSetWeather) {
-        if (WeatherInControl())                 // but in princuple we are in control
-            wdr_qnh_pas.set(weatherQnh);        // then re-set QNH as X-Plane likes to override that itself from time to time
+        if (WeatherInControl())                     // but in princuple we are in control
+            wdr_qnh_pas.set(setWeather.qnh_pas);    // then re-set QNH as X-Plane likes to override that itself from time to time
         return;
     }
 
@@ -1223,8 +1278,8 @@ void WeatherUpdate ()
         
     // Set weather with immediate effect if first time, or if position changed dramatically
     nextWeather.update_immediately |= !WeatherInControl() ||
-                                      !LTWeather::lastPos.isNormal() ||
-                                      LTWeather::lastPos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST_M;
+                                      !setWeather.pos.hasPosAlt() ||
+                                      setWeather.pos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST_M;
     if (nextWeather.update_immediately) {
         if (!WeatherInControl()) {
             // Taking control of weather
@@ -1245,9 +1300,11 @@ void WeatherUpdate ()
 
     // actually set the weather in X-Plane
     nextWeather.Set();
-    LTWeather::lastPos = nextWeather.pos.isNormal() ? nextWeather.pos : dataRefs.GetViewPos();
-    weatherQnh = wdr_qnh_pas.get();             // remember our QNH to be able to set it again
-    
+    // get all values from X-Plane right away, after XP's processing
+    setWeather.Get();
+    // if weather's position is given remember that
+    if (nextWeather.pos.hasPosAlt())
+        setWeather.pos = nextWeather.pos;
 }
 
 // Reset weather settings to what they were before X-Plane took over
@@ -1268,9 +1325,7 @@ void WeatherReset ()
     
     weatherOrigSource = -1;
     weatherOrigChangeMode = -1;
-
-    std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
-    LTWeather::lastPos = positionTy();
+    setWeather.pos = positionTy();
 }
 
 // Log current weather

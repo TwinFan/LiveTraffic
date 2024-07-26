@@ -392,7 +392,9 @@ public:
 
     // normalizes to -90/+90 lat, -180/+180 lon, 360° heading, return *this
     positionTy& normalize();
-    // is a good valid position?
+    // has a position and altitude?
+    bool hasPosAlt () const { return !std::isnan(lat()) && !std::isnan(lon()) && !std::isnan(alt_m()); }
+    // is a good valid normalized position incl timestamp?
     bool isNormal (bool bAllowNanAltIfGnd = false) const;
     // is fully valid? (isNormal + heading, pitch, roll)?
     bool isFullyValid() const;
