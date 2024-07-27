@@ -107,7 +107,18 @@ template<std::size_t N>
 struct XDR_farr : public XDR {
     void get (std::array<float,N>& v) const { XPLMGetDatavf(dr,v.data(),0,N ); }  ///< get data from X-Plane into local storage
     void set (const std::array<float,N> & v)            ///< write data to X-Plane (if element 0 is finite, ie. not NAN)
-    { if (std::isfinite(v[0])) XPLMSetDatavf(dr,(float*)v.data(),0,N ); }
+    {
+        // Set only if _any_ of the elements is finite
+        if (std::any_of(v.begin(), v.end(), [](float f){return std::isfinite(f);})) {
+            // but we must not set any non-finite values, that can crash XP or other plugins,
+            // so we make a copy that transforms all non-finite values to 0.0
+            std::array<float,N> cv;
+            std::transform(v.begin(), v.end(), cv.begin(),
+                           [](const float f){ return std::isfinite(f) ? f : 0.0f; });
+            // and then send that copy to XP:
+            XPLMSetDatavf(dr,cv.data(),0,N );
+        }
+    }
 };
 
 /// Represents an int dataRef
@@ -877,7 +888,60 @@ public:
         return false;
     }
     
-    // TODO: Wind, Rwy State Group
+    /// Wind group
+    bool visitWindGroup(const WindGroup& wg,
+                        ReportPart, const std::string&) override
+    {
+        switch (wg.type()) {
+                // process wind information
+            case WindGroup::Type::SURFACE_WIND:
+            case WindGroup::Type::SURFACE_WIND_CALM:
+            case WindGroup::Type::VARIABLE_WIND_SECTOR:
+            case WindGroup::Type::SURFACE_WIND_WITH_VARIABLE_SECTOR:
+            case WindGroup::Type::WIND_SHEAR:
+            {
+                // up to which altitude will we set wind values?
+                const float alt_m = float(posField.alt_m() + PREFER_METAR_MAX_AGL_M);
+                // Standard wind speed (can be 0 for calm winds) and direction
+                const float speed = wg.windSpeed().toUnit(Speed::Unit::METERS_PER_SECOND).value_or(0.0f);
+                const float dir   = wg.direction().degrees().value_or(0.0f);
+                w.FillUp(w.wind_altitude_msl_m, w.wind_speed_msc,           // set wind speed up to preferred METAR height AGL
+                         alt_m, speed, true);
+                w.FillUp(w.wind_altitude_msl_m, w.wind_direction_degt,      // set wind direction up to preferred METAR height AGL
+                         alt_m, dir, false);                                // no interpolation...that can go wrong with headings
+                
+                // Variable wind direction -> transform into +/- degrees as expected by XP
+                const float begDir = wg.varSectorBegin().degrees().value_or(NAN);
+                const float endDir = wg.varSectorEnd().degrees().value_or(NAN);
+                const float halfDiff = !std::isnan(begDir) && !std::isnan(endDir) ?
+                                       float(HeadingDiff(begDir, endDir) / 2.0) :
+                                       0.0f;
+                w.FillUp(w.wind_altitude_msl_m, w.shear_direction_degt,     // set wind shear up to preferred METAR height AGL
+                         alt_m, halfDiff, false);
+
+                // Gust speed if given
+                float gust = wg.gustSpeed().toUnit(Speed::Unit::METERS_PER_SECOND).value_or(NAN);
+                if (std::isnan(gust)) gust = 0.0f;                          // if not given set 'gain from gust' to zeri
+                else                  gust -= speed;                        // if given, subtract normal wind speed, we need 'gain from gust'
+                w.FillUp(w.wind_altitude_msl_m, w.shear_speed_msc,          // set wind shear gain up to preferred METAR height AGL
+                         alt_m, gust, true);          
+
+                break;
+            }
+                
+                // don't process
+            case WindGroup::Type::WIND_SHEAR_IN_LOWER_LAYERS:
+            case WindGroup::Type::WIND_SHIFT:
+            case WindGroup::Type::WIND_SHIFT_FROPA:
+            case WindGroup::Type::PEAK_WIND:
+            case WindGroup::Type::WSCONDS:
+            case WindGroup::Type::WND_MISG:
+                break;
+        }
+        return false;
+    }
+    
+    // TODO: Rwy State Group
 
     /// After finishing the processing, perform some cleanup
     void PostProcessing ()
