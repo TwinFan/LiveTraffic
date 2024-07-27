@@ -946,6 +946,7 @@ bool LTImgWindowInit ()
                     ICON_FA_FOLDER_OPEN
                     ICON_FA_INFO_CIRCLE
                     ICON_FA_LEVEL_UP_ALT
+                    ICON_FA_POWER_OFF
                     ICON_FA_PLANE
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_ROUTE

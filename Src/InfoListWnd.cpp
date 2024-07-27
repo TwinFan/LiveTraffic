@@ -448,7 +448,14 @@ void InfoListWnd::buildInterface()
                         else {
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " LIVE_TRAFFIC " is");
-                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                            if (ImGui::TableSetColumnIndex(1)) {
+                                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                                if (ImGui::Button(ICON_FA_POWER_OFF " Start Showing Aircraft")) {
+                                    ImGuiContext* pCtxt = ImGui::GetCurrentContext();
+                                    dataRefs.SetAircraftDisplayed(true);
+                                    ImGui::SetCurrentContext(pCtxt);
+                                }
+                            }
                             
                             // Additional warning if there's no CSL model
                             if (numCSLModels == 0) {
