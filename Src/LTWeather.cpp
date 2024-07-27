@@ -508,14 +508,47 @@ public:
     /// Constructor sets the reference to the weather that we are to modify
     LTWeatherVisitor (LTWeather& weather) : w(weather), posField(0.0, 0.0, 0.0) {}
     
-    /// Convert a METAR cloud type to X-Plane
-    static float toXPCloudType (const std::optional<CloudType>& optClTy,
-                                CloudGroup::ConvectiveType convTy)
+    /// @brief Convert cloud cover to X-Plane percentage
+    /// @note We aren't using metaf's CloudType::okta() function because it returns the _highest_ possible okta value,
+    ///       we want the average.
+    static float toXPCloudCover (const CloudGroup& cg)
     {
+        switch (cg.amount()) {
+            case CloudGroup::Amount::NOT_REPORTED:              // various ways of saying 'none'
+            case CloudGroup::Amount::NCD:
+            case CloudGroup::Amount::NSC:
+            case CloudGroup::Amount::NONE_CLR:
+            case CloudGroup::Amount::NONE_SKC:
+            case CloudGroup::Amount::OBSCURED:                  // obscured, clouds aren't visible, so we don't know
+                return 0.0f;
+            case CloudGroup::Amount::FEW:                       // Few clouds (1/8 to 2/8 sky covered).
+                return 1.5f/8.0f;
+            case CloudGroup::Amount::VARIABLE_FEW_SCATTERED:    // Cloud cover is variable between FEW and SCATTERED -> between 1/8 and 4/8
+                return 2.5f/8.0f;
+            case CloudGroup::Amount::SCATTERED:                 // Scattered clouds (3/8 to 4/8 sky covered).
+                return 3.5f/8.0f;
+            case CloudGroup::Amount::VARIABLE_SCATTERED_BROKEN: // Cloud cover is variable between SCATTERED and BROKEN -> between 3/8 and 7/8
+                return 5.0f/8.0f;
+            case CloudGroup::Amount::BROKEN:                    // Broken clouds (5/8 to 7/8 sky covered).
+                return 6.0f/8.0f;
+            case CloudGroup::Amount::VARIABLE_BROKEN_OVERCAST:  // Cloud cover is variable between BROKEN and OVERCAST -> between 5/8 and 8/8
+                return 6.5f/8.0f;
+            case CloudGroup::Amount::OVERCAST:                  // Overcast (8/8 sky covered)
+                return 8.0f/8.0f;
+        }
+        return 0.0f;
+    }
+    
+    /// Convert a METAR cloud type to X-Plane
+    static float toXPCloudType (const CloudGroup& cg)
+    {
+        const CloudGroup::ConvectiveType convTy = cg.convectiveType();
         if (convTy == CloudGroup::ConvectiveType::CUMULONIMBUS)
             return 3.0f;
         if (convTy == CloudGroup::ConvectiveType::TOWERING_CUMULUS)
             return 2.5f;
+
+        const std::optional<CloudType>& optClTy = cg.cloudType();
         if (!optClTy)                           // if nothing specified, go for Cirrus
             return 0.0f;
         switch (optClTy.value().type()) {
@@ -538,7 +571,7 @@ public:
             case CloudType::Type::CIRROSTRATUS:      return 0.5;
             case CloudType::Type::CIRROCUMULUS:      return 1.5f;
             //Obscurations
-            default:                                        return 0.0f;
+            default:                                 return 0.0f;
         }
     }
     
@@ -650,17 +683,18 @@ public:
                 
                 // Save the cloud layer, if there is still room in the cloud array
                 if (iCloud < w.cloud_type.size()) {
-                    w.cloud_type[iCloud] = toXPCloudType(cg.cloudType(), cg.convectiveType());
-                    if (cg.cloudType().has_value())
-                        w.cloud_coverage_percent[iCloud] = float(cg.cloudType().value().okta()) / 8.0f;
-                    else
-                        w.cloud_coverage_percent[iCloud] = 0.0f;
-                    w.cloud_base_msl_m[iCloud] = float(posField.alt_m()) + cg.height().toUnit(Distance::Unit::METERS).value_or(0.0f);
-                    if (w.cloud_type[iCloud] < 2.5f)                // non-convective cloud
-                        w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CLOUD_HEIGHT_M;
-                    else                                            // Cumulo-nimbus are higher
-                        w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CB_CLOUD_HEIGHT_M;
-                    ++iCloud;
+                    // check first if we can make out any coverage, no need to waste a cloud layer for 0 coverage
+                    const float cover = toXPCloudCover(cg);
+                    if (cover > 0.0f) {
+                        w.cloud_coverage_percent[iCloud] = cover;
+                        w.cloud_type[iCloud] = toXPCloudType(cg);
+                        w.cloud_base_msl_m[iCloud] = float(posField.alt_m()) + cg.height().toUnit(Distance::Unit::METERS).value_or(0.0f);
+                        if (w.cloud_type[iCloud] < 2.5f)                // non-convective cloud
+                            w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CLOUD_HEIGHT_M;
+                        else                                            // Cumulo-nimbus are higher
+                            w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CB_CLOUD_HEIGHT_M;
+                        ++iCloud;
+                    }
                 }
                 break;
             }
@@ -1171,6 +1205,7 @@ static int weatherOrigChangeMode = -1;          ///< Original value of `sim/weat
 static std::recursive_mutex mtxWeather;         ///< manages access to weather storage
 static LTWeather nextWeather;                   ///< next weather to set
 static bool bSetWeather = false;                ///< is there a next weather to set?
+static bool bResetWeather = false;              ///< Shall weather be reset, ie. handed back to XP?
 static LTWeather setWeather;                    ///< the weather we set last time
 
 // Initialize Weather module, dataRefs
@@ -1261,6 +1296,13 @@ void WeatherUpdate ()
 {
     // Quick exit if we can't or shan't
     if (!WeatherCanSet() || !dataRefs.IsXPThread()) return;
+    
+    // If the ask is to reset weather
+    if (bResetWeather) {
+        WeatherReset();
+        return;
+    }
+    
     // If there's nothing to
     if (!bSetWeather) {
         if (WeatherInControl())                     // but in princuple we are in control
@@ -1310,6 +1352,12 @@ void WeatherUpdate ()
 // Reset weather settings to what they were before X-Plane took over
 void WeatherReset ()
 {
+    // If not called from main thread just set a flag and wait for main thread
+    if (!dataRefs.IsXPThread()) {
+        bResetWeather = true;
+        return;
+    }
+    
     if (weatherOrigSource >= 0)     wdr_weather_source.set(weatherOrigSource);
     if (weatherOrigChangeMode >= 0) wdr_change_mode.set(weatherOrigChangeMode);
     
@@ -1326,6 +1374,7 @@ void WeatherReset ()
     weatherOrigSource = -1;
     weatherOrigChangeMode = -1;
     setWeather.pos = positionTy();
+    bResetWeather = bSetWeather = false;
 }
 
 // Log current weather

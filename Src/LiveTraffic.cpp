@@ -670,6 +670,9 @@ PLUGIN_API void XPluginDisable(void) {
 
         // Stop reading apt.dat
         LTAptDisable();
+        
+        // Reset weather, back in XP's control
+        WeatherReset();
 
         // if there still is a message window remove it
         DestroyWindow();
