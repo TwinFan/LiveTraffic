@@ -877,7 +877,7 @@ public:
         return false;
     }
     
-    // TODO: Rwy State Group
+    // TODO: Wind, Rwy State Group
 
     /// After finishing the processing, perform some cleanup
     void PostProcessing ()
@@ -945,25 +945,42 @@ public:
     }
 };
 
+/// Parse the METAR into the global objects, avoids re-parsing the same METAR over again
+const ParseResult& ParseMETAR (const std::string& raw)
+{
+    static std::mutex mutexMetar;               // Mutex that safeguards this procedure
+    static ParseResult metarResult;             // Global object of last METAR parse result, helps avoiding parsing the same METAR twice
+    static std::string metarRaw;                // The METAR that got parsed globally
+
+    // Safeguard against multi-thread execution
+    std::lock_guard<std::mutex> lck(mutexMetar);
+    
+    // samesame or different?
+    if (metarRaw != raw) {
+        metarResult = Parser::parse(metarRaw = raw);
+        if (metarResult.reportMetadata.error != ReportError::NONE) {
+            LOG_MSG(logWARN, "Parsing METAR failed with error %d\n%s",
+                    int(metarResult.reportMetadata.error),
+                    metarRaw.c_str());
+        } else {
+            LOG_MSG(logDEBUG, "Parsing METAR found %lu groups",
+                    (unsigned long)metarResult.groups.size());
+        }
+    }
+    return metarResult;
+}
 
 // Parse `metar` and fill weather from there as far as possible
 void LTWeather::IncorporateMETAR()
 {
     // --- Parse ---
-    const ParseResult r = Parser::parse(metar);
-    if (r.reportMetadata.error != ReportError::NONE) {
-        LOG_MSG(logWARN, "Parsing METAR failed with error %d\n%s",
-                int(r.reportMetadata.error),
-                metar.c_str());
+    const ParseResult& r = ParseMETAR(metar);
+    if (r.reportMetadata.error != ReportError::NONE)
         return;
-    }
 
-    const bool bLogW = dataRefs.ShallLogWeather();
-    if (bLogW) {
-        LOG_MSG(logDEBUG, "Parsing METAR found %lu groups",
-                (unsigned long)r.groups.size());
+    // Log before applying METAR
+    if (dataRefs.ShallLogWeather())
         Log("Weather before applying METAR:");
-    }
 
     // --- Process by 'visiting' all groups ---
     LTWeatherVisitor v(*this);
@@ -1049,6 +1066,11 @@ bool WeatherProcessResponse (const std::string& _r)
         // Try fetching METAR and station_id
         METAR = GetXMLValue(_r, "<raw_text>", pos);
         stationId = GetXMLValue(_r, "<station_id>", pos);
+        
+        // If we've got a METAR we better take QNH from there as that is a local observation
+        const float QNH = WeatherQNHfromMETAR(METAR);
+        if (!std::isnan(QNH))
+            hPa = QNH;
 
         // then let's see if we also find the weather station's location
         val = GetXMLValue(_r, "<latitude>", pos);
@@ -1407,6 +1429,21 @@ std::string WeatherGetSource ()
     else
         return std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
 }
+
+// Extract QNH or SLP from METAR, NAN if not found any info, which is rather unlikely
+float WeatherQNHfromMETAR (const std::string& metar)
+{
+    // --- Parse ---
+    const ParseResult& r = ParseMETAR(metar);
+    if (r.reportMetadata.error == ReportError::NONE) {
+        // Find the pressure group
+        for (const GroupInfo& gi: r.groups)
+            if (const PressureGroup *pPg = std::get_if<PressureGroup>(&gi.group))
+                return pPg->atmosphericPressure().toUnit(Pressure::Unit::HECTOPASCAL).value_or(NAN);
+    }
+    return NAN;
+}
+
 
 /// Is currently an async operation running to fetch METAR?
 static std::future<bool> futWeather;

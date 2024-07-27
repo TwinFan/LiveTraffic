@@ -568,8 +568,10 @@ bool RealTrafficConnection::ProcessFetchedData ()
         if (WeatherShallSet())
             ProcessWeather (json_object_get_object(pObj, "data"));
         
+        // Let's see if we can quickly find the QNH from the metar
+        rtWx.w.qnh_pas = WeatherQNHfromMETAR(rtWx.nearestMETAR.METAR);
+        
         // Successfully received local pressure information
-        // TODO: Read Q/A values from METAR directly
         rtWx.set(std::isnan(rtWx.w.qnh_pas) ? wxSLP : double(rtWx.w.qnh_pas), curr);                      // Save new QNH
         LOG_MSG(logDEBUG, "Received RealTraffic Weather with QNH = %.1f", rtWx.QNH);
 

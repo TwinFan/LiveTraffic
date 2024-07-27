@@ -1078,7 +1078,7 @@ public:
     bool ToggleLabelDraw();                 // returns new value
     
     // Weather
-    bool WeatherUpdate ();              ///< check if weather updated needed, then do
+    bool WeatherFetchMETAR ();              ///< check if weather updated needed, then do
     /// @brief set/update current weather
     /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
     void SetWeather (float hPa, float lat, float lon, const std::string& stationId,

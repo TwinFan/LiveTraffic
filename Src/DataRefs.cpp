@@ -2686,7 +2686,7 @@ constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be u
 constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
 
 // check if weather updated needed, then do
-bool DataRefs::WeatherUpdate ()
+bool DataRefs::WeatherFetchMETAR ()
 {
     // protected against updates from the weather thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);

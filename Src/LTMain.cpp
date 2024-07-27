@@ -1012,7 +1012,7 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
             // Potentially refresh weather information
-            dataRefs.WeatherUpdate();
+            dataRefs.WeatherFetchMETAR();
             // Refresh airport data from apt.dat (in case camera moved far)
             LTAptRefresh();
             // maintenance (add/remove)

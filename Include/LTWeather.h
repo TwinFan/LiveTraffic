@@ -48,6 +48,9 @@ void WeatherLogCurrent (const std::string& msg);
 /// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
 std::string WeatherGetSource ();
 
+/// Extract QNH or SLP from METAR, NAN if not found any info, which is rather unlikely
+float WeatherQNHfromMETAR (const std::string& metar);
+
 //
 // MARK: Set X-Plane Weather
 //
