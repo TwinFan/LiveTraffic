@@ -721,6 +721,9 @@ bool RealTrafficConnection::ProcessFetchedData ()
         std::string s           = jag_s(pJAc, RT_DRCT_Category);
         stat.catDescr           = GetADSBEmitterCat(s);
         
+        // RealTraffic often sends ASW20 when it should be AS20, a glider
+        if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
+        
         // Static objects are all equally marked with a/c type TWR
         if ((s == "C3" || s == "C4" || s == "C5") ||
             (stat.reg == STATIC_OBJECT_TYPE && stat.acTypeIcao == STATIC_OBJECT_TYPE))
