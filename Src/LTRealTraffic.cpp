@@ -947,11 +947,6 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
         else                 rtWx.w.wave_amplitude = 17.0f;
     }
     
-    // TODO: There are still weather values we can't set
-    // rtWx.w.shear_speed_msc;
-    // rtWx.w.shear_direction_degt;
-    // rtWx.w.thermal_rate_ms;
-    
     // Rwy_Friction
     if (rtWx.w.metar.empty())                   // ideally set later based on METAR
         // Rain causes wet status [0..7]

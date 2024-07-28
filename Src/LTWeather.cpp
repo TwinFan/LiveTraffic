@@ -513,7 +513,8 @@ public:
     positionTy posField;                        ///< position/altitude of the METAR's field,
     bool bCloseToGnd = false;                   ///< is position close enough to ground to weigh METAR higher than weather data?
     size_t iCloud = 0;                          ///< which cloud layer is to be filled next?
-    int bThunderstorms = 0;                     ///< thunderstorms anywhere? (0-None, 1-Light, 2-Normal, 3-Heavy)
+    int bThunderstorms = 0;                     ///< thunderstorms anywhere? (0-None, 1-Light, 2-Normal, 3-Heavy) -> PostProcessing() makes sure CB exists and adds turbulence
+    bool bRwyFrictionDefined = false;           ///< Rwy friction defined based on Rwy State Group in METAR, don't touch again in PostProcessing()
 
 public:
     /// Constructor sets the reference to the weather that we are to modify
@@ -941,27 +942,79 @@ public:
         return false;
     }
     
-    // TODO: Rwy State Group
+    /// Rwy State Group
+    bool visitRunwayStateGroup(const RunwayStateGroup& rsg,
+                               ReportPart, const std::string&) override
+    {
+        // XP provides just one `runway_friction` dataRef, not one per runway,
+        // so we just process the first runway state group, assuming that
+        // the states of different runways on the same airport won't be much different anyway.
+        if (!bRwyFrictionDefined && rsg.deposits() != RunwayStateGroup::Deposits::NOT_REPORTED) {
+            bRwyFrictionDefined = true;
+            const float depth = rsg.depositDepth().toUnit(Precipitation::Unit::MM).value_or(0.0f);
+            int extend = 0;
+            switch (rsg.contaminationExtent()) {
+                case RunwayStateGroup::Extent::FROM_26_TO_50_PERCENT:
+                    extend = 1;
+                    break;
+                case RunwayStateGroup::Extent::MORE_THAN_51_PERCENT:
+                    extend = 2;
+                    break;
+                default:
+                    extend = 0;
+            }
 
+            switch (rsg.deposits()) {
+                case RunwayStateGroup::Deposits::NOT_REPORTED:
+                case RunwayStateGroup::Deposits::CLEAR_AND_DRY:
+                    w.runway_friction = 0;
+                    break;
+                case RunwayStateGroup::Deposits::DAMP:
+                    w.runway_friction = 1;
+                    break;
+                case RunwayStateGroup::Deposits::WET_AND_WATER_PATCHES:
+                    // depth decides between wet (<2mm) and puddly (>=2mm)
+                    w.runway_friction = (depth < 2 ? 1 : 4) + extend;
+                    break;
+                case RunwayStateGroup::Deposits::ICE:
+                case RunwayStateGroup::Deposits::RIME_AND_FROST_COVERED:
+                case RunwayStateGroup::Deposits::FROZEN_RUTS_OR_RIDGES:
+                    w.runway_friction = 10 + extend;            // icy
+                    break;
+                case RunwayStateGroup::Deposits::DRY_SNOW:
+                case RunwayStateGroup::Deposits::WET_SNOW:
+                case RunwayStateGroup::Deposits::SLUSH:
+                    w.runway_friction =  7 + extend;            // snowy
+                    break;
+                case RunwayStateGroup::Deposits::COMPACTED_OR_ROLLED_SNOW:
+                    w.runway_friction = 13 + extend;            // snowy/icy
+                    break;
+            }
+        }
+        return false;
+    }
+    
     /// After finishing the processing, perform some cleanup
     void PostProcessing ()
     {
         // Runway friction
-        if (w.runway_friction < 0)                      // don't yet have a runway friction?
-            // Rain causes wet status [0..7]
-            w.runway_friction = (int)std::lround(w.rain_percent * 6.f);
-        // Rwy Friction: Consider freezing if there is something's on the rwy that is not yet ice
-        const float t = w.GetInterpolated(w.temperature_altitude_msl_m,
-                                          w.temperatures_aloft_deg_c,
-                                          float(posField.alt_m()));
-        if (t <= TEMP_RWY_ICED &&
-            0 < w.runway_friction && w.runway_friction < 10)
-        {
-            // From water
-            if (1 <= w.runway_friction && w.runway_friction <= 6)
-                w.runway_friction = (w.runway_friction-1)/2 + 10;   // convert from wet/puddly [1..6] to icy [10..12]
-            else
-                w.runway_friction += 3;                             // convert from snowy [7..9] to icy [10..12]
+        if (!bRwyFrictionDefined) {
+            if (w.runway_friction < 0)                      // don't yet have a runway friction?
+                // Rain causes wet status [0..7]
+                w.runway_friction = (int)std::lround(w.rain_percent * 6.f);
+            // Rwy Friction: Consider freezing if there is something's on the rwy that is not yet ice
+            const float t = w.GetInterpolated(w.temperature_altitude_msl_m,
+                                              w.temperatures_aloft_deg_c,
+                                              float(posField.alt_m()));
+            if (t <= TEMP_RWY_ICED &&
+                0 < w.runway_friction && w.runway_friction < 10)
+            {
+                // From water
+                if (1 <= w.runway_friction && w.runway_friction <= 6)
+                    w.runway_friction = (w.runway_friction-1)/2 + 10;   // convert from wet/puddly [1..6] to icy [10..12]
+                else
+                    w.runway_friction += 3;                             // convert from snowy [7..9] to icy [10..12]
+            }
         }
 
         // Cleanup up cloud layers: Anything beyond iCloud, that is lower than the last METAR layer, is to be removed
