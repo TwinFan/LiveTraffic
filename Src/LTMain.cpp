@@ -769,17 +769,29 @@ std::string GetNearestAirportId (const positionTy& _pos,
 }
 
 // Fetch specific airport location/altitude
+/// @note Can't use `XPLMFindNavAid` because XP only searches for _parts_
+///       of the ID, so searching for "EDDL" effectively finds "XEDDL"
+///       and returns the wrong position.
+///       Instead, we iterate all airports and do an _exact_ comparison of the ID.
 positionTy GetAirportLoc (const std::string sICAO)
 {
-    XPLMNavRef navRef = XPLMFindNavAid(nullptr, sICAO.c_str(),
-                                       nullptr, nullptr, nullptr,
-                                       xplm_Nav_Airport);
-    if (!navRef) return positionTy();
+    char sId[32];
     float lat=NAN, lon=NAN, alt=NAN;
-    XPLMGetNavAidInfo(navRef, nullptr,
-                      &lat, &lon, &alt,
-                      nullptr, nullptr, nullptr, nullptr, nullptr);
-    return positionTy(lat, lon, alt);
+
+    // Loop all airorts
+    for (XPLMNavRef navRef = XPLMFindFirstNavAidOfType(xplm_Nav_Airport);
+         navRef != XPLM_NAV_NOT_FOUND;
+         navRef = XPLMGetNextNavAid(navRef))
+    {
+        // Get info and check if this is the one
+        XPLMGetNavAidInfo(navRef, nullptr,
+                          &lat, &lon, &alt,
+                          nullptr, nullptr, sId, nullptr, nullptr);
+        if (sICAO == sId)
+            return positionTy(lat, lon, alt);
+    }
+    // not found
+    return positionTy();
 }
 
 
