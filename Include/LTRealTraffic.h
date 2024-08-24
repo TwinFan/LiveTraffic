@@ -55,6 +55,7 @@
 #define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=%s&querytype=locwx&toffset=%ld"
 #define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
+//#define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=3&buffertime=10"
 
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
@@ -351,6 +352,7 @@ public:
     std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set 
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
     bool ProcessFetchedData () override;                    ///< in direct mode process the received data
+    bool ProcessTrafficBuffer (const JSON_Object* pBuf);    ///< in direct mode process an object with aircraft data, essentially a fake array
     void ProcessNearestMETAR (const JSON_Array* pData);     ///< in direct mode process NearestMETAR response, find a suitable METAR from the returned array
     void ProcessWeather(const JSON_Object* pData);          ///< in direct mode process detailed weather information
     void ProcessCloudLayer(const JSON_Object* pCL,size_t i);///< in direct mode process one cloud layer

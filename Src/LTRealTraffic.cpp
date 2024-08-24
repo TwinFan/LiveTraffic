@@ -411,7 +411,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
-
+    
     // Try the error fields first
     long rStatus = jog_l(pObj, "status");
     if (!rStatus) { LOG_MSG(logERR,"Response has no 'status'"); IncErrCnt(); return false; }
@@ -470,7 +470,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
     }
     
     // All good, process the request
-
+    
     // Wait till next request?
     long l = jog_l(pObj, "rrl");                    // Wait time till next request
     if (!l) l = jog_l(pObj, "wrrl");
@@ -568,12 +568,12 @@ bool RealTrafficConnection::ProcessFetchedData ()
             metar = jog_s(pObj, "data.METAR");
         else
             s.clear();
-
+        
         if (s != rtWx.nearestMETAR.ICAO)
             rtWx.nearestMETAR.dist = rtWx.nearestMETAR.brgTo = NAN;
         rtWx.nearestMETAR.ICAO  = std::move(s);
         rtWx.nearestMETAR.METAR = std::move(metar);
-
+        
         // If this is live data, not historic, then we can use it instead of separately querying METAR
         if (curr.tOff == 0) {
             rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH,
@@ -587,15 +587,15 @@ bool RealTrafficConnection::ProcessFetchedData ()
             // TODO: Test weather for historical RT data
             rtWx.w.qnh_pas = WeatherQNHfromMETAR(rtWx.nearestMETAR.METAR);
         }
-
+        
         // Successfully received local pressure information
         rtWx.set(std::isnan(rtWx.w.qnh_pas) ? wxQNH : double(rtWx.w.qnh_pas), curr);                      // Save new QNH
         LOG_MSG(logDEBUG, "Received RealTraffic Weather with QNH = %.1f", rtWx.QNH);
-
+        
         // If requested to set X-Plane's weather based on detailed weather data
         if (dataRefs.GetWeatherControl() == WC_REAL_TRAFFIC)
             ProcessWeather (json_object_get_object(pObj, "data"));
-
+        
         return true;
     }
     
@@ -640,7 +640,49 @@ bool RealTrafficConnection::ProcessFetchedData ()
             prevWarn = now;
         }
     }
+    
+    // The 'data' object holds the aircraft data in two different variants:
+    // - directly, then it holds a set of objects, each being an aircraft (essentially a fake array)
+    // - buffered, then it holds a set of objects, which in turn hold a set of aircraft objects
+    const JSON_Object* pData = json_object_get_object(pObj, "data");
+    if (!pData) {
+        LOG_MSG(logERR, "Response is missing the 'data' object that would have the aircraft data!");
+        IncErrCnt();
+        return false;
+    }
+    // Has buffered data? Then we need to loop those buffers
+    bool bRet = true;
+    if (json_object_has_value_of_type(pData, "buffer_0", JSONObject)) {
+        // But we want to process them in correct chronological order,
+        // so we need to find out the last buffer and work our way up
+        for (int i = (int) json_object_get_count(pData) - 1;
+             i >= 0; --i)
+        {
+            char bufName[20];
+            snprintf(bufName, sizeof(bufName), "buffer_%d", i);
+            if (!ProcessTrafficBuffer(json_object_get_object(pData, bufName))) {
+                if (i == 0) {                            // really important only is buffer_0, the one with the real-time data
+                    LOG_MSG(logWARN, "Couldn't process 'buffer_0'!");
+                    IncErrCnt();
+                    bRet = false;
+                }
+            }
+        }
+    }
+    // no buffered data, just process the one set of data that is there
+    else {
+        bRet = ProcessTrafficBuffer(pData);
+    }
+    
+    return bRet;
+}
 
+// in direct mode process an object with aircraft data, essentially a fake array
+bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
+{
+    // Quick exit if no data
+    if (!pBuf) return false;
+    
     // any a/c filter defined for debugging purposes?
     const std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -660,12 +702,12 @@ bool RealTrafficConnection::ProcessFetchedData ()
     //     "a26738": ["a26738",33.671356,-117.867284, ...],
     //     "full_count": 13501, "source": "MemoryDB", "rrl": 2000, "status": 200, "dataepoch": 1703885732
     //   }
-    const size_t numVals = json_object_get_count(pObj);
+    const size_t numVals = json_object_get_count(pBuf);
     for (size_t i = 0; i < numVals && shallRun(); ++i)
     {
         // Get the array 'behind' the i-th value,
         // will fail if it is no aircraft entry
-        const JSON_Value* pVal = json_object_get_value_at(pObj, i);
+        const JSON_Value* pVal = json_object_get_value_at(pBuf, i);
         if (!pVal) break;
         const JSON_Array* pJAc = json_value_get_array(pVal);
         if (!pJAc) continue;                  // probably not an aircraft line
