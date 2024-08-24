@@ -383,11 +383,23 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
             // we add 10% to the bounding box to have some data ready once the plane is close enough for display
             const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
             
-            snprintf(s,sizeof(s), RT_TRAFFIC_POST,
-                     curr.sGUID.c_str(),
-                     box.nw.lat(), box.se.lat(),
-                     box.nw.lon(), box.se.lon(),
-                     curr.tOff);
+            // If we request for the very first time, then we ask for some buffer into the past for faster plane display
+            if (IsFirstRequ()) {
+                snprintf(s,sizeof(s), RT_TRAFFIC_POST_BUFFER,
+                         curr.sGUID.c_str(),
+                         box.nw.lat(), box.se.lat(),
+                         box.nw.lon(), box.se.lon(),
+                         curr.tOff,
+                         dataRefs.GetFdBufPeriod() / 10);       // One buffer per 10s of buffering time
+            }
+            // normal un-buffered request
+            else {
+                snprintf(s,sizeof(s), RT_TRAFFIC_POST,
+                         curr.sGUID.c_str(),
+                         box.nw.lat(), box.se.lat(),
+                         box.nw.lon(), box.se.lon(),
+                         curr.tOff);
+            }
             break;
         }
     }
@@ -1008,7 +1020,7 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
         rtWx.w.runway_friction = (int)std::lround(rtWx.w.rain_percent * 7.f);
 
     // Have the weather set (force immediate update on first weather data)
-    rtWx.w.update_immediately = !rtWx.pos.hasPosAlt();
+    rtWx.w.update_immediately = IsFirstRequ();
     WeatherSet(rtWx.w);
 }
 

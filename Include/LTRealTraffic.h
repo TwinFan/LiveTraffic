@@ -55,7 +55,7 @@
 #define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=%s&querytype=locwx&toffset=%ld"
 #define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
-//#define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=3&buffertime=10"
+#define RT_TRAFFIC_POST_BUFFER  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=%d&buffertime=10"
 
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
@@ -349,7 +349,8 @@ protected:
     void MainDirect ();                                     ///< thread main function for the direct connection
     void SetRequType (const positionTy& pos);               ///< Which request do we need now?
 public:
-    std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set 
+    bool IsFirstRequ () const { return lTotalFlights < 0; } ///< Have not received any traffic data before?
+    std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
     bool ProcessFetchedData () override;                    ///< in direct mode process the received data
     bool ProcessTrafficBuffer (const JSON_Object* pBuf);    ///< in direct mode process an object with aircraft data, essentially a fake array
