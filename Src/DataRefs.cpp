@@ -540,6 +540,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/contrail_max_alt",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/contrail_life_time",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/contrail_multiple",           DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/weather_control",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/weather_metar_agl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/weather_metar_dist",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -564,7 +567,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/real_traffic/man_toffset",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,     GET_VAR, true },
     {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
-    {"livetraffic/channel/real_traffic/set_weather",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
     {"livetraffic/channel/fore_flight/listen_port", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -634,6 +636,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_CONTRAIL_MAX_ALT:       return &contrailAltMax_ft;
         case DR_CFG_CONTRAIL_LIFE_TIME:     return &contrailLifeTime;
         case DR_CFG_CONTRAIL_MULTIPLE:      return &contrailMulti;
+        case DR_CFG_WEATHER_CONTROL:        return &weatherCtl;
+        case DR_CFG_WEATHER_MAX_METAR_AGL:  return &weatherMaxMETARheight_ft;
+        case DR_CFG_WEATHER_MAX_METAR_DIST: return &weatherMaxMETARdist_nm;
         case DR_CFG_REMOTE_SUPPORT:         return &remoteSupport;
         case DR_CFG_EXTERNAL_CAMERA:        return &bUseExternalCamera;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
@@ -658,7 +663,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
         case DR_CFG_RT_MAN_TOFFSET:         return &rtManTOfs;
         case DR_CFG_RT_CONNECT_TYPE:        return &rtConnType;
-        case DR_CFG_RT_SET_WEATHER:         return &rtSetWeather;
         case DR_CFG_FF_LISTEN_PORT:         return &ffListenPort;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
@@ -1704,7 +1708,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         if (contrailAltMax_ft < contrailAltMin_ft + 1000)
             contrailAltMax_ft = std::min(90000, contrailAltMin_ft + 1000);
     }
-
+    
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
@@ -1723,6 +1727,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
         hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
+        weatherMaxMETARheight_ft < 1000     || weatherMaxMETARheight_ft > 10000 ||
+        weatherMaxMETARdist_nm   <    5     || weatherMaxMETARdist_nm   >   100 ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
@@ -1770,9 +1776,20 @@ bool DataRefs::SetCfgValue (void* p, int val)
         }
     }
     
-    // If weather is being switched off do so immediately
-    if (p == &rtSetWeather && val == 0)
-        WeatherReset();
+    // If weather is...
+    if (p == &weatherCtl) {
+        switch (weatherCtl) {
+            case WC_INIT:
+            case WC_NONE:               // ...switched off do so immediately
+                WeatherReset();
+                break;
+            case WC_METAR_XP:           // ...by METAR pass on the last METAR now
+                WeatherSet(lastWeatherMETAR);
+                break;
+            case WC_REAL_TRAFFIC:       // ...by RealTraffic do nothing...RT will do
+                break;
+        }
+    }
     
     // success
     LogCfgSetting(p, val);
@@ -2713,9 +2730,9 @@ bool DataRefs::WeatherFetchMETAR ()
 }
 
 // Called by the asynch process spawned by ::WeatherUpdate to inform us of the weather
-void DataRefs::SetWeather (float hPa, float lat, float lon,
-                           const std::string& stationId,
-                           const std::string& METAR)
+float DataRefs::SetWeather (float hPa, float lat, float lon,
+                            const std::string& stationId,
+                            const std::string& METAR)
 {
     // protected against reads from the main thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
@@ -2731,6 +2748,11 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
         lastWeatherStationId = GetNearestAirportId(lat, lon);
     }
     
+    // Let's see if we can quickly find the QNH from the metar, which we prefer
+    const float qnh = WeatherQNHfromMETAR(METAR);
+    if (!std::isnan(qnh))
+        hPa = qnh;
+
     // Did weather change?
     if (!dequal(lastWeatherHPA, hPa)) {
         LOG_MSG(logINFO, INFO_WEATHER_UPDATED, hPa,
@@ -2738,9 +2760,15 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
                 lastWeatherPos.lat(), lastWeatherPos.lon());
     }
     
-    // Finally: Save the new pressure and potentially export it with the tracking data
+    // Save the new pressure and potentially export it with the tracking data
     lastWeatherHPA = hPa;
     LTFlightData::ExportLastWeather();
+    
+    // If we are to set weather based on METAR, then this is it
+    if (dataRefs.GetWeatherControl() == WC_METAR_XP)
+        WeatherSet(lastWeatherMETAR);
+    
+    return lastWeatherHPA;
 }
 
 // Thread-safely gets current weather info

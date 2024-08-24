@@ -30,13 +30,15 @@ void WeatherStop ();
 
 /// Can we, technically, set weather? (X-Plane 12 forward only)
 bool WeatherCanSet ();
-/// Shall we actuall set the weather as per ability and user's configuration?
-bool WeatherShallSet ();
 /// Are we controlling weather?
 bool WeatherInControl ();
+/// Is X-Plane set to use real weather?
+bool WeatherIsXPRealWeather ();
 
 /// Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w);
+/// Thread-safely store weather information to be set in X-Plane in the main thread later
+void WeatherSet (const std::string& metar);
 /// Actually update X-Plane's weather if there is anything to do (called from main thread)
 void WeatherUpdate ();
 /// Reset weather settings to what they were before X-Plane took over
@@ -61,8 +63,6 @@ constexpr double WEATHER_MAX_DIST_M = 50 * M_per_NM;
 constexpr float WEATHER_METAR_CLOUD_HEIGHT_M = 500;
 /// Thickness of a METAR Cumulo-nimbus cloud layer [m]
 constexpr float WEATHER_METAR_CB_CLOUD_HEIGHT_M = 5000;
-/// May height AGL up to which we weigh METAR higher than other weather data
-constexpr double PREFER_METAR_MAX_AGL_M = 5000.0 * M_per_FT;
 
 /// @brief Weather data to be set in X-Plane
 /// @details A value of `NAN` means: don't set.

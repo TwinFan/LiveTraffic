@@ -85,9 +85,7 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
-constexpr long RT_DRCT_WX_DIST = 10L * M_per_NM;                            ///< Distance for which weather is considered valid, greater than that and we re-request
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
-constexpr double RT_DRCT_MAX_METAR_DIST_NM = 10.0;                          ///< Max distance a METAR station is considered valid...otherwise we rather use no METAR (for clouds, for example)
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {

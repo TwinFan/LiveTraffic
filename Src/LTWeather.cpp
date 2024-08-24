@@ -626,7 +626,7 @@ public:
             LOG_MSG(logWARN, "Couldn't determine altitude of field '%s', clouds may appear too low", lg.toString().c_str());
         } else {
             // "Close" to ground so that we prefer METAR data?
-            bCloseToGnd = w.pos.alt_m() < posField.alt_m() + PREFER_METAR_MAX_AGL_M;
+            bCloseToGnd = w.pos.alt_m() < posField.alt_m() + dataRefs.GetWeatherMaxMetarHeight_m();
         }
         // Use field's location as position if not given or if close to ground and hence METAR takes prio
         if (bCloseToGnd || !w.pos.hasPosAlt())
@@ -902,7 +902,7 @@ public:
             case WindGroup::Type::WIND_SHEAR:
             {
                 // up to which altitude will we set wind values?
-                const float alt_m = float(posField.alt_m() + PREFER_METAR_MAX_AGL_M);
+                const float alt_m = float(posField.alt_m()) + dataRefs.GetWeatherMaxMetarHeight_m();
                 // Standard wind speed (can be 0 for calm winds) and direction
                 const float speed = wg.windSpeed().toUnit(Speed::Unit::METERS_PER_SECOND).value_or(0.0f);
                 const float dir   = wg.direction().degrees().value_or(0.0f);
@@ -1375,46 +1375,19 @@ bool WeatherCanSet ()
     return bWeatherCanSet;
 }
 
-// Shall we actuall set the weather as per ability and user's configuration?
-bool WeatherShallSet ()
-{
-    bool bRet = false;
-    if (WeatherCanSet()) {                                  // are we technically able to set the weather?
-        switch (dataRefs.GetRTSetWeather()) {
-            case 1:                                         // Auto: If we aren't in control check for XP real weather, if we are already in control keep it like that
-                if (WeatherInControl())                     // TODO: We can't identify if, while we are in Auto mode, the user has set a weather preset in X-Plane
-                    bRet = true;
-                else
-                    bRet = wdr_weather_source.get() == 1;   // Take over if X-Plane is configured for 'Real Weather'
-                break;
-            case 2:                                         // Always on
-                bRet = true;
-                break;
-            default:                                        // user doesn't want
-                bRet = false;
-                break;
-                
-        }
-    }
-    
-    // So should we be off but aren't?
-    if (!bRet && WeatherInControl())
-    {
-        if (dataRefs.GetRTSetWeather() > 0) {               // if user still wants per LiveTraffic's config
-            weatherOrigSource = -1;                         // then don't actually touch XP's settings any longer, because the user must have done so already
-            weatherOrigChangeMode = -1;
-        }
-        WeatherReset();
-    }
-    
-    return bRet;
-}
-
 // Are we controlling weather?
 bool WeatherInControl ()
 {
     return bWeatherControlling;
 }
+
+// Is X-Plane set to use real weather?
+bool WeatherIsXPRealWeather ()
+{
+    if (!WeatherCanSet()) return false;
+    return wdr_change_mode.get() == 7;
+}
+
 
 // Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w)
@@ -1430,6 +1403,26 @@ void WeatherSet (const LTWeather& w)
     bSetWeather = true;
 }
     
+// Thread-safely store weather information to be set in X-Plane in the main thread later
+void WeatherSet (const std::string& metar)
+{
+    if (!WeatherCanSet()) {
+        SHOW_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
+        return;
+    }
+    
+    // Access to weather storage, copy weather info
+    std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
+    if (nextWeather.metar != metar) {               // makes only sense in case something has changed
+        nextWeather = LTWeather();                  // reset all, reads `atmosphere_alt_levels_m` already
+        nextWeather.wind_altitude_msl_m =           // set all altitude levels to the same
+        nextWeather.temperature_altitude_msl_m = nextWeather.atmosphere_alt_levels_m;
+        // TODO: Prepare more data, like preset arrays with zero
+        nextWeather.metar = metar;                  // just store METAR
+        bSetWeather = true;
+    }
+}
+    
 // Actually update X-Plane's weather if there is anything to do (called from main thread)
 void WeatherUpdate ()
 {
@@ -1441,6 +1434,8 @@ void WeatherUpdate ()
         WeatherReset();
         return;
     }
+    
+    // TODO: Switch between METAR and XP real weather
     
     // If there's nothing to
     if (!bSetWeather) {
@@ -1454,6 +1449,7 @@ void WeatherUpdate ()
     bSetWeather = false;                        // reset flag right away so we don't try again in case of early exits (errors)
     
     // If there is a METAR, then let's process that now
+    // TODO: Apply METAR only up to max METAR distance
     if (!nextWeather.metar.empty())
         nextWeather.IncorporateMETAR();
         
@@ -1541,8 +1537,18 @@ std::string WeatherGetSource ()
     if (source < 0 || source > 3) source = 4;
 
     // Are we in control? Say so!
-    if (WeatherInControl())
-        return std::string("LiveTraffic using RealTraffic data, ") + WEATHER_PRESETS[size_t(preset)];
+    const WeatherCtrlTy wc = dataRefs.GetWeatherControl();
+    if (WeatherInControl() && wc > WC_NONE) {
+        std::string s;
+        if (wc == WC_REAL_TRAFFIC)
+            s = "LiveTraffic using RealTraffic weather data, ";
+        else {
+            char t[100];
+            snprintf(t, sizeof(t), "LiveTraffic using METAR up to %dft, ", dataRefs.GetWeatherMaxMetarHeight_ft());
+            s += t;
+        }
+        return s + WEATHER_PRESETS[size_t(preset)];
+    }
     else
         return std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
 }
