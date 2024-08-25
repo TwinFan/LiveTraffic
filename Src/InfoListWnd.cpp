@@ -376,6 +376,15 @@ void InfoListWnd::buildInterface()
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Weather Source");
                             if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(WeatherGetSource().c_str());
                             
+                            // If generated weather's METAR deviates from live weather, then display the generation source, too
+                            const std::string& MetarForWeatherGeneration = WeatherGetMETAR();
+                            if (!MetarForWeatherGeneration.empty() &&
+                                MetarForWeatherGeneration != weatherMETAR) {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Weather METAR");
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(MetarForWeatherGeneration.c_str());
+                            }
+                            
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live Weather");
                             if (ImGui::TableSetColumnIndex(1)) {

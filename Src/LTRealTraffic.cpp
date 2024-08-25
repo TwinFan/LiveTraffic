@@ -109,14 +109,14 @@ std::string RealTrafficConnection::GetStatusText () const
             curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR ? "Fetching weather..." :
             curr.eRequType == CurrTy::RT_REQU_WEATHER       ? "Fetching weather..." :
             LTChannel::GetStatusText();
-        if (tsAdjust > 1.0) {                           // historic data?
+        if (isHistoric()) {                             // historic data?
             snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
                      GetAdjustTSText().c_str());
             s += sIntvl;
         }
         if (lTotalFlights == 0) {                       // RealTraffic has no data at all???
             s += " | RealTraffic has no traffic at all! ";
-            s += (curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+            s += (isHistoric() ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
         }
         return s;
     }
@@ -302,17 +302,19 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
         curr.eRequType = CurrTy::RT_REQU_AUTH;
     else if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR)   // previous request was METAR location?
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
-    else if (std::isnan(rtWx.QNH) ||                            // no Weather, or wrong time offset, or outdated, or moved too far away?
-             std::labs(curr.tOff - rtWx.tOff) > 120 ||
-             // too far? (we use half the max. METAR distance
-             // FIXME: Must distinguish between weather's position and 'nearest METAR locations's' position
-             rtWx.pos.distRoughSqr(curr.pos) > (sqr(dataRefs.GetWeatherMaxMetarDist_m()/2.0)))
+    else if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                  // not yet seen too many weather request errors? _AND_
+             (std::isnan(rtWx.QNH) ||                           // no Weather, or wrong time offset, or outdated, or moved too far away?
+              std::labs(curr.tOff - rtWx.tOff) > 120 ||
+              // too far? (we use half the max. METAR distance
+              // FIXME: Must distinguish between weather's position and 'nearest METAR locations's' position
+              rtWx.pos.distRoughSqr(curr.pos) > (sqr(dataRefs.GetWeatherMaxMetarDist_m()/2.0))))
     {
         curr.eRequType = CurrTy::RT_REQU_NEAREST_METAR;
         if (std::labs(curr.tOff - rtWx.tOff) > 120)             // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
             rtWx.QNH = NAN;
     }
-    else if (std::chrono::steady_clock::now() >= rtWx.next)     // just time for a weather update
+    else if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                  // not yet seen too many weather request errors? _AND_
+             std::chrono::steady_clock::now() >= rtWx.next)     // just time for a weather update
     {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
     }
@@ -537,9 +539,13 @@ bool RealTrafficConnection::ProcessFetchedData ()
         
         // Error in locWX data?
         std::string s = jog_s(pObj, "data.locWX.Error");                    // sometimes errors are given in a specific field
-        if (s.empty() &&
-            !strcmp(jog_s(pObj, "data.locWX.Info"), "TinyDelta"))           // if we request too often then Info is 'TinyDelta'
-            s = "TinyDelta";
+        if (s.empty()) {                                                    // and at other times there is something in the 'Info' field...not very consistent
+            s = jog_s(pObj, "data.locWX.Info");
+            if (!s.empty() &&
+                s != "TinyDelta" &&                                         // if we request too often then Info is 'TinyDelta', and we let it sit in 's'
+                s.substr(0,6) != "error:")                                  // any error starts with "error:" and we let it sit in 's'
+                s.clear();
+        }
         
         // Any error, either explicitely or because local pressure is bogus?
         if (!s.empty() || std::isnan(wxQNH) || wxQNH < 800.0)
@@ -573,31 +579,25 @@ bool RealTrafficConnection::ProcessFetchedData ()
             return false;
         }
         
-        // Store METAR for later processing
-        std::string metar;
+        // If we have METAR info pass that on, too
         s = jog_s(pObj, "data.ICAO");
-        if (!s.empty() && s != "UNKN")              // ignore empty or UNKN response
-            metar = jog_s(pObj, "data.METAR");
-        else
+        std::string metar = jog_s(pObj, "data.METAR");
+        
+        if (s.empty() || s == "UNKN") {         // ignore no/unknown METAR
             s.clear();
-        
-        if (s != rtWx.nearestMETAR.ICAO)
-            rtWx.nearestMETAR.dist = rtWx.nearestMETAR.brgTo = NAN;
-        rtWx.nearestMETAR.ICAO  = std::move(s);
-        rtWx.nearestMETAR.METAR = std::move(metar);
-        
+            metar.clear();
+        }
+            
         // If this is live data, not historic, then we can use it instead of separately querying METAR
-        if (curr.tOff == 0) {
+        if (!isHistoric()) {
             rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH,
                                                  (float)rtWx.pos.lat(), (float)rtWx.pos.lon(),
-                                                 rtWx.nearestMETAR.ICAO,
-                                                 rtWx.nearestMETAR.METAR);
+                                                 s, metar);
         }
         // historic data
         else {
             // Try reading QNH from METAR
-            // TODO: Test weather for historical RT data
-            rtWx.w.qnh_pas = WeatherQNHfromMETAR(rtWx.nearestMETAR.METAR);
+            rtWx.w.qnh_pas = WeatherQNHfromMETAR(metar);
         }
         
         // Successfully received local pressure information
@@ -605,8 +605,11 @@ bool RealTrafficConnection::ProcessFetchedData ()
         LOG_MSG(logDEBUG, "Received RealTraffic Weather with QNH = %.1f", rtWx.QNH);
         
         // If requested to set X-Plane's weather based on detailed weather data
-        if (dataRefs.GetWeatherControl() == WC_REAL_TRAFFIC)
+        if (dataRefs.GetWeatherControl() == WC_REAL_TRAFFIC) {
             ProcessWeather (json_object_get_object(pObj, "data"));
+            if (std::isnan(rtWx.w.qnh_pas))
+                rtWx.w.qnh_pas = float(rtWx.QNH);
+        }
         
         return true;
     }
@@ -879,7 +882,6 @@ bool RealTrafficConnection::NearestMETAR::Parse (const JSON_Object* pObj)
     ICAO    = jog_s(pObj, "ICAO");
     dist    = (float)jog_n_nan(pObj, "Dist");
     brgTo   = (float)jog_n_nan(pObj, "BrgTo");
-    METAR   = jog_s(pObj, "METAR");
     
     return isValid();
 }
@@ -916,10 +918,9 @@ void RealTrafficConnection::ProcessNearestMETAR (const JSON_Array* pData)
     }
 
     // TODO: Check for better matching station in direction of flight
-    LOG_MSG(logDEBUG, "Using Nearest METAR: %s (%.1fnm, %.0fdeg), '%s'",
+    LOG_MSG(logDEBUG, "Using Nearest METAR location %s (%.1fnm, %.0fdeg)",
             rtWx.nearestMETAR.ICAO.c_str(),
-            rtWx.nearestMETAR.dist, rtWx.nearestMETAR.brgTo,
-            rtWx.nearestMETAR.METAR.c_str());
+            rtWx.nearestMETAR.dist, rtWx.nearestMETAR.brgTo);
 }
 
 
@@ -950,8 +951,11 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     }
     
     rtWx.w.pos                          = curr.pos;
-    // Forward METAR for weather processing, too
-    rtWx.w.metar = rtWx.nearestMETAR.METAR;
+    
+    // METAR
+    rtWx.w.metar                        = jog_s(pData, "METAR");
+    rtWx.w.metarFieldIcao               = jog_s(pData, "ICAO");
+    rtWx.w.posMetarField = positionTy();                // field's location is to be determined later in main thread
 
     rtWx.w.visibility_reported_sm       = float(jog_n_nan(pLocWX, "SVis") / M_per_SM);
     rtWx.w.sealevel_pressure_pas        = float(jog_n_nan(pLocWX, "SLP") * 100.0);

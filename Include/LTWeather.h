@@ -38,7 +38,7 @@ bool WeatherIsXPRealWeather ();
 /// Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w);
 /// Thread-safely store weather information to be set in X-Plane in the main thread later
-void WeatherSet (const std::string& metar);
+void WeatherSet (const std::string& metar, const std::string& metarIcao);
 /// Actually update X-Plane's weather if there is anything to do (called from main thread)
 void WeatherUpdate ();
 /// Reset weather settings to what they were before X-Plane took over
@@ -47,6 +47,8 @@ void WeatherReset ();
 /// Log current weather
 void WeatherLogCurrent (const std::string& msg);
 
+/// Current METAR in use for weather generation
+const std::string& WeatherGetMETAR ();
 /// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
 std::string WeatherGetSource ();
 
@@ -75,7 +77,7 @@ public:
         float w = 1.0f;                             ///< weight on lower index' value, other weight is 1.0f-w
     };
     
-    positionTy pos;                                 ///< position the weather refers to
+    positionTy pos;                                 ///< position the weather refers to, effectively the camera view pos, including its altitude
     
     float    visibility_reported_sm = NAN;          ///< float      y    statute_miles  = 0. The reported visibility (e.g. what the METAR/weather window says).
     float    sealevel_pressure_pas = NAN;           ///< float      y    pascals        Pressure at sea level, current planet
@@ -108,7 +110,11 @@ public:
     int      change_mode = -1;                      ///< int        y    enum           How the weather is changing. 0 = Rapidly Improving, 1 = Improving, 2 = Gradually Improving, 3 = Static, 4 = Gradually Deteriorating, 5 = Deteriorating, 6 = Rapidly Deteriorating, 7 = Using Real Weather
     int      weather_source = -1;                   ///< int        n    enum           What system is currently controlling the weather. 0 = Preset, 1 = Real Weather, 2 = Controlpad, 3 = Plugin.
     int      weather_preset = -1;                   ///< int        y    enum           Read the UI weather preset that is closest to the current conditions, or set an UI preset. Clear(0), VFR Few(1), VFR Scattered(2), VFR Broken(3), VFR Marginal(4), IFR Non-precision(5), IFR Precision(6), Convective(7), Large-cell Storms(8)
+
+    // METAR
     std::string metar;                              ///< METAR, if filled combine METAR data into weather generation
+    std::string metarFieldIcao;                     ///< METAR field's ICAO code
+    positionTy posMetarField;                       ///< position of the field the METAR refers to
 
 public:
     LTWeather();                                    ///< Constructor sets all arrays to all `NAN`

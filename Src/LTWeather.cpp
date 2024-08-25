@@ -437,9 +437,9 @@ float LTWeather::GetInterpolated (const std::array<float,13>& levels_m,
     if (alt_m <= levels_m.front())  return vals.front();
     // Find if it's something inbetween
     for (size_t i = 0; i < levels_m.size() - 1; ++i) {
-        if (levels_m[i] <= alt_m && alt_m <= levels_m[i]) {
-            const float w = (alt_m - levels_m[i]) / (levels_m[i+1] - levels_m[i]);
-            return w * vals[i] + (1.0f-w) * vals[i+1];
+        if (levels_m[i] <= alt_m && alt_m <= levels_m[i+1]) {
+            const float w = (alt_m - levels_m[i]) / (levels_m[i+1] - levels_m[i]);  // Weight: How close are we to the i+1'th value?
+            return (1.0f-w) * vals[i] + w * vals[i+1];
         }
     }
     // must be larger than last
@@ -510,7 +510,7 @@ constexpr float TEMP_RWY_ICED           = -7.5f;                        ///< tem
 class LTWeatherVisitor : public Visitor<bool> {
 public:
     LTWeather& w;                               ///< The weather we are to modify
-    positionTy posField;                        ///< position/altitude of the METAR's field,
+    float fieldAlt_m = 0.0f;                    ///< field altitude in meter
     bool bCloseToGnd = false;                   ///< is position close enough to ground to weigh METAR higher than weather data?
     size_t iCloud = 0;                          ///< which cloud layer is to be filled next?
     int bThunderstorms = 0;                     ///< thunderstorms anywhere? (0-None, 1-Light, 2-Normal, 3-Heavy) -> PostProcessing() makes sure CB exists and adds turbulence
@@ -518,7 +518,7 @@ public:
 
 public:
     /// Constructor sets the reference to the weather that we are to modify
-    LTWeatherVisitor (LTWeather& weather) : w(weather), posField(0.0, 0.0, 0.0) {}
+    LTWeatherVisitor (LTWeather& weather) : w(weather) {}
     
     /// @brief Convert cloud cover to X-Plane percentage
     /// @note We aren't using metaf's CloudType::okta() function because it returns the _highest_ possible okta value,
@@ -602,7 +602,7 @@ public:
     void ReduceClouds (float maxHeight_m, bool bRemoveTSClouds)
     {
         // No cloud below `maxHeight_m`
-        maxHeight_m += float(posField.alt_m());                 // add field altitude to get altitude
+        maxHeight_m += fieldAlt_m;                              // add field altitude to get altitude
         for (size_t i = 0; i < w.cloud_base_msl_m.size(); ++i) {
             if (w.cloud_tops_msl_m[i] < maxHeight_m)            // entire cloud layer too low -> remove
                 RemoveClouds(i);
@@ -621,16 +621,16 @@ public:
     bool visitLocationGroup(const LocationGroup & lg,
                             ReportPart, const std::string&) override
     {
-        posField = GetAirportLoc(lg.toString());                    // determin the field's location and especially altitude
-        if (std::isnan(posField.alt_m())) {
+        w.posMetarField = GetAirportLoc(lg.toString());         // determin the field's location and especially altitude
+        fieldAlt_m = float(w.posMetarField.alt_m());            // save field's altitude for easier access in later visitor functions
+        if (std::isnan(fieldAlt_m)) {
+            fieldAlt_m = 0.0f;
             LOG_MSG(logWARN, "Couldn't determine altitude of field '%s', clouds may appear too low", lg.toString().c_str());
-        } else {
-            // "Close" to ground so that we prefer METAR data?
-            bCloseToGnd = w.pos.alt_m() < posField.alt_m() + dataRefs.GetWeatherMaxMetarHeight_m();
         }
-        // Use field's location as position if not given or if close to ground and hence METAR takes prio
-        if (bCloseToGnd || !w.pos.hasPosAlt())
-            w.pos = posField;
+        
+        // Are we flying/viewing "close" to ground so that we prefer METAR data?
+        bCloseToGnd = float(w.pos.alt_m()) < fieldAlt_m + dataRefs.GetWeatherMaxMetarHeight_m();
+
         return false;
     }
     
@@ -700,7 +700,7 @@ public:
                     if (cover > 0.0f) {
                         w.cloud_coverage_percent[iCloud] = cover;
                         w.cloud_type[iCloud] = toXPCloudType(cg);
-                        w.cloud_base_msl_m[iCloud] = float(posField.alt_m()) + cg.height().toUnit(Distance::Unit::METERS).value_or(0.0f);
+                        w.cloud_base_msl_m[iCloud] = fieldAlt_m + cg.height().toUnit(Distance::Unit::METERS).value_or(0.0f);
                         if (w.cloud_type[iCloud] < 2.5f)                // non-convective cloud
                             w.cloud_tops_msl_m[iCloud] = w.cloud_base_msl_m[iCloud] + WEATHER_METAR_CLOUD_HEIGHT_M;
                         else                                            // Cumulo-nimbus are higher
@@ -787,7 +787,7 @@ public:
                 for (WeatherPhenomena::Weather wpw: wp.weather()) {
                     switch (wpw) {
                         case WeatherPhenomena::Weather::SPRAY:      // mimic spray only _very_ close to ground
-                            if (w.pos.alt_m() - posField.alt_m() > SPRAY_HEIGHT_M)
+                            if (w.pos.alt_m() - fieldAlt_m > SPRAY_HEIGHT_M)
                                 break;
                             [[fallthrough]];                        // otherwise treat the same as drizzle
                         case WeatherPhenomena::Weather::DRIZZLE:
@@ -855,7 +855,7 @@ public:
     {
         switch (pg.type()) {
             case PressureGroup::Type::OBSERVED_QNH:
-                w.qnh_base_elevation = float(posField.alt_m());
+                w.qnh_base_elevation = fieldAlt_m;
                 w.qnh_pas = pg.atmosphericPressure().toUnit(Pressure::Unit::HECTOPASCAL).value_or(NAN) * 100.0f;
                 break;
             case PressureGroup::Type::OBSERVED_SLP:
@@ -876,13 +876,13 @@ public:
             // Temperatur: Fill the same temp all the way up to field altitude, which wouldn't be quite right...but under us is ground anyway
             if (tg.airTemperature().temperature().has_value())
                 w.FillUp(w.temperature_altitude_msl_m, w.temperatures_aloft_deg_c,
-                         float(posField.alt_m()),
+                         fieldAlt_m,
                          tg.airTemperature().toUnit(Temperature::Unit::C).value_or(NAN),
                          true);
             // Dew Point: Fill the same temp all the way up to field altitude, which wouldn't be quite right...but under us is ground anyway
             if (tg.dewPoint().temperature().has_value())
                 w.FillUp(w.temperature_altitude_msl_m, w.dewpoint_deg_c,
-                         float(posField.alt_m()),
+                         fieldAlt_m,
                          tg.dewPoint().toUnit(Temperature::Unit::C).value_or(NAN),
                          true);
         }
@@ -902,7 +902,7 @@ public:
             case WindGroup::Type::WIND_SHEAR:
             {
                 // up to which altitude will we set wind values?
-                const float alt_m = float(posField.alt_m()) + dataRefs.GetWeatherMaxMetarHeight_m();
+                const float alt_m = fieldAlt_m + dataRefs.GetWeatherMaxMetarHeight_m();
                 // Standard wind speed (can be 0 for calm winds) and direction
                 const float speed = wg.windSpeed().toUnit(Speed::Unit::METERS_PER_SECOND).value_or(0.0f);
                 const float dir   = wg.direction().degrees().value_or(0.0f);
@@ -1005,7 +1005,7 @@ public:
             // Rwy Friction: Consider freezing if there is something's on the rwy that is not yet ice
             const float t = w.GetInterpolated(w.temperature_altitude_msl_m,
                                               w.temperatures_aloft_deg_c,
-                                              float(posField.alt_m()));
+                                              fieldAlt_m);
             if (t <= TEMP_RWY_ICED &&
                 0 < w.runway_friction && w.runway_friction < 10)
             {
@@ -1346,6 +1346,7 @@ static LTWeather nextWeather;                   ///< next weather to set
 static bool bSetWeather = false;                ///< is there a next weather to set?
 static bool bResetWeather = false;              ///< Shall weather be reset, ie. handed back to XP?
 static LTWeather setWeather;                    ///< the weather we set last time
+static std::string gEmptyString;                ///< an empty string we can refer to if we need to return an empty reference
 
 // Initialize Weather module, dataRefs
 bool WeatherInit ()
@@ -1404,7 +1405,7 @@ void WeatherSet (const LTWeather& w)
 }
     
 // Thread-safely store weather information to be set in X-Plane in the main thread later
-void WeatherSet (const std::string& metar)
+void WeatherSet (const std::string& metar, const std::string& metarIcao)
 {
     if (!WeatherCanSet()) {
         SHOW_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
@@ -1419,6 +1420,8 @@ void WeatherSet (const std::string& metar)
         nextWeather.temperature_altitude_msl_m = nextWeather.atmosphere_alt_levels_m;
         // TODO: Prepare more data, like preset arrays with zero
         nextWeather.metar = metar;                  // just store METAR
+        nextWeather.metarFieldIcao = metarIcao;
+        nextWeather.posMetarField = positionTy();
         bSetWeather = true;
     }
 }
@@ -1446,12 +1449,29 @@ void WeatherUpdate ()
 
     // Access to weather storage guarded by a lock
     std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
-    bSetWeather = false;                        // reset flag right away so we don't try again in case of early exits (errors)
+    bSetWeather = false;                                // reset flag right away so we don't try again in case of early exits (errors)
     
     // If there is a METAR, then let's process that now
-    // TODO: Apply METAR only up to max METAR distance
-    if (!nextWeather.metar.empty())
-        nextWeather.IncorporateMETAR();
+    if (!nextWeather.metar.empty() && !nextWeather.metarFieldIcao.empty()) {
+        // determine METAR location
+        nextWeather.posMetarField = GetAirportLoc(nextWeather.metarFieldIcao);
+        // Not too far away?
+        if (nextWeather.posMetarField.hasPosAlt() &&
+            float(nextWeather.posMetarField.distRoughSqr(dataRefs.GetViewPos())) < sqr(dataRefs.GetWeatherMaxMetarDist_m()))
+        {
+            nextWeather.IncorporateMETAR();
+            // Remember the METAR we used
+            setWeather.metar            = nextWeather.metar;
+            setWeather.metarFieldIcao   = nextWeather.metarFieldIcao;
+            setWeather.posMetarField    = nextWeather.posMetarField;
+        }
+        else {
+            // Remember that we did _not_ use a METAR to define weather
+            setWeather.metar.clear();
+            setWeather.metarFieldIcao.clear();
+            setWeather.posMetarField = positionTy();
+        }
+    }
         
     // Set weather with immediate effect if first time, or if position changed dramatically
     nextWeather.update_immediately |= !WeatherInControl() ||
@@ -1508,7 +1528,8 @@ void WeatherReset ()
     
     weatherOrigSource = -1;
     weatherOrigChangeMode = -1;
-    setWeather.pos = positionTy();
+    setWeather.pos = setWeather.posMetarField = positionTy();
+    setWeather.metar.clear();
     bResetWeather = bSetWeather = false;
 }
 
@@ -1518,6 +1539,14 @@ void WeatherLogCurrent (const std::string& msg)
     LTWeather().Get(msg);
 }
 
+// Current METAR in use for weather generation
+const std::string& WeatherGetMETAR ()
+{
+    if (WeatherInControl())
+        return setWeather.metar;                // if in control then return the METAR of the weather we did set
+    else
+        return gEmptyString;                    // otherwise (a reference to) an empty string
+}
 
 // Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
 std::string WeatherGetSource ()

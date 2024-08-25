@@ -275,7 +275,6 @@ protected:
         std::string     ICAO = RT_METAR_UNKN;           ///< ICAO code of METAR station
         float           dist = NAN;                     ///< distance to station
         float           brgTo = NAN;                    ///< bearing to station
-        std::string     METAR;                          ///< the actual METAR report
 
         NearestMETAR() {}                               ///< Standard constructor, all empty
         NearestMETAR(const JSON_Object* pObj) { Parse (pObj); } ///< Fill from JSON
@@ -283,7 +282,7 @@ protected:
         void clear() { *this = NearestMETAR(); }        ///< reset to defaults
         bool Parse (const JSON_Object* pObj);           ///< parse RT's NearestMETAR response array entry, reutrns if valid
         bool isValid () const                           ///< valid, ie. all fields properly set?
-        { return !ICAO.empty() && ICAO != RT_METAR_UNKN && !std::isnan(dist) && !std::isnan(brgTo) && !METAR.empty(); }
+        { return !ICAO.empty() && ICAO != RT_METAR_UNKN && !std::isnan(dist) && !std::isnan(brgTo); }
     };
     
     /// Weather data
@@ -339,7 +338,8 @@ public:
     bool DoHoverDetection () const override { return true; }
 
     // Status
-    std::string GetStatusText () const override;  ///< return a human-readable status
+    std::string GetStatusText () const override;            ///< return a human-readable status
+    bool isHistoric () const { return curr.tOff > 0; }      ///< serving historic data?
     
 protected:
     void Main () override;                                  ///< virtual thread main function

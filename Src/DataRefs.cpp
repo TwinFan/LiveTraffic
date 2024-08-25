@@ -1784,7 +1784,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
                 WeatherReset();
                 break;
             case WC_METAR_XP:           // ...by METAR pass on the last METAR now
-                WeatherSet(lastWeatherMETAR);
+                WeatherSet(lastWeatherMETAR, lastWeatherStationId);
                 break;
             case WC_REAL_TRAFFIC:       // ...by RealTraffic do nothing...RT will do
                 break;
@@ -2766,7 +2766,7 @@ float DataRefs::SetWeather (float hPa, float lat, float lon,
     
     // If we are to set weather based on METAR, then this is it
     if (dataRefs.GetWeatherControl() == WC_METAR_XP)
-        WeatherSet(lastWeatherMETAR);
+        WeatherSet(lastWeatherMETAR, lastWeatherStationId);
     
     return lastWeatherHPA;
 }
