@@ -133,6 +133,129 @@
 
     <h2>v3</h2>
 
+    <h3>v3.6.5 Beta</h3>
+
+    This is a beta version for RealTraffic weather. Beta versions are time-limited to one month.
+    Till then there is either a follow-up beta version with a new one month limit,
+    or an unlimited public version.
+
+    Online documentation isn't yet available, so this Readme describes features more detailed than usual.
+
+    <P>
+        <b>Update:</b> In case of doubt you can always just copy all files from the archive
+        over the files of your existing installation.
+    </P>
+
+    <P>At least copy the following files, which have changed compared to v3.6.0:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            Weather: In X-Plane 12 and later, LiveTraffic can now set X-Plane's weather based on RealTraffic weather data and METAR,
+            both for live and historic information. See the new section <i>Settings &gt; Weather:</i>
+            <ul>
+                <li>
+                    <i>Set Weather</i> activates weather generation when "RealTraffic weather data" is selected.<br>
+                    (The setting "METAR + X-Plane" does not yet work.)
+                </li>
+                <li>
+                    <i>Use METAR up to</i> (default: 5,000ft) defines up to which height above ground level the METAR report takes priority
+                    over more coarse weather model data, which however has data for several atmospheric layers and is hence used for the upper atmosphere.
+                </li>
+                <li>
+                    <i>Max. METAR distance</i> (default: 25nm) defines the maximum distance to the field of the METAR up to which the METAR is used for weather generation.
+                    This means that no METAR is available closer than this distance that all weather generation bases on the weather model data only.
+                </li>
+            </ul>
+            The <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">"Status/About" window</a> is enhanced by:
+            <ul>
+                <li>
+                    <i>Weather Source</i> says if X-Plane or LiveTraffic are in charge of weather generation.
+                </li>
+                <li>
+                    <i>Weather METAR</i> only appears while
+                    <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity#historic-data">historic RealTraffic data</a>
+                    is being used and then shows the historic METAR currently being used for weather generation.
+                </li>
+                <li>
+                    <i>LiveWeather</i> is essentially unchanged. The METAR shown here is the current one,
+                    which is the report used for weather generation if live data (and not historic) is being used.
+                </li>
+            </ul>
+            Two new features are available in
+            <i><a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Settings &gt; Debug &gt Logging</a>:</i>
+            <ul>
+                <li>
+                    <i>Log Weather</i> logs weather information into <code>Log.txt</code> while being applied to X-Plane:<br>
+                    X-Plane's weather before LiveTraffic takes over;<br>
+                    Weather model information received from RealTraffic before METAR is applied;<br>
+                    Weather as set including applied METAR;<br>
+                    Weather data read back from X-Plane after set through LiveTraffic.
+                </li>
+                <li>
+                    <i>Log Weather now</i> reads weather info from X-Plane and logs it to <code>Log.txt</code>.
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <p>Notes on testing:</p>
+
+    <p>
+        Please always ensure that <b><a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug"><i>Log Level</i></a>
+        is set to "Debug"</b> (should be by default in a Beta version)
+        and that the new option <b><i>Settings &gt; Debug &gt; Logging &gt; Log Weather</i> is activated</b>.
+    <p>
+        During testing please pay special attention <b>how accurately the generated weather follows the data received</b> from RealTraffic.
+        LiveTraffic can't look out of your window, don't expect to see the same cloud patterns.
+        What it shall do is to generate weather that matches received information.
+    <p>
+        It will take a moment for weather in X-Plane to match what LiveTraffic sets,
+        especially clouds only form over time. Give it 2-3 minutes before comparing against expectations.
+    <p>
+        <b>Close to the ground METAR takes priority</b> (<i>Settings &gt; Weather &gt; Use METAR up to</i>).
+        Check the currently used METAR in "Status/About" and compare it to what you see as X-Plane's weather.
+        Nearly all of METAR information is being used, but not temporary ("TEMPO") or geographically specific information
+        (like specific runways or directions of the compass) as X-Plane doesn't allow to set weather so specifically.
+        Only one "regional" weather can be set.
+    <p>
+        Note that generally a METAR describes weather only near the ground. So even with a "CAVOK" reporting, there still can be clouds higher up in the sky.
+        CAVOK, NSC only say there are no clouds "of operational significance" below 5,000ft.
+        In case of CLR the limits are 12,000ft in the US and 25,000ft in Canada.
+        Above those limits, high altitude cloud layers can still exist.
+        Only SKC really seems to mean "no cloud at all".
+    <p>
+        <b>In higher altitudes weather model data is used</b> as received from RealTraffic.
+        This is <i>not</i> visible from METAR, which describes weather only up to about 5,000ft height AGL.
+        To really know what RealTraffic reported (for comparing if it correctly appears in X-Plane)
+        you would need to look into <code>Log.txt</code> and check the logged weather information.
+        Looking into other live data sources like e.g. <a href="https://www.windy.com">Windy</a> is a possibility, but is not guaranteed
+        to exactly match RealTraffic's view.
+    <p>
+        <b>Test <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/realtraffic-connectivity#historic-data">RealTraffic's historic data</a>.</b>
+        You should get that historic weather. Check <i>Weather METAR</i> appearing additionally in "Status/About".
+        Note that RealTraffic delays METAR data by about 10-15 minutes. So to receive a specific METAR of interest
+        add about 15 minutes to the timestamp of that report.
+    <p>
+        <b>When reporting back issues</b> please be very conscious if the deviation you are about to report<br>
+        is more a deviaton of RealTraffic's data (generated weather doesn't match reality as per looking out of the window
+        or comparing to other weather sources but seems to match available data) or<br>
+        if LiveTraffic's generation doesn't match available input data
+        (weather visible in X-Plane is inconsistent with the METAR used as per "Status/About"
+        or with the RealTraffic as logged in <code>Log.txt</code>.)<br>
+        Both would be important, but would affect different systems.
+    <p>
+        Needless to say...always <b>attach <code>Log.txt</code></b> with any issue report.
+        If you think current weather display doesn't match expectations, then add a <b>screenshot</b>
+        and also click <i>Settings &gt; Debug &gt; Logging &gt; Log Weather now</i> so that current weather data is included in
+        <code>Log.txt</code>.
+    </p>
+
+
     <h3>v3.6.0</h3>
 
     <P>

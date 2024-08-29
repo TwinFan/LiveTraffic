@@ -1568,18 +1568,18 @@ std::string WeatherGetSource ()
     // Are we in control? Say so!
     const WeatherCtrlTy wc = dataRefs.GetWeatherControl();
     if (WeatherInControl() && wc > WC_NONE) {
-        std::string s;
         if (wc == WC_REAL_TRAFFIC)
-            s = "LiveTraffic using RealTraffic weather data, ";
+            return "LiveTraffic using RealTraffic weather data";
         else {
             char t[100];
             snprintf(t, sizeof(t), "LiveTraffic using METAR up to %dft, ", dataRefs.GetWeatherMaxMetarHeight_ft());
-            s += t;
+            return t;
         }
-        return s + WEATHER_PRESETS[size_t(preset)];
     }
-    else
+    else if (source == 0)                               // 'Preset'
         return std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
+    else
+        return std::string(WEATHER_SOURCES[size_t(source)]);
 }
 
 // Extract QNH or SLP from METAR, NAN if not found any info, which is rather unlikely
