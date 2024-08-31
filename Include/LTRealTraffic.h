@@ -56,6 +56,7 @@
 #define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
 #define RT_TRAFFIC_POST_BUFFER  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=%d&buffertime=10"
+#define RT_TRAFFIC_POST_PARKED  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=parkedtraffic&toffset=%ld"
 
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
@@ -139,6 +140,19 @@ enum RT_DIRECT_FIELDS_TY {
     RT_DRCT_TAT,                    ///< TAT (none)
     RT_DRCT_ICAO_ID,                ///< Is this an ICAO valid hex ID (1)
     RT_DRCT_NUM_FIELDS              ///< Number of known fields
+};
+
+/// Fields in a response to a parked aircraft request
+enum RT_PARKED_FIELDS_TY {
+    RT_PARK_Lat = 0,                ///< latitude (-33.936407)
+    RT_PARK_Lon,                    ///< longitude (151.169229)
+    RT_PARK_ParkPosName,            ///< some text probably indicating the parking position
+    RT_PARK_AcType,                 ///< Type ("A388")
+    RT_PARK_Reg,                    ///< Registration ("VH-OQA")
+    RT_PARK_LastTimeStamp,          ///< Last Epoch timestamp when moved into position, can be long ago (1721590016.01)
+    RT_PARK_CallSign,               ///< ATC Callsign ("QFA2")
+    RT_PARK_Track,                  ///< track/orientation in degrees (123)
+    RT_PARK_NUM_FIELDS              ///< Number of known fields
 };
 
 /// Fields in a RealTraffic AITFC message (older format on port 49003)
@@ -259,6 +273,7 @@ protected:
         enum RTRequestTypeTy : int {
             RT_REQU_AUTH = 1,                           ///< Perform Authentication request
             RT_REQU_DEAUTH,                             ///< Perform De-authentication request (closing the session)
+            RT_REQU_PARKED,                             ///< Perform Parked Traffic request
             RT_REQU_NEAREST_METAR,                      ///< Perform nearest METAR location request
             RT_REQU_WEATHER,                            ///< Perform Weather request
             RT_REQU_TRAFFIC,                            ///< Perform Traffic request
@@ -302,6 +317,8 @@ protected:
     } rtWx;                                             ///< Data with which latest weather was requested
     /// How many flights does RealTraffic have in total?
     long lTotalFlights = -1;
+    /// Have we already asked for parked traffic?
+    bool bParkedTrafficDone = false;
 
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
@@ -354,6 +371,7 @@ public:
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
     bool ProcessFetchedData () override;                    ///< in direct mode process the received data
     bool ProcessTrafficBuffer (const JSON_Object* pBuf);    ///< in direct mode process an object with aircraft data, essentially a fake array
+    bool ProcessParkedAcBuffer (const JSON_Object* pData);  ///< in direct mode process an object with parked aircraft data, essentially a fake array
     void ProcessNearestMETAR (const JSON_Array* pData);     ///< in direct mode process NearestMETAR response, find a suitable METAR from the returned array
     void ProcessWeather(const JSON_Object* pData);          ///< in direct mode process detailed weather information
     void ProcessCloudLayer(const JSON_Object* pCL,size_t i);///< in direct mode process one cloud layer

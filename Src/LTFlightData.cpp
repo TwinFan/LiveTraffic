@@ -2197,7 +2197,7 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                         
                         // new position must be significantly _after_ current 'to' pos
                         // so that current channel _really_ had its chance to sent an update:
-                        const double tsCutOff = pAc->GetToPos().ts() + dataRefs.GetFdRefreshIntvl()*3/2;
+                        const double tsCutOff = GetYoungestTS() + dataRefs.GetFdRefreshIntvl()*3/2;
                         if (inDyn.ts < tsCutOff)
                             return;
                     }

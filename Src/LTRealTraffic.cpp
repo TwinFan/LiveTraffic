@@ -106,6 +106,7 @@ std::string RealTrafficConnection::GetStatusText () const
         std::string s =
             curr.eRequType == CurrTy::RT_REQU_AUTH          ? "Authenticating..." :
             curr.eRequType == CurrTy::RT_REQU_DEAUTH        ? "De-authenticating..." :
+            curr.eRequType == CurrTy::RT_REQU_PARKED        ? "Fetching parked aircraft..." :
             curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR ? "Fetching weather..." :
             curr.eRequType == CurrTy::RT_REQU_WEATHER       ? "Fetching weather..." :
             LTChannel::GetStatusText();
@@ -197,6 +198,7 @@ void RealTrafficConnection::MainDirect ()
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
     lTotalFlights = -1;
+    bParkedTrafficDone = false;
     // If we could theoretically set weather we prepare the interpolation settings
     if (WeatherCanSet()) {
         rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
@@ -318,6 +320,8 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
     {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
     }
+    else if (!bParkedTrafficDone && LTAptAvailable())           // Do the parked traffic once only, and only when airport details are available so we can place the aircraft correctly
+        curr.eRequType = CurrTy::RT_REQU_PARKED;
     else
         // in all other cases we ask for traffic data
         curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
@@ -345,6 +349,7 @@ std::string RealTrafficConnection::GetURL (const positionTy&)
             return RT_NEAREST_METAR_URL;
         case CurrTy::RT_REQU_WEATHER:
             return RT_WEATHER_URL;
+        case CurrTy::RT_REQU_PARKED:
         case CurrTy::RT_REQU_TRAFFIC:
             return RT_TRAFFIC_URL;
     }
@@ -380,13 +385,14 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                      rtWx.nearestMETAR.ICAO.c_str(),
                      curr.tOff);
             break;
+        case CurrTy::RT_REQU_PARKED:
         case CurrTy::RT_REQU_TRAFFIC:
         {
             // we add 10% to the bounding box to have some data ready once the plane is close enough for display
             const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
             
-            // If we request for the very first time, then we ask for some buffer into the past for faster plane display
-            if (IsFirstRequ()) {
+            // If we request traffic for the very first time, then we ask for some buffer into the past for faster plane display
+            if ((curr.eRequType == CurrTy::RT_REQU_TRAFFIC) && IsFirstRequ()) {
                 snprintf(s,sizeof(s), RT_TRAFFIC_POST_BUFFER,
                          curr.sGUID.c_str(),
                          box.nw.lat(), box.se.lat(),
@@ -394,9 +400,10 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                          curr.tOff,
                          dataRefs.GetFdBufPeriod() / 10);       // One buffer per 10s of buffering time
             }
-            // normal un-buffered request
+            // normal un-buffered request for traffic or parked aircraft
             else {
-                snprintf(s,sizeof(s), RT_TRAFFIC_POST,
+                snprintf(s,sizeof(s),
+                         curr.eRequType == CurrTy::RT_REQU_TRAFFIC ? RT_TRAFFIC_POST : RT_TRAFFIC_POST_PARKED,
                          curr.sGUID.c_str(),
                          box.nw.lat(), box.se.lat(),
                          box.nw.lon(), box.se.lon(),
@@ -491,6 +498,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:                  // in most cases we continue as quickly as possible
         case CurrTy::RT_REQU_DEAUTH:
+        case CurrTy::RT_REQU_PARKED:
         case CurrTy::RT_REQU_WEATHER:
             break;
         case CurrTy::RT_REQU_NEAREST_METAR:         // after learning the META we continue quickly with the weather request
@@ -614,7 +622,13 @@ bool RealTrafficConnection::ProcessFetchedData ()
         return true;
     }
     
-    // --- Traffic data ---
+    // --- Parked Aircraft ---
+    if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
+        bParkedTrafficDone = true;                      // We try only once!
+        return ProcessParkedAcBuffer(json_object_get_object(pObj, "data"));
+    }
+
+    // --- Traffic data or Parked Aircraft ---
     
     // In `dataepoch` RealTraffic delivers the point in time when the data was valid.
     // That is relevant especially for historic data, when `dataepoch` is in the past.
@@ -866,6 +880,141 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
     return true;
 }
 
+
+// in direct mode process an object with parked aircraft data, essentially a fake array
+bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
+{
+    // Quick exit if no data
+    if (!pData) return false;
+    
+    // any a/c filter defined for debugging purposes?
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+    
+    // Current camera position
+    const positionTy posView = dataRefs.GetViewPos();
+    
+    // The data is delivered in many many values,
+    // ie. each plane is just a JSON_Value, its name being the hexid,
+    // its value being an array with the details.
+    // That means we need to traverse all values.
+    //   {
+    //     "7c4920": [-33.936407, 151.169229, 0.0, "A388", "VH-OQA", 1721590016.01, "QFA2", 123],
+    //     "7c5325": [-33.936333, 151.170109, 0.0, "A333", "VH-QPJ", 1721597924.81, "QFA128", 350],
+    //     "7c765a": [-33.935635, 151.17746, 0, "A320", "VH-XNW", 1721650004.0, "JST825", 320]
+    //   }
+    const size_t numVals = json_object_get_count(pData);
+    for (size_t i = 0; i < numVals && shallRun(); ++i)
+    {
+        // Get the name of the i-th value, that is the hex id
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
+                                     json_object_get_name(pData, i));
+        // Get the array 'behind' the i-th value,
+        // will fail if it is no aircraft entry
+        const JSON_Value* pVal = json_object_get_value_at(pData, i);
+        if (!pVal) break;
+        const JSON_Array* pJAc = json_value_get_array(pVal);
+        if (!pJAc) continue;                  // probably not an aircraft line
+        
+        // Check for minimum number of fields (we even allow for the track heading to be missing)
+        if (json_array_get_count(pJAc) < RT_PARK_NUM_FIELDS - 1) {
+            LOG_MSG(logWARN, "Received too few fields in parked a/c record %ld", (long)i);
+            IncErrCnt();
+            continue;
+        }
+        
+        // not matching a/c filter? -> skip it
+        if ((!acFilter.empty() && (fdKey != acFilter)) )
+            continue;
+
+        // Check for duplicates with OGN/FLARM, potentially replaces the key type
+        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+        else
+            // Some codes are otherwise often duplicate with ADSBEx
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
+        
+        // position
+        positionTy pos (jag_n(pJAc, RT_PARK_Lat),
+                        jag_n(pJAc, RT_PARK_Lon));
+        pos.heading() = jag_n(pJAc, RT_PARK_Track);
+        pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
+        // see later how TS is used: we send 3 instances to make the a/c appear immediately
+        pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
+
+        // position is rather important, we check for validity
+        // (we do allow alt=NAN if on ground)
+        if ( !pos.isNormal(true) ) {
+            LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+            continue;
+        }
+        
+        // Static data
+        LTFlightData::FDStaticData stat;
+        stat.acTypeIcao         = jag_s(pJAc, RT_PARK_AcType);
+        stat.call               = jag_s(pJAc, RT_PARK_CallSign);
+        stat.reg                = jag_s(pJAc, RT_PARK_Reg);
+        
+        // RealTraffic often sends ASW20 when it should be AS20, a glider
+        if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
+        
+        // Dynamic data
+        LTFlightData::FDDynamicData dyn;
+        dyn.radar.mode          = xpmpTransponderMode_Standby;
+        dyn.gnd                 = true;
+        dyn.heading             = pos.heading();
+        dyn.ts                  = pos.ts();
+        dyn.spd                 = 0.0;
+        dyn.vsi                 = 0.0;
+        dyn.pChannel            = this;
+        
+        // Try to find a matching "startup position" to perfectly put the aircraft in place
+        positionTy startupPos = LTAptFindStartupLoc(pos,
+                                                    (double)dataRefs.GetFdSnapTaxiDist_m());
+        if (startupPos.isNormal(true)) {
+            pos.lat()       = startupPos.lat();
+            pos.lon()       = startupPos.lon();
+            pos.heading()   = startupPos.heading();
+        }
+        
+        try {
+            // from here on access to fdMap guarded by a mutex
+            // until FD object is inserted and updated
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+
+            // get the fd object from the map, key is the transpIcao
+            // this fetches an existing or, if not existing, creates a new one
+            LTFlightData& fd = mapFd[fdKey];
+            
+            // also get the data access lock once and for all
+            // so following fetch/update calls only make quick recursive calls
+            std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+            // now that we have the detail lock we can release the global one
+            mapFdLock.unlock();
+
+            // completely new? fill key fields
+            if ( fd.empty() )
+                fd.SetKey(fdKey);
+            
+            // add the static data
+            fd.UpdateData(std::move(stat), pos.dist(posView));
+
+            // add the "dynamic" data
+            // We send in the position 3 times in enough of a time distance for the plane to appear directly
+            for (int k = 0; k < 4; ++k) {
+                fd.AddDynData(dyn, 0, 0, &pos);
+                pos.ts() = (dyn.ts += 0.5 * double(dataRefs.GetFdBufPeriod()));
+            }
+
+        } catch(const std::system_error& e) {
+            LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+            IncErrCnt();
+        }
+    }
+    
+    LOG_MSG(logINFO, "Received %d parked aircraft", int(numVals));
+    
+    return true;
+}
 //
 // MARK: Direct Connection, Weather processing
 //

@@ -30,6 +30,9 @@ bool LTAptEnable ();
 /// Update the airport data with airports around current camera position
 void LTAptRefresh ();
 
+/// Has LTAptRefresh finished, ie. do we have airport data?
+bool LTAptAvailable ();
+
 /// @brief Return the best possible runway to auto-land at
 /// @param _mdl flight model definitions to use for calculations
 /// @param _from Start pos/heading for seach

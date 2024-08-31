@@ -52,6 +52,9 @@
 /// This flag stops the file reading thread
 volatile bool bStopThread = false;
 
+/// Is data available?
+volatile bool bAptAvailable = false;
+
 class Apt;
 
 //
@@ -2485,6 +2488,7 @@ void AsyncReadApt (positionTy ctr, double radius)
     
     LOG_MSG(logINFO, "Done reading from %d apt.dat files, have now %d airports",
             cntFiles, (int)gmapApt.size());
+    bAptAvailable = true;
 }
 
 //
@@ -2511,7 +2515,7 @@ static std::future<void> futRefreshing;
 /// Last position for which airports have been read
 static positionTy lastCameraPos;
 
-/// New airports added, so that a call to LTAptUpdateRwyAltitude(9 is necessary?
+/// New airports added, so that a call to LTAptUpdateRwyAltitude() is necessary?
 static bool bAptsAdded = false;
         
 // Start reading apt.dat file(s)
@@ -2575,10 +2579,17 @@ void LTAptRefresh ()
     LOG_MSG(logINFO, "Starting thread to read apt.dat for airports %.1fnm around %s",
             radius / M_per_NM, std::string(lastCameraPos).c_str());
     bStopThread = false;
+    bAptAvailable = false;
     futRefreshing = std::async(std::launch::async,
                                AsyncReadApt, lastCameraPos, radius);
     // need to check for rwy altitudes soon!
     bAptsAdded = true;
+}
+
+// Has LTAptRefresh finished, ie. do we have airport data?
+bool LTAptAvailable ()
+{
+    return bAptAvailable;
 }
 
 // Return the best possible runway to auto-land at
