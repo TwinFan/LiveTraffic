@@ -1039,12 +1039,20 @@ public:
             }
         }
 
-        // Cleanup up cloud layers: Anything beyond iCloud, that is lower than the last METAR layer, is to be removed
+        // Cleanup up cloud layers:
         if (iCloud > 0) {
+            // Anything beyond iCloud, that is lower than the last METAR layer, is to be removed
             const float highestMetarBase = w.cloud_base_msl_m[iCloud-1];
             for (std::size_t i = iCloud; i < w.cloud_type.size(); ++i) {
                 if (w.cloud_base_msl_m[i] <= highestMetarBase)
                     RemoveClouds(i);
+            }
+            // Avoid overlapping cloud layer
+            for (std::size_t i = 0; i < w.cloud_type.size()-1; ++i) {
+                if (w.cloud_tops_msl_m[i] > w.cloud_base_msl_m[i+1] - WEATHER_MIN_CLOUD_HEIGHT_M)
+                    // Minimum 100m height, but otherwise we try to keep 100m vertical distance from next layer
+                    w.cloud_tops_msl_m[i] = std::max(w.cloud_base_msl_m[i]   + WEATHER_MIN_CLOUD_HEIGHT_M,
+                                                     w.cloud_base_msl_m[i+1] - WEATHER_MIN_CLOUD_HEIGHT_M);
             }
         }
         

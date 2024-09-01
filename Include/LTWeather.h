@@ -61,8 +61,10 @@ float WeatherQNHfromMETAR (const std::string& metar);
 
 /// Distance when next weather is set to update immediately instead of gradually
 constexpr double WEATHER_MAX_DIST_M = 50 * M_per_NM;
-/// Thickness of a METAR cloud layer [m]
+/// Standard thickness of a METAR cloud layer [m]
 constexpr float WEATHER_METAR_CLOUD_HEIGHT_M = 500;
+/// Minimum thickness of a METAR cloud layer [m]
+constexpr float WEATHER_MIN_CLOUD_HEIGHT_M = 100;
 /// Thickness of a METAR Cumulo-nimbus cloud layer [m]
 constexpr float WEATHER_METAR_CB_CLOUD_HEIGHT_M = 5000;
 
