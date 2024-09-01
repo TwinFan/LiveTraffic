@@ -146,12 +146,11 @@ enum RT_DIRECT_FIELDS_TY {
 enum RT_PARKED_FIELDS_TY {
     RT_PARK_Lat = 0,                ///< latitude (-33.936407)
     RT_PARK_Lon,                    ///< longitude (151.169229)
-    RT_PARK_ParkPosName,            ///< some text probably indicating the parking position
+    RT_PARK_ParkPosName,            ///< some text indicating the parking position as per Jepperson
     RT_PARK_AcType,                 ///< Type ("A388")
     RT_PARK_Reg,                    ///< Registration ("VH-OQA")
     RT_PARK_LastTimeStamp,          ///< Last Epoch timestamp when moved into position, can be long ago (1721590016.01)
     RT_PARK_CallSign,               ///< ATC Callsign ("QFA2")
-    RT_PARK_Track,                  ///< track/orientation in degrees (123)
     RT_PARK_NUM_FIELDS              ///< Number of known fields
 };
 

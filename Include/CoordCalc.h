@@ -34,11 +34,11 @@
 //
 /// Square, ie. a^2
 template <class T>
-inline T sqr (T a) { return a*a; }
+inline T sqr (const T a) { return a*a; }
 
 /// Pythagoras square, ie. a^2 + b^2
 template <class T>
-inline T pyth2 (T a, T b) { return sqr(a) + sqr(b); }
+inline T pyth2 (const T a, const T b) { return sqr(a) + sqr(b); }
 
 //
 //MARK: Degree/Radian conversion

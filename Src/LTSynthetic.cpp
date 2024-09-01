@@ -122,13 +122,22 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
             else {
                 // this a/c is _not_ or no longer parked, so we should forget about it in our stored data
                 mapSynData.erase(p.first);
+            }
                 
-                // next test if the aircraft came too close to any of ours on the ground
-                // TODO: This test is also needed for parked aircraft! There were cases in which two RT parked aircraft sat on top of each other
-                if (ac.IsOnGrnd() && !ac.IsGroundVehicle()) {
-                    for (auto i = mapSynData.begin(); i != mapSynData.end(); ) {
-                        // For the sake of performance we do the test very quick
-                        if (i->second.pos.distRoughSqr(ac.GetPPos()) < GND_COLLISION_DIST*GND_COLLISION_DIST) {
+            // Test if the aircraft came too close to any other parked aircraft on the ground
+            if (ac.IsOnGrnd() && !ac.IsGroundVehicle()) {
+                for (auto i = mapSynData.begin(); i != mapSynData.end(); ) {
+                    // Only compare to other aircraft (not myself)
+                    if (i->first == key) {
+                        ++i;
+                    } else {
+                        const double dist = i->second.pos.dist(ac.GetPPos());
+                        // TODO: Remove this DEBUG output
+                        if (dist < 100.0) { LOG_MSG(logDEBUG, "ac = %s, i = %s, dist = %.1fm",
+                                                    fd.key().c_str(), i->first.c_str(), dist); }
+                        if (dist < GND_COLLISION_DIST)
+                        {
+                            // Remove the other parked aircraft
                             LOG_MSG(logDEBUG, "%s came too close to parked %s, removing the parked aircraft",
                                     fd.keyDbg().c_str(), i->first.c_str());
                             i = mapSynData.erase(i);
@@ -148,6 +157,10 @@ bool SyntheticConnection::ProcessFetchedData ()
 {
     // Timestamp with which we send the data
     const double tNow = (double)std::time(nullptr);
+    // Camera pos
+    const positionTy posCam = dataRefs.GetViewPos();
+    // Squared search distance for distance comparison
+    const double distSearchSqr = sqr(dataRefs.GetFdStdDistance_m());
     
     // --- Parked Aircraft ---
     // For all stored aircraft
@@ -157,13 +170,16 @@ bool SyntheticConnection::ProcessFetchedData ()
         const LTFlightData::FDKeyTy& key = i->first;
         SynDataTy& parkDat = i->second;
 
+        // Only process planes in search distance
+        // We keep the data in memory, just in case we come back, but we don't feed data for unneeded planes
+        if (parkDat.pos.distRoughSqr(posCam) > distSearchSqr)
+            continue;
+
         // Find the related flight data
         std::unique_lock<std::mutex> mapLock (mapFdMutex);      // lock the entire map
         LTFlightData& fd = mapFd[key];                          // fetch or create flight data
         mapLock.unlock();                                       // release the map lock
         
-        // TODO: Only process planes in search distance
-
         // Haven't yet looked up startup position's heading?
         if (std::isnan(parkDat.pos.heading())) {
             parkDat.pos.heading() = LTAptFindStartupLoc(parkDat.pos).heading();

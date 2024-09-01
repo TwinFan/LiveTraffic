@@ -898,16 +898,27 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
     // its value being an array with the details.
     // That means we need to traverse all values.
     //   {
-    //     "7c4920": [-33.936407, 151.169229, 0.0, "A388", "VH-OQA", 1721590016.01, "QFA2", 123],
-    //     "7c5325": [-33.936333, 151.170109, 0.0, "A333", "VH-QPJ", 1721597924.81, "QFA128", 350],
-    //     "7c765a": [-33.935635, 151.17746, 0, "A320", "VH-XNW", 1721650004.0, "JST825", 320]
+    //     "7c4920": [-33.936407, 151.169229, "EGLL_569", "A388", "VH-OQA", 1721590016.01, "QFA2"],
+    //     "7c5325": [-33.936333, 151.170109, "EGLL_569", "A333", "VH-QPJ", 1721597924.81, "QFA128"],
+    //     "7c765a": [-33.935635, 151.17746, "EGLL_320", "A320", "VH-XNW", 1721650004.0, "JST825"]
     //   }
+    
+    // Additionally, at busy places like EGLL we receive duplicates,
+    // ie. different aircraft said to be parked at the same location.
+    // To reduce duplicates, we pre-process the data and pick the latest of duplicates
+    struct parkedAcData {
+        double              lat, lon, ts;
+        std::string         key, acType, reg, call;
+    };
+    // We organize the data by parking position to be able to identify duplicates
+    std::map<std::string, parkedAcData> mapPData;
+    
     const size_t numVals = json_object_get_count(pData);
     for (size_t i = 0; i < numVals && shallRun(); ++i)
     {
-        // Get the name of the i-th value, that is the hex id
-        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
-                                     json_object_get_name(pData, i));
+        // Aircraft key (hexId)
+        std::string key = json_object_get_name(pData, i);
+        
         // Get the array 'behind' the i-th value,
         // will fail if it is no aircraft entry
         const JSON_Value* pVal = json_object_get_value_at(pData, i);
@@ -915,28 +926,67 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         const JSON_Array* pJAc = json_value_get_array(pVal);
         if (!pJAc) continue;                  // probably not an aircraft line
         
-        // Check for minimum number of fields (we even allow for the track heading to be missing)
-        if (json_array_get_count(pJAc) < RT_PARK_NUM_FIELDS - 1) {
+        // Check for minimum number of fields
+        if (json_array_get_count(pJAc) < RT_PARK_NUM_FIELDS ) {
             LOG_MSG(logWARN, "Received too few fields in parked a/c record %ld", (long)i);
             IncErrCnt();
             continue;
         }
         
+        // Get the parking position and timestamp first to check for duplicates
+        std::string parkPos = jag_s(pJAc, RT_PARK_ParkPosName);
+        double ts           = jag_n(pJAc, RT_PARK_LastTimeStamp);
+        if (mapPData.count(parkPos) > 0) {
+            // we know that parking position already!
+            parkedAcData& dat = mapPData.at(parkPos);
+            if (ts > dat.ts) {                  // but new data is newer -> replace
+                dat = {
+                    jag_n_nan(pJAc, RT_PARK_Lat),
+                    jag_n_nan(pJAc, RT_PARK_Lat),
+                    ts,
+                    std::move(key),
+                    jag_s(pJAc, RT_PARK_AcType),
+                    jag_s(pJAc, RT_PARK_Reg),
+                    jag_s(pJAc, RT_PARK_CallSign)
+                };
+            }
+        } else {
+            // We don't yet know that parking position, store data in new map record
+            mapPData.emplace(std::move(parkPos),
+                             parkedAcData {
+                jag_n_nan(pJAc, RT_PARK_Lat),
+                jag_n_nan(pJAc, RT_PARK_Lon),
+                ts,
+                std::move(key),
+                jag_s(pJAc, RT_PARK_AcType),
+                jag_s(pJAc, RT_PARK_Reg),
+                jag_s(pJAc, RT_PARK_CallSign)
+            });
+        }
+    }
+    
+    // Now mapPData is filled with parked aircraft that we really want to process
+    for (auto& p: mapPData)
+    {
+        parkedAcData& dat = p.second;
+        
+        // Get the name of the i-th value, that is the hex id
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO, dat.key);
+
         // not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
             continue;
-
+        
         // Check for duplicates with OGN/FLARM, potentially replaces the key type
         if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
             LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
         else
             // Some codes are otherwise often duplicate with ADSBEx
             LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
-        
+
         // position
-        positionTy pos (jag_n(pJAc, RT_PARK_Lat),
-                        jag_n(pJAc, RT_PARK_Lon));
-        pos.heading() = jag_n(pJAc, RT_PARK_Track);
+        positionTy pos (dat.lat, dat.lon);
+        pos.heading() = 0.0;
         pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
         // see later how TS is used: we send 3 instances to make the a/c appear immediately
         pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
@@ -950,9 +1000,9 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         
         // Static data
         LTFlightData::FDStaticData stat;
-        stat.acTypeIcao         = jag_s(pJAc, RT_PARK_AcType);
-        stat.call               = jag_s(pJAc, RT_PARK_CallSign);
-        stat.reg                = jag_s(pJAc, RT_PARK_Reg);
+        stat.acTypeIcao         = std::move(dat.acType);
+        stat.call               = std::move(dat.call);
+        stat.reg                = std::move(dat.reg);
         
         // RealTraffic often sends ASW20 when it should be AS20, a glider
         if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";

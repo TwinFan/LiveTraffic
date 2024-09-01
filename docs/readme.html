@@ -147,7 +147,8 @@
             RealTraffic: Parked aircraft
             <ul>
                 <li>are updated when location changes significantly, after airport layouts around the new location have been processed;</li>
-                <li>are only requested when configuration <i>Keep Parked Aircraft</i> is enabled.</li>
+                <li>are only requested when configuration <i>Keep Parked Aircraft</i> is enabled;</li>
+                <li>are pre-processed to remove duplicates per parking position, keeping only the last seen aircraft.</li>
             </ul>
         </li>
         <li>Increased total maximum of allowed aircraft to 300, room needed to allow for parked aircraft at large airports.</li>
