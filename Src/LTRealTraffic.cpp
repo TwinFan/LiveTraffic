@@ -198,7 +198,8 @@ void RealTrafficConnection::MainDirect ()
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
     lTotalFlights = -1;
-    bParkedTrafficDone = false;
+    // can right away read parked traffic if parked aircraft enabled and airport data is already available, otherwise we'll be triggered later when airport data has been processed
+    bDoParkedTraffic = dataRefs.ShallKeepParkedAircraft() && LTAptAvailable();
     // If we could theoretically set weather we prepare the interpolation settings
     if (WeatherCanSet()) {
         rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
@@ -308,7 +309,6 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
              (std::isnan(rtWx.QNH) ||                           // no Weather, or wrong time offset, or outdated, or moved too far away?
               std::labs(curr.tOff - rtWx.tOff) > 120 ||
               // too far? (we use half the max. METAR distance
-              // FIXME: Must distinguish between weather's position and 'nearest METAR locations's' position
               rtWx.pos.distRoughSqr(curr.pos) > (sqr(dataRefs.GetWeatherMaxMetarDist_m()/2.0))))
     {
         curr.eRequType = CurrTy::RT_REQU_NEAREST_METAR;
@@ -320,7 +320,7 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
     {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
     }
-    else if (!bParkedTrafficDone && LTAptAvailable())           // Do the parked traffic once only, and only when airport details are available so we can place the aircraft correctly
+    else if (bDoParkedTraffic && LTAptAvailable())              // Do the parked traffic now, and only when airport details are available so we can place the aircraft correctly
         curr.eRequType = CurrTy::RT_REQU_PARKED;
     else
         // in all other cases we ask for traffic data
@@ -624,11 +624,11 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // --- Parked Aircraft ---
     if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
-        bParkedTrafficDone = true;                      // We try only once!
+        bDoParkedTraffic = false;                       // Repeat only when instructed
         return ProcessParkedAcBuffer(json_object_get_object(pObj, "data"));
     }
 
-    // --- Traffic data or Parked Aircraft ---
+    // --- Traffic data ---
     
     // In `dataepoch` RealTraffic delivers the point in time when the data was valid.
     // That is relevant especially for historic data, when `dataepoch` is in the past.

@@ -317,8 +317,8 @@ protected:
     } rtWx;                                             ///< Data with which latest weather was requested
     /// How many flights does RealTraffic have in total?
     long lTotalFlights = -1;
-    /// Have we already asked for parked traffic?
-    bool bParkedTrafficDone = false;
+    /// Shall we check for parked traffic next time around? (Set from main thread after airport data updates)
+    bool bDoParkedTraffic = false;
 
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
@@ -348,6 +348,10 @@ public:
     // interface called from LTChannel
     // SetValid also sets internal status
     void SetValid (bool _valid, bool bMsg = true) override;
+    
+    /// Have connection read traffic data at next chance
+    void DoReadParkedTraffic () { bDoParkedTraffic = true; }
+    
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }

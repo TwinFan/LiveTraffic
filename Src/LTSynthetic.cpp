@@ -124,6 +124,7 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
                 mapSynData.erase(p.first);
                 
                 // next test if the aircraft came too close to any of ours on the ground
+                // TODO: This test is also needed for parked aircraft! There were cases in which two RT parked aircraft sat on top of each other
                 if (ac.IsOnGrnd() && !ac.IsGroundVehicle()) {
                     for (auto i = mapSynData.begin(); i != mapSynData.end(); ) {
                         // For the sake of performance we do the test very quick
@@ -160,6 +161,8 @@ bool SyntheticConnection::ProcessFetchedData ()
         std::unique_lock<std::mutex> mapLock (mapFdMutex);      // lock the entire map
         LTFlightData& fd = mapFd[key];                          // fetch or create flight data
         mapLock.unlock();                                       // release the map lock
+        
+        // TODO: Only process planes in search distance
 
         // Haven't yet looked up startup position's heading?
         if (std::isnan(parkDat.pos.heading())) {

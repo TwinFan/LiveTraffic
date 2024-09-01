@@ -968,6 +968,8 @@ public:
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
     bool IsAutoHidingActive() const             ///< any auto-hiding activated, including options no warning is issued about?
     { return hideStaticTwr || WarnAutoHiding(); }
+    /// "Keep Parked Aircraft" is equivalent to "Synthetic Channel enabled"
+    bool ShallKeepParkedAircraft () const { return IsChannelEnabled(DR_CHANNEL_SYNTHETIC); }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
     int  GetContrailAltMin_ft () const  { return contrailAltMin_ft; }
     int  GetContrailAltMax_ft () const  { return contrailAltMax_ft; }

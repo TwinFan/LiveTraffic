@@ -52,9 +52,6 @@
 /// This flag stops the file reading thread
 volatile bool bStopThread = false;
 
-/// Is data available?
-volatile bool bAptAvailable = false;
-
 class Apt;
 
 //
@@ -2488,7 +2485,6 @@ void AsyncReadApt (positionTy ctr, double radius)
     
     LOG_MSG(logINFO, "Done reading from %d apt.dat files, have now %d airports",
             cntFiles, (int)gmapApt.size());
-    bAptAvailable = true;
 }
 
 //
@@ -2517,7 +2513,10 @@ static positionTy lastCameraPos;
 
 /// New airports added, so that a call to LTAptUpdateRwyAltitude() is necessary?
 static bool bAptsAdded = false;
-        
+
+/// Is data available?
+static bool bAptAvailable = false;
+
 // Start reading apt.dat file(s)
 bool LTAptEnable ()
 {
@@ -2539,25 +2538,21 @@ void LTAptUpdateRwyAltitudes ()
 }
 
 // Update the airport data with airports around current camera position
-void LTAptRefresh ()
+bool LTAptRefresh ()
 {
-    // If not doing snapping, then not doing reading...
-    if (dataRefs.GetFdSnapTaxiDist_m() <= 0)
-        return;
-    
     // Safety check: Thread already running?
     // Future object is valid, i.e. initialized with an async operation?
     if (futRefreshing.valid() &&
         // but status is not yet ready?
         futRefreshing.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
             // then stop here
-            return;
+            return false;
         
     // Distance since last read not far enough?
     // Must have travelled at least as far as standard search radius for planes:
     const positionTy camera = DataRefs::GetViewPos();
     if (!camera.isNormal(true))                     // have no good camery position (yet)
-        return;
+        return false;
 
     double radius = dataRefs.GetFdStdDistance_m();
     if (lastCameraPos.dist(camera) < radius)        // is false if lastCameraPos is NAN
@@ -2566,9 +2561,11 @@ void LTAptRefresh ()
         // But do we need to check for rwy altitudes after last scan of apt.dat file?
         if (bAptsAdded) {
             LTAptUpdateRwyAltitudes();
+            bAptsAdded = false;
+            bAptAvailable = true;                   // now airport data is reliably available
+            return true;                            // fresh data available
         }
-        bAptsAdded = false;
-        return;
+        return false;
     }
     else
         lastCameraPos = camera;
@@ -2584,6 +2581,7 @@ void LTAptRefresh ()
                                AsyncReadApt, lastCameraPos, radius);
     // need to check for rwy altitudes soon!
     bAptsAdded = true;
+    return false;
 }
 
 // Has LTAptRefresh finished, ie. do we have airport data?

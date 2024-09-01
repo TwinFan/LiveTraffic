@@ -562,9 +562,9 @@ public:
 
         const std::optional<CloudType>& optClTy = cg.cloudType();
         if (!optClTy)                           // if nothing specified, go for Cirrus
-            return 0.0f;
+            return 0.0f;                                            // TODO: Guess type by altitude
         switch (optClTy.value().type()) {
-            case CloudType::Type::NOT_REPORTED:      return 0.0f;
+            case CloudType::Type::NOT_REPORTED:      return 0.0f;   // TODO: Guess type by altitude
             //Low clouds
             case CloudType::Type::CUMULONIMBUS:      return 3.0f;
             case CloudType::Type::TOWERING_CUMULUS:  return 2.5f;

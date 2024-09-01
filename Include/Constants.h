@@ -68,7 +68,7 @@ constexpr double TEMP_LAPS_R    = -0.0065f;     ///< K/m
 
 //MARK: Flight Data-related
 constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)
-constexpr int    MAX_NUM_AIRCRAFT   = 200;      ///< maximum number of aircraft allowed to be rendered
+constexpr int    MAX_NUM_AIRCRAFT   = 300;      ///< maximum number of aircraft allowed to be rendered
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position

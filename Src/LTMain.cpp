@@ -1026,7 +1026,16 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             // Potentially refresh weather information
             dataRefs.WeatherFetchMETAR();
             // Refresh airport data from apt.dat (in case camera moved far)
-            LTAptRefresh();
+            if (LTAptRefresh()) {                   // fresh airport data available?
+                // If we are configured to keep parked aircraft, then we can ask RT to give us some
+                if (dataRefs.ShallKeepParkedAircraft()) {
+                    // Trigger RealTraffic to refresh parked aircraft
+                    RealTrafficConnection* pRTConn =
+                    dynamic_cast<RealTrafficConnection*>(LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE));
+                    if (pRTConn)
+                        pRTConn->DoReadParkedTraffic();
+                }
+            }
             // maintenance (add/remove)
             LTFlightDataAcMaintenance();
             // updates to menu item status
