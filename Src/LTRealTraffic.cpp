@@ -211,26 +211,27 @@ void RealTrafficConnection::MainDirect ()
         try {
             // where are we right now?
             const positionTy pos (dataRefs.GetViewPos());
-            rrlWait = RT_DRCT_ERR_WAIT;                 // Standard is: retry in 5s
 
             // If the camera position is valid we can request data around it
             if (pos.isNormal()) {
-                // determine the type of request, fetch data and process it
-                SetRequType(pos);
+                // Fetch data and process it
+                curr.pos = pos;
                 if (FetchAllData(pos) && ProcessFetchedData())
                     // reduce error count if processed successfully
                     // as a chance to appear OK in the long run
                     DecErrCnt();
+                
+                // Determine next action and wait time
+                tNextWakeup = SetRequType(pos);
             }
             else {
                 // Camera position is yet invalid, retry in a second
-                rrlWait = std::chrono::seconds(1);
+                tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(1);
             }
             
             // sleep for a bit or if woken up for termination
             // by condition variable trigger
             {
-                tNextWakeup = std::chrono::steady_clock::now() + rrlWait;
                 std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
                 FDThreadSynchCV.wait_until(lk, tNextWakeup,
                                            [this]{return !shallRun();});
@@ -266,9 +267,8 @@ void RealTrafficConnection::MainDirect ()
     WeatherReset();
 }
 
-// Which request do we need now?
-// TODO: Change logic to _first_ determine next requ type, then only determine wait and distinguish rrl and wrrl
-void RealTrafficConnection::SetRequType (const positionTy& _pos)
+// Which request do we need next and when?
+std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetRequType (const positionTy& _pos)
 {
     // Position as passed in
     curr.pos = _pos;
@@ -299,32 +299,43 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
             break;
     }
     
-    if (!shallRun())                                            // end the session?
+    if (!shallRun()) {                                          // end the session?
         curr.eRequType = CurrTy::RT_REQU_DEAUTH;
-    else if (curr.sGUID.empty())                                // have no GUID? Need authentication
+        return std::chrono::steady_clock::now();
+    }
+    if (curr.sGUID.empty()) {                                   // have no GUID? Need authentication
         curr.eRequType = CurrTy::RT_REQU_AUTH;
-    else if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR)   // previous request was METAR location?
+        return std::chrono::steady_clock::now();
+    }
+    if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR) {      // previous request was METAR location?
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
-    else if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                  // not yet seen too many weather request errors? _AND_
-             (std::isnan(rtWx.QNH) ||                           // no Weather, or wrong time offset, or outdated, or moved too far away?
-              std::labs(curr.tOff - rtWx.tOff) > 120 ||
-              // too far? (we use half the max. METAR distance
-              rtWx.pos.distRoughSqr(curr.pos) > (sqr(dataRefs.GetWeatherMaxMetarDist_m()/2.0))))
+        return tNextWeather;
+    }
+    if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                       // not yet seen too many weather request errors? _AND_
+        (std::isnan(rtWx.QNH) ||                                // no Weather, or wrong time offset, or outdated, or moved too far away?
+         std::labs(curr.tOff - rtWx.tOff) > 120 ||
+         // too far? (we use half the max. METAR distance
+         rtWx.pos.distRoughSqr(curr.pos) > (sqr(dataRefs.GetWeatherMaxMetarDist_m()/2.0))))
     {
         curr.eRequType = CurrTy::RT_REQU_NEAREST_METAR;
         if (std::labs(curr.tOff - rtWx.tOff) > 120)             // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
             rtWx.QNH = NAN;
+        return tNextWeather;
     }
-    else if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                  // not yet seen too many weather request errors? _AND_
-             std::chrono::steady_clock::now() >= rtWx.next)     // just time for a weather update
+    if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                       // not yet seen too many weather request errors? _AND_
+        std::chrono::steady_clock::now() >= rtWx.next)          // just time for a weather update
     {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
+        return tNextWeather;
     }
-    else if (bDoParkedTraffic && LTAptAvailable())              // Do the parked traffic now, and only when airport details are available so we can place the aircraft correctly
+    if (bDoParkedTraffic && LTAptAvailable()) {                 // Do the parked traffic now, and only when airport details are available so we can place the aircraft correctly
         curr.eRequType = CurrTy::RT_REQU_PARKED;
-    else
-        // in all other cases we ask for traffic data
-        curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
+        return tNextTraffic;
+    }
+    
+    // in all other cases we ask for traffic data
+    curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
+    return tNextTraffic;
 }
 
 
@@ -440,7 +451,6 @@ bool RealTrafficConnection::ProcessFetchedData ()
     std::string rMsg = jog_s(pObj, "message");
     
     // --- Error processing ---
-    rrlWait = RT_DRCT_ERR_WAIT;                     // Standard is: retry in 5s
     
     // For failed weather requests keep a separate counter
     if (curr.eRequType == CurrTy::RT_REQU_WEATHER && rStatus != HTTP_OK) {
@@ -462,39 +472,43 @@ bool RealTrafficConnection::ProcessFetchedData ()
             } else {
                 LOG_MSG(logWARN, "RealTraffic returned: %s", rMsg.c_str());
                 IncErrCnt();
+                tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
                 return false;
             }
             
         case HTTP_METH_NOT_ALLWD:                   // Send for "too many sessions" / "request rate violation"
             LOG_MSG(logERR, "RealTraffic: %s", rMsg.c_str());
             IncErrCnt();
-            rrlWait = std::chrono::seconds(10);     // documentation says "wait 10 seconds"
+            // documentation says "wait 10 seconds"
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_RATE;
             curr.sGUID.clear();                     // force re-login
             return false;
             
         case HTTP_UNAUTHORIZED:                     // means our GUID expired
             LOG_MSG(logDEBUG, "Session expired");
             curr.sGUID.clear();                     // re-login immediately
-            rrlWait = std::chrono::milliseconds(0);
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now();
             return false;
             
         case HTTP_FORBIDDEN:
             LOG_MSG(logWARN, "RealTraffic forbidden: %s", rMsg.c_str());
             IncErrCnt();
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
             
         case HTTP_INTERNAL_ERR:
         default:
             SHOW_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
             IncErrCnt();
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
     }
     
     // All good, process the request
     
     // Wait till next request?
-    long l = jog_l(pObj, "rrl");                    // Wait time till next request
-    if (!l) l = jog_l(pObj, "wrrl");
+    long rrl = jog_l(pObj, "rrl");                  // Wait time till next request, separately for traffic and weather
+    long wrrl = jog_l(pObj, "wrrl");
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:                  // in most cases we continue as quickly as possible
         case CurrTy::RT_REQU_DEAUTH:
@@ -502,14 +516,17 @@ bool RealTrafficConnection::ProcessFetchedData ()
         case CurrTy::RT_REQU_WEATHER:
             break;
         case CurrTy::RT_REQU_NEAREST_METAR:         // after learning the META we continue quickly with the weather request
-            l = 300;
+            wrrl = 50;
             break;
         case CurrTy::RT_REQU_TRAFFIC:               // By default we wait at least 8s, or more if RealTraffic instructs us so
-            if (l < RT_DRCT_DEFAULT_WAIT)
-                l = RT_DRCT_DEFAULT_WAIT;
+            if (rrl < RT_DRCT_DEFAULT_WAIT)
+                rrl = RT_DRCT_DEFAULT_WAIT;
             break;
     }
-    rrlWait = std::chrono::milliseconds(l);
+    if (rrl > 0)
+        tNextTraffic = std::chrono::steady_clock::now() + std::chrono::milliseconds(rrl);
+    if (wrrl > 0)
+        tNextWeather = std::chrono::steady_clock::now() + std::chrono::milliseconds(wrrl);
     
     // --- Authorization ---
     if (curr.eRequType == CurrTy::RT_REQU_AUTH) {
@@ -581,7 +598,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
                     rtWx.set(HPA_STANDARD, curr, false);
                 } else {
                     // We will request weather directly again, but need to wait 60s for it
-                    rrlWait = std::chrono::seconds(60);
+                    tNextWeather = std::chrono::steady_clock::now() + std::chrono::seconds(60);
                 }
             }
             return false;
@@ -632,14 +649,14 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // In `dataepoch` RealTraffic delivers the point in time when the data was valid.
     // That is relevant especially for historic data, when `dataepoch` is in the past.
-    l = jog_l(pObj, "dataepoch");
-    if (l > long(JAN_FIRST_2019))
+    const long epoch = jog_l(pObj, "dataepoch");
+    if (epoch > long(JAN_FIRST_2019))
     {
         // "now" is the simulated time plus the buffering period
         const long simTime  = long(dataRefs.GetSimTime());
         const long bufTime  = long(dataRefs.GetFdBufPeriod());
         // As long as the timestamp is half the buffer time close to "now" we consider the data current, ie. non-historic
-        if (l > simTime + bufTime/2) {
+        if (epoch > simTime + bufTime/2) {
             if (tsAdjust > 0.0) {                       // is that a change from historic delivery?
                 SHOW_MSG(logINFO, INFO_RT_REAL_TIME);
             }
@@ -647,7 +664,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
         }
         // we have historic data
         else {
-            long diff = simTime + bufTime - l;          // difference between "now"
+            long diff = simTime + bufTime - epoch;      // difference between "now"
             diff -= 10;                                 // rounding 10s above the minute down,
             diff += 60 - diff % 60;                     // everything else up to the next minute
             if (long(tsAdjust) != diff) {               // is this actually a change?
@@ -942,7 +959,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             if (ts > dat.ts) {                  // but new data is newer -> replace
                 dat = {
                     jag_n_nan(pJAc, RT_PARK_Lat),
-                    jag_n_nan(pJAc, RT_PARK_Lat),
+                    jag_n_nan(pJAc, RT_PARK_Lon),
                     ts,
                     std::move(key),
                     jag_s(pJAc, RT_PARK_AcType),

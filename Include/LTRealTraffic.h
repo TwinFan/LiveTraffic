@@ -86,6 +86,7 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 // Constant for direct connection
 constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
+constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
 
@@ -281,8 +282,11 @@ protected:
         positionTy pos;                                 ///< viewer position for which we receive Realtraffic data
         long tOff = 0;                                  ///< time offset for which we request data
     } curr;                                             ///< Data for the current request
-    /// How long to wait before making the next request?
-    std::chrono::milliseconds rrlWait = std::chrono::milliseconds(0);
+
+    /// What's the next time we could send a traffic request?
+    std::chrono::time_point<std::chrono::steady_clock> tNextTraffic;
+    /// What's the next time we could send a weather request?
+    std::chrono::time_point<std::chrono::steady_clock> tNextWeather;
 
     /// METAR entry in the NearestMETAR response
     struct NearestMETAR {
@@ -367,7 +371,8 @@ protected:
     // MARK: Direct Connection by Request/Reply
 protected:
     void MainDirect ();                                     ///< thread main function for the direct connection
-    void SetRequType (const positionTy& pos);               ///< Which request do we need now?
+    /// Which request do we need next and when can we send it?
+    std::chrono::time_point<std::chrono::steady_clock> SetRequType (const positionTy& pos);
 public:
     bool IsFirstRequ () const { return lTotalFlights < 0; } ///< Have not received any traffic data before?
     std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set
