@@ -491,6 +491,8 @@ constexpr float CAVOK_MIN_CLOUD_BASE_M  =  1500.0f;                     ///< CAV
 constexpr float NSC_MIN_CLOUD_BASE_M    =  6000.0f * float(M_per_FT);   ///< NSC: no clouds below this height AGL [m]
 constexpr float CLR_MIN_CLOUD_BASE_M    = 12000.0f * float(M_per_FT);   ///< CLR: no clouds below this height AGL [m]
 constexpr float SKC_MIN_CLOUD_BASE_M    = FLT_MAX;                      ///< SKC: no clouds at all
+constexpr float CIRRUS_ABOVE_M          = 7000.0f;                      ///< If unsure, use Cirrus above this altitude [m]
+constexpr float CUMULUS_BELOW_M         = 2000.0f;                      ///< If unsure, use Cumulus below this altitude [m]
 constexpr float RAIN_DRIZZLE            = 0.1f;                         ///< rain in case of DRIZZLE
 constexpr int   RAIN_DRIZZLE_FRIC       = 1;                            ///< rwy friction in case of light rain
 constexpr float RAIN_LIGHT              = 0.3f;                         ///< light rain
@@ -551,8 +553,28 @@ public:
         return 0.0f;
     }
     
+    /// @brief Guess cloud type by altitude
+    /// @details This isn't perfect, for sure, but cloud types differ high up from down below in general.
+    ///          XP basically defines 0=Cirrus, 1=Stratus, 2=Cumulus.
+    ///          We make use of that to say:
+    ///          > 7000m -> Cirrus
+    ///          < 2000m -> Cumulus
+    ///          and inbetween we interpolate, which also mixes in Stratus in the middle layers
+    float cloudTypeByAlt (const CloudGroup& cg)
+    {
+        float base_m = cg.height().toUnit(Distance::Unit::METERS).value_or(NAN);
+        if (std::isnan(base_m)) return 2.0f;
+        base_m += fieldAlt_m;
+        if (base_m <= CUMULUS_BELOW_M) return 2.0f;                 // Cumulus below 2000m
+        if (base_m >= CIRRUS_ABOVE_M)  return 0.0f;                 // Cirrus above 7000m
+        // inbetween interpolate in a linear fashion
+        base_m -= CUMULUS_BELOW_M;
+        base_m /= (CIRRUS_ABOVE_M - CUMULUS_BELOW_M) / 2.0f;
+        return 2.0f - base_m;
+    }
+    
     /// Convert a METAR cloud type to X-Plane
-    static float toXPCloudType (const CloudGroup& cg)
+    float toXPCloudType (const CloudGroup& cg)
     {
         const CloudGroup::ConvectiveType convTy = cg.convectiveType();
         if (convTy == CloudGroup::ConvectiveType::CUMULONIMBUS)
@@ -562,9 +584,9 @@ public:
 
         const std::optional<CloudType>& optClTy = cg.cloudType();
         if (!optClTy)                           // if nothing specified, go for Cirrus
-            return 0.0f;                                            // TODO: Guess type by altitude
+            return cloudTypeByAlt(cg);
         switch (optClTy.value().type()) {
-            case CloudType::Type::NOT_REPORTED:      return 0.0f;   // TODO: Guess type by altitude
+            case CloudType::Type::NOT_REPORTED:      return cloudTypeByAlt(cg);
             //Low clouds
             case CloudType::Type::CUMULONIMBUS:      return 3.0f;
             case CloudType::Type::TOWERING_CUMULUS:  return 2.5f;

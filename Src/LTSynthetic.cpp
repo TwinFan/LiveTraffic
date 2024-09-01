@@ -132,9 +132,6 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
                         ++i;
                     } else {
                         const double dist = i->second.pos.dist(ac.GetPPos());
-                        // TODO: Remove this DEBUG output
-                        if (dist < 100.0) { LOG_MSG(logDEBUG, "ac = %s, i = %s, dist = %.1fm",
-                                                    fd.key().c_str(), i->first.c_str(), dist); }
                         if (dist < GND_COLLISION_DIST)
                         {
                             // Remove the other parked aircraft
