@@ -34,6 +34,8 @@ bool WeatherCanSet ();
 bool WeatherInControl ();
 /// Is X-Plane set to use real weather?
 bool WeatherIsXPRealWeather ();
+/// Have X-Plane use its real weather
+void WeatherSetXPRealWeather ();
 
 /// Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w);

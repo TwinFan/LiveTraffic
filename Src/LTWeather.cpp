@@ -165,6 +165,26 @@ XDR_float    wdr_runway_friction;           ///< int/float  y    enum           
 XDR_float    wdr_variability_pct;           ///< float      y    ratio          How randomly variable the weather is over distance. Range 0 - 1.
 XDR_int      wdr_weather_preset;            ///< int        y    enum           Read the UI weather preset that is closest to the current conditions, or set an UI preset. Clear(0), VFR Few(1), VFR Scattered(2), VFR Broken(3), VFR Marginal(4), IFR Non-precision(5), IFR Precision(6), Convective(7), Large-cell Storms(8)
 
+/// @brief XP's weather change modes
+/// @details 0 = Rapidly Improving, 1 = Improving, 2 = Gradually Improving, 3 = Static, 4 = Gradually Deteriorating, 5 = Deteriorating, 6 = Rapidly Deteriorating, 7 = Using Real Weather
+enum wdrChangeModeTy : int {
+    WDR_CM_RAPIDLY_IMPROVING = 0,           ///< 0 = Rapidly Improving
+    WDR_CM_IMPROVING,                       ///< 1 = Improving
+    WDR_CM_GRADUALLY_IMPROVING,             ///< 2 = Gradually Improving
+    WDR_CM_STATIC,                          ///< 3 = Static
+    WDR_CM_GRADUALLY_DETERIORATING,         ///< 4 = Gradually Deteriorating
+    WDR_CM_DETERIORATING,                   ///< 5 = Deteriorating
+    WDR_CM_RAPIDLY_DETERIORATING,           ///< 6 = Rapidly Deteriorating
+    WDR_CM_REAL_WEATHER,                    ///< 7 = Using Real Weather
+};
+
+/// @brief XP's cloud types
+/// @details 0 = Cirrus, 1 = Stratus, 2 = Cumulus, 3 = Cumulo-nimbus. Intermediate values are to be expected.
+constexpr float WDR_CT_CIRRUS       = 0.0f; ///< 0 = Cirrus
+constexpr float WDR_CT_STRATUS      = 1.0f; ///< 1 = Stratus
+constexpr float WDR_CT_CUMULUS      = 2.0f; ///< 2 = Cumulus
+constexpr float WDR_CT_CUMULONIMBUS = 3.0f; ///< 3 = Cumulo-nimbus
+
 bool WeatherInitDataRefs ()
 {
     return true
@@ -228,7 +248,7 @@ void LTWeather::Set () const
 {
     wdr_update_immediately.set(update_immediately);
 
-    wdr_change_mode.set(3);                         // 3 - Static (this also switches off XP's real weather)
+    wdr_change_mode.set(WDR_CM_STATIC);             // 3 - Static (this also switches off XP's real weather)
 
     wdr_visibility_reported_sm.set(visibility_reported_sm);
     wdr_sealevel_temperature_c.set(sealevel_temperature_c);
@@ -565,12 +585,12 @@ public:
         float base_m = cg.height().toUnit(Distance::Unit::METERS).value_or(NAN);
         if (std::isnan(base_m)) return 2.0f;
         base_m += fieldAlt_m;
-        if (base_m <= CUMULUS_BELOW_M) return 2.0f;                 // Cumulus below 2000m
-        if (base_m >= CIRRUS_ABOVE_M)  return 0.0f;                 // Cirrus above 7000m
+        if (base_m <= CUMULUS_BELOW_M) return WDR_CT_CUMULUS;       // Cumulus below 2000m
+        if (base_m >= CIRRUS_ABOVE_M)  return WDR_CT_CIRRUS;        // Cirrus above 7000m
         // inbetween interpolate in a linear fashion
         base_m -= CUMULUS_BELOW_M;
-        base_m /= (CIRRUS_ABOVE_M - CUMULUS_BELOW_M) / 2.0f;
-        return 2.0f - base_m;
+        base_m /= (CIRRUS_ABOVE_M - CUMULUS_BELOW_M) / (WDR_CT_CUMULUS - WDR_CT_CIRRUS);
+        return (WDR_CT_CUMULUS - WDR_CT_CIRRUS) - base_m;
     }
     
     /// Convert a METAR cloud type to X-Plane
@@ -588,24 +608,24 @@ public:
         switch (optClTy.value().type()) {
             case CloudType::Type::NOT_REPORTED:      return cloudTypeByAlt(cg);
             //Low clouds
-            case CloudType::Type::CUMULONIMBUS:      return 3.0f;
+            case CloudType::Type::CUMULONIMBUS:      return WDR_CT_CUMULONIMBUS;
             case CloudType::Type::TOWERING_CUMULUS:  return 2.5f;
-            case CloudType::Type::CUMULUS:           return 2.0f;
+            case CloudType::Type::CUMULUS:           return WDR_CT_CUMULUS;
             case CloudType::Type::CUMULUS_FRACTUS:   return 1.8f;
             case CloudType::Type::STRATOCUMULUS:     return 1.5f;
-            case CloudType::Type::NIMBOSTRATUS:      return 1.0f;
-            case CloudType::Type::STRATUS:           return 1.0f;
+            case CloudType::Type::NIMBOSTRATUS:
+            case CloudType::Type::STRATUS:           return WDR_CT_STRATUS;
             case CloudType::Type::STRATUS_FRACTUS:   return 0.8f;
             //Med clouds
-            case CloudType::Type::ALTOSTRATUS:       return 1.0f;
-            case CloudType::Type::ALTOCUMULUS:       return 2.0f;
+            case CloudType::Type::ALTOSTRATUS:       return WDR_CT_STRATUS;
+            case CloudType::Type::ALTOCUMULUS:       return WDR_CT_CUMULUS;
             case CloudType::Type::ALTOCUMULUS_CASTELLANUS: return 2.3f;
             //High clouds
-            case CloudType::Type::CIRRUS:            return 0.0f;
+            case CloudType::Type::CIRRUS:            return WDR_CT_CIRRUS;
             case CloudType::Type::CIRROSTRATUS:      return 0.5;
             case CloudType::Type::CIRROCUMULUS:      return 1.5f;
             //Obscurations
-            default:                                 return 0.0f;
+            default:                                 return WDR_CT_CIRRUS;
         }
     }
     
@@ -613,7 +633,7 @@ public:
     void RemoveClouds (size_t i)
     {
         LOG_ASSERT(i < w.cloud_type.size());
-        w.cloud_type[i] = 0.0f;
+        w.cloud_type[i] = -1.0f;
         w.cloud_base_msl_m[i] = -1.0f;
         w.cloud_tops_msl_m[i] = -1.0f;
         w.cloud_coverage_percent[i] = 0.0f;
@@ -634,7 +654,7 @@ public:
         // No cumulonimbus or towering cumulus clouds
         if (bRemoveTSClouds)
             for (float& ct: w.cloud_type)
-                if (ct > 2.0f) ct = 2.0f;                       // reduce Cumulo-nimbus to Cumulus
+                if (ct > WDR_CT_CUMULUS) ct = WDR_CT_CUMULUS;   // reduce Cumulo-nimbus to Cumulus
     }
     
     // --- visit functions ---
@@ -1385,12 +1405,6 @@ bool WeatherInit ()
     if (!bWeatherCanSet) {
         LOG_MSG(logWARN, "Could not find all Weather dataRefs, cannot set X-Plane's weather (X-Plane < v12?)");
     }
-#if DEBUG
-    // TODO: Undo: in debug version now activate weather logging
-    else {
-        dataRefs.SetDebugLogWeather(true);
-    }
-#endif
     return bWeatherCanSet;
 }
 
@@ -1415,10 +1429,15 @@ bool WeatherInControl ()
 // Is X-Plane set to use real weather?
 bool WeatherIsXPRealWeather ()
 {
-    if (!WeatherCanSet()) return false;
-    return wdr_change_mode.get() == 7;
+    return WeatherCanSet() && wdr_change_mode.get() == WDR_CM_REAL_WEATHER;
 }
 
+// Have X-Plane use its real weather
+void WeatherSetXPRealWeather ()
+{
+    if (WeatherCanSet())
+        wdr_change_mode.set(WDR_CM_REAL_WEATHER);
+}
 
 // Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w)
@@ -1448,8 +1467,7 @@ void WeatherSet (const std::string& metar, const std::string& metarIcao)
         nextWeather = LTWeather();                  // reset all, reads `atmosphere_alt_levels_m` already
         nextWeather.wind_altitude_msl_m =           // set all altitude levels to the same
         nextWeather.temperature_altitude_msl_m = nextWeather.atmosphere_alt_levels_m;
-        // TODO: Prepare more data, like preset arrays with zero
-        nextWeather.metar = metar;                  // just store METAR
+        nextWeather.metar = metar;                  // just store METAR, will be processed/incorporated later in the main thread
         nextWeather.metarFieldIcao = metarIcao;
         nextWeather.posMetarField = positionTy();
         bSetWeather = true;
