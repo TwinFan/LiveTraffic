@@ -1130,22 +1130,20 @@ void DataRefs::SetViewType(XPViewTypes vt)
 
 
 // return user's plane pos
-positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) const
+positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
+                                      double* pTrack,
+                                      double* pHeightAGL_m) const
 {
-    if (IsXPThread()) {
-        // running in XP's main thread we can just return the values
-        trueAirspeed_m = lastUsersTrueAirspeed;
-        track = lastUsersTrack;
-        return lastUsersPlanePos;
-    } else {
-        // in a worker thread, we need to have the lock, and copy before release
-        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
-        positionTy ret = lastUsersPlanePos;
-        trueAirspeed_m = lastUsersTrueAirspeed;
-        track = lastUsersTrack;
-        lock.unlock();
-        return ret;
-    }
+    // access guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
+
+    // Copy the values
+    positionTy ret = lastUsersPlanePos;
+    if (pTrueAirspeed_m)    *pTrueAirspeed_m    = lastUsersTrueAirspeed;
+    if (pTrack)             *pTrack             = lastUsersTrack;
+    if (pHeightAGL_m)       *pHeightAGL_m       = lastUsersAGL_ft * M_per_FT;
+
+    return ret;
 }
 
 void DataRefs::UpdateUsersPlanePos ()
@@ -2708,8 +2706,8 @@ bool DataRefs::WeatherFetchMETAR ()
     // protected against updates from the weather thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
-    // Our current camera position
-    positionTy camPos = GetViewPos();
+    // User's position
+    positionTy posUser = GetUsersPlanePos();
     
     // So...do we need an update?
     if (// never try more often than TRY_PERIOD says to avoid flooding
@@ -2717,14 +2715,14 @@ bool DataRefs::WeatherFetchMETAR ()
         (   // had no weather yet at all?
             std::isnan(lastWeatherPos.lat()) ||
             // moved far away from last weather pos?
-            camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M ||
+            posUser.dist(lastWeatherPos) > WEATHER_UPD_DIST_M ||
             // enough time passed since last weather update?
             lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime()
         ))
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();
-        return ::WeatherFetchUpdate(camPos, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
+        return ::WeatherFetchUpdate(posUser, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
     }
     return false;
 }

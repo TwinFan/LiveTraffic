@@ -166,6 +166,7 @@ protected:
     
 // Some global functions require access
 friend void WeatherSet (const LTWeather& w);
+friend void WeatherSet (const std::string& metar, const std::string& metarIcao);
 friend void WeatherUpdate ();
 friend void WeatherReset ();
 friend void WeatherLogCurrent (const std::string& msg);

@@ -956,9 +956,6 @@ void LTRegularUpdates()
     // Update cached values
     dataRefs.UpdateCachedValues();
     
-    // Update the weather (short-cuts if nothing to do)
-    WeatherUpdate();
-    
     // Check if some msg window needs to show
     CheckThenShowMsgWindow();
 
@@ -1025,6 +1022,9 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         try {
             // Potentially refresh weather information
             dataRefs.WeatherFetchMETAR();
+            // Update the weather (short-cuts if nothing to do)
+            WeatherUpdate();
+            
             // Refresh airport data from apt.dat (in case camera moved far)
             if (LTAptRefresh()) {                   // fresh airport data available?
                 // If we are configured to keep parked aircraft, then we can ask RT to give us some

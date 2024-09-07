@@ -318,7 +318,7 @@ void LTWeather::Get (const std::string& logMsg)
     weather_source              = wdr_weather_source.get();
     weather_preset              = wdr_weather_preset.get();
     
-    pos                         = dataRefs.GetViewPos();
+    pos                         = dataRefs.GetUsersPlanePos();
     
     if (!logMsg.empty())
         Log(logMsg);
@@ -350,7 +350,7 @@ lOut << unit "\n";
     LOG_WARR("shear_speed: ",   shear_speed_msc,            "kts");
     LOG_WARR("shear_dir:   ",   shear_direction_degt,       "deg");
     LOG_WARR("turbulence:  ",   turbulence,                 "");
-    LOG_WARR("deqpoint:    ",   dewpoint_deg_c,             "C");
+    LOG_WARR("dewpoint:    ",   dewpoint_deg_c,             "C");
     LOG_WARR("temp_alt:    ",   temperature_altitude_msl_m, "m");
     LOG_WARR("temp:        ",   temperatures_aloft_deg_c,   "C");
     LOG_WARR("cloud_type:  ",   cloud_type,                 "0=Ci, 1=St, 2=Cu, 3=Cb");
@@ -1465,8 +1465,7 @@ void WeatherSet (const std::string& metar, const std::string& metarIcao)
     std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
     if (nextWeather.metar != metar) {               // makes only sense in case something has changed
         nextWeather = LTWeather();                  // reset all, reads `atmosphere_alt_levels_m` already
-        nextWeather.wind_altitude_msl_m =           // set all altitude levels to the same
-        nextWeather.temperature_altitude_msl_m = nextWeather.atmosphere_alt_levels_m;
+        nextWeather.Get();                          // get current weather from X-Plane as basis
         nextWeather.metar = metar;                  // just store METAR, will be processed/incorporated later in the main thread
         nextWeather.metarFieldIcao = metarIcao;
         nextWeather.posMetarField = positionTy();
@@ -1486,54 +1485,104 @@ void WeatherUpdate ()
         return;
     }
     
-    // TODO: Switch between METAR and XP real weather
+    // Where is the user's plane?
+    double altAGL_m = 0.0f;
+    const positionTy posUser = dataRefs.GetUsersPlanePos(nullptr, nullptr, &altAGL_m);
+    // Using XP Real Weather just now because we want it so?
+    const bool bXPRealWeather = WeatherIsXPRealWeather() && WeatherInControl();
     
-    // If there's nothing to
-    if (!bSetWeather) {
-        if (WeatherInControl())                     // but in princuple we are in control
-            wdr_qnh_pas.set(setWeather.qnh_pas);    // then re-set QNH as X-Plane likes to override that itself from time to time
-        return;
-    }
-
     // Access to weather storage guarded by a lock
     std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
-    bSetWeather = false;                                // reset flag right away so we don't try again in case of early exits (errors)
-    
-    // If there is a METAR, then let's process that now
-    if (!nextWeather.metar.empty() && !nextWeather.metarFieldIcao.empty()) {
-        // determine METAR location
+
+    // Check our METAR situation: Do we have one? How far away?
+    // Do we have a METAR that shall be processed?
+    bool bProcessMETAR = !nextWeather.metar.empty() && !nextWeather.metarFieldIcao.empty();
+    // Determine location of METAR field
+    if (bProcessMETAR && !nextWeather.posMetarField.hasPosAlt())
         nextWeather.posMetarField = GetAirportLoc(nextWeather.metarFieldIcao);
-        // Not too far away?
-        if (nextWeather.posMetarField.hasPosAlt() &&
-            float(nextWeather.posMetarField.distRoughSqr(dataRefs.GetViewPos())) < sqr(dataRefs.GetWeatherMaxMetarDist_m()))
+    // is that considered too far away?
+    const bool bNoNearbyMETAR =
+        !bProcessMETAR ||
+        !nextWeather.posMetarField.hasPosAlt() ||
+        float(nextWeather.posMetarField.distRoughSqr(posUser)) > sqr(dataRefs.GetWeatherMaxMetarDist_m());
+    if (bNoNearbyMETAR)
+        bProcessMETAR = false;
+    
+    // In case of METAR+XP: If using XP's Real Weather, then ignore "bSetWeather" (at least for now)
+    if (dataRefs.GetWeatherControl() == WC_METAR_XP)                // using METAR+XP mode
+    {
+        // No nearby METAR or flying high, should use XP Real Weather
+        if (bNoNearbyMETAR ||
+            altAGL_m > dataRefs.GetWeatherMaxMetarHeight_m() + (WeatherInControl() ? 100.0 : 0.0))
         {
-            nextWeather.IncorporateMETAR();
-            // Remember the METAR we used
-            setWeather.metar            = nextWeather.metar;
-            setWeather.metarFieldIcao   = nextWeather.metarFieldIcao;
-            setWeather.posMetarField    = nextWeather.posMetarField;
+            // should use XP Real Weather, but aren't yet?
+            if (!bXPRealWeather) {
+                SHOW_MSG(logINFO, "%s (%s)",
+                         WeatherInControl() ? "Switching to XP Real Weather" :
+                                              "LiveTraffic takes over controlling X-Plane's weather, activating XP's real weather",
+                         bNoNearbyMETAR ? "no nearby METAR" : "flying high");
+                WeatherSetXPRealWeather();
+                bWeatherControlling = true;
+            }
+            return;
         }
-        else {
-            // Remember that we did _not_ use a METAR to define weather
-            setWeather.metar.clear();
-            setWeather.metarFieldIcao.clear();
-            setWeather.posMetarField = positionTy();
+        
+        // Already in control and flying in-between (+/- 100m of max METAR height): no change
+        if (WeatherInControl() &&
+            (altAGL_m > dataRefs.GetWeatherMaxMetarHeight_m() - 100.0))
+            return;
+        
+        // Should use available METAR.
+        // but don't do yet?
+        if (bXPRealWeather) {
+            if (WeatherInControl()) {
+                SHOW_MSG(logINFO, "Switching to METAR weather (flying low)");
+            }
+            // falls through to "Set Weather"!
+            bSetWeather = true;
         }
     }
-        
+
+    // If there's no new weather to set
+    if (!bSetWeather) {
+        // if we are in control and no real weather set
+        if (WeatherInControl() && !bXPRealWeather)
+            wdr_qnh_pas.set(setWeather.qnh_pas);    // then re-set QNH as X-Plane likes to override that itself from time to time
+        return;                                     // but don't do any more
+    }
+    
+    // -- Set Weather --
+    bSetWeather = false;                            // reset flag right away so we don't try again in case of early exits (errors)
+    
+    // If there is a METAR to process, then now is the moment
+    if (bProcessMETAR)
+    {
+        nextWeather.IncorporateMETAR();
+        // Remember the METAR we used
+        setWeather.metar            = nextWeather.metar;
+        setWeather.metarFieldIcao   = nextWeather.metarFieldIcao;
+        setWeather.posMetarField    = nextWeather.posMetarField;
+    }
+    else {
+        // Remember that we did _not_ use a METAR to define weather
+        setWeather.metar.clear();
+        setWeather.metarFieldIcao.clear();
+        setWeather.posMetarField = positionTy();
+    }
+    
     // Set weather with immediate effect if first time, or if position changed dramatically
     nextWeather.update_immediately |= !WeatherInControl() ||
                                       !setWeather.pos.hasPosAlt() ||
-                                      setWeather.pos.dist(dataRefs.GetViewPos()) > WEATHER_MAX_DIST_M;
+                                      setWeather.pos.dist(posUser) > WEATHER_MAX_DIST_M;
     if (nextWeather.update_immediately) {
         if (!WeatherInControl()) {
             // Taking control of weather
             weatherOrigSource       = wdr_weather_source.get();
             weatherOrigChangeMode   = wdr_change_mode.get();
             if (dataRefs.ShallLogWeather()) {
-                SHOW_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
-                         WeatherGetSource().c_str(),
-                         weatherOrigSource, weatherOrigChangeMode);
+                LOG_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
+                        WeatherGetSource().c_str(),
+                        weatherOrigSource, weatherOrigChangeMode);
                 LTWeather().Get("Weather just prior to LiveTraffic taking over:");
             }
             SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
@@ -1545,6 +1594,7 @@ void WeatherUpdate ()
 
     // actually set the weather in X-Plane
     nextWeather.Set();
+    nextWeather.update_immediately = false;
     // get all values from X-Plane right away, after XP's processing
     setWeather.Get();
     // if weather's position is given remember that
@@ -1614,14 +1664,19 @@ std::string WeatherGetSource ()
     if (source < 0 || source > 3) source = 4;
 
     // Are we in control? Say so!
-    const WeatherCtrlTy wc = dataRefs.GetWeatherControl();
-    if (WeatherInControl() && wc > WC_NONE) {
-        if (wc == WC_REAL_TRAFFIC)
-            return "LiveTraffic using RealTraffic weather data";
-        else {
-            char t[100];
-            snprintf(t, sizeof(t), "LiveTraffic using METAR up to %dft, ", dataRefs.GetWeatherMaxMetarHeight_ft());
-            return t;
+    if (WeatherInControl()) {
+        char t[100];
+        switch (dataRefs.GetWeatherControl()) {
+            case WC_REAL_TRAFFIC:
+                return "LiveTraffic using RealTraffic weather data";
+            case WC_METAR_XP:
+                snprintf(t, sizeof(t), "LiveTraffic, using %s %dft AGL",
+                         (WeatherIsXPRealWeather() ? "XP's real weather above" : "METAR up to"),
+                         dataRefs.GetWeatherMaxMetarHeight_ft());
+                return std::string(t);
+            case WC_NONE:
+            case WC_INIT:
+                return std::string("LiveTraffic, unknown");
         }
     }
     else if (source == 0)                               // 'Preset'

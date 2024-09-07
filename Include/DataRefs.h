@@ -864,7 +864,9 @@ public:
     std::string GetXPSimTimeStr() const;        ///< Return a nicely formated time string with XP's simulated time in UTC
     
     void SetViewType(XPViewTypes vt);
-    positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
+    positionTy GetUsersPlanePos(double* pTrueAirspeed_m = nullptr,
+                                double* pTrack = nullptr,
+                                double* pHeightAGL_m = nullptr) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks

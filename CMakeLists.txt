@@ -21,7 +21,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 3.6.7
+        VERSION 3.6.8
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 1)
 

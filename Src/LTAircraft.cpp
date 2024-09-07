@@ -2563,8 +2563,7 @@ bool LTAircraft::CalcVisible ()
         const int hideDist = dataRefs.GetHideNearby(IsOnGrnd());
         if (hideDist > 0) {
             // We need the distance to the user's aircraft
-            double d1, d2;
-            const positionTy userPos = dataRefs.GetUsersPlanePos(d1, d2);
+            const positionTy userPos = dataRefs.GetUsersPlanePos();
             const double dist = ppos.dist(userPos);
             XPMP2::Aircraft::SetVisible(dist > double(hideDist));
         }
@@ -2599,8 +2598,8 @@ void LTAircraft::CalcAIPrio ()
     }
     
     // user's plane's position and bearing from user's plane to this aircraft
-    double userSpeed, userTrack;
-    positionTy posUser = dataRefs.GetUsersPlanePos(userSpeed, userTrack);
+    double userTrack = 0.0;
+    positionTy posUser = dataRefs.GetUsersPlanePos(nullptr, &userTrack);
     if (posUser.IsOnGnd())              // if on the ground
         userTrack = posUser.heading();      // heading is more reliable
     const double bearing = posUser.angle(ppos);

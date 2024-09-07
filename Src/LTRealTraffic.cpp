@@ -1703,8 +1703,7 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 void RealTrafficConnection::SendUsersPlanePos()
 {
     double airSpeed_m = 0.0;
-    double track = 0.0;
-    positionTy pos = dataRefs.GetUsersPlanePos(airSpeed_m,track);
+    positionTy pos = dataRefs.GetUsersPlanePos(&airSpeed_m);
     SendPos(pos, airSpeed_m);
 }
 
