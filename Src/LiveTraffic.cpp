@@ -477,9 +477,10 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             //  should actually be in DataRefs::LoadConfig,
             //  but can't because determining if user has set real weather
             //  only works later, in the flight loops.)
+            // Set to "RealTraffic weather" if X-Plane is set to real weather
+            //  and user has a RT license.
             if (dataRefs.GetWeatherControl() < WC_NONE)
-                // TODO: Weather default: Cannot be RealTraffic if not having a RT license
-                DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData(WeatherIsXPRealWeather() ?
+                DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData((WeatherIsXPRealWeather() && !dataRefs.GetRTLicense().empty()) ?
                                                              WC_REAL_TRAFFIC : WC_NONE);
             
             // next: Auto Start, but wait another 2 seconds for that
