@@ -364,6 +364,7 @@ public:
     // Status
     std::string GetStatusText () const override;            ///< return a human-readable status
     bool isHistoric () const { return curr.tOff > 0; }      ///< serving historic data?
+    double GetTSAdjust () const { return tsAdjust; }        ///< current timestamp adjustment
     
 protected:
     void Main () override;                                  ///< virtual thread main function

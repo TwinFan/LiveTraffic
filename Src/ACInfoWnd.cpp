@@ -445,7 +445,18 @@ void ACIWnd::buildInterface()
         if (bOpen)
         {
             CollSecClear(ACI_SB_SIMULATION);
-            buildRow("Simulated Time", dataRefs.GetSimTimeString().c_str(), true);
+            
+            std::string s;
+            // in case of historic RealTraffic data we adjust timestamp to the historic time
+            if (const RealTrafficConnection* pRTChn = dynamic_cast<const RealTrafficConnection*>(pChannel))
+            {
+                if (pRTChn->isHistoric())
+                    s = ts2string(dataRefs.GetSimTime() - pRTChn->GetTSAdjust());
+            }
+            // otherwise show general simulated time
+            if (s.empty())
+                s = dataRefs.GetSimTimeString();
+            buildRow("Simulated Time", s.c_str(), true);
 
             // last received tracking data
             const double lstDat = pFD ? (pFD->GetYoungestTS() - ts) : -99999.9;

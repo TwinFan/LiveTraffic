@@ -478,6 +478,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             //  but can't because determining if user has set real weather
             //  only works later, in the flight loops.)
             if (dataRefs.GetWeatherControl() < WC_NONE)
+                // TODO: Weather default: Cannot be RealTraffic if not having a RT license
                 DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData(WeatherIsXPRealWeather() ?
                                                              WC_REAL_TRAFFIC : WC_NONE);
             
