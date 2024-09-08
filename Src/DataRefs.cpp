@@ -757,8 +757,10 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable adsb.fi, OpenSky Master Data, OGN, and Synthetic by default
+    // enable all public/free channels by default:
+    // adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
@@ -2040,7 +2042,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V360 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2062,7 +2064,7 @@ bool DataRefs::LoadConfigFile()
     // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
-    if (!safeGetline(fIn, lnBuf)) {
+    if (!safeGetline(fIn, lnBuf) || lnBuf.empty()) {
         // this will trigger when the config file has size 0,
         // don't know why, but in some rare situations that does happen,
         // is actually the most often support question.
@@ -2110,8 +2112,6 @@ bool DataRefs::LoadConfigFile()
                 rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
                 conv = CFG_V350;
             }
-            if (cfgFileVer < 30600)
-                conv = CFG_V360;
         }
     }
     
@@ -2183,11 +2183,6 @@ bool DataRefs::LoadConfigFile()
                         // RealTraffic Sim Time Control: previous value 1 is re-purposed, switch instead to 2
                         if (*i == DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL] && sVal == "1")
                             sVal = "2";
-                        [[fallthrough]];
-                    case CFG_V360:
-                        // Disable OpenSky Network Online, simply too unreliable at the moment
-                        if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_ONLINE])
-                            sVal = "0";
                         break;
                 }
                 
