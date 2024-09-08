@@ -169,8 +169,10 @@ bool SyntheticConnection::ProcessFetchedData ()
 
         // Only process planes in search distance
         // We keep the data in memory, just in case we come back, but we don't feed data for unneeded planes
-        if (parkDat.pos.distRoughSqr(posCam) > distSearchSqr)
+        if (parkDat.pos.distRoughSqr(posCam) > distSearchSqr) {
+            ++i;                                                // next plane
             continue;
+        }
 
         // Find the related flight data
         std::unique_lock<std::mutex> mapLock (mapFdMutex);      // lock the entire map
