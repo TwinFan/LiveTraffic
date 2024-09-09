@@ -146,7 +146,7 @@ XDR_farr<13> wdr_wind_speed_msc;            ///< float[13]  y    kts            
 XDR_farr<13> wdr_wind_direction_degt;       ///< float[13]  y    degrees        [0 - 360] The direction the wind is blowing from in degrees from true north clockwise.
 XDR_farr<13> wdr_shear_speed_msc;           ///< float[13]  y    kts            >= 0. The gain from the shear in knots.
 XDR_farr<13> wdr_shear_direction_degt;      ///< float[13]  y    degrees        [0 - 360]. The direction for a wind shear, per above.
-XDR_farr<13> wdr_turbulence;                ///< float[13]  y    float          [0 - 10] A turbulence factor, 0-10, the unit is just a scale.
+XDR_farr<13> wdr_turbulence;                ///< float[13]  y    float          [0.0 - 1.0] A turbulence factor, 0-10, the unit is just a scale.
 XDR_farr<13> wdr_dewpoint_deg_c;            ///< float[13]  y    degreesC       The dew point at specified levels in the atmosphere.
 XDR_farr<13> wdr_temperature_altitude_msl_m;///< float[13]  y    meters         >= 0. Altitudes used for the temperatures_aloft_deg_c array.
 XDR_farr<13> wdr_temperatures_aloft_deg_c;  ///< float[13]  y    degreesC       Temperature at pressure altitudes given in sim/weather/region/atmosphere_alt_levels. If the surface is at a higher elevation, the ISA difference at wherever the surface is is assumed to extend all the way down to sea level.
@@ -1106,7 +1106,7 @@ public:
             // Add turbulence until under the top of the CB cloud
             w.FillUpMin(w.wind_altitude_msl_m, w.turbulence,
                         w.cloud_tops_msl_m[iCB],
-                        float(bThunderstorms)*2.5f,     // 2.5, 5.0, 7.5 depending on TS intensity
+                        float(bThunderstorms)*0.25f,     // 0.25, 0.5, 0.75 depending on TS intensity
                         true);
         }
     }
@@ -1163,100 +1163,87 @@ void LTWeather::IncorporateMETAR()
 //
 
 /// The request URL, parameters are in this order: radius, longitude, latitude
-const char* WEATHER_URL="https://aviationweather.gov/cgi-bin/data/dataserver.php?requestType=retrieve&dataSource=metars&format=xml&hoursBeforeNow=2&mostRecent=true&boundingBox=%.2f,%.2f,%.2f,%.2f&fields=raw_text,station_id,latitude,longitude,altim_in_hg";
+const char* WEATHER_URL="https://aviationweather.gov/api/data/metar?format=json&bbox=%.2f,%.2f,%.2f,%.2f";
 
-/// Weather search radius (increment) to use if the initial weather request came back empty
-constexpr float ADD_WEATHER_RADIUS_NM = 100.0f;
-/// How often to add up ADD_WEATHER_RADIUS_NM before giving up?
-constexpr long  MAX_WEATHER_RADIUS_FACTOR = 5;
+/// METAR search radius
+constexpr float METAR_SEARCH_RADIUS_NM = 250.0f;
 
-/// suppress further error message as we had enough already?
-bool gbSuppressWeatherErrMsg = false;
+/// Didn't find a METAR last time we tried?
+bool gbFoundNoMETAR = false;
 
 // Error messages
 #define ERR_WEATHER_ERROR       "Weather request returned with error: %s"
 #define INFO_NO_NEAR_WEATHER    "Found no nearby weather in a %.fnm radius"
-#define ERR_NO_WEATHER          "Found no weather in a %.fnm radius, giving up"
 #define INFO_FOUND_WEATHER_AGAIN "Successfully updated weather again from %s"
 
-/// return the value between two xml tags
-std::string GetXMLValue (const std::string& _r, const std::string& _tag,
-                         std::string::size_type& pos)
-{
-    // find the tag
-    std::string::size_type p = _r.find(_tag, pos);
-    if (p == std::string::npos)         // didn't find it
-        return "";
-    
-    // find the beginning of the _next_ tag (we don't validate any further)
-    const std::string::size_type startPos = p + _tag.size();
-    pos = _r.find('<', startPos);       // where the end tag begins
-    if (pos != std::string::npos)
-        return _r.substr(startPos, pos-startPos);
-    else {
-        pos = 0;                        // we overwrite pos with npos...reset to buffer's beginning for next search
-        return "";
-    }
-}
-
 /// @brief Process the response from aviationweather.com
-/// @details Response is in XML format. (JSON is not available.)
-///          We aren't doing a full XML parse here but rely on the
-///          fairly static structure:
-///          We straight away search for:
-///            `<error>` Indicates just that and stops interpretation.\n
-///            `<station_id>`, `<raw_text>`, `<latitude>`, `<longitude>`,
-///            and`<altim_in_hg>` are the values we are interested in.
+/// @see https://aviationweather.gov/data/api/#/Data/dataMetars
+/// @details Response is a _decoded_ METAR in JSON array format, one element per station.
+///          We don't need most of the fields, but with the JSON format
+///          we get the station's location and the interpreted `altimeter`
+///          "for free".
+///          We are looking for the closest station in that list
 bool WeatherProcessResponse (const std::string& _r)
 {
-    float lat = NAN;
-    float lon = NAN;
-    float hPa = NAN;
+    double bestLat = NAN;
+    double bestLon = NAN;
+    double bestDist = DBL_MAX;
+    double bestHPa = NAN;
     std::string stationId;
     std::string METAR;
     
-    // Any error?
-    std::string::size_type pos = 0;
-    std::string val = GetXMLValue(_r, "<error>", pos);
-    if (!val.empty()) {
-        LOG_MSG(logERR, ERR_WEATHER_ERROR, val.c_str());
-        return false;
-    }
+    // Where is the user? Looking for METAR closest to that
+    const positionTy posUser = dataRefs.GetUsersPlanePos();
     
-    // find the pressure
-    val = GetXMLValue(_r, "<altim_in_hg>", pos);
-    if (!val.empty()) {
-        hPa = std::stof(val) * (float)HPA_per_INCH;
-        
-        // We fetch the other fields in order of appearance, but need to start once again from the beginning of the buffer
-        pos = 0;
-        // Try fetching METAR and station_id
-        METAR = GetXMLValue(_r, "<raw_text>", pos);
-        stationId = GetXMLValue(_r, "<station_id>", pos);
-        
-        // If we've got a METAR we better take QNH from there as that is a local observation
-        const float QNH = WeatherQNHfromMETAR(METAR);
-        if (!std::isnan(QNH))
-            hPa = QNH;
+    // Try to parse as JSON...even in case of errors we might be getting a body
+    // Unique_ptr ensures it is freed before leaving the function
+    JSONRootPtr pRoot (_r.c_str());
+    if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return false; }
+    const JSON_Array* pArr = json_array(pRoot.get());
+    if (!pArr) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return false; }
 
-        // then let's see if we also find the weather station's location
-        val = GetXMLValue(_r, "<latitude>", pos);
-        if (!val.empty())
-            lat = std::stof(val);
-        val = GetXMLValue(_r, "<longitude>", pos);
-        if (!val.empty())
-            lon = std::stof(val);
-        
-        // tell ourselves what we found
-        dataRefs.SetWeather(hPa, lat, lon, stationId, METAR);
-
-        // found again weather after we had started to suppress messages?
-        if (gbSuppressWeatherErrMsg) {
-            // say hooray and report again
-            LOG_MSG(logINFO, INFO_FOUND_WEATHER_AGAIN, stationId.c_str());
-            gbSuppressWeatherErrMsg = false;
+    // Parse each METAR
+    for (size_t i = 0; i < json_array_get_count(pArr); ++i)
+    {
+        const JSON_Object* pMObj = json_array_get_object(pArr, i);
+        if (!pMObj) {
+            LOG_MSG(logERR, "Couldn't get %ld. element of METAR array", (long)i);
+            break;
         }
 
+        // Make sure our most important fields are available
+        const double lat = jog_n_nan(pMObj, "lat");
+        const double lon = jog_n_nan(pMObj, "lon");
+        const double hPa = jog_n_nan(pMObj, "altim");
+        if (std::isnan(lat) || std::isnan(lon) || std::isnan(hPa)) {
+            LOG_MSG(logWARN, "Couldn't process %ld. METAR, skipping", (long)i);
+            continue;
+        }
+        
+        // Compare METAR field's position with best we have so far, skip if father away
+        const double dist = DistLatLonSqr(posUser.lat(), posUser.lon(), lat, lon);
+        if (dist >= bestDist)
+            continue;;
+        
+        // We have a new nearest METAR
+        bestLat = lat;
+        bestLon = lon;
+        bestDist = dist;
+        bestHPa = hPa;
+        stationId = jog_s(pMObj, "icaoId");
+        METAR = jog_s(pMObj, "rawOb");
+    }
+    
+    // If we found something
+    if (!std::isnan(bestLat) || std::isnan(bestLon) || std::isnan(bestHPa)) {
+        // If previously we had not found anything say huray
+        if (gbFoundNoMETAR) {
+            LOG_MSG(logINFO, INFO_FOUND_WEATHER_AGAIN, stationId.c_str());
+            gbFoundNoMETAR = false;
+        }
+        // tell ourselves what we found
+        dataRefs.SetWeather(float(bestHPa), float(bestLat), float(bestLon),
+                            stationId, METAR);
         return true;
     }
 
@@ -1295,77 +1282,63 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
             return false;
         }
 
-        // Loop in case we need to re-do a request with larger radius
-        bool bRepeat = false;
-        do {
-            bRepeat = false;
+        // put together the URL, convert nautical to statute miles
+        const boundingBoxTy box (positionTy(_lat, _lon), _radius_nm * M_per_NM);
+        const positionTy minPos = box.sw();
+        const positionTy maxPos = box.ne();
+        snprintf(url, sizeof(url), WEATHER_URL,
+                 minPos.lat(), minPos.lon(),
+                 maxPos.lat(), maxPos.lon());
 
-            // put together the URL, convert nautical to statute miles
-            const boundingBoxTy box (positionTy(_lat, _lon), _radius_nm * M_per_NM);
-            const positionTy minPos = box.sw();
-            const positionTy maxPos = box.ne();
-            snprintf(url, sizeof(url), WEATHER_URL,
-                     minPos.lat(), minPos.lon(),
-                     maxPos.lat(), maxPos.lon());
+        // prepare the handle with the right options
+        readBuf.reserve(CURL_MAX_WRITE_SIZE);
+        curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
+        curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+        curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WeatherFetchCB);
+        curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+        curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+        curl_easy_setopt(pCurl, CURLOPT_URL, url);
 
-            // prepare the handle with the right options
-            readBuf.reserve(CURL_MAX_WRITE_SIZE);
-            curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-            curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
-            curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-            curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WeatherFetchCB);
-            curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
-            curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-            curl_easy_setopt(pCurl, CURLOPT_URL, url);
-
-            // perform the HTTP get request
-            CURLcode cc = CURLE_OK;
-            if ((cc = curl_easy_perform(pCurl)) != CURLE_OK)
-            {
-                // problem with querying revocation list?
-                if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
-                    // try not to query revoke list
-                    curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-                    LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
-                    // and just give it another try
-                    cc = curl_easy_perform(pCurl);
-                }
-
-                // if (still) error, then log error
-                if (cc != CURLE_OK)
-                    LOG_MSG(logERR, ERR_CURL_PERFORM, "Weather download", cc, curl_errtxt);
+        // perform the HTTP get request
+        CURLcode cc = CURLE_OK;
+        if ((cc = curl_easy_perform(pCurl)) != CURLE_OK)
+        {
+            // problem with querying revocation list?
+            if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+                // try not to query revoke list
+                curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+                // and just give it another try
+                cc = curl_easy_perform(pCurl);
             }
 
-            if (cc == CURLE_OK)
-            {
-                // CURL was OK, now check HTTP response code
-                long httpResponse = 0;
-                curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+            // if (still) error, then log error
+            if (cc != CURLE_OK)
+                LOG_MSG(logERR, ERR_CURL_PERFORM, "Weather download", cc, curl_errtxt);
+        }
 
-                // not HTTP_OK?
-                if (httpResponse != HTTP_OK) {
-                    LOG_MSG(logERR, ERR_CURL_PERFORM, "Weather download", (int)httpResponse, ERR_HTTP_NOT_OK);
-                }
-                else {
-                    // Success: Process data
-                    bRet = WeatherProcessResponse(readBuf);
-                    // Not found weather yet?
-                    if (!bRet) {
-                        // How often did we apply ADD_WEATHER_RADIUS_NM already?
-                        const long nRadiusFactor = std::lround(_radius_nm/ADD_WEATHER_RADIUS_NM);
-                        if (nRadiusFactor < MAX_WEATHER_RADIUS_FACTOR) {
-                            if (!gbSuppressWeatherErrMsg)
-                                LOG_MSG(logINFO, INFO_NO_NEAR_WEATHER, _radius_nm);
-                            _radius_nm = (nRadiusFactor+1) * ADD_WEATHER_RADIUS_NM;
-                            bRepeat = true;
-                        } else if (!gbSuppressWeatherErrMsg) {
-                            LOG_MSG(logERR, ERR_NO_WEATHER, _radius_nm);
-                            gbSuppressWeatherErrMsg = true;
-                        }
+        if (cc == CURLE_OK)
+        {
+            // CURL was OK, now check HTTP response code
+            long httpResponse = 0;
+            curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+
+            // not HTTP_OK?
+            if (httpResponse != HTTP_OK) {
+                LOG_MSG(logERR, ERR_CURL_PERFORM, "Weather download", (int)httpResponse, ERR_HTTP_NOT_OK);
+            }
+            else {
+                // Success: Process data
+                if (!WeatherProcessResponse(readBuf)) {
+                    // didn't find weather in data!
+                    if (!gbFoundNoMETAR) {                  // say so, but once only
+                        LOG_MSG(logINFO, INFO_NO_NEAR_WEATHER, _radius_nm);
+                        gbFoundNoMETAR = true;
                     }
                 }
             }
-        } while (bRepeat);
+        }
         
         // cleanup CURL handle
         curl_easy_cleanup(pCurl);

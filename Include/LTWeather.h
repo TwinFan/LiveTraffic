@@ -95,7 +95,7 @@ public:
     std::array<float,13> wind_direction_degt;       ///< float[13]  y    degrees        [0 - 360] The direction the wind is blowing from in degrees from true north clockwise.
     std::array<float,13> shear_speed_msc;           ///< float[13]  y    kts            >= 0. The gain from the shear in knots.
     std::array<float,13> shear_direction_degt;      ///< float[13]  y    degrees        [0 - 360]. The direction for a wind shear, per above.
-    std::array<float,13> turbulence;                ///< float[13]  y    float          [0 - 10] A turbulence factor, 0-10, the unit is just a scale.
+    std::array<float,13> turbulence;                ///< float[13]  y    float          [0.0 - 1.0] A turbulence factor, 0-10, the unit is just a scale.
     std::array<float,13> dewpoint_deg_c;            ///< float[13]  y    degreesC       The dew point at specified levels in the atmosphere.
     std::array<float,13> temperature_altitude_msl_m;///< float[13]  y    meters         >= 0. Altitudes used for the temperatures_aloft_deg_c array.
     std::array<float,13> temperatures_aloft_deg_c;  ///< float[13]  y    degreesC       Temperature at pressure altitudes given in sim/weather/region/atmosphere_alt_levels. If the surface is at a higher elevation, the ISA difference at wherever the surface is is assumed to extend all the way down to sea level.

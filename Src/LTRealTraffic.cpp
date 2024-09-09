@@ -1191,7 +1191,7 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     if (pDZDTs) {
         rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pDZDTs), rtWx.w.turbulence);
         std::for_each(rtWx.w.turbulence.begin(), rtWx.w.turbulence.end(),
-                      [](float& f){ f = std::clamp<float>(f * 5.0f, 0.0f, 10.0f); });         // convert from RT's scale (">2 severe") to XP's of 0..10
+                      [](float& f){ f = std::clamp<float>(f * 0.5f, 0.0f, 1.0f); });         // convert from RT's scale (">2 severe") to XP's of 0.0..1.0
     }
    
     // Temperature
