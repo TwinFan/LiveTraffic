@@ -1746,17 +1746,6 @@ bool DataRefs::SetCfgValue (void* p, int val)
         return false;
     }
     
-    // Special handling for fdSnapTaxiDist:
-    if (oldFdSnapTaxiDist != fdSnapTaxiDist)        // snap taxi dist did change
-    {
-        // switched from on to off?
-        if (oldFdSnapTaxiDist > 0 && fdSnapTaxiDist == 0)
-            LTAptDisable();
-        // switched from off to on?
-        else if (oldFdSnapTaxiDist == 0 && fdSnapTaxiDist > 0)
-            LTAptEnable();
-    }
-    
     // If label draw distance changes we need to tell XPMP2
     if (p == &labelMaxDist)
         XPMPSetAircraftLabelDist(float(labelMaxDist), bLabelVisibilityCUtOff);
@@ -2691,9 +2680,7 @@ bool DataRefs::ToggleLabelDraw()
 //
 
 constexpr float WEATHER_TRY_PERIOD = 120.0f;            ///< [s] Don't _try_ to read weather more often than this
-constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
-constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be updated if moved more than this far from last weather update position
-constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
+constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at least this often
 
 // check if weather updated needed, then do
 bool DataRefs::WeatherFetchMETAR ()
@@ -2710,14 +2697,14 @@ bool DataRefs::WeatherFetchMETAR ()
         (   // had no weather yet at all?
             std::isnan(lastWeatherPos.lat()) ||
             // moved far away from last weather pos?
-            posUser.dist(lastWeatherPos) > WEATHER_UPD_DIST_M ||
+            posUser.dist(lastWeatherPos) > double(GetWeatherMaxMetarDist_m())/2.0 ||
             // enough time passed since last weather update?
             lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime()
         ))
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();
-        return ::WeatherFetchUpdate(posUser, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
+        return ::WeatherFetchUpdate(posUser, GetWeatherMaxMetarDist_nm());
     }
     return false;
 }

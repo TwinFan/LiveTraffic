@@ -1165,9 +1165,6 @@ void LTWeather::IncorporateMETAR()
 /// The request URL, parameters are in this order: radius, longitude, latitude
 const char* WEATHER_URL="https://aviationweather.gov/api/data/metar?format=json&bbox=%.2f,%.2f,%.2f,%.2f";
 
-/// METAR search radius
-constexpr float METAR_SEARCH_RADIUS_NM = 250.0f;
-
 /// Didn't find a METAR last time we tried?
 bool gbFoundNoMETAR = false;
 
@@ -1221,21 +1218,27 @@ bool WeatherProcessResponse (const std::string& _r)
         }
         
         // Compare METAR field's position with best we have so far, skip if father away
-        const double dist = DistLatLonSqr(posUser.lat(), posUser.lon(), lat, lon);
-        if (dist >= bestDist)
+        vectorTy vec = posUser.between(positionTy(lat,lon));
+        if (vec.dist > dataRefs.GetWeatherMaxMetarDist_m())     // skip if too far away
+            break;
+        // Weigh in direction of flight into distance calculation:
+        // In direction of flight, distance only appears half as far,
+        // so we prefer METARs in the direction of flight
+        vec.dist *= (180.0 + std::abs(HeadingDiff(posUser.heading(), vec.angle))) / 360.0;
+        if (vec.dist >= bestDist)
             continue;;
         
         // We have a new nearest METAR
         bestLat = lat;
         bestLon = lon;
-        bestDist = dist;
+        bestDist = vec.dist;
         bestHPa = hPa;
         stationId = jog_s(pMObj, "icaoId");
         METAR = jog_s(pMObj, "rawOb");
     }
     
     // If we found something
-    if (!std::isnan(bestLat) || std::isnan(bestLon) || std::isnan(bestHPa)) {
+    if (!std::isnan(bestLat) && !std::isnan(bestLon) && !std::isnan(bestHPa)) {
         // If previously we had not found anything say huray
         if (gbFoundNoMETAR) {
             LOG_MSG(logINFO, INFO_FOUND_WEATHER_AGAIN, stationId.c_str());
@@ -1282,8 +1285,8 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
             return false;
         }
 
-        // put together the URL, convert nautical to statute miles
-        const boundingBoxTy box (positionTy(_lat, _lon), _radius_nm * M_per_NM);
+        // put together the URL, with a bounding box with _radius_nm in each direction
+        const boundingBoxTy box (positionTy(_lat, _lon), _radius_nm * M_per_NM * 2.0);
         const positionTy minPos = box.sw();
         const positionTy maxPos = box.ne();
         snprintf(url, sizeof(url), WEATHER_URL,
@@ -1494,6 +1497,11 @@ void WeatherUpdate ()
                          WeatherInControl() ? "Switching to XP Real Weather" :
                                               "LiveTraffic takes over controlling X-Plane's weather, activating XP's real weather",
                          bNoNearbyMETAR ? "no nearby METAR" : "flying high");
+                // Remember that we did _not_ use a METAR to define weather
+                setWeather.metar.clear();
+                setWeather.metarFieldIcao.clear();
+                setWeather.posMetarField = positionTy();
+                // Set to XP real weather
                 WeatherSetXPRealWeather();
                 bWeatherControlling = true;
             }

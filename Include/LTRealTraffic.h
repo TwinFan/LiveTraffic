@@ -291,8 +291,8 @@ protected:
     /// METAR entry in the NearestMETAR response
     struct NearestMETAR {
         std::string     ICAO = RT_METAR_UNKN;           ///< ICAO code of METAR station
-        float           dist = NAN;                     ///< distance to station
-        float           brgTo = NAN;                    ///< bearing to station
+        double          dist = NAN;                     ///< distance to station
+        double          brgTo = NAN;                    ///< bearing to station
 
         NearestMETAR() {}                               ///< Standard constructor, all empty
         NearestMETAR(const JSON_Object* pObj) { Parse (pObj); } ///< Fill from JSON
@@ -307,7 +307,7 @@ protected:
     struct WxTy {
         double QNH = NAN;                               ///< baro pressure
         std::chrono::steady_clock::time_point next;     ///< next time to request RealTraffic weather
-        positionTy pos;                                 ///< viewer position for which we received Realtraffic weather
+        positionTy pos;                                 ///< plane position for which we requested Realtraffic weather
         NearestMETAR nearestMETAR;                      ///< info on nearest METAR
         long tOff = 0;                                  ///< time offset for which we requested weather
         int nErr = 0;                                   ///< How many errors did we have during weather requests?
@@ -316,7 +316,7 @@ protected:
         std::array<LTWeather::InterpolSet,13> interp;   ///< interpolation settings to convert from RT's 20 layers to XP's 13
         
         /// Set all relevant values
-        void set (double qnh, const CurrTy& o, bool bResetErr = true);
+        void set (double qnh, long _tOff, bool bResetErr = true);
     } rtWx;                                             ///< Data with which latest weather was requested
     /// How many flights does RealTraffic have in total?
     long lTotalFlights = -1;
