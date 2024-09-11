@@ -23,6 +23,7 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [X-Plane SDK](https://developer.x-plane.com/sdk/plugin-sdk-documents/) to integrate with X-Plane
 - [XPMP2](https://github.com/TwinFan/XPMP2) for CSL model processing
 - [CURL](https://curl.haxx.se/libcurl/) for network protocol support
+- [FMOD](https://www.fmod.com/) Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.
 - [parson](https://github.com/kgabis/parson) as JSON parser
 - [metaf](https://github.com/nnaumenko/metaf) as METAR parser
 - [libz/zlib](https://zlib.net) as compression library (used by CURL)

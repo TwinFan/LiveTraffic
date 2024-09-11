@@ -337,7 +337,7 @@ void LTWeather::Log (const std::string& msg) const
     lOut <<  "sea_temp: "    << sealevel_temperature_c   << "C, ";
     lOut <<  "qnh_base_elev: "<<qnh_base_elevation       << "?, ";
     lOut <<  "qnh_pas:"      << qnh_pas                  << ", ";
-    lOut <<  "rain: "        << rain_percent             << "%,\n";
+    lOut <<  "rain: "        << (rain_percent*100.0f)    << "%,\n";
 
 #define LOG_WARR(label, var, unit)                          \
 lOut << label;                                              \
@@ -354,7 +354,9 @@ lOut << unit "\n";
     LOG_WARR("temp_alt:    ",   temperature_altitude_msl_m, "m");
     LOG_WARR("temp:        ",   temperatures_aloft_deg_c,   "C");
     LOG_WARR("cloud_type:  ",   cloud_type,                 "0=Ci, 1=St, 2=Cu, 3=Cb");
-    LOG_WARR("cloud_cover: ",   cloud_coverage_percent,     "%");
+    lOut <<  "cloud_cover: ";
+    for (const float& f: cloud_coverage_percent) lOut << std::setw(8) << (f*100.0f) << " ";
+    lOut <<  "%\n";
     LOG_WARR("cloud_base:  ",   cloud_base_msl_m,           "m");
     LOG_WARR("cloud_tops:  ",   cloud_tops_msl_m,           "m");
     lOut << std::setw(0);
@@ -365,7 +367,7 @@ lOut << unit "\n";
     lOut <<  "wave_amp: "    << wave_amplitude           << "m, ";
     lOut <<  "wave_dir: "    << wave_dir                 << "deg, ";
     lOut <<  "rwy_fric: "    << runway_friction          << ", ";
-    lOut <<  "variability: " << variability_pct          << "%\n";
+    lOut <<  "variability: " << (variability_pct*100.0f) << "%\n";
     
     // if any of the follow is filled (e.g. after getting weather from X-Plane for logging purposes)
     if (change_mode >= 0 || weather_source >= 0 || weather_preset >= 0) {
