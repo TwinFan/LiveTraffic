@@ -1674,7 +1674,6 @@ void DataRefs::LTSetCfgValue (void* p, int val)
 bool DataRefs::SetCfgValue (void* p, int val)
 {
     // If fdSnapTaxiDist changes we might want to enable/disable airport reading
-    const int oldFdSnapTaxiDist     = fdSnapTaxiDist;
     const int oldRefreshInvtl       = fdRefreshIntvl;
     const int oldLongRefreshIntvl   = fdLongRefrIntvl;
     

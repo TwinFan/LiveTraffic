@@ -39,6 +39,7 @@ static const CreditTy CREDITS[] = {
     { "CURL", "for network protocol support",           "https://curl.haxx.se/libcurl/" },
     { "FMOD", "Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.", "https://www.fmod.com/"},
     { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
+    { "metaf", "for parsing METARs",                    "https://github.com/nnaumenko/metaf" },
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
     { "ImgWindow", "for integrating ImGui into X-Plane windows", "https://github.com/xsquawkbox/xsb_public" },
