@@ -64,6 +64,8 @@ protected:
     std::string sFSCPwd;            ///< FSC password
     bool bFSCPwdClearText = false;  ///< Is FSC pwd displayed clear text?
     
+    // Weather
+    std::string txtManualMETAR;     ///< manually set METAR for fixed weather
 
     // CSL
     int cslActiveLn = -1;           ///< CSL path line currently being edited

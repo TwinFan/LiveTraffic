@@ -665,12 +665,17 @@ public:
     bool visitLocationGroup(const LocationGroup & lg,
                             ReportPart, const std::string&) override
     {
-        w.posMetarField = GetAirportLoc(lg.toString());         // determin the field's location and especially altitude
+        w.metarFieldIcao = lg.toString();
+        w.posMetarField = GetAirportLoc(w.metarFieldIcao);      // determin the field's location and especially altitude
         fieldAlt_m = float(w.posMetarField.alt_m());            // save field's altitude for easier access in later visitor functions
         if (std::isnan(fieldAlt_m)) {
             fieldAlt_m = 0.0f;
             LOG_MSG(logWARN, "Couldn't determine altitude of field '%s', clouds may appear too low", lg.toString().c_str());
         }
+        
+        // If we don't have a position, then use the field's position
+        if (!w.pos.hasPosAlt())
+            w.pos = w.posMetarField;
         
         // Are we flying/viewing "close" to ground so that we prefer METAR data?
         bCloseToGnd = float(w.pos.alt_m()) < fieldAlt_m + dataRefs.GetWeatherMaxMetarHeight_m();
@@ -1140,12 +1145,12 @@ const ParseResult& ParseMETAR (const std::string& raw)
 }
 
 // Parse `metar` and fill weather from there as far as possible
-void LTWeather::IncorporateMETAR()
+bool LTWeather::IncorporateMETAR()
 {
     // --- Parse ---
     const ParseResult& r = ParseMETAR(metar);
     if (r.reportMetadata.error != ReportError::NONE)
-        return;
+        return false;
 
     // Log before applying METAR
     if (dataRefs.ShallLogWeather())
@@ -1157,6 +1162,7 @@ void LTWeather::IncorporateMETAR()
         if (v.visit(gi))                    // returns if to stop processing
             break;
     v.PostProcessing();
+    return true;
 }
 
 
@@ -1417,11 +1423,43 @@ void WeatherSetXPRealWeather ()
         wdr_change_mode.set(WDR_CM_REAL_WEATHER);
 }
 
+/// Internal function that actually sets X-Planes weather to what's defined in nextWeather
+void WeatherDoSet ()
+{
+    if (nextWeather.update_immediately) {
+        if (!WeatherInControl()) {
+            // Taking control of weather
+            weatherOrigSource       = wdr_weather_source.get();
+            weatherOrigChangeMode   = wdr_change_mode.get();
+            if (dataRefs.ShallLogWeather()) {
+                LOG_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
+                        WeatherGetSource().c_str(),
+                        weatherOrigSource, weatherOrigChangeMode);
+                LTWeather().Get("Weather just prior to LiveTraffic taking over:");
+            }
+            SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
+            bWeatherControlling     = true;
+        } else {
+            SHOW_MSG(logINFO, "LiveTraffic is re-setting X-Plane's weather");
+        }
+    }
+
+    // actually set the weather in X-Plane
+    nextWeather.Set();
+    nextWeather.update_immediately = false;
+    // get all values from X-Plane right away, after XP's processing
+    setWeather.Get();
+    // if weather's position is given remember that
+    if (nextWeather.pos.hasPosAlt())
+        setWeather.pos = nextWeather.pos;
+}
+
+
 // Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w)
 {
     if (!WeatherCanSet()) {
-        SHOW_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
+        LOG_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
         return;
     }
     
@@ -1435,7 +1473,7 @@ void WeatherSet (const LTWeather& w)
 void WeatherSet (const std::string& metar, const std::string& metarIcao)
 {
     if (!WeatherCanSet()) {
-        SHOW_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
+        LOG_MSG(logDEBUG, "Requested to set weather, but cannot due to missing dataRefs");
         return;
     }
     
@@ -1450,6 +1488,72 @@ void WeatherSet (const std::string& metar, const std::string& metarIcao)
         bSetWeather = true;
     }
 }
+
+// Set weather constantly to this METAR
+void WeatherSetConstant (const std::string& metar)
+{
+    if (!dataRefs.IsXPThread() || !WeatherCanSet()) {
+        LOG_MSG(logDEBUG, "Requested to set weather, but cannot due to not being in main thread or missing dataRefs");
+        return;
+    }
+    
+    // Reset?
+    if (metar.empty()) {
+        WeatherReset();
+    }
+    else {
+        // Define the weather to be set solely based on the passed-in METAR
+        nextWeather = LTWeather();
+        nextWeather.temperature_altitude_msl_m = nextWeather.wind_altitude_msl_m = nextWeather.atmosphere_alt_levels_m;
+        nextWeather.metar = metar;
+        nextWeather.cloud_coverage_percent.fill(0.0f);
+        nextWeather.cloud_base_msl_m.fill(0.0f);
+        nextWeather.cloud_tops_msl_m.fill(0.0f);
+        if (!nextWeather.IncorporateMETAR()) {
+            SHOW_MSG(logWARN, "Could not parse provided METAR, weather not set!");
+            return;
+        }
+        
+        // Copy several value to all altitudes
+        nextWeather.wind_speed_msc.fill(nextWeather.wind_speed_msc.front());
+        nextWeather.wind_direction_degt.fill(nextWeather.wind_direction_degt.front());
+        nextWeather.shear_speed_msc.fill(nextWeather.shear_speed_msc.front());
+        nextWeather.shear_direction_degt.fill(nextWeather.shear_direction_degt.front());
+        nextWeather.turbulence.fill(nextWeather.turbulence.front());
+        
+        // Temperature is a bit more difficult
+        for (size_t i = 1; i < nextWeather.temperature_altitude_msl_m.size(); ++i)
+        {
+            // up to field altitude keep the assigned METAR temperatur
+            if (nextWeather.temperature_altitude_msl_m[i] < nextWeather.posMetarField.alt_m()) {
+                nextWeather.temperatures_aloft_deg_c[i] = nextWeather.temperatures_aloft_deg_c[i-1];
+                nextWeather.dewpoint_deg_c[i] = nextWeather.dewpoint_deg_c[i-1];
+            }
+            else {
+                // above field altitude temperature reduces by .6 degree per 100m
+                const float dAlt = nextWeather.temperature_altitude_msl_m[i] - nextWeather.temperature_altitude_msl_m[i-1];
+                nextWeather.temperatures_aloft_deg_c[i] = nextWeather.temperatures_aloft_deg_c[i-1] - (dAlt * 0.006458424f);
+                // above field altitude dewpoint reduces by .2 degree per 100m until reaching temperatur
+                nextWeather.dewpoint_deg_c[i] = std::min(
+                    nextWeather.dewpoint_deg_c[i-1] - (dAlt * 0.001784121f),
+                    nextWeather.temperatures_aloft_deg_c[i]);
+            }
+        }
+
+        // Disable other weather control
+        DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData(WC_NONE);
+
+        // Remember the METAR we set
+        setWeather.metar            = nextWeather.metar;
+        setWeather.metarFieldIcao   = nextWeather.metarFieldIcao;
+        setWeather.posMetarField    = nextWeather.posMetarField;
+
+        nextWeather.update_immediately = true;
+        WeatherDoSet();
+        SHOW_MSG(logINFO, "Constant weather set based on METAR");
+    }
+}
+
     
 // Actually update X-Plane's weather if there is anything to do (called from main thread)
 void WeatherUpdate ()
@@ -1540,13 +1644,16 @@ void WeatherUpdate ()
     // If there is a METAR to process, then now is the moment
     if (bProcessMETAR)
     {
-        nextWeather.IncorporateMETAR();
-        // Remember the METAR we used
-        setWeather.metar            = nextWeather.metar;
-        setWeather.metarFieldIcao   = nextWeather.metarFieldIcao;
-        setWeather.posMetarField    = nextWeather.posMetarField;
+        if (nextWeather.IncorporateMETAR()) {
+            // Remember the METAR we used
+            setWeather.metar            = nextWeather.metar;
+            setWeather.metarFieldIcao   = nextWeather.metarFieldIcao;
+            setWeather.posMetarField    = nextWeather.posMetarField;
+        }
+        else
+            bProcessMETAR = false;
     }
-    else {
+    if (!bProcessMETAR) {
         // Remember that we did _not_ use a METAR to define weather
         setWeather.metar.clear();
         setWeather.metarFieldIcao.clear();
@@ -1557,32 +1664,7 @@ void WeatherUpdate ()
     nextWeather.update_immediately |= !WeatherInControl() ||
                                       !setWeather.pos.hasPosAlt() ||
                                       setWeather.pos.dist(posUser) > WEATHER_MAX_DIST_M;
-    if (nextWeather.update_immediately) {
-        if (!WeatherInControl()) {
-            // Taking control of weather
-            weatherOrigSource       = wdr_weather_source.get();
-            weatherOrigChangeMode   = wdr_change_mode.get();
-            if (dataRefs.ShallLogWeather()) {
-                LOG_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
-                        WeatherGetSource().c_str(),
-                        weatherOrigSource, weatherOrigChangeMode);
-                LTWeather().Get("Weather just prior to LiveTraffic taking over:");
-            }
-            SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
-            bWeatherControlling     = true;
-        } else {
-            SHOW_MSG(logINFO, "LiveTraffic is re-setting X-Plane's weather");
-        }
-    }
-
-    // actually set the weather in X-Plane
-    nextWeather.Set();
-    nextWeather.update_immediately = false;
-    // get all values from X-Plane right away, after XP's processing
-    setWeather.Get();
-    // if weather's position is given remember that
-    if (nextWeather.pos.hasPosAlt())
-        setWeather.pos = nextWeather.pos;
+    WeatherDoSet();
 }
 
 // Reset weather settings to what they were before X-Plane took over

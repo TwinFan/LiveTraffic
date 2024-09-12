@@ -807,11 +807,14 @@ void LTSettingsUI::buildInterface()
             // Use  METAR up to which distance from fiel?
             ImGui::FilteredCfgNumber("Max. METAR distance", sFilter, DR_CFG_WEATHER_MAX_METAR_DIST, 5, 100, 5, "%d nm");
 
-            // TODO: Add option to set weather by static METAR
-            // Idea: Set LiveTraffic's weather setting to "Off".
-            //       Set complete weather by METAR, like wind in all altitutes,
-            //       temperatur approximated by altitude etc....
-            //       Set it once and once only in X-Plane in a non-changing mode.
+            // Allow to define a constant, METAR-based weather
+            if (ImGui::FilteredInputText("Set weather to", sFilter, txtManualMETAR, 0.0f,
+                                         "Paste METAR to define weather, hit <Enter>",
+                                         ImGuiInputTextFlags_CharsUppercase |
+                                         ImGuiInputTextFlags_AutoSelectAll |
+                                         ImGuiInputTextFlags_EnterReturnsTrue))
+                WeatherSetConstant(txtManualMETAR);
+            
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Weather ---
