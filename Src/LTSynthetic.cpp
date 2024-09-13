@@ -157,7 +157,7 @@ bool SyntheticConnection::ProcessFetchedData ()
     // Camera pos
     const positionTy posCam = dataRefs.GetViewPos();
     // Squared search distance for distance comparison
-    const double distSearchSqr = sqr(dataRefs.GetFdStdDistance_m());
+    const double distSearchSqr = sqr(double(dataRefs.GetFdStdDistance_m()));
     
     // --- Parked Aircraft ---
     // For all stored aircraft
