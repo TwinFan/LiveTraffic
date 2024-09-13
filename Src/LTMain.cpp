@@ -711,6 +711,9 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
 
 // MARK: Other Utility Functions
 
+/// Transition altitude: Above this altitude we don't convert barometric pressure any longer
+constexpr double TRANSITION_ALT_M = 18000.0 * M_per_FT;
+
 // Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
 /// @see https://www.mide.com/air-pressure-at-altitude-calculator
 double PressureFromBaroAlt(double baroAlt_m, double refPressure)
@@ -728,6 +731,8 @@ double AltFromPressure(double pressure, double refPressure)
 // Convert a pressure altitude (based on std pressure) to a geometric altitude
 double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure)
 {
+    if (baroAlt_m > TRANSITION_ALT_M)               // don't convert above transition altitude
+        return baroAlt_m;
     const double pressure = PressureFromBaroAlt(baroAlt_m);
     return AltFromPressure(pressure, refPressure);
 }
@@ -735,6 +740,8 @@ double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure)
 // Convert a geometric altitude to a barometric altitude (based on std pressure)
 double GeoAltToBaroAlt_m(double geoAlt_m, double refPressure)
 {
+    if (geoAlt_m > TRANSITION_ALT_M)                // don't convert above transition altitude
+        return geoAlt_m;
     const double pressure = PressureFromBaroAlt(geoAlt_m, refPressure);
     return AltFromPressure(pressure, HPA_STANDARD);
 }
