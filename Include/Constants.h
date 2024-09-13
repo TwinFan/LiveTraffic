@@ -49,6 +49,7 @@ constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
 constexpr int M_per_KM      = 1000;
 constexpr double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
 constexpr double NM_per_KM  = 1000.0 / double(M_per_NM);
+constexpr double M_per_SM   = 1609.344; ///< meters per statute mile
 constexpr int SEC_per_M     = 60;       // 60 seconds per minute
 constexpr int SEC_per_H     = 3600;     // 3600 seconds per hour
 constexpr int H_per_D       = 24;       // 24 hours per day
@@ -67,7 +68,7 @@ constexpr double TEMP_LAPS_R    = -0.0065f;     ///< K/m
 
 //MARK: Flight Data-related
 constexpr unsigned MAX_TRANSP_ICAO = 0xFFFFFF;  // max transponder ICAO code (24bit)
-constexpr int    MAX_NUM_AIRCRAFT   = 200;      ///< maximum number of aircraft allowed to be rendered
+constexpr int    MAX_NUM_AIRCRAFT   = 300;      ///< maximum number of aircraft allowed to be rendered
 constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
@@ -270,6 +271,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
 #define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"
+#define HELP_SET_WEATHER        "setup/configuration/settings-weather"
 #define HELP_SET_ADVANCED       "setup/configuration/settings-advanced"
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
@@ -367,7 +369,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_FILE_OPEN_OUT   "Could not create config file '%s': %s"
 #define ERR_CFG_FILE_WRITE      "Could not write into config file '%s': %s"
 #define ERR_CFG_FILE_OPEN_IN    "Could not open '%s': %s"
-#define ERR_CFG_FILE_VER        "Config file '%s' first line: Unsupported format or version: %s"
+#define ERR_CFG_FILE_VER        "Config file '%s' first line: Unsupported format or version: '%s'"
 #define ERR_CFG_FILE_VER_UNEXP  "Config file '%s' first line: Unexpected version %s, expected %s...trying to continue"
 #define ERR_CFG_FILE_IGNORE     "Ignoring unkown entry '%s' from config file '%s'"
 #define ERR_CFG_FILE_WORDS      "Expected two words (key, value) in config file '%s', line '%s': ignored"

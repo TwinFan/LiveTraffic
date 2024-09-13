@@ -540,6 +540,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/contrail_max_alt",            DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/contrail_life_time",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/contrail_multiple",           DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/weather_control",             DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true, true },
+    {"livetraffic/cfg/weather_metar_agl",           DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/weather_metar_dist",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/remote_support",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/external_camera_tool",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/cfg/last_check_new_ver",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -548,6 +551,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
+    {"livetraffic/dbg/log_weather",                 DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/export_fd",                   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/export_user_ac",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
@@ -632,6 +636,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_CONTRAIL_MAX_ALT:       return &contrailAltMax_ft;
         case DR_CFG_CONTRAIL_LIFE_TIME:     return &contrailLifeTime;
         case DR_CFG_CONTRAIL_MULTIPLE:      return &contrailMulti;
+        case DR_CFG_WEATHER_CONTROL:        return &weatherCtl;
+        case DR_CFG_WEATHER_MAX_METAR_AGL:  return &weatherMaxMETARheight_ft;
+        case DR_CFG_WEATHER_MAX_METAR_DIST: return &weatherMaxMETARdist_nm;
         case DR_CFG_REMOTE_SUPPORT:         return &remoteSupport;
         case DR_CFG_EXTERNAL_CAMERA:        return &bUseExternalCamera;
         case DR_CFG_LAST_CHECK_NEW_VER:     return &lastCheckNewVer;
@@ -640,6 +647,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
+        case DR_DBG_LOG_WEATHER:            return &bDebugWeather;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;
         case DR_DBG_EXPORT_FD:              return &bDebugExportFd;
         case DR_DBG_EXPORT_USER_AC:         return &bDebugExportUserAc;
@@ -731,9 +739,6 @@ static bool gbIgnoreItsMe = false;
 
 DataRefs::DataRefs ( logLevelTy initLogLevel ) :
 iLogLevel (initLogLevel),
-#ifdef DEBUG
-bDebugAcPos (true),
-#endif
 MsgRect(0, 0, WIN_WIDTH, 0),
 SUIrect (0, 500, 690, 0),                   // (left=bottom=0 means: initially centered)
 ACIrect (0, 530, 320, 0),
@@ -752,8 +757,10 @@ ILWrect (0, 400, 965, 0)
     for ( int& i: bChannel )
         i = false;
 
-    // enable adsb.fi, OpenSky Master Data, OGN, and Synthetic by default
+    // enable all public/free channels by default:
+    // adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
@@ -1125,22 +1132,20 @@ void DataRefs::SetViewType(XPViewTypes vt)
 
 
 // return user's plane pos
-positionTy DataRefs::GetUsersPlanePos(double& trueAirspeed_m, double& track ) const
+positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
+                                      double* pTrack,
+                                      double* pHeightAGL_m) const
 {
-    if (IsXPThread()) {
-        // running in XP's main thread we can just return the values
-        trueAirspeed_m = lastUsersTrueAirspeed;
-        track = lastUsersTrack;
-        return lastUsersPlanePos;
-    } else {
-        // in a worker thread, we need to have the lock, and copy before release
-        std::unique_lock<std::recursive_mutex> lock(mutexDrUpdate);
-        positionTy ret = lastUsersPlanePos;
-        trueAirspeed_m = lastUsersTrueAirspeed;
-        track = lastUsersTrack;
-        lock.unlock();
-        return ret;
-    }
+    // access guarded by a lock
+    std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
+
+    // Copy the values
+    positionTy ret = lastUsersPlanePos;
+    if (pTrueAirspeed_m)    *pTrueAirspeed_m    = lastUsersTrueAirspeed;
+    if (pTrack)             *pTrack             = lastUsersTrack;
+    if (pHeightAGL_m)       *pHeightAGL_m       = lastUsersAGL_ft * M_per_FT;
+
+    return ret;
 }
 
 void DataRefs::UpdateUsersPlanePos ()
@@ -1669,7 +1674,6 @@ void DataRefs::LTSetCfgValue (void* p, int val)
 bool DataRefs::SetCfgValue (void* p, int val)
 {
     // If fdSnapTaxiDist changes we might want to enable/disable airport reading
-    const int oldFdSnapTaxiDist     = fdSnapTaxiDist;
     const int oldRefreshInvtl       = fdRefreshIntvl;
     const int oldLongRefreshIntvl   = fdLongRefrIntvl;
     
@@ -1703,7 +1707,7 @@ bool DataRefs::SetCfgValue (void* p, int val)
         if (contrailAltMax_ft < contrailAltMin_ft + 1000)
             contrailAltMax_ft = std::min(90000, contrailAltMin_ft + 1000);
     }
-
+    
     // any configuration value invalid?
     if (labelColor      < 0                 || labelColor       > 0xFFFFFF ||
 #ifdef DEBUG
@@ -1722,6 +1726,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
         hideBelowAGL    < 0                 || hideBelowAGL     > MDL_ALT_MAX ||
         hideNearbyGnd   < 0                 || hideNearbyGnd    > 500   ||
         hideNearbyAir   < 0                 || hideNearbyAir    > 5000  ||
+        weatherMaxMETARheight_ft < 1000     || weatherMaxMETARheight_ft > 10000 ||
+        weatherMaxMETARdist_nm   <    5     || weatherMaxMETARdist_nm   >   100 ||
         rtListenPort    < 1024              || rtListenPort     > 65535 ||
         rtTrafficPort   < 1024              || rtTrafficPort    > 65535 ||
         rtWeatherPort   < 1024              || rtWeatherPort    > 65535 ||
@@ -1737,17 +1743,6 @@ bool DataRefs::SetCfgValue (void* p, int val)
         // undo change
         *reinterpret_cast<int*>(p) = oldVal;
         return false;
-    }
-    
-    // Special handling for fdSnapTaxiDist:
-    if (oldFdSnapTaxiDist != fdSnapTaxiDist)        // snap taxi dist did change
-    {
-        // switched from on to off?
-        if (oldFdSnapTaxiDist > 0 && fdSnapTaxiDist == 0)
-            LTAptDisable();
-        // switched from off to on?
-        else if (oldFdSnapTaxiDist == 0 && fdSnapTaxiDist > 0)
-            LTAptEnable();
     }
     
     // If label draw distance changes we need to tell XPMP2
@@ -1766,6 +1761,21 @@ bool DataRefs::SetCfgValue (void* p, int val)
             if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
                 XPMPSoundEnable(true);
             XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
+        }
+    }
+    
+    // If weather is...
+    if (p == &weatherCtl) {
+        switch (weatherCtl) {
+            case WC_INIT:
+            case WC_NONE:               // ...switched off do so immediately
+                WeatherReset();
+                break;
+            case WC_METAR_XP:           // ...by METAR pass on the last METAR now
+                WeatherSet(lastWeatherMETAR, lastWeatherStationId);
+                break;
+            case WC_REAL_TRAFFIC:       // ...by RealTraffic do nothing...RT will do
+                break;
         }
     }
     
@@ -2020,7 +2030,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V360 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2042,7 +2052,7 @@ bool DataRefs::LoadConfigFile()
     // first line is supposed to be the version, read entire line
     std::vector<std::string> ln;
     std::string lnBuf;
-    if (!safeGetline(fIn, lnBuf)) {
+    if (!safeGetline(fIn, lnBuf) || lnBuf.empty()) {
         // this will trigger when the config file has size 0,
         // don't know why, but in some rare situations that does happen,
         // is actually the most often support question.
@@ -2090,8 +2100,6 @@ bool DataRefs::LoadConfigFile()
                 rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
                 conv = CFG_V350;
             }
-            if (cfgFileVer < 30600)
-                conv = CFG_V360;
         }
     }
     
@@ -2163,11 +2171,6 @@ bool DataRefs::LoadConfigFile()
                         // RealTraffic Sim Time Control: previous value 1 is re-purposed, switch instead to 2
                         if (*i == DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL] && sVal == "1")
                             sVal = "2";
-                        [[fallthrough]];
-                    case CFG_V360:
-                        // Disable OpenSky Network Online, simply too unreliable at the moment
-                        if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_ONLINE])
-                            sVal = "0";
                         break;
                 }
                 
@@ -2676,19 +2679,16 @@ bool DataRefs::ToggleLabelDraw()
 //
 
 constexpr float WEATHER_TRY_PERIOD = 120.0f;            ///< [s] Don't _try_ to read weather more often than this
-constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at leas this often
-constexpr double WEATHER_UPD_DIST_M = 25.0 * M_per_NM;  ///< [m] Weather to be updated if moved more than this far from last weather update position
-constexpr float  WEATHER_SEARCH_RADIUS_NM = 25;         ///< [nm] Search for latest weather reports in this radius
+constexpr float WEATHER_UPD_PERIOD = 600.0f;            ///< [s] Weather to be updated at least this often
 
 // check if weather updated needed, then do
-bool DataRefs::WeatherUpdate ()
+bool DataRefs::WeatherFetchMETAR ()
 {
     // protected against updates from the weather thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
-    // Our current camera position
-    positionTy camPos = GetViewPos();
-    camPos.LocalToWorld();
+    // User's position
+    positionTy posUser = GetUsersPlanePos();
     
     // So...do we need an update?
     if (// never try more often than TRY_PERIOD says to avoid flooding
@@ -2696,22 +2696,22 @@ bool DataRefs::WeatherUpdate ()
         (   // had no weather yet at all?
             std::isnan(lastWeatherPos.lat()) ||
             // moved far away from last weather pos?
-            camPos.dist(lastWeatherPos) > WEATHER_UPD_DIST_M ||
+            posUser.dist(lastWeatherPos) > double(GetWeatherMaxMetarDist_m())/2.0 ||
             // enough time passed since last weather update?
             lastWeatherUpd + WEATHER_UPD_PERIOD < GetMiscNetwTime()
         ))
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();
-        return ::WeatherUpdate(camPos, WEATHER_SEARCH_RADIUS_NM);   // travel distances [m] doubles as weather search distance [nm]
+        return ::WeatherFetchUpdate(posUser, GetWeatherMaxMetarDist_nm());
     }
     return false;
 }
 
 // Called by the asynch process spawned by ::WeatherUpdate to inform us of the weather
-void DataRefs::SetWeather (float hPa, float lat, float lon,
-                           const std::string& stationId,
-                           const std::string& METAR)
+float DataRefs::SetWeather (float hPa, float lat, float lon,
+                            const std::string& stationId,
+                            const std::string& METAR)
 {
     // protected against reads from the main thread
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
@@ -2727,6 +2727,11 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
         lastWeatherStationId = GetNearestAirportId(lat, lon);
     }
     
+    // Let's see if we can quickly find the QNH from the metar, which we prefer
+    const float qnh = WeatherQNHfromMETAR(METAR);
+    if (!std::isnan(qnh))
+        hPa = qnh;
+
     // Did weather change?
     if (!dequal(lastWeatherHPA, hPa)) {
         LOG_MSG(logINFO, INFO_WEATHER_UPDATED, hPa,
@@ -2734,9 +2739,15 @@ void DataRefs::SetWeather (float hPa, float lat, float lon,
                 lastWeatherPos.lat(), lastWeatherPos.lon());
     }
     
-    // Finally: Save the new pressure and potentially export it with the tracking data
+    // Save the new pressure and potentially export it with the tracking data
     lastWeatherHPA = hPa;
     LTFlightData::ExportLastWeather();
+    
+    // If we are to set weather based on METAR, then this is it
+    if (dataRefs.GetWeatherControl() == WC_METAR_XP)
+        WeatherSet(lastWeatherMETAR, lastWeatherStationId);
+    
+    return lastWeatherHPA;
 }
 
 // Thread-safely gets current weather info

@@ -27,8 +27,12 @@
 /// Start reading apt.dat file(s), build an index
 bool LTAptEnable ();
 
-/// Update the airport data with airports around current camera position
-void LTAptRefresh ();
+/// @brief Update the airport data with airports around current camera position
+/// @returns if fresh airport data has just been loaded completely
+bool LTAptRefresh ();
+
+/// Has LTAptRefresh finished, ie. do we have airport data?
+bool LTAptAvailable ();
 
 /// @brief Return the best possible runway to auto-land at
 /// @param _mdl flight model definitions to use for calculations

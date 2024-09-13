@@ -34,16 +34,22 @@
 #include <fcntl.h>
 #endif
 
+// RealTraffic's atmospheric layers in meters
+const std::vector<float> RT_ATMOS_LAYERS = {
+    111, 323, 762, 988, 1457, 1948, 2465, 3011, 3589, 4205,
+    4863, 5572, 6341, 7182, 8114, 9160, 10359, 11770, 13503, 15790
+};
+
+
 //
 // MARK: RealTraffic Connection
 //
 
 // Set all relevant values
-void RealTrafficConnection::WxTy::set(double qnh, const CurrTy& o, bool bResetErr)
+void RealTrafficConnection::WxTy::set(double qnh, long _tOff, bool bResetErr)
 {
     QNH     = qnh;
-    pos     = o.pos;
-    tOff    = o.tOff;
+    tOff    = _tOff;
     next    = std::chrono::steady_clock::now() + RT_DRCT_WX_WAIT;
     if (bResetErr)
         nErr    = 0;
@@ -97,17 +103,20 @@ std::string RealTrafficConnection::GetStatusText () const
     // --- Direct Connection? ---
     if (eConnType == RT_CONN_REQU_REPL) {
         std::string s =
-            curr.eRequType == CurrTy::RT_REQU_AUTH ? "Authenticating..." :
-            curr.eRequType == CurrTy::RT_REQU_WEATHER ? "Fetching weather..." :
+            curr.eRequType == CurrTy::RT_REQU_AUTH          ? "Authenticating..." :
+            curr.eRequType == CurrTy::RT_REQU_DEAUTH        ? "De-authenticating..." :
+            curr.eRequType == CurrTy::RT_REQU_PARKED        ? "Fetching parked aircraft..." :
+            curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR ? "Fetching weather..." :
+            curr.eRequType == CurrTy::RT_REQU_WEATHER       ? "Fetching weather..." :
             LTChannel::GetStatusText();
-        if (tsAdjust > 1.0) {                           // historic data?
+        if (isHistoric()) {                             // historic data?
             snprintf(sIntvl, sizeof(sIntvl), MSG_RT_ADJUST,
                      GetAdjustTSText().c_str());
             s += sIntvl;
         }
         if (lTotalFlights == 0) {                       // RealTraffic has no data at all???
             s += " | RealTraffic has no traffic at all! ";
-            s += (curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+            s += (isHistoric() ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
         }
         return s;
     }
@@ -188,32 +197,40 @@ void RealTrafficConnection::MainDirect ()
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
     lTotalFlights = -1;
+    // can right away read parked traffic if parked aircraft enabled and airport data is already available, otherwise we'll be triggered later when airport data has been processed
+    bDoParkedTraffic = dataRefs.ShallKeepParkedAircraft() && LTAptAvailable();
+    // If we could theoretically set weather we prepare the interpolation settings
+    if (WeatherCanSet()) {
+        rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
+                                                 rtWx.w.atmosphere_alt_levels_m);
+    }
 
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
         try {
             // where are we right now?
             const positionTy pos (dataRefs.GetViewPos());
-            rrlWait = RT_DRCT_ERR_WAIT;                 // Standard is: retry in 5s
 
             // If the camera position is valid we can request data around it
             if (pos.isNormal()) {
-                // determine the type of request, fetch data and process it
-                SetRequType(pos);
+                // Fetch data and process it
+                curr.pos = pos;
                 if (FetchAllData(pos) && ProcessFetchedData())
                     // reduce error count if processed successfully
                     // as a chance to appear OK in the long run
                     DecErrCnt();
+                
+                // Determine next action and wait time
+                tNextWakeup = SetRequType(pos);
             }
             else {
                 // Camera position is yet invalid, retry in a second
-                rrlWait = std::chrono::seconds(1);
+                tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(1);
             }
             
             // sleep for a bit or if woken up for termination
             // by condition variable trigger
             {
-                tNextWakeup = std::chrono::steady_clock::now() + rrlWait;
                 std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
                 FDThreadSynchCV.wait_until(lk, tNextWakeup,
                                            [this]{return !shallRun();});
@@ -227,10 +244,30 @@ void RealTrafficConnection::MainDirect ()
             IncErrCnt();
         }
     }
+    
+    // Close the session with RealTraffic
+    try {
+        const positionTy pos (dataRefs.GetViewPos());
+        SetRequType(pos);
+        if (FetchAllData(pos) && ProcessFetchedData())
+            // reduce error count if processed successfully
+            // as a chance to appear OK in the long run
+            DecErrCnt();
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+        IncErrCnt();
+    } catch (...) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+        IncErrCnt();
+    }
+    
+    // Reset weather control (this assumes noone else can control weather and
+    // would need to change once any other source in LiveTraffic can do so)
+    WeatherReset();
 }
 
-// Which request do we need now?
-void RealTrafficConnection::SetRequType (const positionTy& _pos)
+// Which request do we need next and when?
+std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetRequType (const positionTy& _pos)
 {
     // Position as passed in
     curr.pos = _pos;
@@ -261,20 +298,46 @@ void RealTrafficConnection::SetRequType (const positionTy& _pos)
             break;
     }
     
-    if (curr.sGUID.empty())                         // have no GUID? Need authentication
+    if (!shallRun()) {                                          // end the session?
+        curr.eRequType = CurrTy::RT_REQU_DEAUTH;
+        return std::chrono::steady_clock::now();
+    }
+    if (curr.sGUID.empty()) {                                   // have no GUID? Need authentication
         curr.eRequType = CurrTy::RT_REQU_AUTH;
-    else if ((std::isnan(rtWx.QNH) ||               // no Weather, or wrong time offset, or outdated, or moved too far away?
-              std::labs(curr.tOff - rtWx.tOff) > 120 ||
-              std::chrono::steady_clock::now() >= rtWx.next ||
-              rtWx.pos.distRoughSqr(curr.pos) > (RT_DRCT_WX_DIST*RT_DRCT_WX_DIST)))
+        return std::chrono::steady_clock::now();
+    }
+    if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR) {      // previous request was METAR location?
+        curr.eRequType = CurrTy::RT_REQU_WEATHER;
+        return tNextWeather;
+    }
+    const positionTy posUser = dataRefs.GetUsersPlanePos();     // Where is the user's plane just now=
+    if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                       // not yet seen too many weather request errors? _AND_
+        (std::isnan(rtWx.QNH) ||                                // no Weather, or wrong time offset, or outdated, or moved too far away?
+         std::labs(curr.tOff - rtWx.tOff) > 120 ||
+         // too far? (we use half the max. METAR distance
+         rtWx.pos.distRoughSqr(posUser) > (sqr(dataRefs.GetWeatherMaxMetarDist_m()/2.0)) ||
+         // or turned by at least 45 degrees? (Heading into a different direction can mean to select a different METAR)
+         std::abs(HeadingDiff(rtWx.pos.heading(), posUser.heading())) > 45.0))
+    {
+        curr.eRequType = CurrTy::RT_REQU_NEAREST_METAR;
+        if (std::labs(curr.tOff - rtWx.tOff) > 120)             // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
+            rtWx.QNH = NAN;
+        return tNextWeather;
+    }
+    if (rtWx.nErr < RT_DRCT_MAX_WX_ERR &&                       // not yet seen too many weather request errors? _AND_
+        std::chrono::steady_clock::now() >= rtWx.next)          // just time for a weather update
     {
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
-        if (std::labs(curr.tOff - rtWx.tOff) > 120) // if changing the timeoffset (request other historic data) then we must have new weather before proceeding
-            rtWx.QNH = NAN;
+        return tNextWeather;
     }
-    else
-        // in all other cases we ask for traffic data
-        curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
+    if (bDoParkedTraffic && LTAptAvailable()) {                 // Do the parked traffic now, and only when airport details are available so we can place the aircraft correctly
+        curr.eRequType = CurrTy::RT_REQU_PARKED;
+        return tNextTraffic;
+    }
+    
+    // in all other cases we ask for traffic data
+    curr.eRequType = CurrTy::RT_REQU_TRAFFIC;
+    return tNextTraffic;
 }
 
 
@@ -293,8 +356,13 @@ std::string RealTrafficConnection::GetURL (const positionTy&)
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:
             return RT_AUTH_URL;
+        case CurrTy::RT_REQU_DEAUTH:
+            return RT_DEAUTH_URL;
+        case CurrTy::RT_REQU_NEAREST_METAR:
+            return RT_NEAREST_METAR_URL;
         case CurrTy::RT_REQU_WEATHER:
             return RT_WEATHER_URL;
+        case CurrTy::RT_REQU_PARKED:
         case CurrTy::RT_REQU_TRAFFIC:
             return RT_TRAFFIC_URL;
     }
@@ -313,22 +381,49 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                      dataRefs.GetRTLicense().c_str(),
                      HTTP_USER_AGENT);
             break;
-        case CurrTy::RT_REQU_WEATHER:
-            snprintf(s, sizeof(s), RT_WEATHER_POST,
+        case CurrTy::RT_REQU_DEAUTH:
+            snprintf(s, sizeof(s), RT_DEAUTH_POST,
+                     curr.sGUID.c_str());
+            break;
+        case CurrTy::RT_REQU_NEAREST_METAR:
+            rtWx.pos = dataRefs.GetUsersPlanePos();
+            snprintf(s, sizeof(s), RT_NEAREST_METAR_POST,
                      curr.sGUID.c_str(),
-                     curr.pos.lat(), curr.pos.lon(), 0L,
+                     rtWx.pos.lat(), rtWx.pos.lon(),
                      curr.tOff);
             break;
+        case CurrTy::RT_REQU_WEATHER:
+            rtWx.pos = dataRefs.GetUsersPlanePos();
+            snprintf(s, sizeof(s), RT_WEATHER_POST,
+                     curr.sGUID.c_str(),
+                     rtWx.pos.lat(), rtWx.pos.lon(), std::lround(rtWx.pos.alt_ft()),
+                     rtWx.nearestMETAR.ICAO.c_str(),
+                     curr.tOff);
+            break;
+        case CurrTy::RT_REQU_PARKED:
         case CurrTy::RT_REQU_TRAFFIC:
         {
             // we add 10% to the bounding box to have some data ready once the plane is close enough for display
             const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
             
-            snprintf(s,sizeof(s), RT_TRAFFIC_POST,
-                     curr.sGUID.c_str(),
-                     box.nw.lat(), box.se.lat(),
-                     box.nw.lon(), box.se.lon(),
-                     curr.tOff);
+            // If we request traffic for the very first time, then we ask for some buffer into the past for faster plane display
+            if ((curr.eRequType == CurrTy::RT_REQU_TRAFFIC) && IsFirstRequ()) {
+                snprintf(s,sizeof(s), RT_TRAFFIC_POST_BUFFER,
+                         curr.sGUID.c_str(),
+                         box.nw.lat(), box.se.lat(),
+                         box.nw.lon(), box.se.lon(),
+                         curr.tOff,
+                         dataRefs.GetFdBufPeriod() / 10);       // One buffer per 10s of buffering time
+            }
+            // normal un-buffered request for traffic or parked aircraft
+            else {
+                snprintf(s,sizeof(s),
+                         curr.eRequType == CurrTy::RT_REQU_TRAFFIC ? RT_TRAFFIC_POST : RT_TRAFFIC_POST_PARKED,
+                         curr.sGUID.c_str(),
+                         box.nw.lat(), box.se.lat(),
+                         box.nw.lon(), box.se.lon(),
+                         curr.tOff);
+            }
             break;
         }
     }
@@ -352,7 +447,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
-
+    
     // Try the error fields first
     long rStatus = jog_l(pObj, "status");
     if (!rStatus) { LOG_MSG(logERR,"Response has no 'status'"); IncErrCnt(); return false; }
@@ -360,7 +455,6 @@ bool RealTrafficConnection::ProcessFetchedData ()
     std::string rMsg = jog_s(pObj, "message");
     
     // --- Error processing ---
-    rrlWait = RT_DRCT_ERR_WAIT;                     // Standard is: retry in 5s
     
     // For failed weather requests keep a separate counter
     if (curr.eRequType == CurrTy::RT_REQU_WEATHER && rStatus != HTTP_OK) {
@@ -382,50 +476,61 @@ bool RealTrafficConnection::ProcessFetchedData ()
             } else {
                 LOG_MSG(logWARN, "RealTraffic returned: %s", rMsg.c_str());
                 IncErrCnt();
+                tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
                 return false;
             }
             
         case HTTP_METH_NOT_ALLWD:                   // Send for "too many sessions" / "request rate violation"
             LOG_MSG(logERR, "RealTraffic: %s", rMsg.c_str());
             IncErrCnt();
-            rrlWait = std::chrono::seconds(10);     // documentation says "wait 10 seconds"
+            // documentation says "wait 10 seconds"
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_RATE;
             curr.sGUID.clear();                     // force re-login
             return false;
             
         case HTTP_UNAUTHORIZED:                     // means our GUID expired
             LOG_MSG(logDEBUG, "Session expired");
             curr.sGUID.clear();                     // re-login immediately
-            rrlWait = std::chrono::milliseconds(0);
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now();
             return false;
             
         case HTTP_FORBIDDEN:
             LOG_MSG(logWARN, "RealTraffic forbidden: %s", rMsg.c_str());
             IncErrCnt();
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
             
         case HTTP_INTERNAL_ERR:
         default:
             SHOW_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
             IncErrCnt();
+            tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
     }
     
     // All good, process the request
-
+    
     // Wait till next request?
-    long l = jog_l(pObj, "rrl");                    // Wait time till next request
+    long rrl = jog_l(pObj, "rrl");                  // Wait time till next request, separately for traffic and weather
+    long wrrl = jog_l(pObj, "wrrl");
     switch (curr.eRequType) {
-        case CurrTy::RT_REQU_AUTH:                  // after an AUTH request we take the rrl unchanged, ie. as quickly as possible
+        case CurrTy::RT_REQU_AUTH:                  // in most cases we continue as quickly as possible
+        case CurrTy::RT_REQU_DEAUTH:
+        case CurrTy::RT_REQU_PARKED:
+        case CurrTy::RT_REQU_WEATHER:
             break;
-        case CurrTy::RT_REQU_WEATHER:               // unfortunately, no `rrl` in weather requests...
-            l = 300;                                // we just continue 300ms later
+        case CurrTy::RT_REQU_NEAREST_METAR:         // after learning the META we continue quickly with the weather request
+            wrrl = 50;
             break;
         case CurrTy::RT_REQU_TRAFFIC:               // By default we wait at least 8s, or more if RealTraffic instructs us so
-            if (l < RT_DRCT_DEFAULT_WAIT)
-                l = RT_DRCT_DEFAULT_WAIT;
+            if (rrl < RT_DRCT_DEFAULT_WAIT)
+                rrl = RT_DRCT_DEFAULT_WAIT;
             break;
     }
-    rrlWait = std::chrono::milliseconds(l);
+    if (rrl > 0)
+        tNextTraffic = std::chrono::steady_clock::now() + std::chrono::milliseconds(rrl);
+    if (wrrl > 0)
+        tNextWeather = std::chrono::steady_clock::now() + std::chrono::milliseconds(wrrl);
     
     // --- Authorization ---
     if (curr.eRequType == CurrTy::RT_REQU_AUTH) {
@@ -441,17 +546,38 @@ bool RealTrafficConnection::ProcessFetchedData ()
         return true;
     }
     
+    // --- De-authentication (closing the session) ---
+    if (curr.eRequType == CurrTy::RT_REQU_DEAUTH) {
+        curr.sGUID.clear();
+        LOG_MSG(logDEBUG, "De-authenticated");
+        return true;
+    }
+    
+    // --- Nearest METAR location ---
+    if (curr.eRequType == CurrTy::RT_REQU_NEAREST_METAR) {
+        ProcessNearestMETAR(json_object_get_array(pObj, "data"));
+        return true;
+    }
+    
     // --- Weather ---
     if (curr.eRequType == CurrTy::RT_REQU_WEATHER) {
-        // We are interested in just a single value: local Pressure
-        const double wxSLP = jog_n_nan(pObj, "data.locWX.SLP");
+        // Here, we are interested in just a single value: local Pressure
+        double wxQNH = jog_n_nan(pObj, "data.QNH");         // ideally QNH
+        if (std::isnan(wxQNH))
+            wxQNH = jog_n_nan(pObj, "data.locWX.SLP");      // of not given then SLP
+        
         // Error in locWX data?
         std::string s = jog_s(pObj, "data.locWX.Error");                    // sometimes errors are given in a specific field
-        if (s.empty() &&
-            !strcmp(jog_s(pObj, "data.locWX.Info"), "TinyDelta"))           // if we request too often then Info is 'TinyDelta'
-            s = "TinyDelta";
+        if (s.empty()) {                                                    // and at other times there is something in the 'Info' field...not very consistent
+            s = jog_s(pObj, "data.locWX.Info");
+            if (!s.empty() &&
+                s != "TinyDelta" &&                                         // if we request too often then Info is 'TinyDelta', and we let it sit in 's'
+                s.substr(0,6) != "error:")                                  // any error starts with "error:" and we let it sit in 's'
+                s.clear();
+        }
+        
         // Any error, either explicitely or because local pressure is bogus?
-        if (!s.empty() || std::isnan(wxSLP) || wxSLP < 800.0)
+        if (!s.empty() || std::isnan(wxQNH) || wxQNH < 800.0)
         {
             if (s == "File requested") {
                 // Error "File requested" often occurs when requesting historic weather that isn't cached on the server, so we only issue debug-level message
@@ -463,7 +589,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
                             s.c_str(), netData);
                 } else {
                     LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
-                            wxSLP, netData);
+                            wxQNH, netData);
                 }
             }
             // one more error
@@ -473,33 +599,69 @@ bool RealTrafficConnection::ProcessFetchedData ()
                 // Too many WX errors? We give up and just use standard pressure
                 if (rtWx.nErr >= RT_DRCT_MAX_WX_ERR) {
                     SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
-                    rtWx.set(HPA_STANDARD, curr, false);
+                    rtWx.set(HPA_STANDARD, curr.tOff, false);
+                    rtWx.pos = positionTy();
                 } else {
                     // We will request weather directly again, but need to wait 60s for it
-                    rrlWait = std::chrono::seconds(60);
+                    tNextWeather = std::chrono::steady_clock::now() + std::chrono::seconds(60);
                 }
             }
             return false;
         }
-
-        // Successfully received weather information
-        LOG_MSG(logDEBUG, "Received RealTraffic locWX.SLP = %.1f", wxSLP);
-        rtWx.set(wxSLP, curr);                      // Save new QNH
+        
+        // If we have METAR info pass that on, too
+        s = jog_s(pObj, "data.ICAO");
+        std::string metar = jog_s(pObj, "data.METAR");
+        
+        if (s.empty() || s == "UNKN") {         // ignore no/unknown METAR
+            s.clear();
+            metar.clear();
+        }
+            
+        // If this is live data, not historic, then we can use it instead of separately querying METAR
+        if (!isHistoric()) {
+            rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH,
+                                                 (float)rtWx.pos.lat(), (float)rtWx.pos.lon(),
+                                                 s, metar);
+        }
+        // historic data
+        else {
+            // Try reading QNH from METAR
+            rtWx.w.qnh_pas = WeatherQNHfromMETAR(metar);
+        }
+        
+        // Successfully received local pressure information
+        rtWx.set(std::isnan(rtWx.w.qnh_pas) ? wxQNH : double(rtWx.w.qnh_pas), curr.tOff);   // Save new QNH
+        LOG_MSG(logDEBUG, "Received RealTraffic Weather with QNH = %.1f", rtWx.QNH);
+        
+        // If requested to set X-Plane's weather based on detailed weather data
+        if (dataRefs.GetWeatherControl() == WC_REAL_TRAFFIC) {
+            ProcessWeather (json_object_get_object(pObj, "data"));
+            if (std::isnan(rtWx.w.qnh_pas))
+                rtWx.w.qnh_pas = float(rtWx.QNH);
+        }
+        
         return true;
     }
     
+    // --- Parked Aircraft ---
+    if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
+        bDoParkedTraffic = false;                       // Repeat only when instructed
+        return ProcessParkedAcBuffer(json_object_get_object(pObj, "data"));
+    }
+
     // --- Traffic data ---
     
     // In `dataepoch` RealTraffic delivers the point in time when the data was valid.
     // That is relevant especially for historic data, when `dataepoch` is in the past.
-    l = jog_l(pObj, "dataepoch");
-    if (l > long(JAN_FIRST_2019))
+    const long epoch = jog_l(pObj, "dataepoch");
+    if (epoch > long(JAN_FIRST_2019))
     {
         // "now" is the simulated time plus the buffering period
         const long simTime  = long(dataRefs.GetSimTime());
         const long bufTime  = long(dataRefs.GetFdBufPeriod());
         // As long as the timestamp is half the buffer time close to "now" we consider the data current, ie. non-historic
-        if (l > simTime + bufTime/2) {
+        if (epoch > simTime + bufTime/2) {
             if (tsAdjust > 0.0) {                       // is that a change from historic delivery?
                 SHOW_MSG(logINFO, INFO_RT_REAL_TIME);
             }
@@ -507,7 +669,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
         }
         // we have historic data
         else {
-            long diff = simTime + bufTime - l;          // difference between "now"
+            long diff = simTime + bufTime - epoch;      // difference between "now"
             diff -= 10;                                 // rounding 10s above the minute down,
             diff += 60 - diff % 60;                     // everything else up to the next minute
             if (long(tsAdjust) != diff) {               // is this actually a change?
@@ -529,7 +691,49 @@ bool RealTrafficConnection::ProcessFetchedData ()
             prevWarn = now;
         }
     }
+    
+    // The 'data' object holds the aircraft data in two different variants:
+    // - directly, then it holds a set of objects, each being an aircraft (essentially a fake array)
+    // - buffered, then it holds a set of objects, which in turn hold a set of aircraft objects
+    const JSON_Object* pData = json_object_get_object(pObj, "data");
+    if (!pData) {
+        LOG_MSG(logERR, "Response is missing the 'data' object that would have the aircraft data!");
+        IncErrCnt();
+        return false;
+    }
+    // Has buffered data? Then we need to loop those buffers
+    bool bRet = true;
+    if (json_object_has_value_of_type(pData, "buffer_0", JSONObject)) {
+        // But we want to process them in correct chronological order,
+        // so we need to find out the last buffer and work our way up
+        for (int i = (int) json_object_get_count(pData) - 1;
+             i >= 0; --i)
+        {
+            char bufName[20];
+            snprintf(bufName, sizeof(bufName), "buffer_%d", i);
+            if (!ProcessTrafficBuffer(json_object_get_object(pData, bufName))) {
+                if (i == 0) {                            // really important only is buffer_0, the one with the real-time data
+                    LOG_MSG(logWARN, "Couldn't process 'buffer_0'!");
+                    IncErrCnt();
+                    bRet = false;
+                }
+            }
+        }
+    }
+    // no buffered data, just process the one set of data that is there
+    else {
+        bRet = ProcessTrafficBuffer(pData);
+    }
+    
+    return bRet;
+}
 
+// in direct mode process an object with aircraft data, essentially a fake array
+bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
+{
+    // Quick exit if no data
+    if (!pBuf) return false;
+    
     // any a/c filter defined for debugging purposes?
     const std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -549,12 +753,12 @@ bool RealTrafficConnection::ProcessFetchedData ()
     //     "a26738": ["a26738",33.671356,-117.867284, ...],
     //     "full_count": 13501, "source": "MemoryDB", "rrl": 2000, "status": 200, "dataepoch": 1703885732
     //   }
-    const size_t numVals = json_object_get_count(pObj);
+    const size_t numVals = json_object_get_count(pBuf);
     for (size_t i = 0; i < numVals && shallRun(); ++i)
     {
         // Get the array 'behind' the i-th value,
         // will fail if it is no aircraft entry
-        const JSON_Value* pVal = json_object_get_value_at(pObj, i);
+        const JSON_Value* pVal = json_object_get_value_at(pBuf, i);
         if (!pVal) break;
         const JSON_Array* pJAc = json_value_get_array(pVal);
         if (!pJAc) continue;                  // probably not an aircraft line
@@ -622,6 +826,9 @@ bool RealTrafficConnection::ProcessFetchedData ()
         
         std::string s           = jag_s(pJAc, RT_DRCT_Category);
         stat.catDescr           = GetADSBEmitterCat(s);
+        
+        // RealTraffic often sends ASW20 when it should be AS20, a glider
+        if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
         
         // Static objects are all equally marked with a/c type TWR
         if ((s == "C3" || s == "C4" || s == "C5") ||
@@ -694,6 +901,396 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     return true;
 }
+
+
+// in direct mode process an object with parked aircraft data, essentially a fake array
+bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
+{
+    // Quick exit if no data
+    if (!pData) return false;
+    
+    // any a/c filter defined for debugging purposes?
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+    
+    // Current camera position
+    const positionTy posView = dataRefs.GetViewPos();
+    
+    // The data is delivered in many many values,
+    // ie. each plane is just a JSON_Value, its name being the hexid,
+    // its value being an array with the details.
+    // That means we need to traverse all values.
+    //   {
+    //     "7c4920": [-33.936407, 151.169229, "EGLL_569", "A388", "VH-OQA", 1721590016.01, "QFA2"],
+    //     "7c5325": [-33.936333, 151.170109, "EGLL_569", "A333", "VH-QPJ", 1721597924.81, "QFA128"],
+    //     "7c765a": [-33.935635, 151.17746, "EGLL_320", "A320", "VH-XNW", 1721650004.0, "JST825"]
+    //   }
+    
+    // Additionally, at busy places like EGLL we receive duplicates,
+    // ie. different aircraft said to be parked at the same location.
+    // To reduce duplicates, we pre-process the data and pick the latest of duplicates
+    struct parkedAcData {
+        double              lat, lon, ts;
+        std::string         key, acType, reg, call;
+    };
+    // We organize the data by parking position to be able to identify duplicates
+    std::map<std::string, parkedAcData> mapPData;
+    
+    const size_t numVals = json_object_get_count(pData);
+    for (size_t i = 0; i < numVals && shallRun(); ++i)
+    {
+        // Aircraft key (hexId)
+        std::string key = json_object_get_name(pData, i);
+        
+        // Get the array 'behind' the i-th value,
+        // will fail if it is no aircraft entry
+        const JSON_Value* pVal = json_object_get_value_at(pData, i);
+        if (!pVal) break;
+        const JSON_Array* pJAc = json_value_get_array(pVal);
+        if (!pJAc) continue;                  // probably not an aircraft line
+        
+        // Check for minimum number of fields
+        if (json_array_get_count(pJAc) < RT_PARK_NUM_FIELDS ) {
+            LOG_MSG(logWARN, "Received too few fields in parked a/c record %ld", (long)i);
+            IncErrCnt();
+            continue;
+        }
+        
+        // Get the parking position and timestamp first to check for duplicates
+        std::string parkPos = jag_s(pJAc, RT_PARK_ParkPosName);
+        double ts           = jag_n(pJAc, RT_PARK_LastTimeStamp);
+        if (mapPData.count(parkPos) > 0) {
+            // we know that parking position already!
+            parkedAcData& dat = mapPData.at(parkPos);
+            if (ts > dat.ts) {                  // but new data is newer -> replace
+                dat = {
+                    jag_n_nan(pJAc, RT_PARK_Lat),
+                    jag_n_nan(pJAc, RT_PARK_Lon),
+                    ts,
+                    std::move(key),
+                    jag_s(pJAc, RT_PARK_AcType),
+                    jag_s(pJAc, RT_PARK_Reg),
+                    jag_s(pJAc, RT_PARK_CallSign)
+                };
+            }
+        } else {
+            // We don't yet know that parking position, store data in new map record
+            mapPData.emplace(std::move(parkPos),
+                             parkedAcData {
+                jag_n_nan(pJAc, RT_PARK_Lat),
+                jag_n_nan(pJAc, RT_PARK_Lon),
+                ts,
+                std::move(key),
+                jag_s(pJAc, RT_PARK_AcType),
+                jag_s(pJAc, RT_PARK_Reg),
+                jag_s(pJAc, RT_PARK_CallSign)
+            });
+        }
+    }
+    
+    // Now mapPData is filled with parked aircraft that we really want to process
+    for (auto& p: mapPData)
+    {
+        parkedAcData& dat = p.second;
+        
+        // Get the name of the i-th value, that is the hex id
+        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO, dat.key);
+
+        // not matching a/c filter? -> skip it
+        if ((!acFilter.empty() && (fdKey != acFilter)) )
+            continue;
+        
+        // Check for duplicates with OGN/FLARM, potentially replaces the key type
+        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
+        else
+            // Some codes are otherwise often duplicate with ADSBEx
+            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
+
+        // position
+        positionTy pos (dat.lat, dat.lon);
+        pos.heading() = 0.0;
+        pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
+        // see later how TS is used: we send 3 instances to make the a/c appear immediately
+        pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
+
+        // position is rather important, we check for validity
+        // (we do allow alt=NAN if on ground)
+        if ( !pos.isNormal(true) ) {
+            LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+            continue;
+        }
+        
+        // Static data
+        LTFlightData::FDStaticData stat;
+        stat.acTypeIcao         = std::move(dat.acType);
+        stat.call               = std::move(dat.call);
+        stat.reg                = std::move(dat.reg);
+        
+        // RealTraffic often sends ASW20 when it should be AS20, a glider
+        if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
+        
+        // Dynamic data
+        LTFlightData::FDDynamicData dyn;
+        dyn.radar.mode          = xpmpTransponderMode_Standby;
+        dyn.gnd                 = true;
+        dyn.heading             = pos.heading();
+        dyn.ts                  = pos.ts();
+        dyn.spd                 = 0.0;
+        dyn.vsi                 = 0.0;
+        dyn.pChannel            = this;
+        
+        // Try to find a matching "startup position" to perfectly put the aircraft in place
+        positionTy startupPos = LTAptFindStartupLoc(pos,
+                                                    (double)dataRefs.GetFdSnapTaxiDist_m());
+        if (startupPos.isNormal(true)) {
+            pos.lat()       = startupPos.lat();
+            pos.lon()       = startupPos.lon();
+            pos.heading()   = startupPos.heading();
+        }
+        
+        try {
+            // from here on access to fdMap guarded by a mutex
+            // until FD object is inserted and updated
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+
+            // get the fd object from the map, key is the transpIcao
+            // this fetches an existing or, if not existing, creates a new one
+            LTFlightData& fd = mapFd[fdKey];
+            
+            // also get the data access lock once and for all
+            // so following fetch/update calls only make quick recursive calls
+            std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+            // now that we have the detail lock we can release the global one
+            mapFdLock.unlock();
+
+            // completely new? fill key fields
+            if ( fd.empty() )
+                fd.SetKey(fdKey);
+            
+            // add the static data
+            fd.UpdateData(std::move(stat), pos.dist(posView));
+
+            // add the "dynamic" data
+            // We send in the position 3 times in enough of a time distance for the plane to appear directly
+            for (int k = 0; k < 4; ++k) {
+                fd.AddDynData(dyn, 0, 0, &pos);
+                pos.ts() = (dyn.ts += 0.5 * double(dataRefs.GetFdBufPeriod()));
+            }
+
+        } catch(const std::system_error& e) {
+            LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+            IncErrCnt();
+        }
+    }
+    
+    LOG_MSG(logINFO, "Received %d parked aircraft", int(numVals));
+    
+    return true;
+}
+//
+// MARK: Direct Connection, Weather processing
+//
+
+
+// parse RT's NearestMETAR response array entry
+bool RealTrafficConnection::NearestMETAR::Parse (const JSON_Object* pObj)
+{
+    if (!pObj) {
+        LOG_MSG(logWARN, "Array entry 'data[]' empty!");
+        return false;
+    }
+    
+    ICAO    = jog_s(pObj, "ICAO");
+    dist    = jog_n_nan(pObj, "Dist");
+    brgTo   = jog_n_nan(pObj, "BrgTo");
+    
+    return isValid();
+}
+
+
+// in direct mode process NearestMETAR response, find a suitable METAR from the returned array
+void RealTrafficConnection::ProcessNearestMETAR (const JSON_Array* pData)
+{
+    if (!pData) {
+        LOG_MSG(logWARN, "JSON response is missing 'data' array!");
+        return;
+    }
+    
+    // Reset until we know better
+    rtWx.nearestMETAR.clear();
+    
+    // Array must have at least one element
+    const size_t cntMetars = json_array_get_count(pData);
+    if (cntMetars < 1) {
+        LOG_MSG(logWARN, "Received no nearest METARs from RealTraffic ('data' array empty)");
+        return;
+    }
+    
+    // The first METAR is the closest, so a priori best cadidate to be used
+    NearestMETAR m(json_array_get_object(pData, 0));
+    if (!m.isValid()) {
+        LOG_MSG(logWARN, "Nearest METAR ('data[0]') isn't valid");
+        return;
+    }
+    // even the nearest station is too far away for reliable weather?
+    if (m.dist > dataRefs.GetWeatherMaxMetarDist_nm()) {
+        LOG_MSG(logDEBUG, "Nearest METAR location too far away, using none");
+        rtWx.nearestMETAR.clear();
+        return;
+    }
+    
+    // Check for better matching station in direction of flight,
+    // but start with that one
+    rtWx.nearestMETAR = m;
+    
+    // Factor in bearing of station in relation to current plane's flight path:
+    // It's worth half the distance if it is straight ahead (0 deg difference)
+    // and the full distance if it is in my back (180 deg difference),
+    // so that position ahead of me appear "nearer"
+    double bestDist = m.dist * (180.0 + std::abs(HeadingDiff(rtWx.pos.heading(), double(m.brgTo)))) / 360.0;
+    
+    for (size_t i = 1; i < cntMetars; ++i)
+    {
+        m.Parse(json_array_get_object(pData, i));               // parse the next METAR info record
+        if (m.dist > dataRefs.GetWeatherMaxMetarDist_nm())      // stop processing once the stations are too far away
+            break;
+        // based on weighted distance, is this station "closer" than our current best?
+        const double weightedDist = m.dist * (180.0 + std::abs(HeadingDiff(rtWx.pos.heading(), double(m.brgTo)))) / 360.0;
+        if (weightedDist < bestDist) {
+            bestDist = weightedDist;                            // then use it!
+            rtWx.nearestMETAR = m;
+        }
+    }
+
+    LOG_MSG(logDEBUG, "Using Nearest METAR location %s (%.1fnm, %.0fdeg)",
+            rtWx.nearestMETAR.ICAO.c_str(),
+            rtWx.nearestMETAR.dist, rtWx.nearestMETAR.brgTo);
+}
+
+
+// in direct mode process detailed weather information
+void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
+{
+    rtWx.w = LTWeather();                                       // reset all values
+    if (!pData) {
+        LOG_MSG(logWARN, "JSON response is missing 'data' object!");
+        return;
+    }
+    const JSON_Object* pLocWX = json_object_get_object(pData, "locWX");
+    if (!pLocWX) {
+        LOG_MSG(logWARN, "JSON response is missing 'data.locWX' object!");
+        return;
+    }
+    
+    // --- Process detailed weather data ---
+    const JSON_Array* pDPs      = json_object_get_array(pLocWX, "DPs");
+    const JSON_Array* pTEMPs    = json_object_get_array(pLocWX, "TEMPs");
+    const JSON_Array* pWDIRs    = json_object_get_array(pLocWX, "WDIRs");
+    const JSON_Array* pWSPDs    = json_object_get_array(pLocWX, "WSPDs");
+    const JSON_Array* pDZDTs    = json_object_get_array(pLocWX, "DZDTs");
+    std::vector<float> aTEMPs;
+    
+    if (!pDPs || !pTEMPs || !pWDIRs || !pWSPDs || !pDZDTs) {
+        LOG_MSG(logWARN, "JSON response is missing one of the following arrays in data.locWX: DPs, TEMPs, WDIRs, WSPDs, DZDTs");
+    }
+    
+    rtWx.w.pos                          = rtWx.pos;
+    
+    // METAR
+    rtWx.w.metar                        = jog_s(pData, "METAR");
+    rtWx.w.metarFieldIcao               = jog_s(pData, "ICAO");
+    rtWx.w.posMetarField = positionTy();                // field's location is to be determined later in main thread
+
+    rtWx.w.visibility_reported_sm       = float(jog_n_nan(pLocWX, "SVis") / M_per_SM);
+    rtWx.w.sealevel_pressure_pas        = float(jog_n_nan(pLocWX, "SLP") * 100.0);
+    if (pTEMPs && json_array_get_count(pTEMPs) >= 1)                    // use temperature of lowest level, adjusted per temperature lapse rate
+        rtWx.w.sealevel_temperature_c   = float(jag_n_nan(pTEMPs, 0)) - RT_ATMOS_LAYERS.front() * float(TEMP_LAPS_R);
+    rtWx.w.rain_percent                 = std::min(float(jog_n_nan(pLocWX, "PRR")) / 9.0f, 1.0f);   // RT sends mm/h and says ">7.5 is heavy", XP wants a 0..1 scale
+    
+    // Wind
+    rtWx.w.wind_altitude_msl_m          = rtWx.w.atmosphere_alt_levels_m;       // we just use the standard atmospheric layers of XP, need to interpolate anyway as RT sends more layers
+    if (pWSPDs) {
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pWSPDs), rtWx.w.wind_speed_msc);
+        std::for_each(rtWx.w.wind_speed_msc.begin(), rtWx.w.wind_speed_msc.end(),
+                      [](float& f){ f *= float(NM_per_KM); });                  // convert from km/h to kn=nm/h
+    }
+    if (pWDIRs)
+        rtWx.w.InterpolateDir(rtWx.interp, jag_f_vector(pWDIRs), rtWx.w.wind_direction_degt);
+    if (pDZDTs) {
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pDZDTs), rtWx.w.turbulence);
+        std::for_each(rtWx.w.turbulence.begin(), rtWx.w.turbulence.end(),
+                      [](float& f){ f = std::clamp<float>(f * 0.5f, 0.0f, 1.0f); });         // convert from RT's scale (">2 severe") to XP's of 0.0..1.0
+    }
+   
+    // Temperature
+    if (pDPs)
+        rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pDPs), rtWx.w.dewpoint_deg_c);
+    rtWx.w.temperature_altitude_msl_m   = rtWx.w.atmosphere_alt_levels_m;
+    if (pTEMPs)
+        rtWx.w.Interpolate(rtWx.interp, aTEMPs = jag_f_vector(pTEMPs), rtWx.w.temperatures_aloft_deg_c);
+
+    // Cloud layers
+    ProcessCloudLayer(json_object_get_object(pLocWX, "LLC"), 0);
+    ProcessCloudLayer(json_object_get_object(pLocWX, "MLC"), 1);
+    ProcessCloudLayer(json_object_get_object(pLocWX, "HLC"), 2);
+    
+    // Troposhere
+    rtWx.w.tropo_alt_m = float(jog_n_nan(pLocWX, "TPP"));
+    if (!aTEMPs.empty() && !std::isnan(rtWx.w.tropo_alt_m))
+        rtWx.w.tropo_temp_c = interpolate(RT_ATMOS_LAYERS, aTEMPs, rtWx.w.tropo_alt_m);
+    
+    // Waves
+    rtWx.w.wave_dir = float(jog_n_nan(pLocWX, "SWDIR"));                        // we just use surface wind direction directly
+    if (std::isnan(rtWx.w.wave_dir))
+        rtWx.w.wave_dir = rtWx.w.wind_direction_degt.front();
+    float SWSPD = float(jog_n_nan(pLocWX, "SWSPD"));                            // we determine the wave amplitude based on surface wind speed [km/h]
+    if (!std::isnan(SWSPD)) {
+        // We take wave amplitudes from https://www.wpc.ncep.noaa.gov/html/beaufort.shtml
+        SWSPD *= (float)NM_per_KM;                                              // convert to knots
+        if      (SWSPD <  1) rtWx.w.wave_amplitude =  0.0f;
+        else if (SWSPD <  4) rtWx.w.wave_amplitude =  0.1f;
+        else if (SWSPD <  7) rtWx.w.wave_amplitude =  0.25f;
+        else if (SWSPD < 11) rtWx.w.wave_amplitude =  0.8f;
+        else if (SWSPD < 17) rtWx.w.wave_amplitude =  1.25f;
+        else if (SWSPD < 22) rtWx.w.wave_amplitude =  2.25f;
+        else if (SWSPD < 28) rtWx.w.wave_amplitude =  3.5f;
+        else if (SWSPD < 34) rtWx.w.wave_amplitude =  4.75f;
+        else if (SWSPD < 41) rtWx.w.wave_amplitude =  6.5f;
+        else if (SWSPD < 48) rtWx.w.wave_amplitude =  8.5f;
+        else if (SWSPD < 56) rtWx.w.wave_amplitude = 10.75f;
+        else if (SWSPD < 64) rtWx.w.wave_amplitude = 13.75f;
+        else                 rtWx.w.wave_amplitude = 17.0f;
+    }
+    
+    // Rwy_Friction
+    if (rtWx.w.metar.empty())                   // ideally set later based on METAR
+        // Rain causes wet status [0..7]
+        rtWx.w.runway_friction = (int)std::lround(rtWx.w.rain_percent * 7.f);
+
+    // Have the weather set (force immediate update on first weather data)
+    rtWx.w.update_immediately = IsFirstRequ();
+    WeatherSet(rtWx.w);
+}
+
+// in direct mode process one cloud layer
+void RealTrafficConnection::ProcessCloudLayer(const JSON_Object* pCL, size_t i)
+{
+    if (!pCL) return;
+    const float cover = (float) jog_n_nan(pCL, "cover");
+    const float base  = (float) jog_n_nan(pCL, "base");
+    const float tops  = (float) jog_n_nan(pCL, "tops");
+    const float type  = (float) jog_n_nan(pCL, "type");
+    const float conf  = (float) jog_n_nan(pCL, "confidence");
+    if (std::isnan(cover) || std::isnan(base) || std::isnan(tops) || std::isnan(type) || std::isnan(conf))
+        return;
+    
+    rtWx.w.cloud_type[i]             = type;
+    rtWx.w.cloud_coverage_percent[i] = cover/100.0f;
+    rtWx.w.cloud_base_msl_m[i]       = base;
+    rtWx.w.cloud_tops_msl_m[i]       = tops;
+}
+
+
 
 //
 // MARK: UDP/TCP via App
@@ -1134,8 +1731,7 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 void RealTrafficConnection::SendUsersPlanePos()
 {
     double airSpeed_m = 0.0;
-    double track = 0.0;
-    positionTy pos = dataRefs.GetUsersPlanePos(airSpeed_m,track);
+    positionTy pos = dataRefs.GetUsersPlanePos(&airSpeed_m);
     SendPos(pos, airSpeed_m);
 }
 

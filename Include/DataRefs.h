@@ -55,7 +55,8 @@ const bool DEF_SND_FMOD_INST    = true;         ///< Enforce using our own FMOD 
 #endif
 const int DEF_SUI_TRANSP        = 0;            ///< Settings UI: transaprent background?
 const int DEF_MAX_NETW_TIMEOUT  = 5;            ///< [s] default maximum network request timeout
-
+const int DEF_WEATHER_MAX_METAR_AGL_FT = 5000;  ///< Max height AGL up to which we weigh METAR higher than other weather data
+const int DEF_WEATHER_MAX_METAR_DIST_NM = 25;   ///< Max distance up to which to use a METAR for weather
 
 constexpr int DEF_UI_FONT_SCALE = 100;  ///< [%] Default font scaling
 constexpr int DEF_UI_OPACITY    =  25;  ///< [%] Default background opacity
@@ -395,6 +396,9 @@ enum dataRefsLT {
     DR_CFG_CONTRAIL_MAX_ALT,
     DR_CFG_CONTRAIL_LIFE_TIME,
     DR_CFG_CONTRAIL_MULTIPLE,
+    DR_CFG_WEATHER_CONTROL,
+    DR_CFG_WEATHER_MAX_METAR_AGL,
+    DR_CFG_WEATHER_MAX_METAR_DIST,
     DR_CFG_REMOTE_SUPPORT,
     DR_CFG_EXTERNAL_CAMERA,
     DR_CFG_LAST_CHECK_NEW_VER,
@@ -403,6 +407,7 @@ enum dataRefsLT {
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
     DR_DBG_LOG_RAW_FD,
+    DR_DBG_LOG_WEATHER,
     DR_DBG_MODEL_MATCHING,
     DR_DBG_EXPORT_FD,
     DR_DBG_EXPORT_USER_AC,
@@ -466,6 +471,14 @@ enum SimTimeCtrlTy : int {
     STC_NO_CTRL = 0,                    ///< Don't send any sim time
     STC_SIM_TIME_MANUALLY,              ///< Send current sim time unchanged
     STC_SIM_TIME_PLUS_BUFFER,           ///< Send current sim time plus buffering period, so that the traffic, when it appears, matches up with current sim time
+};
+
+/// How to control weather?
+enum WeatherCtrlTy : int {
+    WC_INIT = -1,                       ///< Initial value when not available in config file, then a default is determined in first flight loop depending if XP is using real weather
+    WC_NONE = 0,                        ///< No weather control, X-Plane is in control
+    WC_METAR_XP,                        ///< Use METAR to control weather in lower altitudes, X-Plane Live Weather in higher altitudes
+    WC_REAL_TRAFFIC,                    ///< Use RealTraffic's weather data to control all weather
 };
 
 /// Which RealTraffic connection type to use?
@@ -655,6 +668,7 @@ protected:
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
+    int bDebugWeather           = false;///< log weather data for debugging
     exportFDFormat eDebugExportFdFormat = EXP_FD_AITFC; ///< Which format to use when exporting flight data?
     int bDebugExportFd          = false;// export flight data to LTExportFD.csv
     int bDebugExportUserAc      = false;///< export user's aircraft data to LTExportFD.csv
@@ -722,6 +736,9 @@ protected:
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
+    WeatherCtrlTy weatherCtl = WC_INIT; ///< How to control weather?
+    int weatherMaxMETARheight_ft = DEF_WEATHER_MAX_METAR_AGL_FT;    ///< height AGL up to which we use/prefer METAR data
+    int weatherMaxMETARdist_nm = DEF_WEATHER_MAX_METAR_DIST_NM;     ///< distance [nm] up to which to use METAR for weather
     int ffListenPort    = 63093;        ///< UDP Port to listen to ForeFlight announcing itself, https://www.foreflight.com/connect/spec/
     int ffSendPort      = 49002;        ///< UDP Port to send simulator data to ForeFlight, https://www.foreflight.com/support/network-gps/
     int bffUserPlane    = 1;            // bool Send User plane data?
@@ -847,7 +864,9 @@ public:
     std::string GetXPSimTimeStr() const;        ///< Return a nicely formated time string with XP's simulated time in UTC
     
     void SetViewType(XPViewTypes vt);
-    positionTy GetUsersPlanePos(double& trueAirspeed_m, double& track) const;
+    positionTy GetUsersPlanePos(double* pTrueAirspeed_m = nullptr,
+                                double* pTrack = nullptr,
+                                double* pHeightAGL_m = nullptr) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks
@@ -898,8 +917,8 @@ public:
     static void LTSetLogLevel(void* p, int i);
     void SetLogLevel ( int i );
     void SetMsgAreaLevel ( int i );
-    inline logLevelTy GetLogLevel()             { return iLogLevel; }
-    inline logLevelTy GetMsgAreaLevel()         { return iMsgAreaLevel; }
+    logLevelTy GetLogLevel() const       { return iLogLevel; }
+    logLevelTy GetMsgAreaLevel() const   { return iMsgAreaLevel; }
     
     /// Reinit data usage
     void ForceDataReload ();
@@ -951,6 +970,8 @@ public:
              hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
     bool IsAutoHidingActive() const             ///< any auto-hiding activated, including options no warning is issued about?
     { return hideStaticTwr || WarnAutoHiding(); }
+    /// "Keep Parked Aircraft" is equivalent to "Synthetic Channel enabled"
+    bool ShallKeepParkedAircraft () const { return IsChannelEnabled(DR_CHANNEL_SYNTHETIC); }
     bool ShallCpyObjFiles () const { return cpyObjFiles != 0; }
     int  GetContrailAltMin_ft () const  { return contrailAltMin_ft; }
     int  GetContrailAltMax_ft () const  { return contrailAltMax_ft; }
@@ -970,6 +991,12 @@ public:
     bool SetDefaultAcIcaoType(const std::string type);
     bool SetDefaultCarIcaoType(const std::string type);
     
+    WeatherCtrlTy GetWeatherControl() const { return weatherCtl; }
+    int GetWeatherMaxMetarHeight_ft() const { return weatherMaxMETARheight_ft; }
+    float GetWeatherMaxMetarHeight_m() const { return float(weatherMaxMETARheight_ft * M_per_FT); }
+    int GetWeatherMaxMetarDist_nm() const { return weatherMaxMETARdist_nm; }
+    float GetWeatherMaxMetarDist_m() const { return weatherMaxMETARdist_nm * M_per_NM; }
+
     // livetraffic/channel/...
     void SetChannelEnabled (dataRefsLT ch, bool bEnable);
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
@@ -1016,6 +1043,9 @@ public:
     
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }
+    
+    bool ShallLogWeather() const { return bDebugWeather && GetLogLevel() == logDEBUG; }
+    void SetDebugLogWeather(bool bLog)          { bDebugWeather = bLog; }
     
     exportFDFormat GetDebugExportFormat() const { return eDebugExportFdFormat; }
     void SetDebugExportFormat (exportFDFormat e) { eDebugExportFdFormat = e; }
@@ -1070,11 +1100,12 @@ public:
     bool ToggleLabelDraw();                 // returns new value
     
     // Weather
-    bool WeatherUpdate ();              ///< check if weather updated needed, then do
-    /// @brief set/update current weather
+    bool WeatherFetchMETAR ();              ///< check if weather updated needed, then do
+    /// @brief set/update current weather, tries reading QNH from METAR
     /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
-    void SetWeather (float hPa, float lat, float lon, const std::string& stationId,
-                     const std::string& METAR);
+    /// @returns QNH (`hPa` if not read from `METAR`)
+    float SetWeather (float hPa, float lat, float lon, const std::string& stationId,
+                      const std::string& METAR);
     /// Get current sea level air pressure
     double GetPressureHPA() const { return lastWeatherHPA; }
     /// Thread-safely gets current weather info

@@ -77,6 +77,8 @@
 #include <atomic>
 #include <chrono>
 #include <regex>
+#include <sstream>
+#include <iomanip>
 
 // X-Plane SDK
 #include "XPLMDisplay.h"
@@ -373,6 +375,9 @@ std::string GetNearestAirportId (const positionTy& _pos, positionTy* outApPos = 
 inline std::string GetNearestAirportId (float lat, float lon)
 { return GetNearestAirportId(positionTy((double)lat,(double)lon)); }
 
+/// Fetch specific airport location/altitude
+positionTy GetAirportLoc (const std::string sICAO);
+
 /// Convert ADS-B Emitter Category to text
 const char* GetADSBEmitterCat (const std::string& cat);
 
@@ -406,6 +411,11 @@ bool dequal ( const double d1, const double d2 );
 /// Convert NAN to zero, otherwise pass `d`
 inline double nanToZero (double d)
 { return std::isnan(d) ? 0.0 : d; }
+
+/// Find an interpolated value
+float interpolate (const std::vector<float>& scale,
+                   const std::vector<float>& values,
+                   float pos_in_scale);
 
 /// @brief random long between too given values invlusive
 /// @see https://stackoverflow.com/a/7560171

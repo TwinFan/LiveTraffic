@@ -585,6 +585,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
                 
+                // Historic Data
                 if (ImGui::FilteredLabel("Request Historic Data", sFilter)) {
                     float cbWidth = ImGui::CalcTextSize("Use live data, not historic_____").x;
                     ImGui::SetNextItemWidth(cbWidth);
@@ -782,6 +783,42 @@ void LTSettingsUI::buildInterface()
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Output Channels ---
         
+        // MARK: --- Weather ---
+        if (WeatherCanSet() &&                                                  // the entire Weather section only if we actually can influence the weather
+            ImGui::TreeNodeHelp("Weather", nCol,
+                                HELP_SET_WEATHER, "Open Help on Weather options in Browser",
+                                sFilter, nOpCl))
+        {
+            // Weather main switch
+            if (ImGui::FilteredLabel("Set Weather", sFilter)) {
+                const float cbWidth = ImGui::CalcTextSize("METAR (near ground) + X-Plane real weather____").x;
+                ImGui::SetNextItemWidth(cbWidth);
+                int n = dataRefs.GetWeatherControl();
+                if (ImGui::Combo("##SetWeather", &n, "Off\0METAR (near ground) + X-Plane real weather\0RealTraffic weather data\0", 3)) {
+                    ImGuiContext* pCtxt = ImGui::GetCurrentContext();                           // switching off weather can affect context....(?)
+                    DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData(n);
+                    ImGui::SetCurrentContext(pCtxt);
+                }
+                ImGui::TableNextCell();
+            }
+            
+            // Use/prefer METAR up to which height AGL?
+            ImGui::FilteredCfgNumber("Use METAR up to", sFilter, DR_CFG_WEATHER_MAX_METAR_AGL, 1000, 10000, 1000, "%d ft AGL");
+            // Use  METAR up to which distance from fiel?
+            ImGui::FilteredCfgNumber("Max. METAR distance", sFilter, DR_CFG_WEATHER_MAX_METAR_DIST, 5, 100, 5, "%d nm");
+
+            // Allow to define a constant, METAR-based weather
+            if (ImGui::FilteredInputText("Set weather to", sFilter, txtManualMETAR, 0.0f,
+                                         "Paste METAR to define weather, hit <Enter>",
+                                         ImGuiInputTextFlags_CharsUppercase |
+                                         ImGuiInputTextFlags_AutoSelectAll |
+                                         ImGuiInputTextFlags_EnterReturnsTrue))
+                WeatherSetConstant(txtManualMETAR);
+            
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        } // --- Weather ---
+
         // MARK: --- Aircraft Labels ---
         if (ImGui::TreeNodeHelp("Aircraft Labels", nCol,
                                 HELP_SET_ACLABELS, "Open Help on Aircraft Label options in Browser",
@@ -1283,6 +1320,13 @@ void LTSettingsUI::buildInterface()
                                            "Logs how available tracking data was matched with the chosen CSL model (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log a/c positions", sFilter, DR_DBG_AC_POS,
                                            "Logs detailed position information of currently selected aircraft (into Log.txt)");
+                ImGui::FilteredCfgCheckbox("Log Weather", sFilter, DR_DBG_LOG_WEATHER,
+                                           "Logs detailed information about how X-Plane's weather is set (into Log.txt)");
+                if (ImGui::FilteredLabel("Log Weather now", sFilter)) {
+                    if (ImGui::ButtonTooltip("Log Weather now","Places information on current weather into Log.txt"))
+                        WeatherLogCurrent("Current weather:");
+                    ImGui::TableNextCell();
+                }
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
                                            "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");
 
