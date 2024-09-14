@@ -800,8 +800,8 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             pos.f.onGrnd = GND_ON;
         else {
             pos.f.onGrnd = GND_OFF;
-            double d = jag_n(pJAc, RT_DRCT_BaroAlt);    // prefer baro altitude
-            if (d > 0.0) {
+            double d = jag_n_nan(pJAc, RT_DRCT_BaroAlt);    // prefer baro altitude
+            if (!std::isnan(d)) {
                 if (!std::isnan(rtWx.QNH))
                     d = BaroAltToGeoAlt_ft(d, rtWx.QNH);
                 pos.SetAltFt(d);
