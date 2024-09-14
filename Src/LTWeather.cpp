@@ -382,6 +382,15 @@ lOut << unit "\n";
     LOG_MSG(logDEBUG, "%s\n%s", msg.c_str(), lOut.str().c_str());
 }
 
+// Clear all METAR-related fields
+void LTWeather::ClearMETAR ()
+{
+    metar.clear();
+    metarFieldIcao.clear();
+    posMetarField = positionTy();
+}
+
+
 // Compute interpolation settings to fill one array from a differently sized one
 std::array<LTWeather::InterpolSet,13> LTWeather::ComputeInterpol (const std::vector<float>& from,
                                                                   const std::array<float,13>& to)
@@ -1380,7 +1389,6 @@ static LTWeather nextWeather;                   ///< next weather to set
 static bool bSetWeather = false;                ///< is there a next weather to set?
 static bool bResetWeather = false;              ///< Shall weather be reset, ie. handed back to XP?
 static LTWeather setWeather;                    ///< the weather we set last time
-static std::string gEmptyString;                ///< an empty string we can refer to if we need to return an empty reference
 
 // Initialize Weather module, dataRefs
 bool WeatherInit ()
@@ -1421,24 +1429,32 @@ void WeatherSetXPRealWeather ()
 {
     if (WeatherCanSet())
         wdr_change_mode.set(WDR_CM_REAL_WEATHER);
+    setWeather.ClearMETAR();
 }
 
 /// Internal function that actually sets X-Planes weather to what's defined in nextWeather
-void WeatherDoSet ()
+void WeatherDoSet (bool bTakeControl)
 {
+    // Remember user's setting prior to us changing weather
+    if (weatherOrigSource < 0) {
+        weatherOrigSource       = wdr_weather_source.get();
+        weatherOrigChangeMode   = wdr_change_mode.get();
+    }
+    
     if (nextWeather.update_immediately) {
         if (!WeatherInControl()) {
-            // Taking control of weather
-            weatherOrigSource       = wdr_weather_source.get();
-            weatherOrigChangeMode   = wdr_change_mode.get();
+            // Log weather before take-over
             if (dataRefs.ShallLogWeather()) {
                 LOG_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
                         WeatherGetSource().c_str(),
                         weatherOrigSource, weatherOrigChangeMode);
-                LTWeather().Get("Weather just prior to LiveTraffic taking over:");
+                LTWeather().Get("Weather just prior to LiveTraffic overriding it:");
             }
-            SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
-            bWeatherControlling     = true;
+            // Shall we take over control?
+            if (bTakeControl) {
+                SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
+                bWeatherControlling     = true;
+            }
         } else {
             SHOW_MSG(logINFO, "LiveTraffic is re-setting X-Plane's weather");
         }
@@ -1549,7 +1565,7 @@ void WeatherSetConstant (const std::string& metar)
         setWeather.posMetarField    = nextWeather.posMetarField;
 
         nextWeather.update_immediately = true;
-        WeatherDoSet();
+        WeatherDoSet(false);
         SHOW_MSG(logINFO, "Constant weather set based on METAR");
     }
 }
@@ -1604,9 +1620,7 @@ void WeatherUpdate ()
                                               "LiveTraffic takes over controlling X-Plane's weather, activating XP's real weather",
                          bNoNearbyMETAR ? "no nearby METAR" : "flying high");
                 // Remember that we did _not_ use a METAR to define weather
-                setWeather.metar.clear();
-                setWeather.metarFieldIcao.clear();
-                setWeather.posMetarField = positionTy();
+                setWeather.ClearMETAR();
                 // Set to XP real weather
                 WeatherSetXPRealWeather();
                 bWeatherControlling = true;
@@ -1655,16 +1669,14 @@ void WeatherUpdate ()
     }
     if (!bProcessMETAR) {
         // Remember that we did _not_ use a METAR to define weather
-        setWeather.metar.clear();
-        setWeather.metarFieldIcao.clear();
-        setWeather.posMetarField = positionTy();
+        setWeather.ClearMETAR();
     }
     
     // Set weather with immediate effect if first time, or if position changed dramatically
     nextWeather.update_immediately |= !WeatherInControl() ||
                                       !setWeather.pos.hasPosAlt() ||
                                       setWeather.pos.dist(posUser) > WEATHER_MAX_DIST_M;
-    WeatherDoSet();
+    WeatherDoSet(true);
 }
 
 // Reset weather settings to what they were before X-Plane took over
@@ -1691,8 +1703,8 @@ void WeatherReset ()
     
     weatherOrigSource = -1;
     weatherOrigChangeMode = -1;
-    setWeather.pos = setWeather.posMetarField = positionTy();
-    setWeather.metar.clear();
+    setWeather.pos = positionTy();
+    setWeather.ClearMETAR();
     bResetWeather = bSetWeather = false;
 }
 
@@ -1705,10 +1717,7 @@ void WeatherLogCurrent (const std::string& msg)
 // Current METAR in use for weather generation
 const std::string& WeatherGetMETAR ()
 {
-    if (WeatherInControl())
-        return setWeather.metar;                // if in control then return the METAR of the weather we did set
-    else
-        return gEmptyString;                    // otherwise (a reference to) an empty string
+    return setWeather.metar;                    // should be empty if we aren't based on METAR
 }
 
 // Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
@@ -1744,8 +1753,13 @@ std::string WeatherGetSource ()
                 return std::string("LiveTraffic, unknown");
         }
     }
-    else if (source == 0)                               // 'Preset'
-        return std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
+    else if (source == 0) {                             // 'Preset'
+        std::string s = std::string(WEATHER_SOURCES[size_t(source)]) + ", " + WEATHER_PRESETS[size_t(preset)];
+        if (!setWeather.metar.empty()) {
+            s += ", set from given METAR";
+        }
+        return s;
+    }
     else
         return std::string(WEATHER_SOURCES[size_t(source)]);
 }

@@ -127,6 +127,9 @@ public:
 
 public:
     LTWeather();                                    ///< Constructor sets all arrays to all `NAN`
+
+    /// Clear all METAR-related fields
+    void ClearMETAR ();
     
     /// @brief Compute interpolation settings to fill one array from a differently sized one
     /// @details: Both arrays are supposed to be sorted ascending.
@@ -173,7 +176,7 @@ protected:
 friend void WeatherSet (const LTWeather& w);
 friend void WeatherSet (const std::string& metar, const std::string& metarIcao);
 friend void WeatherSetConstant (const std::string& metar);
-friend void WeatherDoSet ();
+friend void WeatherDoSet (bool bTakeControl);
 friend void WeatherUpdate ();
 friend void WeatherReset ();
 friend void WeatherLogCurrent (const std::string& msg);
