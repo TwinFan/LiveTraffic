@@ -711,6 +711,9 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
 
 // MARK: Other Utility Functions
 
+/// Transition altitude: Above this altitude we don't convert barometric pressure any longer
+constexpr double TRANSITION_ALT_M = 18000.0 * M_per_FT;
+
 // Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
 /// @see https://www.mide.com/air-pressure-at-altitude-calculator
 double PressureFromBaroAlt(double baroAlt_m, double refPressure)
@@ -728,6 +731,8 @@ double AltFromPressure(double pressure, double refPressure)
 // Convert a pressure altitude (based on std pressure) to a geometric altitude
 double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure)
 {
+    if (baroAlt_m > TRANSITION_ALT_M)               // don't convert above transition altitude
+        return baroAlt_m;
     const double pressure = PressureFromBaroAlt(baroAlt_m);
     return AltFromPressure(pressure, refPressure);
 }
@@ -735,6 +740,8 @@ double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure)
 // Convert a geometric altitude to a barometric altitude (based on std pressure)
 double GeoAltToBaroAlt_m(double geoAlt_m, double refPressure)
 {
+    if (geoAlt_m > TRANSITION_ALT_M)                // don't convert above transition altitude
+        return geoAlt_m;
     const double pressure = PressureFromBaroAlt(geoAlt_m, refPressure);
     return AltFromPressure(pressure, HPA_STANDARD);
 }
@@ -760,13 +767,40 @@ std::string GetNearestAirportId (const positionTy& _pos,
         if (outApPos) {
             outApPos->lat() = lat;
             outApPos->lon() = lon;
-            outApPos->SetAltFt((double)alt);
+            outApPos->alt_m() = alt;
         }
     }
     
     // return the id
     return airportId;
 }
+
+// Fetch specific airport location/altitude
+/// @note Can't use `XPLMFindNavAid` because XP only searches for _parts_
+///       of the ID, so searching for "EDDL" effectively finds "XEDDL"
+///       and returns the wrong position.
+///       Instead, we iterate all airports and do an _exact_ comparison of the ID.
+positionTy GetAirportLoc (const std::string sICAO)
+{
+    char sId[32];
+    float lat=NAN, lon=NAN, alt=NAN;
+
+    // Loop all airorts
+    for (XPLMNavRef navRef = XPLMFindFirstNavAidOfType(xplm_Nav_Airport);
+         navRef != XPLM_NAV_NOT_FOUND;
+         navRef = XPLMGetNextNavAid(navRef))
+    {
+        // Get info and check if this is the one
+        XPLMGetNavAidInfo(navRef, nullptr,
+                          &lat, &lon, &alt,
+                          nullptr, nullptr, sId, nullptr, nullptr);
+        if (sICAO == sId)
+            return positionTy(lat, lon, alt);
+    }
+    // not found
+    return positionTy();
+}
+
 
 // Convert ADS-B Emitter Category to text
 const char* GetADSBEmitterCat (const std::string& cat)
@@ -826,6 +860,37 @@ bool dequal ( const double d1, const double d2 )
     return ((d1 - epsilon) < d2) &&
     ((d1 + epsilon) > d2);
 }
+
+// Find an interpolated value
+float interpolate (const std::vector<float>& scale,
+                   const std::vector<float>& values,
+                   float pos_in_scale)
+{
+    LOG_ASSERT(!scale.empty());
+    LOG_ASSERT(scale.size() == values.size());
+    
+    // Border Cases
+    if (values.size() == 1) return values.front();
+    if (pos_in_scale <= scale.front()) return values.front();
+    if (pos_in_scale >= scale.back()) return values.back();
+    
+    // We now know that `pos_in_scale` is between front and back
+    // Search for pos_in_scale in `scale`, find where it would fit inbetween
+    // (as border cases are covered above must find something)
+    const auto iter = std::adjacent_find(scale.begin(), scale.end(),
+                                         [pos_in_scale](const float& a, const float& b)
+                                         { return a <= pos_in_scale && pos_in_scale <= b; });
+    LOG_ASSERT(iter != scale.end());
+
+    // 'left' index and weight for 'left' value
+    const size_t idx = (size_t)std::distance(scale.begin(), iter);
+    const float weight = float(1) - (pos_in_scale - *iter)/(*(iter+1) - *iter);
+
+    return                                  // interpolate between values of those positions we found
+    values[idx]   * weight +                // 'left'-hand part
+    values[idx+1] * (float(1) - weight);        // 'right'-hand part
+}
+
 
 //
 // MARK: Thread Handling
@@ -963,9 +1028,21 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
             // Potentially refresh weather information
-            dataRefs.WeatherUpdate();
+            dataRefs.WeatherFetchMETAR();
+            // Update the weather (short-cuts if nothing to do)
+            WeatherUpdate();
+            
             // Refresh airport data from apt.dat (in case camera moved far)
-            LTAptRefresh();
+            if (LTAptRefresh()) {                   // fresh airport data available?
+                // If we are configured to keep parked aircraft, then we can ask RT to give us some
+                if (dataRefs.ShallKeepParkedAircraft()) {
+                    // Trigger RealTraffic to refresh parked aircraft
+                    RealTrafficConnection* pRTConn =
+                    dynamic_cast<RealTrafficConnection*>(LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE));
+                    if (pRTConn)
+                        pRTConn->DoReadParkedTraffic();
+                }
+            }
             // maintenance (add/remove)
             LTFlightDataAcMaintenance();
             // updates to menu item status
@@ -991,23 +1068,13 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 int   MPIntPrefsFunc   (const char*, const char* key, int   iDefault)
 {
     // debug XPMP's CSL model matching if requested
-    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING)) {
-        if constexpr (LIVETRAFFIC_VERSION_BETA)         // force logging of model-matching in BETA versions
-            return true;
-        else
-            return dataRefs.GetDebugModelMatching();
-    }
+    if (!strcmp(key, XPMP_CFG_ITM_MODELMATCHING))   return dataRefs.GetDebugModelMatching();
     // logging level to match ours
-    if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL)) {
-        if constexpr (LIVETRAFFIC_VERSION_BETA)         // force DEBUG-level logging in BETA versions
-            return logDEBUG;
-        else
-            return dataRefs.GetLogLevel();
-    }
+    if (!strcmp(key, XPMP_CFG_ITM_LOGLEVEL))        return dataRefs.GetLogLevel();
     // We don't want clamping to the ground, we take care of the ground ourselves
-    if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL)) return 0;
+    if (!strcmp(key, XPMP_CFG_ITM_CLAMPALL))        return 0;
     // We want XPMP2 to assign unique modeS_ids if we feed duplicates (which can happen due to different id systems in use, especially ICAO vs FLARM)
-    if (!strcmp(key, XPMP_CFG_ITM_HANDLE_DUP_ID)) return 1;
+    if (!strcmp(key, XPMP_CFG_ITM_HANDLE_DUP_ID))   return 1;
     // Copying .obj files is an advanced setting
     if (!strcmp(key, XPMP_CFG_ITM_REPLDATAREFS) ||
         !strcmp(key, XPMP_CFG_ITM_REPLTEXTURE))

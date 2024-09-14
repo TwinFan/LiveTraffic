@@ -207,7 +207,7 @@ void ForeFlightSender::Main ()
                 // time for GPS?
                 if (now >= nextGPS)
                 {
-                    pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                    pos = dataRefs.GetUsersPlanePos(&airSpeed_m, &track);
                     SendGPS(pos, airSpeed_m, track);
                     nextGPS = now + FF_INTVL_GPS;
                     bDidSendSomething = true;
@@ -217,7 +217,7 @@ void ForeFlightSender::Main ()
                 if (now >= nextAtt)
                 {
                     if (!pos.isNormal())
-                        pos = dataRefs.GetUsersPlanePos(airSpeed_m, track);
+                        pos = dataRefs.GetUsersPlanePos(&airSpeed_m, &track);
                     SendAtt(pos, airSpeed_m, track);
                     nextAtt = now + FF_INTVL_ATT;
                     bDidSendSomething = true;

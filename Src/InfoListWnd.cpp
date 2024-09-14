@@ -39,6 +39,7 @@ static const CreditTy CREDITS[] = {
     { "CURL", "for network protocol support",           "https://curl.haxx.se/libcurl/" },
     { "FMOD", "Audio Engine: FMOD Core API by Firelight Technologies Pty Ltd.", "https://www.fmod.com/"},
     { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
+    { "metaf", "for parsing METARs",                    "https://github.com/nnaumenko/metaf" },
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
     { "ImgWindow", "for integrating ImGui into X-Plane windows", "https://github.com/xsquawkbox/xsb_public" },
@@ -322,8 +323,8 @@ void InfoListWnd::buildInterface()
                 if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
                 
                     if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
-
-                        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed);
+                        static float xCol1 = ImGui::CalcTextSize("Number of available CSL Models").x;
+                        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, xCol1);
                         ImGui::TableSetupColumn("Info",  ImGuiTableColumnFlags_WidthStretch);
 
                         // Are we active at all?
@@ -372,6 +373,19 @@ void InfoListWnd::buildInterface()
                             }
                             
                             // Weather
+                            ImGui::TableNextRow();
+                            if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Weather Source");
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(WeatherGetSource().c_str());
+                            
+                            // If generated weather's METAR deviates from live weather, then display the generation source, too
+                            const std::string& MetarForWeatherGeneration = WeatherGetMETAR();
+                            if (!MetarForWeatherGeneration.empty() &&
+                                MetarForWeatherGeneration != weatherMETAR) {
+                                ImGui::TableNextRow();
+                                if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Weather METAR");
+                                if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(MetarForWeatherGeneration.c_str());
+                            }
+                            
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Live Weather");
                             if (ImGui::TableSetColumnIndex(1)) {
@@ -444,7 +458,14 @@ void InfoListWnd::buildInterface()
                         else {
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " " LIVE_TRAFFIC " is");
-                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                            if (ImGui::TableSetColumnIndex(1)) {
+                                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INACTIVE");
+                                if (ImGui::Button(ICON_FA_POWER_OFF " Start Showing Aircraft")) {
+                                    ImGuiContext* pCtxt = ImGui::GetCurrentContext();
+                                    dataRefs.SetAircraftDisplayed(true);
+                                    ImGui::SetCurrentContext(pCtxt);
+                                }
+                            }
                             
                             // Additional warning if there's no CSL model
                             if (numCSLModels == 0) {

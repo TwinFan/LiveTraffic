@@ -401,7 +401,7 @@ IMGUI_API bool FilteredInputText(const char* label, const char* filter,
     // Next cell: Draw the checkbox with a value linked to the dataRef
     PushID(label);
     if (between(width, -0.1f, 0.1f))    // with == 0.0f
-        width = GetContentRegionAvail().x - GetWidthIconBtn();
+        width = GetContentRegionAvail().x - 3*GetWidthIconBtn();
     SetNextItemWidth(width);
     if (hint)
         InputTextWithHint("", hint, &s, flags);
@@ -946,6 +946,7 @@ bool LTImgWindowInit ()
                     ICON_FA_FOLDER_OPEN
                     ICON_FA_INFO_CIRCLE
                     ICON_FA_LEVEL_UP_ALT
+                    ICON_FA_POWER_OFF
                     ICON_FA_PLANE
                     ICON_FA_QUESTION_CIRCLE
                     ICON_FA_ROUTE

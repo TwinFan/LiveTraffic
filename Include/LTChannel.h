@@ -459,6 +459,9 @@ inline long jag_l (const JSON_Array *array, size_t idx)
     return std::lround(json_array_get_number(array, idx));
 }
 
+/// return an entire JSON array as float vector
+std::vector<float> jag_f_vector (const JSON_Array* array);
+
 /// Find first non-Null value in several JSON array fields
 JSON_Value* jag_FindFirstNonNull(const JSON_Array* pArr, std::initializer_list<size_t> aIdx);
 

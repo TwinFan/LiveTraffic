@@ -133,6 +133,7 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 break;
 #ifdef DEBUG
             case MENU_ID_RELOAD_PLUGINS:
+                dataRefs.SetAircraftDisplayed(false);       // reloading plugins is more reliable if we shutdown internally first
                 XPLMReloadPlugins();
                 break;
             case MENU_ID_REMOVE_ALL_BUT:
@@ -471,6 +472,17 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             // Inform dataRef tools about our dataRefs
             dataRefs.InformDataRefEditors();
             
+            // If weather setting is yet undetermined make a choice
+            // (This is one-time code introduced with weather functionality,
+            //  should actually be in DataRefs::LoadConfig,
+            //  but can't because determining if user has set real weather
+            //  only works later, in the flight loops.)
+            // Set to "RealTraffic weather" if X-Plane is set to real weather
+            //  and user has a RT license.
+            if (dataRefs.GetWeatherControl() < WC_NONE)
+                DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData((WeatherIsXPRealWeather() && !dataRefs.GetRTLicense().empty()) ?
+                                                             WC_REAL_TRAFFIC : WC_NONE);
+            
             // next: Auto Start, but wait another 2 seconds for that
             eOneTimeState = ONCE_CB_AUTOSTART;
             return 2;
@@ -550,6 +562,9 @@ PLUGIN_API int XPluginStart(
         
         // init DataRefs
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
+        
+        // init Weather module (optional)
+        WeatherInit();
         
         // read FlightModel.prf file (which we could live without)
         LTAircraft::FlightModel::ReadFlightModelFile();
@@ -666,6 +681,9 @@ PLUGIN_API void XPluginDisable(void) {
 
         // Stop reading apt.dat
         LTAptDisable();
+        
+        // Reset weather, back in XP's control
+        WeatherReset();
 
         // if there still is a message window remove it
         DestroyWindow();
@@ -688,6 +706,9 @@ PLUGIN_API void    XPluginStop(void)
     try {
         // Cleanup aircraft handling (including XPMP library)
         LTMainStop();
+        
+        // Cleanup Weather module
+        WeatherStop();
         
         // Cleanup dataRef registration, save config file
         dataRefs.Stop();

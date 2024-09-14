@@ -131,6 +131,62 @@
 
     <p>The issue number links refer to issues on GitHub with (often technical) details.</p>
 
+    <h2>v4</h2>
+
+    <h3>v4.0.0</h3>
+
+    <P>
+        <b>Update:</b> In case of doubt you can always just copy all files from the archive
+        over the files of your existing installation.
+    </P>
+
+    <P>At least copy the following files, which have changed compared to v3.6.0:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resources/Doc8643.txt</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            Weather in X-Plane 12: LiveTraffic can set X-Plane's weather based on RealTraffic
+            weather data and/or METARs, either live, historically (from RealTraffic),
+            or by pasting any METAR into the settings.
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-weather">See documentation</a>
+            for details and take note of the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-weather#limitations">limitations</a>.
+        </li>
+        <li>RealTraffic:
+            <ul>
+                <li>
+                    Parked aircraft loaded from RealTraffic, populating parking
+                    spots in major airports, based on positions, in which
+                    RealTraffic saw aircraft stop then disappear from tracking
+                    in the past 24h.
+                </li>
+                <li>
+                    Faster startup, planes will appear within seconds,
+                    as RealTraffic provides startup data to fill the buffer.
+                </li>
+            </ul>
+
+        </li>
+        <li>
+            OpenSky is again enabled by default in new installations.<br>
+            If you want to use OpenSky in an existing installation
+            just activate it in <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/opensky">the channel's settings</a>.
+        </li>
+        <li>
+            Increased number of allowed aircraft to 300,
+            room needed to allow for parked aircraft at large airports.
+            Set in <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection">Settings &gt; Advanced</a>.
+        </li>
+        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/269">#269</a>:
+            No pressure altitude correcton above transition altitude
+            (fixed at 18,000ft).</li>
+    </ul>
+
     <h2>v3</h2>
 
     <h3>v3.6.0</h3>

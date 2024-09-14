@@ -179,6 +179,7 @@
 		25EF90052B497C7900D7C805 /* LTSynthetic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LTSynthetic.h; sourceTree = "<group>"; };
 		25EFC76B249567BF005DB0A6 /* IconsFontAwesome5.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IconsFontAwesome5.h; sourceTree = "<group>"; };
 		25EFC76C249567BF005DB0A6 /* fa-solid-900.inc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.pascal; path = "fa-solid-900.inc"; sourceTree = "<group>"; };
+		25F108C22C49A79A0021EDD6 /* metaf */ = {isa = PBXFileReference; lastKnownFileType = folder; path = metaf; sourceTree = "<group>"; };
 		25F3471A24D2C7DE004574E7 /* parson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parson.h; sourceTree = "<group>"; };
 		25F3471B24D2C7DE004574E7 /* parson.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = parson.c; sourceTree = "<group>"; };
 		25F3471D24D2CB15004574E7 /* ACTable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ACTable.h; sourceTree = "<group>"; };
@@ -451,6 +452,7 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				25F108C22C49A79A0021EDD6 /* metaf */,
 				25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */,
 				258117B5291AF24D00D05428 /* FMOD_Logo.cpp */,
 				251284AC274D829500B0F51A /* base64 */,
@@ -582,10 +584,11 @@
 		D607B16109A5563100699BC3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				BuildIndependentTargetsInParallel = YES;
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1420;
+				LastUpgradeCheck = 1540;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 12.0";
@@ -723,17 +726,19 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Developer ID Application: Birger Hoppe (W5UR4ZV2BP)";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2.05;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -784,12 +789,13 @@
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
 					Lib/Font,
+					Lib/metaf/include,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
-				LIVETRAFFIC_VER_MAJOR = 3;
-				LIVETRAFFIC_VER_MINOR = 6;
+				LIVETRAFFIC_VER_MAJOR = 4;
+				LIVETRAFFIC_VER_MINOR = 0;
 				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
@@ -798,7 +804,7 @@
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/11";
+				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/12";
 			};
 			name = Debug;
 		};
@@ -831,15 +837,17 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Developer ID Application: Birger Hoppe (W5UR4ZV2BP)";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CURRENT_PROJECT_VERSION = 2.05;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = W5UR4ZV2BP;
 				DSTROOT = "$(XPLANE11_ROOT)/Resources/plugins/$(PROJECT)";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "$(CURRENT_PROJECT_VERSION)";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -890,12 +898,13 @@
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
 					Lib/Font,
+					Lib/metaf/include,
 					"$(HEADER_SEARCH_PATHS)",
 				);
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
-				LIVETRAFFIC_VER_MAJOR = 3;
-				LIVETRAFFIC_VER_MINOR = 6;
+				LIVETRAFFIC_VER_MAJOR = 4;
+				LIVETRAFFIC_VER_MINOR = 0;
 				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
@@ -903,7 +912,7 @@
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
-				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/11";
+				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/12";
 			};
 			name = Release;
 		};
@@ -911,6 +920,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_LOCATION = YES;
@@ -962,6 +972,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CURRENT_PROJECT_VERSION = "${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}";
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_LOCATION = YES;
