@@ -193,6 +193,7 @@ void RealTrafficConnection::MainDirect ()
     // Clear the list of historic time stamp differences
     dequeTS.clear();
     // Some more data resets to make sure we start over with the series of requests
+    curr.eRequType = CurrTy::RT_REQU_AUTH;
     curr.sGUID.clear();
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
