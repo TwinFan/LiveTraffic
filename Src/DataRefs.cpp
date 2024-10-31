@@ -1162,8 +1162,8 @@ void DataRefs::UpdateUsersPlanePos ()
      XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? GND_ON : GND_OFF
     );
     
-    // make invalid pos invalid
-    if (pos.lat() < -75 || pos.lat() > 75)
+    // make invalid pos invalid (but why?)
+    if (pos.lat() < -85 || pos.lat() > 85)
         pos.lat() = NAN;
     
     // cache the position
