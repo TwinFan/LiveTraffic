@@ -1237,7 +1237,7 @@ bool WeatherProcessResponse (const std::string& _r)
         // Compare METAR field's position with best we have so far, skip if father away
         vectorTy vec = posUser.between(positionTy(lat,lon));
         if (vec.dist > dataRefs.GetWeatherMaxMetarDist_m())     // skip if too far away
-            break;
+            continue;
         // Weigh in direction of flight into distance calculation:
         // In direction of flight, distance only appears half as far,
         // so we prefer METARs in the direction of flight
