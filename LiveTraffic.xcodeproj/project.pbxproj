@@ -31,6 +31,7 @@
 		258117B4291AF22F00D05428 /* libfmod.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 258117B3291AF22F00D05428 /* libfmod.dylib */; };
 		258117B6291AF24D00D05428 /* FMOD_Logo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 258117B5291AF24D00D05428 /* FMOD_Logo.cpp */; };
 		259EC47A2505959A009B86F3 /* LTOpenGlider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 259EC47925057815009B86F3 /* LTOpenGlider.cpp */; };
+		25A5D97A2CE3F9E2004F507C /* LTSayIntentions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25A5D9792CE3F9E2004F507C /* LTSayIntentions.cpp */; };
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
@@ -151,6 +152,8 @@
 		25A095C72203B01300658AA8 /* DataRefs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DataRefs.h; sourceTree = "<group>"; };
 		25A095C82203B01300658AA8 /* LiveTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LiveTraffic.h; sourceTree = "<group>"; };
 		25A095C92203B01300658AA8 /* LTAircraft.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAircraft.h; sourceTree = "<group>"; };
+		25A5D9792CE3F9E2004F507C /* LTSayIntentions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTSayIntentions.cpp; sourceTree = "<group>"; };
+		25A5D97D2CE3FC0F004F507C /* LTSayIntentions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTSayIntentions.h; sourceTree = "<group>"; };
 		25A70295241D911200D2E7EE /* Apt.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Apt.md; sourceTree = "<group>"; };
 		25AACA2F217A99ED0035DC20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
@@ -308,6 +311,7 @@
 				259EC47925057815009B86F3 /* LTOpenGlider.cpp */,
 				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
 				2573631922233008005210C5 /* LTRealTraffic.cpp */,
+				25A5D9792CE3F9E2004F507C /* LTSayIntentions.cpp */,
 				25EF90032B497C6100D7C805 /* LTSynthetic.cpp */,
 				25ABEEFD219A1C2100F61413 /* LTVersion.cpp */,
 				254F278824EF230400CACCDA /* LTWeather.cpp */,
@@ -441,6 +445,7 @@
 				259EC47825057802009B86F3 /* LTOpenGlider.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
+				25A5D97D2CE3FC0F004F507C /* LTSayIntentions.h */,
 				25EF90052B497C7900D7C805 /* LTSynthetic.h */,
 				254F278724EF22FE00CACCDA /* LTWeather.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
@@ -588,7 +593,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1540;
+				LastUpgradeCheck = 1610;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 12.0";
@@ -683,6 +688,7 @@
 				25EF90042B497C6100D7C805 /* LTSynthetic.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
+				25A5D97A2CE3F9E2004F507C /* LTSayIntentions.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -795,8 +801,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 0;
-				LIVETRAFFIC_VER_PATCH = 1;
+				LIVETRAFFIC_VER_MINOR = 1;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -904,8 +910,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 0;
-				LIVETRAFFIC_VER_PATCH = 1;
+				LIVETRAFFIC_VER_MINOR = 1;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -949,6 +955,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/fmod",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",
@@ -1001,6 +1008,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/fmod",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",

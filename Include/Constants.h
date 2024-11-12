@@ -217,6 +217,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_RT_LICENSE          "RealTraffic_License"
 #define CFG_FSC_USER            "FSC_User"
 #define CFG_FSC_PWD             "FSC_Pwd"
+#define CFG_SI_DISPLAYNAME      "SI_DisplayName"
 
 //MARK: Menu Items
 #define MENU_INFO_LIST_WND      "Status / Information..."
@@ -268,6 +269,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
 #define HELP_SET_CH_FSCHARTER   "setup/installation/fscharter"
+#define HELP_SET_CH_SI          "setup/installation/sayintentions"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
 #define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"

@@ -577,6 +577,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/synthetic/intern",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/sayintentions/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -2206,6 +2207,8 @@ bool DataRefs::LoadConfigFile()
                 SetFSCharterUser(sVal);
             else if (sDataRef == CFG_FSC_PWD)
                 SetFSCharterPwd(Cleartext(sVal));
+            else if (sDataRef == CFG_SI_DISPLAYNAME)
+                SetSIDisplayName(sVal);
             else
             {
                 // unknown config entry, ignore
@@ -2352,6 +2355,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_FSC_USER << ' ' << sFSCUser << '\n';
     if (!sFSCPwd.empty())
         fOut << CFG_FSC_PWD << ' ' << Obfuscate(sFSCPwd) << '\n';
+    if (!sSIDisplayName.empty())
+        fOut << CFG_SI_DISPLAYNAME << ' ' << sSIDisplayName << '\n';
 
     // *** [FlarmAcTypes] ***
     fOut << '\n' << CFG_FLARM_ACTY_SECTION << '\n';
