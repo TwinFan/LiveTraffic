@@ -405,6 +405,26 @@ bool stribeginwith (const std::string& s, const std::string& begin)
                       { return std::tolower(x) == std::tolower(y); });
 }
 
+// Comparison function to compare strings case-insensitevly
+// Implements a less-than logic
+bool stricmp::operator() (const std::string& lhs, const std::string rhs) const
+{
+    std::string::const_iterator l, r;
+    for (l = lhs.begin(), r = rhs.begin();
+         l != lhs.end() && r != rhs.end();
+         ++l, ++r)
+    {
+        const int ll = std::tolower(*l);
+        const int lr = std::tolower(*r);
+        if (ll < lr)                // lhs is clearly less than rhs
+            return true;
+        if (ll > lr)                // lhs is clearly greater than rhs
+            return false;
+    }
+    // coming here means: strings are equal for the first chars
+    // Here we say: lhs < rhs if lhs is shorter
+    return lhs.length() < rhs.length();
+}
 
 bool str_isalnum(const std::string& s)
 {

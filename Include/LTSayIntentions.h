@@ -36,6 +36,20 @@
 #define SI_NAME                 "SayIntentions"
 #define SI_URL_ALL              "https://lambda.sayintentions.ai/tracker/map"
 
+#define SI_KEY                  "flight_id"
+#define SI_LAT                  "lat"
+#define SI_LON                  "lon"
+#define SI_ALT                  "altitude"
+#define SI_ALT_AGL              "altitude_agl"
+#define SI_DISPLAYNAME          "displayname"
+#define SI_ORIGIN               "origin"
+#define SI_DEST                 "final_destination"
+#define SI_CALL                 "callsign"
+#define SI_REG                  "tail_number"
+#define SI_HEADING              "heading"
+#define SI_AC_TYPE              "aircraft_icao"
+#define SI_SPD                  "airspeed"
+
 //
 // MARK: SayIntentions connection class
 //
@@ -43,12 +57,15 @@
 /// Connection to SayIntentions
 class SayIntentionsConnection : public LTFlightDataChannel
 {
+protected:
+    double  tsRequest = NAN;                                ///< when did we send the last request?
 public:
     SayIntentionsConnection ();                             ///< Constructor
     std::string GetURL (const positionTy& pos) override;    ///< returns the constant URL to SayIntentions traffic
     bool ProcessFetchedData () override;                    ///< Process response, selecting traffic around us and forwarding to the processing queues
 protected:
     void Main () override;                                  ///< virtual thread main function
+    std::string UnprocessCallSign (std::string cs);         ///< Converts "Piper-two-Five-Seven-papa" back to "Piper 257P"
 };
 
 #endif /* LTSayIntentions_h */

@@ -227,6 +227,10 @@ std::string str_toupper_c(const std::string& s);
 bool striequal (const std::string& a, const std::string& b);
 /// Case-insensitive begins with
 bool stribeginwith (const std::string& s, const std::string& begin);
+/// Comparison function to compare strings case-insensitevly
+struct stricmp {
+    bool operator() (const std::string& lhs, const std::string rhs) const;
+};
 // are all chars alphanumeric?
 bool str_isalnum(const std::string& s);
 // limits text to m characters, replacing the last ones with ... if too long
