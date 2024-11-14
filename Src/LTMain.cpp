@@ -387,6 +387,21 @@ std::string str_toupper_c(const std::string& s)
     return c;
 }
 
+// change a string to lowercase
+std::string& str_tolower(std::string& s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) -> unsigned char { return (unsigned char) tolower(c); });
+    return s;
+}
+
+// return a std::string copy converted to uppercase
+std::string str_tolower_c(const std::string& s)
+{
+    std::string c(s);
+    str_tolower(c);
+    return c;
+}
+
 // Case-insensitive equal
 /// @see https://stackoverflow.com/a/4119881
 bool striequal (const std::string& a, const std::string& b)
@@ -403,27 +418,6 @@ bool stribeginwith (const std::string& s, const std::string& begin)
     return std::equal(begin.begin(), begin.end(), s.begin(),
                       [](unsigned char x, unsigned char y)
                       { return std::tolower(x) == std::tolower(y); });
-}
-
-// Comparison function to compare strings case-insensitevly
-// Implements a less-than logic
-bool stricmp::operator() (const std::string& lhs, const std::string rhs) const
-{
-    std::string::const_iterator l, r;
-    for (l = lhs.begin(), r = rhs.begin();
-         l != lhs.end() && r != rhs.end();
-         ++l, ++r)
-    {
-        const int ll = std::tolower(*l);
-        const int lr = std::tolower(*r);
-        if (ll < lr)                // lhs is clearly less than rhs
-            return true;
-        if (ll > lr)                // lhs is clearly greater than rhs
-            return false;
-    }
-    // coming here means: strings are equal for the first chars
-    // Here we say: lhs < rhs if lhs is shorter
-    return lhs.length() < rhs.length();
 }
 
 bool str_isalnum(const std::string& s)

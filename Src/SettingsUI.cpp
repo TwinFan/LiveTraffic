@@ -761,7 +761,7 @@ void LTSettingsUI::buildInterface()
             if (ImGui::TreeNodeCbxLinkHelp(SI_NAME, nCol,
                                            DR_CHANNEL_SAYINTENTIONS,
                                            "Enable tracking " SI_NAME " online flights",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " FSC_CHECK_NAME,
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " SI_CHECK_NAME,
                                            SI_CHECK_URL,
                                            SI_CHECK_POPUP,
                                            HELP_SET_CH_SI, "Open Help on " SI_NAME " in Browser",

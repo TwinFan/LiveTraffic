@@ -180,7 +180,6 @@ bool SayIntentionsConnection::ProcessFetchedData ()
         LTFlightData::FDStaticData stat;
         stat.reg            = jog_s(pAc, SI_REG);
         stat.acTypeIcao     = jog_s(pAc, SI_AC_TYPE);
-        // TODO: Re-process the callsign
         stat.call           = UnprocessCallSign(jog_s(pAc, SI_CALL));
         stat.setOrigDest(jog_s(pAc, SI_ORIGIN),
                          jog_s(pAc, SI_DEST));
@@ -212,7 +211,7 @@ bool SayIntentionsConnection::ProcessFetchedData ()
 
 
 /// Mapping table of keywords we can replace in the callsign
-static std::map<std::string, std::string, stricmp> mapTokens = {
+static std::map<std::string, std::string> mapTokens = {
     { "alfa",       "A" },
     { "alpha",      "A" },
     { "bravo",      "B" },
@@ -277,7 +276,7 @@ std::string SayIntentionsConnection::UnprocessCallSign (std::string cs)
     for (const std::string& s: t)
     {
         try {
-            ret += mapTokens.at(s);             // replace the token
+            ret += mapTokens.at(str_tolower_c(s));  // replace the token
         }
         catch (...)                             // didn't find token in map
         {

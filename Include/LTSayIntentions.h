@@ -31,7 +31,7 @@
 //
 #define SI_CHECK_NAME           "SayIntentions Flight Tracker"
 #define SI_CHECK_URL            "https://tracker.sayintentions.ai"
-#define SI_CHECK_POPUP          "Check SayIntentions' coverage"
+#define SI_CHECK_POPUP          "See who's flying with SayIntentions just now"
 
 #define SI_NAME                 "SayIntentions"
 #define SI_URL_ALL              "https://lambda.sayintentions.ai/tracker/map"

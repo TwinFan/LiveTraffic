@@ -223,14 +223,14 @@ bool RemoteFileDownload (const std::string& url, const std::string& path);
 std::string& str_toupper(std::string& s);
 /// return a std::string copy converted to uppercase
 std::string str_toupper_c(const std::string& s);
+// change a std::string to lowercase
+std::string& str_tolower(std::string& s);
+/// return a std::string copy converted to lowercase
+std::string str_tolower_c(const std::string& s);
 /// Case-insensitive equal
 bool striequal (const std::string& a, const std::string& b);
 /// Case-insensitive begins with
 bool stribeginwith (const std::string& s, const std::string& begin);
-/// Comparison function to compare strings case-insensitevly
-struct stricmp {
-    bool operator() (const std::string& lhs, const std::string rhs) const;
-};
 // are all chars alphanumeric?
 bool str_isalnum(const std::string& s);
 // limits text to m characters, replacing the last ones with ... if too long
