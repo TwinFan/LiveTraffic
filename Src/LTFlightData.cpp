@@ -270,7 +270,7 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
             snprintf(buf, sizeof(buf), "%08lX", _num);
             break;
         case KEY_SAYINTENTIONS:
-            snprintf(buf, sizeof(buf), "%8lu", _num);
+            snprintf(buf, sizeof(buf), "%lu", _num);
             break;
         case KEY_UNKNOWN:
             // must not happen
