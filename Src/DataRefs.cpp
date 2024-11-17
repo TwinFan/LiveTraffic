@@ -2124,18 +2124,18 @@ bool DataRefs::LoadConfigFile()
         // break out of loop if reading the start of another section indicated by [ ]
         if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
 
-        // otherwise should be 2 tokens
-        ln = str_tokenize(lnBuf, " ");
-        if (ln.size() != 2) {
+        // otherwise should be 2 tokens, separated by the (first) space character
+        const std::string::size_type posSpc = lnBuf.find(' ');
+        if (posSpc == std::string::npos) {
             // wrong number of words in that line
             LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf.c_str());
             errCnt++;
             continue;
         }
-        
+        const std::string sDataRef = lnBuf.substr(0, posSpc);
+              std::string sVal     = posSpc+1 < lnBuf.length() ? lnBuf.substr(posSpc+1) : "";
+
         // did read a name and a value?
-        const std::string& sDataRef = ln[0];
-        std::string& sVal     = ln[1];
         if (!sDataRef.empty() && !sVal.empty()) {
             // verify that we know that name
             dataRefDefinitionT* i = std::find_if(std::begin(DATA_REFS_LT),
@@ -2217,7 +2217,6 @@ bool DataRefs::LoadConfigFile()
                 errCnt++;
             }
         }
-        
     }
     
     // *** [FlarmAcTypes] ***

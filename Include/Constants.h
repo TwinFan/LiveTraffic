@@ -374,7 +374,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_FILE_VER        "Config file '%s' first line: Unsupported format or version: '%s'"
 #define ERR_CFG_FILE_VER_UNEXP  "Config file '%s' first line: Unexpected version %s, expected %s...trying to continue"
 #define ERR_CFG_FILE_IGNORE     "Ignoring unkown entry '%s' from config file '%s'"
-#define ERR_CFG_FILE_WORDS      "Expected two words (key, value) in config file '%s', line '%s': ignored"
+#define ERR_CFG_FILE_WORDS      "Expected two words (key, value) separated by a space in config file '%s', line '%s': ignored"
 #define ERR_CFG_FILE_READ       "Could not read from '%s': %s"
 #define ERR_CFG_LINE_READ       "Could not read from file '%s', line %d: %s"
 #define ERR_CFG_FILE_TOOMANY    "Too many warnings"
