@@ -72,6 +72,9 @@ txtFixLivery    (dataRefs.cslFixLivery)
     
     // Fetch FSC credentials
     dataRefs.GetFSCharterCredentials(sFSCUser, sFSCPwd);
+    
+    // Fetch SayIntentions configuration
+    sSIDisplayName = dataRefs.GetSIDisplayName();
 
     // Set up window basics
     SetWindowTitle(SUI_WND_TITLE);
@@ -754,6 +757,42 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
 
+            // --- SayIntentions ---
+            if (ImGui::TreeNodeCbxLinkHelp(SI_NAME, nCol,
+                                           DR_CHANNEL_SAYINTENTIONS,
+                                           "Enable tracking " SI_NAME " online flights",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " SI_CHECK_NAME,
+                                           SI_CHECK_URL,
+                                           SI_CHECK_POPUP,
+                                           HELP_SET_CH_SI, "Open Help on " SI_NAME " in Browser",
+                                           sFilter, nOpCl))
+            {
+                // User's displayname, so we can skip their own aircraft
+                if (ImGui::FilteredLabel("Own Displayname", sFilter)) {
+                    ImGui::Indent(ImGui::GetWidthIconBtn(true));
+                    ImGui::InputTextWithHint("##SIDisplayName",
+                                             "Hide your aircraft by entering your SI's displayname",
+                                             &sSIDisplayName);
+                    if (ImGui::IsItemDeactivatedAfterEdit())
+                        dataRefs.SetSIDisplayName(sSIDisplayName);
+                    ImGui::Unindent(ImGui::GetWidthIconBtn(true));
+
+                    ImGui::TableNextCell();
+                }
+
+                // Connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    LTChannel* pSICh = LTFlightDataGetCh(DR_CHANNEL_SAYINTENTIONS);
+                    if (pSICh) {
+                        ImGui::TextWrapped("%s", pSICh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Input Channels ---

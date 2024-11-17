@@ -21,7 +21,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 4.0.0
+        VERSION 4.1.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -166,6 +166,7 @@ set(Header_Files
     Include/LTOpenGlider.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
+    Include/LTSayIntentions.h
     Include/LTSynthetic.h
     Include/LTWeather.h
     Include/SettingsUI.h
@@ -213,6 +214,7 @@ set(Source_Files
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp
     Src/LTSynthetic.cpp
+    Src/LTSayIntentions.cpp
     Src/LTVersion.cpp
     Src/LTWeather.cpp
     Src/SettingsUI.cpp

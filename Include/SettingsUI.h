@@ -64,6 +64,9 @@ protected:
     std::string sFSCPwd;            ///< FSC password
     bool bFSCPwdClearText = false;  ///< Is FSC pwd displayed clear text?
     
+    // Channel: SayIntentions
+    std::string sSIDisplayName;     ///< SayIntentions own display name
+    
     // Weather
     std::string txtManualMETAR;     ///< manually set METAR for fixed weather
 

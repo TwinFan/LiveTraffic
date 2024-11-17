@@ -433,6 +433,7 @@ enum dataRefsLT {
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
     DR_CHANNEL_FORE_FLIGHT_SENDER,
     DR_CHANNEL_SYNTHETIC,
+    DR_CHANNEL_SAYINTENTIONS,
     DR_CHANNEL_FSCHARTER,
     DR_CHANNEL_OPEN_GLIDER_NET,
     DR_CHANNEL_ADSB_HUB,
@@ -755,6 +756,7 @@ protected:
     std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
     std::string sFSCPwd;                ///< FSCharter login password
+    std::string sSIDisplayName;         ///< SayIntentions own display name
     
     // live values
     bool bReInitAll     = false;        // shall all a/c be re-initiaized (e.g. time jumped)?
@@ -1022,6 +1024,9 @@ public:
     { user = sFSCUser; pwd = sFSCPwd; }
     void SetFSCharterUser (const std::string& user) { sFSCUser = user; }
     void SetFSCharterPwd (const std::string& pwd)   { sFSCPwd = pwd; }
+    
+    const std::string& GetSIDisplayName () const    { return sSIDisplayName; }
+    void SetSIDisplayName (const std::string& dn)   { sSIDisplayName = dn; }
     
     // timestamp offset network vs. system clock
     inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }

@@ -577,6 +577,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/synthetic/intern",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/sayintentions/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsbhub/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -1162,8 +1163,8 @@ void DataRefs::UpdateUsersPlanePos ()
      XPLMGetDatai(adrXP[DR_PLANE_ONGRND]) ? GND_ON : GND_OFF
     );
     
-    // make invalid pos invalid
-    if (pos.lat() < -75 || pos.lat() > 75)
+    // make invalid pos invalid (but why?)
+    if (pos.lat() < -85 || pos.lat() > 85)
         pos.lat() = NAN;
     
     // cache the position
@@ -2123,18 +2124,18 @@ bool DataRefs::LoadConfigFile()
         // break out of loop if reading the start of another section indicated by [ ]
         if (lnBuf.front() == '[' && lnBuf.back() == ']') break;
 
-        // otherwise should be 2 tokens
-        ln = str_tokenize(lnBuf, " ");
-        if (ln.size() != 2) {
+        // otherwise should be 2 tokens, separated by the (first) space character
+        const std::string::size_type posSpc = lnBuf.find(' ');
+        if (posSpc == std::string::npos) {
             // wrong number of words in that line
             LOG_MSG(logWARN,ERR_CFG_FILE_WORDS, sFileName.c_str(), lnBuf.c_str());
             errCnt++;
             continue;
         }
-        
+        const std::string sDataRef = lnBuf.substr(0, posSpc);
+              std::string sVal     = posSpc+1 < lnBuf.length() ? lnBuf.substr(posSpc+1) : "";
+
         // did read a name and a value?
-        const std::string& sDataRef = ln[0];
-        std::string& sVal     = ln[1];
         if (!sDataRef.empty() && !sVal.empty()) {
             // verify that we know that name
             dataRefDefinitionT* i = std::find_if(std::begin(DATA_REFS_LT),
@@ -2206,6 +2207,8 @@ bool DataRefs::LoadConfigFile()
                 SetFSCharterUser(sVal);
             else if (sDataRef == CFG_FSC_PWD)
                 SetFSCharterPwd(Cleartext(sVal));
+            else if (sDataRef == CFG_SI_DISPLAYNAME)
+                SetSIDisplayName(sVal);
             else
             {
                 // unknown config entry, ignore
@@ -2214,7 +2217,6 @@ bool DataRefs::LoadConfigFile()
                 errCnt++;
             }
         }
-        
     }
     
     // *** [FlarmAcTypes] ***
@@ -2352,6 +2354,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_FSC_USER << ' ' << sFSCUser << '\n';
     if (!sFSCPwd.empty())
         fOut << CFG_FSC_PWD << ' ' << Obfuscate(sFSCPwd) << '\n';
+    if (!sSIDisplayName.empty())
+        fOut << CFG_SI_DISPLAYNAME << ' ' << sSIDisplayName << '\n';
 
     // *** [FlarmAcTypes] ***
     fOut << '\n' << CFG_FLARM_ACTY_SECTION << '\n';
