@@ -269,6 +269,9 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
         case KEY_RT:
             snprintf(buf, sizeof(buf), "%08lX", _num);
             break;
+        case KEY_SAYINTENTIONS:
+            snprintf(buf, sizeof(buf), "%lu", _num);
+            break;
         case KEY_UNKNOWN:
             // must not happen
             LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
@@ -301,6 +304,7 @@ const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
         case KEY_ICAO:      return "ICAO";
         case KEY_FSC:       return "FSCharter";
         case KEY_ADSBEX:    return "ADSBEx";
+        case KEY_SAYINTENTIONS: return "SI";
     }
     return "unknown";
 }

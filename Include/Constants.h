@@ -217,6 +217,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_RT_LICENSE          "RealTraffic_License"
 #define CFG_FSC_USER            "FSC_User"
 #define CFG_FSC_PWD             "FSC_Pwd"
+#define CFG_SI_DISPLAYNAME      "SI_DisplayName"
 
 //MARK: Menu Items
 #define MENU_INFO_LIST_WND      "Status / Information..."
@@ -268,6 +269,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
 #define HELP_SET_CH_FSCHARTER   "setup/installation/fscharter"
+#define HELP_SET_CH_SI          "setup/installation/sayintentions"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
 #define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"
@@ -372,7 +374,7 @@ constexpr int SERR_LEN = 100;                   // size of buffer for IO error t
 #define ERR_CFG_FILE_VER        "Config file '%s' first line: Unsupported format or version: '%s'"
 #define ERR_CFG_FILE_VER_UNEXP  "Config file '%s' first line: Unexpected version %s, expected %s...trying to continue"
 #define ERR_CFG_FILE_IGNORE     "Ignoring unkown entry '%s' from config file '%s'"
-#define ERR_CFG_FILE_WORDS      "Expected two words (key, value) in config file '%s', line '%s': ignored"
+#define ERR_CFG_FILE_WORDS      "Expected two words (key, value) separated by a space in config file '%s', line '%s': ignored"
 #define ERR_CFG_FILE_READ       "Could not read from '%s': %s"
 #define ERR_CFG_LINE_READ       "Could not read from file '%s', line %d: %s"
 #define ERR_CFG_FILE_TOOMANY    "Too many warnings"

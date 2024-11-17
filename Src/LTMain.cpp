@@ -387,6 +387,21 @@ std::string str_toupper_c(const std::string& s)
     return c;
 }
 
+// change a string to lowercase
+std::string& str_tolower(std::string& s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) -> unsigned char { return (unsigned char) tolower(c); });
+    return s;
+}
+
+// return a std::string copy converted to uppercase
+std::string str_tolower_c(const std::string& s)
+{
+    std::string c(s);
+    str_tolower(c);
+    return c;
+}
+
 // Case-insensitive equal
 /// @see https://stackoverflow.com/a/4119881
 bool striequal (const std::string& a, const std::string& b)
@@ -404,7 +419,6 @@ bool stribeginwith (const std::string& s, const std::string& begin)
                       [](unsigned char x, unsigned char y)
                       { return std::tolower(x) == std::tolower(y); });
 }
-
 
 bool str_isalnum(const std::string& s)
 {

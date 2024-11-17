@@ -143,6 +143,7 @@ extern DataRefs dataRefs;
 #include "LTADSBHub.h"
 #include "LTOpenGlider.h"
 #include "LTFSCharter.h"
+#include "LTSayIntentions.h"
 #include "LTSynthetic.h"
 
 //MARK: Global Control functions
@@ -222,6 +223,10 @@ bool RemoteFileDownload (const std::string& url, const std::string& path);
 std::string& str_toupper(std::string& s);
 /// return a std::string copy converted to uppercase
 std::string str_toupper_c(const std::string& s);
+// change a std::string to lowercase
+std::string& str_tolower(std::string& s);
+/// return a std::string copy converted to lowercase
+std::string str_tolower_c(const std::string& s);
 /// Case-insensitive equal
 bool striequal (const std::string& a, const std::string& b);
 /// Case-insensitive begins with
