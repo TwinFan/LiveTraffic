@@ -179,6 +179,8 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
     return nmemb;
 }
 
+// FIXME: 1:35:36.504 LiveTraffic ERROR LTVersion.cpp:239/FetchXPlaneOrgVersion: Could not browse X-Plane.org for version info: -1 - Found no version info in response
+
 // check on X-Plane.org what version's available there
 // This function would block. Idea is to call it in a thread like with std::async
 bool FetchXPlaneOrgVersion ()

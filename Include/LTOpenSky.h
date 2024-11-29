@@ -101,11 +101,6 @@ constexpr std::chrono::duration OPSKY_WAIT_NOQUEUE = std::chrono::milliseconds(3
 constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
 #define OPSKY_MD_TEXT_NO_CAT    "No ADS-B Emitter Category Information"
 
-#define OPSKY_MD_DB_NAME        "OpenSky Masterdata File"
-#define OPSKY_MD_DB_URL         "https://opensky-network.org/datasets/metadata/"
-#define OPSKY_MD_DB_FILE_BEGIN  "aircraft-database-complete-"
-#define OPSKY_MD_DB_FILE        "aircraft-database-complete-%04d-%02d.csv"
-
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
 #define OPSKY_ROUTE_CALLSIGN    "callsign"
 #define OPSKY_ROUTE_ROUTE       "route"
@@ -135,37 +130,38 @@ protected:
 //MARK: OpenSkyAcMasterFile
 //
 
-// Every how many lines to we save file position information?
-constexpr unsigned long OPSKY_NUM_LN_PER_POS = 250;
+#define OPSKY_MDF_NAME          "OpenSky Masterdata File"
+#define OPSKY_MDF_URL           "https://s3.opensky-network.org/data-samples/metadata/"
+#define OPSKY_MDF_FILE_BEGIN    "aircraft-database-complete-"
+#define OPSKY_MDF_FILE          "aircraft-database-complete-%04d-%02d.csv"
 
-// Index into the fields of each line of the database file
-enum AcMasterFileFieldsTy : size_t {
-    ACMFF_hexId  = 0,
-    ACMFF_reg,
-    ACMFF_manIcao,
-    ACMFF_man,
-    ACMFF_mdl,
-    ACMFF_designator,
-    ACMFF_serialNum,
-    ACMFF_lineNum,
-    ACMFF_icaoAircraftClass,
-    ACMFF_operator,
-    ACMFF_operatorCallsign,
-    ACMFF_opIcao,
-    ACMFF_opIata,
-    ACMFF_owner,
-    ACMFF_catDescr,
-    ACMFF_NUM_FIELDS
-};
+// Field names of interest within the database file
+#define OPSKY_MDF_HEXID         "icao24"
+#define OPSKY_MDF_CATDESCR      "categoryDescription"
+#define OPSKY_MDF_COUNTRY       "country"
+#define OPSKY_MDF_MAN           "manufacturerName"
+#define OPSKY_MDF_MANICAO       "manufacturerIcao"
+#define OPSKY_MDF_MDL           "model"
+#define OPSKY_MDF_OP            "operatorCallsign"
+#define OPSKY_MDF_OWNER         "owner"
+#define OPSKY_MDF_OPICAO        "operatorIcao"
+#define OPSKY_MDF_REG           "registration"
+#define OPSKY_MDF_ACTYPE        "typecode"
+
+/// Every how many lines to we save file position information?
+constexpr unsigned long OPSKY_NUM_LN_PER_POS = 250;
 
 /// Represents downloading and reading from the OpenSky Master data file `aircraft-database-complete-YYYY-MM.csv`
 class OpenSkyAcMasterFile : public LTACMasterdataChannel
 {
 protected:
     std::ifstream fAcDb;                                            ///< Aircraft Database file
-    typedef std::map<unsigned long,std::ifstream::pos_type> mapPosTy;///< map of a/c ids to file positions
-    mapPosTy mapPos;                                                ///< map of a/c ids to file positions
     std::string ln;                                                 ///< a line in the database file
+
+    std::map<std::string, std::size_t> mapFieldPos;                 ///< map of field names to field indexes
+    typedef std::map<unsigned long,std::ifstream::pos_type> mapPosTy;///< map of a/c ids to file positions
+    std::size_t numFields = 0;                                      ///< number of fields expected in each row
+    mapPosTy mapPos;                                                ///< map of a/c ids to file positions
 public:
     OpenSkyAcMasterFile ();                                         ///< Constructor sets channel, name, and URLs
 public:

@@ -315,7 +315,7 @@ public:
 protected:
     /// @brief Register a master data channel, that will be called to process requests
     /// @note The order, in which registration happens, serves as a priority
-    static void RegisterMasterDataChn (LTACMasterdataChannel* pChn);
+    static void RegisterMasterDataChn (LTACMasterdataChannel* pChn, bool bToFrontOfQueue);
     /// Unregister a mster data channel
     static void UnregisterMasterDataChn (LTACMasterdataChannel* pChn);
     /// Generically, uniquely add request to fetch data (returns `true` if added, `false` if duplicate)

@@ -426,7 +426,7 @@ void OpenSkyAcMasterdata::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_OpSkyMaster", LC_ALL_MASK);
-    RegisterMasterDataChn(this);                // Register myself as a master data channel
+    RegisterMasterDataChn(this, false);         // Register myself as a master data channel
     tSetRequCleared = dataRefs.GetMiscNetwTime();
     
     while ( shallRun() ) {
@@ -609,7 +609,7 @@ bool OpenSkyAcMasterdata::ProcessRouteInfo (JSON_Object* pJRoute)
 
 // Constructor
 OpenSkyAcMasterFile::OpenSkyAcMasterFile () :
-LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, OPSKY_MD_DB_NAME)
+LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, OPSKY_MDF_NAME)
 {
     // purely informational
     urlName  = OPSKY_MD_CHECK_NAME;
@@ -644,7 +644,7 @@ void OpenSkyAcMasterFile::Main ()
     }
     
     // Loop to process requests
-    RegisterMasterDataChn(this);            // Unregister myself as a master data channel
+    RegisterMasterDataChn(this, true);      // Register myself as a master data channel to the beginning of the queue, because we don't need internet connection and are faster
     tSetRequCleared = dataRefs.GetMiscNetwTime();
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -691,23 +691,78 @@ void OpenSkyAcMasterFile::Main ()
     UnregisterMasterDataChn(this);          // Unregister myself as a master data channel
 }
 
+/// @brief Parse one field off the input ln
+/// @details Returns the field's content after de-mangling
+std::string ParseField (const std::string& ln, std::string::const_iterator *pp = nullptr)
+{
+    std::string ret;
+    
+    // Sanity check
+    if (ln.empty()) return "";
+    
+    // Pointer to the string position we work on
+    // If passed in then we start there, otherwise at the beginning
+    std::string::const_iterator p = pp ? *(pp) : ln.begin();
+    
+    // Encapsulated in some quotes?
+    char qu = 0;
+    if (*p == '\'') qu = '\'';
+    else if (*p == '"') qu = '"';
+    if (qu) ++p;
+    
+    // indicates that the previous char was the quote char
+    // (so the next should either be the quote char again, or a comma)
+    bool bPrevQu = false;
+    
+    // Process at max until end of string
+    for (;p != ln.end(); ++p) {
+        // if current char is the quote char
+        if (qu && *p == qu) {
+            if (bPrevQu) {              // ...and the previous one was, too
+                ret += qu;              // then the result is a quote char
+                bPrevQu = false;
+            }
+            else
+                bPrevQu = true;         // otherwise we don't yet know, just set the flag that we just came across a quote char
+        }
+        else if (*p == ',') {           // comma _can_ separate fields, ie. end parsing this field
+            if (!qu || bPrevQu) {       // if not encapsulated in quotes, or the previous char _was_ the quote char (which then had ended the string)
+                ++p;                    // read over that comma
+                break;                  // then stop
+            }
+            else
+                ret += ',';             // within an encapsulated string it's just a comma to be added to the output
+        }
+        else {
+            ret += *p;                  // all other chars we add verbatim
+            bPrevQu = false;
+        }
+    }
+    
+    // Return the processing pointer (as input for a next call)?
+    if (pp)
+        *(pp) = p;
+    
+    return ret;
+}
+
 /// @brief Extract the hexId from an OpenSky ac database line, `0` if invalid
 /// @details Line needs to start with a full 6-digit hex id in double quotes: "000001"
+/// @returns 0x0F000000UL if input is invalid
 unsigned long GetHexId (const std::string& ln)
 {
-    // must have at least 8 characters, and double quotes at position 0 and 7:
-    if (ln.size() < 8 ||
-        ln[0] != '"' || ln[7] != '"')
-        return 0UL;
+    // must have exactly 6 chars
+    if (ln.size() != 6)
+        return 0x0F000000UL;
     
-    // Test the inside for all hex digits
-    if (!std::all_of(ln.begin() + 1,
-                     ln.begin() + 7,
+    // Test for all hex digits
+    if (!std::all_of(ln.begin(),
+                     ln.end(),
                      [](const char& ch){ return std::isxdigit(ch); }))
-        return 0UL;
-    
+        return 0x0F000000UL;
+
     // convert text to number
-    return std::strtoul(ln.c_str()+1, nullptr, 16);
+    return std::strtoul(ln.c_str(), nullptr, 16);
 }
 
 /// Process looked up master data
@@ -715,44 +770,47 @@ unsigned long GetHexId (const std::string& ln)
 bool OpenSkyAcMasterFile::ProcessFetchedData ()
 {
     try {
-        // Sanity check: Less than 45 chars is impossible for a valid line (15 fields with at least 3 chars: "","","",...
-        if (ln.size() < ACMFF_NUM_FIELDS * 3)
-            return false;
-        
-        // Split the line into its fields.
-        // Note that we split by the 3 characters ","  so that fields don't just depend on the comma
-        // and most but not all double quotes are already removed along the way
-        std::vector<std::string> v = str_fields(ln, "\",\"");
-        if (v.size() < ACMFF_NUM_FIELDS) {
+        // Parse the line field-by-field
+        std::vector<std::string> v;
+        for (std::string::const_iterator p = ln.begin();
+             p != ln.end();)
+            v.push_back(ParseField(ln, &p));
+        // we expect a minimum number of fields
+        if (v.size() < numFields) {
             LOG_MSG(logWARN, "A/c database file line has too few fields: %s", ln.c_str());
             AddIgnore();
             return false;
         }
         
-        // The very first and very last double quotes have not yet been removed
-        if (!v.front().empty() && v.front().front() == '"') v.front().erase(0,1);
-        if (!v.back().empty() && v.back().back() == '"') v.back().erase(v.back().length()-1,1);
-        
         // Sanity check: Hex id must match the current search request
-        if (std::strtoul(v[ACMFF_hexId].c_str(), nullptr, 16) != currRequ.acKey.num) {
+        if (std::strtoul(v[mapFieldPos[OPSKY_MDF_HEXID]].c_str(), nullptr, 16) != currRequ.acKey.num) {
             LOG_MSG(logERR, "A/c id of fetched db line (%s) doesn't match requested id (%s)",
-                    v[ACMFF_hexId].c_str(), currRequ.acKey.c_str());
+                    v[mapFieldPos[OPSKY_MDF_HEXID]].c_str(), currRequ.acKey.c_str());
             AddIgnore();
             return false;
         }
         
         // Fill readable static data from the database line
         LTFlightData::FDStaticData stat;
-        stat.reg            = v[ACMFF_reg];
-        stat.acTypeIcao     = v[ACMFF_designator];
-        stat.man            = !v[ACMFF_man].empty() ?       v[ACMFF_man] :
-                                                            v[ACMFF_manIcao];
-        stat.mdl            = v[ACMFF_mdl];
-        stat.catDescr       = v[ACMFF_catDescr];
-        stat.op             = !v[ACMFF_operator].empty() ?  v[ACMFF_operator] :
-                              !v[ACMFF_owner].empty() ?     v[ACMFF_owner] :
-                                                            v[ACMFF_operatorCallsign];
-        stat.opIcao         = v[ACMFF_opIcao];
+        stat.acTypeIcao = v[mapFieldPos[OPSKY_MDF_ACTYPE]];
+        if (stat.acTypeIcao == "GRND") stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        
+        if (mapFieldPos[OPSKY_MDF_REG])         stat.reg        = v[mapFieldPos[OPSKY_MDF_REG]];
+        if (mapFieldPos[OPSKY_MDF_MAN])         stat.man        = v[mapFieldPos[OPSKY_MDF_MAN]];
+        if (stat.man.empty() && mapFieldPos[OPSKY_MDF_MANICAO])
+                                                stat.man        = v[mapFieldPos[OPSKY_MDF_MANICAO]];
+        if (mapFieldPos[OPSKY_MDF_MDL])         stat.mdl        = v[mapFieldPos[OPSKY_MDF_MDL]];
+        if (mapFieldPos[OPSKY_MDF_CATDESCR])    stat.catDescr   = v[mapFieldPos[OPSKY_MDF_CATDESCR]];
+        if (stat.acTypeIcao.empty()) {
+            if (stat.catDescr == "Ultralight / hang-glider / paraglider")
+                stat.acTypeIcao = "GLID";
+            else if (stat.catDescr.compare(0, 15, "Surface Vehicle") == 0)
+                stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
+        }
+        if (mapFieldPos[OPSKY_MDF_OWNER])       stat.op        = v[mapFieldPos[OPSKY_MDF_OWNER]];
+        if (stat.op.empty() && mapFieldPos[OPSKY_MDF_OP])
+                                                stat.op        = v[mapFieldPos[OPSKY_MDF_OP]];
+        if (mapFieldPos[OPSKY_MDF_OPICAO])      stat.opIcao    = v[mapFieldPos[OPSKY_MDF_OPICAO]];
         
         // Update flight data
         UpdateStaticData(currRequ.acKey, stat);
@@ -795,10 +853,10 @@ bool OpenSkyAcMasterFile::LookupData ()
         fAcDb.seekg(iPos->second);
         do {
             safeGetline(fAcDb, ln);                     // read one line
-            lnKey = GetHexId(ln);                       // get the a/c key from the line
+            lnKey = GetHexId(ParseField(ln));           // get the a/c key from the line
         }
         // repeat while the line's key is smaller
-        while (fAcDb.good() && (!lnKey || lnKey < currRequ.acKey.num));
+        while (fAcDb.good() && (lnKey == 0x0F000000UL || lnKey < currRequ.acKey.num));
         
         // If this is not the right record then we don't have it
         if (lnKey != currRequ.acKey.num) {
@@ -839,8 +897,8 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
         }
     }
     
-    // as a last resort: we _know_ that the file for DEC-2023 was there
-    return TryOpenDbFile(2023, 12);
+    // as a last resort: we _know_ that the file for OCT-2024 was there
+    return TryOpenDbFile(2024, 10);
 }
 
 
@@ -853,7 +911,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
 {
     // filename of what this is about
     char fileName[50] = {0};
-    snprintf(fileName, sizeof(fileName), OPSKY_MD_DB_FILE,
+    snprintf(fileName, sizeof(fileName), OPSKY_MDF_FILE,
              year, month);
 
     try {
@@ -868,11 +926,11 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
             fAcDb.close();
 
             // file doesn't exist, try to download
-            std::string url = OPSKY_MD_DB_URL;
+            std::string url = OPSKY_MDF_URL;
             url += fileName;
-            LOG_MSG(logDEBUG, "Try to download %s", url.c_str());
+            LOG_MSG(logDEBUG, "Trying to download %s", url.c_str());
             if (!RemoteFileDownload(url,filePath)) {
-                LOG_MSG(logDEBUG, "Download of %s unavailable", url.c_str());
+                LOG_MSG(logWARN, "Download of %s unavailable", url.c_str());
                 return false;
             }
 
@@ -886,14 +944,34 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         
         // File is open and good to read
         LOG_MSG(logDEBUG, "Processing %s as aircraft database", filePath.c_str());
+        mapFieldPos.clear();
         mapPos.clear();
         fAcDb.seekg(0);
         
         // --- Loop the file and save every 250th position ---
-        // hexId, reg, manIcao, man, mdl, designator, serialNum, lineNum, icaoAircraftClass, operator, operatorCallsign, opIcao, opIata, owner, catDescr
-        // "0000c4","N474EA","BOEING","Boeing","737-448 /SF","B734","24474","1742","L2J","","","","","",""
-        // "00015f","-UNKNOWN-","TAI","General Dynamics","F-16","F16","","","L1J","Baf","BELGIAN AIRFORCE","BAF","","",""
+        // 'icao24','timestamp','acars','adsb','built','categoryDescription','country','engines','firstFlightDate','firstSeen','icaoAircraftClass','lineNumber','manufacturerIcao','manufacturerName','model','modes','nextReg','operator','operatorCallsign','operatorIata','operatorIcao','owner','prevReg','regUntil','registered','registration','selCal','serialNumber','status','typecode','vdl'
+        // '000000','2017-10-19 18:30:18',0,0,,'',,'',,,'','','','',unknow,0,'','','','','','','',,,'','','','','',0
+        // '000023','2018-05-29 02:00:00',0,0,,Ultralight / hang-glider / paraglider,,'',,,'','','','','',0,'','','','','','','',,,'','','','','',0
+        // '3c48e8','2017-09-15 00:10:03',0,0,,'',Germany,'',,,L2J,'',AIRBUS,Airbus,A319 112,0,'','',EUROWINGS,'',EWG,Eurowings,'',,,D-ABGH,'','3245','',A319,0
+        // '3c8176','2024-06-25 12:35:50',0,0,,,Germany,,,,,,,,Airport Ground Vehicle,0,,'',,'','',,,,,DHL10,,,,GRND,0
+        // a6c64d,'2022-10-14 19:00:00',0,0,'2008-01-01','',United States,SUPERIOR IO-360 SER,,,L1P,'','VAN''S',Werle Brian W,RV-7A,0,'','','','','',Walker Mickey R,'','2029-10-31',,N5357,'',WERLE001,'',RV7,0
 
+        // first line is the header, defines all column names, we read that to learn the indexes of the fields we need
+        mapFieldPos[OPSKY_MDF_HEXID] = SIZE_MAX;                // HexId is _expected_ to be at pos 0...so we prefill with an invalid value to be able to check later that it got overwritten
+        if (fAcDb.good()) {
+            safeGetline(fAcDb, ln);
+            std::string::const_iterator p = ln.begin();
+            for (numFields = 0; p != ln.end(); ++numFields)     // loop all fields in the column header
+                mapFieldPos[ParseField(ln, &p)] = numFields;    // and remember the index per field names
+        }
+        // to be useful we need at minimum a Hex id and a typecode
+        if (mapFieldPos[OPSKY_MDF_HEXID] == SIZE_MAX || !mapFieldPos[OPSKY_MDF_ACTYPE]) {
+            fAcDb.close();
+            LOG_MSG(logWARN, "Can't use '%s' as it doesn't provide vital columns like HexID, a/c type code",
+                    filePath.c_str());
+            return false;
+        }
+        
         unsigned long prevHexId = 0;
         unsigned long lnNr = 0;
         while (fAcDb.good()) {
@@ -901,9 +979,9 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
             safeGetline(fAcDb, ln);
             
             // Here, we are only interested in the very first field, the hexId
-            unsigned long hexId = GetHexId(ln);
-            if (hexId) {
-                if (hexId <= prevHexId) {
+            unsigned long hexId = GetHexId(ParseField(ln));
+            if (hexId != 0x0F000000UL) {
+                if (hexId < prevHexId) {
                     // this id not larger than last --> NOT SORTED!
                     LOG_MSG(logERR, "A/c database file '%s' appears not sorted at line '%s'!",
                             filePath.c_str(), ln.c_str());
@@ -949,7 +1027,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
                 while ((dir = readdir(d)) != NULL) {
                     // If begins like a database file but is not the one we just processed
                     std::string f = dir->d_name;
-                    if (stribeginwith(f, OPSKY_MD_DB_FILE_BEGIN) &&
+                    if (stribeginwith(f, OPSKY_MDF_FILE_BEGIN) &&
                         !striequal(f, fileName))
                         vToBeDeleted.emplace_back(std::move(f));
                 }
@@ -961,6 +1039,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
                 std::remove((fileDir+p).c_str());
         }
         
+        LOG_MSG(logINFO, "Database file '%s' processed and ready to use", filePath.c_str());
         return true;
         
     } catch (const std::exception& e) {

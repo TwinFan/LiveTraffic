@@ -465,13 +465,18 @@ bool LTACMasterdataChannel::ShallIgnore (const acStatUpdateTy& requ) const
 //
 
 // Register a master data channel, that will be called to process requests
-void LTACMasterdataChannel::RegisterMasterDataChn (LTACMasterdataChannel* pChn)
+void LTACMasterdataChannel::RegisterMasterDataChn (LTACMasterdataChannel* pChn,
+                                                   bool bToFrontOfQueue)
 {
     try {
         std::lock_guard<std::recursive_mutex> lock (mtxMaster);
-        // just add the channel to the end of the list of channels
-        if (std::find(lstChn.begin(), lstChn.end(), pChn) == lstChn.end())
-            lstChn.push_back(pChn);
+        // just add the channel to the list of channels
+        if (std::find(lstChn.begin(), lstChn.end(), pChn) == lstChn.end()) {
+            if (bToFrontOfQueue)
+                lstChn.push_front(pChn);
+            else
+                lstChn.push_back(pChn);
+        }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mtxMaster", e.what());
     }

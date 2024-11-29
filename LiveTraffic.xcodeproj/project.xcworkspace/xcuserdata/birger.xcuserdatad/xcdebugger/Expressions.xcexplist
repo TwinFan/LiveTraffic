@@ -81,13 +81,13 @@
          contextName = "Apt::FindEdgesForHeading(double, double, std::__1::vector&lt;unsigned long, std::__1::allocator&lt;unsigned long&gt; &gt;&amp;, TaxiEdge::edgeTy) const:LTApt.cpp">
          <PersistentStrings>
             <PersistentString
+               value = "vecTaxiEdges[222]">
+            </PersistentString>
+            <PersistentString
                value = "vecTaxiEdgesIdxHead[3321]">
             </PersistentString>
             <PersistentString
                value = "lst[1385]">
-            </PersistentString>
-            <PersistentString
-               value = "vecTaxiEdges[222]">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -134,10 +134,10 @@
          contextName = "LTFlightData::AddDynData(LTFlightData::FDDynamicData const&amp;, int, int, positionTy*):LTFlightData.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "dynDataDeque">
+               value = "posDeque">
             </PersistentString>
             <PersistentString
-               value = "posDeque">
+               value = "dynDataDeque">
             </PersistentString>
             <PersistentString
                value = "currCycle">
@@ -276,10 +276,10 @@
                value = "cull">
             </PersistentString>
             <PersistentString
-               value = "tcas">
+               value = "iter-&gt;second">
             </PersistentString>
             <PersistentString
-               value = "iter-&gt;second">
+               value = "tcas">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -484,7 +484,7 @@
          contextName = "LTAircraft::CalcPPos():LTAircraft.cpp">
          <PersistentStrings>
             <PersistentString
-               value = "turn">
+               value = "from">
             </PersistentString>
             <PersistentString
                value = "to">
@@ -496,7 +496,7 @@
                value = "ppos">
             </PersistentString>
             <PersistentString
-               value = "from">
+               value = "turn">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -594,10 +594,10 @@
                value = "mapFd">
             </PersistentString>
             <PersistentString
-               value = "dataRefs">
+               value = "sizeof(bool)">
             </PersistentString>
             <PersistentString
-               value = "sizeof(bool)">
+               value = "dataRefs">
             </PersistentString>
             <PersistentString
                value = "(int*)p">
@@ -946,6 +946,9 @@
          contextName = "LTWidget::DispatchMessages(int, void*, long, long):SettingsUI.cpp">
       </ContextState>
       <ContextState
+         contextName = "SyntheticConnection::FetchAllData:LTSynthetic.cpp">
+      </ContextState>
+      <ContextState
          contextName = "distToLineTy::DistSqrOfBaseBeyondLine() const:CoordCalc.h">
       </ContextState>
       <ContextState
@@ -972,6 +975,9 @@
       </ContextState>
       <ContextState
          contextName = "LTAircraft::LTAircraft(LTFlightData&amp;):LTAircraft.cpp">
+      </ContextState>
+      <ContextState
+         contextName = "OpenSkyAcMasterFile::OpenDatabaseFile:LTOpenSky.cpp">
       </ContextState>
       <ContextState
          contextName = "LTFlightData::TryDeriveGrndStatus(double, positionTy::onGrndE&amp;, bool):LTFlightData.cpp">
@@ -1187,10 +1193,10 @@
                value = "_startTime">
             </PersistentString>
             <PersistentString
-               value = "_deltaDist">
+               value = "_targetTime">
             </PersistentString>
             <PersistentString
-               value = "_targetTime">
+               value = "_deltaDist">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
