@@ -138,14 +138,24 @@ int GetLTVerDate(void*)
 // MARK: Fetch X-Plane.org's version
 //
 
-// Using CURL, we simply download from LT_DOWNLOAD_URL, looking for softwareVersion
-// Example:
-//      "softwareVersion": "0.93.190224"
+// Using CURL, we simply download from LT_DOWNLOAD_URL
+// Unfortunately, X-Plane.org no longer offers to maintain a version number
+// during upload, so "softwareVersion" isn't properly filled.
+// Instead, we built upon me always entering the version number as "reason for modification",
+// which in plain HTML looks like this:
+/*
+                            <li class="ipsDataItem">
+                                 <span class="ipsDataItem_generic ipsDataItem_size3"><strong>Reason for Modification </strong></span>
+                                 <div class="ipsDataItem_generic ipsType_break cFileInfoData">
+                                     v4.1.0
+                                 </div>
+                             </li>
+ */
 // The tricky part is that the chunks returned by CURL may break delivery
 // of that text inbetween, that's why we need to buffer a bit
 size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
 {
-    constexpr size_t bufSizeToKeep = 100;
+    constexpr size_t bufSizeToKeep = 1000;
     
     // Have we seen the version number already? Then just return
     if (verXPlaneOrg > 0)
@@ -156,12 +166,17 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
     readBuf.append(ptr, nmemb);
     
     // quick search first
-    if (readBuf.find("\"softwareVersion\":") != std::string::npos) {
+    const std::size_t pos = readBuf.find("Reason for Modification");
+    if (pos != std::string::npos) {
+        // Restrict the buffer to some 200 characters after this initial first finding
+        const std::string searchArea = readBuf.substr(pos, 200);
+        
         // now the more expensive regex search
-        // for the version number in the buffer
-        std::regex re_ver("\"softwareVersion\": \"(\\d+)\\.(\\d+)\\.(\\d+)\"");
+        // for the version number in the buffer: Essentially we are looking for the version
+        // in format "v##.##.##", surrounded only by whitespace, encapsulated in <div...> </div>:
+        std::regex re_ver(">\\W*v(\\d+)\\.(\\d+)\\.(\\d+)\\W*</div>");
         std::smatch m;
-        std::regex_search(readBuf, m, re_ver);
+        std::regex_search(searchArea, m, re_ver);
         
         // 3 matches expected
         if (m.size() == 4) {
@@ -178,8 +193,6 @@ size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
     // all consumed
     return nmemb;
 }
-
-// FIXME: 1:35:36.504 LiveTraffic ERROR LTVersion.cpp:239/FetchXPlaneOrgVersion: Could not browse X-Plane.org for version info: -1 - Found no version info in response
 
 // check on X-Plane.org what version's available there
 // This function would block. Idea is to call it in a thread like with std::async
