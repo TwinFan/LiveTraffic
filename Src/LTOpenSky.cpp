@@ -1010,7 +1010,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
 #if IBM
             WIN32_FIND_DATA data = { 0 };
             // Search already only for files that _look_ like database files
-            HANDLE h = FindFirstFileA((fileDir + OPSKY_MD_DB_FILE_BEGIN + '*').c_str(), &data);
+            HANDLE h = FindFirstFileA((fileDir + OPSKY_MDF_FILE_BEGIN + '*').c_str(), &data);
             if (h != INVALID_HANDLE_VALUE) {
                 do {
                     if (!striequal(data.cFileName, fileName))           // Skip the actual file that we just processed
