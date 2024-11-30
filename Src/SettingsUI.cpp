@@ -880,6 +880,7 @@ void LTSettingsUI::buildInterface()
             // Label cut off: distance / visibility
             ImGui::FilteredCfgNumber  ("Max Distance",          sFilter, DR_CFG_LABEL_MAX_DIST, 1, 50, 1, "%d nm");
             ImGui::FilteredCfgCheckbox("Cut off at Visibility", sFilter, DR_CFG_LABEL_VISIBILITY_CUT_OFF);
+            ImGui::FilteredCfgCheckbox("Labels for Parked a/c", sFilter, DR_CFG_LABEL_FOR_PARKED);
 
             // Static / dynamic info
             c = dataRefs.GetLabelCfg().GetUInt();
@@ -906,6 +907,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCheckboxFlags("Height AGL [ft]",     sFilter, &c, (1 << 11));
                 ImGui::FilteredCheckboxFlags("Speed [kn]",          sFilter, &c, (1 << 12));
                 ImGui::FilteredCheckboxFlags("VSI [ft/min]",        sFilter, &c, (1 << 13));
+                ImGui::FilteredCheckboxFlags("Channel",             sFilter, &c, (1 << 14));
                 if (!*sFilter) ImGui::TreePop();
             }
             

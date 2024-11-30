@@ -370,6 +370,7 @@ enum dataRefsLT {
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_MAX_DIST,
     DR_CFG_LABEL_VISIBILITY_CUT_OFF,
+    DR_CFG_LABEL_FOR_PARKED,
     DR_CFG_LABEL_COL_DYN,
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
@@ -593,7 +594,8 @@ public:
         bAlt : 1,                   // default
         bHeightAGL : 1,
         bSpeed : 1,                 // default
-        bVSI : 1;
+        bVSI : 1,
+        bChannel : 1;
         
         // this is a bit ugly but avoids a wrapper union with an int
         inline unsigned GetUInt() const { return *reinterpret_cast<const unsigned*>(this); }
@@ -697,11 +699,12 @@ protected:
     bool bAwaitingAIControl = false;    ///< have in vain tried acquiring AI control and are waiting for callback now?
     int bAINotOnGnd         = false;    ///< shall a/c on the ground be hidden from TCAS/AI?
     // which elements make up an a/c label?
-    LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0 };
+    LabelCfgTy labelCfg = { 0,1,0,0,0,0,0,0, 0,0,0,0,0,0,0 };
     LabelShowCfgTy labelShown = { 1, 1, 1, 1 };     ///< when to show? (default: always)
     int labelMaxDist    = 3;            ///< [nm] max label distance
-    bool bLabelVisibilityCUtOff = true; ///< cut off labels at reported visibility?
-    bool bLabelColDynamic  = false;     // dynamic label color?
+    int bLabelVisibilityCUtOff = true;  ///< cut off labels at reported visibility?
+    int bLabelForParked     = true;     ///< show labels for parked aircraft?
+    int bLabelColDynamic    = false;    ///< dynamic label color?
     int labelColor      = COLOR_YELLOW;             ///< label color, by default yellow
     int maxNumAc        = DEF_MAX_NUM_AC;           ///< how many aircraft to create at most?
     int fdStdDistance   = DEF_FD_STD_DISTANCE;      ///< nm: miles to look for a/c around myself
@@ -724,7 +727,7 @@ protected:
     int  contrailAltMin_ft  = DEF_CONTR_ALT_MIN;    ///< [ft] Auto Contrails: Minimum altitude
     int  contrailAltMax_ft  = DEF_CONTR_ALT_MAX;    ///< [ft] Auto Contrails: Maximum altitude
     int  contrailLifeTime   = DEF_CONTR_LIFETIME;   ///< [s] Contrail default time to live
-    bool contrailMulti      = DEF_CONTR_MULTI;      ///< Auto-create multiple or just a single contrail?
+    int  contrailMulti      = DEF_CONTR_MULTI;      ///< Auto-create multiple or just a single contrail?
     int remoteSupport   = 0;            ///< support XPMP2 Remote Client? (3-way: -1 off, 0 auto, 1 on)
     int bUseExternalCamera  = false;    ///< Do not activate LiveTraffic's camera view when hitting the camera button (intended for a 3rd party camera plugin to activate instead based on reading livetraffic/camera/... dataRefs or using LTAPI)
 
@@ -947,6 +950,7 @@ public:
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
+    bool LabelShowForParked() const { return bLabelForParked; }
     inline int GetLabelColor() const { return labelColor; }
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }
