@@ -21,7 +21,7 @@ else()
 endif()
 
 project(LiveTraffic
-        VERSION 4.1.0
+        VERSION 4.1.1
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -171,6 +171,7 @@ set(Header_Files
     Include/LTWeather.h
     Include/SettingsUI.h
     Include/TextIO.h
+    Include/ThreadCrashHdl.h
     Lib/base64/base64.h
     Lib/parson/parson.h
     Lib/LTAPI/LTAPI.h
@@ -219,6 +220,7 @@ set(Source_Files
     Src/LTWeather.cpp
     Src/SettingsUI.cpp
     Src/TextIO.cpp
+    Src/ThreadCrashHdl.cpp
     Lib/base64/base64.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
