@@ -19,6 +19,10 @@ outputs:
 runs:
   using: "composite"
   steps:
+  - name: Install required libs
+    shell: bash
+    run: |
+      brew install ninja
   - name: Prepare
     shell: bash
     run: |
