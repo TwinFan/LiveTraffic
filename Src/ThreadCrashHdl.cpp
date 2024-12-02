@@ -117,17 +117,18 @@ void CrashHandlerRegister()
 	s_my_plugin_id = XPLMGetMyID();
 
 #if APL || LIN
-    struct sigaction sig_action = { 0 };
+    struct sigaction sig_action = {};
     sig_action.sa_sigaction = handle_posix_sig;
 
 	sigemptyset(&sig_action.sa_mask);
 
 #if	LIN
-    static uint8_t alternate_stack[SIGSTKSZ] = { 0 };
-    stack_t ss = { 0 };
-    ss.ss_sp = (void*)alternate_stack;
-	ss.ss_size = SIGSTKSZ:
-	ss.ss_flags = 0:
+	// SIGSTKSZ is no longer a constant, at least on GNU, so we need to dynamically allocate the memory here
+	static std::vector<uint8_t> alternate_stack(SIGSTKSZ);
+    stack_t ss = {};
+    ss.ss_sp = (void*)alternate_stack.data();
+	ss.ss_size = SIGSTKSZ;
+	ss.ss_flags = 0;
 
 	sigaltstack(&ss, NULL);
 	sig_action.sa_flags = SA_SIGINFO | SA_ONSTACK;
@@ -336,7 +337,7 @@ void handle_crash(EXCEPTION_POINTERS *ei)
              tm.tm_hour, tm.tm_min, tm.tm_sec);
     
 #if APL || LIN
-	// NOTE: Laminar's post doesn't consider this safe enough for production
+	// NOTE: Laminar's post doesn't consider the following safe enough for production
 	// as backtrace is NOT signal handler safe (backtrace_symbols_fd supposingly is),
     // but in my tests it seems 'good enough' for the purpose and did write
     // proper output at least for the most typical case of SIGSEGV.
@@ -356,7 +357,7 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 #endif
                  crash_thread_name,
                  sig);
-        write (fd, sz, strlen(sz));
+        (void) write (fd, sz, strlen(sz));
         backtrace_symbols_fd(frames, frame_count, fd);
 		close(fd);
 	}

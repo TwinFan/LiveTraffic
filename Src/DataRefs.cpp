@@ -1888,7 +1888,7 @@ void DataRefs::GetLabelColor (float outColor[4]) const
 // return current a/c filter
 std::string DataRefs::GetDebugAcFilter() const
 {
-    char key[7];
+    char key[10];
     if ( !uDebugAcFilter ) return std::string();
     
     // convert to hex representation
