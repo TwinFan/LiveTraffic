@@ -117,17 +117,17 @@ void CrashHandlerRegister()
 	s_my_plugin_id = XPLMGetMyID();
 
 #if APL || LIN
-	struct sigaction sig_action = { .sa_sigaction = handle_posix_sig };
+    struct sigaction sig_action = { 0 };
+    sig_action.sa_sigaction = handle_posix_sig;
 
 	sigemptyset(&sig_action.sa_mask);
 
 #if	LIN
-	static uint8_t alternate_stack[SIGSTKSZ];
-	stack_t ss = {
-		.ss_sp = (void*)alternate_stack,
-		.ss_size = SIGSTKSZ,
-		.ss_flags = 0
-	};
+    static uint8_t alternate_stack[SIGSTKSZ] = { 0 };
+    stack_t ss = { 0 };
+    ss.ss_sp = (void*)alternate_stack;
+	ss.ss_size = SIGSTKSZ:
+	ss.ss_flags = 0:
 
 	sigaltstack(&ss, NULL);
 	sig_action.sa_flags = SA_SIGINFO | SA_ONSTACK;
@@ -288,6 +288,34 @@ LONG WINAPI handle_windows_exception(EXCEPTION_POINTERS *ei)
 // Runtime
 #if IBM
 void write_mini_dump(PEXCEPTION_POINTERS exception_pointers, const char* szFileName);
+
+static const char* ExceptionCode2Txt(DWORD code)
+{
+    switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:         return "EXCEPTION_ACCESS_VIOLATION";
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:    return "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+    case EXCEPTION_BREAKPOINT:               return "EXCEPTION_BREAKPOINT";
+    case EXCEPTION_DATATYPE_MISALIGNMENT:    return "EXCEPTION_DATATYPE_MISALIGNMENT";
+    case EXCEPTION_FLT_DENORMAL_OPERAND:     return "EXCEPTION_FLT_DENORMAL_OPERAND";
+    case EXCEPTION_FLT_DIVIDE_BY_ZERO:       return "EXCEPTION_FLT_DIVIDE_BY_ZERO";
+    case EXCEPTION_FLT_INEXACT_RESULT:       return "EXCEPTION_FLT_INEXACT_RESULT";
+    case EXCEPTION_FLT_INVALID_OPERATION:    return "EXCEPTION_FLT_INVALID_OPERATION";
+    case EXCEPTION_FLT_OVERFLOW:             return "EXCEPTION_FLT_OVERFLOW";
+    case EXCEPTION_FLT_STACK_CHECK:          return "EXCEPTION_FLT_STACK_CHECK";
+    case EXCEPTION_FLT_UNDERFLOW:            return "EXCEPTION_FLT_UNDERFLOW";
+    case EXCEPTION_ILLEGAL_INSTRUCTION:      return "EXCEPTION_ILLEGAL_INSTRUCTION";
+    case EXCEPTION_IN_PAGE_ERROR:            return "EXCEPTION_IN_PAGE_ERROR";
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:       return "EXCEPTION_INT_DIVIDE_BY_ZERO";
+    case EXCEPTION_INT_OVERFLOW:             return "EXCEPTION_INT_OVERFLOW";
+    case EXCEPTION_INVALID_DISPOSITION:      return "EXCEPTION_INVALID_DISPOSITION";
+    case EXCEPTION_NONCONTINUABLE_EXCEPTION: return "EXCEPTION_NONCONTINUABLE_EXCEPTION";
+    case EXCEPTION_PRIV_INSTRUCTION:         return "EXCEPTION_PRIV_INSTRUCTION";
+    case EXCEPTION_SINGLE_STEP:              return "EXCEPTION_SINGLE_STEP";
+    case EXCEPTION_STACK_OVERFLOW:           return "EXCEPTION_STACK_OVERFLOW";
+    default: return "UNKNOWN EXCEPTION";
+    }
+}
+
 #endif
 
 #if    APL || LIN
@@ -333,16 +361,24 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 		close(fd);
 	}
 	
+    // Last thing: we _try_ to leave a trace in X-Plane's Log.txt
+    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by signal %d, please upload the following dump file to the LiveTraffic Support Forum:\n",
+        *crash_thread_name ? " in thread " : "",
+        *crash_thread_name ? crash_thread_name : "",
+        sig);
 #endif
 #if IBM
 	// Create a mini-dump file that can be later opened up in Visual Studio or WinDbg to do post mortem debugging
 	write_mini_dump(ei, szFileName);
-#endif
+
     // Last thing: we _try_ to leave a trace in X-Plane's Log.txt
-    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by signal %d, please upload the following dump file to the LiveTraffic Support Forum:\n",
-             *crash_thread_name ? " in thread " : "",
-             *crash_thread_name ? crash_thread_name : "",
-             sig);
+    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by %s at address %p, please upload the following dump file to the LiveTraffic Support Forum:\n",
+        *crash_thread_name ? " in thread " : "",
+        *crash_thread_name ? crash_thread_name : "",
+        ExceptionCode2Txt(ei->ExceptionRecord->ExceptionCode),
+        ei->ExceptionRecord->ExceptionAddress);
+#endif
+
     XPLMDebugString(sz);
     XPLMDebugString(szFileName);
     XPLMDebugString("\n");

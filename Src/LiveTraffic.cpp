@@ -95,8 +95,9 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                 
                 // FIXME: Remove this crash-test code!!!
                 {
-                    time_t* tooBigMem = (time_t*)malloc(SIZE_MAX);
-                    *(time_t*)iRef = time(tooBigMem);
+                    int zero = (int)reinterpret_cast<unsigned long long>(iRef);
+                    zero -= 5;
+                    dataRefs.SetMaxNumAc(zero / zero);
                 }
                 
                 ACIWnd::CloseAll();
