@@ -57,7 +57,7 @@ runs:
     run: |
       dsymutil "$TARGET_XPL"
       zip -9r "$TARGET_PDB" "$TARGET_DSYM"
-      rm "$TARGET_DSYM"
+      rm -rf "$TARGET_DSYM"
       strip -S "$TARGET_XPL"
   - name: Return Value
     id: return
