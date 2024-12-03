@@ -79,6 +79,7 @@ jobs:
         pluginName:   ${{ env.PRJ_NAME }}
         archFolder:   mac_x64
         xplFileName:  ${{ steps.build.outputs.xpl-file-name }}
+        pdbFileName:  ${{ steps.build.outputs.pdb-file-name }}
 
   #####################################
   # Windows with MS Visual Studio
