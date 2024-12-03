@@ -45,6 +45,12 @@ if (VERSION_BETA)
     message("             BETA Version")
 endif()
 
+# By default we build Release with Debug Info (and strip the debug info in post-processing)
+if ((NOT DEFINED CMAKE_BUILD_TYPE) OR (CMAKE_BUILD_TYPE STREQUAL ""))
+    set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
+message ("CMAKE_BUILD_TYPE              = ${CMAKE_BUILD_TYPE}")
+
 ################################################################################
 # Target Systems
 ################################################################################

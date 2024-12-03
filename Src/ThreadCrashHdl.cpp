@@ -35,6 +35,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #endif
+#if APL
+#include <mach-o/dyld.h>        // _dyld_* functions
+#endif
 
 //
 // MARK: Crash Handler
@@ -358,6 +361,33 @@ void handle_crash(EXCEPTION_POINTERS *ei)
                  crash_thread_name,
                  sig);
         (void) write (fd, sz, strlen(sz));
+        
+#if APL
+        // On Apple devices, we need the list of modules and their load addresses/slides
+        // to be able to later use `atos` to translate to exact file locations
+        {
+            uint32_t count = _dyld_image_count(); // Get the number of loaded images
+            
+            write (fd, "Nr\tImage\tLoad Address\tSlide\n", 28);
+            for (uint32_t i = 0; i < count; i++) {
+                const char* image_name = _dyld_get_image_name(i); // Get the module's name
+                const struct mach_header* header = _dyld_get_image_header(i); // Get the mach header
+                intptr_t slide = _dyld_get_image_vmaddr_slide(i); // Get the slide (load address)
+                
+                // To reduce output a bit we skip over /System and /usr
+                if (!stribeginwith(image_name, "/System/") &&
+                    !stribeginwith(image_name, "/usr/"))
+                {
+                    snprintf (sz, sizeof(sz), "%u.\t%s\t%p\t0x%lx\n",
+                              i, image_name, (void*)header, slide);
+                    write (fd, sz, strlen(sz));
+                }
+            }
+            write (fd, "\n", 1);
+        }
+#endif
+        
+        // Write the actual backtrace directly into the file
         backtrace_symbols_fd(frames, frame_count, fd);
 		close(fd);
 	}
