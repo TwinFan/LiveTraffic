@@ -20,6 +20,8 @@ else()
     set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Archs to build")
 endif()
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 project(LiveTraffic
         VERSION 4.1.1
         DESCRIPTION "LiveTraffic X-Plane plugin")

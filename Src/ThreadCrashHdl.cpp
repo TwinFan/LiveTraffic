@@ -393,7 +393,7 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 	}
 	
     // Last thing: we _try_ to leave a trace in X-Plane's Log.txt
-    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by signal %d, please upload the following dump file to the LiveTraffic Support Forum:\n",
+    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by signal %d, please upload this Log.txt and the following dump file to the LiveTraffic Support Forum:\n",
         *crash_thread_name ? " in thread " : "",
         *crash_thread_name ? crash_thread_name : "",
         sig);
@@ -403,7 +403,7 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 	write_mini_dump(ei, szFileName);
 
     // Last thing: we _try_ to leave a trace in X-Plane's Log.txt
-    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by %s at address %p, please upload the following dump file to the LiveTraffic Support Forum:\n",
+    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by %s at address %p, please upload this Log.txt and the following dump file to the LiveTraffic Support Forum:\n",
         *crash_thread_name ? " in thread " : "",
         *crash_thread_name ? crash_thread_name : "",
         ExceptionCode2Txt(ei->ExceptionRecord->ExceptionCode),
