@@ -92,6 +92,14 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                                   ACIWnd::ToggleHideShowAll() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_AC_INFO_WND_CLOSE_ALL:
+                
+                // FIXME: Remove this crash-test code!!!
+                {
+                    int zero = (int)reinterpret_cast<unsigned long long>(iRef);
+                    zero -= 5;
+                    dataRefs.SetMaxNumAc(zero / zero);
+                }
+                
                 ACIWnd::CloseAll();
                 break;
             case MENU_ID_TOGGLE_AIRCRAFT:
@@ -543,7 +551,8 @@ PLUGIN_API int XPluginStart(
 
         // Keep track of this thread's id
         dataRefs.ThisThreadIsXP();
-        
+        // install crash handler
+        CrashHandlerRegister();
 #ifdef DEBUG
         // install error handler
         XPLMSetErrorCallback(LTErrorCB);
@@ -727,6 +736,8 @@ PLUGIN_API void    XPluginStop(void)
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
     } catch (...) {
     }
+    // Unregister crash handler
+    CrashHandlerUnregister();
 }
 
 #ifdef DEBUG

@@ -133,6 +133,50 @@
 
     <h2>v4</h2>
 
+    <h3>v4.1.1</h3>
+    
+    <P>
+        <b>Update:</b> In case of doubt you can always just copy all files from the archive
+        over the files of your existing installation.
+    </P>
+
+    <P>At least copy the following files, which have changed compared to v4.1.0:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            Added two options to <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-a-c-labels">Settings &gt; Aircraft Labels</a>:
+            <ul>
+                <li><i>Labels for Parked a/c</i> allows to switch off labels for parked aircraft as they can quite clutter the screen on larger airports</li>
+                <li><i>Dynamic Information &gt; Channel</i> adds the name of the channel currently driving the plane's data to the label</li>
+            </ul>
+        </li>
+        <li>Fixed checking for new versions after a change to the X-Plane.org
+            forum no longer allows providing version number information for
+            uploads.<br>
+            <strong>This means that LiveTraffic v4.1.0 and earlier cannot
+            inform you about this update to v4.1.1!</strong>
+        </li>
+        <li>Fixed processing OpenSky Masterdata File download and processing
+            after changes to both download location and format.
+        </li>
+        <li>Fixed a bug preventing parked aircraft from disappearing when a
+            taxiing aircraft comes too close. Is a very rare event when watching
+            real world traffic, but is more likely with virtual traffic added
+            to the mix.
+        </li>
+        <li>Added <a href="https://github.com/TwinFan/LiveTraffic/issues/193">#193</a>
+            own crash reporter as per
+            <a href="https://developer.x-plane.com/code-sample/crash-handling/">Laminar's suggestion</a>,
+            so that if LiveTraffic causes a crash there hopefully is a
+            LiveTraffic-specific dump file in <code>Output/crash_reports</code>
+            allowing for proper analysis.</li>
+    </ul>
+
     <h3>v4.1.0</h3>
     
     <P>

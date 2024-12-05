@@ -905,59 +905,6 @@ float interpolate (const std::vector<float>& scale,
     values[idx+1] * (float(1) - weight);        // 'right'-hand part
 }
 
-
-//
-// MARK: Thread Handling
-//
-
-// Defines thread's name and sets the thread's locale
-ThreadSettings::ThreadSettings ([[maybe_unused]] const char* sThreadName,
-                                int localeMask,
-                                const char* sLocaleName)
-{
-    // --- Set thread's name ---
-#if IBM
-    // This might not work on older Windows version, which is why we don't publish it in release builds
-#ifdef DEBUG
-    wchar_t swThreadName[100];
-    std::mbstowcs(swThreadName, sThreadName, sizeof(swThreadName));
-    SetThreadDescription(GetCurrentThread(), swThreadName);
-#endif
-    
-#elif APL
-    pthread_setname_np(sThreadName);
-#elif LIN
-    pthread_setname_np(pthread_self(),sThreadName);
-#endif
-    
-    // --- Set thread's locale ---
-    if (sLocaleName)
-    {
-#if IBM
-        _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
-        setlocale(localeMask, sLocaleName);
-#else
-        threadLocale = newlocale(localeMask, sLocaleName, NULL);
-        prevLocale = uselocale(threadLocale);
-#endif
-    }
-}
-
-// Restores and cleans up locale
-ThreadSettings::~ThreadSettings()
-{
-#if IBM
-    _configthreadlocale(_DISABLE_PER_THREAD_LOCALE);
-#else
-    if (prevLocale)
-        uselocale(prevLocale);
-    if (threadLocale) {
-        freelocale(threadLocale);
-        threadLocale = locale_t(0);
-    }
-#endif
-}
-
 //
 //MARK: Callbacks
 //

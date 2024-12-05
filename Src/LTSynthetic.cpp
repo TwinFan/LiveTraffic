@@ -106,7 +106,7 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
         const LTFlightData::FDKeyTy& key = p.first;
         const LTFlightData& fd = p.second;
         std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-        if (fd.hasAc()) {
+        if (fd.IsValid() && fd.hasAc()) {
             const LTAircraft& ac = *fd.GetAircraft();
             if (ac.GetFlightPhase() == FPH_PARKED) {
                 // This a/c is parked, find/create the entry in our storage
@@ -134,9 +134,15 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
                         const double dist = i->second.pos.dist(ac.GetPPos());
                         if (dist < GND_COLLISION_DIST)
                         {
-                            // Remove the other parked aircraft
                             LOG_MSG(logDEBUG, "%s came too close to parked %s, removing the parked aircraft",
                                     fd.keyDbg().c_str(), i->first.c_str());
+                            // find the parked aircraft in the map of active aircraft and have it removed there
+                            try {
+                                LTFlightData& fdParked = mapFd.at(i->first);
+                                fdParked.SetInvalid();
+                            }
+                            catch(...) {}
+                            // Remove the parked aircraft here from SyntheticConnection
                             i = mapSynData.erase(i);
                         } else
                             ++i;

@@ -12,6 +12,7 @@
 		2515F41D248CF4CB00F18B76 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41C248CF4CB00F18B76 /* imgui_stdlib.cpp */; };
 		2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2515F41F248D022B00F18B76 /* LTImgWindow.cpp */; };
 		251ED8862A02CC1B00274897 /* LTADSBHub.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 251ED8852A02CC1B00274897 /* LTADSBHub.cpp */; };
+		253392C62CFCFF1C0096C119 /* ThreadCrashHdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 253392C52CFCFF1C0096C119 /* ThreadCrashHdl.cpp */; };
 		254F278924EF230400CACCDA /* LTWeather.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 254F278824EF230400CACCDA /* LTWeather.cpp */; };
 		2558579420950C6700816F65 /* CoordCalc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2558579320950C6700816F65 /* CoordCalc.cpp */; };
 		25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25624BD923B014F600B899E1 /* LTApt.cpp */; };
@@ -82,6 +83,8 @@
 		251ED8842A02CA1D00274897 /* LTADSBHub.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTADSBHub.h; sourceTree = "<group>"; };
 		251ED8852A02CC1B00274897 /* LTADSBHub.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTADSBHub.cpp; sourceTree = "<group>"; };
 		2524805C208932D200E4D419 /* ADSBExchange.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ADSBExchange.json; sourceTree = "<group>"; };
+		253392C52CFCFF1C0096C119 /* ThreadCrashHdl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThreadCrashHdl.cpp; sourceTree = "<group>"; };
+		253392C72CFCFF320096C119 /* ThreadCrashHdl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ThreadCrashHdl.h; sourceTree = "<group>"; };
 		25364221221755B1000DC56F /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		253C08C92761489D0011CCEE /* FSCharter */ = {isa = PBXFileReference; lastKnownFileType = folder; path = FSCharter; sourceTree = "<group>"; };
 		2540F51920D5AE9400DCCF45 /* OpenSky_MetadataAircraft.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = OpenSky_MetadataAircraft.json; sourceTree = "<group>"; };
@@ -317,6 +320,7 @@
 				254F278824EF230400CACCDA /* LTWeather.cpp */,
 				25AE00D8213887AF00908E65 /* SettingsUI.cpp */,
 				25C59456207A296500E52073 /* TextIO.cpp */,
+				253392C52CFCFF1C0096C119 /* ThreadCrashHdl.cpp */,
 			);
 			path = Src;
 			sourceTree = "<group>";
@@ -450,6 +454,7 @@
 				254F278724EF22FE00CACCDA /* LTWeather.h */,
 				25A095C32203B01300658AA8 /* SettingsUI.h */,
 				25A095BE2203B01300658AA8 /* TextIO.h */,
+				253392C72CFCFF320096C119 /* ThreadCrashHdl.h */,
 			);
 			path = Include;
 			sourceTree = "<group>";
@@ -688,6 +693,7 @@
 				25EF90042B497C6100D7C805 /* LTSynthetic.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
 				25C59458207A296500E52073 /* TextIO.cpp in Sources */,
+				253392C62CFCFF1C0096C119 /* ThreadCrashHdl.cpp in Sources */,
 				25A5D97A2CE3F9E2004F507C /* LTSayIntentions.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -802,7 +808,7 @@
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 1;
-				LIVETRAFFIC_VER_PATCH = 0;
+				LIVETRAFFIC_VER_PATCH = 1;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -911,7 +917,7 @@
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 1;
-				LIVETRAFFIC_VER_PATCH = 0;
+				LIVETRAFFIC_VER_PATCH = 1;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;

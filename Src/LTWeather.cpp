@@ -1762,6 +1762,9 @@ std::string WeatherGetSource ()
     }
     else
         return std::string(WEATHER_SOURCES[size_t(source)]);
+    
+    // Shouldn't be able to get here
+    return "?";
 }
 
 // Extract QNH or SLP from METAR, NAN if not found any info, which is rather unlikely

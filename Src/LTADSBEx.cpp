@@ -323,6 +323,11 @@ void ADSBBase::ProcessV1 (JSON_Object* pJAc,
                     jog_sn_nan(pJAc, ADSBEX_V1_LON),
                     NAN,
                     posTime);
+    // We need an actual position for this calculation...and often times the _first_ response has no data in the fields...no clue why that is
+    if (std::isnan(pos.lat()) || std::isnan(pos.lon())) {
+        LOG_MSG(logDEBUG, "%s: Received no position for %s", ChName(), fdKey.c_str());
+        return;
+    }
     const double dist = pos.dist(viewPos);
     if (dist > dataRefs.GetFdStdDistance_m() )
         return;

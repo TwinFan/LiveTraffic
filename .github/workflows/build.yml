@@ -35,11 +35,12 @@ jobs:
         pluginName:   ${{ env.PRJ_NAME }}
         archFolder:   lin_x64
         xplFileName:  "${{ steps.build.outputs.xpl-file-name }}"
+        pdbFileName:  "${{ steps.build.outputs.pdb-file-name }}"
 
   #####################################
   # MacOS with CMake/clang and sign/notarize in self-written script
   build-mac:
-    runs-on: macos-12
+    runs-on: macos-14
     env:
       platform: mac
     steps:
@@ -78,7 +79,8 @@ jobs:
       with:
         pluginName:   ${{ env.PRJ_NAME }}
         archFolder:   mac_x64
-        xplFileName:  ${{ steps.build.outputs.xpl-file-name }}
+        xplFileName:  "${{ steps.build.outputs.xpl-file-name }}"
+        pdbFileName:  "${{ steps.build.outputs.pdb-file-name }}"
 
   #####################################
   # Windows with MS Visual Studio

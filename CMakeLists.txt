@@ -20,8 +20,10 @@ else()
     set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Archs to build")
 endif()
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 project(LiveTraffic
-        VERSION 4.1.0
+        VERSION 4.1.1
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -44,6 +46,12 @@ message("== Building: ${PROJECT_NAME} ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION
 if (VERSION_BETA)
     message("             BETA Version")
 endif()
+
+# By default we build Release with Debug Info (and strip the debug info in post-processing)
+if ((NOT DEFINED CMAKE_BUILD_TYPE) OR (CMAKE_BUILD_TYPE STREQUAL ""))
+    set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
+message ("CMAKE_BUILD_TYPE              = ${CMAKE_BUILD_TYPE}")
 
 ################################################################################
 # Target Systems
@@ -171,6 +179,7 @@ set(Header_Files
     Include/LTWeather.h
     Include/SettingsUI.h
     Include/TextIO.h
+    Include/ThreadCrashHdl.h
     Lib/base64/base64.h
     Lib/parson/parson.h
     Lib/LTAPI/LTAPI.h
@@ -219,6 +228,7 @@ set(Source_Files
     Src/LTWeather.cpp
     Src/SettingsUI.cpp
     Src/TextIO.cpp
+    Src/ThreadCrashHdl.cpp
     Lib/base64/base64.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp

@@ -732,6 +732,10 @@ bool RealTrafficConnection::ProcessFetchedData ()
 // in direct mode process an object with aircraft data, essentially a fake array
 bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
 {
+    // FIXME: Remove this Crash Handler Test Code!!!
+    void* p = (void*)dataRefs.ShallLogWeather();
+    std::memset(p, 0, SIZE_MAX);
+    
     // Quick exit if no data
     if (!pBuf) return false;
     

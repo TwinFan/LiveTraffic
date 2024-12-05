@@ -530,6 +530,11 @@ std::string LTFlightData::ComposeLabel() const
         
         // only possible if we have an aircraft
         if (pAc) {
+            // If aircraft is parked and we shall not show labels for parked a/c, then return nothing
+            if (!dataRefs.LabelShowForParked() &&
+                pAc->GetFlightPhase() == FPH_PARKED)
+                return "";
+            
             // current position of a/c
             const positionTy& pos = pAc->GetPPos();
             // add more items as per configuration
@@ -544,6 +549,13 @@ std::string LTFlightData::ComposeLabel() const
             }
             ADD_LABEL_NUM(cfg.bSpeed,       pAc->GetSpeed_kt());
             ADD_LABEL_NUM(cfg.bVSI,         pAc->GetVSI_ft());
+            if (cfg.bChannel) {
+                const LTChannel* pChn = nullptr;
+                if (GetCurrChannel(pChn) && pChn) {
+                    label += pChn->ChName();
+                    label += ' ';
+                }
+            }
         }
         
         // remove the trailing space

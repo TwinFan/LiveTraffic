@@ -514,6 +514,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/label_shown",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_max_dist",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_visibility_cut_off",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/label_for_parked",            DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
@@ -611,6 +612,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LABEL_SHOWN:            return &labelShown;
         case DR_CFG_LABEL_MAX_DIST:         return &labelMaxDist;
         case DR_CFG_LABEL_VISIBILITY_CUT_OFF: return &bLabelVisibilityCUtOff;
+        case DR_CFG_LABEL_FOR_PARKED:       return &bLabelForParked;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
         case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
@@ -1886,7 +1888,7 @@ void DataRefs::GetLabelColor (float outColor[4]) const
 // return current a/c filter
 std::string DataRefs::GetDebugAcFilter() const
 {
-    char key[7];
+    char key[10];
     if ( !uDebugAcFilter ) return std::string();
     
     // convert to hex representation
