@@ -92,14 +92,6 @@ void MenuHandler(void * /*mRef*/, void * iRef)
                                   ACIWnd::ToggleHideShowAll() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
                 break;
             case MENU_ID_AC_INFO_WND_CLOSE_ALL:
-                
-                // FIXME: Remove this crash-test code!!!
-                {
-                    int zero = (int)reinterpret_cast<unsigned long long>(iRef);
-                    zero -= 5;
-                    dataRefs.SetMaxNumAc(zero / zero);
-                }
-                
                 ACIWnd::CloseAll();
                 break;
             case MENU_ID_TOGGLE_AIRCRAFT:
