@@ -15,6 +15,9 @@ outputs:
   xpl-file-name:
     description: Path to the resulting xpl file
     value: ${{ steps.return.outputs.xpl-file-name }}
+  pdb-file-name:
+    description: Path to the resulting .debug.zip file (debug symbol info)
+    value: ${{ steps.return.outputs.pdb-file-name }}
 
 runs:
   using: "composite"
