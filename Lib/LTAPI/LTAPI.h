@@ -10,7 +10,7 @@
 ///             textual info like type, registration, call sign, flight number.
 /// @see        https://twinfan.github.io/LTAPI/
 /// @author     Birger Hoppe
-/// @copyright  (c) 2019-2020 Birger Hoppe
+/// @copyright  (c) 2019-2025 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -41,6 +41,10 @@
 #include "XPLMGraphics.h"
 
 class LTDataRef;
+class LTAPIAircraft;
+
+/// Smart pointer to an LTAPIAircraft object
+typedef std::shared_ptr<LTAPIAircraft> SPtrLTAPIAircraft;
 
 /// @brief Represents one aircraft as controlled by LiveTraffic.
 ///
@@ -62,6 +66,7 @@ public:
     /// @brief Flight phase, definition copied from LiveTraffic
     enum LTFlightPhase {
         FPH_UNKNOWN     = 0,            ///< used for initializations
+        FPH_PARKED      = 5,            ///< Parked at startup position
         FPH_TAXI        = 10,           ///< Taxiing
         FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
         FPH_TO_ROLL,                    ///< Take-off roll
@@ -117,7 +122,7 @@ public:
             bool        bcn        : 1;     ///< beacon light
             bool        strb       : 1;     ///< strobe light
             bool        nav        : 1;     ///< navigaton lights
-            unsigned    filler1    : 1;     ///< unused
+            bool        hidden     : 1;     ///< aircraft _not_ visible?
             bool        camera     : 1;     ///< is LiveTraffic's camera on this aircraft?
             // Misc
             int         multiIdx    : 8;    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
@@ -211,6 +216,15 @@ public:
     /// Helper in update loop, resets `bUpdated` flag
     void resetUpdated ()    { bUpdated = false; }
     
+    /// @brief Called when LiveTraffic toggles its aircraft camera, override in your class to handle event
+    /// @param bCameraActive `True` if camera is on this aircraft now, `false` if camera is switched off
+    /// @param spPrevAc May point to previous aircraft under camera if switching directly from one to this; can be `null`
+    virtual void toggleCamera ([[maybe_unused]] bool bCameraActive,
+                               [[maybe_unused]] SPtrLTAPIAircraft spPrevAc) {}
+    
+    /// @brief Declare the aircraft the one under the camera (e.g. if your plugin is a camera plugin and now views this aircraft)
+    void setCameraAc ();
+    
     // data access
 public:
     std::string     getKey()            const { return key; }                   ///< Unique key for this aircraft, usually ICAO transponder hex code
@@ -250,6 +264,7 @@ public:
     bool            isOnGnd()           const { return bulk.bits.onGnd; }       ///< Is plane on ground?
     LTFlightPhase   getPhase()          const { return bulk.bits.phase; }       ///< flight phase
     std::string     getPhaseStr()       const;                                  ///< flight phase as string
+    bool            isVisible()         const { return !bulk.bits.hidden; }     ///< aircraft visible?
     // configuration
     float           getFlaps()          const { return bulk.flaps; }            ///< flap position: 0.0 retracted, 1.0 fully extended
     float           getGear()           const { return bulk.gear; }             ///< gear position: 0.0 retracted, 1.0 fully extended
@@ -279,9 +294,6 @@ public:
 //
 // MapLTAPIAircraft
 //
-
-/// Smart pointer to an TLAPIAircraft object
-typedef std::shared_ptr<LTAPIAircraft> SPtrLTAPIAircraft;
 
 /// @brief Map of all aircrafts stored as smart pointers to LTAPIAircraft objects
 ///
@@ -363,7 +375,7 @@ public:
     ///          Depending on startup order, LiveTraffic might or might not have been started yet.
     ///          This note is basically true for all requests accessing LiveTraffic data.
     ///          It is noted here only because it is tempting to fetch the version number once only during startup.
-    /// @return Version (like 201 for v2.01), or constant 150 if unknown, or 0 if LiveTraffic is unavailable
+    /// @return Version (like 40101 for v4.1.1), or constant 150 if unknown, or 0 if LiveTraffic is unavailable
     static int getLTVerNr();
 
     /// @brief LiveTraffic's version date
@@ -418,6 +430,9 @@ public:
     /// @return Pointer to aircraft in camera view, is empty if none is being viewed
     SPtrLTAPIAircraft getAcInCameraView () const;
     
+    /// @brief Clear camera information, ie. delcare that no aircraft is currently being viewed
+    void clearCameraInfo ();
+    
 protected:
     /// @brief fetch bulk data and create/update aircraft objects
     /// @param numAc Total number of aircraft to fetch
@@ -430,6 +445,8 @@ protected:
     bool DoBulkFetch (int numAc, LTDataRef& DR, int& outSizeLT,
                       std::unique_ptr<T[]> &vBulk);
     
+    /// @brief shared DataRef event notification
+    static void CameraSharedDataCB (LTAPIConnect* me);
 };
 
 
