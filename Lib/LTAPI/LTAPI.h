@@ -122,7 +122,7 @@ public:
             bool        bcn        : 1;     ///< beacon light
             bool        strb       : 1;     ///< strobe light
             bool        nav        : 1;     ///< navigaton lights
-            bool        hidden     : 1;     ///< aircraft _not_ visible?
+            unsigned    hidden     : 1;     ///< aircraft _not_ visible? (remains an 'unsigned' for backward compatibility)
             bool        camera     : 1;     ///< is LiveTraffic's camera on this aircraft?
             // Misc
             int         multiIdx    : 8;    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
@@ -283,7 +283,7 @@ public:
     /// @param[out] y Local y coordinate
     /// @param[out] z Local z coordinate
     void            getLocalCoord (double& x, double& y, double& z) const
-    { XPLMWorldToLocal(bulk.lat,bulk.lon,bulk.alt_ft, &x,&y,&z); }
+    { XPLMWorldToLocal(bulk.lat,bulk.lon,bulk.alt_ft*0.3048, &x,&y,&z); }
 
 public:
     /// @brief Standard object creation callback.
