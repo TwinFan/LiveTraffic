@@ -598,7 +598,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1610;
+				LastUpgradeCheck = 1620;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 12.0";
@@ -807,8 +807,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 1;
-				LIVETRAFFIC_VER_PATCH = 1;
+				LIVETRAFFIC_VER_MINOR = 2;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -916,8 +916,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 1;
-				LIVETRAFFIC_VER_PATCH = 1;
+				LIVETRAFFIC_VER_MINOR = 2;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;

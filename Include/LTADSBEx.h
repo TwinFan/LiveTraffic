@@ -1,7 +1,12 @@
 /// @file       LTADSBEx.h
 /// @brief      ADS-B Exchange and adsb.fi: Requests and processes live tracking data
-/// @see        https://www.adsbexchange.com/
-/// @see        https://github.com/adsbfi/opendata
+/// @see        ADSBEx: https://www.adsbexchange.com/
+///             RAPID API: https://rapidapi.com/adsbx/api/adsbexchange-com1
+///             RAPID API Endpoint: https://rapidapi.com/adsbx/api/adsbexchange-com1/playground/endpoint_7dee5835-86b3-40ce-a402-f1ab43240884
+///             ADSBEx v2 API documentation:
+///             ...on Swagger: https://adsbexchange.com/api/aircraft/v2/docs
+///             ...fields: https://www.adsbexchange.com/version-2-api-wip/
+/// @see        adsb.fi: https://github.com/adsbfi/opendata
 /// @details    Defines a base class handling the ADSBEx data format,
 ///             which is shared by both ADS-B Exchange and adsb.fi.
 /// @details    Defines ADSBExchangeConnection:\n
@@ -39,18 +44,20 @@
 #define ADSBEX_CHECK_POPUP      "Check ADS-B Exchange's coverage"
 
 #define ADSBEX_NAME             "ADS-B Exchange"
-#define ADSBEX_URL              "https://adsbexchange.com/api/aircraft/v2/lat/%f/lon/%f/dist/%d/"
-#define ADSBEX_API_AUTH         "api-auth:"     // additional HTTP header
-
-#define ADSBEX_RAPIDAPI_25_URL  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/%f/lon/%f/dist/25/"
-#define ADSBEX_RAPIDAPI_HOST    "X-RapidAPI-Host:adsbx-flight-sim-traffic.p.rapidapi.com"
-#define ADSBEX_RAPIDAPI_KEY     "X-RapidAPI-Key:"
+#define ADSBEX_RAPIDAPI_URL     "https://adsbexchange-com1.p.rapidapi.com/v2/lat/%f/lon/%f/dist/%d/"
+#define ADSBEX_RAPIDAPI_HOST    "x-rapidapi-host: adsbexchange-com1.p.rapidapi.com"
+#define ADSBEX_RAPIDAPI_KEY     "x-rapidapi-key: "
 #define ADSBEX_RAPIDAPI_RLIMIT  "x-ratelimit-requests-limit:"
 #define ADSBEX_RAPIDAPI_RREMAIN "x-ratelimit-requests-remaining:"
 
 #define ADSBEX_TOTAL            "total"
 #define ADSBEX_NOW              "now"
+#define ADSBEX_TIME             "ctime"
 #define ADSBEX_AIRCRAFT_ARR     "ac"
+#define ADSBEX_MSG              "msg"           ///< Error message text field according to documentation
+#define ADSBEX_MESSAGE          "message"       ///< Error message text field we actually see in the responses
+
+#define ADSBEX_SUCCESS          "No error"      ///< Content of 'msg' in case of success
 
 // Version 2 keys
 #define ADSBEX_V2_TRANSP_ICAO   "hex"           // Key data
@@ -72,47 +79,17 @@
 #define ADSBEX_V2_AC_CATEGORY   "category"
 #define ADSBEX_V2_FLAGS         "dbFlags"
 
-// Version 1 keys
-#define ADSBEX_TIME             "ctime"
+// Version 1 keys (only for enabling meaningful error message)
 #define ADSBEX_V1_TRANSP_ICAO   "icao"          // Key data
-#define ADSBEX_V1_RADAR_CODE    "sqk"           // Dynamic data
-#define ADSBEX_V1_CALL          "call"
-#define ADSBEX_V1_LAT           "lat"
-#define ADSBEX_V1_LON           "lon"
-#define ADSBEX_V1_ELEVATION     "galt"          // geometric altitude
-#define ADSBEX_V1_ALT           "alt"           // barometric altitude
-#define ADSBEX_V1_TTRK          "ttrk"
-#define ADSBEX_V1_HEADING       "trak"
-#define ADSBEX_V1_GND           "gnd"
-#define ADSBEX_V1_POS_TIME      "postime"
-#define ADSBEX_V1_SPD           "spd"
-#define ADSBEX_V1_VSI           "vsi"
-#define ADSBEX_V1_REG           "reg"
-#define ADSBEX_V1_COUNTRY       "cou"
-#define ADSBEX_V1_AC_TYPE_ICAO  "type"
-#define ADSBEX_V1_MIL           "mil"
-#define ADSBEX_V1_OP_ICAO       "opicao"
-#define ADSBEX_V1_ORIGIN        "from"
-#define ADSBEX_V1_DESTINATION   "to"
-
-#define ADSBEX_V1_TYPE_GND      "-GND"
-
 
 // Testing an API key
-#define ADSBEX_VERIFY_KEY_URL   "https://adsbexchange.com/api/aircraft/icao/000000"
-#define ADSBEX_ERR              "msg"
-#define ADSBEX_SUCCESS          "No error"
-#define ADSBEX_NO_API_KEY       "You need an authorized API key."
-
-#define ADSBEX_VERIFY_RAPIDAPI  "https://adsbx-flight-sim-traffic.p.rapidapi.com/api/aircraft/json/lat/0.0/lon/0.0/dist/25/"
-#define ADSBEX_RAPID_ERR        "message"
-#define ADSBEX_NO_RAPIDAPI_KEY  "Key doesn't exists"
+#define ADSBEX_VERIFY_RAPIDAPI  "https://adsbexchange-com1.p.rapidapi.com/v2/lat/0.0/lon/0.0/dist/1/"
 
 #define ERR_ADSBEX_KEY_TECH     "ADSBEx: Technical problem while testing key: %d - %s"
 #define MSG_ADSBEX_KEY_SUCCESS  "ADS-B Exchange: API Key tested SUCCESSFULLY"
-#define ERR_ADSBEX_KEY_FAILED   "ADS-B Exchange: API Key INVALID"
-#define ERR_ADSBEX_KEY_UNKNOWN  "ADS-B Exchange: API Key test responded with unknown answer"
-#define ERR_ADSBEX_NO_KEY_DEF   "ADS-B Exchange: API Key missing. Get one at adsbexchange.com and enter it in Basic Settings."
+#define ERR_ADSBEX_KEY_FAILED   "ADS-B Exchange: API Key test FAILED: %s"
+#define ERR_ADSBEX_KEY_UNKNOWN  "ADS-B Exchange: API Key test responded with unknown answer: %s"
+#define ERR_ADSBEX_NO_KEY_DEF   "ADS-B Exchange: API Key missing. Get one at rapidapi.com/adsbx/api/adsbexchange-com1 and enter it in Basic Settings."
 #define ERR_ADSBEX_OTHER        "ADS-B Exchange: Received an ERRor response: %s"
 
 constexpr double ADSBEX_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
@@ -131,16 +108,14 @@ protected:
         LTFlightDataChannel(ch, chName), sSlugBase(slugBase) {}
     /// Process ADSBEx foramtted data
     bool ProcessFetchedData () override;
-    /// Give derived class chance for channel-specific error-checking
-    virtual bool ProcessErrors (const JSON_Object* pObj) = 0;
     /// Process v2 data
     void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
                     const double tBufPeriod, const double adsbxTime,
                     const positionTy& viewPos);
-    /// Process v1 data
-    void ProcessV1 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
-                    const double tsSimTime,
-                    const positionTy& viewPos);
+    /// Give derived class chance for channel-specific error-checking
+    virtual bool ProcessErrors (const JSON_Object* pObj) = 0;
+    /// Return the 'msg' content, if any
+    static std::string FetchMsg (const char* buf);
 };
 
 //
@@ -148,12 +123,8 @@ protected:
 //
 class ADSBExchangeConnection : public ADSBBase
 {
-public:
-    enum keyTypeE { ADSBEX_KEY_NONE=0, ADSBEX_KEY_EXCHANGE, ADSBEX_KEY_RAPIDAPI };
-    
 protected:
     std::string apiKey;
-    keyTypeE keyTy = ADSBEX_KEY_NONE;
     struct curl_slist* slistKey = NULL;
 public:
     ADSBExchangeConnection ();
@@ -174,12 +145,11 @@ protected:
     bool ProcessErrors (const JSON_Object* pObj) override;
 
     // make list of HTTP header fields
-    static struct curl_slist* MakeCurlSList (keyTypeE keyTy, const std::string theKey);
+    static struct curl_slist* MakeCurlSList (const std::string theKey);
     // read header and parse for request limit/remaining
     static size_t ReceiveHeader(char *buffer, size_t size, size_t nitems, void *userdata);
     
 public:
-    static keyTypeE GetKeyType (const std::string theKey);
     // Just quickly sends one simple request to ADSBEx and checks if the response is not "NO KEY"
     // Does a SHOW_MSG about the result and saves the key to dataRefs on success.
     static void TestADSBExAPIKey (const std::string newKey);

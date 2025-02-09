@@ -2033,7 +2033,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2103,6 +2103,8 @@ bool DataRefs::LoadConfigFile()
                 rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
                 conv = CFG_V350;
             }
+            if (cfgFileVer < 40200)         // < 4.2.0: Clear ADSBEx API key (switch to other service)
+                conv = CFG_V420;
         }
     }
     
@@ -2174,6 +2176,11 @@ bool DataRefs::LoadConfigFile()
                         // RealTraffic Sim Time Control: previous value 1 is re-purposed, switch instead to 2
                         if (*i == DATA_REFS_LT[DR_CFG_RT_SIM_TIME_CTRL] && sVal == "1")
                             sVal = "2";
+                        [[fallthrough]];
+                    case CFG_V420:
+                        // Switching to v4.2 we need to disable ADSBEx until a new API key is configured
+                        if (*i == DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE])
+                            sVal = "0";
                         break;
                 }
                 
@@ -2200,9 +2207,11 @@ bool DataRefs::LoadConfigFile()
                 SetOpenSkyUser(sVal);
             else if (sDataRef == CFG_OPENSKY_PWD)
                 SetOpenSkyPwd(Cleartext(sVal));
-            else if (sDataRef == CFG_ADSBEX_API_KEY)
-                // With v3 we start obfuscating the API key
-                SetADSBExAPIKey(conv == CFG_V3 ? sVal : Cleartext(sVal));
+            else if (sDataRef == CFG_ADSBEX_API_KEY) {
+                // With v4.2 ADSBEx switches to a new service, so we need a new API key
+                if (conv != CFG_V420)
+                    SetADSBExAPIKey(Cleartext(sVal));
+            }
             else if (sDataRef == CFG_RT_LICENSE)
                 SetRTLicense(Cleartext(sVal));
             else if (sDataRef == CFG_FSC_USER)
