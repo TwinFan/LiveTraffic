@@ -162,7 +162,7 @@ bool ADSBBase::ProcessFetchedData ()
 
 
 // Process v2 data
-void ADSBBase::ProcessV2 (JSON_Object* pJAc,
+void ADSBBase::ProcessV2 (const JSON_Object* pJAc,
                           LTFlightData::FDKeyTy& fdKey,
                           const double tBufPeriod,
                           const double adsbxTime,
@@ -171,6 +171,10 @@ void ADSBBase::ProcessV2 (JSON_Object* pJAc,
     // skip stale data
     const double ageOfPos = jog_n(pJAc, ADSBEX_V2_SEE_POS);
     if (ageOfPos >= tBufPeriod)
+        return;
+    
+    // skip TIS-B data...that is stuff that comes and goes with new ids every few requests, unusable
+    if (!std::strcmp(jog_s(pJAc, ADSBEX_V2_TRANSP_TYPE),ADSBEX_V2_TYPE_TISB))
         return;
     
     // Try getting best possible position information
@@ -233,33 +237,22 @@ void ADSBBase::ProcessV2 (JSON_Object* pJAc,
     std::string acTy = jog_s(pJAc, ADSBEX_V2_AC_TYPE_ICAO);
     std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
     
-    // Mark all static objects equally, so they can optionally be hidden
-    if (reg  == STATIC_OBJECT_TYPE ||
-        acTy == STATIC_OBJECT_TYPE ||
-        cat  == "C3")
-    {
-        reg = acTy = STATIC_OBJECT_TYPE;
-        cat = "C3";
-    }
-    
-    // We receive lots of "dots" that seem to be markers on the taxiways or so,
-    // they don't come via ADS-B, but via TIS-B
-    if (fdKey.eKeyType != LTFlightData::KEY_ICAO &&
-        pos.IsOnGnd() &&
-        reg.empty() && acTy.empty() && cat.empty())
-    {
-        reg = acTy = STATIC_OBJECT_TYPE;
-        cat = "C3";
-    }
-
     // Identify ground vehicles
     if (cat  == "C1"  || cat == "C2" ||
         reg  == "GND" ||
         acTy == "GND")
         acTy = dataRefs.GetDefaultCarIcaoType();
-    else if (pos.IsOnGnd() &&
-             acTy.empty() && reg.empty() && cat.empty())
-        acTy = dataRefs.GetDefaultCarIcaoType();
+    // Mark all static objects equally, so they can optionally be hidden
+    else if (reg  == STATIC_OBJECT_TYPE ||
+             acTy == STATIC_OBJECT_TYPE ||
+             cat  == "C3" ||
+             // Everything else on the ground, which has no type, registration, category is considered static
+             (pos.IsOnGnd() && acTy.empty() && reg.empty() && cat.empty()))
+
+    {
+        reg = acTy = STATIC_OBJECT_TYPE;
+        cat = "C3";
+    }
 
     // from here on access to fdMap guarded by a mutex
     // until FD object is inserted and updated
@@ -352,11 +345,22 @@ std::string ADSBExchangeConnection::GetStatusText () const
     std::string s = LTChannel::GetStatusText();
     if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
     {
+        char t[25] = "";
         s += " | ";
         s += std::to_string(dataRefs.ADSBExRRemain);
         s += " of ";
         s += std::to_string(dataRefs.ADSBExRLimit);
-        s += " RAPID API requests left";
+        s += " RAPID API requests left, resets in ";
+        if (dataRefs.ADSBExRReset > 48*60*60)           // more than 2 days
+            snprintf(t, sizeof(t), "%.1f days",
+                    float(dataRefs.ADSBExRReset) / (24.0f*60.0f*60.0f));
+        else if (dataRefs.ADSBExRReset >  2*60*60)      // more than 2 hours
+            snprintf(t, sizeof(t), "%.1f hours",
+                    float(dataRefs.ADSBExRReset) / (      60.0f*60.0f));
+        else                                            // less than 2 hours
+            snprintf(t, sizeof(t), "%.1f minutes",
+                    float(dataRefs.ADSBExRReset) / (            60.0f));
+        s += t;
     }
     return s;
 }
@@ -482,37 +486,21 @@ struct curl_slist* ADSBExchangeConnection::MakeCurlSList (const std::string theK
 }
 
 // read header and parse for request limit/remaining
+/// @see https://docs.rapidapi.com/docs/response-headers
 size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
 {
-    const size_t len = nitems * size;
     static size_t lenRLimit  = strlen(ADSBEX_RAPIDAPI_RLIMIT);
     static size_t lenRRemain = strlen(ADSBEX_RAPIDAPI_RREMAIN);
-    char num[50];
-    
-    // Turn buffer content lower case for the first few chars we are to compare
-    const size_t lenMax = std::min(std::max(lenRLimit,lenRRemain),len);
-    size_t i = 0;
-    for (char* p = buffer; i < lenMax; ++i, ++p)
-        *p = char(std::tolower(*p));
+    static size_t lenRReset  = strlen(ADSBEX_RAPIDAPI_RESET);
 
-    // Limit?
-    if (len > lenRLimit &&
-        memcmp(buffer, ADSBEX_RAPIDAPI_RLIMIT, lenRLimit) == 0)
-    {
-        const size_t copyCnt = std::min(len-lenRLimit,sizeof(num)-1);
-        memcpy(num, buffer+lenRLimit, copyCnt);
-        num[copyCnt]=0;                 // zero termination
-        dataRefs.ADSBExRLimit = std::atol(num);
-    }
-    // Remaining?
-    else if (len > lenRRemain &&
-             memcmp(buffer, ADSBEX_RAPIDAPI_RREMAIN, lenRRemain) == 0)
-    {
-        const size_t copyCnt = std::min(len-lenRRemain,sizeof(num)-1);
-        memcpy(num, buffer+lenRRemain, copyCnt);
-        num[copyCnt]=0;                 // zero termination
-        dataRefs.ADSBExRRemain = std::atol(num);
-    }
+    const size_t len = nitems * size;
+    const std::string hdr (buffer, len);                // copy to proper string
+    if (stribeginwith(hdr, ADSBEX_RAPIDAPI_RLIMIT))
+        dataRefs.ADSBExRLimit = std::atol(hdr.c_str() + lenRLimit);
+    else if (stribeginwith(hdr, ADSBEX_RAPIDAPI_RREMAIN))
+        dataRefs.ADSBExRRemain = std::atol(hdr.c_str() + lenRRemain);
+    else if (stribeginwith(hdr, ADSBEX_RAPIDAPI_RESET))
+        dataRefs.ADSBExRReset = std::atol(hdr.c_str() + lenRReset);
 
     // always say we processed everything, otherwise HTTP processing would stop!
     return len;
@@ -617,7 +605,6 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
         // Check HTTP return code
         switch (httpResponse) {
             case HTTP_OK:
-                // TODO: Check 'msg' for whatever means "OK"
                 // check what we received in the buffer: an "ac" array, or both 'total' and 'now'?
                 if (readBuf.find("\"" ADSBEX_AIRCRAFT_ARR "\"") != std::string::npos ||
                          (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&

@@ -47,8 +47,9 @@
 #define ADSBEX_RAPIDAPI_URL     "https://adsbexchange-com1.p.rapidapi.com/v2/lat/%f/lon/%f/dist/%d/"
 #define ADSBEX_RAPIDAPI_HOST    "x-rapidapi-host: adsbexchange-com1.p.rapidapi.com"
 #define ADSBEX_RAPIDAPI_KEY     "x-rapidapi-key: "
-#define ADSBEX_RAPIDAPI_RLIMIT  "x-ratelimit-requests-limit:"
-#define ADSBEX_RAPIDAPI_RREMAIN "x-ratelimit-requests-remaining:"
+#define ADSBEX_RAPIDAPI_RLIMIT  "x-ratelimit-api-requests-limit: "
+#define ADSBEX_RAPIDAPI_RREMAIN "x-ratelimit-api-requests-remaining: "
+#define ADSBEX_RAPIDAPI_RESET   "x-ratelimit-api-requests-reset: "
 
 #define ADSBEX_TOTAL            "total"
 #define ADSBEX_NOW              "now"
@@ -61,6 +62,7 @@
 
 // Version 2 keys
 #define ADSBEX_V2_TRANSP_ICAO   "hex"           // Key data
+#define ADSBEX_V2_TRANSP_TYPE   "type"          ///< type of transponder, or source of data, like "adsb_icao", "adsr_icao", or "tisb_other"
 #define ADSBEX_V2_RADAR_CODE    "squawk"        // Dynamic data
 #define ADSBEX_V2_FLIGHT        "flight"
 #define ADSBEX_V2_LAT           "lat"
@@ -78,6 +80,8 @@
 #define ADSBEX_V2_AC_TYPE_ICAO  "t"
 #define ADSBEX_V2_AC_CATEGORY   "category"
 #define ADSBEX_V2_FLAGS         "dbFlags"
+
+#define ADSBEX_V2_TYPE_TISB     "tisb_other"    ///< type value for TIS-B data
 
 // Version 1 keys (only for enabling meaningful error message)
 #define ADSBEX_V1_TRANSP_ICAO   "icao"          // Key data
@@ -109,7 +113,7 @@ protected:
     /// Process ADSBEx foramtted data
     bool ProcessFetchedData () override;
     /// Process v2 data
-    void ProcessV2 (JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
+    void ProcessV2 (const JSON_Object* pJAc, LTFlightData::FDKeyTy& fdKey,
                     const double tBufPeriod, const double adsbxTime,
                     const positionTy& viewPos);
     /// Give derived class chance for channel-specific error-checking
