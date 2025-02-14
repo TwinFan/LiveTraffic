@@ -56,6 +56,15 @@ const WndRect ILW_RESIZE_LIMITS = WndRect(200, 200, 9999, 9999);
 // Global static pointer to the one info list window object
 static InfoListWnd* gpILW = nullptr;
 
+/// saved state to reopen with next time
+static struct ilwStateTy {
+    InfoListWnd::ILWTabTy    activeTab = InfoListWnd::ILW_TAB_NONE;
+    bool    bFilterAcOnly = false;      ///< Filter: actual aircraft only (otherwise also pure flight data entries)
+    char    sAcFilter[50] = {0};        ///< aircraft search filter
+    unsigned int msgLvlFilter = 63; ///< which log levels to show? (default: all)
+    char sMsgFilter[50] = {0};      ///< messages search filter
+} gIlwState;                            ///< saved state to reopen with next time
+
 // Constructor shows a window for the given a/c key
 InfoListWnd::InfoListWnd(WndMode _mode) :
 LTImgWindow(_mode, WND_STYLE_HUD, dataRefs.ILWrect),
@@ -77,11 +86,24 @@ wndTitle(LIVE_TRAFFIC)
     else
         snprintf(buf, sizeof(buf), LIVE_TRAFFIC " %s", LT_VERSION_FULL);
     verText = buf;
+    
+    // Restore state
+    acList.bFilterAcOnly = gIlwState.bFilterAcOnly;
+    strncpy(sAcFilter, gIlwState.sAcFilter, sizeof(sAcFilter));
+    msgLvlFilter = gIlwState.msgLvlFilter;
+    strncpy(sMsgFilter, gIlwState.sMsgFilter, sizeof(sMsgFilter));
 }
 
 // Desctructor cleans up
 InfoListWnd::~InfoListWnd()
 {
+    // save state
+    gIlwState.activeTab = activeTab;
+    gIlwState.bFilterAcOnly = acList.bFilterAcOnly;
+    strncpy(gIlwState.sAcFilter, sAcFilter, sizeof(gIlwState.sAcFilter));
+    gIlwState.msgLvlFilter = msgLvlFilter;
+    strncpy(gIlwState.sMsgFilter, sMsgFilter, sizeof(gIlwState.sMsgFilter));
+
     // I am no longer
     gpILW = nullptr;
 }
@@ -132,7 +154,10 @@ void InfoListWnd::buildInterface()
                            ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown))
     {
         // MARK: Aircraft List
-        if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
+        if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List  ", nullptr,
+                                ImGuiTabItemFlags_NoTooltip |
+                                // This activates the tab if the saved state has a value (reset after first call)
+                                (gIlwState.activeTab == ILW_TAB_AC_LIST ? ImGuiTabItemFlags_SetSelected : 0))) {
             TabActive(ILW_TAB_AC_LIST);
             
             // Limit to visible planes only
@@ -158,7 +183,8 @@ void InfoListWnd::buildInterface()
         }
         
         // MARK: Message List
-        if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
+        if (ImGui::BeginTabItem(ICON_FA_CLIPBOARD_LIST " Messages  ", nullptr, ImGuiTabItemFlags_NoTooltip |
+                                (gIlwState.activeTab == ILW_TAB_MSG ? ImGuiTabItemFlags_SetSelected : 0))) {
             TabActive(ILW_TAB_MSG);
             
             // Filter which log levels?
@@ -299,7 +325,9 @@ void InfoListWnd::buildInterface()
         }
         
         // MARK: Status / About
-        if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About  ", nullptr, ImGuiTabItemFlags_NoTooltip)) {
+        if (ImGui::BeginTabItem(ICON_FA_INFO_CIRCLE " Status / About  ", nullptr,
+                                ImGuiTabItemFlags_NoTooltip |
+                                (gIlwState.activeTab == ILW_TAB_STATUS ? ImGuiTabItemFlags_SetSelected : 0))) {
             TabActive(ILW_TAB_STATUS);
 
             // Some info we update only irregularly
@@ -619,6 +647,9 @@ void InfoListWnd::buildInterface()
 
     // Reset font scaling
     ImGui::SetWindowFontScale(1.0f);
+    
+    // Reset saved state of active tab...so user can switch again
+    gIlwState.activeTab = ILW_TAB_NONE;
 }
 
 //

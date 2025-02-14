@@ -472,10 +472,14 @@ bool ACTable::UpdateFDIs (const std::string& _filter)
         vecFDI.reserve(mapFd.size());
     
     // First pass: Add all matching and remember those we couldn't get
+    const bool bHideStatic = dataRefs.GetHideStaticTwr();
     std::vector<FDInfo> vecAgain;
     for (const mapLTFlightDataTy::value_type& p: mapFd) {
         // First filter: Visible a/c only?
         if (bFilterAcOnly && (!p.second.hasAc() || !p.second.GetAircraft()->IsVisible()))
+            continue;
+        // 2nd filter: Don't show static objects
+        if (bHideStatic && p.second.GetUnsafeStat().isStaticObject())
             continue;
         // others: test if filter matches
         FDInfo fdi(p.second);
