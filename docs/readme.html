@@ -133,13 +133,49 @@
 
     <h2>v4</h2>
 
+    <h3>v4.2.0</h3>
+    
+    <P>At least copy the following files, which have changed compared to v4.1.1:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            ADS-B Exchange: Switch to <i>paid</i> "ADSBExchange.com" RAPID API Service
+            after their announcement to retire the previously used service
+            "ADSBx Flight Sim Traffic".<br>
+            <strong>Note:</strong> On first startup, any old API key is cleared
+            from the settings and ADSBEx deactivated.<br>
+            If you want to (continue to) use ADS-B Exchange data, then you need
+            to subscribe to RAPID API and get a (new) API key,
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/ads-b-exchange">see documentation</a>.
+        </li>
+        <li>
+            For developers: Support for
+            <a href="https://github.com/TwinFan/LTAPI/releases/tag/v4.1.2">LTAPI 4.1.2</a>
+            incl. "visible" and "Parked" information.
+        </li>
+        <li>
+            Added <a href="https://github.com/TwinFan/LiveTraffic/issues/279">#279</a>:
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window">Status Information Window</a>
+            remembers active tab and filter settings when re-opening.
+        </li>
+        <li>
+            <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a>
+            doesn't show static objects at all when
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-basics#cooperation">configured</a>
+            to be hidden.
+        </li>
+        <li>
+            Linux version now built under Ubuntu 22.02 (previously was 20.02).
+        </li>
+    </ul>
+    
     <h3>v4.1.1</h3>
     
-    <P>
-        <b>Update:</b> In case of doubt you can always just copy all files from the archive
-        over the files of your existing installation.
-    </P>
-
     <P>At least copy the following files, which have changed compared to v4.1.0:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
@@ -179,11 +215,6 @@
 
     <h3>v4.1.0</h3>
     
-    <P>
-        <b>Update:</b> In case of doubt you can always just copy all files from the archive
-        over the files of your existing installation.
-    </P>
-
     <P>At least copy the following files, which have changed compared to v4.0.0:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>

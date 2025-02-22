@@ -16,7 +16,7 @@ jobs:
   #####################################
   # Linux with GCC
   build-lin:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       platform: lin
     steps:

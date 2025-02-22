@@ -796,6 +796,7 @@ public:
     std::string OpenSkyRetryAt;         ///< OpenSky: If limit is reached, when to retry? (local time as string)
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
+    long ADSBExRReset = 0;              ///< [s] ADSBEx: When will the quota reset?
     
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity

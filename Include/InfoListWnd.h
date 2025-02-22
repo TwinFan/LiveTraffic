@@ -26,8 +26,9 @@
 //
 class InfoListWnd : public LTImgWindow
 {
-protected:
+public:
     enum ILWTabTy { ILW_TAB_NONE=0, ILW_TAB_AC_LIST, ILW_TAB_MSG, ILW_TAB_STATUS, ILW_TAB_SETTINGS };
+protected:
     ILWTabTy    activeTab = ILW_TAB_NONE;
     std::string wndTitle;           ///< current window title, contains opened tab
 
