@@ -33,12 +33,29 @@
 // MARK: Base class for ADSBEx format
 //
 
+/// Return the 'msg' content, if any
+std::string ADSBBase::FetchMsg (const char* buf)
+{
+    // try to interpret it as JSON, then fetch 'msg' field content
+    JSONRootPtr pRoot (buf);
+    if (!pRoot) return std::string();
+    const JSON_Object* pObj = json_object(pRoot.get());
+    if (!pObj) return std::string();
+    const std::string s = jog_s(pObj, ADSBEX_MESSAGE);  // try 'message' first
+    if (!s.empty())
+        return s;
+    else
+        return jog_s(pObj, ADSBEX_MSG);                 // else try 'msg' as per documentation
+}
+
+
 // update shared flight data structures with received flight data
 bool ADSBBase::ProcessFetchedData ()
 {
     // received an UNAUTHOIZRED response? Then the key is invalid!
     if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
-        SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+        SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED,
+                 netDataPos ? FetchMsg(netData).c_str() : "");
         SetValid(false);
         return false;
     }
@@ -79,7 +96,6 @@ bool ADSBBase::ProcessFetchedData ()
     
     // Cut-off time: We ignore tracking data, which is older than our buffering time
     const double tBufPeriod = (double) dataRefs.GetFdBufPeriod();
-    const double tsSimTime = dataRefs.GetSimTime();
     
     // any a/c filter defined for debugging purposes?
     const std::string acFilter ( dataRefs.GetDebugAcFilter() );
@@ -103,14 +119,19 @@ bool ADSBBase::ProcessFetchedData ()
         }
         
         // try version 2 first
-        int ver = 2;
         std::string hexKey = jog_s(pJAc, ADSBEX_V2_TRANSP_ICAO);
         if (hexKey.empty()) {
             // not found, try version 1
-            ver = 1;
             hexKey = jog_s(pJAc, ADSBEX_V1_TRANSP_ICAO);
-            if (hexKey.empty())
-                continue;
+            if (!hexKey.empty()) {
+                // Hm...this could be v1 data...since v4.2 we don't process that any longer
+                LOG_MSG(logWARN, "%s: Received data looks like ADSBEx v1, which is no longer supported!",
+                        ChName());
+                IncErrCnt();
+                return false;
+            }
+            // Either way, this can't be processed
+            continue;
         }
         
         // the key: transponder Icao code or some other code
@@ -125,12 +146,9 @@ bool ADSBBase::ProcessFetchedData ()
         if (!acFilter.empty() && (fdKey != acFilter))
             continue;
 
-        // Process the details, depends on version detected
+        // Process the details
         try {
-            if (ver == 2)
-                ProcessV2(pJAc, fdKey, tBufPeriod, adsbxTime, viewPos);
-            else if (ver == 1)
-                ProcessV1(pJAc, fdKey, tsSimTime, viewPos);
+            ProcessV2(pJAc, fdKey, tBufPeriod, adsbxTime, viewPos);
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
         } catch(...) {
@@ -144,7 +162,7 @@ bool ADSBBase::ProcessFetchedData ()
 
 
 // Process v2 data
-void ADSBBase::ProcessV2 (JSON_Object* pJAc,
+void ADSBBase::ProcessV2 (const JSON_Object* pJAc,
                           LTFlightData::FDKeyTy& fdKey,
                           const double tBufPeriod,
                           const double adsbxTime,
@@ -153,6 +171,10 @@ void ADSBBase::ProcessV2 (JSON_Object* pJAc,
     // skip stale data
     const double ageOfPos = jog_n(pJAc, ADSBEX_V2_SEE_POS);
     if (ageOfPos >= tBufPeriod)
+        return;
+    
+    // skip TIS-B data...that is stuff that comes and goes with new ids every few requests, unusable
+    if (!std::strcmp(jog_s(pJAc, ADSBEX_V2_TRANSP_TYPE),ADSBEX_V2_TYPE_TISB))
         return;
     
     // Try getting best possible position information
@@ -215,33 +237,22 @@ void ADSBBase::ProcessV2 (JSON_Object* pJAc,
     std::string acTy = jog_s(pJAc, ADSBEX_V2_AC_TYPE_ICAO);
     std::string cat = jog_s(pJAc, ADSBEX_V2_AC_CATEGORY);
     
-    // Mark all static objects equally, so they can optionally be hidden
-    if (reg  == STATIC_OBJECT_TYPE ||
-        acTy == STATIC_OBJECT_TYPE ||
-        cat  == "C3")
-    {
-        reg = acTy = STATIC_OBJECT_TYPE;
-        cat = "C3";
-    }
-    
-    // We receive lots of "dots" that seem to be markers on the taxiways or so,
-    // they don't come via ADS-B, but via TIS-B
-    if (fdKey.eKeyType != LTFlightData::KEY_ICAO &&
-        pos.IsOnGnd() &&
-        reg.empty() && acTy.empty() && cat.empty())
-    {
-        reg = acTy = STATIC_OBJECT_TYPE;
-        cat = "C3";
-    }
-
     // Identify ground vehicles
     if (cat  == "C1"  || cat == "C2" ||
         reg  == "GND" ||
         acTy == "GND")
         acTy = dataRefs.GetDefaultCarIcaoType();
-    else if (pos.IsOnGnd() &&
-             acTy.empty() && reg.empty() && cat.empty())
-        acTy = dataRefs.GetDefaultCarIcaoType();
+    // Mark all static objects equally, so they can optionally be hidden
+    else if (reg  == STATIC_OBJECT_TYPE ||
+             acTy == STATIC_OBJECT_TYPE ||
+             cat  == "C3" ||
+             // Everything else on the ground, which has no type, registration, category is considered static
+             (pos.IsOnGnd() && acTy.empty() && reg.empty() && cat.empty()))
+
+    {
+        reg = acTy = STATIC_OBJECT_TYPE;
+        cat = "C3";
+    }
 
     // from here on access to fdMap guarded by a mutex
     // until FD object is inserted and updated
@@ -303,142 +314,6 @@ void ADSBBase::ProcessV2 (JSON_Object* pJAc,
         LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
 }
 
-// Process v1 data
-void ADSBBase::ProcessV1 (JSON_Object* pJAc,
-                          LTFlightData::FDKeyTy& fdKey,
-                          const double tsSimTime,
-                          const positionTy& viewPos)
-{
-    // ADS-B returns Java tics, that is milliseconds, we use seconds
-    const double posTime = jog_sn(pJAc, ADSBEX_V1_POS_TIME) / 1000.0;
-    // skip stale data
-    if (posTime <= tsSimTime)
-        return;
-    
-    // ADSBEx, especially the RAPID API version, returns
-    // aircraft regardless of distance. To avoid planes
-    // created and immediately removed due to distanced settings
-    // we continue only if pos is within wanted range
-    positionTy pos (jog_sn_nan(pJAc, ADSBEX_V1_LAT),
-                    jog_sn_nan(pJAc, ADSBEX_V1_LON),
-                    NAN,
-                    posTime);
-    // We need an actual position for this calculation...and often times the _first_ response has no data in the fields...no clue why that is
-    if (std::isnan(pos.lat()) || std::isnan(pos.lon())) {
-        LOG_MSG(logDEBUG, "%s: Received no position for %s", ChName(), fdKey.c_str());
-        return;
-    }
-    const double dist = pos.dist(viewPos);
-    if (dist > dataRefs.GetFdStdDistance_m() )
-        return;
-
-    // from here on access to fdMap guarded by a mutex
-    // until FD object is inserted and updated
-    std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
-    
-    // Check for duplicates with OGN/FLARM, potentially replaces the key type
-    LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-    // Some internal codes sometimes overlap with RealTraffic
-    if (fdKey.eKeyType == LTFlightData::KEY_ADSBEX)
-        LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_RT);
-
-    // get the fd object from the map, key is the transpIcao
-    // this fetches an existing or, if not existing, creates a new one
-    LTFlightData& fd = mapFd[fdKey];
-    
-    // also get the data access lock once and for all
-    // so following fetch/update calls only make quick recursive calls
-    std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-    // now that we have the detail lock we can release the global one
-    mapFdLock.unlock();
-    
-    // completely new? fill key fields
-    if ( fd.empty() )
-        fd.SetKey(fdKey);
-    
-    // -- fill static data --
-    LTFlightData::FDStaticData stat;
-    stat.reg =        jog_s(pJAc, ADSBEX_V1_REG);
-    stat.country =    jog_s(pJAc, ADSBEX_V1_COUNTRY);
-    stat.acTypeIcao = jog_s(pJAc, ADSBEX_V1_AC_TYPE_ICAO);
-    stat.mil =        jog_sb(pJAc,ADSBEX_V1_MIL);
-    stat.opIcao =     jog_s(pJAc, ADSBEX_V1_OP_ICAO);
-    stat.call =       jog_s(pJAc, ADSBEX_V1_CALL);
-    stat.slug       = sSlugBase;
-    stat.slug      += fdKey.key;
-    
-    // ADSBEx sends airport info like "LHR London Heathrow United Kingdom"
-    // That's way to long...
-    std::string orig = jog_s(pJAc, ADSBEX_V1_ORIGIN);
-    std::string dest = jog_s(pJAc, ADSBEX_V1_DESTINATION);
-    stat.setOrigDest(cut_off(orig, " "), cut_off(dest, " "));
-
-    // -- dynamic data --
-    LTFlightData::FDDynamicData dyn;
-    
-    // non-positional dynamic data
-    dyn.radar.code =        jog_sl(pJAc, ADSBEX_V1_RADAR_CODE);
-    dyn.gnd =               jog_sb(pJAc, ADSBEX_V1_GND);
-    dyn.heading =           jog_sn_nan(pJAc, ADSBEX_V1_HEADING);
-    dyn.spd =               jog_sn(pJAc, ADSBEX_V1_SPD);
-    dyn.vsi =               jog_sn(pJAc, ADSBEX_V1_VSI);
-    dyn.ts =                posTime;
-    dyn.pChannel =          this;
-    
-    // The GND flag is rather unreliable. From experience: If both `alt` and `galt` are empty strings we are on ground, too
-    const double alt_baro_ft    = jog_sn_nan(pJAc, ADSBEX_V1_ALT);
-    const double alt_geo_ft     = jog_sn_nan(pJAc, ADSBEX_V1_ELEVATION);
-    if (std::isnan(alt_baro_ft) && std::isnan(alt_geo_ft))
-        dyn.gnd = true;
-
-    // position: altitude, heading, ground status
-    if (!dyn.gnd) {
-        if (!std::isnan(alt_baro_ft))
-            pos.SetAltFt(BaroAltToGeoAlt_ft(alt_baro_ft, dataRefs.GetPressureHPA()));
-        else
-            pos.SetAltFt(alt_geo_ft);
-    }
-    pos.heading() = dyn.heading;
-    pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
-    
-    // -- Static Object Identification --
-    // Mark all static objects equally, so they can optionally be hidden
-    if (dyn.gnd &&                                  // on the ground
-        stat.acTypeIcao.empty() &&                  // no type
-        stat.call.empty() &&                        // no call sign
-        stat.reg.empty() &&                         // no tail number
-        !*jog_s(pJAc, ADSBEX_V1_TTRK) &&            // no `ttrk` heading, not even "0"
-        !strcmp(jog_s(pJAc, ADSBEX_V1_SPD), "0"))   // speed exactly "0"
-    {
-        stat.reg = stat.acTypeIcao = STATIC_OBJECT_TYPE;
-        stat.catDescr = GetADSBEmitterCat("C3");
-    }
-
-    // -- Ground vehicle identification --
-    // Sometimes we get "-GND", replace it with "ZZZC"
-    if (stat.acTypeIcao == ADSBEX_V1_TYPE_GND)
-        stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-
-    // But often, ADSBEx doesn't send a clear indicator
-    if (stat.acTypeIcao.empty() &&      // don't know a/c type yet
-        stat.reg.empty() &&             // don't have tail number
-        dyn.gnd &&                      // on the ground
-        dyn.spd < 50.0)                 // reasonable speed
-    {
-        // we assume ground vehicle
-        stat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-    }
-
-    // update the a/c's master data
-    fd.UpdateData(std::move(stat), dist);
-    
-    // position is rather important, we check for validity
-    if ( pos.isNormal(true) ) {
-        fd.AddDynData(dyn, 0, 0, &pos);
-    }
-    else
-        LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
-}
 
 //
 // MARK: ADS-B Exchange
@@ -458,11 +333,8 @@ ADSBBase(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, ADSBEX_NAME, ADSBEX_SLUG_BASE)
 std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 {
     char url[128] = "";
-    if (keyTy == ADSBEX_KEY_RAPIDAPI)
-        snprintf(url, sizeof(url), ADSBEX_RAPIDAPI_25_URL, pos.lat(), pos.lon());
-    else
-        snprintf(url, sizeof(url), ADSBEX_URL, pos.lat(), pos.lon(),
-                 dataRefs.GetFdStdDistance_nm());
+    snprintf(url, sizeof(url), ADSBEX_RAPIDAPI_URL, pos.lat(), pos.lon(),
+             std::min(dataRefs.GetFdStdDistance_nm(), 250));    // max 250nm radius allowed
     return std::string(url);
 }
 
@@ -473,11 +345,22 @@ std::string ADSBExchangeConnection::GetStatusText () const
     std::string s = LTChannel::GetStatusText();
     if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
     {
+        char t[25] = "";
         s += " | ";
         s += std::to_string(dataRefs.ADSBExRRemain);
         s += " of ";
         s += std::to_string(dataRefs.ADSBExRLimit);
-        s += " RAPID API requests left";
+        s += " RAPID API requests left, resets in ";
+        if (dataRefs.ADSBExRReset > 48*60*60)           // more than 2 days
+            snprintf(t, sizeof(t), "%.1f days",
+                    float(dataRefs.ADSBExRReset) / (24.0f*60.0f*60.0f));
+        else if (dataRefs.ADSBExRReset >  2*60*60)      // more than 2 hours
+            snprintf(t, sizeof(t), "%.1f hours",
+                    float(dataRefs.ADSBExRReset) / (      60.0f*60.0f));
+        else                                            // less than 2 hours
+            snprintf(t, sizeof(t), "%.1f minutes",
+                    float(dataRefs.ADSBExRReset) / (            60.0f));
+        s += t;
     }
     return s;
 }
@@ -539,24 +422,19 @@ bool ADSBExchangeConnection::InitCurl ()
 {
     // we require an API key
     const std::string theKey (dataRefs.GetADSBExAPIKey());
-    keyTy = GetKeyType(theKey);
-    if (!keyTy) {
+    if (theKey.empty()) {
         apiKey.clear();
         SHOW_MSG(logERR, ERR_ADSBEX_NO_KEY_DEF);
         SetValid(false);
         return false;
     }
     
-    // Reset any RAPID API request count if talking to ADSBEx directly
-    if (keyTy != ADSBEX_KEY_RAPIDAPI)
-        dataRefs.ADSBExRLimit = dataRefs.ADSBExRRemain = 0;
-    
     // let's do the standard CURL init first
     if (!LTOnlineChannel::InitCurl())
         return false;
 
-    // maybe read headers
-    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, keyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
+    // read headers
+    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, ReceiveHeader);
 
     // did the API key change?
     if (!slistKey || theKey != apiKey) {
@@ -565,7 +443,7 @@ bool ADSBExchangeConnection::InitCurl ()
             curl_slist_free_all(slistKey);
             slistKey = NULL;
         }
-        slistKey = MakeCurlSList(keyTy, apiKey);
+        slistKey = MakeCurlSList(apiKey);
     }
     
     // now add/overwrite the key
@@ -584,21 +462,14 @@ void ADSBExchangeConnection::CleanupCurl ()
 // Specific handling for authentication errors
 bool ADSBExchangeConnection::ProcessErrors (const JSON_Object* pObj)
 {
-    // some things depend on the key type
-    const char* sERR = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
-    const char* sNOK = keyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
-    
-    // test for ERRor response
-    const std::string errTxt = jog_s(pObj, sERR);
-    if (!errTxt.empty() &&
-        errTxt != ADSBEX_SUCCESS) {
-        if (begins_with<std::string>(errTxt, sNOK)) {
-            SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
-            SetValid(false);
-        } else {
-            LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
-            IncErrCnt();
-        }
+    // test for non-OK response in 'message' / 'msg'
+    std::string errTxt = jog_s(pObj, ADSBEX_MESSAGE);
+    if (errTxt.empty())
+        errTxt = jog_s(pObj, ADSBEX_MSG);    
+    if (!errTxt.empty() && errTxt != ADSBEX_SUCCESS)
+    {
+        LOG_MSG(logERR, ERR_ADSBEX_OTHER, errTxt.c_str());
+        IncErrCnt();
         return false;
     }
     
@@ -608,55 +479,28 @@ bool ADSBExchangeConnection::ProcessErrors (const JSON_Object* pObj)
 
 
 // make list of HTTP header fields
-struct curl_slist* ADSBExchangeConnection::MakeCurlSList (keyTypeE keyTy, const std::string theKey)
+struct curl_slist* ADSBExchangeConnection::MakeCurlSList (const std::string theKey)
 {
-    switch (keyTy) {
-        case ADSBEX_KEY_EXCHANGE:
-            return curl_slist_append(NULL, (std::string(ADSBEX_API_AUTH)+theKey).c_str());
-        case ADSBEX_KEY_RAPIDAPI:
-        {
-            struct curl_slist* slist = curl_slist_append(NULL, ADSBEX_RAPIDAPI_HOST);
-            return curl_slist_append(slist, (std::string(ADSBEX_RAPIDAPI_KEY)+theKey).c_str());
-        }
-        default:
-            return NULL;
-    }
-    
-    
+    struct curl_slist* slist = curl_slist_append(NULL, ADSBEX_RAPIDAPI_HOST);
+    return curl_slist_append(slist, (std::string(ADSBEX_RAPIDAPI_KEY)+theKey).c_str());
 }
 
 // read header and parse for request limit/remaining
+/// @see https://docs.rapidapi.com/docs/response-headers
 size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems, void *)
 {
-    const size_t len = nitems * size;
     static size_t lenRLimit  = strlen(ADSBEX_RAPIDAPI_RLIMIT);
     static size_t lenRRemain = strlen(ADSBEX_RAPIDAPI_RREMAIN);
-    char num[50];
-    
-    // Turn buffer content lower case for the first few chars we are to compare
-    const size_t lenMax = std::min(std::max(lenRLimit,lenRRemain),len);
-    size_t i = 0;
-    for (char* p = buffer; i < lenMax; ++i, ++p)
-        *p = char(std::tolower(*p));
+    static size_t lenRReset  = strlen(ADSBEX_RAPIDAPI_RESET);
 
-    // Limit?
-    if (len > lenRLimit &&
-        memcmp(buffer, ADSBEX_RAPIDAPI_RLIMIT, lenRLimit) == 0)
-    {
-        const size_t copyCnt = std::min(len-lenRLimit,sizeof(num)-1);
-        memcpy(num, buffer+lenRLimit, copyCnt);
-        num[copyCnt]=0;                 // zero termination
-        dataRefs.ADSBExRLimit = std::atol(num);
-    }
-    // Remaining?
-    else if (len > lenRRemain &&
-             memcmp(buffer, ADSBEX_RAPIDAPI_RREMAIN, lenRRemain) == 0)
-    {
-        const size_t copyCnt = std::min(len-lenRRemain,sizeof(num)-1);
-        memcpy(num, buffer+lenRRemain, copyCnt);
-        num[copyCnt]=0;                 // zero termination
-        dataRefs.ADSBExRRemain = std::atol(num);
-    }
+    const size_t len = nitems * size;
+    const std::string hdr (buffer, len);                // copy to proper string
+    if (stribeginwith(hdr, ADSBEX_RAPIDAPI_RLIMIT))
+        dataRefs.ADSBExRLimit = std::atol(hdr.c_str() + lenRLimit);
+    else if (stribeginwith(hdr, ADSBEX_RAPIDAPI_RREMAIN))
+        dataRefs.ADSBExRRemain = std::atol(hdr.c_str() + lenRRemain);
+    else if (stribeginwith(hdr, ADSBEX_RAPIDAPI_RESET))
+        dataRefs.ADSBExRReset = std::atol(hdr.c_str() + lenRReset);
 
     // always say we processed everything, otherwise HTTP processing would stop!
     return len;
@@ -668,19 +512,6 @@ size_t ADSBExchangeConnection::ReceiveHeader(char *buffer, size_t size, size_t n
 
 std::future<bool> futADSBExKeyValid;
 bool bADSBExKeyTestRunning = false;
-
-// Which type of key did the user enter?
-ADSBExchangeConnection::keyTypeE ADSBExchangeConnection::GetKeyType (const std::string theKey)
-{
-    if (theKey.empty())
-        return ADSBEX_KEY_NONE;
-    // for the old-style key we just count hyphens...don't be tooooo exact
-    else if (std::count(theKey.begin(), theKey.end(), '-') == 4)
-        return ADSBEX_KEY_EXCHANGE;
-    // all else is assume new style
-    else
-        return ADSBEX_KEY_RAPIDAPI;
-}
 
 //  just quickly sends one simple request to ADSBEx and checks if the response is not "NO KEY"
 void ADSBExchangeConnection::TestADSBExAPIKey (const std::string newKey)
@@ -719,12 +550,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     std::string readBuf;
     
     // differentiate based on key type
-    keyTypeE testKeyTy = GetKeyType(newKey);
-    if (!testKeyTy) return false;
-    
-    const char* sURL = testKeyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_VERIFY_KEY_URL   : ADSBEX_VERIFY_RAPIDAPI;
-    const char* sERR = testKeyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_ERR              : ADSBEX_RAPID_ERR;
-    const char* sNOK = testKeyTy == ADSBEX_KEY_EXCHANGE ? ADSBEX_NO_API_KEY       : ADSBEX_NO_RAPIDAPI_KEY;
+    if (newKey.empty()) return false;
     
     // initialize the CURL handle
     CURL *pCurl = curl_easy_init();
@@ -738,14 +564,14 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, testKeyTy == ADSBEX_KEY_RAPIDAPI ? ReceiveHeader : NULL);
+    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, ReceiveHeader);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestADSBExAPIKeyCB);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
     curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    curl_easy_setopt(pCurl, CURLOPT_URL, sURL);
+    curl_easy_setopt(pCurl, CURLOPT_URL, ADSBEX_VERIFY_RAPIDAPI);
     
     // prepare the additional HTTP header required for API key
-    struct curl_slist* slist = MakeCurlSList(testKeyTy, newKey);
+    struct curl_slist* slist = MakeCurlSList(newKey);
     LOG_ASSERT(slist);
     curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slist);
     
@@ -773,18 +599,14 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
         long httpResponse = 0;
         curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
         
+        // get 'msg'
+        const std::string msg = FetchMsg(readBuf.c_str());
+        
         // Check HTTP return code
         switch (httpResponse) {
             case HTTP_OK:
-                // check for msg/message saying "wrong key":
-                if (readBuf.find(sERR) != std::string::npos &&
-                    readBuf.find(sNOK) != std::string::npos)
-                {
-                    // definitely received an error response
-                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
-                }
                 // check what we received in the buffer: an "ac" array, or both 'total' and 'now'?
-                else if (readBuf.find("\"" ADSBEX_AIRCRAFT_ARR "\"") != std::string::npos ||
+                if (readBuf.find("\"" ADSBEX_AIRCRAFT_ARR "\"") != std::string::npos ||
                          (readBuf.find(ADSBEX_TOTAL) != std::string::npos &&
                           readBuf.find(ADSBEX_NOW) != std::string::npos))
                 {
@@ -792,25 +614,22 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
                     bResult = true;
                     dataRefs.SetADSBExAPIKey(newKey);
                     dataRefs.SetChannelEnabled(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, true);
-                    // Reset any RAPID API request count if talking to ADSBEx directly
-                    if (testKeyTy != ADSBEX_KEY_RAPIDAPI)
-                        dataRefs.ADSBExRLimit = dataRefs.ADSBExRRemain = 0;
                     SHOW_MSG(logMSG, MSG_ADSBEX_KEY_SUCCESS);
                 }
                 else
                 {
                     // somehow an unknown answer...
-                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_UNKNOWN);
+                    SHOW_MSG(logERR, ERR_ADSBEX_KEY_UNKNOWN, msg.c_str());
                 }
                 break;
                 
             case HTTP_UNAUTHORIZED:
             case HTTP_FORBIDDEN:
-                SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED);
+                SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED, msg.c_str());
                 break;
 
             default:
-                SHOW_MSG(logERR, ERR_ADSBEX_KEY_TECH, (int)httpResponse, ERR_HTTP_NOT_OK);
+                SHOW_MSG(logERR, ERR_ADSBEX_KEY_TECH, (int)httpResponse, msg.c_str());
         }
     }
     
