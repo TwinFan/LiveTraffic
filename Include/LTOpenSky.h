@@ -173,6 +173,7 @@ constexpr unsigned long OPSKY_NUM_LN_PER_POS = 250;
 class OpenSkyAcMasterFile : public LTACMasterdataChannel
 {
 protected:
+    char sAcDbfileName[50] = {0};                                   ///< Aircraft Database file name
     std::ifstream fAcDb;                                            ///< Aircraft Database file
     std::string ln;                                                 ///< a line in the database file
 
@@ -185,7 +186,8 @@ public:
 public:
     std::string GetURL (const positionTy&) override { return ""; }  ///< No URL for the standard request processing
     bool ProcessFetchedData () override;                            ///< Process looked up master data
-protected:
+    std::string GetStatusText () const override;                    ///< adds the database date to the status text
+    protected:
     bool AcceptRequest (const acStatUpdateTy& requ) override;       ///< accept only master data requests
     void Main () override;                                          ///< virtual thread main function
     bool LookupData ();                                             ///< perform the file lookup

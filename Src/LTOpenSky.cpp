@@ -1005,8 +1005,8 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
         }
     }
     
-    // as a last resort: we _know_ that the file for OCT-2024 was there
-    return TryOpenDbFile(2024, 10);
+    // as a last resort: we _know_ that the file for FEB-2025 was there
+    return TryOpenDbFile(2025, 2);
 }
 
 
@@ -1018,14 +1018,13 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
 bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
 {
     // filename of what this is about
-    char fileName[50] = {0};
-    snprintf(fileName, sizeof(fileName), OPSKY_MDF_FILE,
+    snprintf(sAcDbfileName, sizeof(sAcDbfileName), OPSKY_MDF_FILE,
              year, month);
 
     try {
         // Is the file available already?
         const std::string fileDir  = dataRefs.GetLTPluginPath() + PATH_RESOURCES + '/';
-        const std::string filePath = fileDir + fileName;
+        const std::string filePath = fileDir + sAcDbfileName;
 
         // Just try to open and see what happens
         fAcDb.open(filePath);
@@ -1035,7 +1034,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
 
             // file doesn't exist, try to download
             std::string url = OPSKY_MDF_URL;
-            url += fileName;
+            url += sAcDbfileName;
             LOG_MSG(logDEBUG, "Trying to download %s", url.c_str());
             if (!RemoteFileDownload(url,filePath)) {
                 LOG_MSG(logWARN, "Download of %s unavailable", url.c_str());
@@ -1136,7 +1135,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
                     // If begins like a database file but is not the one we just processed
                     std::string f = dir->d_name;
                     if (stribeginwith(f, OPSKY_MDF_FILE_BEGIN) &&
-                        !striequal(f, fileName))
+                        !striequal(f, sAcDbfileName))
                         vToBeDeleted.emplace_back(std::move(f));
                 }
                 closedir(d);
@@ -1151,9 +1150,21 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MSG(logERR, "Could not download/open a/c database file '%s': %s", fileName, e.what());
+        LOG_MSG(logERR, "Could not download/open a/c database file '%s': %s", sAcDbfileName, e.what());
     } catch (...) {
-        LOG_MSG(logERR, "Could not download/open a/c database file '%s'", fileName);
+        LOG_MSG(logERR, "Could not download/open a/c database file '%s'", sAcDbfileName);
     }
     return false;
+}
+
+
+// adds the database date to the status text
+std::string OpenSkyAcMasterFile::GetStatusText () const
+{
+    std::string s = LTChannel::GetStatusText();
+    if (IsValid() && sAcDbfileName[0] && fAcDb.good()) {
+        s += " | ";
+        s += sAcDbfileName;
+    }
+    return s;
 }
