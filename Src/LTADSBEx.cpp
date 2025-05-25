@@ -439,10 +439,7 @@ bool ADSBExchangeConnection::InitCurl ()
     // did the API key change?
     if (!slistKey || theKey != apiKey) {
         apiKey = theKey;
-        if (slistKey) {
-            curl_slist_free_all(slistKey);
-            slistKey = NULL;
-        }
+        CurlCleanupSlist(slistKey);
         slistKey = MakeCurlSList(apiKey);
     }
     
@@ -455,8 +452,7 @@ bool ADSBExchangeConnection::InitCurl ()
 void ADSBExchangeConnection::CleanupCurl ()
 {
     LTOnlineChannel::CleanupCurl();
-    curl_slist_free_all(slistKey);
-    slistKey = NULL;
+    CurlCleanupSlist(slistKey);
 }
 
 // Specific handling for authentication errors
@@ -635,7 +631,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     
     // cleanup CURL handle
     curl_easy_cleanup(pCurl);
-    curl_slist_free_all(slist);
+    CurlCleanupSlist(slist);
     
     bADSBExKeyTestRunning = false;
     return bResult;

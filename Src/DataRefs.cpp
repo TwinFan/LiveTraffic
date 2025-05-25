@@ -2203,10 +2203,10 @@ bool DataRefs::LoadConfigFile()
                 SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
                 SetDefaultCarIcaoType(sVal);
-            else if (sDataRef == CFG_OPENSKY_USER)
-                SetOpenSkyUser(sVal);
-            else if (sDataRef == CFG_OPENSKY_PWD)
-                SetOpenSkyPwd(Cleartext(sVal));
+            else if (sDataRef == CFG_OPENSKY_CLIENT)
+                SetOpenSkyClient(sVal);
+            else if (sDataRef == CFG_OPENSKY_SECRET)
+                SetOpenSkySecret(Cleartext(sVal));
             else if (sDataRef == CFG_ADSBEX_API_KEY) {
                 // With v4.2 ADSBEx switches to a new service, so we need a new API key
                 if (conv != CFG_V420)
@@ -2353,10 +2353,10 @@ bool DataRefs::SaveConfigFile()
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << GetDefaultAcIcaoType() << '\n';
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << GetDefaultCarIcaoType() << '\n';
-    if (!sOpenSkyUser.empty())
-        fOut << CFG_OPENSKY_USER << ' ' << sOpenSkyUser << '\n';
-    if (!sOpenSkyPwd.empty())
-        fOut << CFG_OPENSKY_PWD << ' ' << Obfuscate(sOpenSkyPwd) << '\n';
+    if (!sOpenSkyClient.empty())
+        fOut << CFG_OPENSKY_CLIENT << ' ' << sOpenSkyClient << '\n';
+    if (!sOpenSkySecret.empty())
+        fOut << CFG_OPENSKY_SECRET << ' ' << Obfuscate(sOpenSkySecret) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
     if (!GetRTLicense().empty())

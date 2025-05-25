@@ -44,11 +44,22 @@ LTFlightDataChannel(DR_CHANNEL_OPEN_SKY_ONLINE, OPSKY_NAME)
     urlPopup = OPSKY_CHECK_POPUP;
 }
 
+
+// used to force fetching a new token, e.g. after change of credentials
+void OpenSkyConnection::ResetStatus ()
+{
+    eState = OPSKY_STATE_NONE;
+}
+
+
 // virtual thread main function
 void OpenSkyConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_OpSky", LC_ALL_MASK);
+    
+    // Reset state
+    ResetStatus();
     
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -61,14 +72,20 @@ void OpenSkyConnection::Main ()
             
             // If the camera position is valid we can request data around it
             if (pos.isNormal()) {
-                // Next wakeup is "refresh interval" from _now_
-                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
-                
                 // fetch data and process it
                 if (FetchAllData(pos) && ProcessFetchedData())
                         // reduce error count if processed successfully
                         // as a chance to appear OK in the long run
                         DecErrCnt();
+                
+                // Next Wakeup:
+                // If we were fetching the access token only, then we continue immediately (don't add to tNextWakeup)...
+                if (eState == OPSKY_STATE_GETTING_TOKEN)
+                    // ...fetching planes
+                    eState = OPSKY_STATE_GET_PLANES;
+                else
+                    // Next wakeup is "refresh interval" from _now_
+                    tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
             }
             else {
                 // Camera position is yet invalid, retry in a second
@@ -91,6 +108,10 @@ void OpenSkyConnection::Main ()
             IncErrCnt();
         }
     }
+    
+    // Cleanup
+    CurlCleanupSlist(pHdrForm);
+    CurlCleanupSlist(pHdrToken);
 }
 
 
@@ -101,20 +122,42 @@ bool OpenSkyConnection::InitCurl ()
     if (!LTOnlineChannel::InitCurl())
         return false;
     
-    // if there are credentials then now is the moment to add them
-    std::string usr, pwd;
-    dataRefs.GetOpenSkyCredentials(usr, pwd);
-    if (!usr.empty() && !pwd.empty()) {
-        curl_easy_setopt(pCurl, CURLOPT_USERNAME, usr.data());
-        curl_easy_setopt(pCurl, CURLOPT_PASSWORD, pwd.data());
-    } else {
-        curl_easy_setopt(pCurl, CURLOPT_USERNAME, nullptr);
-        curl_easy_setopt(pCurl, CURLOPT_PASSWORD, nullptr);
+    // Do we have a token that is about to expire and needs a refresh?
+    if (!std::isnan(tTokenExpiration) &&
+        dataRefs.GetMiscNetwTime() >= tTokenExpiration)
+    {
+        ResetStatus();
     }
     
-    // read headers (for remaining requests info)
-    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, ReceiveHeader);
+    // The request we are about to send depends on our state
+    // Initially, decide if we go for token or unauthenticated:
+    if (eState == OPSKY_STATE_NONE) {
+        CurlCleanupSlist(pHdrToken);                    // clear token information
+        tTokenExpiration = NAN;
+        
+        std::string clientId, clientSecret;             // check credentials
+        dataRefs.GetOpenSkyCredentials(clientId, clientSecret);
+        if (clientId.empty() || clientSecret.empty())   // don't have credentials?
+            eState = OPSKY_STATE_GET_PLANES;            // use none
+        else
+            eState = OPSKY_STATE_GETTING_TOKEN;         // have credentials, need token
+    }
     
+    // if fetching token then we need to set the content type
+    if (eState == OPSKY_STATE_GETTING_TOKEN) {
+        // create the header list if it doesn't exist yet
+        if (!pHdrForm) {
+            pHdrForm = curl_slist_append(nullptr, "Content-Type: application/x-www-form-urlencoded");
+        }
+        curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHdrForm);
+        curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, nullptr);
+    }
+    else {
+        // in all other cases we may, if defined, set the access token header
+        curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHdrToken);
+        // want to read headers (for remaining requests info)
+        curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, ReceiveHeader);
+    }
     return true;
 }
 
@@ -125,7 +168,11 @@ size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems
     static size_t lenRRemain = strlen(OPSKY_RREMAIN);
     static size_t lenRetry = strlen(OPSKY_RETRY);
     char num[50];
-
+    
+    // turn relevant chars lowercase
+    for (size_t i = 0; i < std::min({len, lenRRemain, lenRetry}); ++i)
+        buffer[i] = char(tolower(buffer[i]));
+    
     // Remaining?
     if (len > lenRRemain &&
         memcmp(buffer, OPSKY_RREMAIN, lenRRemain) == 0)
@@ -169,6 +216,14 @@ size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems
 // put together the URL to fetch based on current view position
 std::string OpenSkyConnection::GetURL (const positionTy& pos)
 {
+    // Do we need a token? Let's go for one:
+    if (eState == OPSKY_STATE_GETTING_TOKEN) {
+        LOG_MSG(logDEBUG, "Requesting access token...");
+        return OPSKY_URL_GETTOKEN;
+    }
+    
+    // Standard request to fetch planes:
+    
     // we add 10% to the bounding box to have some data ready once the plane is close enough for display
     boundingBoxTy box (pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
     char url[128] = "";
@@ -181,41 +236,69 @@ std::string OpenSkyConnection::GetURL (const positionTy& pos)
     return std::string(url);
 }
 
+// only needed for token request, will then form token request body
+void OpenSkyConnection::ComputeBody (const positionTy& /*pos*/)
+{
+    if (eState == OPSKY_STATE_GETTING_TOKEN) {
+        // if we are to fetch a token then we need to put credentials into the body
+        char s[128];
+        std::string clientId, clientSecret;
+        dataRefs.GetOpenSkyCredentials(clientId, clientSecret);
+        snprintf(s, sizeof(s), OPSKY_BODY_GETTOKEN,
+                 URLEncode(clientId).c_str(),
+                 URLEncode(clientSecret).c_str());
+        requBody = s;
+    }
+    else {
+        // in all other case we don't have a body and will send a GET request
+        requBody.clear();
+    }
+}
+
+
 // update shared flight data structures with received flight data
 // "a4d85d","UJC11   ","United States",1657226901,1657226901,-90.2035,38.8157,2758.44,false,128.1,269.54,-6.5,null,2895.6,"4102",false,0
 bool OpenSkyConnection::ProcessFetchedData ()
 {
     char buf[100];
-
+    
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
-    // data is expected to be in netData string
-    // short-cut if there is nothing
-    if ( !netDataPos ) return true;
-    
     // Only proceed in case HTTP response was OK
-    if (httpResponse != HTTP_OK) {
-        // Unauthorized?
-        if (httpResponse == HTTP_UNAUTHORIZED) {
-            SHOW_MSG(logERR, "OpenSky: Unauthorized! Verify username/password in settings.");
+    switch (httpResponse)
+    {
+        // All OK
+        case HTTP_OK:
+            break;
+
+        // Unauthorized? Also wrong token, or wrong credentials when trying to get the token
+        case HTTP_BAD_REQUEST:      // OpenSky returns 400 in case of bad credentials when asking for the token...a bit weird, but so it is
+            SHOW_MSG(logERR, "%s: Authorization failed! Verify Client Id/Secret in settings.",
+                     pszChName);
             SetValid(false,false);
             SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
             return false;
-        }
-        
+
+        case HTTP_UNAUTHORIZED:     // OpenSky returns 401 in case of a bad or timed-out token
+            LOG_MSG(logERR, "%s: Bad or timed-out access token",
+                    pszChName);
+            ResetStatus();          // let's try with a new one
+            IncErrCnt();
+            return false;
+
         // Ran out of requests?
-        if (httpResponse == HTTP_TOO_MANY_REQU) {
-            SHOW_MSG(logERR, "OpenSky: Used up request credit for today, try again on %s",
+        case HTTP_TOO_MANY_REQU:
+            SHOW_MSG(logERR, "%s: Used up request credit for today, try again on %s",
+                     pszChName,
                      dataRefs.OpenSkyRetryAt.empty() ? "<?>" : dataRefs.OpenSkyRetryAt.c_str());
             SetValid(false,false);
             return false;
-        }
         
         // Timeouts are so common recently with OpenSky that we no longer treat them as errors,
         // but we inform the user every once in a while
-        if (httpResponse == HTTP_GATEWAY_TIMEOUT    &&
-            httpResponse == HTTP_TIMEOUT)
+        case HTTP_GATEWAY_TIMEOUT:
+        case HTTP_TIMEOUT:
         {
             static std::chrono::time_point<std::chrono::steady_clock> lastTimeoutWarn;
             auto tNow = std::chrono::steady_clock::now();
@@ -223,10 +306,19 @@ bool OpenSkyConnection::ProcessFetchedData ()
                 lastTimeoutWarn = tNow;
                 SHOW_MSG(logWARN, "%s communication unreliable due to timeouts!", pszChName);
             }
+            return false;
         }
-        else {                                  // anything else is serious
+
+        // anything else is serious and treated as some problem
+        default:
             IncErrCnt();
-        }
+            return false;
+    }
+    
+    // data is expected to be in netData string
+    if ( !netDataPos ) {
+        LOG_MSG(logERR, "No actual data received!");
+        IncErrCnt();
         return false;
     }
     
@@ -234,18 +326,34 @@ bool OpenSkyConnection::ProcessFetchedData ()
     JSONRootPtr pRoot (netData);
     if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
     
-    // let's cycle the aircraft
     // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
     
+    // --- Token ---
+    // is this a token response?
+    std::string sTok = jog_s(pObj, OPSKY_ACCESS_TOKEN);
+    if (!sTok.empty()) {
+        // prepend the token with the header string and create the actual header list
+        sTok.insert(0, OPSKY_AUTH_BEARER);
+        CurlCleanupSlist(pHdrToken);
+        pHdrToken = curl_slist_append(nullptr, sTok.c_str());
+
+        // process the expiration time (reduce by two refresh periods just to be on the safe side)
+        long expiresIn = jog_l(pObj, OPSKY_AUTH_EXPIRES);
+        if (expiresIn <= 0) expiresIn = OPSKY_AUTH_EXP_DEFAULT;
+        tTokenExpiration = dataRefs.GetMiscNetwTime() + float(expiresIn - 2 * dataRefs.GetFdRefreshIntvl());
+
+        LOG_MSG(logDEBUG, "Received access token expiring in %ld seconds", expiresIn);
+        return true;
+    }
+    
+    // --- Planes ---
     // for determining an offset as compared to network time we need to know network time
-/* Temporarily disabled, see https://forums.x-plane.org/index.php?/forums/topic/301833-aircraft-fail-to-display-buffer-times-going-up/
     double opSkyTime = jog_n(pObj, OPSKY_TIME);
     if (opSkyTime > JAN_FIRST_2019)
         // if reasonable add this to our time offset calculation
         dataRefs.ChTsOffsetAdd(opSkyTime);
-*/
     
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();

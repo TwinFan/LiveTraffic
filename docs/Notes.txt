@@ -1,6 +1,11 @@
 TODO
 ===
 
+0:44:33.688 LiveTraffic ERROR LTVersion.cpp:251/FetchXPlaneOrgVersion: Could not browse X-Plane.org for version info: 403 - HTTP response was not HTTP_OK
+0:00:45.980 LiveTraffic WARN  LTOpenSky.cpp:1041/TryOpenDbFile: Download of https://s3.opensky-network.org/data-samples/metadata/aircraft-database-complete-2025-05.csv unavailable
+-> <Key>metadata/aircraft-database-complete-2025-02.csv</Key>
+
+
 Download History
 ==========
 Download counter when providing v3.3.2: 184.182

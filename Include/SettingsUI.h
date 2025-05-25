@@ -33,9 +33,9 @@ protected:
     char sFilter[50] = {0};
 
     // Channel: OpenSky
-    std::string sOpenSkyUser;       ///< OpenSky Network user
-    std::string sOpenSkyPwd;        ///< OpenSky Network password
-    bool bOpenSkyPwdClearText = false;  ///< Is OpenSky pwd displayed clear text?
+    std::string sOpenSkyClientId;           ///< OpenSky Network Client ID
+    std::string sOpenSkySecret;             ///< OpenSky Network Secret
+    bool bOpenSkySecretClearText = false;   ///< Is OpenSky pwd displayed clear text?
     
     // Channel: ADS-B Exchange
     enum {

@@ -64,7 +64,7 @@ txtFixLivery    (dataRefs.cslFixLivery)
         aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
     
     // Fetch OpenSky credentials
-    dataRefs.GetOpenSkyCredentials(sOpenSkyUser, sOpenSkyPwd);
+    dataRefs.GetOpenSkyCredentials(sOpenSkyClientId, sOpenSkySecret);
     
     // Fetch RealTraffic license and port number
     sRTLicenseEntry = dataRefs.GetRTLicense();
@@ -276,46 +276,47 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
                                            sFilter, nOpCl))
             {
-                LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
+                OpenSkyConnection* pOpenSkyCh = dynamic_cast<OpenSkyConnection*>(LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE));
                 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
 
-                // Hint that user/password increases number of allowed requests
-                if (!*sFilter && (sOpenSkyUser.empty() || sOpenSkyPwd.empty())) {
+                // Hint that registered users have more allowed requests
+                if (!*sFilter && (sOpenSkyClientId.empty() || sOpenSkySecret.empty())) {
                     ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
                                      "https://opensky-network.org/login?view=registration",
                                      "Opens OpenSky Network's user registration page");
                     ImGui::TableNextCell();
-                    ImGui::TextUnformatted("Using a registered user allows for more requests to OpenSky per day ");
+                    ImGui::TextWrapped("%s", "Using a registered user allows for more requests to OpenSky per day. After regstration, "
+                                       "you need to go to your OpenSky Network Account page and retrieve you personal API Client credentials.");
                     ImGui::TableNextCell();
                 }
                 
-                // User
-                if (ImGui::FilteredLabel("Username", sFilter)) {
+                // Client ID
+                if (ImGui::FilteredLabel("Client ID", sFilter)) {
                     ImGui::Indent(ImGui::GetWidthIconBtn(true));
-                    ImGui::InputTextWithHint("##OpenSkyUser",
-                                             "OpenSky Network username",
-                                             &sOpenSkyUser);
+                    ImGui::InputTextWithHint("##OpenSkyClientID",
+                                             "OpenSky Client ID",
+                                             &sOpenSkyClientId);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
                     
                     ImGui::TableNextCell();
                 }
                 
-                // Password
-                if (ImGui::FilteredLabel("Password", sFilter)) {
+                // Client Secret
+                if (ImGui::FilteredLabel("Client Secret", sFilter)) {
                     // "Eye" button changes password flag
-                    ImGui::Selectable(ICON_FA_EYE "##OpenSkyPwdVisible", &bOpenSkyPwdClearText,
+                    ImGui::Selectable(ICON_FA_EYE "##OpenSkySecretVisible", &bOpenSkySecretClearText,
                                       ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
                     if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Show/Hide password");
+                        ImGui::SetTooltip("%s", "Show/Hide client secret");
                     ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::InputTextWithHint("##OpenSkyPwd",
-                                             "Enter or paste OpenSky Network password",
-                                             &sOpenSkyPwd,
+                    ImGui::InputTextWithHint("##OpenSkyClientSecret",
+                                             "Enter or paste OpenSky Client Secret",
+                                             &sOpenSkySecret,
                                              // clear text or password mode?
-                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
+                                             (bOpenSkySecretClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
                     ImGui::TableNextCell();
                 }
                 
@@ -323,11 +324,14 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) {
                     ImGui::TableNextCell();
                     if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
-                        dataRefs.SetOpenSkyUser(sOpenSkyUser);
-                        dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
-                        if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
+                        dataRefs.SetOpenSkyClient(sOpenSkyClientId);
+                        dataRefs.SetOpenSkySecret(sOpenSkySecret);
+                        if (pOpenSkyCh) {
+                            pOpenSkyCh->ResetStatus();              // try getting a (new) access token
+                            pOpenSkyCh->SetValid(true,false);
+                        }
                         dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
-                        bOpenSkyPwdClearText = false;           // and hide the pwd now
+                        bOpenSkySecretClearText = false;           // and hide the pwd now
                     }
                     ImGui::TableNextCell();
                 }

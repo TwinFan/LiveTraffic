@@ -753,8 +753,8 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
-    std::string sOpenSkyUser;           ///< OpenSky Network user
-    std::string sOpenSkyPwd;            ///< OpenSky Network password
+    std::string sOpenSkyClient;         ///< OpenSky Network Client ID
+    std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
     std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
@@ -1009,10 +1009,10 @@ public:
     inline bool IsChannelEnabled (dataRefsLT ch) const { return bChannel[ch - DR_CHANNEL_FIRST]; }
     int CntChannelEnabled () const;
     
-    void GetOpenSkyCredentials (std::string& user, std::string& pwd)
-    { user = sOpenSkyUser; pwd = sOpenSkyPwd; }
-    void SetOpenSkyUser (const std::string& user) { sOpenSkyUser = user; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
-    void SetOpenSkyPwd (const std::string& pwd)   { sOpenSkyPwd = pwd;   OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
+    void GetOpenSkyCredentials (std::string& clientId, std::string& clientSecret)
+    { clientId = sOpenSkyClient; clientSecret = sOpenSkySecret; }
+    void SetOpenSkyClient (const std::string& clientId)     { sOpenSkyClient = clientId;     OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
+    void SetOpenSkySecret (const std::string& clientSecret) { sOpenSkySecret = clientSecret; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
 
     const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }

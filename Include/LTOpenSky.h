@@ -29,16 +29,23 @@
 
 //MARK: OpenSky Constants
 #define OPSKY_CHECK_NAME        "OpenSky Explorer"
-#define OPSKY_CHECK_URL         "https://opensky-network.org/network/explorer"
+#define OPSKY_CHECK_URL         "https://map.opensky-network.org/?lat=%.3f&lon=%.3f"
 #define OPSKY_CHECK_POPUP       "Check OpenSky's coverage"
+
+#define OPSKY_URL_GETTOKEN      "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
+#define OPSKY_BODY_GETTOKEN     "grant_type=client_credentials&client_id=%s&client_secret=%s"
+#define OPSKY_ACCESS_TOKEN      "access_token"
+#define OPSKY_AUTH_BEARER       "Authorization: Bearer "
+#define OPSKY_AUTH_EXPIRES      "expires_in"
+constexpr long OPSKY_AUTH_EXP_DEFAULT = 1800;       ///< default expiration in case we don't find expiration field
 
 #define OPSKY_NAME              "OpenSky Network"
 #define OPSKY_URL_ALL           "https://opensky-network.org/api/states/all?lamin=%.3f&lomin=%.3f&lamax=%.3f&lomax=%.3f"
-#define OPSKY_SLUG_FMT          "https://opensky-network.org/network/explorer?icao24=%06lx"
+#define OPSKY_SLUG_FMT          "https://map.opensky-network.org/?icao=%06lx"
 #define OPSKY_TIME              "time"
 #define OPSKY_AIRCRAFT_ARR      "states"
-#define OPSKY_RREMAIN           "X-Rate-Limit-Remaining:"
-#define OPSKY_RETRY             "X-Rate-Limit-Retry-After-Seconds:"
+#define OPSKY_RREMAIN           "x-rate-limit-remaining:"
+#define OPSKY_RETRY             "x-rate-limit-retry-after-seconds:"
 constexpr int OPSKY_TRANSP_ICAO   = 0;               // icao24
 constexpr int OPSKY_CALL          = 1;               // callsign
 constexpr int OPSKY_COUNTRY       = 2;               // origin_county
@@ -60,9 +67,20 @@ constexpr double OPSKY_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 //
 class OpenSkyConnection : public LTFlightDataChannel
 {
+protected:
+    enum State {
+        OPSKY_STATE_NONE = 0,                   ///< no/initial/unknown status
+        OPSKY_STATE_GETTING_TOKEN,              ///< have credentials, but no access token yet
+        OPSKY_STATE_GET_PLANES,                 ///< normal operations: fetch planes
+    } eState = OPSKY_STATE_NONE;
+    struct curl_slist* pHdrForm = nullptr;      ///< HTTP Header (needed during fetching a token)
+    struct curl_slist* pHdrToken = nullptr;     ///< HTTP Header containing the bearer token
+    float tTokenExpiration = NAN;               ///< when will the token expire?
 public:
     OpenSkyConnection ();
+    void ResetStatus ();                        ///< used to force fetching a new token, e.g. after change of credentials
     std::string GetURL (const positionTy& pos) override;
+    void ComputeBody (const positionTy& pos) override;      ///< only needed for token request, will then form token request body
     bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
 //    // shall data of this channel be subject to LTFlightData::DataSmoothing?

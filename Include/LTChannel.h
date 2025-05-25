@@ -365,6 +365,13 @@ LTChannel* LTFlightDataGetCh (dataRefsLT ch);
 void LTFlightDataAcMaintenance();
 
 //
+// MARK: Network helper functions
+//
+
+// cleanup the slist, returns if something was actually deleted
+bool CurlCleanupSlist (curl_slist* &pList);
+
+//
 //MARK: Parson Helper Functions
 //
 

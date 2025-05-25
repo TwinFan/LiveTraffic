@@ -151,6 +151,19 @@ JSON_Value* jag_FindFirstNonNull(const JSON_Array* pArr, std::initializer_list<s
 }
 
 //
+// MARK: Network helper functions
+//
+
+// cleanup the slist, returns if something was actually deleted
+bool CurlCleanupSlist (curl_slist* &pList)
+{
+    if (!pList) return false;               // early exist if there's no list
+    curl_slist_free_all(pList);             // actually remove the CURL slist
+    pList = nullptr;
+    return true;
+}
+
+//
 //MARK: LTChannel
 //
 
