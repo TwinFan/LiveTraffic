@@ -1112,7 +1112,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
             HANDLE h = FindFirstFileA((fileDir + OPSKY_MDF_FILE_BEGIN + '*').c_str(), &data);
             if (h != INVALID_HANDLE_VALUE) {
                 do {
-                    if (!striequal(data.cFileName, fileName))           // Skip the actual file that we just processed
+                    if (!striequal(data.cFileName, sAcDbfileName))  // Skip the actual file that we just processed
                         vToBeDeleted.emplace_back(data.cFileName);
                 } while (FindNextFileA(h, &data));
                 FindClose(h);
