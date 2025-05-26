@@ -1,7 +1,8 @@
 /// @file       LTVersion.cpp
 /// @brief      Returns current version, checks online for updates
 /// @details    Return current version as text\n
-///             Query latest version from X-Plane forum's download page to check for updates\n
+///             Queries latest version from Github repository.\n
+/// @see        https://github.com/TwinFan/LiveTraffic/releases/latest
 /// @author     Birger Hoppe
 /// @copyright  (c) 2018-2020 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -138,76 +139,51 @@ int GetLTVerDate(void*)
 // MARK: Fetch X-Plane.org's version
 //
 
-// Using CURL, we simply download from LT_DOWNLOAD_URL
-// Unfortunately, X-Plane.org no longer offers to maintain a version number
-// during upload, so "softwareVersion" isn't properly filled.
-// Instead, we built upon me always entering the version number as "reason for modification",
-// which in plain HTML looks like this:
-/*
-                            <li class="ipsDataItem">
-                                 <span class="ipsDataItem_generic ipsDataItem_size3"><strong>Reason for Modification </strong></span>
-                                 <div class="ipsDataItem_generic ipsType_break cFileInfoData">
-                                     v4.1.0
-                                 </div>
-                             </li>
- */
-// The tricky part is that the chunks returned by CURL may break delivery
-// of that text inbetween, that's why we need to buffer a bit
-size_t FetchVersionCB(char *ptr, size_t, size_t nmemb, void* userdata)
+#define LT_GITHUB_VER           "https://github.com/TwinFan/LiveTraffic/releases/latest"
+#define HDR_LOCATION            "location:"
+
+/// @brief Process headers returned from getting `LT_GITHUB_VER`
+/// @details HTTP GET returns a redirect, and the `location` header
+///          reveals the version number:
+///          `location: https://github.com/TwinFan/LiveTraffic/releases/tag/v4.2.0`
+size_t FetchLatestLTVersionHeaders(char *buffer, size_t size, size_t nitems, void *)
 {
-    constexpr size_t bufSizeToKeep = 1000;
+    const size_t len = nitems * size;
+
+    // create a copy of the header as we aren't allowed to change the buffer contents
+    std::string sHdr(buffer, len);
     
-    // Have we seen the version number already? Then just return
-    if (verXPlaneOrg > 0)
-        return nmemb;
-    
-    // copy buffer to our std::string
-    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
-    readBuf.append(ptr, nmemb);
-    
-    // quick search first
-    const std::size_t pos = readBuf.find("Reason for Modification");
-    if (pos != std::string::npos) {
-        // Restrict the buffer to some 200 characters after this initial first finding
-        const std::string searchArea = readBuf.substr(pos, 200);
-        
-        // now the more expensive regex search
-        // for the version number in the buffer: Essentially we are looking for the version
-        // in format "v##.##.##", surrounded only by whitespace, encapsulated in <div...> </div>:
-        std::regex re_ver(">\\W*v(\\d+)\\.(\\d+)\\.(\\d+)\\W*</div>");
+    // Location?
+    if (stribeginwith(sHdr, HDR_LOCATION))
+    {
+        // fetch the actual version number from the URL by regex
+        std::regex re_ver("v(\\d+)\\.(\\d+)\\.(\\d+)");
         std::smatch m;
-        std::regex_search(searchArea, m, re_ver);
+        std::regex_search(sHdr, m, re_ver);
         
         // 3 matches expected
         if (m.size() == 4) {
             int major = std::stoi(m[1]), minor = std::stoi(m[2]), patch = std::stoi(m[3]);
             verXPlaneOrg = unsigned(10000*major + 100*minor + patch);
         }
+        else {
+            LOG_MSG(logWARN, "Couldn't find version number in '%s'",
+                    sHdr.c_str());
+        }
     }
-    
-    // We don't need to keep all the buffer,
-    // reduce it to some reasonable size
-    if (readBuf.size() > bufSizeToKeep)
-        readBuf.erase(0, readBuf.size() - bufSizeToKeep);
-    
-    // all consumed
-    return nmemb;
+
+    // always say we processed everything, otherwise HTTP processing would stop!
+    return len;
 }
 
-// check on X-Plane.org what version's available there
-// This function would block. Idea is to call it in a thread like with std::async
-bool FetchXPlaneOrgVersion ()
+/// @details Get headers from `LT_GITHUB_VER`
+bool FetchLatestLTVersion ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_Version", LC_ALL_MASK);
 
     verXPlaneOrg = 0;
 
-/*  Unfortunately, the x-plane.org site switched to a version heavily relying on JavaScript.
-    Just fetching from LT_DOWNLOAD_URL only returns a useless "Just a moment..."
-    page. The real content would load through JavaScript code.
-    So our attempt of just reading the download page no longer works :-(
- 
     char curl_errtxt[CURL_ERROR_SIZE];
     std::string readBuf;
     
@@ -223,10 +199,10 @@ bool FetchXPlaneOrgVersion ()
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
     curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, FetchVersionCB);
-    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+    curl_easy_setopt(pCurl, CURLOPT_NOBODY, 1);     // do HEADER only, don't need a body, is a redirect anyway
+    curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, FetchLatestLTVersionHeaders);
     curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    curl_easy_setopt(pCurl, CURLOPT_URL, LT_DOWNLOAD_URL);
+    curl_easy_setopt(pCurl, CURLOPT_URL, LT_GITHUB_VER);
 
     // perform the HTTP get request
     CURLcode cc = CURLE_OK;
@@ -236,7 +212,7 @@ bool FetchXPlaneOrgVersion ()
         if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, "FetchVersion");
             // and just give it another try
             cc = curl_easy_perform(pCurl);
         }
@@ -252,8 +228,8 @@ bool FetchXPlaneOrgVersion ()
         long httpResponse = 0;
         curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
         
-        // not HTTP_OK?
-        if (httpResponse != HTTP_OK)
+        // not HTTP_MOVED?
+        if (httpResponse != HTTP_MOVED)
             LOG_MSG(logERR, ERR_CURL_NOVERCHECK, (int)httpResponse, ERR_HTTP_NOT_OK)
         else if (!verXPlaneOrg)
             // all OK but still no version number?
@@ -262,7 +238,6 @@ bool FetchXPlaneOrgVersion ()
     
     // cleanup CURL handle
     curl_easy_cleanup(pCurl);
-*/
     
     // return if we found something
     return verXPlaneOrg > 0;

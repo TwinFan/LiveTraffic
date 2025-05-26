@@ -145,7 +145,7 @@ extern time_t LT_BETA_VER_LIMIT;        // BETA versions are limited
 extern char LT_BETA_VER_LIMIT_TXT[];
 #define BETA_LIMITED_VERSION    "BETA limited to %s"
 #define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN! Get an up-to-date version from X-Plane.org."
-constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
+constexpr int LT_NEW_VER_CHECK_TIME = 24;   ///< [h] between two checks for a new LT version
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
@@ -155,7 +155,6 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define LT_DOWNLOAD_URL         "https://forums.x-plane.org/files/file/49749-livetraffic/"
-#define LT_DOWNLOAD_CH          "X-Plane.org"
 #define OPSKY_EDIT_AC           "https://opensky-network.org/data/aircraft?icao24="
 // Disabled until OpenSky offers the service again to maintain routes - #define OPSKY_EDIT_ROUTE        "https://opensky-network.org/add-route?callsign="
 #define MSG_DISABLED            "Disabled"
@@ -305,6 +304,7 @@ constexpr const char* PATH_DELIMS = "/\\";      ///< potential path delimiters i
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
+constexpr long HTTP_MOVED =         302;        ///< redirect
 constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_PAYMENT_REQU =  402;

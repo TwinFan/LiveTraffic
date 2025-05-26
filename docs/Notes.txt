@@ -1,15 +1,15 @@
 TODO
 ===
 
-0:44:33.688 LiveTraffic ERROR LTVersion.cpp:251/FetchXPlaneOrgVersion: Could not browse X-Plane.org for version info: 403 - HTTP response was not HTTP_OK
-Fetch from github instead:
-    https://github.com/TwinFan/LiveTraffic/releases/latest
-Gets a 302 response, headers have
-    location: https://github.com/TwinFan/LiveTraffic/releases/tag/v4.2.0
-
+File Dialog for OpenSky credentials
+https://github.com/samhocevar/portable-file-dialogs/blob/main/portable-file-dialogs.h
 
 Download History
 ==========
+Download counter when providing v4.2.0: 225.175
+Download counter when providing v4.1.1: 220.682
+Download counter when providing v4.1.0: 219,567
+Download counter when providing v4.0.0: 215,964
 Download counter when providing v3.3.2: 184.182
 Download counter when providing v3.3.1: 182.945
 Download counter when providing v3.3.0: 179.678

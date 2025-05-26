@@ -167,21 +167,15 @@ size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems
     const size_t len = nitems * size;
     static size_t lenRRemain = strlen(OPSKY_RREMAIN);
     static size_t lenRetry = strlen(OPSKY_RETRY);
-    char num[50];
-    
-    // turn relevant chars lowercase
-    for (size_t i = 0; i < std::min({len, lenRRemain, lenRetry}); ++i)
-        buffer[i] = char(tolower(buffer[i]));
+
+    // create a copy of the header as we aren't allowed to change the buffer contents
+    std::string sHdr(buffer, len);
     
     // Remaining?
-    if (len > lenRRemain &&
-        memcmp(buffer, OPSKY_RREMAIN, lenRRemain) == 0)
+    if (sHdr.length() > lenRRemain &&
+        stribeginwith(sHdr, OPSKY_RREMAIN))
     {
-        const size_t copyCnt = std::min(len-lenRRemain,sizeof(num)-1);
-        memcpy(num, buffer+lenRRemain, copyCnt);
-        num[copyCnt]=0;                 // zero termination
-        
-        long rRemain = std::atol(num);
+        const long rRemain = std::atol(sHdr.c_str() + lenRRemain);
         // Issue a warning when coming close to the end
         if (rRemain != dataRefs.OpenSkyRRemain) {
             if (rRemain == 50 || rRemain == 10) {
@@ -195,17 +189,15 @@ size_t OpenSkyConnection::ReceiveHeader(char *buffer, size_t size, size_t nitems
         }
     }
     // Retry-after-seconds?
-    else if (len > lenRetry &&
-             memcmp(buffer, OPSKY_RETRY, lenRetry) == 0)
+    else if (sHdr.length() > lenRetry &&
+             stribeginwith(sHdr, OPSKY_RETRY))
     {
-        const size_t copyCnt = std::min(len-lenRetry,sizeof(num)-1);
-        memcpy(num, buffer+lenRetry, copyCnt);
-        num[copyCnt]=0;                 // zero termination
-        long secRetry = std::atol(num); // seconds till retry
+        char sTime[25];
+        const long secRetry = std::atol(sHdr.c_str() + lenRetry);
         // convert that to a local timestamp for the user to use
         const std::time_t tRetry = std::time(nullptr) + secRetry;
-        std::strftime(num, sizeof(num), "%d-%b %H:%M", std::localtime(&tRetry));
-        dataRefs.OpenSkyRetryAt = num;
+        std::strftime(sTime, sizeof(sTime), "%d-%b %H:%M", std::localtime(&tRetry));
+        dataRefs.OpenSkyRetryAt = sTime;
         dataRefs.OpenSkyRRemain = 0;
     }
 
