@@ -201,6 +201,13 @@ bool FetchXPlaneOrgVersion ()
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_Version", LC_ALL_MASK);
 
+    verXPlaneOrg = 0;
+
+/*  Unfortunately, the x-plane.org site switched to a version heavily relying on JavaScript.
+    Just fetching from LT_DOWNLOAD_URL only returns a useless "Just a moment..."
+    page. The real content would load through JavaScript code.
+    So our attempt of just reading the download page no longer works :-(
+ 
     char curl_errtxt[CURL_ERROR_SIZE];
     std::string readBuf;
     
@@ -212,7 +219,6 @@ bool FetchXPlaneOrgVersion ()
     }
     
     // prepare the handle with the right options
-    verXPlaneOrg = 0;
     readBuf.reserve(CURL_MAX_WRITE_SIZE);
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
@@ -256,6 +262,7 @@ bool FetchXPlaneOrgVersion ()
     
     // cleanup CURL handle
     curl_easy_cleanup(pCurl);
+*/
     
     // return if we found something
     return verXPlaneOrg > 0;

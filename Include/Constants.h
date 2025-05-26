@@ -154,7 +154,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
-#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
+#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/files/file/49749-livetraffic/"
 #define LT_DOWNLOAD_CH          "X-Plane.org"
 #define OPSKY_EDIT_AC           "https://opensky-network.org/data/aircraft?icao24="
 // Disabled until OpenSky offers the service again to maintain routes - #define OPSKY_EDIT_ROUTE        "https://opensky-network.org/add-route?callsign="
@@ -242,6 +242,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
 #define MENU_HELP_SUPPORT_FORUM "Support Forum"
 #define MENU_HELP_SUPPORT_HOWTO "Support HowTo"
+#define MENU_HELP_DOWNLOAD      "Download LiveTraffic"
 #define MENU_NEWVER             "New Version %s available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
@@ -278,8 +279,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
 
-#define URL_SUPPORT_FORUM       "https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/"
-#define URL_SUPPORT_HOWTO       "https://forums.x-plane.org/index.php?/forums/topic/174691-support"
+#define URL_SUPPORT_FORUM       "https://forums.x-plane.org/forums/forum/457-livetraffic-support/"
+#define URL_SUPPORT_HOWTO       "https://forums.x-plane.org/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/"
 
 //MARK: File Paths
 // these are under the plugins directory

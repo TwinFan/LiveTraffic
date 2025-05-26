@@ -118,7 +118,7 @@ public:
 /// non-standardized human-readable `model` entries in
 /// tracking data (especially in OpenSky's data) to an ICAO a/c type code.
 /// The file has been created by forum user crbascott.
-/// @see https://forums.x-plane.org/index.php?/forums/topic/188206-matching-lacks-icao-ac-type-code/
+/// @see https://forums.x-plane.org/forums/topic/188206-matching-lacks-icao-ac-type-code/
 namespace ModelIcaoType
 {
     /// Read the `model_typecode.txt` file

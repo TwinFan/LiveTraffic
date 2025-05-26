@@ -58,6 +58,7 @@ enum menuItems {
     MENU_ID_HELP_INSTALL_CSL,
     MENU_ID_HELP_SUPPORT_FORUM,
     MENU_ID_HELP_SUPPORT_HOWTO,
+    MENU_ID_HELP_SUPPORT_DOWNLOAD,
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -364,6 +365,7 @@ bool RegisterMenuItem ()
     XPLMAppendMenuSeparator(menuHelpID);
     aMenuItems[MENU_ID_HELP_SUPPORT_FORUM]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_FORUM, (void*)URL_SUPPORT_FORUM,1);
     aMenuItems[MENU_ID_HELP_SUPPORT_HOWTO]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_HOWTO, (void*)URL_SUPPORT_HOWTO,1);
+    aMenuItems[MENU_ID_HELP_SUPPORT_DOWNLOAD]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_DOWNLOAD,   (void*)LT_DOWNLOAD_URL,1);
 
 #ifdef DEBUG
     // Separator

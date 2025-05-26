@@ -1282,7 +1282,7 @@ size_t WeatherFetchCB(char *ptr, size_t, size_t nmemb, void* userdata)
     return nmemb;
 }
 
-// check on X-Plane.org what version's available there
+// Load weather from aviationweather.gov
 // This function would block. Idea is to call it in a thread like with std::async
 bool WeatherFetch (float _lat, float _lon, float _radius_nm)
 {

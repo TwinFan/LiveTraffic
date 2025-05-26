@@ -562,7 +562,7 @@ ImgWindow::HandleKeyFuncCB(
             // Apparently, the virtual VR keyboard sends both the Up and the Down
             // event within the same drawing cycle, which would overwrite
             // io.KeyDown[XPLM_VK_BACK] with false again before we could pass on true.
-            // Also see https://forums.x-plane.org/index.php?/forums/topic/147139-dear-imgui-x-plane/&do=findComment&comment=2032062
+            // Also see https://forums.x-plane.org/forums/topic/147139-dear-imgui-x-plane/&do=findComment&comment=2032062
             // though I am following a different solution:
             // So we ignore the "up" event (release key) here, and do the actual
             // release only after the next drawing cycle (flag bResetBackspace).
