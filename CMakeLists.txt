@@ -148,6 +148,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/portable-file-dialogs")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/metaf/include")
 

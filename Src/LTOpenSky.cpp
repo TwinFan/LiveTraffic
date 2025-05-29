@@ -493,6 +493,50 @@ std::string OpenSkyConnection::GetStatusText () const
 }
 
 
+// Process OpenSKy's 'crendetials.json' file to fetch User ID/Secret from it
+/// @details The file is expected to contain just one single line of JSON,
+///          but just to be sure we read everything in, then process.
+///          Expected content is something like:
+///          `{"clientId":"xyz-api-client","clientSecret":"abc...xyz"}`
+bool OpenSkyConnection::ProcessCredentialsJson (const std::string& sFileName,
+                                                std::string& sClientId,
+                                                std::string& sSecret)
+{
+    std::string json;
+    
+    // read the actual file
+    std::ifstream fCred(sFileName);
+    for (int i = 0;
+         fCred.good() && !fCred.eof() && i < 10;    // max ten lines...don't want to end up crashing with memory exhaustion
+         ++i)
+    {
+        std::string ln;
+        safeGetline(fCred, ln);
+        json += ln;
+    }
+    fCred.close();
+    
+    // Process the actual JSON
+    JSONRootPtr pRoot (json.c_str());
+    if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return false; }
+    
+    // first get the structre's main object
+    const JSON_Object* pObj = json_object(pRoot.get());
+    if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return false; }
+    
+    // We expect two keys
+    std::string clientId = jog_s(pObj, "clientId");
+    std::string secret   = jog_s(pObj, "clientSecret");
+
+    // We are good if both is filled
+    if (!clientId.empty() && !secret.empty()) {
+        sClientId = clientId;
+        sSecret = secret;
+        return true;
+    }
+    
+    return false;
+}
 
 //
 //MARK: OpenSkyAcMasterdata

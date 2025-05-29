@@ -191,6 +191,9 @@ bool IsDir (const std::string& path);
 /// List of files in a directory (wrapper around XPLMGetDirectoryContents)
 std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly = false);
 
+/// Return a (platform-specific) path to the user's Download folder
+std::string GetDefaultDownloadDir();
+
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);
 
