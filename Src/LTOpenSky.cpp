@@ -265,19 +265,22 @@ bool OpenSkyConnection::ProcessFetchedData ()
             break;
 
         // Unauthorized? Also wrong token, or wrong credentials when trying to get the token
-        case HTTP_BAD_REQUEST:      // OpenSky returns 400 in case of bad credentials when asking for the token...a bit weird, but so it is
-            SHOW_MSG(logERR, "%s: Authorization failed! Verify Client Id/Secret in settings.",
-                     pszChName);
-            SetValid(false,false);
-            SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
-            return false;
-
+        case HTTP_BAD_REQUEST:      // OpenSky had returned 400 in case of bad credentials when asking for the token...seems it does no longer, but we handled it still
         case HTTP_UNAUTHORIZED:     // OpenSky returns 401 in case of a bad or timed-out token
-            LOG_MSG(logERR, "%s: Bad or timed-out access token",
-                    pszChName);
-            ResetStatus();          // let's try with a new one
-            IncErrCnt();
-            return false;
+            if (eState == OPSKY_STATE_GETTING_TOKEN) {
+                SHOW_MSG(logERR, "%s: Authorization failed! Verify Client Id/Secret in settings.",
+                         pszChName);
+                SetValid(false,false);
+                SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
+                return false;
+            }
+            else {
+                LOG_MSG(logERR, "%s: Bad or timed-out access token",
+                        pszChName);
+                ResetStatus();          // let's try with a new one
+                IncErrCnt();
+                return false;
+            }
 
         // Ran out of requests?
         case HTTP_TOO_MANY_REQU:
