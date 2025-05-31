@@ -876,6 +876,9 @@ bool DataRefs::Init ()
     
     // Using a modern graphics driver? (Metal, Vulkan)
     bUsingModernDriver = adrXP[DR_MODERN_DRIVER] ? XPLMGetDatai(adrXP[DR_MODERN_DRIVER]) != 0 : false;
+    
+    // Start looking up time from TimeIo, will actually start an async process
+    GetNetwTsOffset();
 
     // read Doc8643 file (which we could live without)
     Doc8643::ReadDoc8643File();
@@ -2496,28 +2499,174 @@ int DataRefs::CntChannelEnabled () const
                            1);
 }
 
-// add another offset to the offset calculation (network time vs. system clock)
-// This is just a simple average calculation, not caring too much about rounding issues
-void DataRefs::ChTsOffsetAdd (double aNetTS)
+//
+// MARK: Time.io Network Time
+//
+
+/// CURL WriteData callback function, just stores all what comes in
+size_t TimeIoWriteData (char *ptr, size_t, size_t nmemb, void* userdata)
 {
-    // after some calls we keep our offset stable (each chn has the chance twice)
-    if (!ChTsAcceptMore())
+    // add buffer to our std::string
+    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
+    readBuf.append(ptr, nmemb);
+    
+    // all consumed
+    return nmemb;
+}
+
+/// @brief Performs a GET HTTP on TimeIO API to get current UTC time and compares to local time
+/// @note Assumes to be called via std::async or the like as it blocks during HTTP retrieval
+/// @see https://timeapi.io/swagger/index.html
+/// @details The data returned by TimeIo looks something like
+///          @code
+///          {
+///            "year": 2025,
+///            "month": 5,
+///            "day": 31,
+///            "hour": 20,
+///            "minute": 36,
+///            "seconds": 28,
+///            "milliSeconds": 219,
+///            "dateTime": "2025-05-31T20:36:28.2194241",
+///            "date": "05/31/2025",
+///            "time": "20:36",
+///            "timeZone": "UTC",
+///            "dayOfWeek": "Saturday",
+///            "dstActive": false
+///          }
+///          @endcode
+///          and is returned as a Unix timestamp uncluding millisends,
+///          in the example case `1748723788.219`.
+/// @returns time difference to local time
+double TimeIoGetUTCTimeDiff ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_TimeIo", LC_ALL_MASK);
+    double diffTime = NAN;
+
+    // --- Perform the GET ---
+    char curl_errtxt[CURL_ERROR_SIZE];
+    std::string readBuf;
+    readBuf.reserve(500);       // typical response is about 230 chars
+
+    // initialize the CURL handle
+    CURL *pCurl = curl_easy_init();
+    if (!pCurl) {
+        LOG_MSG(logERR,ERR_CURL_EASY_INIT);
+        return NAN;
+    }
+    
+    // prepare the handle with the right options
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
+    curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, TimeIoWriteData);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+    curl_easy_setopt(pCurl, CURLOPT_URL, "https://timeapi.io/api/time/current/zone?timeZone=UTC");
+    
+    // perform the HTTP get request
+    using namespace std::chrono;
+    const long startMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    CURLcode cc = CURLE_OK;
+    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
+    {
+        // problem with querying revocation list?
+        if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+            // try not to query revoke list
+            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, "TimeIoGetUTCTime");
+            // and just give it another try
+            cc = curl_easy_perform(pCurl);
+        }
+        
+        // if (still) error, then log error
+        if (cc != CURLE_OK) {
+            LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s", cc, curl_errtxt);
+        }
+    }
+    const long endMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+
+    if (cc == CURLE_OK)
+    {
+        // CURL was OK, now check HTTP response code
+        long httpResponse = 0;
+        curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+        
+        // not HTTP_OK?
+        if (httpResponse != HTTP_OK) {
+            LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s", (int)httpResponse, ERR_HTTP_NOT_OK)
+        }
+    }
+    
+    // cleanup CURL handle
+    curl_easy_cleanup(pCurl);
+    
+    // --- Process the data returned ---
+    if (!readBuf.empty()) {
+        // Pass the data through the JSON parser
+        JSONRootPtr pRoot (readBuf.c_str());
+        if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return NAN; }
+        
+        // first get the structure's main object
+        JSON_Object* pObj = json_object(pRoot.get());
+        if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return NAN; }
+        
+        const long year         = jog_l(pObj, "year");
+        // year _cannot_ be 0, hence use a last sanity check
+        if (year > 0) {
+            const time_t utcTime_t = mktime_utc(int(year),
+                                                int(jog_l(pObj, "month")),
+                                                int(jog_l(pObj, "day")),
+                                                int(jog_l(pObj, "hour")),
+                                                int(jog_l(pObj, "minute")),
+                                                int(jog_l(pObj, "seconds")));
+
+            // add milliseconds
+            const long milli    = jog_l(pObj, "milliSeconds");
+            const double utcTime_d = double(utcTime_t) + double(milli) / 1000.0;
+            
+            // local time is the mid-point between startMs and endMs
+            const double localTime_d = (double(startMs) + double(endMs)) / 2000.0;
+            
+            // the difference is:
+            diffTime = utcTime_d - localTime_d;
+        }
+        else {
+            LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s",
+                    int(HTTP_OK), "No or zero 'year' value, possibly invalid response");
+        }
+    }
+
+    // return if we found something
+    return diffTime;
+}
+
+// Get current time from a network resource to determine the offset of this computer to real time
+void DataRefs::GetNetwTsOffset ()
+{
+    // return immediately if we already have the timestamp
+    if (!std::isnan(chTsOffset))
         return;
     
-    // for TS to become an offset we need to remove current system time;
-    // yes...since we received that timestamp time has passed...but this is all
-    // not about milliseconds...if it is plus/minus 5s we are good enough!
-    using namespace std::chrono;
-    aNetTS -=
-        // system time in microseconds
-        double(duration_cast<microseconds>(system_clock::now().time_since_epoch()).count())
-        // divided by 1000000 to create seconds with fractionals
-        / 1000000.0;
-    
-    // now for the average
-    chTsOffset *= chTsOffsetCnt;
-    chTsOffset += aNetTS;
-    chTsOffset /= ++chTsOffsetCnt;
+    // the future by which we get data from TimeIo
+    static std::future<double> futTimeIo;
+    static bool bInProgress = false;
+    if (!bInProgress) {
+        // Perform the HTTP request asynchronously, we will be called again to check on the result
+        bInProgress = true;
+        futTimeIo = std::async(std::launch::async, TimeIoGetUTCTimeDiff);
+    }
+    if (futTimeIo.valid()) {
+        chTsOffset = futTimeIo.get();
+        if (std::isnan(chTsOffset))         // error? We won't try again but just use zero
+            chTsOffset = 0.0;
+        else {
+            LOG_MSG(logINFO, "Local computer's time difference is %.3fs",
+                    chTsOffset);
+        }
+        bInProgress = false;
+    }
 }
 
 //

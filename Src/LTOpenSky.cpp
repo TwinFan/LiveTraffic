@@ -344,12 +344,6 @@ bool OpenSkyConnection::ProcessFetchedData ()
     }
     
     // --- Planes ---
-    // for determining an offset as compared to network time we need to know network time
-    double opSkyTime = jog_n(pObj, OPSKY_TIME);
-    if (opSkyTime > JAN_FIRST_2019)
-        // if reasonable add this to our time offset calculation
-        dataRefs.ChTsOffsetAdd(opSkyTime);
-    
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
 

@@ -337,6 +337,9 @@ inline time_t mktime_utc (std::tm& tm)
 /// Converts a UTC time to epoch value, assuming today's date
 time_t mktime_utc (int h, int min, int s);
 
+/// Converts a UTC date/time to epoch value
+time_t mktime_utc (int y, int m, int d, int h, int min, int s);
+
 /// Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
 time_t mktime_string (const std::string& s);
 

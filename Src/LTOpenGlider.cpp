@@ -585,19 +585,6 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         if (ln.find(OGN_APRS_LOGIN_GOOD) != std::string::npos)
             LOG_MSG(logINFO, ERR_OGN_APRS_CONNECTED, str_last_word(ln).c_str());
         
-        // Test for server time to feed into our system clock deviation calculation
-        if (dataRefs.ChTsAcceptMore()) {
-            static std::regex reTm ("\\d+ \\w{3} \\d{4} (\\d{1,2}):(\\d{2}):(\\d{2}) GMT");
-            std::smatch mTm;
-            std::regex_search(ln, mTm, reTm);
-            if (!mTm.empty()) {
-                const time_t serverT = mktime_utc(std::stoi(mTm.str(1)),
-                                                  std::stoi(mTm.str(2)),
-                                                  std::stoi(mTm.str(3)));
-                dataRefs.ChTsOffsetAdd(double(serverT));
-            }
-        }
-        
         // Otherwise ignore all lines starting with '#' as comments
         return true;
     }

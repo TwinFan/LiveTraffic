@@ -90,10 +90,6 @@ bool ADSBBase::ProcessFetchedData ()
     if (adsbxTime > 70000000000.0)
         adsbxTime /= 1000.0;
     
-    // if reasonable add this to our time offset calculation
-    if (adsbxTime > JAN_FIRST_2019)
-        dataRefs.ChTsOffsetAdd(adsbxTime);
-    
     // Cut-off time: We ignore tracking data, which is older than our buffering time
     const double tBufPeriod = (double) dataRefs.GetFdBufPeriod();
     

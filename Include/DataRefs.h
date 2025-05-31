@@ -682,8 +682,7 @@ protected:
     std::string LTPluginPath;           // path to plugin directory
     std::string DirSeparator;
     int bChannel[CNT_DR_CHANNELS];      // is channel enabled?
-    double chTsOffset           = 0.0f; // offset of network time compared to system clock
-    int chTsOffsetCnt           = 0;    // how many offset reports contributed to the calculated average offset?
+    double chTsOffset           = NAN;  ///< offset of network time compared to system clock
     int iTodaysDayOfYear        = 0;
     time_t tStartThisYear = 0, tStartPrevYear = 0;
     int lastCheckNewVer         = 0;    // when did we last check for updates? (hours since the epoch)
@@ -1033,11 +1032,9 @@ public:
     const std::string& GetSIDisplayName () const    { return sSIDisplayName; }
     void SetSIDisplayName (const std::string& dn)   { sSIDisplayName = dn; }
     
-    // timestamp offset network vs. system clock
-    inline void ChTsOffsetReset() { chTsOffset = 0.0f; chTsOffsetCnt = 0; }
-    inline double GetChTsOffset () const { return chTsOffset; }
-    bool ChTsAcceptMore () const { return cntAc == 0 && chTsOffsetCnt < CntChannelEnabled() * 2; }
-    void ChTsOffsetAdd (double aNetTS);
+    /// Get current time from a network resource to determine the offset of this computer to real time
+    void GetNetwTsOffset ();
+    inline double GetChTsOffset () const { return std::isnan(chTsOffset) ? 0.0 : chTsOffset; }
 
     // livetraffic/dbg/ac_filter: Debug a/c filter (the integer is converted to hex as an transpIcao key)
     std::string GetDebugAcFilter() const;

@@ -490,6 +490,9 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             // Inform dataRef tools about our dataRefs
             dataRefs.InformDataRefEditors();
             
+            // Check if we've got a response from TimeIo
+            dataRefs.GetNetwTsOffset();
+            
             // If weather setting is yet undetermined make a choice
             // (This is one-time code introduced with weather functionality,
             //  should actually be in DataRefs::LoadConfig,
@@ -506,6 +509,9 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             return 2;
         }
         case ONCE_CB_AUTOSTART:
+            // Check last time if we've got a response from TimeIo
+            dataRefs.GetNetwTsOffset();
+            
             // Log a timestamp to synch timing for analysis purposes
             LogTimestamps ();
             
