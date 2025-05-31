@@ -1,9 +1,6 @@
 TODO
 ===
 
-File Dialog for OpenSky credentials
-https://github.com/samhocevar/portable-file-dialogs/blob/main/portable-file-dialogs.h
-
 Download History
 ==========
 Download counter when providing v4.2.0: 225.175

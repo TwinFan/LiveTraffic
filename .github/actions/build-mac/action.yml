@@ -22,17 +22,10 @@ outputs:
 runs:
   using: "composite"
   steps:
-  - name: Install required libs
-    shell: bash
-    run: |
-      brew install ninja
-  - name: Prepare
-    shell: bash
-    run: |
-      mkdir build-mac
   - name: CMake
     shell: bash
     run: |
+      mkdir build-mac
       cd build-mac
       pwd
       cmake -G Ninja ..
