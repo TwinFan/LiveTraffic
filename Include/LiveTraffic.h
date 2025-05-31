@@ -147,6 +147,7 @@ extern DataRefs dataRefs;
 #include "LTOpenGlider.h"
 #include "LTFSCharter.h"
 #include "LTSayIntentions.h"
+#include "LTAutoATC.h"
 #include "LTSynthetic.h"
 
 //MARK: Global Control functions

@@ -162,7 +162,7 @@ public:
     // KEY (protected, can be set only once, no mutex-control)
 public:
     // in ascending order of priority
-    enum FDKeyType { KEY_UNKNOWN=0, KEY_OGN, KEY_RT, KEY_FLARM, KEY_ICAO, KEY_FSC, KEY_ADSBEX, KEY_SAYINTENTIONS };
+    enum FDKeyType { KEY_UNKNOWN=0, KEY_OGN, KEY_RT, KEY_FLARM, KEY_ICAO, KEY_FSC, KEY_ADSBEX, KEY_SAYINTENTIONS, KEY_AUTOATC };
     struct FDKeyTy {
         FDKeyType               eKeyType = KEY_UNKNOWN;
         std::string             key;            // the primary key in use

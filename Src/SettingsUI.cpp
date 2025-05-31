@@ -875,6 +875,19 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // --- AutoATC ---
+            ImGui::Indent();
+            ImGui::FilteredCfgCheckbox("AutoATC", sFilter, DR_CHANNEL_AUTOATC,
+                                       "Connect to AutoATC for generated traffic",
+                                       false);      // don't move to next cell yet
+            if (ImGui::MatchesFilter("AutoATC", sFilter)) {
+                ImGui::SameLine();
+                ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AATC_CHECK_NAME, AATC_CHECK_URL, AATC_CHECK_POPUP);
+                ImGui::TableNextCell();
+            }
+            ImGui::Unindent();
+
+            
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Input Channels ---
         

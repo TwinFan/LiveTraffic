@@ -900,6 +900,7 @@ bool LTFlightDataEnable()
     listFDC.emplace_back(new OpenGliderConnection);
     listFDC.emplace_back(new FSCConnection);
     listFDC.emplace_back(new SayIntentionsConnection);
+    listFDC.emplace_back(new AutoATCConnection);
     listFDC.emplace_back(new SyntheticConnection);
     // load online master data connections
     listFDC.emplace_back(new OpenSkyAcMasterFile);
