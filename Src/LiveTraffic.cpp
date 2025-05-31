@@ -58,6 +58,7 @@ enum menuItems {
     MENU_ID_HELP_INSTALL_CSL,
     MENU_ID_HELP_SUPPORT_FORUM,
     MENU_ID_HELP_SUPPORT_HOWTO,
+    MENU_ID_HELP_SUPPORT_DOWNLOAD,
     MENU_ID_NEWVER,
 #ifdef DEBUG
     MENU_ID_RELOAD_PLUGINS,
@@ -233,6 +234,22 @@ std::string VerToStr (unsigned ver)
 }
 
 
+// Is there a new version of LiveTraffic available for download?
+bool IsNewVersionAvail ()
+{
+    return
+        verXPlaneOrg > 0 &&             // something available at all
+        verXPlaneOrg > LT_VER_NO;       // and that's newer than this
+}
+
+
+// Return the new version's number
+std::string GetNewVersionNr ()
+{
+    return VerToStr(verXPlaneOrg);
+}
+
+
 void HandleNewVersionAvail ()
 {
     // not reasonable for no new version or if already added
@@ -241,7 +258,7 @@ void HandleNewVersionAvail ()
     
 
     // if the X-Plane.org version is not newer don't worry either
-    if (verXPlaneOrg <= LT_VER_NO) {
+    if (!IsNewVersionAvail()) {
         // save the current timestamp so we don't check too often
         // (we specifically don't do this in case an update is found,
         //  this way we keep reminding the user once there really IS an update.)
@@ -252,12 +269,12 @@ void HandleNewVersionAvail ()
     // *** New version available! ***
     // add another menu item directing to the new version
     char buf[50];
-    snprintf(buf, sizeof(buf), MENU_NEWVER, VerToStr(verXPlaneOrg).c_str());
+    snprintf(buf, sizeof(buf), MENU_NEWVER, GetNewVersionNr().c_str());
     aMenuItems[MENU_ID_NEWVER] =
     XPLMAppendMenuItem(menuID, buf, (void *)MENU_ID_NEWVER,1);
 
     // make the user aware
-    SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,VerToStr(verXPlaneOrg).c_str());
+    SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,GetNewVersionNr().c_str());
 }
 
 /// append a menu item, if given with command
@@ -364,6 +381,7 @@ bool RegisterMenuItem ()
     XPLMAppendMenuSeparator(menuHelpID);
     aMenuItems[MENU_ID_HELP_SUPPORT_FORUM]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_FORUM, (void*)URL_SUPPORT_FORUM,1);
     aMenuItems[MENU_ID_HELP_SUPPORT_HOWTO]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_SUPPORT_HOWTO, (void*)URL_SUPPORT_HOWTO,1);
+    aMenuItems[MENU_ID_HELP_SUPPORT_DOWNLOAD]= XPLMAppendMenuItem(menuHelpID, MENU_HELP_DOWNLOAD,   (void*)LT_DOWNLOAD_URL,1);
 
 #ifdef DEBUG
     // Separator
@@ -497,7 +515,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             
             // check at X-Plane.org for version updates
             if (dataRefs.NeedNewVerCheck()) {
-                futVerCheck = std::async(std::launch::async, FetchXPlaneOrgVersion);
+                futVerCheck = std::async(std::launch::async, FetchLatestLTVersion);
                 eOneTimeState = ONCE_WAIT_FOR_VER;
                 return 2;
             }

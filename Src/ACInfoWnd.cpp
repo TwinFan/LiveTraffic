@@ -340,6 +340,7 @@ void ACIWnd::buildInterface()
             
             buildRowLabel("Flight: Route");
             if (pFD) {
+/* Disabled until OpenSky offers the service again to maintain routes
                 if (!stat.call.empty()) {
                     if (ImGui::SelectableTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT "##Route",
                                                  false,                         // selected?
@@ -350,6 +351,7 @@ void ACIWnd::buildInterface()
                         LTOpenURL(OPSKY_EDIT_ROUTE, stat.call);
                     ImGui::SameLine();
                 }
+*/
                 ImGui::TextUnformatted(stat.flightRoute().c_str());
             }
                         

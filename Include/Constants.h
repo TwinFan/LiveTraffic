@@ -145,7 +145,7 @@ extern time_t LT_BETA_VER_LIMIT;        // BETA versions are limited
 extern char LT_BETA_VER_LIMIT_TXT[];
 #define BETA_LIMITED_VERSION    "BETA limited to %s"
 #define BETA_LIMITED_EXPIRED    "BETA-Version limited to %s has EXPIRED -> SHUTTING DOWN! Get an up-to-date version from X-Plane.org."
-constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
+constexpr int LT_NEW_VER_CHECK_TIME = 24;   ///< [h] between two checks for a new LT version
 
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
@@ -154,10 +154,9 @@ constexpr int LT_NEW_VER_CHECK_TIME = 48;   // [h] between two checks of a new
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
-#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/index.php?/files/file/49749-livetraffic/"
-#define LT_DOWNLOAD_CH          "X-Plane.org"
-#define OPSKY_EDIT_AC           "https://opensky-network.org/aircraft-profile?icao24="
-#define OPSKY_EDIT_ROUTE        "https://opensky-network.org/add-route?callsign="
+#define LT_DOWNLOAD_URL         "https://forums.x-plane.org/files/file/49749-livetraffic/"
+#define OPSKY_EDIT_AC           "https://opensky-network.org/data/aircraft?icao24="
+// Disabled until OpenSky offers the service again to maintain routes - #define OPSKY_EDIT_ROUTE        "https://opensky-network.org/add-route?callsign="
 #define MSG_DISABLED            "Disabled"
 #define MSG_STARTUP             "LiveTraffic %s starting up..."
 #define MSG_WELCOME             "LiveTraffic %s successfully loaded!"
@@ -211,8 +210,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_DEFAULT_CAR_TYPE    "DEFAULT_CAR_TYPE"
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
-#define CFG_OPENSKY_USER        "OpenSky_User"
-#define CFG_OPENSKY_PWD         "OpenSky_Pwd"
+#define CFG_OPENSKY_CLIENT      "OpenSky_Client"
+#define CFG_OPENSKY_SECRET      "OpenSky_Secret"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
 #define CFG_RT_LICENSE          "RealTraffic_License"
 #define CFG_FSC_USER            "FSC_User"
@@ -242,6 +241,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define MENU_HELP_INSTALL_CSL   "Installaton of CSL Models"
 #define MENU_HELP_SUPPORT_FORUM "Support Forum"
 #define MENU_HELP_SUPPORT_HOWTO "Support HowTo"
+#define MENU_HELP_DOWNLOAD      "Download LiveTraffic"
 #define MENU_NEWVER             "New Version %s available!"
 #ifdef DEBUG
 #define MENU_RELOAD_PLUGINS     "Reload all Plugins (Caution!)"
@@ -278,8 +278,8 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CSL            "setup/configuration/settings-csl"
 #define HELP_SET_DEBUG          "setup/configuration/settings-debug"
 
-#define URL_SUPPORT_FORUM       "https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/"
-#define URL_SUPPORT_HOWTO       "https://forums.x-plane.org/index.php?/forums/topic/174691-support"
+#define URL_SUPPORT_FORUM       "https://forums.x-plane.org/forums/forum/457-livetraffic-support/"
+#define URL_SUPPORT_HOWTO       "https://forums.x-plane.org/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/"
 
 //MARK: File Paths
 // these are under the plugins directory
@@ -304,6 +304,7 @@ constexpr const char* PATH_DELIMS = "/\\";      ///< potential path delimiters i
 
 //MARK: Error Texsts
 constexpr long HTTP_OK =            200;
+constexpr long HTTP_MOVED =         302;        ///< redirect
 constexpr long HTTP_BAD_REQUEST =   400;
 constexpr long HTTP_UNAUTHORIZED =  401;
 constexpr long HTTP_PAYMENT_REQU =  402;

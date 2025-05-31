@@ -347,6 +347,16 @@ void InfoListWnd::buildInterface()
             
             // Child window for scrolling region
             if (ImGui::BeginChild("StatusAndInfo", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
+                // Update available?
+                if (IsNewVersionAvail()) {
+                    if (ImGui::TreeNodeEx("NEW VERSION AVAILBLE", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        ImGui::ButtonURL((std::string("Download v") + GetNewVersionNr()).c_str(),
+                                         LT_DOWNLOAD_URL,
+                                         "Open LiveTraffic's download page on X-Plane.org");
+                        ImGui::TreePop();
+                    }
+                }
+                
                 // Aircraft / Channel status
                 if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
                 
@@ -518,6 +528,12 @@ void InfoListWnd::buildInterface()
                     ImGui::ButtonURL("MIT License", "https://github.com/TwinFan/LiveTraffic/blob/master/LICENSE", nullptr, true);
                     ImGui::TextUnformatted("Open Source"); ImGui::SameLine();
                     ImGui::ButtonURL("available on GitHub", "https://github.com/TwinFan/LiveTraffic", nullptr, true);
+                    if (IsNewVersionAvail()) {
+                        ImGui::TextUnformatted("NEW VERSION AVAILABLE: "); ImGui::SameLine();
+                        ImGui::ButtonURL((std::string("Download v") + GetNewVersionNr()).c_str(),
+                                         LT_DOWNLOAD_URL,
+                                         "Open LiveTraffic's download page on X-Plane.org", true);
+                    }
                     
                     ImGui::TreePop();
                 }

@@ -29,6 +29,7 @@ LiveTraffic is based on a number of other great libraries and APIs, most notably
 - [libz/zlib](https://zlib.net) as compression library (used by CURL)
 - [ImGui](https://github.com/ocornut/imgui) for user interfaces
 - [ImgWindow](https://github.com/xsquawkbox/xsb_public) for integrating ImGui into X-Plane windows
+- [portable-file-dialogs](https://github.com/samhocevar/portable-file-dialogs) for file dialogs used in settings
 - [IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders) for header files for the included icon font
 
 Thanks go to

@@ -120,10 +120,10 @@
 
     <h1 id="support">Support</h1>
 
-    For support turn to the <a href="https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/">LiveTraffic Support forum</a>
+    For support turn to the <a href="https://forums.x-plane.org/forums/forum/457-livetraffic-support/">LiveTraffic Support forum</a>
     and have your <code>Log.txt</code> file ready for upload.
 
-    <a href="https://forums.x-plane.org/index.php?/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/">This post</a>
+    <a href="https://forums.x-plane.org/forums/topic/174691-support-attach-a-logtxt-file-and-provide-the-following-details/">This post</a>
     explains more details how to quickly get meaningful answers.</a>
 
 
@@ -133,11 +133,70 @@
 
     <h2>v4</h2>
 
+
+    <h3>v4.2.1</h3>
+    
+    <P>At least copy the following files, which have changed compared to v4.2.0:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li>OpenSky
+            <ul>
+                <li>
+                    This is a <strong>mandatory update for registered OpenSky users</strong>
+                    as OpenSky is changing how applications like LiveTraffic are
+                    authorized to use their data.<br>
+                    As a registered OpenSky user who wants to use up to 4000 request per day,
+                    you now need to optain a "Client ID" and "Client Secret" from
+                    <a href="https://opensky-network.org/my-opensky/account">your OpenSky account page</a>
+                    and load or enter those into LiveTraffic's settings.<br>
+                    For more details <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/opensky">see the documentation</a>.
+                </li>
+                <li>
+                    Added a fallback to the Masterdata File channel to use the
+                    FEB-2025 file, which remains available online.
+                </li>
+                <li>
+                    Updated links to OpenSky's map and aircraft database to align with
+                    latest changes on their web site structure.
+                </li>
+                <li>
+                    Removed links to the Route database for the moment as it doesn't
+                    seem to be supported just now.
+                </li>
+            </ul>
+        </li>
+        <li>
+            SayIntentions: Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/281">#281</a>
+            reading call signs, so that operators are recognized and matching
+            can find proper airline liveries.
+        </li>
+        <li>Check for New Versions
+            <ul>
+                <li>
+                    Reimplemented check, as upgraded X-Plane.org forum
+                    now requires JavaScript execution and no longer
+                    supports the HTTPS check approach taken previously.<br>
+                    Means: <strong>This version will again not be announced in LiveTraffic</strong>
+                    v4.2.0 and earlier, future versions should again be announced in LiveTraffic.
+                </li>
+                <li>
+                    Announcement of new versions added to top of
+                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/status-about">Status/Info window</a>.
+                </li>
+            </ul>
+    </ul>
+
     <h3>v4.2.0</h3>
     
     <P>At least copy the following files, which have changed compared to v4.1.1:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resources/Doc8643.txt</code></li>
     </ul>
     
     <P>Change log:</P>
@@ -228,13 +287,13 @@
             channel, so you can watch your SI buddies while flying in X-Plane.
             <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/sayintentions">See here for configuration</a>.
         <li>
-            Fixed <a href="https://forums.x-plane.org/index.php?/forums/topic/318624-aircraft-landing-short/">an error</a>
+            Fixed <a href="https://forums.x-plane.org/forums/topic/318624-aircraft-landing-short/">an error</a>
             that prevented LiveTraffic from getting current local weather information,
             which led to inaccuracte altitude correction, hence planes
             flying at wrong altitude and landing short or far.
         </li>
         <li>
-            Fixed <a href="https://forums.x-plane.org/index.php?/forums/topic/319620-real-traffic-returns-several-errors-starting-at-ensb/">an error</a>
+            Fixed <a href="https://forums.x-plane.org/forums/topic/319620-real-traffic-returns-several-errors-starting-at-ensb/">an error</a>
             that prevented fetching RealTraffic and general weather data
             in case user's plane is beyond 75 degree latitude north or south.
         </li>
@@ -317,7 +376,7 @@
         </li>
         <li>
             Fix: Normalizing camera heading to avoid compatibility issues with camera plugins,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/302039-known-issue-with-351-and-realtraffic/&do=findComment&comment=2677479">see here</a>.
+            <a href="https://forums.x-plane.org/forums/topic/302039-known-issue-with-351-and-realtraffic/&do=findComment&comment=2677479">see here</a>.
         </li>
     </ul>
 
@@ -332,10 +391,10 @@
 
     <ul>
         <li>Hotfix to remove OpenSky Network from network time synchronization, to prevent
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/301833-aircraft-fail-to-display-buffer-times-going-up/">unreasonable buffering time</a> from happening.
+            <a href="https://forums.x-plane.org/forums/topic/301833-aircraft-fail-to-display-buffer-times-going-up/">unreasonable buffering time</a> from happening.
             OpenSky Network also causes other network errors and will likely disable itself after some attempts
             anyway.
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/295468-opensky-unavailable/&do=findComment&comment=2633820">See here</a> for discussion and options.
+            <a href="https://forums.x-plane.org/forums/topic/295468-opensky-unavailable/&do=findComment&comment=2633820">See here</a> for discussion and options.
         </li>
         <li>Not designated a Beta version as v3.5.0 accidently was. No usage time limit.<br>
             You want to set <i><a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#logging">Settings &gt; Advanced &gt; Logging</a> &gt; Log.txt logging level</i>
@@ -357,8 +416,8 @@
         <li>OpenSky Master File: Removal of no longer used database files.
         </li>
         <li>Additional Help menu entries for
-            <a href="https://forums.x-plane.org/index.php?/forums/forum/457-livetraffic-support/">Support Forum</a> and
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/174691-support">Support HowTo</a>.
+            <a href="https://forums.x-plane.org/forums/forum/457-livetraffic-support/">Support Forum</a> and
+            <a href="https://forums.x-plane.org/forums/topic/174691-support">Support HowTo</a>.
         </li>
     </ul>
 
@@ -432,7 +491,7 @@
         <li>
             Fixed <a href="https://github.com/TwinFan/XPMP2/issues/65">XPMP2 issue #65</a>
             using all network interfaces for <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/xpmp2-remote-client">remote functionality</a>.
-            If you use it, also update the <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">Remote Client</a>.
+            If you use it, also update the <a href="https://forums.x-plane.org/files/file/67797-xpmp2-remote-client/">Remote Client</a>.
         </li>
         <li>
             Fixed too many channel switches, especially when ADSBHub was involved
@@ -460,7 +519,7 @@
         </li>
         <li>
             Fix freeze in XP12.0.8 with TCAS on that was
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/296584-livetraffic-freezes-xp-1208beta1-on-taking-over-tcas/">reported on Linux</a>.
+            <a href="https://forums.x-plane.org/forums/topic/296584-livetraffic-freezes-xp-1208beta1-on-taking-over-tcas/">reported on Linux</a>.
         </li>
     </ul>
     
@@ -482,7 +541,7 @@
             With this version, both <i>Min.</i> and <i>Max. Network timeout</i> are set to 5s.
             This way LiveTraffic won't wait long for OpenSky not responding
             but instead will retry again sooner.
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/295468-opensky-request-timeouts/&do=findComment&comment=2627189">See here for recommendations.</a>
+            <a href="https://forums.x-plane.org/forums/topic/295468-opensky-request-timeouts/&do=findComment&comment=2627189">See here for recommendations.</a>
         </li>
         <li>
             Reimplemented usage of XP's sound system when running in X-Plane 12.04 and later.
@@ -501,7 +560,7 @@
             extensive logging of ignored OGN messages.
         </li>
         <li>
-            Linux: Fixed <a href="https://forums.x-plane.org/index.php?/forums/topic/296204-linux-timeouts-from-adsbhub/">ADSBHub and OGN disconnects</a>
+            Linux: Fixed <a href="https://forums.x-plane.org/forums/topic/296204-linux-timeouts-from-adsbhub/">ADSBHub and OGN disconnects</a>
             due to "'select' ran into a timeout"
         </li>
     </ul>
@@ -518,7 +577,7 @@
     <ul>
         <li>
             Added Advanced configuration option to force a separate FMOD instance, avoids
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/288846-live-traffic-ctd-x-plane-1205/">FMOD interference with other plugins/FlyWithLua</a>
+            <a href="https://forums.x-plane.org/forums/topic/288846-live-traffic-ctd-x-plane-1205/">FMOD interference with other plugins/FlyWithLua</a>
             that caused CTDs e.g. with Zibo B738 or Thranda C206.<br>
             Windows, Mac: Enabled by default; Linux: Disabled by default
         </li>
@@ -544,7 +603,7 @@
         <li>Fixed an issue with fetching weather info across the international date line.</li>
         <li>XP12.04 and later: Sound is using X-Plane's FMOD system instead of
             creating its own. Should avoid
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/279092-xp12-freeze-after-error-with-sound/&do=findComment&comment=2474622">freezes in some Linux setups on shutdown</a>.
+            <a href="https://forums.x-plane.org/forums/topic/279092-xp12-freeze-after-error-with-sound/&do=findComment&comment=2474622">freezes in some Linux setups on shutdown</a>.
         <li>OpenSky: Identify some more objects as ground vehicles.</li>
         <li>RealTraffic: Changed interpretation of altitude in preparation for RealTraffic v10</li>
         <li>Open Glider Network: More tolerant while interpreting messages, rejecting less often</li>
@@ -625,7 +684,7 @@
         <li>
             FMOD Error 36: Avoid repeated logging, but provide more details once
             every 5 minutes if it occurs. Please report occurences
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/279092-xp12-freeze-after-error-with-sound/">here</a>
+            <a href="https://forums.x-plane.org/forums/topic/279092-xp12-freeze-after-error-with-sound/">here</a>
             for me to have a chance to find the root cause.
         </li>
     </ul>
@@ -643,14 +702,14 @@
     <ul>
         <li>
             Mac/XP12 only: Added workaround to avoid freeze upon TCAS activation due to XPD-13332,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/276319-xp12-on-mac-since-b5-freeze-upon-tcas-activation/">see here for details</a>.
+            <a href="https://forums.x-plane.org/forums/topic/276319-xp12-on-mac-since-b5-freeze-upon-tcas-activation/">see here for details</a>.
             You can activate TCAS again, also on startup.
         </li>
         <li>
             Linux only: Added workaround to avoid freeze on some Linux distros
             due to FMOD incompatibilities, see
             <a href="https://github.com/TwinFan/XPMP2/issues/54">XPMP2 issue #54</a> and
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/279092-xp12-freeze-after-error-with-sound/">support thread</a>.
+            <a href="https://forums.x-plane.org/forums/topic/279092-xp12-freeze-after-error-with-sound/">support thread</a>.
         </li>
     </ul>
 
@@ -718,7 +777,7 @@
             refresh rate above a configured height AGL now works, no matter
             which <i>Live Data Refresh</i> is configured.
         </li>
-        <li>Send info to <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">XPMP2-Remote</a> if labels are to be drawn</li>
+        <li>Send info to <a href="https://forums.x-plane.org/files/file/67797-xpmp2-remote-client/">XPMP2-Remote</a> if labels are to be drawn</li>
         <li>
             Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/245">#245</a>
             aircraft removals due to <code>ASSERT FAILED</code> conditions.
@@ -738,7 +797,7 @@
     <ul>
         <li>
             RealTraffic: Fix planes stuck to ground.
-            See <a href="https://forums.x-plane.org/index.php?/forums/topic/276347-ai-traffic-on-the-ground/">Support Thread</a> for details.<br>
+            See <a href="https://forums.x-plane.org/forums/topic/276347-ai-traffic-on-the-ground/">Support Thread</a> for details.<br>
             <b>Note 1:</b> Fix effective only with RealTraffic App 9.1.202 or later.<br>
             <b>Note 2:</b> Root cause is a change in the RTTFC format definition,
             which also affects people <a href="https://twinfan.gitbook.io/livetraffic/introduction/features/feeding-data">feeding own data in RTTFC format to LiveTraffic</a>:
@@ -945,7 +1004,7 @@
             Added Pilatus and other L1T planes to <code>related.txt</code>,
             as well as some more ground vehicle call signs to
             <code>FlightModels.prf</code>, see
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">here</a>.
+            <a href="https://forums.x-plane.org/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">here</a>.
         </li>
     </ul>
 
@@ -964,7 +1023,7 @@
     <ul>
         <li>
             ADDED more enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles, business jets and small prop aircraft,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">see here</a>.
+            <a href="https://forums.x-plane.org/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2169292">see here</a>.
         </li>
         <li>
             ADDED an option to the
@@ -993,23 +1052,23 @@
         </li>
         <li>
             ADDED Dassault 3-engine jets to <code>related.txt</code>,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/240048-fa7x-display/">see here</a>
+            <a href="https://forums.x-plane.org/forums/topic/240048-fa7x-display/">see here</a>
         </li>
         <li>
             ADDED enhancements to <code>FlightModels.prf</code> and <code>related.txt</code> to better identify ground vehicles,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2160931">see here</a>.
+            <a href="https://forums.x-plane.org/forums/topic/242007-livetraffic-crashes-in-epwa/&do=findComment&comment=2160931">see here</a>.
         </li>
         <li>
             FIXED LiveTraffic to be compatible again with XP 11.41 and before (down to XP11.10),
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/240699-just-downloaded-and-installed-v250-wont-load-plugin/">see here</a>
+            <a href="https://forums.x-plane.org/forums/topic/240699-just-downloaded-and-installed-v250-wont-load-plugin/">see here</a>
         </li>
         <li>
             FIXED crash when receiving unknown aircraft type with OpenGlider Network channel,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/242007-livetraffic-crashes-in-epwa/">see here</a>
+            <a href="https://forums.x-plane.org/forums/topic/242007-livetraffic-crashes-in-epwa/">see here</a>
         </li>
         <li>
             FIXED <code>SendTraffic.py</code> to be compatible with Python 3.5 upwards,
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/&do=findComment&comment=2148802">see here</a>
+            <a href="https://forums.x-plane.org/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/&do=findComment&comment=2148802">see here</a>
         </li>
     </ul>
 
@@ -1113,7 +1172,7 @@
             <li>copy <code>lin|mac|win_x64/LiveTraffic.xpl</code>.</li>
             <li>
                 If you use the
-                <a href="https://forums.x-plane.org/index.php?/files/file/67797-xpmp2-remote-client/">XPMP2 Remote Client</a>
+                <a href="https://forums.x-plane.org/files/file/67797-xpmp2-remote-client/">XPMP2 Remote Client</a>
                 you need to upgrade it to v1.10 as one network message format changed.
             </li>
         </ul>
@@ -1240,7 +1299,7 @@
             position so that their radar view opens where you are in the sim.
         </li>
         <li>
-            FIXED <a href="https://forums.x-plane.org/index.php?/forums/topic/229421-network-refresh-time-config/&do=findComment&comment=2061220">a bug</a>
+            FIXED <a href="https://forums.x-plane.org/forums/topic/229421-network-refresh-time-config/&do=findComment&comment=2061220">a bug</a>
             preventing to load a <i>Live data refresh</i> period of
             more than 20 seconds from LiveTraffic's preferences.
         </li>
@@ -1430,7 +1489,7 @@
             FIXED a crash when entering/changing the ADS-B Exchange API key that came up with XP11.50b14
             (due to new <code>THREAD_is_main_thread</code> validations in XP, see
             <a href="https://github.com/TwinFan/LiveTraffic/issues/190">issue #190</a> and
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/221016-adsbx-key-test-ctd-xplane-11b13/&do=findComment&comment=1988830">here</a>.)
+            <a href="https://forums.x-plane.org/forums/topic/221016-adsbx-key-test-ctd-xplane-11b13/&do=findComment&comment=1988830">here</a>.)
         </li>
         <li>FIXED welcome message and beta warning not showing on startup.</li>
     </ul>
@@ -1477,7 +1536,7 @@
         <li>
             FIXED numerous bugs in position and heading calculation.
             Plane movement, especially on the ground, should look much smoother now.<br>
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/">Here is</a>
+            <a href="https://forums.x-plane.org/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/">Here is</a>
             how that exercise started!
         </li>
         <li>
@@ -1786,7 +1845,7 @@
                 <strong>Supports X-Plane 11 only.</strong><br>
                 REMOVED compatibility with X-Plane 10.
                 A legacy version compatible with XP10 is
-                <a href="https://forums.x-plane.org/index.php?/files/file/61021-livetraffic-for-xp10/">provided separately</a>.
+                <a href="https://forums.x-plane.org/files/file/61021-livetraffic-for-xp10/">provided separately</a>.
             </li>
             <li>
                 Now uses latest plugin directory structure: Binaries are in
@@ -1858,12 +1917,12 @@
             FIXED <a href="https://github.com/TwinFan/LiveTraffic/issues/174">#174</a>:
             Aircraft sometimes failed to create when best available data was just half
             a second away from the end of the buffering period
-            (<a href="https://forums.x-plane.org/index.php?/forums/topic/209494-xp11-crash-livetraffic-messages/">introduced with v1.50</a>)
+            (<a href="https://forums.x-plane.org/forums/topic/209494-xp11-crash-livetraffic-messages/">introduced with v1.50</a>)
         </li>
         <li>
             FIXED a startup problem on Windows 8.1-based systems causing
             "Error Code = 127 : The specified procedure could not be found."
-            (<a href="https://forums.x-plane.org/index.php?/forums/topic/210083-live-traffic-151-not-loading-error-code-127-in-log-attached/">introduced with v1.51</a>)
+            (<a href="https://forums.x-plane.org/forums/topic/210083-live-traffic-151-not-loading-error-code-127-in-log-attached/">introduced with v1.51</a>)
         </li>
     </ul>
 
@@ -1920,7 +1979,7 @@
         </li>
         <li>
             ADDED message that LiveTraffic does not yet work under Vulkan/Metal.
-            Watch <a href="https://forums.x-plane.org/index.php?/forums/topic/207193-livetraffic-and-vulkanmetal/">this post</a> and await v2.0.
+            Watch <a href="https://forums.x-plane.org/forums/topic/207193-livetraffic-and-vulkanmetal/">this post</a> and await v2.0.
         </li>
     </ul>
 
@@ -1990,7 +2049,7 @@
             <code>LiveTraffic/Resources</code>.
         </li>
         <li>
-            2 changes to <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>
+            2 changes to <a href="https://forums.x-plane.org/files/file/51786-livetraffic-api/">LTAPI</a>
             for other plugins' benefit:
             <ul>
                 <li>
@@ -2013,14 +2072,14 @@
             option <i>Log.txt: Set Log Level = "Debug"</i> to
             <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-debug">Debug Settings</a>, in case users search there
             when following
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/174691-if-you-want-support-contains-template/">support request guidelines</a>.
+            <a href="https://forums.x-plane.org/forums/topic/174691-if-you-want-support-contains-template/">support request guidelines</a>.
             Unchecking this option resets Log Level to "Warning".
         </li>
         <li>
             CHANGED <a href="https://github.com/TwinFan/LiveTraffic/issues/149">#149</a>:
             OpenSky Master Data channel is enforced to be active, when OpenSky
             tracking data is used to avoid
-            <a href="https://forums.x-plane.org/index.php?/forums/topic/186475-take-off-planes-are-shown-as-follow-me-cars/">"only A320/follow-me car" issue</a>.<br>
+            <a href="https://forums.x-plane.org/forums/topic/186475-take-off-planes-are-shown-as-follow-me-cars/">"only A320/follow-me car" issue</a>.<br>
             Also, OpenSky Master is enabled as a recommendation when activating
             RealTraffic channel (but can be deactivated manually in this case).
         </li>
@@ -2116,7 +2175,7 @@
                 <li>
                     ADDED <a href="https://github.com/TwinFan/LiveTraffic/issues/144">#144</a>
                     shared dataRefs for providing textual information
-                    about planes as <a href="https://forums.x-plane.org/index.php?/files/file/52997-fstrampfree/">
+                    about planes as <a href="https://forums.x-plane.org/files/file/52997-fstrampfree/">
                         suggested by FSTramp
                     </a>.
                 </li>
@@ -2128,7 +2187,7 @@
                 <li>
                     CHANGED and ENHANCED <a href="https://github.com/TwinFan/LiveTraffic/issues/86">#86</a>
                     communication to
-                    <a href="https://forums.x-plane.org/index.php?/files/file/51786-livetraffic-api/">LTAPI</a>,
+                    <a href="https://forums.x-plane.org/files/file/51786-livetraffic-api/">LTAPI</a>,
                     which is now an efficient bulk data transfer and includes
                     many text info elements.
             </ul>

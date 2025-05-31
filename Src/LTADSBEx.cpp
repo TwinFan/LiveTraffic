@@ -439,10 +439,7 @@ bool ADSBExchangeConnection::InitCurl ()
     // did the API key change?
     if (!slistKey || theKey != apiKey) {
         apiKey = theKey;
-        if (slistKey) {
-            curl_slist_free_all(slistKey);
-            slistKey = NULL;
-        }
+        CurlCleanupSlist(slistKey);
         slistKey = MakeCurlSList(apiKey);
     }
     
@@ -455,8 +452,7 @@ bool ADSBExchangeConnection::InitCurl ()
 void ADSBExchangeConnection::CleanupCurl ()
 {
     LTOnlineChannel::CleanupCurl();
-    curl_slist_free_all(slistKey);
-    slistKey = NULL;
+    CurlCleanupSlist(slistKey);
 }
 
 // Specific handling for authentication errors
@@ -583,7 +579,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
         if (IsRevocationError(curl_errtxt)) {
             // try not to query revoke list
             curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, "TestADSBEx");
             // and just give it another try
             cc = curl_easy_perform(pCurl);
         }
@@ -635,7 +631,7 @@ bool ADSBExchangeConnection::DoTestADSBExAPIKey (const std::string newKey)
     
     // cleanup CURL handle
     curl_easy_cleanup(pCurl);
-    curl_slist_free_all(slist);
+    CurlCleanupSlist(slist);
     
     bADSBExKeyTestRunning = false;
     return bResult;

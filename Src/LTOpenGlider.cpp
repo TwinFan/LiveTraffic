@@ -812,7 +812,7 @@ bool OpenGliderConnection::AcListDownloadMain ()
             if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
                 // try not to query revoke list
                 curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, LT_DOWNLOAD_CH);
+                LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, "OGN_AcList");
                 // and just give it another try
                 cc = curl_easy_perform(pCurl);
             }

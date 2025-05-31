@@ -25,6 +25,10 @@
 // Settings UI Main window
 //
 
+// Forward declarations for portable-file-dialog stuff, which we don't want to include in pre-compiled header
+namespace pfd { class open_file; }
+void pfd_open_file_deleter (pfd::open_file* p);
+
 /// Settings dialog
 class LTSettingsUI : public LTImgWindow
 {
@@ -33,9 +37,11 @@ protected:
     char sFilter[50] = {0};
 
     // Channel: OpenSky
-    std::string sOpenSkyUser;       ///< OpenSky Network user
-    std::string sOpenSkyPwd;        ///< OpenSky Network password
-    bool bOpenSkyPwdClearText = false;  ///< Is OpenSky pwd displayed clear text?
+    /// smart pointer to the at most one System File Open Dialog
+    std::unique_ptr<pfd::open_file, decltype(&pfd_open_file_deleter)> pfdOpenFile;
+    std::string sOpenSkyClientId;           ///< OpenSky Network Client ID
+    std::string sOpenSkySecret;             ///< OpenSky Network Secret
+    bool bOpenSkySecretClearText = false;   ///< Is OpenSky pwd displayed clear text?
     
     // Channel: ADS-B Exchange
     enum {

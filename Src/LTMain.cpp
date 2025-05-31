@@ -26,6 +26,8 @@
 
 #if IBM
 #include <shellapi.h>           // for ShellExecuteA
+#include <shlobj.h>             // For SHGetKnownFolderPath
+#include <knownfolders.h>       // For FOLDERID_Downloads
 #endif
 
 // Puts some timestamps into the log for analysis purposes
@@ -150,6 +152,52 @@ std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly)
     // return the list of files
     return l;
 }
+
+#if IBM
+
+std::string WideToUTF8(PWSTR wideStr) {
+    if (!wideStr) return "";
+
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, nullptr, 0, nullptr, nullptr);
+    std::string result((size_t)size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, result.data(), size_needed, nullptr, nullptr);
+    result.pop_back(); // remove null terminator
+    return result;
+}
+
+
+/// Return a (platform-specific) path to the user's Download folder
+std::string GetDefaultDownloadDir()
+{
+    std::string ret;
+    PWSTR path = nullptr;
+    HRESULT hr = SHGetKnownFolderPath(FOLDERID_Downloads, 0, NULL, &path);
+    if (SUCCEEDED(hr)) {
+        ret = WideToUTF8(path);
+        CoTaskMemFree(path);
+    } else {
+        LOG_MSG(logWARN, "Failed to get user's Downloads folder path");
+    }
+    return ret;
+}
+
+#else
+
+/// Return a (platform-specific) path to the user's Download folder
+std::string GetDefaultDownloadDir() {
+    // Find the user's home from the environment
+    const char* pHome = getenv("HOME");
+    if (!pHome) return "";              // HOME undefined?
+    if (!IsDir(pHome)) return "";       // HOME not a directory???
+    
+    std::string h(pHome);
+    h += "/Downloads";
+    if (!IsDir(h))                      // ~/Downloads not a directory?
+        return pHome;                   // then start at the HOME directory
+    return h;
+}
+
+#endif
 
 /// Read a text line, handling both Windows (CRLF) and Unix (LF) ending
 /// Code makes use of the fact that in both cases LF is the terminal character.

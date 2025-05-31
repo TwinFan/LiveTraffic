@@ -162,6 +162,7 @@
 		25AACA30217B2FCA0035DC20 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		25ABEEFD219A1C2100F61413 /* LTVersion.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTVersion.cpp; sourceTree = "<group>"; };
 		25AE00D8213887AF00908E65 /* SettingsUI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SettingsUI.cpp; sourceTree = "<group>"; };
+		25B5ADE02DE87ABB00964341 /* portable-file-dialogs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "portable-file-dialogs.h"; sourceTree = "<group>"; };
 		25BBD2F921EA0F8300AEAA4B /* OpenSky_Routes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Routes.json; sourceTree = "<group>"; };
 		25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Metadata_Routes_combined.json; sourceTree = "<group>"; };
 		25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = XPMP2.xcodeproj; path = XPMP2/XPMP2.xcodeproj; sourceTree = "<group>"; };
@@ -462,15 +463,16 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
-				25F108C22C49A79A0021EDD6 /* metaf */,
-				25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */,
-				258117B5291AF24D00D05428 /* FMOD_Logo.cpp */,
 				251284AC274D829500B0F51A /* base64 */,
+				258117B5291AF24D00D05428 /* FMOD_Logo.cpp */,
 				25EFC76A249567BF005DB0A6 /* Font */,
 				256CA1BB248C458D009F4AAE /* ImGui */,
 				256CA1C8248C5094009F4AAE /* ImgWindow */,
 				2593063C22DB411500C82D4F /* LTAPI */,
+				25F108C22C49A79A0021EDD6 /* metaf */,
 				25F3471824D2C7DE004574E7 /* parson */,
+				25B5ADE22DE87ABB00964341 /* portable-file-dialogs */,
+				25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */,
 			);
 			path = Lib;
 			sourceTree = "<group>";
@@ -484,6 +486,14 @@
 				2591F9692197008C00F0D436 /* Src */,
 			);
 			path = NoGit;
+			sourceTree = "<group>";
+		};
+		25B5ADE22DE87ABB00964341 /* portable-file-dialogs */ = {
+			isa = PBXGroup;
+			children = (
+				25B5ADE02DE87ABB00964341 /* portable-file-dialogs.h */,
+			);
+			path = "portable-file-dialogs";
 			sourceTree = "<group>";
 		};
 		25BF009F290DCBF400317CAE /* Products */ = {
@@ -598,7 +608,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1620;
+				LastUpgradeCheck = 1630;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 12.0";
@@ -713,6 +723,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -800,6 +811,7 @@
 					Lib/LTAPI,
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
+					"Lib/portable-file-dialogs",
 					Lib/Font,
 					Lib/metaf/include,
 					"$(HEADER_SEARCH_PATHS)",
@@ -808,7 +820,7 @@
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 2;
-				LIVETRAFFIC_VER_PATCH = 0;
+				LIVETRAFFIC_VER_PATCH = 1;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -824,6 +836,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -909,6 +922,7 @@
 					Lib/LTAPI,
 					"Lib/ImGui/**",
 					Lib/ImgWindow,
+					"Lib/portable-file-dialogs",
 					Lib/Font,
 					Lib/metaf/include,
 					"$(HEADER_SEARCH_PATHS)",
@@ -917,7 +931,7 @@
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 2;
-				LIVETRAFFIC_VER_PATCH = 0;
+				LIVETRAFFIC_VER_PATCH = 1;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;

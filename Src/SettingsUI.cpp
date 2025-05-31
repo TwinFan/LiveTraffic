@@ -20,6 +20,22 @@
 
 #include "LiveTraffic.h"
 
+// Portable System File Dialogs
+#include "portable-file-dialogs.h"
+
+//
+// MARK: System File Dialogs
+//
+
+/// Deleter makes sure we kill the dialog before removing the object to avoid blocking
+void pfd_open_file_deleter (pfd::open_file* p)
+{
+    if (p) {
+        p->kill();
+        delete p;
+    }
+}
+
 //
 // MARK: LTSettingsUI
 //
@@ -43,6 +59,8 @@ LTSettingsUI::LTSettingsUI () :
 LTImgWindow(WND_MODE_FLOAT_CNT_VR,
             dataRefs.SUItransp ? WND_STYLE_HUD : WND_STYLE_SOLID,
             dataRefs.SUIrect),
+// OpenSKy
+pfdOpenFile(nullptr, pfd_open_file_deleter),
 // If there is no ADSBEx key yet then display any new entry in clear text,
 // If a key is already defined, then by default obscure it
 sADSBExKeyEntry     (dataRefs.GetADSBExAPIKey()),
@@ -64,7 +82,7 @@ txtFixLivery    (dataRefs.cslFixLivery)
         aFlarmAcTys[i] = str_concat(dataRefs.aFlarmToIcaoAcTy[i], " ");
     
     // Fetch OpenSky credentials
-    dataRefs.GetOpenSkyCredentials(sOpenSkyUser, sOpenSkyPwd);
+    dataRefs.GetOpenSkyCredentials(sOpenSkyClientId, sOpenSkySecret);
     
     // Fetch RealTraffic license and port number
     sRTLicenseEntry = dataRefs.GetRTLicense();
@@ -276,59 +294,110 @@ void LTSettingsUI::buildInterface()
                                            HELP_SET_CH_OPENSKY, "Open Help on OpenSky in Browser",
                                            sFilter, nOpCl))
             {
-                LTChannel* pOpenSkyCh = LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE);
+                bool bDoSave = false;               // shall the "Save" be executed?
+                OpenSkyConnection* pOpenSkyCh = dynamic_cast<OpenSkyConnection*>(LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE));
                 
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
                 ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
 
-                // Hint that user/password increases number of allowed requests
-                if (!*sFilter && (sOpenSkyUser.empty() || sOpenSkyPwd.empty())) {
+                // Hint that registered users have more allowed requests
+                if (!*sFilter && (sOpenSkyClientId.empty() || sOpenSkySecret.empty())) {
                     ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
                                      "https://opensky-network.org/login?view=registration",
                                      "Opens OpenSky Network's user registration page");
                     ImGui::TableNextCell();
-                    ImGui::TextUnformatted("Using a registered user allows for more requests to OpenSky per day ");
+                    ImGui::TextWrapped("%s", "Using a registered user allows for more requests to OpenSky per day. After regstration, "
+                                       "you need to go to your OpenSky Network Account page and retrieve you personal API Client credentials.");
                     ImGui::TableNextCell();
                 }
                 
-                // User
-                if (ImGui::FilteredLabel("Username", sFilter)) {
+                // Offer to read Client ID/Secret from the downloaded JSON file
+                // if we have file dialogs available
+                if (pfd::settings::available() &&
+                    ImGui::FilteredLabel("Read Credentials File", sFilter)) {
+                    // File dialog is being shown?
+                    if (pfdOpenFile) {
+                        // User has made choice in the file dialog?
+                        if (pfdOpenFile->ready()) {
+                            std::vector<std::string> vFiles = pfdOpenFile->result();
+                            // Any file selected? -> Process it and if successful enable OpenSky
+                            if (!vFiles.empty()) {
+                                ImGuiContext* pCtxt = ImGui::GetCurrentContext();                           // SHOW_MSG can affect context
+                                if (OpenSkyConnection::ProcessCredentialsJson(vFiles.front(),
+                                                                              sOpenSkyClientId,
+                                                                              sOpenSkySecret))
+                                {
+                                    // Let's save the new credentials later on
+                                    bDoSave = true;
+                                    SHOW_MSG(logMSG, "OpenSky credentials read successfully, will be tried now");
+                                }
+                                else {
+                                    SHOW_MSG(logERR, "Could not read OpenSky credentials from '%s'",
+                                             vFiles.front().c_str());
+                                }
+                                ImGui::SetCurrentContext(pCtxt);
+                            }
+                            pfdOpenFile.reset();
+                        }
+                        // Dialog open(ing) and user has not yet made a choice
+                        else {
+                            ImGui::TextUnformatted("File dialog is open...");
+                        }
+                    }
+                    // show button to open system file dialog
+                    else
+                    {
+                        if (ImGui::ButtonTooltip("Find credentials.json...",
+                                                 "Opens a file open dialog for you to find the downloaded file 'credentials.json'"))
+                        {
+                            pfd::settings::verbose(true);
+                            pfdOpenFile.reset(new pfd::open_file("Find OpenSky's credentials.json",
+                                                                 GetDefaultDownloadDir(),
+                                                                 { "credentials.json", "credentials.json",
+                                "All JSON", "*.json",
+                                "All Files", "*"},
+                                                                 pfd::opt::none));
+                        }
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted(" to read Client Id/Secret from it");
+                    }
+                    
+                    ImGui::TableNextCell();
+                }
+                
+                // Client ID
+                if (ImGui::FilteredLabel("Client ID", sFilter)) {
                     ImGui::Indent(ImGui::GetWidthIconBtn(true));
-                    ImGui::InputTextWithHint("##OpenSkyUser",
-                                             "OpenSky Network username",
-                                             &sOpenSkyUser);
+                    ImGui::InputTextWithHint("##OpenSkyClientID",
+                                             "OpenSky Client ID",
+                                             &sOpenSkyClientId);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
                     
                     ImGui::TableNextCell();
                 }
                 
-                // Password
-                if (ImGui::FilteredLabel("Password", sFilter)) {
+                // Client Secret
+                if (ImGui::FilteredLabel("Client Secret", sFilter)) {
                     // "Eye" button changes password flag
-                    ImGui::Selectable(ICON_FA_EYE "##OpenSkyPwdVisible", &bOpenSkyPwdClearText,
+                    ImGui::Selectable(ICON_FA_EYE "##OpenSkySecretVisible", &bOpenSkySecretClearText,
                                       ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
                     if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Show/Hide password");
+                        ImGui::SetTooltip("%s", "Show/Hide client secret");
                     ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::InputTextWithHint("##OpenSkyPwd",
-                                             "Enter or paste OpenSky Network password",
-                                             &sOpenSkyPwd,
+                    ImGui::InputTextWithHint("##OpenSkyClientSecret",
+                                             "Enter or paste OpenSky Client Secret",
+                                             &sOpenSkySecret,
                                              // clear text or password mode?
-                                             (bOpenSkyPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
+                                             (bOpenSkySecretClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
                     ImGui::TableNextCell();
                 }
                 
                 // Save button
                 if (!*sFilter) {
                     ImGui::TableNextCell();
-                    if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
-                        dataRefs.SetOpenSkyUser(sOpenSkyUser);
-                        dataRefs.SetOpenSkyPwd(sOpenSkyPwd);
-                        if (pOpenSkyCh) pOpenSkyCh->SetValid(true,false);
-                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
-                        bOpenSkyPwdClearText = false;           // and hide the pwd now
-                    }
+                    if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel"))
+                        bDoSave = true;
                     ImGui::TableNextCell();
                 }
                 
@@ -340,6 +409,18 @@ void LTSettingsUI::buildInterface()
                         ImGui::TextUnformatted("Off");
                     }
                     ImGui::TableNextCell();
+                }
+                
+                // Do the Save?
+                if (bDoSave) {
+                    dataRefs.SetOpenSkyClient(sOpenSkyClientId);
+                    dataRefs.SetOpenSkySecret(sOpenSkySecret);
+                    if (pOpenSkyCh) {
+                        pOpenSkyCh->ResetStatus();              // try getting a (new) access token
+                        pOpenSkyCh->SetValid(true,false);
+                    }
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE, true);
+                    bOpenSkySecretClearText = false;           // and hide the pwd now
                 }
                 
                 if (!*sFilter) ImGui::TreePop();

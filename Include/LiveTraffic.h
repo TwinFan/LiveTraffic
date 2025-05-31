@@ -162,6 +162,8 @@ void LTMainStop ();
 
 void LTRegularUpdates();        ///< collects all updates that need to be done up to every flight loop cycle
 void MenuUpdateAllItemStatus();
+bool IsNewVersionAvail ();      ///< Is there a new version of LiveTraffic available for download?
+std::string GetNewVersionNr (); ///< Return the new version's number
 void HandleNewVersionAvail ();
 
 #ifdef DEBUG
@@ -188,6 +190,9 @@ bool IsDir (const std::string& path);
 
 /// List of files in a directory (wrapper around XPLMGetDirectoryContents)
 std::vector<std::string> GetDirContents (const std::string& path, bool bDirOnly = false);
+
+/// Return a (platform-specific) path to the user's Download folder
+std::string GetDefaultDownloadDir();
 
 /// @brief Read a text line from file, no matter if ended by CRLF or LF
 std::istream& safeGetline(std::istream& is, std::string& t);
@@ -430,8 +435,8 @@ float interpolate (const std::vector<float>& scale,
 inline long randoml (long min, long max)
 { return long(((double) rand() / (RAND_MAX+1.0)) * (max-min+1)) + min; }
 
-// gets latest version info from X-Plane.org
-bool FetchXPlaneOrgVersion ();
+/// Fetches the latest available LiveTraffic version number
+bool FetchLatestLTVersion ();
 
 /// LiveTraffic's version number as pure integer for returning in a dataRef, like 201 for v2.01
 int GetLTVerNum(void* = NULL);

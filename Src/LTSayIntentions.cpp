@@ -180,7 +180,9 @@ bool SayIntentionsConnection::ProcessFetchedData ()
         LTFlightData::FDStaticData stat;
         stat.reg            = jog_s(pAc, SI_REG);
         stat.acTypeIcao     = jog_s(pAc, SI_AC_TYPE);
-        stat.call           = UnprocessCallSign(jog_s(pAc, SI_CALL));
+        stat.call           = jog_s(pAc, SI_CALL);      // try machine-readable field first
+        if (stat.call.empty())                          // if empty try the 'spoken' version
+            stat.call       = UnprocessCallSign(jog_s(pAc, SI_CALL_SPOKEN));
         stat.setOrigDest(jog_s(pAc, SI_ORIGIN),
                          jog_s(pAc, SI_DEST));
         stat.flight         = jog_s(pAc, SI_DISPLAYNAME);

@@ -119,9 +119,7 @@ bool FSCConnection::InitCurl ()
         return false;
     
     // if there is a header already remove it first
-    if (pCurlHeader)
-        curl_slist_free_all(pCurlHeader);
-    pCurlHeader = nullptr;
+    CurlCleanupSlist(pCurlHeader);
     
     // if we have a token then we add it to the header
     if ( !token.empty() && !token_type.empty() ) {
@@ -147,9 +145,7 @@ bool FSCConnection::InitCurl ()
 void FSCConnection::CleanupCurl ()
 {
     LTOnlineChannel::CleanupCurl();
-    if (pCurlHeader)
-        curl_slist_free_all(pCurlHeader);
-    pCurlHeader = nullptr;
+    CurlCleanupSlist(pCurlHeader);
 }
 
 // put together the URL to fetch based on current view position

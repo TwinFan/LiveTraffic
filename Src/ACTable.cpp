@@ -367,6 +367,7 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                     LTOpenURL(OPSKY_EDIT_AC, fdi.key);
                 
                 // Route update (if there is a call sign)
+/* Disabled until OpenSky offers the service again to maintain routes
                 ImGui::SameLine();
                 if (ImGui::SelectableTooltip(ICON_FA_ROUTE "##Route",
                                              false,                                         // selected?
@@ -374,6 +375,7 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                                              "Update flight/route at OpenSky",
                                              ImGuiSelectableFlags_None, selSize))
                     LTOpenURL(OPSKY_EDIT_ROUTE, fdi.v[ACT_COL_CALLSIGN]);
+*/
             }
 
             // Action column
