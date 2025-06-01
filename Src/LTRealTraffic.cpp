@@ -414,7 +414,7 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                          box.nw.lat(), box.se.lat(),
                          box.nw.lon(), box.se.lon(),
                          curr.tOff,
-                         dataRefs.GetFdBufPeriod() / 10);       // One buffer per 10s of buffering time
+                         std::min<int>(10, dataRefs.GetFdBufPeriod() / 10));    // One buffer per 10s of buffering time, max of 10 buffers
             }
             // normal un-buffered request for traffic or parked aircraft
             else {
