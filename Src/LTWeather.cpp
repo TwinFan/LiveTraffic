@@ -1452,7 +1452,7 @@ void WeatherDoSet (bool bTakeControl)
             }
             // Shall we take over control?
             if (bTakeControl) {
-                SHOW_MSG(logINFO, "LiveTraffic takes over controlling X-Plane's weather");
+                SHOW_MSG(logMSG, "LiveTraffic takes over controlling X-Plane's weather");
                 bWeatherControlling     = true;
             }
         } else {
@@ -1693,7 +1693,7 @@ void WeatherReset ()
     
     if (bWeatherControlling) {
         bWeatherControlling = false;
-        SHOW_MSG(logINFO, "LiveTraffic no longer controls X-Plane's weather, reset to previous settings");
+        SHOW_MSG(logMSG, "LiveTraffic no longer controls X-Plane's weather, reset to previous settings");
         if (dataRefs.ShallLogWeather()) {
             LOG_MSG(logDEBUG, "Weather reset to %s (source = %d, change mode = %d)",
                     WeatherGetSource().c_str(),
