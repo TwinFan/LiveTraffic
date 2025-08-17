@@ -51,8 +51,8 @@ extern mapLTFlightDataTy mapFd;
 // MARK: OGNAnonymousIdMapTy
 //
 
-/// The maximum "number" that can be expressed in out way of deriving a 4-char call sign for generated ids, which is using 0-9A-Z in a 36-based number system
-constexpr unsigned long OGN_MAX_ANON_CALL_SIGN = 36^4;
+/// The maximum "number" that can be expressed in our way of deriving a 4-char call sign for generated ids, which is using 0-9A-Z in a 36-based number system
+constexpr unsigned long OGN_MAX_ANON_CALL_SIGN = 1679616UL;     // 36 ** 4 = 1679616
 /// First anonymous id when we "generate" one ("real" IDs are hex 6 digit long, so we start with 7 digits)
 constexpr unsigned long OGN_FIRST_ANONYM_ID = 0x01000000;
 /// Next anonymous id when we "generate" one ("real" IDs are hex 6 digit long, so we start with 7 digits)
