@@ -69,10 +69,10 @@ double CoordAngle (double lat1, double lon1, double lat2, double lon2)
 
 double CoordDistance (double lat1, double lon1, double lat2, double lon2)
 {
-    lat1 *= PI; lat1 /= 180.0;              // in-place degree-to-rad conversion
-    lon1 *= PI; lon1 /= 180.0;
-    lat2 *= PI; lat2 /= 180.0;
-    lon2 *= PI; lon2 /= 180.0;
+    lat1 *= PI/180.0;                       // in-place degree-to-rad conversion
+    lon1 *= PI/180.0;
+    lat2 *= PI/180.0;
+    lon2 *= PI/180.0;
 
     using namespace std;
     const double x = sin((lat2 - lat1) / 2);

@@ -230,6 +230,7 @@ protected:
     /// @return Shall the aircraft be displayed at all? (Otherwise it is marked non-trackable and we shall not show it.)
     bool AcListLookup (const std::string& sDevId,
                        LTFlightData::FDKeyTy& key,
+                       LTFlightData::FDKeyTy& privateKey,
                        LTFlightData::FDStaticData& stat);
 };
 

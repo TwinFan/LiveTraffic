@@ -306,9 +306,9 @@ bool OpenGliderConnection::ProcessFetchedData ()
 
         // Look up the device in the DDB / Aircraft list.
         // This also checks if the device wants to be tracked and sets the key accordingly
-        LTFlightData::FDKeyTy fdKey;
+        LTFlightData::FDKeyTy fdKey, fdPrivateKey;
         LTFlightData::FDStaticData stat;
-        if (!AcListLookup(tok[GNF_FLARM_DEVICE_ID], fdKey, stat))
+        if (!AcListLookup(tok[GNF_FLARM_DEVICE_ID], fdKey, fdPrivateKey, stat))
             continue;                   // device doesn't want to be tracked -> ignore!
         
         // key not matching a/c filter? -> skip it
@@ -336,7 +336,9 @@ bool OpenGliderConnection::ProcessFetchedData ()
             //  (if more than one ICAO type is defined))
             if ( fd.empty() ) {
                 fd.SetKey(fdKey);
-            
+                if (fdPrivateKey)
+                    fd.SetPrivateKey(fdPrivateKey);
+
                 // Aircraft type converted from Flarm AcftType
                 const FlarmAircraftTy acTy = (FlarmAircraftTy)std::clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
                                                                               FAT_UNKNOWN, FAT_STATIC_OBJ);
@@ -651,9 +653,9 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     
     // Look up the device in the DDB / Aircraft list.
     // This also checks if the device wants to be tracked and sets the key accordingly
-    LTFlightData::FDKeyTy fdKey;
+    LTFlightData::FDKeyTy fdKey, fdPrivateKey;
     LTFlightData::FDStaticData stat;
-    if (!AcListLookup(m.str(M_SEND_ID), fdKey, stat))
+    if (!AcListLookup(m.str(M_SEND_ID), fdKey, fdPrivateKey, stat))
         return true;                            // device doesn't want to be tracked -> ignore silently!
 
     // key not matching a/c filter? -> skip it
@@ -682,6 +684,8 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         //  has a random element (if more than one ICAO type is defined))
         if ( fd.empty() ) {
             fd.SetKey(fdKey);
+            if (fdPrivateKey)
+                fd.SetPrivateKey(fdPrivateKey);
         
             // Aircraft type converted from Flarm AcftType
             stat.catDescr   = OGNGetAcTypeName(acTy);
@@ -937,6 +941,7 @@ size_t OpenGliderConnection::AcListNetwCB(char *ptr, size_t, size_t nmemb, void*
 // Tries reading aircraft information from the OGN a/c list
 bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
                                          LTFlightData::FDKeyTy& key,
+                                         LTFlightData::FDKeyTy& privateKey,
                                          LTFlightData::FDStaticData& stat)
 {
     // device id converted to binary number
@@ -974,7 +979,7 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
         // This will also CLEAR the TRACKED and IDENTIFIED flags
         // as required for a device not found in the DDB:
         rec = OGN_DDB_RecTy();
-        rec.devType = 'O';          // treat it as an OGN id from the outset
+        rec.devType = 'P';          // treat it as an private id from the outset (this is a code not existing in the OGN database)
         rec.SetTracked();           // tracking a not-in-DDB device is OK
     }
     
@@ -997,8 +1002,15 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
         // look up or _create_ the mapping record to the generated anonymous id
         OGNAnonymousIdMapTy& anon = mapAnonymousId[idKey];
         // take over the mapped anonymous id
-        key.SetKey(LTFlightData::KEY_OGN, anon.anonymId);
-        stat.call = anon.anonymCall;
+        key.SetKey(LTFlightData::KEY_PRIVATE, anon.anonymId);
+        // return the original in the privateKey object
+        privateKey.SetKey(rec.devType == 'P' ? LTFlightData::KEY_ICAO  :       // don't have a record...let's just guess it is originally an ICAO record
+                          rec.devType == 'I' ? LTFlightData::KEY_ICAO  :
+                          rec.devType == 'F' ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN,
+                          uDevId);
+        // TODO: Undo!
+        // stat.call = anon.anonymCall;
+        stat.call = sDevId;
     } else {
         // device is allowed to be identified
         key.SetKey(rec.devType == 'F' ? LTFlightData::KEY_FLARM    :

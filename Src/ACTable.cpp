@@ -48,7 +48,7 @@ public:
 
 /// Names all the available columns
 std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
-    {"Key",              60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
+    {"Key",              60,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Key Type",         60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"ID",               60,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultSort},
     {"Registration",     60},
@@ -113,7 +113,8 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
 #define v_f(idx,fmt,val) vf[idx] = float(val); snprintf(s, sizeof(s), fmt, vf[idx]); v[idx] = s;
 
     bUpToDate = true;
-    v[ACT_COL_KEY] = key = fd.key();    // possible without lock
+    v[ACT_COL_KEY]  = std::string(key = fd.key());  // possible without lock
+    vf[ACT_COL_KEY] = float(key.num);               // for sorting purposes
     v[ACT_COL_KEY_TYPE]  = key.GetKeyTypeText();
 
     // try fetching some static data

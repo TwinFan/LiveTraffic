@@ -1433,7 +1433,7 @@ void DataRefs::LTSetAcKey(void*, int key)
         // let's find the i-th aircraft
         mapLTFlightDataTy::iterator fdIter = mapFdAcByIdx(key);
         if (fdIter != mapFd.end()) {
-            dataRefs.keyAc = fdIter->second.key();
+            dataRefs.keyAc = std::string(fdIter->second.key());
             dataRefs.pAc = fdIter->second.GetAircraft();
             return;
         }

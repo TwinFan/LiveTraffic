@@ -254,12 +254,6 @@ void ADSBBase::ProcessV2 (const JSON_Object* pJAc,
     // until FD object is inserted and updated
     std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
     
-    // Check for duplicates with OGN/FLARM, potentially replaces the key type
-    LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-    // Some internal codes sometimes overlap with RealTraffic
-    if (fdKey.eKeyType == LTFlightData::KEY_ADSBEX)
-        LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_RT);
-
     // get the fd object from the map, key is the transpIcao
     // this fetches an existing or, if not existing, creates a new one
     LTFlightData& fd = mapFd[fdKey];
@@ -283,7 +277,7 @@ void ADSBBase::ProcessV2 (const JSON_Object* pJAc,
     trim(stat.call);
     stat.catDescr = GetADSBEmitterCat(cat);
     stat.slug       = sSlugBase;
-    stat.slug      += fdKey.key;
+    stat.slug      += std::string(fdKey);
     
     // -- dynamic data --
     LTFlightData::FDDynamicData dyn;

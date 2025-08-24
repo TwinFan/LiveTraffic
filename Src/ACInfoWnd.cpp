@@ -83,7 +83,8 @@ ACIWnd::~ACIWnd()
 void ACIWnd::SetAcKey (const LTFlightData::FDKeyTy& _key)
 {
     ClearAcKey();                   // clear a lot of data
-    keyEntry = (acKey = _key);      // remember the key
+    acKey = _key;                   // remember the key
+    keyEntry = std::string(acKey);
     SetWindowTitle(GetWndTitle());  // set the window's title
     ReturnKeyboardFocus();          // give up keyboard focus in case we had it
 
