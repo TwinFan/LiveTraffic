@@ -2897,6 +2897,8 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx)
 // Find a/c by text input
 mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
 {
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
     // is it a small integer number, i.e. used as index?
     if (_s.length() <= 3 &&
         _s.find_first_not_of("0123456789") == std::string::npos)
@@ -2912,3 +2914,19 @@ mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
     }
 }
 
+/// Return aircraft with given key (optionally: if it has an active aircraft)
+LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
+                       bool bMustHaveAc)
+{
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
+    try {
+        LTFlightData& fd = mapFd.at(key);
+        if (!bMustHaveAc || fd.hasAc())
+            return &fd;
+    }
+    // not found
+    catch (...)
+    {}
+    return nullptr;
+}

@@ -1093,30 +1093,32 @@ void LTFlightDataAcMaintenance()
         {
             LTFlightData& fd = i->second;
 
-            // If we have an a/c:
-            if (fd.hasAc()) {
+            // If we have an a/c and can't create one anyway
+            if (fd.hasAc() || (fd.GetPosDeque().size() < 2) ) {
                 // do the maintenance, remove aircraft if that's the verdict
                 if ( fd.AircraftMaintenance(simTime) )
                     i = mapFd.erase(i);
                 else
                     ++i;
             }
-            // don't yet have an a/c -> put it into the list of potentially to create a/c
+            // don't have an a/c -> put it into the list of potentially to create a/c
             else {
-                if (fd.GetPosDeque().size() >= 2)
-                    vecAddAc.push_back(fd);
+                vecAddAc.push_back(fd);
                 ++i;
             }
         }
         
-        // Process a/c waiting for creation
+        // Process a/c (potentially) waiting for creation
         if (!vecAddAc.empty()) {
             // Sort the vector by distance
             std::sort(vecAddAc.begin(), vecAddAc.end());
             // Process the a/c in ascending order of distance
             for (AddAcTy& addAc: vecAddAc) {
-                if (!addAc.pFd->hasAc())
-                    addAc.pFd->AircraftMaintenance(simTime);
+                if (addAc.pFd->AircraftMaintenance(simTime)) {
+                    // aircraft to be completely removed
+                    mapFd.erase(addAc.pFd->key());
+                    addAc.pFd = nullptr;
+                }
             }
         }
 

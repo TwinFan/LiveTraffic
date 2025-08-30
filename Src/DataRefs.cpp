@@ -1534,11 +1534,9 @@ void DataRefs::ClearCameraAc(void*)
     // that aircraft and _make_ it the a/c under the camera...LiveTraffic will
     // not switch on the camera but will displayer the active camera button
     if (dataRefs.ShallUseExternalCamera() && dataRefs.adrXP[DR_CAMERA_AC_ID]) {
-        char keyHex[10];
-        snprintf ( keyHex, sizeof(keyHex), "%06X",
-                  (unsigned int)XPLMGetDatai(dataRefs.adrXP[DR_CAMERA_AC_ID]) );
-        mapLTFlightDataTy::iterator iter = mapFdSearchAc(keyHex);
-        LTAircraft::SetCameraAcExternally(iter != mapFd.end() ? iter->second.GetAircraft() : nullptr);
+        const LTFlightData* pFd = mapFdAc(LTFlightData::FDKeyTy(LTFlightData::KEY_ICAO, (unsigned)XPLMGetDatai(dataRefs.adrXP[DR_CAMERA_AC_ID])), true);
+        if (pFd)
+            LTAircraft::SetCameraAcExternally(pFd->GetAircraft());
     }
     else
         // Clear our aircraft under the camera

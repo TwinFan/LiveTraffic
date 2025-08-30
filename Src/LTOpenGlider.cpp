@@ -989,11 +989,15 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
     
     // *** Aircraft key type / device
     
-    // If the device doesn't want to be identified -> map to generated anonymous id
+    // If the device doesn't want to be identified -> skip (if tracked elsewhere) or map to generated anonymous id
     if (!rec.IsIdentified()) {
         // clear any potentially identifying information
         stat.reg.clear();
         stat.call.clear();
+        
+        // Is this aircraft tracked on another channel already? Then don't bother here:
+        if (mapFdHasAc(LTFlightData::FDKeyTy(LTFlightData::KEY_ICAO, uDevId)))
+            return false;
 
         // The key into the map consists of the device id and the device type
         std::string idKey (sDevId);             // device id string
@@ -1008,9 +1012,7 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
                           rec.devType == 'I' ? LTFlightData::KEY_ICAO  :
                           rec.devType == 'F' ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN,
                           uDevId);
-        // TODO: Undo!
-        // stat.call = anon.anonymCall;
-        stat.call = sDevId;
+        stat.call = anon.anonymCall;
     } else {
         // device is allowed to be identified
         key.SetKey(rec.devType == 'F' ? LTFlightData::KEY_FLARM    :

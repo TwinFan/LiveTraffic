@@ -464,4 +464,13 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx);
 /// Find a/c by text, compares with key, call sigh, registration etc., passes pure numbers to mapFdAcByIdx()
 mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s);
 
+/// Return aircraft with given key (optionally: if it has an active aircraft)
+LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
+                       bool bMustHaveAc = false);
+
+/// Do we know an aircraft with the given key (no matter if currently displayed or not)
+inline bool mapFdHasAc (const LTFlightData::FDKeyTy& key,
+                 bool bMustHaveAc = false)
+{ return mapFdAc(key,bMustHaveAc) != nullptr; }
+
 #endif /* LTFlightData_h */
