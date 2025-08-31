@@ -284,7 +284,7 @@ bool OpenSkyConnection::ProcessFetchedData ()
 
         // Ran out of requests?
         case HTTP_TOO_MANY_REQU:
-            SHOW_MSG(logERR, "%s: Used up request credit for today, try again on %s",
+            SHOW_MSG(logFATAL, "%s: Used up request credit for today, try again on %s",
                      pszChName,
                      dataRefs.OpenSkyRetryAt.empty() ? "<?>" : dataRefs.OpenSkyRetryAt.c_str());
             SetValid(false,false);

@@ -129,15 +129,15 @@ bool Doc8643::ReadDoc8643File ()
                                        m[DOC_WTC]));
         } else if (fIn) {
             // I/O was good, but line didn't match
-            SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
-                     path.c_str(), ln, text.c_str());
+            LOG_MSG(logWARN, ERR_CFG_LINE_READ,
+                    path.c_str(), ln, text.c_str());
             errCnt++;
         } else if (!fIn && !fIn.eof()) {
             // I/O error
 			char sErr[SERR_LEN];
 			strerror_s(sErr, sizeof(sErr), errno);
-			SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
-                     path.c_str(), ln, sErr);
+			LOG_MSG(logWARN, ERR_CFG_LINE_READ,
+                    path.c_str(), ln, sErr);
             errCnt++;
         }
     }
@@ -221,8 +221,8 @@ namespace ModelIcaoType
                 // pipe is first or last character? not good either as either string would be empty then
                 pos == 0 || pos == text.size()-1) {
                 // I/O was good, but line has wrong format
-                SHOW_MSG(logWARN, ERR_CFG_LINE_READ,
-                         path.c_str(), ln, text.c_str());
+                LOG_MSG(logWARN, ERR_CFG_LINE_READ,
+                        path.c_str(), ln, text.c_str());
                 errCnt++;
             }
             
@@ -2077,7 +2077,7 @@ bool DataRefs::LoadConfigFile()
     if (ln[1] == LT_VERSION)                conv = CFG_NO_CONV;
     else {
         // Version update!
-        SHOW_MSG(logMSG, MSG_LT_UPDATED, LT_VERSION);
+        SHOW_MSG(logINFO, MSG_LT_UPDATED, LT_VERSION);
         // Any pre-v3 version?
         if (ln[1][0] < '3')
             conv = CFG_V3;

@@ -503,7 +503,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
             
         case HTTP_INTERNAL_ERR:
         default:
-            SHOW_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
+            LOG_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
             IncErrCnt();
             tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;

@@ -274,7 +274,7 @@ void HandleNewVersionAvail ()
     XPLMAppendMenuItem(menuID, buf, (void *)MENU_ID_NEWVER,1);
 
     // make the user aware
-    SHOW_MSG(logWARN,MSG_LT_NEW_VER_AVAIL,GetNewVersionNr().c_str());
+    SHOW_MSG(logMSG,MSG_LT_NEW_VER_AVAIL,GetNewVersionNr().c_str());
 }
 
 /// append a menu item, if given with command

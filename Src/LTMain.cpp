@@ -1243,7 +1243,7 @@ bool LTMainShowAircraft ()
             else
                 SHOW_MSG(logWARN, ERR_CFG_CSL_ONLY_ONE, mdlName.c_str(), mdlIcao.c_str());
         }
-        SHOW_MSG(logMSG, MSG_CFG_CSL_INSTALL);
+        SHOW_MSG(logWARN, MSG_CFG_CSL_INSTALL);
     }
     
     // select aircraft for display
@@ -1356,7 +1356,7 @@ void LTMainToggleAI (bool bGetControl)
     }
     
     // Show a message
-    CreateMsgWindow(1.0f, logMSG, MSG_AI_LOAD_ACF);
+    CreateMsgWindow(1.0f, logINFO, MSG_AI_LOAD_ACF);
     
     // Create a flight loop callback to do the AI change
     static XPLMFlightLoopID aiID = nullptr;
