@@ -414,7 +414,7 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                          box.nw.lat(), box.se.lat(),
                          box.nw.lon(), box.se.lon(),
                          curr.tOff,
-                         dataRefs.GetFdBufPeriod() / 10);       // One buffer per 10s of buffering time
+                         std::min<int>(10, dataRefs.GetFdBufPeriod() / 10));    // One buffer per 10s of buffering time, max of 10 buffers
             }
             // normal un-buffered request for traffic or parked aircraft
             else {
@@ -503,7 +503,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
             
         case HTTP_INTERNAL_ERR:
         default:
-            SHOW_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
+            LOG_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
             IncErrCnt();
             tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
@@ -779,13 +779,6 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
         if ((!acFilter.empty() && (fdKey != acFilter)) )
             continue;
 
-        // Check for duplicates with OGN/FLARM, potentially replaces the key type
-        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-        else
-            // Some codes are otherwise often duplicate with ADSBEx
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
-        
         // position time
         double posTime = jag_n(pJAc, RT_DRCT_TimeStamp);
         //  (needs adjustment in case we are receiving historical data)
@@ -1000,13 +993,6 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         if ((!acFilter.empty() && (fdKey != acFilter)) )
             continue;
         
-        // Check for duplicates with OGN/FLARM, potentially replaces the key type
-        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-        else
-            // Some codes are otherwise often duplicate with ADSBEx
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
-
         // position
         positionTy pos (dat.lat, dat.lon);
         pos.heading() = 0.0;
@@ -1883,13 +1869,6 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         if (tfc[RT_RTTFC_ISICAOHEX] != "1")
             fdKey.eKeyType = LTFlightData::KEY_RT;
         
-        // Check for duplicates with OGN/FLARM, potentially replaces the key type
-        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-        else
-            // Some codes are otherwise often duplicate with ADSBEx
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
-        
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one
         LTFlightData& fd = mapFd[fdKey];
@@ -2036,13 +2015,6 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         // from here on access to fdMap guarded by a mutex
         // until FD object is inserted and updated
         std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
-        
-        // Check for duplicates with OGN/FLARM, potentially replaces the key type
-        if (fdKey.eKeyType == LTFlightData::KEY_ICAO)
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-        else
-            // Some codes are otherwise often duplicate with ADSBEx
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_ADSBEX);
         
         // get the fd object from the map, key is the transpIcao
         // this fetches an existing or, if not existing, creates a new one

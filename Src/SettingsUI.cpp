@@ -1501,7 +1501,7 @@ void LTSettingsUI::buildInterface()
                     fdIter = mapFdSearchAc(txtDebugFilter);
                 // found?
                 if (fdIter != mapFd.cend()) {
-                    txtDebugFilter = fdIter->second.key();
+                    txtDebugFilter = std::string(fdIter->second.key());
                     DataRefs::LTSetDebugAcFilter(NULL,int(fdIter->second.key().num));
                 }
                 else

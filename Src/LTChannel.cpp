@@ -1072,16 +1072,55 @@ void LTFlightDataAcMaintenance()
         std::lock_guard<std::mutex> lock (mapFdMutex);
         double simTime = dataRefs.GetSimTime();
         
+        /// @brief Aircraft waiting for creation are store in a list of this type
+        /// @details to be sorted by distance so we avoid creating a far away one just to remove it immediately for a closer one
+        struct AddAcTy {
+            LTFlightData* pFd;              ///< reference to the aircraft data
+            double dist;                    ///< distance to current view to help sorting
+            /// sorting is strictly by distance
+            bool operator<(const AddAcTy& o) const { return dist < o.dist; }
+            /// Constructor fills reference and distance
+            AddAcTy (LTFlightData& _fd) : pFd(&_fd),
+            dist(_fd.GetPosDeque().empty() ? NAN : CoordDistance(dataRefs.GetViewPos(), _fd.GetPosDeque().front()))
+            {}
+            /// Copy by default (needed for sorting in an vector)
+            AddAcTy (const AddAcTy& o) = default;
+        };
+        /// The actual list of a/c waiting for (potential) creation
+        std::vector<AddAcTy> vecAddAc;
+        
         // iterate all flight data and remove outdated aircraft along with their fd data
         for ( auto i = mapFd.begin(); i != mapFd.end(); )
         {
-            // access guarded by a mutex
             LTFlightData& fd = i->second;
-            // do the maintenance, remove aircraft if that's the verdict
-            if ( fd.AircraftMaintenance(simTime) )
-                i = mapFd.erase(i);
-            else
+
+            // If we have an a/c and can't create one anyway
+            if (fd.hasAc() || (fd.GetPosDeque().size() < 2) ) {
+                // do the maintenance, remove aircraft if that's the verdict
+                if ( fd.AircraftMaintenance(simTime) )
+                    i = mapFd.erase(i);
+                else
+                    ++i;
+            }
+            // don't have an a/c -> put it into the list of potentially to create a/c
+            else {
+                vecAddAc.push_back(fd);
                 ++i;
+            }
+        }
+        
+        // Process a/c (potentially) waiting for creation
+        if (!vecAddAc.empty()) {
+            // Sort the vector by distance
+            std::sort(vecAddAc.begin(), vecAddAc.end());
+            // Process the a/c in ascending order of distance
+            for (AddAcTy& addAc: vecAddAc) {
+                if (addAc.pFd->AircraftMaintenance(simTime)) {
+                    // aircraft to be completely removed
+                    mapFd.erase(addAc.pFd->key());
+                    addAc.pFd = nullptr;
+                }
+            }
         }
 
     } catch(const std::system_error& e) {

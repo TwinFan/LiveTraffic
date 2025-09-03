@@ -51,8 +51,8 @@ extern mapLTFlightDataTy mapFd;
 // MARK: OGNAnonymousIdMapTy
 //
 
-/// The maximum "number" that can be expressed in out way of deriving a 4-char call sign for generated ids, which is using 0-9A-Z in a 36-based number system
-constexpr unsigned long OGN_MAX_ANON_CALL_SIGN = 36^4;
+/// The maximum "number" that can be expressed in our way of deriving a 4-char call sign for generated ids, which is using 0-9A-Z in a 36-based number system
+constexpr unsigned long OGN_MAX_ANON_CALL_SIGN = 1679616UL;     // 36 ** 4 = 1679616
 /// First anonymous id when we "generate" one ("real" IDs are hex 6 digit long, so we start with 7 digits)
 constexpr unsigned long OGN_FIRST_ANONYM_ID = 0x01000000;
 /// Next anonymous id when we "generate" one ("real" IDs are hex 6 digit long, so we start with 7 digits)
@@ -306,9 +306,9 @@ bool OpenGliderConnection::ProcessFetchedData ()
 
         // Look up the device in the DDB / Aircraft list.
         // This also checks if the device wants to be tracked and sets the key accordingly
-        LTFlightData::FDKeyTy fdKey;
+        LTFlightData::FDKeyTy fdKey, fdPrivateKey;
         LTFlightData::FDStaticData stat;
-        if (!AcListLookup(tok[GNF_FLARM_DEVICE_ID], fdKey, stat))
+        if (!AcListLookup(tok[GNF_FLARM_DEVICE_ID], fdKey, fdPrivateKey, stat))
             continue;                   // device doesn't want to be tracked -> ignore!
         
         // key not matching a/c filter? -> skip it
@@ -336,7 +336,9 @@ bool OpenGliderConnection::ProcessFetchedData ()
             //  (if more than one ICAO type is defined))
             if ( fd.empty() ) {
                 fd.SetKey(fdKey);
-            
+                if (fdPrivateKey)
+                    fd.SetPrivateKey(fdPrivateKey);
+
                 // Aircraft type converted from Flarm AcftType
                 const FlarmAircraftTy acTy = (FlarmAircraftTy)std::clamp<int>(std::stoi(tok[GNF_FLARM_ACFT_TYPE]),
                                                                               FAT_UNKNOWN, FAT_STATIC_OBJ);
@@ -585,19 +587,6 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         if (ln.find(OGN_APRS_LOGIN_GOOD) != std::string::npos)
             LOG_MSG(logINFO, ERR_OGN_APRS_CONNECTED, str_last_word(ln).c_str());
         
-        // Test for server time to feed into our system clock deviation calculation
-        if (dataRefs.ChTsAcceptMore()) {
-            static std::regex reTm ("\\d+ \\w{3} \\d{4} (\\d{1,2}):(\\d{2}):(\\d{2}) GMT");
-            std::smatch mTm;
-            std::regex_search(ln, mTm, reTm);
-            if (!mTm.empty()) {
-                const time_t serverT = mktime_utc(std::stoi(mTm.str(1)),
-                                                  std::stoi(mTm.str(2)),
-                                                  std::stoi(mTm.str(3)));
-                dataRefs.ChTsOffsetAdd(double(serverT));
-            }
-        }
-        
         // Otherwise ignore all lines starting with '#' as comments
         return true;
     }
@@ -664,9 +653,9 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
     
     // Look up the device in the DDB / Aircraft list.
     // This also checks if the device wants to be tracked and sets the key accordingly
-    LTFlightData::FDKeyTy fdKey;
+    LTFlightData::FDKeyTy fdKey, fdPrivateKey;
     LTFlightData::FDStaticData stat;
-    if (!AcListLookup(m.str(M_SEND_ID), fdKey, stat))
+    if (!AcListLookup(m.str(M_SEND_ID), fdKey, fdPrivateKey, stat))
         return true;                            // device doesn't want to be tracked -> ignore silently!
 
     // key not matching a/c filter? -> skip it
@@ -695,6 +684,8 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         //  has a random element (if more than one ICAO type is defined))
         if ( fd.empty() ) {
             fd.SetKey(fdKey);
+            if (fdPrivateKey)
+                fd.SetPrivateKey(fdPrivateKey);
         
             // Aircraft type converted from Flarm AcftType
             stat.catDescr   = OGNGetAcTypeName(acTy);
@@ -950,6 +941,7 @@ size_t OpenGliderConnection::AcListNetwCB(char *ptr, size_t, size_t nmemb, void*
 // Tries reading aircraft information from the OGN a/c list
 bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
                                          LTFlightData::FDKeyTy& key,
+                                         LTFlightData::FDKeyTy& privateKey,
                                          LTFlightData::FDStaticData& stat)
 {
     // device id converted to binary number
@@ -987,7 +979,7 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
         // This will also CLEAR the TRACKED and IDENTIFIED flags
         // as required for a device not found in the DDB:
         rec = OGN_DDB_RecTy();
-        rec.devType = 'O';          // treat it as an OGN id from the outset
+        rec.devType = 'P';          // treat it as an private id from the outset (this is a code not existing in the OGN database)
         rec.SetTracked();           // tracking a not-in-DDB device is OK
     }
     
@@ -997,11 +989,15 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
     
     // *** Aircraft key type / device
     
-    // If the device doesn't want to be identified -> map to generated anonymous id
+    // If the device doesn't want to be identified -> skip (if tracked elsewhere) or map to generated anonymous id
     if (!rec.IsIdentified()) {
         // clear any potentially identifying information
         stat.reg.clear();
         stat.call.clear();
+        
+        // Is this aircraft tracked on another channel already? Then don't bother here:
+        if (mapFdHasAc(LTFlightData::FDKeyTy(LTFlightData::KEY_ICAO, uDevId)))
+            return false;
 
         // The key into the map consists of the device id and the device type
         std::string idKey (sDevId);             // device id string
@@ -1010,7 +1006,12 @@ bool OpenGliderConnection::AcListLookup (const std::string& sDevId,
         // look up or _create_ the mapping record to the generated anonymous id
         OGNAnonymousIdMapTy& anon = mapAnonymousId[idKey];
         // take over the mapped anonymous id
-        key.SetKey(LTFlightData::KEY_OGN, anon.anonymId);
+        key.SetKey(LTFlightData::KEY_PRIVATE, anon.anonymId);
+        // return the original in the privateKey object
+        privateKey.SetKey(rec.devType == 'P' ? LTFlightData::KEY_ICAO  :       // don't have a record...let's just guess it is originally an ICAO record
+                          rec.devType == 'I' ? LTFlightData::KEY_ICAO  :
+                          rec.devType == 'F' ? LTFlightData::KEY_FLARM : LTFlightData::KEY_OGN,
+                          uDevId);
         stat.call = anon.anonymCall;
     } else {
         // device is allowed to be identified

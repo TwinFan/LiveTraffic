@@ -284,7 +284,7 @@ bool OpenSkyConnection::ProcessFetchedData ()
 
         // Ran out of requests?
         case HTTP_TOO_MANY_REQU:
-            SHOW_MSG(logERR, "%s: Used up request credit for today, try again on %s",
+            SHOW_MSG(logFATAL, "%s: Used up request credit for today, try again on %s",
                      pszChName,
                      dataRefs.OpenSkyRetryAt.empty() ? "<?>" : dataRefs.OpenSkyRetryAt.c_str());
             SetValid(false,false);
@@ -344,12 +344,6 @@ bool OpenSkyConnection::ProcessFetchedData ()
     }
     
     // --- Planes ---
-    // for determining an offset as compared to network time we need to know network time
-    double opSkyTime = jog_n(pObj, OPSKY_TIME);
-    if (opSkyTime > JAN_FIRST_2019)
-        // if reasonable add this to our time offset calculation
-        dataRefs.ChTsOffsetAdd(opSkyTime);
-    
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
 
@@ -402,9 +396,6 @@ bool OpenSkyConnection::ProcessFetchedData ()
             // until FD object is inserted and updated
             std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
             
-            // Check for duplicates with OGN/FLARM, potentially replaces the key type
-            LTFlightData::CheckDupKey(fdKey, LTFlightData::KEY_FLARM);
-
             // get the fd object from the map, key is the transpIcao
             // this fetches an existing or, if not existing, creates a new one
             LTFlightData& fd = mapFd[fdKey];
