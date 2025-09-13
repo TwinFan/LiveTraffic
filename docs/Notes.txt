@@ -1,8 +1,18 @@
 TODO
 ===
 
+AutoATC
+https://forums.x-plane.org/messenger/616782/?&tab=comments#comment-1386178
+https://load1.zem-solutions.com/AutoATCPeek?lat=44.8205&lon=20.2917
+Returns
+{"result":"success","data":[{"lat":44.83533988577092,"lon":20.28103695046056,"alt":5000,"h":63,"ground":false,"state":"inflight","ADS-B":"46116337","cs":"air serbia 4139","af":"AT72","icao":"ASL"}],"timestamp":1748714271217}
+
+Actual Time, can replace pulling network time from channels' responses
+https://timeapi.io/api/time/current/zone?timeZone=UTC
+
 Download History
 ==========
+Download counter when providing v4.2.1: 229.417
 Download counter when providing v4.2.0: 225.175
 Download counter when providing v4.1.1: 220.682
 Download counter when providing v4.1.0: 219,567

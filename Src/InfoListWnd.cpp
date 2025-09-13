@@ -554,7 +554,7 @@ void InfoListWnd::buildInterface()
                 if (ImGui::TreeNode(dataRefs.sXpVer.c_str())) {
                     if (ImGui::BeginTable("X-Plane Version Info", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
                         ImGui::TableNextRow();
-                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("X-Plane Version");
+                        if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("X-Plane Build");
                         if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.xpVer);
                         ImGui::TableNextRow();
                         if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("XPLM Version");

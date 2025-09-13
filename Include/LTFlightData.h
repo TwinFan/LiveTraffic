@@ -174,6 +174,7 @@ public:
         KEY_ORG_SPECIFIC = 0x0010,
         KEY_FSC,
         KEY_SAYINTENTIONS,
+        KEY_AUTOATC,
         KEY_PRIVATE,                            // plane doesn't want to be identified, so we generate a private internally key ourselves
     };
     struct FDKeyTy {

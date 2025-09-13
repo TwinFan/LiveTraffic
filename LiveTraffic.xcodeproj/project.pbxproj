@@ -36,6 +36,7 @@
 		25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25ABEEFD219A1C2100F61413 /* LTVersion.cpp */; };
 		25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE00D8213887AF00908E65 /* SettingsUI.cpp */; };
 		25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */; };
+		25C04FED2DEB8070009D2753 /* LTAutoATC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C04FEC2DEB8070009D2753 /* LTAutoATC.cpp */; };
 		25C5254424D0268700C73482 /* InfoListWnd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C5254324D0268700C73482 /* InfoListWnd.cpp */; };
 		25C59458207A296500E52073 /* TextIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59456207A296500E52073 /* TextIO.cpp */; };
 		25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25C59459207A2B7500E52073 /* DataRefs.cpp */; };
@@ -167,6 +168,8 @@
 		25BBD2FA21EA0FB400AEAA4B /* OpenSky_Metadata_Routes_combined.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = OpenSky_Metadata_Routes_combined.json; sourceTree = "<group>"; };
 		25BF009E290DCBF400317CAE /* XPMP2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = XPMP2.xcodeproj; path = XPMP2/XPMP2.xcodeproj; sourceTree = "<group>"; };
 		25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTChannel.cpp; sourceTree = "<group>"; };
+		25C04FEB2DEB8058009D2753 /* LTAutoATC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTAutoATC.h; sourceTree = "<group>"; };
+		25C04FEC2DEB8070009D2753 /* LTAutoATC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTAutoATC.cpp; sourceTree = "<group>"; };
 		25C5254224D0264700C73482 /* InfoListWnd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InfoListWnd.h; sourceTree = "<group>"; };
 		25C5254324D0268700C73482 /* InfoListWnd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = InfoListWnd.cpp; sourceTree = "<group>"; };
 		25C59456207A296500E52073 /* TextIO.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TextIO.cpp; sourceTree = "<group>"; };
@@ -306,6 +309,7 @@
 				251ED8852A02CC1B00274897 /* LTADSBHub.cpp */,
 				25C59461207AB4D800E52073 /* LTAircraft.cpp */,
 				25624BD923B014F600B899E1 /* LTApt.cpp */,
+				25C04FEC2DEB8070009D2753 /* LTAutoATC.cpp */,
 				25BFBB9220DEE2DC00D52B6C /* LTChannel.cpp */,
 				25E9C2AE207D5B8100D3C642 /* LTFlightData.cpp */,
 				25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */,
@@ -442,6 +446,7 @@
 				251ED8842A02CA1D00274897 /* LTADSBHub.h */,
 				25A095C92203B01300658AA8 /* LTAircraft.h */,
 				25624BDB23B0150300B899E1 /* LTApt.h */,
+				25C04FEB2DEB8058009D2753 /* LTAutoATC.h */,
 				25A095C22203B01300658AA8 /* LTChannel.h */,
 				25A095BF2203B01300658AA8 /* LTFlightData.h */,
 				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
@@ -689,6 +694,7 @@
 				25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */,
 				25BFBB9320DEE2DC00D52B6C /* LTChannel.cpp in Sources */,
 				25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */,
+				25C04FED2DEB8070009D2753 /* LTAutoATC.cpp in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
 				258117B6291AF24D00D05428 /* FMOD_Logo.cpp in Sources */,
 				256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */,
@@ -819,8 +825,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 2;
-				LIVETRAFFIC_VER_PATCH = 3;
+				LIVETRAFFIC_VER_MINOR = 3;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -930,8 +936,8 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 2;
-				LIVETRAFFIC_VER_PATCH = 3;
+				LIVETRAFFIC_VER_MINOR = 3;
+				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;

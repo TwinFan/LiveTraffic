@@ -578,6 +578,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/synthetic/intern",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/autoatc/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/sayintentions/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/fscharter/online",        DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_glider/online",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -807,9 +808,10 @@ bool DataRefs::Init ()
     
     // XP Version
     XPLMGetVersions(&xpVer, &xplmVer, nullptr);
-    snprintf(aszPath, sizeof(aszPath), "X-Plane %d.%02d",
-             xpVer / 1000,
-             ((xpVer) / 10) % 100);
+    snprintf(aszPath, sizeof(aszPath), "X-Plane %d.%d.%d",
+             xpVer / 1000,              // xpVer is something like 12210, actually the "build" version
+             (xpVer % 1000) / 100,      // -> "210"/100 = 2
+             (xpVer % 100) / 10);       // ->  "10"/10 = 1
     sXpVer = aszPath;
     
     // Directory Separator provided by XP

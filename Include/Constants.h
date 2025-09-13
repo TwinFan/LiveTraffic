@@ -270,6 +270,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
 #define HELP_SET_CH_FSCHARTER   "setup/installation/fscharter"
 #define HELP_SET_CH_SI          "setup/installation/sayintentions"
+#define HELP_SET_CH_AUTOATC     "setup/installation/autoatc"
 #define HELP_SET_OUTPUT_CH      "setup/installation/foreflight"     // currently the same as ForeFlight, which is the only output channel
 #define HELP_SET_CH_FOREFLIGHT  "setup/installation/foreflight"
 #define HELP_SET_ACLABELS       "setup/configuration/settings-a-c-labels"

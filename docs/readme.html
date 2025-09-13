@@ -133,9 +133,14 @@
 
     <h2>v4</h2>
 
-    <h3>v4.2.2</h3>
+    <h3>v4.3.0</h3>
     
-    <P>At least copy the following files, which have changed compared to v4.2.0:</P>
+    <P>
+    <b>Update:</b> In case of doubt you can always just copy all files from the archive
+    over the files of your existing installation.
+    </P>
+    
+    <P>At least copy the following files, which have changed compared to v4.2.1:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
     </ul>
@@ -143,8 +148,39 @@
     <P>Change log:</P>
     
     <ul>
-        <li>Fixed <a href="">#284</a>: Allow a <i>Buffering Period</i> of more than
+        <li>
+            Added AutoATC as a new channel to follow
+            <a href="https://autoatc.zem-solutions.com/Status.html">AutoATC's generated AI planes</a>.<br>
+            <i>Note:</i> As always, there is a latency as per the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection"><i>Buffering Period</i></a>,
+            which will cause a time difference between ATC communication and plane movement.
+            You can reduce the <i>Buffering Period</i> to a minimum of 10s
+            (if also reducing <i>Live Data Refresh</i> to 10s),
+            which will however affect <i>all</i> channels and may in turn
+            cause unrealistic behaviour of live planes.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/287">#287</a>: OpenGlider planes with hidden id, that
+            duplicate planes from other channels, are no longer drawn,
+            avoiding duplicate planes in the sky.<br>
+            If you disabled OpenSky just because of those duplicate planes
+            consider enabling it again. Especially in Europe, OpenSky adds
+            to the immersion with its small planes, gliders, etc.
+        </li>
+        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/284">#284</a>: Allow a <i>Buffering Period</i> of more than
             100s with Realtraffic.</li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/289">#289</a>:
+            Reduced forced output to <i>Message Window</i> so that you can
+            <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#can-i-switch-off-the-message-area-in-the-top-right-corner">avoid nearly all output to the screen</a>.
+            However, for beginners still the default of "Info" is the
+            recommended choice.
+        </li>
+        <li>
+            Improved how planes are selected for display when seeing more than
+            the configured limit. Should reduce the effect that most distant
+            planes went into and out of visibility freqeuntly.
+        </li>
     </ul>
 
     <h3>v4.2.1</h3>
@@ -364,11 +400,6 @@
     <h2>v3</h2>
 
     <h3>v3.6.0</h3>
-
-    <P>
-        <b>Update:</b> In case of doubt you can always just copy all files from the archive
-        over the files of your existing installation.
-    </P>
 
     <P>At least copy the following files, which have changed compared to v3.5.1:</P>
     <ul>
