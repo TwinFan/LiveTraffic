@@ -196,6 +196,12 @@ bool AutoATCConnection::ProcessFetchedData ()
                         timestamp,
                         jog_l(pAc, AATC_HEADING));
         
+        // AutoATC seems to send all traffic, no matter how far away.
+        // Cut out planes too far away
+        const double dist = pos.dist(viewPos);
+        if (dist > dataRefs.GetFdStdDistance_m())
+            continue;
+        
         // On ground?
         if (jog_b(pAc, AATC_GND))
             pos.f.onGrnd = GND_ON;
@@ -235,7 +241,7 @@ bool AutoATCConnection::ProcessFetchedData ()
         dyn.pChannel        = this;
         
         // update the a/c's master data
-        fd.UpdateData(std::move(stat), pos.dist(viewPos));
+        fd.UpdateData(std::move(stat), dist);
         
         // position is rather important, we check for validity
         if ( pos.isNormal(true) ) {

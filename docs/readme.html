@@ -150,11 +150,14 @@
     <ul>
         <li>
             Added AutoATC as a new channel to follow
-            <a href="https://autoatc.zem-solutions.com/Status.html">AutoATC's planes</a>.<br>
+            <a href="https://autoatc.zem-solutions.com/Status.html">AutoATC's generated AI planes</a>.<br>
             <i>Note:</i> As always, there is a latency as per the
-            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection"><i>Buffering Period</i></a>, which you can reduce to 10s (if also
-            reducing <i>Live Data Refresh</i> to 10s), which will affect <i>all</i>
-            channels.
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection"><i>Buffering Period</i></a>,
+            which will cause a time difference between ATC communication and plane movement.
+            You can reduce the <i>Buffering Period</i> to a minimum of 10s
+            (if also reducing <i>Live Data Refresh</i> to 10s),
+            which will however affect <i>all</i> channels and may in turn
+            cause unrealistic behaviour of live planes.
         </li>
         <li>
             Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/287">#287</a>: OpenGlider planes with hidden id, that
