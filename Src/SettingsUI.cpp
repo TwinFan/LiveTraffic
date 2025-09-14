@@ -907,7 +907,14 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 ImGui::FilteredCfgCheckbox("Send user's position", sFilter, DR_CFG_FF_SEND_USER_PLANE,  "Include your own plane's position in ForeFlight stream");
-                ImGui::FilteredCfgCheckbox("Send traffic", sFilter, DR_CFG_FF_SEND_TRAFFIC,             "Include live traffic in ForeFlight stream");
+                if (ImGui::FilteredLabel("Send traffic", sFilter)) {
+                    int n = DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC].getDatai();
+                    static float cbWidth = ImGui::CalcTextSize("Only non-TCAS target traffic_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    if (ImGui::Combo("##FFSendTraffic", &n, "None\0All\0Only non-TCAS target traffic\0", 3))
+                        DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC].setData(n);
+                    ImGui::TableNextCell();
+                }
                 ImGui::FilteredCfgNumber("Send traffic every", sFilter, DR_CFG_FF_SEND_TRAFFIC_INTVL, 1, 30, 1, "%d seconds");
 
                 if (!*sFilter) ImGui::TreePop();

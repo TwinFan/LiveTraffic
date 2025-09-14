@@ -149,7 +149,7 @@
     
     <ul>
         <li>
-            Added AutoATC as a new channel to follow
+            Added <b>AutoATC</b> as a new channel to follow
             <a href="https://autoatc.zem-solutions.com/Status.html">AutoATC's generated AI planes</a>.<br>
             <i>Note:</i> As always, there is a latency as per the
             <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection"><i>Buffering Period</i></a>,
@@ -160,7 +160,24 @@
             cause unrealistic behaviour of live planes.
         </li>
         <li>
-            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/287">#287</a>: OpenGlider planes with hidden id, that
+            <b>ForeFlight</b> output: Added an option to only output traffic, that
+            is not also a "TCAS Target" to avoid duplicates with X-Plane's network output.<br>
+            If you prefer X-Plane to output data to ForeFlight directly
+            (via X-Plane's Networking settings) then X-Plane will output your
+            own plane's position and also up to 63 traffic planes,
+            the so-called <a href="https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/">TCAS targets</a>.
+            When LiveTraffic has <a href="https://twinfan.gitbook.io/livetraffic/using-lt/menu-items#tcas-controlled">TCAS control</a>,
+            those are the 63 nearest planes provided by LiveTraffic.
+            Using the new "Only non-TCAS target traffic" option in the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/foreflight#livetraffic-settings">ForeFlight Output settings</a>
+            prevents LiveTraffic from sending TCAS target traffic to ForeFlight.
+            LiveTraffic will then only send planes that are not currently
+            TCAS targets, ie. planes further away,
+            that X-Plane has now knowledge about.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/287">#287</a>:
+            <b>OpenGlider</b> planes with hidden id, that
             duplicate planes from other channels, are no longer drawn,
             avoiding duplicate planes in the sky.<br>
             If you disabled OpenSky just because of those duplicate planes
@@ -168,7 +185,7 @@
             to the immersion with its small planes, gliders, etc.
         </li>
         <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/284">#284</a>: Allow a <i>Buffering Period</i> of more than
-            100s with Realtraffic.</li>
+            100s with <b>Realtraffic</b>.</li>
         <li>
             Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/289">#289</a>:
             Reduced forced output to <i>Message Window</i> so that you can

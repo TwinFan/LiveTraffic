@@ -476,6 +476,13 @@ enum SimTimeCtrlTy : int {
     STC_SIM_TIME_PLUS_BUFFER,           ///< Send current sim time plus buffering period, so that the traffic, when it appears, matches up with current sim time
 };
 
+/// Which amount of planes to send to ForeFlight?
+enum TrafficToSendTy : int {
+    TTS_NONE = 0,                       ///< Don't send any traffic
+    TTS_ALL,                            ///< Send all known planes
+    TTS_NONTCAS_ONLY,                   ///< Send only planes that don't have a TCAS slot in X-Plane
+};
+
 /// How to control weather?
 enum WeatherCtrlTy : int {
     WC_INIT = -1,                       ///< Initial value when not available in config file, then a default is determined in first flight loop depending if XP is using real weather
@@ -746,7 +753,7 @@ protected:
     int ffListenPort    = 63093;        ///< UDP Port to listen to ForeFlight announcing itself, https://www.foreflight.com/connect/spec/
     int ffSendPort      = 49002;        ///< UDP Port to send simulator data to ForeFlight, https://www.foreflight.com/support/network-gps/
     int bffUserPlane    = 1;            // bool Send User plane data?
-    int bffTraffic      = 1;            // bool Send traffic data?
+    TrafficToSendTy ffTraffic=TTS_ALL;  ///< Send traffic data? And which amount of traffic?
     int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages

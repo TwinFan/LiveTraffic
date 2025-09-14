@@ -571,7 +571,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/fore_flight/listen_port", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/send_port",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/user_plane",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/interval",    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
     // channels, in ascending order of priority
@@ -670,7 +670,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FF_LISTEN_PORT:         return &ffListenPort;
         case DR_CFG_FF_SEND_PORT:           return &ffSendPort;
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
-        case DR_CFG_FF_SEND_TRAFFIC:        return &bffTraffic;
+        case DR_CFG_FF_SEND_TRAFFIC:        return &ffTraffic;
         case DR_CFG_FF_SEND_TRAFFIC_INTVL:  return &ffSendTrfcIntvl;
 
         default:
