@@ -2567,7 +2567,7 @@ double TimeIoGetUTCTimeDiff ()
     
     // perform the HTTP get request
     using namespace std::chrono;
-    const long startMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const auto startMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     CURLcode cc = CURLE_OK;
     if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
     {
@@ -2585,7 +2585,7 @@ double TimeIoGetUTCTimeDiff ()
             LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s", cc, curl_errtxt);
         }
     }
-    const long endMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const auto endMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
     if (cc == CURLE_OK)
     {
@@ -2867,7 +2867,7 @@ bool DataRefs::WeatherFetchMETAR ()
     {
         // Trigger a weather update; this is an asynch operation
         lastWeatherAttempt = GetMiscNetwTime();
-        return ::WeatherFetchUpdate(posUser, GetWeatherMaxMetarDist_nm());
+        return ::WeatherFetchUpdate(posUser, (float)GetWeatherMaxMetarDist_nm());
     }
     return false;
 }

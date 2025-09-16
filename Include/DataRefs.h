@@ -1009,7 +1009,7 @@ public:
     int GetWeatherMaxMetarHeight_ft() const { return weatherMaxMETARheight_ft; }
     float GetWeatherMaxMetarHeight_m() const { return float(weatherMaxMETARheight_ft * M_per_FT); }
     int GetWeatherMaxMetarDist_nm() const { return weatherMaxMETARdist_nm; }
-    float GetWeatherMaxMetarDist_m() const { return weatherMaxMETARdist_nm * M_per_NM; }
+    float GetWeatherMaxMetarDist_m() const { return float(weatherMaxMETARdist_nm) * M_per_NM; }
 
     // livetraffic/channel/...
     void SetChannelEnabled (dataRefsLT ch, bool bEnable);
