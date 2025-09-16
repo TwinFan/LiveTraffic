@@ -963,15 +963,15 @@ public:
                 const float alt_m = fieldAlt_m + dataRefs.GetWeatherMaxMetarHeight_m();
                 // Standard wind speed (can be 0 for calm winds) and direction
                 const float speed = wg.windSpeed().toUnit(Speed::Unit::METERS_PER_SECOND).value_or(0.0f);
-                const float dir   = wg.direction().degrees().value_or(0.0f);
+                const float dir   = (float)wg.direction().degrees().value_or(0.0f);
                 w.FillUp(w.wind_altitude_msl_m, w.wind_speed_msc,           // set wind speed up to preferred METAR height AGL
                          alt_m, speed, true);
                 w.FillUp(w.wind_altitude_msl_m, w.wind_direction_degt,      // set wind direction up to preferred METAR height AGL
                          alt_m, dir, false);                                // no interpolation...that can go wrong with headings
                 
                 // Variable wind direction -> transform into +/- degrees as expected by XP
-                const float begDir = wg.varSectorBegin().degrees().value_or(NAN);
-                const float endDir = wg.varSectorEnd().degrees().value_or(NAN);
+                const float begDir = (float)wg.varSectorBegin().degrees().value_or(NAN);
+                const float endDir = (float)wg.varSectorEnd().degrees().value_or(NAN);
                 const float halfDiff = !std::isnan(begDir) && !std::isnan(endDir) ?
                                        float(HeadingDiff(begDir, endDir) / 2.0) :
                                        0.0f;
