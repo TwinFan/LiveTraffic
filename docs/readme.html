@@ -133,6 +133,72 @@
 
     <h2>v4</h2>
 
+    <h3>v4.3.0</h3>
+    
+    <P>
+    <b>Update:</b> In case of doubt you can always just copy all files from the archive
+    over the files of your existing installation.
+    </P>
+    
+    <P>At least copy the following files, which have changed compared to v4.2.1:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li>
+            Added <b>AutoATC</b> as a new channel to follow
+            <a href="https://autoatc.zem-solutions.com/Status.html">AutoATC's generated AI planes</a>.<br>
+            <i>Note:</i> As always, there is a latency as per the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#aircraft-selection"><i>Buffering Period</i></a>,
+            which will cause a time difference between ATC communication and plane movement.
+            You can reduce the <i>Buffering Period</i> to a minimum of 10s
+            (if also reducing <i>Live Data Refresh</i> to 10s),
+            which will however affect <i>all</i> channels and may in turn
+            cause unrealistic behaviour of live planes.
+        </li>
+        <li>
+            <b>ForeFlight</b> output: Added an option to only output traffic, that
+            is not also a "TCAS Target" to avoid duplicates with X-Plane's network output.<br>
+            If you prefer X-Plane to output data to ForeFlight directly
+            (via X-Plane's Networking settings) then X-Plane will output your
+            own plane's position and also up to 63 traffic planes,
+            the so-called <a href="https://developer.x-plane.com/article/overriding-tcas-and-providing-traffic-information/">TCAS targets</a>.
+            When LiveTraffic has <a href="https://twinfan.gitbook.io/livetraffic/using-lt/menu-items#tcas-controlled">TCAS control</a>,
+            those are the 63 nearest planes provided by LiveTraffic.
+            Using the new "Only non-TCAS target traffic" option in the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/foreflight#livetraffic-settings">ForeFlight Output settings</a>
+            prevents LiveTraffic from sending TCAS target traffic to ForeFlight.
+            LiveTraffic will then only send planes that are not currently
+            TCAS targets, ie. planes further away,
+            that X-Plane has now knowledge about.
+        </li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/287">#287</a>:
+            <b>OpenGlider</b> planes with hidden id, that
+            duplicate planes from other channels, are no longer drawn,
+            avoiding duplicate planes in the sky.<br>
+            If you disabled OpenSky just because of those duplicate planes
+            consider enabling it again. Especially in Europe, OpenSky adds
+            to the immersion with its small planes, gliders, etc.
+        </li>
+        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/284">#284</a>: Allow a <i>Buffering Period</i> of more than
+            100s with <b>Realtraffic</b>.</li>
+        <li>
+            Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/289">#289</a>:
+            Reduced forced output to <i>Message Window</i> so that you can
+            <a href="https://twinfan.gitbook.io/livetraffic/reference/faq#can-i-switch-off-the-message-area-in-the-top-right-corner">avoid nearly all output to the screen</a>.
+            However, for beginners still the default of "Info" is the
+            recommended choice.
+        </li>
+        <li>
+            Improved how planes are selected for display when seeing more than
+            the configured limit. Should reduce the effect that most distant
+            planes went into and out of visibility freqeuntly.
+        </li>
+    </ul>
 
     <h3>v4.2.1</h3>
     
@@ -351,11 +417,6 @@
     <h2>v3</h2>
 
     <h3>v3.6.0</h3>
-
-    <P>
-        <b>Update:</b> In case of doubt you can always just copy all files from the archive
-        over the files of your existing installation.
-    </P>
 
     <P>At least copy the following files, which have changed compared to v3.5.1:</P>
     <ul>

@@ -383,6 +383,10 @@ void CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ..
 // Show the special text "Seeing aircraft...showing..."
 void CreateMsgWindow(float fTimeToDisplay, int numSee, int numShow, int bufTime)
 {
+    // We consider this message logINFO level, so let's see if we are supposed to show:
+    if (logINFO < dataRefs.GetMsgAreaLevel())
+        return;
+    
     // This entry shall always be the first one in the list
     // So let's see if it is already the first one, then we'd remove it first
     std::unique_lock<std::recursive_mutex> lock(gListMutex);

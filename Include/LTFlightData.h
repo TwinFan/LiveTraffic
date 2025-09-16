@@ -161,8 +161,22 @@ public:
     
     // KEY (protected, can be set only once, no mutex-control)
 public:
-    // in ascending order of priority
-    enum FDKeyType { KEY_UNKNOWN=0, KEY_OGN, KEY_RT, KEY_FLARM, KEY_ICAO, KEY_FSC, KEY_ADSBEX, KEY_SAYINTENTIONS };
+    /// Types/origin of an aircraft's id, though some types are interchangeable
+    enum FDKeyType : unsigned {
+        KEY_UNKNOWN=0,
+        // the "interchangeable" key types, which essentially signify the same number range, they "compare equal" for the purpose of operator==()
+        KEY_ICAO,
+        KEY_FLARM,
+        KEY_ADSBEX,
+        KEY_RT,
+        KEY_OGN,
+        // here starts the range of non-interchangeable, truly organisation-specific keys
+        KEY_ORG_SPECIFIC = 0x0010,
+        KEY_FSC,
+        KEY_SAYINTENTIONS,
+        KEY_AUTOATC,
+        KEY_PRIVATE,                            // plane doesn't want to be identified, so we generate a private internally key ourselves
+    };
     struct FDKeyTy {
         FDKeyType               eKeyType = KEY_UNKNOWN;
         std::string             key;            // the primary key in use
@@ -183,10 +197,10 @@ public:
         FDKeyTy& operator=(const FDKeyTy& o) = default;
         FDKeyTy& operator=(FDKeyTy&& o) = default;
 
-        // strict order based on numeric value
-        inline bool operator==(const FDKeyTy& o) const { return eKeyType == o.eKeyType && num == o.num; }
-        inline bool operator!=(const FDKeyTy& o) const { return eKeyType != o.eKeyType || num != o.num; }
-        inline bool operator<(const FDKeyTy& o) const { return eKeyType == o.eKeyType ? num < o.num : eKeyType < o.eKeyType; }
+        // strict order based on key type and numeric value
+        bool operator==(const FDKeyTy& o) const;
+        bool operator!=(const FDKeyTy& o) const { return !operator==(o); }
+        bool operator<(const FDKeyTy& o) const;
 
         // imitate some (std::)string functionality
         inline bool operator==(const std::string o) const { return key == o; }
@@ -195,16 +209,15 @@ public:
         
         inline const char* c_str() const    { return key.c_str(); }
         inline bool empty() const           { return key.empty(); }
+        inline operator bool() const        { return !num && !key.empty(); }
         void clear()                        { *this = FDKeyTy(); }
-        
-        // matches any string?
-        bool isMatch (const std::string t) const;
         
         /// return the type of key (as string)
         const char* GetKeyTypeText () const;
     };
 protected:
-    FDKeyTy acKey;
+    FDKeyTy acKey;                  ///< the planes unique identifier, publicly visible
+    FDKeyTy acPrivateKey;           ///< (optional) the true but private, ie. non-public identifier of the plane, for purposes of matching against public planes
 
     // last used Receiver ID, identifies the receiver of the signal of this flight data
     int             rcvr;
@@ -286,8 +299,9 @@ public:
     void SetKey    (FDKeyType eType, const std::string _key, int base=16)   { acKey.SetKey(eType, _key, base); }
     const FDKeyTy& key() const                              { return acKey; }
     std::string keyDbg() const                              { return key().key + ' ' + statData.acId("-"); }
-    /// Checks for a duplicate key on another key type and updates _key if so
-    static bool CheckDupKey(FDKeyTy& _key, FDKeyType _ty);
+    /// Set a private hidden key
+    void SetPrivateKey (const FDKeyTy& _privKey)            { acPrivateKey = _privKey; }
+    const FDKeyTy& keyPrivate() const { return acPrivateKey; }
 
     // Search support: icao, registration, call sign, flight number matches?
     bool IsMatch (const std::string t) const;
@@ -450,5 +464,14 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx);
 
 /// Find a/c by text, compares with key, call sigh, registration etc., passes pure numbers to mapFdAcByIdx()
 mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s);
+
+/// Return aircraft with given key (optionally: if it has an active aircraft)
+LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
+                       bool bMustHaveAc = false);
+
+/// Do we know an aircraft with the given key (no matter if currently displayed or not)
+inline bool mapFdHasAc (const LTFlightData::FDKeyTy& key,
+                 bool bMustHaveAc = false)
+{ return mapFdAc(key,bMustHaveAc) != nullptr; }
 
 #endif /* LTFlightData_h */

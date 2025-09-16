@@ -69,10 +69,10 @@ double CoordAngle (double lat1, double lon1, double lat2, double lon2)
 
 double CoordDistance (double lat1, double lon1, double lat2, double lon2)
 {
-    lat1 *= PI; lat1 /= 180.0;              // in-place degree-to-rad conversion
-    lon1 *= PI; lon1 /= 180.0;
-    lat2 *= PI; lat2 /= 180.0;
-    lon2 *= PI; lon2 /= 180.0;
+    lat1 *= PI/180.0;                       // in-place degree-to-rad conversion
+    lon1 *= PI/180.0;
+    lat2 *= PI/180.0;
+    lon2 *= PI/180.0;
 
     using namespace std;
     const double x = sin((lat2 - lat1) / 2);
@@ -694,7 +694,7 @@ void boundingBoxTy::enlarge_m (double x, double y)
     
     // we move 45 degrees from the center point to the nw and se corners,
     // use good ole pythagoras, probably not _exact_ but good enough here
-    const double d = sqrt(x*x + y*y);
+    const double d = std::hypot(x, y);
     
     // let's move the corners out:
     nw += vectorTy ( 315, d, NAN, NAN );

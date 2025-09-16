@@ -195,7 +195,7 @@ void ForeFlightSender::Main ()
             // Between any two broadcasts there is 20ms break.
             //
             const bool bSendUsersPlane = DataRefs::GetCfgBool(DR_CFG_FF_SEND_USER_PLANE);
-            const bool bSendAITraffic  = DataRefs::GetCfgBool(DR_CFG_FF_SEND_TRAFFIC);
+            const TrafficToSendTy eSendAITraffic = TrafficToSendTy(DataRefs::GetCfgInt(DR_CFG_FF_SEND_TRAFFIC));
             bool bDidSendSomething = false;
             
             // send user's plane at all?
@@ -227,7 +227,7 @@ void ForeFlightSender::Main ()
             // send traffic at all?
             // not yet send GPS/ATT?
             // time to send some traffic?
-            if (bSendAITraffic && !bDidSendSomething &&
+            if (eSendAITraffic && !bDidSendSomething &&
                 now >= nextTraffic)
             {
                 // from here on access to fdMap guarded by a mutex
@@ -241,7 +241,11 @@ void ForeFlightSender::Main ()
                         // next key to send? (shall have an actual a/c)
                         mapLTFlightDataTy::const_iterator mapIter;
                         for (mapIter = mapFd.upper_bound(lastKey);
-                             mapIter != mapFd.cend() && !mapIter->second.hasAc();
+                             mapIter != mapFd.cend() && !(                                  // continue while not reached end and NOT:
+                                mapIter->second.hasAc() &&                                      // has an actual a/c, AND
+                                    (eSendAITraffic == TTS_ALL ||                                   // all traffic to be send, OR
+                                     !mapIter->second.GetAircraft()->IsCurrentlyShownAsTcasTarget())// not currently a TCAS target
+                             );
                              mapIter++);
                         
                         // something left?
@@ -274,8 +278,8 @@ void ForeFlightSender::Main ()
             if (shallRun())
             {
                 std::chrono::time_point<std::chrono::steady_clock> nextWakeup =
-                bSendUsersPlane && bSendAITraffic  ? std::min({nextListen, nextGPS, nextAtt, nextTraffic}) :
-                bSendUsersPlane && !bSendAITraffic ? std::min({nextListen, nextGPS, nextAtt}) :
+                bSendUsersPlane && eSendAITraffic  ? std::min({nextListen, nextGPS, nextAtt, nextTraffic}) :
+                bSendUsersPlane && !eSendAITraffic ? std::min({nextListen, nextGPS, nextAtt}) :
                                                      std::min(nextListen, nextTraffic);
                 
                 std::unique_lock<std::mutex> lk(FDThreadSynchMutex);

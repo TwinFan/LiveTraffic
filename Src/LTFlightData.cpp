@@ -260,21 +260,24 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, unsigned long _num)
     char buf[50] = "";
     switch(_eType) {
         case KEY_ICAO:
+        case KEY_ADSBEX:
         case KEY_FLARM:
         case KEY_FSC:
-        case KEY_ADSBEX:
             snprintf(buf, sizeof(buf), "%06lX", _num);
             break;
         case KEY_OGN:
         case KEY_RT:
+        case KEY_PRIVATE:
             snprintf(buf, sizeof(buf), "%08lX", _num);
             break;
         case KEY_SAYINTENTIONS:
+        case KEY_AUTOATC:
             snprintf(buf, sizeof(buf), "%lu", _num);
             break;
         case KEY_UNKNOWN:
+        case KEY_ORG_SPECIFIC:
             // must not happen
-            LOG_ASSERT(eKeyType!=KEY_UNKNOWN);
+            LOG_ASSERT(eKeyType!=KEY_UNKNOWN && eKeyType!=KEY_ORG_SPECIFIC);
             break;
     }
     LOG_ASSERT(buf[0]);
@@ -287,24 +290,44 @@ std::string LTFlightData::FDKeyTy::SetKey (FDKeyType _eType, const std::string _
 }
 
 
-// matches the key?
-bool LTFlightData::FDKeyTy::isMatch (const std::string t) const
+/// Equality: number must match, key types either both "interchangeable" or also match
+bool LTFlightData::FDKeyTy::operator== (const FDKeyTy& o) const
 {
-    return t == key;
+    return
+    num != o.num ? false :                          // if the numbers don't match, it's unequal in any case
+    // so...numbers are equal, if both key types are "interchangeable", then it is now considered equal
+    (eKeyType < KEY_ORG_SPECIFIC && o.eKeyType < KEY_ORG_SPECIFIC) ? true :
+    // otherwise, also the key types must match
+    eKeyType == o.eKeyType;
 }
+
+/// Less than: in case of "interchangeable" key types only depends on the number, else both type and number
+bool LTFlightData::FDKeyTy::operator<  (const FDKeyTy& o) const
+{
+    return
+    // both sides "interchangeable" key types: only depends on the number
+    (eKeyType < KEY_ORG_SPECIFIC && o.eKeyType < KEY_ORG_SPECIFIC) ? num < o.num :
+    // else the key type has higher priority
+    eKeyType == o.eKeyType ? num < o.num : eKeyType < o.eKeyType;
+}
+
+
 
 // return the type of key (as string)
 const char* LTFlightData::FDKeyTy::GetKeyTypeText () const
 {
     switch (eKeyType) {
         case KEY_UNKNOWN:   return "unknown";
-        case KEY_OGN:       return "OGN";
-        case KEY_RT:        return "RealTraffic";
-        case KEY_FLARM:     return "FLARM";
         case KEY_ICAO:      return "ICAO";
-        case KEY_FSC:       return "FSCharter";
+        case KEY_FLARM:     return "FLARM";
         case KEY_ADSBEX:    return "ADSBEx";
+        case KEY_RT:        return "RealTraffic";
+        case KEY_OGN:       return "OGN";
+        case KEY_ORG_SPECIFIC: return "org-specific";   // not actually used...just to please compiler warnings
+        case KEY_FSC:       return "FSCharter";
         case KEY_SAYINTENTIONS: return "SI";
+        case KEY_AUTOATC:   return "AutoATC";
+        case KEY_PRIVATE:   return "private";
     }
     return "unknown";
 }
@@ -408,31 +431,11 @@ void LTFlightData::SetKey (const FDKeyTy& _key)
 }
 
 
-/// @details Other channels also seem to catch some FLARM-equipped planes, but there is no
-/// way telling if the plane at hand is one of them. To avoid duplicates with
-/// Open Glider Network we now search for the same hex code as FLARM, and if we
-/// find one (which must be relatively close by as we currently "see" it)
-/// then we assume it is the same flight and change key type to FLARM,
-/// so that both OGN and RealTraffic feed the flight:
-bool LTFlightData::CheckDupKey(LTFlightData::FDKeyTy& _key, LTFlightData::FDKeyType _ty)
-{
-    LTFlightData::FDKeyTy cpyKey(_ty, _key.num);
-    if (mapFd.count(cpyKey) > 0) {
-        LOG_MSG(logDEBUG, "Handling same key %s of different types: %s replaced by %s",
-                _key.c_str(), _key.GetKeyTypeText(), cpyKey.GetKeyTypeText());
-        _key = std::move(cpyKey);
-        return true;
-    }
-    return false;
-}
-
-
-
 // Search support: icao, registration, call sign, flight number matches?
 bool LTFlightData::IsMatch (const std::string t) const
 {
     // we can compare key without lock
-    if (acKey.isMatch(t))
+    if (acKey == t)
         return true;
     
     // everything else must be guarded
@@ -461,6 +464,11 @@ bool LTFlightData::validForAcCreate(double simTime) const
 {
     // access guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // We don't think about creation if we would be hidden immediately
+    // So if we are static but user doesn't want static...let's not even create
+    if (statData.isStaticObject() && dataRefs.GetHideStaticTwr())
+        return false;
 
     // the obvious stuff first: we need basic data
     if ( empty() || dynDataDeque.empty() || posDeque.size() < 2 )
@@ -501,7 +509,7 @@ void LTFlightData::UpdateStaticLabel()
         labelStat.clear();
         ADD_LABEL(cfg.bIcaoType,    statData.acTypeIcao);
         ADD_LABEL(cfg.bAnyAcId,     statData.acId(key()));
-        ADD_LABEL(cfg.bTranspCode,  key());
+        ADD_LABEL(cfg.bTranspCode,  std::string(key()));
         ADD_LABEL(cfg.bReg,         statData.reg);
         ADD_LABEL(cfg.bIcaoOp,      statData.opIcao);
         ADD_LABEL(cfg.bCallSign,    statData.call);
@@ -2670,7 +2678,8 @@ bool LTFlightData::AcSlotAvailable ()
         // NOTE: We can loop mapFd without lock only because we assume that
         //       calling function owns mapFdMutex already!
         // find the farest a/c...if it is further away than us:
-        double farestDist = CoordDistance(dataRefs.GetViewPos(), posDeque.front());
+        const double ourDist = CoordDistance(dataRefs.GetViewPos(), posDeque.front());
+        double farestDist = ourDist * 1.1;      // add 10% to avoid quick switching back-and-forth between planes at the outer edge
         for (mapLTFlightDataTy::value_type& p: mapFd)
         {
             LTFlightData& fd = p.second;
@@ -2685,6 +2694,10 @@ bool LTFlightData::AcSlotAvailable ()
             return false;
     
         // We found the a/c farest away...remove it to make room for us!
+        LOG_MSG(logDEBUG, "Removing %s as it is the most distant a/c at %.0fm"
+                " to make room for %s at %.0fm",
+                pFarestAc->keyDbg().c_str(), farestDist,
+                keyDbg().c_str(), ourDist);
         pFarestAc->DestroyAircraft();
     }
     
@@ -2886,6 +2899,8 @@ mapLTFlightDataTy::iterator mapFdAcByIdx (int idx)
 // Find a/c by text input
 mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
 {
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
     // is it a small integer number, i.e. used as index?
     if (_s.length() <= 3 &&
         _s.find_first_not_of("0123456789") == std::string::npos)
@@ -2901,3 +2916,19 @@ mapLTFlightDataTy::iterator mapFdSearchAc (const std::string& _s)
     }
 }
 
+/// Return aircraft with given key (optionally: if it has an active aircraft)
+LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
+                       bool bMustHaveAc)
+{
+    // access guarded by the fd mutex
+    std::lock_guard<std::mutex> lock (mapFdMutex);
+    try {
+        LTFlightData& fd = mapFd.at(key);
+        if (!bMustHaveAc || fd.hasAc())
+            return &fd;
+    }
+    // not found
+    catch (...)
+    {}
+    return nullptr;
+}

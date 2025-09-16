@@ -875,6 +875,19 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // --- AutoATC ---
+            ImGui::Indent();
+            ImGui::FilteredCfgCheckbox("AutoATC", sFilter, DR_CHANNEL_AUTOATC,
+                                       "Connect to AutoATC for generated traffic",
+                                       false);      // don't move to next cell yet
+            if (ImGui::MatchesFilter("AutoATC", sFilter)) {
+                ImGui::SameLine();
+                ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AATC_CHECK_NAME, AATC_CHECK_URL, AATC_CHECK_POPUP);
+                ImGui::TableNextCell();
+            }
+            ImGui::Unindent();
+
+            
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         } // --- Input Channels ---
         
@@ -894,7 +907,14 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 ImGui::FilteredCfgCheckbox("Send user's position", sFilter, DR_CFG_FF_SEND_USER_PLANE,  "Include your own plane's position in ForeFlight stream");
-                ImGui::FilteredCfgCheckbox("Send traffic", sFilter, DR_CFG_FF_SEND_TRAFFIC,             "Include live traffic in ForeFlight stream");
+                if (ImGui::FilteredLabel("Send traffic", sFilter)) {
+                    int n = DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC].getDatai();
+                    static float cbWidth = ImGui::CalcTextSize("Only non-TCAS target traffic_____").x;
+                    ImGui::SetNextItemWidth(cbWidth);
+                    if (ImGui::Combo("##FFSendTraffic", &n, "None\0All\0Only non-TCAS target traffic\0", 3))
+                        DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC].setData(n);
+                    ImGui::TableNextCell();
+                }
                 ImGui::FilteredCfgNumber("Send traffic every", sFilter, DR_CFG_FF_SEND_TRAFFIC_INTVL, 1, 30, 1, "%d seconds");
 
                 if (!*sFilter) ImGui::TreePop();
@@ -1488,7 +1508,7 @@ void LTSettingsUI::buildInterface()
                     fdIter = mapFdSearchAc(txtDebugFilter);
                 // found?
                 if (fdIter != mapFd.cend()) {
-                    txtDebugFilter = fdIter->second.key();
+                    txtDebugFilter = std::string(fdIter->second.key());
                     DataRefs::LTSetDebugAcFilter(NULL,int(fdIter->second.key().num));
                 }
                 else

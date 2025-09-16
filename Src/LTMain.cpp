@@ -698,6 +698,22 @@ time_t mktime_utc (int h, int min, int s)
     return ret;
 }
 
+/// Converts a UTC date/time to epoch value
+time_t mktime_utc (int y, int m, int d, int h, int min, int s)
+{
+    const time_t now = time(NULL);
+    struct tm gbuf;
+    gmtime_s(&gbuf, &now);
+    gbuf.tm_year = y - 1900;
+    gbuf.tm_mon  = m-1;
+    gbuf.tm_mday = d;
+    gbuf.tm_hour = h;
+    gbuf.tm_min  = min;
+    gbuf.tm_sec  = s;
+    gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
+    return mktime_utc(gbuf);
+}
+
 // Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
 time_t mktime_string (const std::string& s)
 {
@@ -1227,11 +1243,10 @@ bool LTMainShowAircraft ()
             else
                 SHOW_MSG(logWARN, ERR_CFG_CSL_ONLY_ONE, mdlName.c_str(), mdlIcao.c_str());
         }
-        SHOW_MSG(logMSG, MSG_CFG_CSL_INSTALL);
+        SHOW_MSG(logWARN, MSG_CFG_CSL_INSTALL);
     }
     
     // select aircraft for display
-    dataRefs.ChTsOffsetReset();             // reset network time offset
     if ( !LTFlightDataShowAircraft() ) return false;
 
     // Now only enable multiplay lib - this acquires multiplayer planes
@@ -1341,7 +1356,7 @@ void LTMainToggleAI (bool bGetControl)
     }
     
     // Show a message
-    CreateMsgWindow(1.0f, logMSG, MSG_AI_LOAD_ACF);
+    CreateMsgWindow(1.0f, logINFO, MSG_AI_LOAD_ACF);
     
     // Create a flight loop callback to do the AI change
     static XPLMFlightLoopID aiID = nullptr;
