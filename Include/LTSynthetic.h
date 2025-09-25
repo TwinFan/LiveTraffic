@@ -32,7 +32,7 @@
 // MARK: Synthetic Traffic Enums and Structs
 //
 
-/// Types of synthetic traffic to generate
+/// Types of synthetic traffic to generate (must match SYN_TRAFFIC_MASK_* in DataRefs.h)
 enum SyntheticTrafficType : unsigned char {
     SYN_TRAFFIC_NONE    = 0,    ///< No synthetic traffic
     SYN_TRAFFIC_GA      = 1,    ///< General Aviation traffic
