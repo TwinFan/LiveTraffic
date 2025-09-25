@@ -254,7 +254,7 @@ void LTSettingsUI::buildInterface()
                                        "Enable comprehensive synthetic traffic generation with AI behavior");
             
             if (dataRefs.bSyntheticTrafficEnabled) {
-                ImGui::FilteredCfgNumber("Maximum Aircraft", sFilter, DR_CFG_SYN_MAX_AIRCRAFT, 1, 100, 5, "%d aircraft");
+                ImGui::FilteredCfgNumber("Maximum Aircraft", sFilter, DR_CFG_SYN_MAX_AIRCRAFT, 1, 200, 5, "%d aircraft");
                 ImGui::FilteredCfgNumber("Traffic Density", sFilter, DR_CFG_SYN_TRAFFIC_DENSITY, 0, 100, 10, "%d %%");
                 
                 // Traffic Type Configuration
