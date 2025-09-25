@@ -61,7 +61,7 @@ enum SyntheticFlightState : unsigned char {
 struct SyntheticTrafficConfig {
     bool enabled = false;                   ///< Enable synthetic traffic generation
     unsigned trafficTypes = SYN_TRAFFIC_GA; ///< Bitmask of traffic types to generate
-    int maxAircraft = 20;                   ///< Maximum number of synthetic aircraft
+    int maxAircraft = 200;                  ///< Maximum number of synthetic aircraft
     float density = 0.5f;                   ///< Traffic density (0.0 - 1.0)
     float gaRatio = 0.6f;                   ///< Ratio of GA traffic
     float airlineRatio = 0.3f;              ///< Ratio of airline traffic

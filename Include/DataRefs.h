@@ -830,7 +830,7 @@ public:
     // Synthetic Traffic configuration
     int bSyntheticTrafficEnabled = false;       ///< Enable synthetic traffic generation
     int synTrafficTypes = SYN_TRAFFIC_MASK_GA;       ///< Bitmask of traffic types to generate
-    int synMaxAircraft = 20;                    ///< Maximum number of synthetic aircraft
+    int synMaxAircraft = 200;                   ///< Maximum number of synthetic aircraft
     int synTrafficDensity = 50;                 ///< Traffic density percentage (0-100)
     int synGARatio = 60;                        ///< Ratio of GA traffic (percentage)
     int synAirlineRatio = 30;                   ///< Ratio of airline traffic (percentage)
