@@ -69,7 +69,7 @@ struct SyntheticTrafficConfig {
     bool enableTTS = false;                 ///< Enable TTS communications
     bool userAwareness = true;              ///< Aircraft react to user presence
     bool weatherOperations = true;          ///< Weather-based operations
-    int commRange = 25;                     ///< Communications range in nautical miles
+    // Note: commRange removed - now using realistic communication degradation instead of hard range limit
 };
 
 //
@@ -180,6 +180,11 @@ protected:
     
     /// Update user awareness behavior
     void UpdateUserAwareness(SynDataTy& synData, const positionTy& userPos);
+    
+    /// Helper functions for realistic communication degradation
+    std::string ApplyLightStaticEffects(const std::string& message);
+    std::string ApplyModerateStaticEffects(const std::string& message);
+    std::string ApplyHeavyStaticEffects(const std::string& message);
 };
 
 #endif /* LTSynthetic_h */

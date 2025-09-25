@@ -17,9 +17,10 @@ LiveTraffic now includes a comprehensive synthetic traffic generator that create
 - **Holding Patterns**: Aircraft can enter holds when needed
 
 ### Communication System
-- **TTS Integration**: Text-to-speech radio communications (Windows TTS support)
+- **TTS Integration**: Text-to-speech radio communications (Windows TTS support)  
 - **Realistic Radio Calls**: Context-appropriate communications based on flight phase
-- **Communication Range**: Configurable range for radio communications
+- **Realistic Signal Degradation**: Communication quality degrades naturally with distance and atmospheric conditions
+- **Dynamic Range**: No hard cutoff - communications continue at greater distances with increasing static and dropouts
 
 ## Configuration
 
@@ -37,7 +38,6 @@ livetraffic/cfg/synthetic/military_ratio     - Military traffic ratio percentage
 livetraffic/cfg/synthetic/tts_enabled        - Enable TTS communications (0/1)
 livetraffic/cfg/synthetic/user_awareness     - Enable user awareness (0/1)
 livetraffic/cfg/synthetic/weather_operations - Enable weather-based operations (0/1)
-livetraffic/cfg/synthetic/comm_range         - Communication range in nautical miles (default: 25)
 ```
 
 ### Settings UI Configuration
@@ -56,9 +56,28 @@ To enable all traffic types with balanced distribution:
 - Traffic Types: GA ✓, Airlines ✓, Military ✓
 - GA Ratio: 50%, Airline Ratio: 40%, Military Ratio: 10%
 - TTS Communications: ✓
-- User Awareness: ✓
+- User Awareness: ✓  
 - Weather Operations: ✓
-- Communication Range: 25nm
+
+## Communication System Details
+
+### Realistic Signal Propagation
+The synthetic traffic communication system now implements realistic radio signal behavior:
+
+- **Near Range (0-10nm)**: Crystal clear communications with no interference
+- **Medium Range (10-25nm)**: Gradual signal degradation begins, occasional static
+- **Long Range (25-50nm)**: Moderate signal degradation with word dropouts and static
+- **Extended Range (50nm+)**: Heavy static, frequent dropouts, garbled transmissions
+
+### Signal Degradation Effects
+- **Light Static**: Occasional "[static]" indicators, rare word dropouts (5% chance)
+- **Moderate Static**: More frequent static, 15% word dropout rate, partial word garbling
+- **Heavy Static**: "[heavy static]" and "[breaking up]" indicators, 30% word dropout rate, severe garbling
+
+### Atmospheric Conditions
+Signal quality is also affected by simulated atmospheric conditions:
+- Random atmospheric factor between 0.8-1.2 applied to all communications
+- Represents real-world factors like weather, ionospheric conditions, and interference
 
 ## Aircraft Behavior States
 

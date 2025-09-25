@@ -108,7 +108,7 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.enableTTS = dataRefs.bSynTTSEnabled != 0;
     config.userAwareness = dataRefs.bSynUserAwareness != 0;
     config.weatherOperations = dataRefs.bSynWeatherOperations != 0;
-    config.commRange = dataRefs.synCommRange;
+    // Note: commRange removed - now using realistic communication degradation instead of hard cutoff
     
     if (!config.enabled) {
         // Log once every 60 seconds when synthetic traffic is disabled
@@ -764,8 +764,21 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     std::string message;
     double distance = synData.pos.dist(userPos) / 1852.0; // Convert to nautical miles
     
-    // Only generate messages if within communication range
-    if (distance > config.commRange) return "";
+    // Calculate communication reliability based on distance (realistic degradation)
+    double commReliability = 1.0;
+    if (distance > 10.0) {
+        // Communication starts degrading after 10 nautical miles
+        // Reliability drops exponentially with distance following realistic radio propagation
+        commReliability = std::exp(-0.1 * (distance - 10.0));
+    }
+    
+    // Random factor for atmospheric conditions and interference
+    double atmosphericFactor = 0.8 + (std::rand() / static_cast<double>(RAND_MAX)) * 0.4; // 0.8 to 1.2
+    commReliability *= atmosphericFactor;
+    
+    // Randomly determine if message gets through based on reliability
+    double randomThreshold = std::rand() / static_cast<double>(RAND_MAX);
+    if (randomThreshold > commReliability) return ""; // Message blocked/lost
     
     // Generate message based on flight state
     switch (synData.state) {
@@ -788,6 +801,21 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             break;
         default:
             break;
+    }
+    
+    // Apply signal degradation effects based on distance and reliability
+    if (!message.empty() && commReliability < 0.7) {
+        // At poor signal strength, add realistic communication degradation
+        if (commReliability < 0.3) {
+            // Very poor signal - heavy static and garbling
+            message = ApplyHeavyStaticEffects(message);
+        } else if (commReliability < 0.5) {
+            // Poor signal - moderate static and some dropouts  
+            message = ApplyModerateStaticEffects(message);
+        } else {
+            // Weak signal - light static and occasional dropouts
+            message = ApplyLightStaticEffects(message);
+        }
     }
     
     return message;
@@ -910,4 +938,96 @@ std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airpo
     sidStarCache[cacheKey] = procedure;
     
     return procedure;
+}
+
+// Helper functions for communication degradation effects
+
+/// Apply light static effects for weak signal communications
+std::string SyntheticConnection::ApplyLightStaticEffects(const std::string& message) {
+    std::string degraded = message;
+    
+    // Randomly drop some words (5% chance per word)
+    std::string result;
+    std::istringstream iss(degraded);
+    std::string word;
+    bool first = true;
+    
+    while (iss >> word) {
+        if (std::rand() % 100 < 5) continue; // 5% chance to drop word
+        
+        if (!first) result += " ";
+        result += word;
+        first = false;
+    }
+    
+    // Occasionally add "[static]" to indicate interference
+    if (std::rand() % 100 < 15) {
+        result += " [static]";
+    }
+    
+    return result;
+}
+
+/// Apply moderate static effects for poor signal communications  
+std::string SyntheticConnection::ApplyModerateStaticEffects(const std::string& message) {
+    std::string degraded = message;
+    
+    // Drop more words (15% chance per word)
+    std::string result;
+    std::istringstream iss(degraded);
+    std::string word;
+    bool first = true;
+    
+    while (iss >> word) {
+        if (std::rand() % 100 < 15) continue; // 15% chance to drop word
+        
+        if (!first) result += " ";
+        
+        // Occasionally garble words (10% chance)
+        if (std::rand() % 100 < 10 && word.length() > 3) {
+            word = word.substr(0, word.length() / 2) + "...";
+        }
+        
+        result += word;
+        first = false;
+    }
+    
+    // Add static indicators more frequently
+    if (std::rand() % 100 < 40) {
+        result += " [static]";
+    }
+    
+    return result;
+}
+
+/// Apply heavy static effects for very poor signal communications
+std::string SyntheticConnection::ApplyHeavyStaticEffects(const std::string& message) {
+    std::string degraded = message;
+    
+    // Drop many words (30% chance per word) 
+    std::string result;
+    std::istringstream iss(degraded);
+    std::string word;
+    bool first = true;
+    
+    while (iss >> word) {
+        if (std::rand() % 100 < 30) continue; // 30% chance to drop word
+        
+        if (!first) result += " ";
+        
+        // Frequently garble words (25% chance)
+        if (std::rand() % 100 < 25 && word.length() > 2) {
+            word = word.substr(0, 1) + "..." + (word.length() > 3 ? word.substr(word.length()-1) : "");
+        }
+        
+        result += word;
+        first = false;
+    }
+    
+    // Heavy static interference
+    if (std::rand() % 100 < 70) {
+        result = "[heavy static] " + result + " [breaking up]";
+    }
+    
+    return result;
 }
