@@ -111,8 +111,18 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.commRange = dataRefs.synCommRange;
     
     if (!config.enabled) {
+        // Log once every 60 seconds when synthetic traffic is disabled
+        static double lastLogTime = 0;
+        double currentTime = std::time(nullptr);
+        if (currentTime - lastLogTime > 60.0) {
+            LOG_MSG(logDEBUG, "Synthetic traffic disabled (enable via dataRef livetraffic/cfg/synthetic/enabled)");
+            lastLogTime = currentTime;
+        }
         return true;  // Synthetic traffic disabled
     }
+    
+    LOG_MSG(logDEBUG, "Synthetic traffic enabled: %d aircraft, types=%u, density=%.1f%%", 
+            config.maxAircraft, config.trafficTypes, config.density * 100.0f);
     
     // Generate new synthetic traffic if we have room
     if (mapSynData.size() < static_cast<size_t>(config.maxAircraft)) {
@@ -351,11 +361,15 @@ bool SyntheticConnection::ProcessFetchedData ()
 bool SyntheticConnection::GenerateTraffic(const positionTy& centerPos)
 {
     if (mapSynData.size() >= static_cast<size_t>(config.maxAircraft)) {
+        LOG_MSG(logDEBUG, "Synthetic traffic at maximum capacity: %zu/%d aircraft", 
+                mapSynData.size(), config.maxAircraft);
         return false; // Already at maximum capacity
     }
     
     // Determine what type of traffic to generate based on configuration
     double rand = static_cast<double>(std::rand()) / RAND_MAX;
+    
+    LOG_MSG(logDEBUG, "Generating synthetic traffic (rand=%.3f, types=%u)", rand, config.trafficTypes);
     
     if ((config.trafficTypes & SYN_TRAFFIC_GA) && rand < config.gaRatio) {
         GenerateGATraffic(centerPos);
@@ -363,6 +377,8 @@ bool SyntheticConnection::GenerateTraffic(const positionTy& centerPos)
         GenerateAirlineTraffic(centerPos);
     } else if ((config.trafficTypes & SYN_TRAFFIC_MILITARY) && rand < 1.0) {
         GenerateMilitaryTraffic(centerPos);
+    } else {
+        LOG_MSG(logDEBUG, "No synthetic traffic generated this cycle");
     }
     
     return true;
@@ -379,8 +395,9 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     // Select random airport
     std::string airport = airports[std::rand() % airports.size()];
     
-    // Generate unique key for new aircraft
-    std::string key = "SYN_GA_" + std::to_string(std::rand()) + "_" + std::to_string(std::time(nullptr));
+    // Generate unique numeric key for new aircraft (KEY_PRIVATE expects numeric values)
+    unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
+    std::string key = std::to_string(numericKey);
     
     // Generate position at airport (for now, use center position as placeholder)
     positionTy acPos = centerPos;
@@ -399,8 +416,9 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     
     if (airports.empty()) return;
     
-    // Generate unique key for new aircraft
-    std::string key = "SYN_AL_" + std::to_string(std::rand()) + "_" + std::to_string(std::time(nullptr));
+    // Generate unique numeric key for new aircraft (KEY_PRIVATE expects numeric values)
+    unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
+    std::string key = std::to_string(numericKey);
     
     // Position for airline aircraft (higher altitude for arrivals/departures)
     positionTy acPos = centerPos;
@@ -414,8 +432,9 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
 // Generate military traffic
 void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
 {
-    // Generate unique key for military aircraft
-    std::string key = "SYN_MIL_" + std::to_string(std::rand()) + "_" + std::to_string(std::time(nullptr));
+    // Generate unique numeric key for military aircraft (KEY_PRIVATE expects numeric values)
+    unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
+    std::string key = std::to_string(numericKey);
     
     // Military aircraft can operate from various locations and altitudes
     positionTy acPos = centerPos;

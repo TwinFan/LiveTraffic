@@ -828,7 +828,7 @@ public:
     long ADSBExRReset = 0;              ///< [s] ADSBEx: When will the quota reset?
     
     // Synthetic Traffic configuration
-    int bSyntheticTrafficEnabled = false;       ///< Enable synthetic traffic generation
+    int bSyntheticTrafficEnabled = true;        ///< Enable synthetic traffic generation (default enabled for development)
     int synTrafficTypes = SYN_TRAFFIC_MASK_GA;       ///< Bitmask of traffic types to generate
     int synMaxAircraft = 20;                    ///< Maximum number of synthetic aircraft
     int synTrafficDensity = 50;                 ///< Traffic density percentage (0-100)
