@@ -430,6 +430,19 @@ enum dataRefsLT {
     DR_CFG_FF_SEND_TRAFFIC,
     DR_CFG_FF_SEND_TRAFFIC_INTVL,
 
+    // Synthetic Traffic configuration
+    DR_CFG_SYN_TRAFFIC_ENABLED,
+    DR_CFG_SYN_TRAFFIC_TYPES,
+    DR_CFG_SYN_MAX_AIRCRAFT,
+    DR_CFG_SYN_TRAFFIC_DENSITY,
+    DR_CFG_SYN_GA_RATIO,
+    DR_CFG_SYN_AIRLINE_RATIO,
+    DR_CFG_SYN_MILITARY_RATIO,
+    DR_CFG_SYN_TTS_ENABLED,
+    DR_CFG_SYN_USER_AWARENESS,
+    DR_CFG_SYN_WEATHER_OPERATIONS,
+    DR_CFG_SYN_COMM_RANGE,
+
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
     DR_CHANNEL_FORE_FLIGHT_SENDER,
@@ -481,6 +494,15 @@ enum TrafficToSendTy : int {
     TTS_NONE = 0,                       ///< Don't send any traffic
     TTS_ALL,                            ///< Send all known planes
     TTS_NONTCAS_ONLY,                   ///< Send only planes that don't have a TCAS slot in X-Plane
+};
+
+/// Types of synthetic traffic to generate (must match LTSynthetic.h)
+enum SyntheticTrafficTypeMask : int {
+    SYN_TRAFFIC_MASK_NONE    = 0,    ///< No synthetic traffic
+    SYN_TRAFFIC_MASK_GA      = 1,    ///< General Aviation traffic
+    SYN_TRAFFIC_MASK_AIRLINE = 2,    ///< Commercial airline traffic
+    SYN_TRAFFIC_MASK_MILITARY= 4,    ///< Military traffic
+    SYN_TRAFFIC_MASK_ALL     = 7     ///< All traffic types
 };
 
 /// How to control weather?
@@ -755,6 +777,19 @@ protected:
     int bffUserPlane    = 1;            // bool Send User plane data?
     TrafficToSendTy ffTraffic=TTS_ALL;  ///< Send traffic data? And which amount of traffic?
     int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info
+
+    // Synthetic Traffic configuration
+    int bSyntheticTrafficEnabled = false;       ///< Enable synthetic traffic generation
+    int synTrafficTypes = SYN_TRAFFIC_GA;       ///< Bitmask of traffic types to generate
+    int synMaxAircraft = 20;                    ///< Maximum number of synthetic aircraft
+    int synTrafficDensity = 50;                 ///< Traffic density percentage (0-100)
+    int synGARatio = 60;                        ///< Ratio of GA traffic (percentage)
+    int synAirlineRatio = 30;                   ///< Ratio of airline traffic (percentage)
+    int synMilitaryRatio = 10;                  ///< Ratio of military traffic (percentage)
+    int bSynTTSEnabled = false;                 ///< Enable TTS communications
+    int bSynUserAwareness = true;               ///< Aircraft react to user presence
+    int bSynWeatherOperations = true;           ///< Weather-based operations
+    int synCommRange = 25;                      ///< Communications range in nautical miles
 
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
