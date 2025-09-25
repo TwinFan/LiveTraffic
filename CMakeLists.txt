@@ -152,6 +152,11 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/portable-file-dialogs")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/metaf/include")
 
+# Windows-specific includes
+if (WIN32)
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/curl")
+endif()
+
 ################################################################################
 # Source groups
 ################################################################################
@@ -312,7 +317,7 @@ list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
-    set(CURL_INCLUDE_DIR        "lib/CURL")
+    set(CURL_INCLUDE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/curl")
     set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
     set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
 endif()
@@ -325,6 +330,7 @@ if (WIN32)
     # We have built a static up-to-date version of CURL just for ourselves, compile/link it statically
     add_compile_definitions(CURL_STATICLIB)
     if (MSVC)
+        # MSVC CURL library is already configured above via CURL_LIBRARY_RELEASE/DEBUG
         target_link_libraries(LiveTraffic "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/zlibstatic.lib" )
     endif()
     # Note: For MinGW builds, the Docker environment provides a pre-built static libcurl
