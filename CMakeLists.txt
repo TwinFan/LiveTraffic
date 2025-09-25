@@ -154,7 +154,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/metaf/include")
 
 # Windows-specific includes
 if (WIN32)
-    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/curl")
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
 endif()
 
 ################################################################################
@@ -434,3 +434,4 @@ set_target_properties(LiveTraffic
     OUTPUT_NAME "LiveTraffic"
     SUFFIX ".xpl"
 )
+
