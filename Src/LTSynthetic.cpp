@@ -430,7 +430,10 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
 bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const positionTy& pos, 
                                                    SyntheticTrafficType trafficType)
 {
-    SynDataTy& synData = mapSynData[key];
+    // Convert string key to FDKeyTy for synthetic aircraft
+    LTFlightData::FDKeyTy fdKey(LTFlightData::KEY_PRIVATE, key, 10);  // base 10 for string keys
+    
+    SynDataTy& synData = mapSynData[fdKey];
     
     // Initialize position
     synData.pos = pos;

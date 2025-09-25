@@ -265,21 +265,21 @@ void LTSettingsUI::buildInterface()
                 {
                     // Traffic type checkboxes
                     bool bGA = (dataRefs.synTrafficTypes & SYN_TRAFFIC_MASK_GA) != 0;
-                    if (ImGui::FilteredCheckbox("General Aviation", sFilter, &bGA, "Generate GA aircraft (Cessna, Piper, etc.)")) {
+                    if (ImGui::Checkbox("General Aviation", &bGA)) {
                         if (bGA) dataRefs.synTrafficTypes |= SYN_TRAFFIC_MASK_GA;
                         else dataRefs.synTrafficTypes &= ~SYN_TRAFFIC_MASK_GA;
                         DATA_REFS_LT[DR_CFG_SYN_TRAFFIC_TYPES].setData(dataRefs.synTrafficTypes);
                     }
                     
                     bool bAirline = (dataRefs.synTrafficTypes & SYN_TRAFFIC_MASK_AIRLINE) != 0;
-                    if (ImGui::FilteredCheckbox("Commercial Airlines", sFilter, &bAirline, "Generate airline aircraft (Boeing 737, Airbus A320, etc.)")) {
+                    if (ImGui::Checkbox("Commercial Airlines", &bAirline)) {
                         if (bAirline) dataRefs.synTrafficTypes |= SYN_TRAFFIC_MASK_AIRLINE;
                         else dataRefs.synTrafficTypes &= ~SYN_TRAFFIC_MASK_AIRLINE;
                         DATA_REFS_LT[DR_CFG_SYN_TRAFFIC_TYPES].setData(dataRefs.synTrafficTypes);
                     }
                     
                     bool bMilitary = (dataRefs.synTrafficTypes & SYN_TRAFFIC_MASK_MILITARY) != 0;
-                    if (ImGui::FilteredCheckbox("Military Aircraft", sFilter, &bMilitary, "Generate military aircraft (F-16, C-130, etc.)")) {
+                    if (ImGui::Checkbox("Military Aircraft", &bMilitary)) {
                         if (bMilitary) dataRefs.synTrafficTypes |= SYN_TRAFFIC_MASK_MILITARY;
                         else dataRefs.synTrafficTypes &= ~SYN_TRAFFIC_MASK_MILITARY;
                         DATA_REFS_LT[DR_CFG_SYN_TRAFFIC_TYPES].setData(dataRefs.synTrafficTypes);
