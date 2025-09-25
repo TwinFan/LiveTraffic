@@ -778,19 +778,6 @@ protected:
     TrafficToSendTy ffTraffic=TTS_ALL;  ///< Send traffic data? And which amount of traffic?
     int ffSendTrfcIntvl = 3;            // [s] interval to broadcast traffic info
 
-    // Synthetic Traffic configuration
-    int bSyntheticTrafficEnabled = false;       ///< Enable synthetic traffic generation
-    int synTrafficTypes = SYN_TRAFFIC_GA;       ///< Bitmask of traffic types to generate
-    int synMaxAircraft = 20;                    ///< Maximum number of synthetic aircraft
-    int synTrafficDensity = 50;                 ///< Traffic density percentage (0-100)
-    int synGARatio = 60;                        ///< Ratio of GA traffic (percentage)
-    int synAirlineRatio = 30;                   ///< Ratio of airline traffic (percentage)
-    int synMilitaryRatio = 10;                  ///< Ratio of military traffic (percentage)
-    int bSynTTSEnabled = false;                 ///< Enable TTS communications
-    int bSynUserAwareness = true;               ///< Aircraft react to user presence
-    int bSynWeatherOperations = true;           ///< Weather-based operations
-    int synCommRange = 25;                      ///< Communications range in nautical miles
-
     vecCSLPaths vCSLPaths;              // list of paths to search for CSL packages
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
@@ -839,6 +826,19 @@ public:
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     long ADSBExRReset = 0;              ///< [s] ADSBEx: When will the quota reset?
+    
+    // Synthetic Traffic configuration
+    int bSyntheticTrafficEnabled = false;       ///< Enable synthetic traffic generation
+    int synTrafficTypes = SYN_TRAFFIC_MASK_GA;       ///< Bitmask of traffic types to generate
+    int synMaxAircraft = 20;                    ///< Maximum number of synthetic aircraft
+    int synTrafficDensity = 50;                 ///< Traffic density percentage (0-100)
+    int synGARatio = 60;                        ///< Ratio of GA traffic (percentage)
+    int synAirlineRatio = 30;                   ///< Ratio of airline traffic (percentage)
+    int synMilitaryRatio = 10;                  ///< Ratio of military traffic (percentage)
+    int bSynTTSEnabled = false;                 ///< Enable TTS communications
+    int bSynUserAwareness = true;               ///< Aircraft react to user presence
+    int bSynWeatherOperations = true;           ///< Weather-based operations
+    int synCommRange = 25;                      ///< Communications range in nautical miles
     
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
