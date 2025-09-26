@@ -185,6 +185,9 @@ protected:
     std::string ApplyLightStaticEffects(const std::string& message);
     std::string ApplyModerateStaticEffects(const std::string& message);
     std::string ApplyHeavyStaticEffects(const std::string& message);
+    
+    /// Generate varied position around a center point to prevent aircraft stacking
+    positionTy GenerateVariedPosition(const positionTy& centerPos, double minDistanceNM, double maxDistanceNM);
 };
 
 #endif /* LTSynthetic_h */
