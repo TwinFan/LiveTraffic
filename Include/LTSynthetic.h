@@ -263,6 +263,11 @@ protected:
     std::string ApplyModerateStaticEffects(const std::string& message);
     std::string ApplyHeavyStaticEffects(const std::string& message);
     
+    /// Helper functions for ICAO phraseology
+    std::string FormatICAOAltitude(double altitudeMeters);
+    std::string GetAircraftTypeForComms(const std::string& icaoType, SyntheticTrafficType trafficType);
+    std::string FormatRunwayForComms(const std::string& runway);
+    
     /// Generate varied position around a center point to prevent aircraft stacking
     positionTy GenerateVariedPosition(const positionTy& centerPos, double minDistanceNM, double maxDistanceNM);
 };
