@@ -3843,8 +3843,42 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
             } else {
                 LOG_MSG(logDEBUG, "Aircraft %s completed flight path", synData.stat.call.c_str());
                 
-                // Generate continuation based on flight state
+                // Handle completion based on flight state and proximity to destination
                 if (synData.state == SYN_STATE_CRUISE || synData.state == SYN_STATE_HOLD) {
+                    // Check if we're near our destination - if so, start descent instead of continuing cruise
+                    if (!synData.destinationAirport.empty()) {
+                        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+                        if (airportPos.isNormal()) {
+                            double distanceToAirport = synData.pos.dist(airportPos);
+                            double descentDistance = std::max(15000.0, (synData.pos.alt_m() - synData.terrainElevation - 300.0) * 8.0);
+                            
+                            if (distanceToAirport < descentDistance * 1.5) { // Within 1.5x descent distance
+                                LOG_MSG(logDEBUG, "Aircraft %s near destination %s (%.1f nm), no new cruise path generated", 
+                                        synData.stat.call.c_str(), synData.destinationAirport.c_str(), distanceToAirport / 1852.0);
+                                // Don't generate new cruise path, let AI behavior handle descent initiation
+                                return; 
+                            }
+                        }
+                    }
+                    
+                    // Continue cruise - generate new path
+                    GenerateRealisticFlightPath(synData);
+                    synData.currentWaypoint = 0;
+                } else if (synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_DESCENT) {
+                    // For descent/approach states, check if we should proceed to landing
+                    if (!synData.destinationAirport.empty()) {
+                        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+                        if (airportPos.isNormal()) {
+                            double distanceToAirport = synData.pos.dist(airportPos);
+                            if (distanceToAirport < 5000.0) { // Within 5km of airport
+                                LOG_MSG(logDEBUG, "Aircraft %s very close to destination %s, approach completed", 
+                                        synData.stat.call.c_str(), synData.destinationAirport.c_str());
+                                // Don't generate new path - let aircraft proceed to landing
+                                return;
+                            }
+                        }
+                    }
+                    // Generate new arrival path if not close to destination
                     GenerateRealisticFlightPath(synData);
                     synData.currentWaypoint = 0;
                 }
@@ -3879,9 +3913,13 @@ void SyntheticConnection::GenerateRealisticFlightPath(SynDataTy& synData)
             break;
             
         case SYN_STATE_CRUISE:
-        case SYN_STATE_HOLD:
             // Generate cruise waypoints along realistic airways
             GenerateCruisePath(synData, currentPos);
+            break;
+            
+        case SYN_STATE_HOLD:
+            // Generate holding pattern
+            GenerateHoldingPattern(synData, currentPos);
             break;
             
         case SYN_STATE_DESCENT:
@@ -4071,7 +4109,38 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
 // Generate departure flight path with realistic SID procedures
 void SyntheticConnection::GenerateDeparturePath(SynDataTy& synData, const positionTy& currentPos)
 {
-    // Generate realistic departure path following SID procedures
+    // If we have a destination airport, create a departure path that heads in that general direction
+    if (!synData.destinationAirport.empty()) {
+        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+        
+        if (airportPos.isNormal()) {
+            double bearing = currentPos.angle(airportPos);
+            
+            // Generate 4 waypoints for departure, progressing toward the destination
+            for (int i = 1; i <= 4; i++) {
+                positionTy waypoint;
+                
+                // Calculate distance and bearing progression toward destination
+                double distance = i * 10000.0; // 10km increments
+                
+                // Add some variation to simulate realistic SID procedures (±30 degrees)
+                double bearingVariation = ((std::rand() % 60 - 30) * PI / 180.0); // ±30 degrees in radians
+                double actualBearing = bearing + bearingVariation * (1.0 / i); // Less variation as we progress
+                
+                waypoint.lat() = currentPos.lat() + (distance / 111320.0) * std::cos(actualBearing);
+                waypoint.lon() = currentPos.lon() + (distance / (111320.0 * std::cos(currentPos.lat() * PI / 180.0))) * std::sin(actualBearing);
+                waypoint.alt_m() = currentPos.alt_m() + (i * 300.0); // Gradual climb
+                
+                synData.flightPath.push_back(waypoint);
+            }
+            
+            LOG_MSG(logDEBUG, "Generated departure path toward %s for aircraft %s with 4 waypoints", 
+                    synData.destinationAirport.c_str(), synData.stat.call.c_str());
+            return;
+        }
+    }
+    
+    // Fallback to original random path if no destination airport
     positionTy waypoint = currentPos;
     
     // Add departure waypoints with realistic spacing
@@ -4086,7 +4155,44 @@ void SyntheticConnection::GenerateDeparturePath(SynDataTy& synData, const positi
 // Generate cruise flight path following airways
 void SyntheticConnection::GenerateCruisePath(SynDataTy& synData, const positionTy& currentPos)
 {
-    // Generate realistic cruise path following airways
+    // If we have a destination airport, create a purposeful flight path toward it
+    if (!synData.destinationAirport.empty()) {
+        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+        
+        if (airportPos.isNormal()) {
+            // Create realistic cruise path toward destination
+            synData.flightPath.clear();
+            
+            double bearing = currentPos.angle(airportPos);
+            double totalDistance = currentPos.dist(airportPos);
+            
+            // Generate waypoints along a direct route with realistic spacing (50-100nm intervals)
+            int numWaypoints = std::max(2, static_cast<int>(totalDistance / 92600.0)); // ~50nm in meters
+            numWaypoints = std::min(numWaypoints, 8); // Cap at 8 waypoints for performance
+            
+            for (int i = 1; i <= numWaypoints; i++) {
+                double fraction = static_cast<double>(i) / static_cast<double>(numWaypoints + 1);
+                
+                positionTy waypoint;
+                waypoint.lat() = currentPos.lat() + (airportPos.lat() - currentPos.lat()) * fraction;
+                waypoint.lon() = currentPos.lon() + (airportPos.lon() - currentPos.lon()) * fraction;
+                waypoint.alt_m() = synData.targetAltitude; // Maintain cruise altitude
+                
+                // Add slight random variation to simulate realistic airways (±5nm)
+                double variation = 9260.0; // ~5nm in meters
+                waypoint.lat() += ((std::rand() % 200 - 100) / 100.0) * (variation / 111320.0); // Convert to degrees
+                waypoint.lon() += ((std::rand() % 200 - 100) / 100.0) * (variation / (111320.0 * std::cos(waypoint.lat() * PI / 180.0)));
+                
+                synData.flightPath.push_back(waypoint);
+            }
+            
+            LOG_MSG(logDEBUG, "Generated cruise path toward %s for aircraft %s with %d waypoints (%.1f nm)", 
+                    synData.destinationAirport.c_str(), synData.stat.call.c_str(), numWaypoints, totalDistance / 1852.0);
+            return;
+        }
+    }
+    
+    // Fallback to original random path if no destination airport or airport not found
     positionTy waypoint = currentPos;
     
     // Add cruise waypoints at typical airway intervals (50-100nm)
@@ -4133,8 +4239,8 @@ void SyntheticConnection::GenerateArrivalPath(SynDataTy& synData, const position
                 synData.flightPath.push_back(waypoint);
             }
             
-            // Final waypoint at the airport itself
-            airportPos.alt_m() = synData.terrainElevation + 50.0; // 50m above ground
+            // Final waypoint at the airport runway level for landing
+            airportPos.alt_m() = synData.terrainElevation + 10.0; // 10m above ground (runway level)
             synData.flightPath.push_back(airportPos);
             
             LOG_MSG(logDEBUG, "Generated airport approach path to %s for aircraft %s with %zu waypoints", 
@@ -4159,7 +4265,38 @@ void SyntheticConnection::GenerateArrivalPath(SynDataTy& synData, const position
 // Generate basic flight path for simple navigation
 void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy& currentPos)
 {
-    // Generate simple waypoints for basic navigation
+    // If we have a destination airport, create a basic path toward it
+    if (!synData.destinationAirport.empty()) {
+        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+        
+        if (airportPos.isNormal()) {
+            double bearing = currentPos.angle(airportPos);
+            double distance = currentPos.dist(airportPos);
+            
+            // Generate 3 waypoints progressing toward destination
+            for (int i = 1; i <= 3; i++) {
+                double fraction = static_cast<double>(i) / 4.0; // 1/4, 1/2, 3/4 of the way
+                
+                positionTy waypoint;
+                waypoint.lat() = currentPos.lat() + (airportPos.lat() - currentPos.lat()) * fraction;
+                waypoint.lon() = currentPos.lon() + (airportPos.lon() - currentPos.lon()) * fraction;
+                waypoint.alt_m() = currentPos.alt_m(); // Maintain current altitude
+                
+                // Add slight variation to simulate realistic navigation (±2nm)
+                double variation = 3704.0; // ~2nm in meters
+                waypoint.lat() += ((std::rand() % 100 - 50) / 100.0) * (variation / 111320.0);
+                waypoint.lon() += ((std::rand() % 100 - 50) / 100.0) * (variation / (111320.0 * std::cos(waypoint.lat() * PI / 180.0)));
+                
+                synData.flightPath.push_back(waypoint);
+            }
+            
+            LOG_MSG(logDEBUG, "Generated basic path toward %s for aircraft %s with 3 waypoints", 
+                    synData.destinationAirport.c_str(), synData.stat.call.c_str());
+            return;
+        }
+    }
+    
+    // Fallback to original random path if no destination airport
     positionTy waypoint = currentPos;
     
     for (int i = 1; i <= 3; i++) {
@@ -4168,6 +4305,57 @@ void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy
         waypoint.alt_m() = currentPos.alt_m(); // Maintain current altitude
         synData.flightPath.push_back(waypoint);
     }
+}
+
+// Generate realistic holding pattern (racetrack pattern)
+void SyntheticConnection::GenerateHoldingPattern(SynDataTy& synData, const positionTy& currentPos)
+{
+    // Create a standard racetrack holding pattern
+    double holdingRadiusNM = 5.0; // 5 nautical mile radius
+    double holdingRadiusM = holdingRadiusNM * 1852.0; // Convert to meters
+    
+    // Determine holding pattern orientation - prefer toward destination if available
+    double patternHeading = 0.0; // Default north
+    if (!synData.destinationAirport.empty()) {
+        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+        if (airportPos.isNormal()) {
+            patternHeading = currentPos.angle(airportPos); // Orient pattern toward destination
+        }
+    }
+    
+    // If no destination, use current heading with some variation
+    if (patternHeading == 0.0) {
+        patternHeading = synData.pos.heading() + ((std::rand() % 60 - 30) * PI / 180.0); // ±30° variation
+    }
+    
+    // Generate racetrack pattern waypoints
+    // Waypoint 1: Outbound leg start
+    positionTy wp1;
+    wp1.lat() = currentPos.lat() + (holdingRadiusM / 111320.0) * std::cos(patternHeading);
+    wp1.lon() = currentPos.lon() + (holdingRadiusM / (111320.0 * std::cos(currentPos.lat() * PI / 180.0))) * std::sin(patternHeading);
+    wp1.alt_m() = currentPos.alt_m();
+    synData.flightPath.push_back(wp1);
+    
+    // Waypoint 2: Outbound leg end (180° turn point)
+    double outboundHeading = patternHeading + PI; // Opposite direction
+    positionTy wp2;
+    wp2.lat() = wp1.lat() + (holdingRadiusM / 111320.0) * std::cos(outboundHeading);
+    wp2.lon() = wp1.lon() + (holdingRadiusM / (111320.0 * std::cos(wp1.lat() * PI / 180.0))) * std::sin(outboundHeading);
+    wp2.alt_m() = currentPos.alt_m();
+    synData.flightPath.push_back(wp2);
+    
+    // Waypoint 3: Inbound leg end (completes the pattern)
+    positionTy wp3;
+    wp3.lat() = wp2.lat() + (holdingRadiusM / 111320.0) * std::cos(patternHeading);
+    wp3.lon() = wp2.lon() + (holdingRadiusM / (111320.0 * std::cos(wp2.lat() * PI / 180.0))) * std::sin(patternHeading);
+    wp3.alt_m() = currentPos.alt_m();
+    synData.flightPath.push_back(wp3);
+    
+    // Waypoint 4: Back to start (closes the racetrack)
+    synData.flightPath.push_back(currentPos);
+    
+    LOG_MSG(logDEBUG, "Generated holding pattern for aircraft %s with %.1f nm legs", 
+            synData.stat.call.c_str(), holdingRadiusNM);
 }
 
 // Update terrain awareness to maintain safe separation from ground

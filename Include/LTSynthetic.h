@@ -469,6 +469,7 @@ protected:
     void GenerateCruisePath(SynDataTy& synData, const positionTy& currentPos);
     void GenerateArrivalPath(SynDataTy& synData, const positionTy& currentPos);
     void GenerateBasicPath(SynDataTy& synData, const positionTy& currentPos);
+    void GenerateHoldingPattern(SynDataTy& synData, const positionTy& currentPos);
     
     /// Calculate performance parameters based on aircraft type
     void CalculatePerformance(SynDataTy& synData);
