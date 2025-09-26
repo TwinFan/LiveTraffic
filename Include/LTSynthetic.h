@@ -138,6 +138,14 @@ protected:
         double tcasAvoidanceAltitude;           ///< altitude to avoid traffic
         bool inTCASAvoidance;                   ///< currently executing TCAS avoidance maneuver
         
+        // Enhanced TCAS data
+        std::string nearestTrafficCallsign;     ///< callsign of nearest conflicting traffic
+        double tcasVerticalSpeed;               ///< vertical speed during TCAS maneuver (m/s)
+        int tcasAdvisoryLevel;                  ///< 0=none, 1=traffic advisory, 2=resolution advisory
+        double tcasManeuverStartTime;           ///< when TCAS maneuver started
+        positionTy predictedPosition;           ///< predicted position for conflict detection
+        double conflictSeverity;                ///< severity of conflict (0.0-1.0)
+        
         // Communication frequency management
         double currentComFreq;                  ///< current communication frequency (MHz)
         std::string currentAirport;             ///< nearest airport for frequency selection
@@ -154,6 +162,8 @@ protected:
                      terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0),
                      lastTCASCheck(0.0), tcasActive(true), tcasAdvisory(""),
                      tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false),
+                     nearestTrafficCallsign(""), tcasVerticalSpeed(0.0), tcasAdvisoryLevel(0), 
+                     tcasManeuverStartTime(0.0), conflictSeverity(0.0),
                      currentComFreq(121.5), currentAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
                      currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false) {}
         
@@ -185,6 +195,9 @@ protected:
               lastTCASCheck(other.lastTCASCheck), tcasActive(other.tcasActive),
               tcasAdvisory(other.tcasAdvisory), tcasAvoidanceHeading(other.tcasAvoidanceHeading),
               tcasAvoidanceAltitude(other.tcasAvoidanceAltitude), inTCASAvoidance(other.inTCASAvoidance),
+              nearestTrafficCallsign(other.nearestTrafficCallsign), tcasVerticalSpeed(other.tcasVerticalSpeed),
+              tcasAdvisoryLevel(other.tcasAdvisoryLevel), tcasManeuverStartTime(other.tcasManeuverStartTime),
+              predictedPosition(other.predictedPosition), conflictSeverity(other.conflictSeverity),
               currentComFreq(other.currentComFreq), currentAirport(other.currentAirport),
               currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
               taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
@@ -233,6 +246,12 @@ protected:
                 tcasAvoidanceHeading = other.tcasAvoidanceHeading;
                 tcasAvoidanceAltitude = other.tcasAvoidanceAltitude;
                 inTCASAvoidance = other.inTCASAvoidance;
+                nearestTrafficCallsign = other.nearestTrafficCallsign;
+                tcasVerticalSpeed = other.tcasVerticalSpeed;
+                tcasAdvisoryLevel = other.tcasAdvisoryLevel;
+                tcasManeuverStartTime = other.tcasManeuverStartTime;
+                predictedPosition = other.predictedPosition;
+                conflictSeverity = other.conflictSeverity;
                 currentComFreq = other.currentComFreq;
                 currentAirport = other.currentAirport;
                 currentFreqType = other.currentFreqType;
@@ -378,6 +397,13 @@ protected:
     bool CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2);
     void GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos);
     void ExecuteTCASManeuver(SynDataTy& synData, double currentTime);
+    
+    /// Enhanced TCAS functions
+    positionTy PredictAircraftPosition(const SynDataTy& synData, double timeAhead);
+    double CalculateClosestPointOfApproach(const SynDataTy& synData1, const SynDataTy& synData2);
+    bool CheckPredictiveConflict(const SynDataTy& synData1, const SynDataTy& synData2, double lookAheadTime);
+    void CoordinateTCASResponse(SynDataTy& synData1, SynDataTy& synData2);
+    int DetermineOptimalTCASManeuver(const SynDataTy& ownAircraft, const SynDataTy& trafficAircraft);
     
     /// Enhanced ground operations
     void UpdateGroundOperations(SynDataTy& synData, double currentTime);

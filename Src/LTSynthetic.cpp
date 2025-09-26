@@ -3291,7 +3291,7 @@ positionTy SyntheticConnection::GetNextWaypoint(SynDataTy& synData)
     return synData.pos;
 }
 
-// TCAS (Traffic Collision Avoidance System) implementation
+// TCAS (Traffic Collision Avoidance System) implementation with enhanced predictive capability
 void SyntheticConnection::UpdateTCAS(const LTFlightData::FDKeyTy& key, SynDataTy& synData, double currentTime)
 {
     // Only active for airborne aircraft
@@ -3299,15 +3299,21 @@ void SyntheticConnection::UpdateTCAS(const LTFlightData::FDKeyTy& key, SynDataTy
         return;
     }
     
-    // Check TCAS every 2 seconds
-    if (currentTime - synData.lastTCASCheck < 2.0) {
+    // Check TCAS every 1 second for better responsiveness
+    if (currentTime - synData.lastTCASCheck < 1.0) {
         return;
     }
     synData.lastTCASCheck = currentTime;
     
-    // Scan for traffic conflicts
-    bool conflictDetected = false;
+    // Update predicted position for this aircraft
+    synData.predictedPosition = PredictAircraftPosition(synData, 30.0); // 30 seconds ahead
+    
+    // Scan for traffic conflicts with enhanced detection
+    bool trafficAdvisoryDetected = false;
+    bool resolutionAdvisoryDetected = false;
     positionTy conflictPosition;
+    double highestThreatLevel = 0.0;
+    std::string threatCallsign;
     
     for (const auto& otherAircraft : mapSynData) {
         if (otherAircraft.first == key) continue; // Skip self
@@ -3317,25 +3323,59 @@ void SyntheticConnection::UpdateTCAS(const LTFlightData::FDKeyTy& key, SynDataTy
         // Only check airborne aircraft
         if (otherSynData.pos.f.onGrnd == GND_ON) continue;
         
+        // Check immediate conflict (Resolution Advisory range)
         if (CheckTrafficConflict(synData, otherSynData)) {
-            conflictDetected = true;
+            resolutionAdvisoryDetected = true;
             conflictPosition = otherSynData.pos;
-            break;
+            threatCallsign = otherSynData.stat.call;
+            highestThreatLevel = 1.0;
+            break; // Immediate conflict takes priority
+        }
+        
+        // Check predictive conflict (Traffic Advisory range)
+        if (CheckPredictiveConflict(synData, otherSynData, 40.0)) { // 40 second look-ahead
+            double cpa = CalculateClosestPointOfApproach(synData, otherSynData);
+            if (cpa > highestThreatLevel) {
+                trafficAdvisoryDetected = true;
+                conflictPosition = otherSynData.pos;
+                threatCallsign = otherSynData.stat.call;
+                highestThreatLevel = cpa;
+            }
         }
     }
     
-    if (conflictDetected) {
-        GenerateTCASAdvisory(synData, conflictPosition);
+    // Update conflict severity
+    synData.conflictSeverity = highestThreatLevel;
+    synData.nearestTrafficCallsign = threatCallsign;
+    
+    if (resolutionAdvisoryDetected) {
+        // Escalate to Resolution Advisory if not already
+        if (synData.tcasAdvisoryLevel < 2) {
+            synData.tcasAdvisoryLevel = 2;
+            synData.tcasManeuverStartTime = currentTime;
+            GenerateTCASAdvisory(synData, conflictPosition);
+        }
         ExecuteTCASManeuver(synData, currentTime);
-    } else if (synData.inTCASAvoidance) {
-        // Check if we can resume normal operations
+    } else if (trafficAdvisoryDetected) {
+        // Issue Traffic Advisory if not already in RA
+        if (synData.tcasAdvisoryLevel == 0) {
+            synData.tcasAdvisoryLevel = 1;
+            synData.tcasAdvisory = "TRAFFIC ADVISORY - TRAFFIC, TRAFFIC";
+            LOG_MSG(logINFO, "TCAS %s: Traffic Advisory for traffic %s", 
+                    synData.stat.call.c_str(), threatCallsign.c_str());
+        }
+    } else if (synData.inTCASAvoidance || synData.tcasAdvisoryLevel > 0) {
+        // Clear of conflict, resume normal operations
         synData.inTCASAvoidance = false;
         synData.tcasAdvisory = "";
+        synData.tcasAdvisoryLevel = 0;
+        synData.nearestTrafficCallsign = "";
+        synData.conflictSeverity = 0.0;
         LOG_MSG(logINFO, "TCAS %s: Clear of conflict, resuming normal operations", synData.stat.call.c_str());
     }
 }
 
-// Check if two aircraft are in conflict
+// Enhanced check for traffic conflicts with improved separation standards
 bool SyntheticConnection::CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2)
 {
     // Calculate horizontal separation
@@ -3344,73 +3384,103 @@ bool SyntheticConnection::CheckTrafficConflict(const SynDataTy& synData1, const 
     // Calculate vertical separation
     double verticalSeparation = std::abs(synData1.pos.alt_m() - synData2.pos.alt_m()) / 0.3048; // Convert to feet
     
-    // TCAS conflict thresholds
-    const double MIN_HORIZONTAL_SEP_NM = 6.0; // 6 nautical miles
-    const double MIN_VERTICAL_SEP_FT = 1000.0; // 1000 feet
+    // Enhanced TCAS conflict thresholds based on altitude and aircraft type
+    double minHorizontalSep = 3.0; // Base 3 nautical miles
+    double minVerticalSep = 700.0; // Base 700 feet
+    
+    // Adjust thresholds based on altitude (closer spacing allowed at lower altitudes)
+    double altitude1 = synData1.pos.alt_m() * 3.28084; // Convert to feet
+    double altitude2 = synData2.pos.alt_m() * 3.28084;
+    double avgAltitude = (altitude1 + altitude2) / 2.0;
+    
+    if (avgAltitude < 10000.0) {
+        // Below 10,000 feet - reduced separation
+        minHorizontalSep = 2.5;
+        minVerticalSep = 500.0;
+    } else if (avgAltitude > 40000.0) {
+        // Above 40,000 feet - increased separation
+        minHorizontalSep = 4.0;
+        minVerticalSep = 1000.0;
+    }
+    
+    // Adjust for aircraft types (larger aircraft need more separation)
+    if (synData1.trafficType == SYN_TRAFFIC_AIRLINE || synData2.trafficType == SYN_TRAFFIC_AIRLINE) {
+        minHorizontalSep *= 1.2; // 20% more separation for airlines
+        minVerticalSep *= 1.1; // 10% more vertical separation
+    }
     
     // Check if aircraft are too close
-    bool horizontalConflict = horizontalSeparation < MIN_HORIZONTAL_SEP_NM;
-    bool verticalConflict = verticalSeparation < MIN_VERTICAL_SEP_FT;
+    bool horizontalConflict = horizontalSeparation < minHorizontalSep;
+    bool verticalConflict = verticalSeparation < minVerticalSep;
     
     // Conflict exists if both horizontal and vertical separation are insufficient
     return horizontalConflict && verticalConflict;
 }
 
-// Generate TCAS advisory
+// Enhanced TCAS advisory generation with coordinated responses
 void SyntheticConnection::GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos)
 {
-    // Determine advisory type based on relative positions
+    // Determine optimal maneuver based on relative positions and aircraft capabilities
     double altitudeDiff = conflictPos.alt_m() - synData.pos.alt_m();
+    double bearingToTraffic = synData.pos.angle(conflictPos);
+    double currentHeading = synData.pos.heading();
     
-    if (std::abs(altitudeDiff) < 150.0) {
-        // Level flight conflict - turn advisory
-        double bearingToTraffic = synData.pos.angle(conflictPos);
-        double currentHeading = synData.pos.heading();
-        
-        // Turn away from traffic
+    // Calculate optimal maneuver type
+    int maneuverType = DetermineOptimalTCASManeuver(synData, {});
+    
+    if (std::abs(altitudeDiff) < 200.0 && maneuverType != 3) {
+        // Level flight conflict - prefer turning maneuver
         double headingDiff = bearingToTraffic - currentHeading;
         while (headingDiff < -180.0) headingDiff += 360.0;
         while (headingDiff > 180.0) headingDiff -= 360.0;
         
+        // Choose turn direction based on traffic bearing and airspace considerations
         if (headingDiff > 0) {
             // Traffic is to the right, turn left
             synData.tcasAvoidanceHeading = currentHeading - 30.0;
-            synData.tcasAdvisory = "TRAFFIC ADVISORY - TURN LEFT 30 DEGREES";
+            synData.tcasAdvisory = "RESOLUTION ADVISORY - TURN LEFT, TURN LEFT";
         } else {
             // Traffic is to the left, turn right
             synData.tcasAvoidanceHeading = currentHeading + 30.0;
-            synData.tcasAdvisory = "TRAFFIC ADVISORY - TURN RIGHT 30 DEGREES";
+            synData.tcasAdvisory = "RESOLUTION ADVISORY - TURN RIGHT, TURN RIGHT";
         }
         
         // Normalize heading
         while (synData.tcasAvoidanceHeading < 0.0) synData.tcasAvoidanceHeading += 360.0;
         while (synData.tcasAvoidanceHeading >= 360.0) synData.tcasAvoidanceHeading -= 360.0;
         
-    } else if (altitudeDiff > 0) {
-        // Traffic above - descend advisory
-        synData.tcasAvoidanceAltitude = synData.pos.alt_m() - 300.0; // Descend 1000 ft
-        synData.tcasAdvisory = "RESOLUTION ADVISORY - DESCEND";
+    } else if (altitudeDiff > 0 || maneuverType == 1) {
+        // Traffic above or optimal maneuver is descend - descend advisory
+        synData.tcasAvoidanceAltitude = synData.pos.alt_m() - 500.0; // Descend 1640 ft
+        synData.tcasVerticalSpeed = -8.0; // 1600 ft/min descent rate
+        synData.tcasAdvisory = "RESOLUTION ADVISORY - DESCEND, DESCEND";
     } else {
-        // Traffic below - climb advisory  
-        synData.tcasAvoidanceAltitude = synData.pos.alt_m() + 300.0; // Climb 1000 ft
-        synData.tcasAdvisory = "RESOLUTION ADVISORY - CLIMB";
+        // Traffic below or optimal maneuver is climb - climb advisory  
+        synData.tcasAvoidanceAltitude = synData.pos.alt_m() + 500.0; // Climb 1640 ft
+        synData.tcasVerticalSpeed = 8.0; // 1600 ft/min climb rate
+        synData.tcasAdvisory = "RESOLUTION ADVISORY - CLIMB, CLIMB";
     }
     
     synData.inTCASAvoidance = true;
-    LOG_MSG(logWARN, "TCAS %s: %s", synData.stat.call.c_str(), synData.tcasAdvisory.c_str());
+    synData.tcasAdvisoryLevel = 2; // Resolution Advisory
+    LOG_MSG(logWARN, "TCAS %s: %s (conflict severity: %.2f)", 
+            synData.stat.call.c_str(), synData.tcasAdvisory.c_str(), synData.conflictSeverity);
 }
 
-// Execute TCAS avoidance maneuver
+// Execute enhanced TCAS avoidance maneuver with improved logic
 void SyntheticConnection::ExecuteTCASManeuver(SynDataTy& synData, double currentTime)
 {
     if (!synData.inTCASAvoidance) return;
+    
+    // Calculate maneuver duration (typically 20-30 seconds for TCAS maneuvers)
+    double maneuverDuration = currentTime - synData.tcasManeuverStartTime;
     
     // Apply heading change if required
     if (std::abs(synData.tcasAvoidanceHeading) > 0.001) {
         SmoothHeadingChange(synData, synData.tcasAvoidanceHeading, 2.0); // 2 second interval
     }
     
-    // Apply altitude change if required  
+    // Apply altitude change with vertical speed if required  
     if (std::abs(synData.tcasAvoidanceAltitude) > 0.001) {
         synData.targetAltitude = synData.tcasAvoidanceAltitude;
         
@@ -3418,6 +3488,23 @@ void SyntheticConnection::ExecuteTCASManeuver(SynDataTy& synData, double current
         double requiredClearance = GetRequiredTerrainClearance(synData.state, synData.trafficType);
         double minSafeAltitude = synData.terrainElevation + requiredClearance;
         synData.targetAltitude = std::max(synData.targetAltitude, minSafeAltitude);
+        
+        // Check if we've reached the target altitude or maneuver time limit
+        double altitudeDiff = std::abs(synData.pos.alt_m() - synData.targetAltitude);
+        if (altitudeDiff < 50.0 || maneuverDuration > 30.0) { // Within 160 feet or 30 seconds elapsed
+            // Maneuver complete, level off
+            synData.tcasVerticalSpeed = 0.0;
+            LOG_MSG(logDEBUG, "TCAS %s: Maneuver complete, leveling off at %.0f ft", 
+                    synData.stat.call.c_str(), synData.pos.alt_m() * 3.28084);
+        }
+    }
+    
+    // Check for maneuver timeout (maximum 60 seconds)
+    if (maneuverDuration > 60.0) {
+        synData.inTCASAvoidance = false;
+        synData.tcasAdvisoryLevel = 0;
+        synData.tcasVerticalSpeed = 0.0;
+        LOG_MSG(logINFO, "TCAS %s: Maneuver timeout, resuming normal operations", synData.stat.call.c_str());
     }
 }
 
@@ -3685,4 +3772,196 @@ void SyntheticConnection::UpdateTaxiMovement(SynDataTy& synData, double deltaTim
     const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
     double maxTaxiSpeed = perfData ? perfData->taxiSpeedKts * 0.514444 : 15.0 * 0.514444; // Convert to m/s
     synData.targetSpeed = std::min(targetSpeed, maxTaxiSpeed);
+}
+
+// Enhanced TCAS functions for predictive conflict detection and resolution
+
+// Predict aircraft position at a future time based on current velocity and flight state
+positionTy SyntheticConnection::PredictAircraftPosition(const SynDataTy& synData, double timeAhead)
+{
+    positionTy predictedPos = synData.pos;
+    
+    // Calculate current velocity components
+    double groundSpeed = synData.targetSpeed; // m/s
+    double heading = synData.pos.heading();
+    double verticalSpeed = synData.tcasVerticalSpeed; // m/s
+    
+    // Predict horizontal movement
+    double deltaLat = (groundSpeed * timeAhead * std::cos(heading * PI / 180.0)) / 111320.0; // degrees
+    double deltaLon = (groundSpeed * timeAhead * std::sin(heading * PI / 180.0)) / 
+                     (111320.0 * std::cos(predictedPos.lat() * PI / 180.0)); // degrees
+    
+    predictedPos.lat() += deltaLat;
+    predictedPos.lon() += deltaLon;
+    
+    // Predict vertical movement
+    predictedPos.alt_m() += verticalSpeed * timeAhead;
+    
+    // Ensure predicted altitude doesn't go below terrain
+    double requiredClearance = GetRequiredTerrainClearance(synData.state, synData.trafficType);
+    double minSafeAltitude = synData.terrainElevation + requiredClearance;
+    predictedPos.alt_m() = std::max(predictedPos.alt_m(), minSafeAltitude);
+    
+    return predictedPos;
+}
+
+// Calculate closest point of approach between two aircraft
+double SyntheticConnection::CalculateClosestPointOfApproach(const SynDataTy& synData1, const SynDataTy& synData2)
+{
+    // Get current positions and velocities
+    positionTy pos1 = synData1.pos;
+    positionTy pos2 = synData2.pos;
+    
+    // Calculate velocity vectors
+    double speed1 = synData1.targetSpeed;
+    double speed2 = synData2.targetSpeed;
+    double heading1 = pos1.heading();
+    double heading2 = pos2.heading();
+    
+    // Convert to velocity components (m/s)
+    double vx1 = speed1 * std::sin(heading1 * PI / 180.0);
+    double vy1 = speed1 * std::cos(heading1 * PI / 180.0);
+    double vx2 = speed2 * std::sin(heading2 * PI / 180.0);
+    double vy2 = speed2 * std::cos(heading2 * PI / 180.0);
+    
+    // Calculate relative position and velocity
+    double dx = (pos2.lon() - pos1.lon()) * 111320.0 * std::cos(pos1.lat() * PI / 180.0);
+    double dy = (pos2.lat() - pos1.lat()) * 111320.0;
+    double dvx = vx2 - vx1;
+    double dvy = vy2 - vy1;
+    
+    // Calculate time to closest approach
+    double relativeSpeed = dvx * dvx + dvy * dvy;
+    if (relativeSpeed < 0.001) {
+        // Aircraft moving in parallel, return current separation
+        return std::sqrt(dx * dx + dy * dy);
+    }
+    
+    double timeToClosest = -(dx * dvx + dy * dvy) / relativeSpeed;
+    timeToClosest = std::max(0.0, timeToClosest); // Don't predict past
+    
+    // Calculate closest approach distance
+    double closestDx = dx + dvx * timeToClosest;
+    double closestDy = dy + dvy * timeToClosest;
+    double closestDistance = std::sqrt(closestDx * closestDx + closestDy * closestDy);
+    
+    // Include vertical separation in the calculation
+    double vz1 = synData1.tcasVerticalSpeed;
+    double vz2 = synData2.tcasVerticalSpeed;
+    double dz = synData2.pos.alt_m() - synData1.pos.alt_m();
+    double dvz = vz2 - vz1;
+    double closestDz = dz + dvz * timeToClosest;
+    
+    // Return 3D separation distance
+    return std::sqrt(closestDistance * closestDistance + closestDz * closestDz);
+}
+
+// Check for predictive conflicts using look-ahead time
+bool SyntheticConnection::CheckPredictiveConflict(const SynDataTy& synData1, const SynDataTy& synData2, double lookAheadTime)
+{
+    // Predict positions at multiple time intervals
+    const int numSteps = 10;
+    double timeStep = lookAheadTime / numSteps;
+    
+    for (int i = 1; i <= numSteps; i++) {
+        double checkTime = timeStep * i;
+        positionTy pos1 = PredictAircraftPosition(synData1, checkTime);
+        positionTy pos2 = PredictAircraftPosition(synData2, checkTime);
+        
+        // Create temporary SynData objects for conflict check
+        SynDataTy tempData1 = synData1;
+        SynDataTy tempData2 = synData2;
+        tempData1.pos = pos1;
+        tempData2.pos = pos2;
+        
+        // Check if conflict would occur at this time
+        if (CheckTrafficConflict(tempData1, tempData2)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Determine optimal TCAS maneuver based on flight conditions and aircraft performance
+int SyntheticConnection::DetermineOptimalTCASManeuver(const SynDataTy& ownAircraft, const SynDataTy& trafficAircraft)
+{
+    // Maneuver types: 0=turn, 1=descend, 2=climb, 3=maintain
+    
+    double ownAltitude = ownAircraft.pos.alt_m() * 3.28084; // Convert to feet
+    
+    // Consider aircraft capabilities and current flight state
+    const AircraftPerformance* perfData = GetAircraftPerformance(ownAircraft.stat.acTypeIcao);
+    
+    // GA aircraft prefer turning at lower altitudes
+    if (ownAircraft.trafficType == SYN_TRAFFIC_GA && ownAltitude < 10000.0) {
+        return 0; // Turn maneuver
+    }
+    
+    // Airlines prefer vertical maneuvers at high altitudes  
+    if (ownAircraft.trafficType == SYN_TRAFFIC_AIRLINE && ownAltitude > 20000.0) {
+        // Check if near service ceiling
+        if (perfData && ownAltitude > (perfData->serviceCeilingFt * 0.9)) {
+            return 1; // Descend (near ceiling)
+        }
+        return 2; // Climb (normal operations)
+    }
+    
+    // Military aircraft have better climb performance
+    if (ownAircraft.trafficType == SYN_TRAFFIC_MILITARY) {
+        return 2; // Climb maneuver
+    }
+    
+    // Consider current flight state
+    switch (ownAircraft.state) {
+        case SYN_STATE_CLIMB:
+            return 2; // Continue climbing
+        case SYN_STATE_DESCENT:
+        case SYN_STATE_APPROACH:
+            return 1; // Continue descending
+        case SYN_STATE_CRUISE:
+            // At cruise, prefer maneuver that maintains cruise efficiency
+            return (ownAltitude < 25000.0) ? 2 : 1; // Climb if low, descend if high
+        default:
+            return 0; // Default to turn
+    }
+}
+
+// Coordinate TCAS responses between two aircraft to avoid complementary maneuvers
+void SyntheticConnection::CoordinateTCASResponse(SynDataTy& synData1, SynDataTy& synData2)
+{
+    // This is a simplified coordination algorithm
+    // In real TCAS, this would involve data link communication between aircraft
+    
+    // Determine which aircraft should climb and which should descend
+    double alt1 = synData1.pos.alt_m();
+    double alt2 = synData2.pos.alt_m();
+    
+    if (alt1 > alt2) {
+        // Higher aircraft climbs, lower aircraft descends
+        synData1.tcasAvoidanceAltitude = alt1 + 500.0;
+        synData1.tcasVerticalSpeed = 8.0;
+        synData1.tcasAdvisory = "RESOLUTION ADVISORY - CLIMB, CLIMB";
+        
+        synData2.tcasAvoidanceAltitude = alt2 - 500.0;
+        synData2.tcasVerticalSpeed = -8.0;
+        synData2.tcasAdvisory = "RESOLUTION ADVISORY - DESCEND, DESCEND";
+    } else {
+        // Lower aircraft climbs, higher aircraft descends
+        synData1.tcasAvoidanceAltitude = alt1 + 500.0;
+        synData1.tcasVerticalSpeed = 8.0;
+        synData1.tcasAdvisory = "RESOLUTION ADVISORY - CLIMB, CLIMB";
+        
+        synData2.tcasAvoidanceAltitude = alt2 - 500.0;
+        synData2.tcasVerticalSpeed = -8.0;
+        synData2.tcasAdvisory = "RESOLUTION ADVISORY - DESCEND, DESCEND";
+    }
+    
+    synData1.inTCASAvoidance = true;
+    synData2.inTCASAvoidance = true;
+    synData1.tcasAdvisoryLevel = 2;
+    synData2.tcasAdvisoryLevel = 2;
+    
+    LOG_MSG(logINFO, "TCAS Coordination: %s and %s executing coordinated maneuvers", 
+            synData1.stat.call.c_str(), synData2.stat.call.c_str());
 }
