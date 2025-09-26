@@ -1338,18 +1338,25 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
     }
 }
 
-// Cache for airport data to avoid repeated X-Plane API calls
+/// @brief Cache for airport data to avoid repeated X-Plane API calls
+/// @note Uses X-Plane's navigation database to get all airports dynamically
 struct AirportData {
-    std::string icao;
-    double lat;
-    double lon;
+    std::string icao;   ///< ICAO airport code
+    double lat;         ///< Latitude in degrees
+    double lon;         ///< Longitude in degrees
 };
 
+/// Global cache of airports loaded from X-Plane navigation database
 static std::vector<AirportData> cachedWorldAirports;
+/// Flag indicating if the airport cache has been initialized
 static bool airportCacheInitialized = false;
-static const size_t MAX_CACHED_AIRPORTS = 50000; // Limit cache size for performance
+/// Maximum number of airports to cache for performance reasons
+static const size_t MAX_CACHED_AIRPORTS = 50000;
 
-// Initialize the airport cache using X-Plane's navigation database
+/// @brief Initialize the airport cache using X-Plane's navigation database
+/// @details This function replaces the hardcoded airport list with a dynamic
+/// query of X-Plane's navigation database, making all airports available
+/// regardless of X-Plane version or scenery packages installed.
 void InitializeAirportCache()
 {
     if (airportCacheInitialized) return;
@@ -1363,7 +1370,7 @@ void InitializeAirportCache()
     size_t airportCount = 0;
     while (airportRef != XPLM_NAV_NOT_FOUND && airportCount < MAX_CACHED_AIRPORTS) {
         float lat, lon;
-        char airportID[32];
+        char airportID[32] = {0}; // Initialize to zero
         
         // Get airport information
         XPLMGetNavAidInfo(airportRef, nullptr, &lat, &lon, nullptr, 
@@ -1371,7 +1378,8 @@ void InitializeAirportCache()
         
         // Only include airports with valid ICAO codes (3-4 characters) and reasonable coordinates
         std::string icao(airportID);
-        if (icao.length() >= 3 && std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
+        if (!icao.empty() && icao.length() >= 3 && icao.length() <= 4 && 
+            std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
             AirportData airport;
             airport.icao = icao;
             airport.lat = lat;
