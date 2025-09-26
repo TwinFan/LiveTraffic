@@ -569,6 +569,7 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     // Initialize other parameters
     synData.holdingTime = 0.0;
     synData.isUserAware = false;
+    synData.lastComm = "";
     synData.lastCommTime = 0.0;
     // Flight plan already generated above based on origin/destination
     
@@ -1000,9 +1001,12 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
 }
 
 // Process TTS communications (placeholder for Windows TTS integration)
-void SyntheticConnection::ProcessTTSCommunication(const SynDataTy& synData, const std::string& message)
+void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std::string& message)
 {
     if (!config.enableTTS || message.empty()) return;
+    
+    // Store the last communication message
+    synData.lastComm = message;
     
     // Log the communication for now (actual TTS implementation would go here)
     LOG_MSG(logDEBUG, "TTS: %s", message.c_str());
