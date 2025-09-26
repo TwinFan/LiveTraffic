@@ -246,6 +246,9 @@ protected:
     void GenerateFlightPath(SynDataTy& synData, const positionTy& origin, const positionTy& destination);
     bool IsTerrainSafe(const positionTy& position, double minClearance = 150.0);
     double GetTerrainElevation(const positionTy& position, XPLMProbeRef& probeRef);
+    
+    /// Get required terrain clearance based on flight state and aircraft type
+    double GetRequiredTerrainClearance(SyntheticFlightState state, SyntheticTrafficType trafficType);
     void SmoothHeadingChange(SynDataTy& synData, double targetHeading, double deltaTime);
     positionTy GetNextWaypoint(SynDataTy& synData);
     
