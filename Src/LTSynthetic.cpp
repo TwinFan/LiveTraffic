@@ -1123,19 +1123,19 @@ std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionT
     return airports;
 }
 
-// Generate realistic call sign based on traffic type and location (country-specific) with extended coverage
+// Generate realistic call sign based on traffic type and location (comprehensive country coverage)
 std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficType, const positionTy& pos)
 {
     std::string callSign;
     
-    // Get country code from position for registration purposes with extended coverage
+    // Get country code from position for registration purposes with comprehensive coverage
     std::string country = (std::abs(pos.lat()) > 0.001 || std::abs(pos.lon()) > 0.001) ? 
-                         GetExtendedCountryFromPosition(pos) : "US";
+                         GetComprehensiveCountryFromPosition(pos) : "US";
     
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
-            // Generate extended country-specific GA registration
-            callSign = GenerateExtendedCountryRegistration(country, trafficType);
+            // Generate comprehensive country-specific GA registration
+            callSign = GenerateComprehensiveCountryRegistration(country, trafficType);
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
@@ -1161,7 +1161,7 @@ std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficTy
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
-            // Military call signs vary by country with extended coverage
+            // Military call signs vary by country with comprehensive coverage
             if (country == "US") {
                 const char* military[] = {"ARMY", "NAVY", "USAF", "USCG"};
                 callSign = military[std::rand() % 4];
@@ -1185,7 +1185,7 @@ std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficTy
                 callSign = "BAF";
             } else if (country == "NO" || country == "SE" || country == "DK") {
                 callSign = "NORDIC";
-            } else if (country == "JA") {
+            } else if (country == "JA" || country == "JP") {
                 callSign = "JASDF";
             } else if (country == "KR") {
                 callSign = "ROKAF";
@@ -1193,6 +1193,12 @@ std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficTy
                 callSign = "FAB";
             } else if (country == "AR") {
                 callSign = "FAA";
+            } else if (country == "MX") {
+                callSign = "FUERZA";
+            } else if (country == "RU") {
+                callSign = "RUAF";
+            } else if (country == "CN") {
+                callSign = "PLAAF";
             } else {
                 callSign = "MIL"; // Generic military
             }
@@ -1324,7 +1330,27 @@ std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::
 // Generate aircraft type based on traffic type
 std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route)
 {
-    std::string acType;
+    // Scan available CSL models periodically (every 5 minutes)
+    static double lastScanTime = 0.0;
+    double currentTime = std::time(nullptr);
+    if (currentTime - lastScanTime > 300.0) { // 5 minutes
+        try {
+            ScanAvailableCSLModels();
+            lastScanTime = currentTime;
+        } catch (...) {
+            LOG_MSG(logWARN, "Exception during CSL model scanning, using fallback aircraft selection");
+        }
+    }
+    
+    // First try to select from available CSL models
+    std::string acType = SelectCSLModelForAircraft(trafficType, route);
+    if (!acType.empty()) {
+        LOG_MSG(logDEBUG, "Selected CSL model: %s for traffic type %d", acType.c_str(), trafficType);
+        return acType;
+    }
+    
+    // Fallback to enhanced hardcoded selection
+    LOG_MSG(logDEBUG, "Using fallback aircraft selection for traffic type %d", trafficType);
     
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
@@ -1360,8 +1386,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : longDistanceGA) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 } else if (route.find("local") != std::string::npos || route.find("VFR") != std::string::npos) {
@@ -1378,8 +1403,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : localGA) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 } else {
@@ -1391,8 +1415,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : gaTypes) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 }
@@ -1405,8 +1428,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                 for (const auto& sel : gaTypes) {
                     cumWeight += sel.weight;
                     if (randVal < cumWeight) {
-                        acType = sel.type;
-                        break;
+                        return sel.type;
                     }
                 }
             }
@@ -1436,7 +1458,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                         {"B737", 50},
                         {"A320", 50}
                     };
-                    acType = shortHaul[std::rand() % 2].type;
+                    return shortHaul[std::rand() % 2].type;
                 } else if (route.find("international") != std::string::npos || route.find("long") != std::string::npos || 
                           route.find("FL350+") != std::string::npos) {
                     // Long haul international prefers wide body
@@ -1453,8 +1475,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : longHaul) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 } else {
@@ -1466,8 +1487,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : airlineTypes) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 }
@@ -1480,8 +1500,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                 for (const auto& sel : airlineTypes) {
                     cumWeight += sel.weight;
                     if (randVal < cumWeight) {
-                        acType = sel.type;
-                        break;
+                        return sel.type;
                     }
                 }
             }
@@ -1510,8 +1529,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : transport) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 } else if (route.find("local ops") != std::string::npos || route.find("patrol") != std::string::npos) {
@@ -1520,14 +1538,14 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                         {"F16", 60},    // Most common NATO fighter
                         {"F18", 40}     // US Navy/Marine fighter
                     };
-                    acType = (std::rand() % 100 < 60) ? "F16" : "F18";
+                    return (std::rand() % 100 < 60) ? "F16" : "F18";
                 } else if (route.find("FL400+") != std::string::npos) {
                     // High altitude - prefer strategic bombers or surveillance
                     MilitarySelection highAlt[] = {
                         {"E3", 70},     // AWACS can fly high
                         {"B2", 30}      // Strategic bomber
                     };
-                    acType = (std::rand() % 100 < 70) ? "E3" : "B2";
+                    return (std::rand() % 100 < 70) ? "E3" : "B2";
                 } else {
                     // General military mix
                     MilitarySelection militaryTypes[] = {
@@ -1545,8 +1563,7 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                     for (const auto& sel : militaryTypes) {
                         cumWeight += sel.weight;
                         if (randVal < cumWeight) {
-                            acType = sel.type;
-                            break;
+                            return sel.type;
                         }
                     }
                 }
@@ -1567,19 +1584,17 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
                 for (const auto& sel : militaryTypes) {
                     cumWeight += sel.weight;
                     if (randVal < cumWeight) {
-                        acType = sel.type;
-                        break;
+                        return sel.type;
                     }
                 }
             }
             break;
         }
         default:
-            acType = "C172"; // Safe default
-            break;
+            return "C172"; // Safe default
     }
     
-    return acType;
+    return "C172"; // Final fallback
 }
 
 // Calculate performance parameters based on aircraft type
@@ -4703,6 +4718,231 @@ std::string SyntheticConnection::GenerateExtendedCountryRegistration(const std::
         char letter1 = 'A' + (std::rand() % 26);
         char letter2 = 'A' + (std::rand() % 26);
         registration += std::string(1, letter1) + std::string(1, letter2);
+    }
+    
+    return registration;
+}
+
+//
+// MARK: CSL Model Scanning and Selection
+//
+
+// Scan available CSL models and categorize them
+void SyntheticConnection::ScanAvailableCSLModels()
+{
+    availableCSLModels.clear();
+    cslModelsByType.clear();
+    
+    // Get number of installed CSL models from XPMP2
+    int numModels = XPMPGetNumberOfInstalledModels();
+    if (numModels == 0) {
+        LOG_MSG(logDEBUG, "No CSL models found by XPMP2");
+        return;
+    }
+    
+    LOG_MSG(logINFO, "Scanning %d available CSL models for synthetic traffic", numModels);
+    
+    // Scan all available CSL models
+    for (int i = 0; i < numModels; i++) {
+        std::string modelName, icaoType, airline, livery;
+        
+        try {
+            XPMPGetModelInfo2(i, modelName, icaoType, airline, livery);
+            
+            if (modelName.empty() || icaoType.empty()) {
+                continue; // Skip invalid models
+            }
+            
+            // Create CSL model data entry
+            CSLModelData modelData;
+            modelData.modelName = modelName;
+            modelData.icaoType = icaoType;
+            modelData.airline = airline;
+            modelData.livery = livery;
+            
+            // Categorize model by aircraft type
+            modelData.category = CategorizeAircraftType(icaoType);
+            
+            // Add to our database
+            size_t index = availableCSLModels.size();
+            availableCSLModels.push_back(modelData);
+            cslModelsByType[modelData.category].push_back(index);
+            
+            LOG_MSG(logDEBUG, "CSL Model: %s (%s) - Category: %d", 
+                    modelName.c_str(), icaoType.c_str(), modelData.category);
+            
+        } catch (...) {
+            LOG_MSG(logWARN, "Exception while processing CSL model index %d", i);
+        }
+    }
+    
+    LOG_MSG(logINFO, "CSL Scan complete: GA=%d, Airlines=%d, Military=%d models", 
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_GA].size()),
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()),
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_MILITARY].size()));
+}
+
+// Categorize aircraft type from ICAO code
+SyntheticTrafficType SyntheticConnection::CategorizeAircraftType(const std::string& icaoType)
+{
+    if (icaoType.empty()) return SYN_TRAFFIC_GA;
+    
+    // Convert to uppercase for comparison
+    std::string upper = icaoType;
+    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+    
+    // Military aircraft patterns
+    if (upper.find("F16") == 0 || upper.find("F18") == 0 || upper.find("F15") == 0 ||
+        upper.find("F35") == 0 || upper.find("F22") == 0 || upper.find("A10") == 0 ||
+        upper.find("C130") == 0 || upper.find("KC") == 0 || upper.find("C17") == 0 ||
+        upper.find("C5") == 0 || upper.find("B2") == 0 || upper.find("B52") == 0 ||
+        upper.find("E3") == 0 || upper.find("T38") == 0 || upper.find("T6") == 0 ||
+        upper.find("UH60") == 0 || upper.find("CH47") == 0) {
+        return SYN_TRAFFIC_MILITARY;
+    }
+    
+    // Commercial airline patterns (jets with 2+ engines, wide/narrow body)
+    if (upper.find("B7") == 0 || upper.find("A3") == 0 || upper.find("A33") == 0 ||
+        upper.find("A34") == 0 || upper.find("A35") == 0 || upper.find("A38") == 0 ||
+        upper.find("B73") == 0 || upper.find("B74") == 0 || upper.find("B75") == 0 ||
+        upper.find("B76") == 0 || upper.find("B78") == 0 || upper.find("MD") == 0 ||
+        upper.find("DC") == 0 || upper.find("CRJ") == 0 || upper.find("E1") == 0 ||
+        upper.find("E70") == 0 || upper.find("E90") == 0 || upper.find("RJ") == 0 ||
+        upper.find("DHC8") == 0 || upper.find("AT") == 0) {
+        return SYN_TRAFFIC_AIRLINE;
+    }
+    
+    // Large twin-engine aircraft (likely commercial)
+    if (upper.find("BE20") == 0 || upper.find("BE30") == 0 || upper.find("BE40") == 0 ||
+        upper.find("MU2") == 0 || upper.find("TBM") == 0) {
+        return SYN_TRAFFIC_GA; // High-end GA
+    }
+    
+    // Everything else is GA
+    return SYN_TRAFFIC_GA;
+}
+
+// Select a CSL model for synthetic aircraft
+std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& route)
+{
+    // Check if we have models for this traffic type
+    auto it = cslModelsByType.find(trafficType);
+    if (it == cslModelsByType.end() || it->second.empty()) {
+        return ""; // No models available, use fallback
+    }
+    
+    const std::vector<size_t>& typeModels = it->second;
+    
+    // Simple random selection for now
+    // TODO: Could enhance with route-based selection, airline matching, etc.
+    size_t randomIndex = typeModels[std::rand() % typeModels.size()];
+    
+    if (randomIndex < availableCSLModels.size()) {
+        return availableCSLModels[randomIndex].icaoType;
+    }
+    
+    return ""; // Fallback
+}
+
+//
+// MARK: Comprehensive Country Registrations (100+ Countries)
+//
+
+// Get comprehensive country detection with 100+ countries  
+std::string SyntheticConnection::GetComprehensiveCountryFromPosition(const positionTy& pos)
+{
+    double lat = pos.lat();
+    double lon = pos.lon();
+    
+    // Central America (more specific)
+    if (lat >= 7.0 && lat <= 18.5 && lon >= -92.0 && lon <= -77.0) {
+        if (lon >= -91.0 && lon <= -88.0) return "GT"; // Guatemala
+        if (lon >= -90.0 && lon <= -87.5) return "BZ"; // Belize
+        if (lat >= 13.0 && lat <= 15.0 && lon >= -89.5 && lon <= -87.7) return "SV"; // El Salvador
+        if (lat >= 12.0 && lat <= 15.5 && lon >= -89.4 && lon <= -83.1) return "HN"; // Honduras
+        if (lat >= 10.0 && lat <= 15.0 && lon >= -87.7 && lon <= -83.0) return "NI"; // Nicaragua
+        if (lat >= 8.0 && lat <= 11.5 && lon >= -86.0 && lon <= -82.6) return "CR"; // Costa Rica
+        if (lat >= 7.0 && lat <= 9.7 && lon >= -83.0 && lon <= -77.2) return "PA"; // Panama
+    }
+    
+    // Caribbean (more specific)
+    if (lat >= 10.0 && lat <= 27.0 && lon >= -85.0 && lon <= -60.0) {
+        if (lat >= 19.0 && lat <= 24.0 && lon >= -85.0 && lon <= -74.0) return "CU"; // Cuba
+        if (lat >= 17.5 && lat <= 20.0 && lon >= -78.4 && lon <= -76.2) return "JM"; // Jamaica
+        if (lat >= 18.0 && lat <= 20.1 && lon >= -74.5 && lon <= -71.6) return "HT"; // Haiti
+        if (lat >= 17.5 && lat <= 19.9 && lon >= -72.0 && lon <= -68.3) return "DO"; // Dominican Republic
+        if (lat >= 19.3 && lat <= 19.4 && lon >= -81.4 && lon <= -79.7) return "KY"; // Cayman Islands
+    }
+    
+    // Use existing extended country detection for the rest
+    return GetExtendedCountryFromPosition(pos);
+}
+
+// Generate comprehensive country-specific registration (additional countries)
+std::string SyntheticConnection::GenerateComprehensiveCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType)
+{
+    std::string registration;
+    
+    // Additional Central American and Caribbean country registrations
+    if (countryCode == "GT") {
+        registration = "TG-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "BZ") {
+        registration = "V3-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "SV") {
+        registration = "YS-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "HN") {
+        registration = "HR-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "NI") {
+        registration = "YN-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "CR") {
+        registration = "TI-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "PA") {
+        registration = "HP-";
+        registration += std::to_string(1000 + (std::rand() % 9000));
+    } else if (countryCode == "CU") {
+        registration = "CU-T";
+        registration += std::to_string(100 + (std::rand() % 900));
+    } else if (countryCode == "JM") {
+        registration = "6Y-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "HT") {
+        registration = "HH-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "DO") {
+        registration = "HI-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "KY") {
+        registration = "VP-C";
+        for (int i = 0; i < 2; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else {
+        // Use the existing extended country registration for other countries
+        return GenerateExtendedCountryRegistration(countryCode, trafficType);
     }
     
     return registration;

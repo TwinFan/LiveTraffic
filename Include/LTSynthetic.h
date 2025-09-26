@@ -173,6 +173,9 @@ protected:
         std::string assignedGate;               ///< assigned gate or parking position
         bool groundCollisionAvoidance;          ///< ground collision avoidance active
         
+        // CSL model scanning timing
+        double lastCSLScanTime;                 ///< last time CSL models were scanned
+        
         SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
                      terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0),
                      lastTCASCheck(0.0), tcasActive(true), tcasAdvisory(""),
@@ -183,7 +186,8 @@ protected:
                      weatherVisibility(10000.0), weatherWindSpeed(0.0), weatherWindDirection(0.0),
                      assignedSID(""), assignedSTAR(""), usingRealNavData(false),
                      currentComFreq(121.5), currentAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
-                     currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false) {}
+                     currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false),
+                     lastCSLScanTime(0.0) {}
         
         ~SynDataTy() {
             // Thread-safe cleanup of terrain probe
@@ -224,7 +228,8 @@ protected:
               currentComFreq(other.currentComFreq), currentAirport(other.currentAirport),
               currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
               taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
-              assignedGate(other.assignedGate), groundCollisionAvoidance(other.groundCollisionAvoidance) {}
+              assignedGate(other.assignedGate), groundCollisionAvoidance(other.groundCollisionAvoidance),
+              lastCSLScanTime(other.lastCSLScanTime) {}
         
         // Assignment operator - need to handle probe ownership
         SynDataTy& operator=(const SynDataTy& other) {
@@ -294,6 +299,7 @@ protected:
                 currentTaxiWaypoint = other.currentTaxiWaypoint;
                 assignedGate = other.assignedGate;
                 groundCollisionAvoidance = other.groundCollisionAvoidance;
+                lastCSLScanTime = other.lastCSLScanTime;
             }
             return *this;
         }
@@ -312,6 +318,18 @@ protected:
     
     /// Navigation data cache for SID/STAR procedures  
     std::map<std::string, std::vector<positionTy>> sidStarCache;
+    
+    /// CSL Model database for enhanced aircraft selection
+    struct CSLModelData {
+        std::string modelName;      ///< Model name/ID
+        std::string icaoType;       ///< ICAO aircraft type
+        std::string airline;        ///< Airline code  
+        std::string livery;         ///< Livery information
+        SyntheticTrafficType category; ///< GA, Airline, or Military classification
+    };
+    std::vector<CSLModelData> availableCSLModels;   ///< Cache of available CSL models
+    std::map<SyntheticTrafficType, std::vector<size_t>> cslModelsByType; ///< Models grouped by type
+    double lastCSLScanTime;                         ///< Last time CSL models were scanned
 public:
     /// Constructor
     SyntheticConnection ();
@@ -385,6 +403,16 @@ public:
     /// Extended country coverage for aircraft registrations
     std::string GetExtendedCountryFromPosition(const positionTy& pos);
     std::string GenerateExtendedCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
+    
+    /// CSL Model scanning and selection
+    void ScanAvailableCSLModels();
+    SyntheticTrafficType CategorizeAircraftType(const std::string& icaoType);
+    std::vector<std::string> GetAvailableCSLModels(SyntheticTrafficType trafficType);
+    std::string SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& route);
+    
+    /// Comprehensive country registrations (100+ countries)
+    std::string GetComprehensiveCountryFromPosition(const positionTy& pos);
+    std::string GenerateComprehensiveCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
 
 protected:
     void Main () override;          ///< virtual thread main function
