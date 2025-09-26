@@ -408,6 +408,9 @@ bool SyntheticConnection::ProcessFetchedData ()
         // Update aircraft position based on movement
         UpdateAircraftPosition(synData, tNow);
         
+        // Update TCAS (Traffic Collision Avoidance System)
+        UpdateTCAS(synData, tNow);
+        
         // Send position for LiveTraffic's processing
         LTFlightData::FDDynamicData dyn;
         dyn.pChannel = this;
@@ -425,6 +428,7 @@ bool SyntheticConnection::ProcessFetchedData ()
                 isOnGround = true;
                 break;
             case SYN_STATE_TAKEOFF:
+            case SYN_STATE_LINE_UP_WAIT:
             case SYN_STATE_LANDING:
                 // For transition states, use terrain-based determination
                 {
@@ -462,6 +466,10 @@ bool SyntheticConnection::ProcessFetchedData ()
             case SYN_STATE_TAXI_OUT:
             case SYN_STATE_TAXI_IN:
                 synData.pos.f.flightPhase = FPH_TAXI;
+                dyn.vsi = 0.0;
+                break;
+            case SYN_STATE_LINE_UP_WAIT:
+                synData.pos.f.flightPhase = FPH_TAXI; // On ground, waiting
                 dyn.vsi = 0.0;
                 break;
             case SYN_STATE_TAKEOFF:
@@ -763,6 +771,9 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.lastPosUpdateTime = std::time(nullptr);
     // Flight plan already generated above based on origin/destination
     
+    // Initialize runway assignment (fix for crash)
+    synData.assignedRunway = ""; // Initialize to empty to prevent access violation
+    
     // Initialize navigation and terrain awareness
     synData.flightPath.clear();
     synData.currentWaypoint = 0;
@@ -793,9 +804,19 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                 
             case SYN_STATE_STARTUP:
                 newState = SYN_STATE_TAXI_OUT;
+                // Assign a runway for departure if not already assigned
+                if (synData.assignedRunway.empty()) {
+                    // Generate a realistic runway designation
+                    std::string runways[] = {"09L", "09R", "27L", "27R", "01", "19", "36", "18", "06", "24"};
+                    synData.assignedRunway = runways[std::rand() % 10];
+                }
                 break;
                 
             case SYN_STATE_TAXI_OUT:
+                newState = SYN_STATE_LINE_UP_WAIT;
+                break;
+                
+            case SYN_STATE_LINE_UP_WAIT:
                 newState = SYN_STATE_TAKEOFF;
                 break;
                 
@@ -871,6 +892,9 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
         case SYN_STATE_TAXI_OUT:
         case SYN_STATE_TAXI_IN:
             synData.nextEventTime = currentTime + (120 + std::rand() % 180); // 2-5 minutes
+            break;
+        case SYN_STATE_LINE_UP_WAIT:
+            synData.nextEventTime = currentTime + (30 + std::rand() % 90); // 30-120 seconds wait
             break;
         case SYN_STATE_TAKEOFF:
             synData.nextEventTime = currentTime + (30 + std::rand() % 60); // 30-90 seconds
@@ -1340,6 +1364,11 @@ void SyntheticConnection::CalculatePerformance(SynDataTy& synData)
             synData.targetSpeed = taxiSpeedKts * KTS_TO_MS; // Aircraft-specific taxi speed
             break;
             
+        case SYN_STATE_LINE_UP_WAIT:
+            // Stationary on runway, waiting for clearance
+            synData.targetSpeed = 0.0;
+            break;
+            
         case SYN_STATE_TAKEOFF:
             // Takeoff speed is typically 1.2 * stall speed
             synData.targetSpeed = (stallSpeedKts * 1.2) * KTS_TO_MS;
@@ -1411,6 +1440,12 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         case SYN_STATE_TAXI_IN:
             // Ground movement - horizontal only, no altitude change
             shouldMove = (synData.targetSpeed > 0.0);
+            altitudeChangeRate = 0.0;
+            break;
+            
+        case SYN_STATE_LINE_UP_WAIT:
+            // Stationary on runway, no movement
+            shouldMove = false;
             altitudeChangeRate = 0.0;
             break;
             
@@ -1567,6 +1602,78 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
     synData.lastPosUpdateTime = currentTime;
 }
 
+// Helper function to format altitude according to ICAO standards
+std::string SyntheticConnection::FormatICAOAltitude(double altitudeMeters)
+{
+    // Convert meters to feet
+    int altFeet = static_cast<int>(altitudeMeters * 3.28084);
+    
+    if (altFeet >= 18000) {
+        // Above 18,000 feet, use flight levels
+        int flightLevel = (altFeet + 50) / 100; // Round to nearest hundred
+        return "flight level " + std::to_string(flightLevel);
+    } else if (altFeet >= 1000) {
+        // Between 1,000 and 18,000 feet, use thousands and hundreds
+        int thousands = altFeet / 1000;
+        int hundreds = (altFeet % 1000) / 100;
+        if (hundreds == 0) {
+            return std::to_string(thousands) + " thousand feet";
+        } else {
+            return std::to_string(thousands) + " thousand " + std::to_string(hundreds) + " hundred feet";
+        }
+    } else {
+        // Below 1,000 feet, just use feet
+        int roundedFeet = ((altFeet + 25) / 50) * 50; // Round to nearest 50 feet
+        return std::to_string(roundedFeet) + " feet";
+    }
+}
+
+// Helper function to get aircraft type for communications
+std::string SyntheticConnection::GetAircraftTypeForComms(const std::string& icaoType, SyntheticTrafficType trafficType)
+{
+    // For initial contact, include aircraft type
+    if (!icaoType.empty() && icaoType != "ZZZZ") {
+        return icaoType;
+    }
+    
+    // Fallback to generic type based on traffic category
+    switch (trafficType) {
+        case SYN_TRAFFIC_GA:
+            return "light aircraft";
+        case SYN_TRAFFIC_AIRLINE:
+            return "heavy";
+        case SYN_TRAFFIC_MILITARY:
+            return "military aircraft";
+        default:
+            return "aircraft";
+    }
+}
+
+// Helper function to format runway for communications
+std::string SyntheticConnection::FormatRunwayForComms(const std::string& runway)
+{
+    if (runway.empty()) return "";
+    
+    std::string formatted = "runway ";
+    
+    // Handle runway numbers (e.g., "09L" becomes "zero niner left")
+    for (char c : runway) {
+        if (c >= '0' && c <= '9') {
+            if (c == '0') formatted += "zero ";
+            else if (c == '9') formatted += "niner ";
+            else formatted += std::string(1, c) + " ";
+        } else if (c == 'L') {
+            formatted += "left";
+        } else if (c == 'R') {
+            formatted += "right";
+        } else if (c == 'C') {
+            formatted += "center";
+        }
+    }
+    
+    return formatted;
+}
+
 // Generate TTS communication message
 std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, const positionTy& userPos)
 {
@@ -1591,27 +1698,138 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     double randomThreshold = std::rand() / static_cast<double>(RAND_MAX);
     if (randomThreshold > commReliability) return ""; // Message blocked/lost
     
-    // Generate message based on flight state
+    // Generate message based on flight state using proper ICAO phraseology
+    std::string aircraftType = GetAircraftTypeForComms(synData.stat.acTypeIcao, synData.trafficType);
+    std::string runway = FormatRunwayForComms(synData.assignedRunway);
+    
     switch (synData.state) {
-        case SYN_STATE_TAXI_OUT:
-            message = synData.stat.call + " requesting taxi clearance";
-            break;
-        case SYN_STATE_TAKEOFF:
-            message = synData.stat.call + " ready for departure";
-            break;
-        case SYN_STATE_CRUISE:
-            if (std::rand() % 100 < 10) { // 10% chance
-                message = synData.stat.call + " level at " + std::to_string(static_cast<int>(synData.pos.alt_m() * 3.28084 / 100)) + " hundred";
+        case SYN_STATE_STARTUP:
+            if (std::rand() % 100 < 5) { // 5% chance for startup message
+                message = synData.stat.call + " ground, " + aircraftType + " at gate, request start up";
             }
             break;
+            
+        case SYN_STATE_TAXI_OUT:
+            // Proper taxi request with aircraft type and destination
+            message = synData.stat.call + " ground, " + aircraftType + " at gate, request taxi to " + 
+                     (runway.empty() ? "active runway" : runway) + " for departure";
+            break;
+            
+        case SYN_STATE_LINE_UP_WAIT:
+            // Line up and wait communications
+            if (!runway.empty()) {
+                int variation = std::rand() % 2;
+                if (variation == 0) {
+                    message = synData.stat.call + " tower, " + aircraftType + " lined up and waiting " + runway;
+                } else {
+                    message = synData.stat.call + " tower, in position and holding " + runway;
+                }
+            } else {
+                message = synData.stat.call + " tower, " + aircraftType + " lined up and waiting";
+            }
+            break;
+            
+        case SYN_STATE_TAKEOFF:
+            // Proper departure request with runway and aircraft type - add variations
+            if (!runway.empty()) {
+                int variation = std::rand() % 3;
+                switch (variation) {
+                    case 0:
+                        message = synData.stat.call + " tower, " + aircraftType + " holding short " + 
+                                 runway + ", ready for departure";
+                        break;
+                    case 1:
+                        message = synData.stat.call + " tower, " + aircraftType + " ready for takeoff " + runway;
+                        break;
+                    case 2:
+                        message = synData.stat.call + " tower, ready for immediate departure " + runway;
+                        break;
+                }
+            } else {
+                message = synData.stat.call + " tower, " + aircraftType + " ready for departure";
+            }
+            break;
+            
+        case SYN_STATE_CLIMB:
+            if (std::rand() % 100 < 8) { // 8% chance for climb report
+                std::string altitude = FormatICAOAltitude(synData.pos.alt_m());
+                message = synData.stat.call + " departure, passing " + altitude + " for " + 
+                         FormatICAOAltitude(synData.targetAltitude);
+            }
+            break;
+            
+        case SYN_STATE_CRUISE:
+            if (std::rand() % 100 < 10) { // 10% chance for level report
+                std::string altitude = FormatICAOAltitude(synData.pos.alt_m());
+                message = synData.stat.call + " center, level " + altitude;
+            }
+            break;
+            
+        case SYN_STATE_HOLD:
+            if (std::rand() % 100 < 20) { // 20% chance for hold report
+                std::string altitude = FormatICAOAltitude(synData.pos.alt_m());
+                message = synData.stat.call + " center, entering hold at " + altitude + ", expect further clearance";
+            }
+            break;
+            
+        case SYN_STATE_DESCENT:
+            if (std::rand() % 100 < 12) { // 12% chance for descent report
+                std::string currentAlt = FormatICAOAltitude(synData.pos.alt_m());
+                std::string targetAlt = FormatICAOAltitude(synData.targetAltitude);
+                message = synData.stat.call + " center, leaving " + currentAlt + " for " + targetAlt;
+            }
+            break;
+            
         case SYN_STATE_APPROACH:
-            message = synData.stat.call + " requesting approach clearance";
+            // Proper approach request with aircraft type and intentions - add variations
+            int variation = std::rand() % 3;
+            switch (variation) {
+                case 0:
+                    message = synData.stat.call + " approach, " + aircraftType + " requesting vectors to " + 
+                             (runway.empty() ? "ILS approach" : "ILS " + runway);
+                    break;
+                case 1:
+                    message = synData.stat.call + " approach, " + aircraftType + " requesting " + 
+                             (runway.empty() ? "approach clearance" : runway + " approach");
+                    break;
+                case 2:
+                    message = synData.stat.call + " approach, with information alpha, requesting vectors " +
+                             (runway.empty() ? "for approach" : "ILS " + runway);
+                    break;
+            }
             break;
+            
         case SYN_STATE_LANDING:
-            message = synData.stat.call + " on final approach";
+            // Proper final approach call
+            if (!runway.empty()) {
+                message = synData.stat.call + " tower, " + aircraftType + " established ILS " + runway;
+            } else {
+                message = synData.stat.call + " tower, established on final approach";
+            }
             break;
+            
+        case SYN_STATE_TAXI_IN:
+            if (std::rand() % 100 < 15) { // 15% chance for taxi-in message
+                message = synData.stat.call + " ground, " + aircraftType + " clear of " + 
+                         (runway.empty() ? "runway" : runway) + ", taxi to gate";
+            }
+            break;
+            
+        case SYN_STATE_SHUTDOWN:
+            if (std::rand() % 100 < 3) { // 3% chance for shutdown message
+                message = synData.stat.call + " ground, " + aircraftType + " parking complete, shutting down";
+            }
+            break;
+            
         default:
             break;
+    }
+    
+    // Add TCAS advisory communications if active
+    if (synData.inTCASAvoidance && !synData.tcasAdvisory.empty() && std::rand() % 100 < 30) {
+        // 30% chance to report TCAS advisory
+        message = synData.stat.call + " " + synData.tcasAdvisory.substr(0, synData.tcasAdvisory.find(" - ")) + 
+                 ", responding to traffic advisory";
     }
     
     // Apply signal degradation effects based on distance and reliability
@@ -2692,6 +2910,9 @@ double SyntheticConnection::GetRequiredTerrainClearance(SyntheticFlightState sta
         case SYN_STATE_TAXI_IN:
             return 10.0; // Minimal clearance for taxiing
             
+        case SYN_STATE_LINE_UP_WAIT:
+            return 10.0; // Minimal clearance on runway
+            
         case SYN_STATE_TAKEOFF:
             return std::max(50.0, baseClearance * 0.3); // Lower during takeoff
             
@@ -2768,4 +2989,134 @@ positionTy SyntheticConnection::GetNextWaypoint(SynDataTy& synData)
     
     // If no waypoints, return current position
     return synData.pos;
+}
+
+// TCAS (Traffic Collision Avoidance System) implementation
+void SyntheticConnection::UpdateTCAS(SynDataTy& synData, double currentTime)
+{
+    // Only active for airborne aircraft
+    if (!synData.tcasActive || synData.pos.f.onGrnd == GND_ON) {
+        return;
+    }
+    
+    // Check TCAS every 2 seconds
+    if (currentTime - synData.lastTCASCheck < 2.0) {
+        return;
+    }
+    synData.lastTCASCheck = currentTime;
+    
+    // Scan for traffic conflicts
+    bool conflictDetected = false;
+    positionTy conflictPosition;
+    
+    for (const auto& otherAircraft : mapSynData) {
+        if (otherAircraft.first == synData.stat.key()) continue; // Skip self
+        
+        const SynDataTy& otherSynData = otherAircraft.second;
+        
+        // Only check airborne aircraft
+        if (otherSynData.pos.f.onGrnd == GND_ON) continue;
+        
+        if (CheckTrafficConflict(synData, otherSynData)) {
+            conflictDetected = true;
+            conflictPosition = otherSynData.pos;
+            break;
+        }
+    }
+    
+    if (conflictDetected) {
+        GenerateTCASAdvisory(synData, conflictPosition);
+        ExecuteTCASManeuver(synData, currentTime);
+    } else if (synData.inTCASAvoidance) {
+        // Check if we can resume normal operations
+        synData.inTCASAvoidance = false;
+        synData.tcasAdvisory = "";
+        LOG_MSG(logINFO, "TCAS %s: Clear of conflict, resuming normal operations", synData.stat.call.c_str());
+    }
+}
+
+// Check if two aircraft are in conflict
+bool SyntheticConnection::CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2)
+{
+    // Calculate horizontal separation
+    double horizontalSeparation = synData1.pos.dist(synData2.pos) / 1852.0; // Convert to nautical miles
+    
+    // Calculate vertical separation
+    double verticalSeparation = std::abs(synData1.pos.alt_m() - synData2.pos.alt_m()) / 0.3048; // Convert to feet
+    
+    // TCAS conflict thresholds
+    const double MIN_HORIZONTAL_SEP_NM = 6.0; // 6 nautical miles
+    const double MIN_VERTICAL_SEP_FT = 1000.0; // 1000 feet
+    
+    // Check if aircraft are too close
+    bool horizontalConflict = horizontalSeparation < MIN_HORIZONTAL_SEP_NM;
+    bool verticalConflict = verticalSeparation < MIN_VERTICAL_SEP_FT;
+    
+    // Conflict exists if both horizontal and vertical separation are insufficient
+    return horizontalConflict && verticalConflict;
+}
+
+// Generate TCAS advisory
+void SyntheticConnection::GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos)
+{
+    // Determine advisory type based on relative positions
+    double altitudeDiff = conflictPos.alt_m() - synData.pos.alt_m();
+    
+    if (std::abs(altitudeDiff) < 150.0) {
+        // Level flight conflict - turn advisory
+        double bearingToTraffic = synData.pos.headingTo(conflictPos);
+        double currentHeading = synData.pos.heading();
+        
+        // Turn away from traffic
+        double headingDiff = bearingToTraffic - currentHeading;
+        while (headingDiff < -180.0) headingDiff += 360.0;
+        while (headingDiff > 180.0) headingDiff -= 360.0;
+        
+        if (headingDiff > 0) {
+            // Traffic is to the right, turn left
+            synData.tcasAvoidanceHeading = currentHeading - 30.0;
+            synData.tcasAdvisory = "TRAFFIC ADVISORY - TURN LEFT 30 DEGREES";
+        } else {
+            // Traffic is to the left, turn right
+            synData.tcasAvoidanceHeading = currentHeading + 30.0;
+            synData.tcasAdvisory = "TRAFFIC ADVISORY - TURN RIGHT 30 DEGREES";
+        }
+        
+        // Normalize heading
+        while (synData.tcasAvoidanceHeading < 0.0) synData.tcasAvoidanceHeading += 360.0;
+        while (synData.tcasAvoidanceHeading >= 360.0) synData.tcasAvoidanceHeading -= 360.0;
+        
+    } else if (altitudeDiff > 0) {
+        // Traffic above - descend advisory
+        synData.tcasAvoidanceAltitude = synData.pos.alt_m() - 300.0; // Descend 1000 ft
+        synData.tcasAdvisory = "RESOLUTION ADVISORY - DESCEND";
+    } else {
+        // Traffic below - climb advisory  
+        synData.tcasAvoidanceAltitude = synData.pos.alt_m() + 300.0; // Climb 1000 ft
+        synData.tcasAdvisory = "RESOLUTION ADVISORY - CLIMB";
+    }
+    
+    synData.inTCASAvoidance = true;
+    LOG_MSG(logWARN, "TCAS %s: %s", synData.stat.call.c_str(), synData.tcasAdvisory.c_str());
+}
+
+// Execute TCAS avoidance maneuver
+void SyntheticConnection::ExecuteTCASManeuver(SynDataTy& synData, double currentTime)
+{
+    if (!synData.inTCASAvoidance) return;
+    
+    // Apply heading change if required
+    if (synData.tcasAvoidanceHeading != 0.0) {
+        SmoothHeadingChange(synData, synData.tcasAvoidanceHeading, 2.0); // 2 second interval
+    }
+    
+    // Apply altitude change if required  
+    if (synData.tcasAvoidanceAltitude != 0.0) {
+        synData.targetAltitude = synData.tcasAvoidanceAltitude;
+        
+        // Ensure we don't go below terrain
+        double requiredClearance = GetRequiredTerrainClearance(synData.state, synData.trafficType);
+        double minSafeAltitude = synData.terrainElevation + requiredClearance;
+        synData.targetAltitude = std::max(synData.targetAltitude, minSafeAltitude);
+    }
 }
