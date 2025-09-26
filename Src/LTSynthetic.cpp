@@ -3843,8 +3843,42 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
             } else {
                 LOG_MSG(logDEBUG, "Aircraft %s completed flight path", synData.stat.call.c_str());
                 
-                // Generate continuation based on flight state
+                // Handle completion based on flight state and proximity to destination
                 if (synData.state == SYN_STATE_CRUISE || synData.state == SYN_STATE_HOLD) {
+                    // Check if we're near our destination - if so, start descent instead of continuing cruise
+                    if (!synData.destinationAirport.empty()) {
+                        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+                        if (airportPos.isNormal()) {
+                            double distanceToAirport = synData.pos.dist(airportPos);
+                            double descentDistance = std::max(15000.0, (synData.pos.alt_m() - synData.terrainElevation - 300.0) * 8.0);
+                            
+                            if (distanceToAirport < descentDistance * 1.5) { // Within 1.5x descent distance
+                                LOG_MSG(logDEBUG, "Aircraft %s near destination %s (%.1f nm), no new cruise path generated", 
+                                        synData.stat.call.c_str(), synData.destinationAirport.c_str(), distanceToAirport / 1852.0);
+                                // Don't generate new cruise path, let AI behavior handle descent initiation
+                                return; 
+                            }
+                        }
+                    }
+                    
+                    // Continue cruise - generate new path
+                    GenerateRealisticFlightPath(synData);
+                    synData.currentWaypoint = 0;
+                } else if (synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_DESCENT) {
+                    // For descent/approach states, check if we should proceed to landing
+                    if (!synData.destinationAirport.empty()) {
+                        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+                        if (airportPos.isNormal()) {
+                            double distanceToAirport = synData.pos.dist(airportPos);
+                            if (distanceToAirport < 5000.0) { // Within 5km of airport
+                                LOG_MSG(logDEBUG, "Aircraft %s very close to destination %s, approach completed", 
+                                        synData.stat.call.c_str(), synData.destinationAirport.c_str());
+                                // Don't generate new path - let aircraft proceed to landing
+                                return;
+                            }
+                        }
+                    }
+                    // Generate new arrival path if not close to destination
                     GenerateRealisticFlightPath(synData);
                     synData.currentWaypoint = 0;
                 }
@@ -3879,9 +3913,13 @@ void SyntheticConnection::GenerateRealisticFlightPath(SynDataTy& synData)
             break;
             
         case SYN_STATE_CRUISE:
-        case SYN_STATE_HOLD:
             // Generate cruise waypoints along realistic airways
             GenerateCruisePath(synData, currentPos);
+            break;
+            
+        case SYN_STATE_HOLD:
+            // Generate holding pattern
+            GenerateHoldingPattern(synData, currentPos);
             break;
             
         case SYN_STATE_DESCENT:
@@ -4201,8 +4239,8 @@ void SyntheticConnection::GenerateArrivalPath(SynDataTy& synData, const position
                 synData.flightPath.push_back(waypoint);
             }
             
-            // Final waypoint at the airport itself
-            airportPos.alt_m() = synData.terrainElevation + 50.0; // 50m above ground
+            // Final waypoint at the airport runway level for landing
+            airportPos.alt_m() = synData.terrainElevation + 10.0; // 10m above ground (runway level)
             synData.flightPath.push_back(airportPos);
             
             LOG_MSG(logDEBUG, "Generated airport approach path to %s for aircraft %s with %zu waypoints", 
@@ -4267,6 +4305,57 @@ void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy
         waypoint.alt_m() = currentPos.alt_m(); // Maintain current altitude
         synData.flightPath.push_back(waypoint);
     }
+}
+
+// Generate realistic holding pattern (racetrack pattern)
+void SyntheticConnection::GenerateHoldingPattern(SynDataTy& synData, const positionTy& currentPos)
+{
+    // Create a standard racetrack holding pattern
+    double holdingRadiusNM = 5.0; // 5 nautical mile radius
+    double holdingRadiusM = holdingRadiusNM * 1852.0; // Convert to meters
+    
+    // Determine holding pattern orientation - prefer toward destination if available
+    double patternHeading = 0.0; // Default north
+    if (!synData.destinationAirport.empty()) {
+        positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+        if (airportPos.isNormal()) {
+            patternHeading = currentPos.angle(airportPos); // Orient pattern toward destination
+        }
+    }
+    
+    // If no destination, use current heading with some variation
+    if (patternHeading == 0.0) {
+        patternHeading = synData.pos.heading() + ((std::rand() % 60 - 30) * PI / 180.0); // ±30° variation
+    }
+    
+    // Generate racetrack pattern waypoints
+    // Waypoint 1: Outbound leg start
+    positionTy wp1;
+    wp1.lat() = currentPos.lat() + (holdingRadiusM / 111320.0) * std::cos(patternHeading);
+    wp1.lon() = currentPos.lon() + (holdingRadiusM / (111320.0 * std::cos(currentPos.lat() * PI / 180.0))) * std::sin(patternHeading);
+    wp1.alt_m() = currentPos.alt_m();
+    synData.flightPath.push_back(wp1);
+    
+    // Waypoint 2: Outbound leg end (180° turn point)
+    double outboundHeading = patternHeading + PI; // Opposite direction
+    positionTy wp2;
+    wp2.lat() = wp1.lat() + (holdingRadiusM / 111320.0) * std::cos(outboundHeading);
+    wp2.lon() = wp1.lon() + (holdingRadiusM / (111320.0 * std::cos(wp1.lat() * PI / 180.0))) * std::sin(outboundHeading);
+    wp2.alt_m() = currentPos.alt_m();
+    synData.flightPath.push_back(wp2);
+    
+    // Waypoint 3: Inbound leg end (completes the pattern)
+    positionTy wp3;
+    wp3.lat() = wp2.lat() + (holdingRadiusM / 111320.0) * std::cos(patternHeading);
+    wp3.lon() = wp2.lon() + (holdingRadiusM / (111320.0 * std::cos(wp2.lat() * PI / 180.0))) * std::sin(patternHeading);
+    wp3.alt_m() = currentPos.alt_m();
+    synData.flightPath.push_back(wp3);
+    
+    // Waypoint 4: Back to start (closes the racetrack)
+    synData.flightPath.push_back(currentPos);
+    
+    LOG_MSG(logDEBUG, "Generated holding pattern for aircraft %s with %.1f nm legs", 
+            synData.stat.call.c_str(), holdingRadiusNM);
 }
 
 // Update terrain awareness to maintain safe separation from ground
