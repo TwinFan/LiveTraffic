@@ -176,7 +176,7 @@ protected:
     void CalculatePerformance(SynDataTy& synData);
     
     /// Process TTS communications
-    void ProcessTTSCommunication(const SynDataTy& synData, const std::string& message);
+    void ProcessTTSCommunication(SynDataTy& synData, const std::string& message);
     
     /// Update user awareness behavior
     void UpdateUserAwareness(SynDataTy& synData, const positionTy& userPos);
