@@ -406,6 +406,7 @@ public:
     
     /// CSL Model scanning and selection
     void ScanAvailableCSLModels();
+    void CreateFallbackCSLModels();
     SyntheticTrafficType CategorizeAircraftType(const std::string& icaoType);
     std::vector<std::string> GetAvailableCSLModels(SyntheticTrafficType trafficType);
     std::string SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& route);
@@ -527,6 +528,9 @@ protected:
     
     /// Generate varied position around a center point to prevent aircraft stacking
     positionTy GenerateVariedPosition(const positionTy& centerPos, double minDistanceNM, double maxDistanceNM);
+    
+    /// Generate comprehensive debug log for all synthetic aircraft
+    void GenerateDebugLog();
 };
 
 #endif /* LTSynthetic_h */

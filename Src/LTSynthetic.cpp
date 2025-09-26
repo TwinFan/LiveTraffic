@@ -26,6 +26,16 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+// Define whether XPMP2 model enumeration functions are available
+// This can be set by the build system or detected at runtime
+#ifdef XPMP_2_4_OR_LATER
+// #define XPMP_HAS_MODEL_ENUMERATION 1
+#else
+// For compatibility, assume the functions are not available unless explicitly enabled
+// The functions XPMPGetNumberOfInstalledModels and XPMPGetModelInfo2 may not exist in all XPMP2 versions
+// #define XPMP_HAS_MODEL_ENUMERATION 1
+#endif
+
 // Windows SAPI includes for Text-to-Speech
 #if IBM
 #include <sapi.h>
@@ -254,6 +264,14 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     
     LOG_MSG(logDEBUG, "Synthetic traffic enabled: %d aircraft, types=%u, density=%.1f%%", 
             config.maxAircraft, config.trafficTypes, config.density * 100.0f);
+    
+    // Generate comprehensive debug log every 5 minutes for debugging purposes
+    static double lastDebugLogTime = 0.0;
+    double currentTime = std::time(nullptr);
+    if (currentTime - lastDebugLogTime > 300.0) { // 5 minutes
+        GenerateDebugLog();
+        lastDebugLogTime = currentTime;
+    }
     
     // Generate new synthetic traffic if we have room
     if (mapSynData.size() < static_cast<size_t>(config.maxAircraft)) {
@@ -2309,6 +2327,10 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     std::string message;
     double distance = synData.pos.dist(userPos) / 1852.0; // Convert to nautical miles
     
+    // Debug logging for communication message generation
+    LOG_MSG(logDEBUG, "SYNTHETIC_COMM_GEN: Generating message for %s (State: %d, Distance: %.1fnm, Freq: %.3f MHz)", 
+            synData.stat.call.c_str(), synData.state, distance, synData.currentComFreq);
+    
     // Calculate communication reliability based on distance (realistic degradation)
     double commReliability = 1.0;
     if (distance > 10.0) {
@@ -2476,6 +2498,10 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
         }
     }
     
+    // Debug logging for generated message
+    LOG_MSG(logDEBUG, "SYNTHETIC_COMM_GEN_RESULT: %s generated message: \"%s\" (Reliability: %.2f, Distance: %.1fnm)", 
+            synData.stat.call.c_str(), message.c_str(), commReliability, distance);
+    
     return message;
 }
 
@@ -2493,6 +2519,19 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
     
     // Store the last communication message
     synData.lastComm = message;
+    
+    // Enhanced debug logging for synthetic traffic communications
+    LOG_MSG(logDEBUG, "SYNTHETIC_COMM: [%s] %.3f MHz - %s (State: %d, Distance: %.1fnm, UserAware: %s)", 
+            synData.stat.call.c_str(), synData.currentComFreq, message.c_str(), 
+            synData.state, synData.pos.dist(dataRefs.GetViewPos()) / 1852.0,
+            synData.isUserAware ? "YES" : "NO");
+    
+    // Add insim text output for debugging - display in X-Plane simulator overlay
+    char freqStr[16];
+    snprintf(freqStr, sizeof(freqStr), "%.3f", synData.currentComFreq);
+    std::string insimText = "[SYNTHETIC] " + synData.stat.call + ": " + message + 
+                           " (" + std::string(freqStr) + " MHz)";
+    XPLMSpeakString(insimText.c_str());
     
     LOG_MSG(logDEBUG, "TTS: %s on %.3f MHz", message.c_str(), synData.currentComFreq);
     
@@ -2567,13 +2606,30 @@ void SyntheticConnection::UpdateUserAwareness(SynDataTy& synData, const position
 {
     double distance = synData.pos.dist(userPos) / 1852.0; // Distance in nautical miles
     
+    // Debug logging for user awareness tracking
+    static std::map<std::string, bool> lastAwarenessState;
+    bool previousState = lastAwarenessState[synData.stat.call];
+    
     // Aircraft becomes user-aware within 10nm
     if (distance < 10.0 && !synData.isUserAware) {
         synData.isUserAware = true;
-        LOG_MSG(logDEBUG, "Aircraft %s is now user-aware (distance: %.1fnm)", 
+        LOG_MSG(logDEBUG, "SYNTHETIC_USER_AWARENESS: Aircraft %s is now user-aware (distance: %.1fnm)", 
                 synData.stat.call.c_str(), distance);
     } else if (distance > 15.0 && synData.isUserAware) {
         synData.isUserAware = false;
+        LOG_MSG(logDEBUG, "SYNTHETIC_USER_AWARENESS: Aircraft %s is no longer user-aware (distance: %.1fnm)", 
+                synData.stat.call.c_str(), distance);
+    }
+    
+    // Log awareness state changes for debugging
+    if (synData.isUserAware != previousState) {
+        LOG_MSG(logDEBUG, "SYNTHETIC_AWARENESS_CHANGE: %s awareness changed from %s to %s at %.1fnm", 
+                synData.stat.call.c_str(), 
+                previousState ? "AWARE" : "UNAWARE",
+                synData.isUserAware ? "AWARE" : "UNAWARE",
+                distance);
+        lastAwarenessState[synData.stat.call] = synData.isUserAware;
+    }
         LOG_MSG(logDEBUG, "Aircraft %s is no longer user-aware (distance: %.1fnm)", 
                 synData.stat.call.c_str(), distance);
     }
@@ -4240,6 +4296,10 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
     
     synData.lastFreqUpdate = currentTime;
     
+    // Debug logging for frequency update initiation
+    LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_UPDATE: Updating frequency for %s (Current: %.3f MHz, State: %d)", 
+            synData.stat.call.c_str(), synData.currentComFreq, synData.state);
+    
     // Find nearest airport for frequency determination
     std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 25.0); // 25nm radius
     
@@ -4333,8 +4393,12 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
         synData.currentFreqType = freqType;
         synData.currentAirport = nearestAirport;
         
-        LOG_MSG(logDEBUG, "Aircraft %s switched to %s frequency %.3f MHz (airport: %s, distance: %.1f nm)",
+        LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_CHANGE: Aircraft %s switched to %s frequency %.3f MHz (airport: %s, distance: %.1f nm)",
                 synData.stat.call.c_str(), freqType.c_str(), newFreq, 
+                nearestAirport.c_str(), minDistance);
+    } else {
+        LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_NO_CHANGE: Aircraft %s keeping frequency %.3f MHz (airport: %s, distance: %.1f nm)",
+                synData.stat.call.c_str(), synData.currentComFreq, 
                 nearestAirport.c_str(), minDistance);
     }
 }
@@ -4958,7 +5022,7 @@ std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::st
     const std::string sidNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
     
     // Add some realistic SID names
-    for (int i = 0; i < 3 && i < static_cast<int>(std::size(sidNames)); i++) {
+    for (int i = 0; i < 3 && i < static_cast<int>(sizeof(sidNames)/sizeof(sidNames[0])); i++) {
         for (const auto& suffix : sidSuffixes) {
             if (sids.size() >= 8) break; // Limit number of SIDs
             sids.push_back(sidNames[i] + suffix);
@@ -4987,7 +5051,7 @@ std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::s
     const std::string starNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
     
     // Add some realistic STAR names
-    for (int i = 0; i < 3 && i < static_cast<int>(std::size(starNames)); i++) {
+    for (int i = 0; i < 3 && i < static_cast<int>(sizeof(starNames)/sizeof(starNames[0])); i++) {
         for (const auto& suffix : starSuffixes) {
             if (stars.size() >= 8) break; // Limit number of STARs
             stars.push_back(starNames[i] + suffix);
@@ -5378,10 +5442,28 @@ void SyntheticConnection::ScanAvailableCSLModels()
     availableCSLModels.clear();
     cslModelsByType.clear();
     
-    // Get number of installed CSL models from XPMP2
-    int numModels = XPMPGetNumberOfInstalledModels();
+    // Check if XPMP2 functions are available before using them
+    // These functions may not exist in all XPMP2 versions
+    int numModels = 0;
+    
+#ifdef XPMP_HAS_MODEL_ENUMERATION
+    try {
+        // Get number of installed CSL models from XPMP2
+        numModels = XPMPGetNumberOfInstalledModels();
+    } catch (...) {
+        LOG_MSG(logWARN, "XPMP2 model enumeration functions not available, using fallback CSL model detection");
+        numModels = 0;
+    }
+#else
+    // XPMP2 model enumeration not available in this version
+    LOG_MSG(logINFO, "XPMP2 model enumeration not available - synthetic aircraft will use predefined fallback models");
+    numModels = 0;
+#endif
+    
     if (numModels == 0) {
-        LOG_MSG(logINFO, "No CSL models found by XPMP2 - synthetic aircraft will use fallback models");
+        LOG_MSG(logINFO, "No CSL models found by XPMP2 or enumeration not available - synthetic aircraft will use fallback models");
+        // Create fallback CSL model entries for basic functionality
+        CreateFallbackCSLModels();
         return;
     }
     
@@ -5395,7 +5477,12 @@ void SyntheticConnection::ScanAvailableCSLModels()
         std::string modelName, icaoType, airline, livery;
         
         try {
+#ifdef XPMP_HAS_MODEL_ENUMERATION
             XPMPGetModelInfo2(i, modelName, icaoType, airline, livery);
+#else
+            // This should never execute if numModels is 0, but safety check
+            continue;
+#endif
             
             // Enhanced validation - ensure we have minimum required data
             if (modelName.empty() || icaoType.empty() || icaoType.length() < 3) {
@@ -5459,6 +5546,68 @@ void SyntheticConnection::ScanAvailableCSLModels()
         LOG_MSG(logWARN, "Very few Airline CSL models found (%d) - synthetic airline traffic may be repetitive", 
                 static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()));
     }
+}
+
+// Create fallback CSL models when XPMP2 enumeration is not available
+void SyntheticConnection::CreateFallbackCSLModels()
+{
+    // Define basic fallback aircraft models for each category
+    struct FallbackModel {
+        std::string icaoType;
+        std::string description;
+        SyntheticTrafficType category;
+    };
+    
+    const FallbackModel fallbackModels[] = {
+        // General Aviation
+        {"C172", "Cessna 172", SYN_TRAFFIC_GA},
+        {"C152", "Cessna 152", SYN_TRAFFIC_GA},
+        {"C182", "Cessna 182", SYN_TRAFFIC_GA},
+        {"PA28", "Piper Cherokee", SYN_TRAFFIC_GA},
+        {"BE20", "Beechcraft King Air", SYN_TRAFFIC_GA},
+        {"TBM8", "TBM 850", SYN_TRAFFIC_GA},
+        
+        // Airlines
+        {"B738", "Boeing 737-800", SYN_TRAFFIC_AIRLINE},
+        {"A320", "Airbus A320", SYN_TRAFFIC_AIRLINE},
+        {"A319", "Airbus A319", SYN_TRAFFIC_AIRLINE},
+        {"B737", "Boeing 737", SYN_TRAFFIC_AIRLINE},
+        {"A321", "Airbus A321", SYN_TRAFFIC_AIRLINE},
+        {"B77W", "Boeing 777-300ER", SYN_TRAFFIC_AIRLINE},
+        {"A359", "Airbus A350-900", SYN_TRAFFIC_AIRLINE},
+        {"CRJ2", "Canadair Regional Jet", SYN_TRAFFIC_AIRLINE},
+        {"E170", "Embraer E-Jet 170", SYN_TRAFFIC_AIRLINE},
+        {"DH8D", "Dash 8 Q400", SYN_TRAFFIC_AIRLINE},
+        
+        // Military
+        {"F16", "F-16 Fighting Falcon", SYN_TRAFFIC_MILITARY},
+        {"F18", "F/A-18 Hornet", SYN_TRAFFIC_MILITARY},
+        {"C130", "C-130 Hercules", SYN_TRAFFIC_MILITARY},
+        {"KC10", "KC-10 Extender", SYN_TRAFFIC_MILITARY},
+        {"A10", "A-10 Thunderbolt II", SYN_TRAFFIC_MILITARY}
+    };
+    
+    LOG_MSG(logINFO, "Creating fallback CSL model database with %zu aircraft types", 
+            sizeof(fallbackModels)/sizeof(fallbackModels[0]));
+    
+    for (const auto& model : fallbackModels) {
+        CSLModelData modelData;
+        modelData.modelName = model.description;
+        modelData.icaoType = model.icaoType;
+        modelData.airline = ""; // No specific airline for fallback models
+        modelData.livery = "Default";
+        modelData.category = model.category;
+        
+        // Add to our database
+        size_t index = availableCSLModels.size();
+        availableCSLModels.push_back(modelData);
+        cslModelsByType[modelData.category].push_back(index);
+    }
+    
+    LOG_MSG(logINFO, "Fallback CSL models created: GA=%d, Airlines=%d, Military=%d", 
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_GA].size()),
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()),
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_MILITARY].size()));
 }
 
 // Categorize aircraft type from ICAO code
@@ -5638,4 +5787,79 @@ std::string SyntheticConnection::GenerateComprehensiveCountryRegistration(const 
     }
     
     return registration;
+}
+
+// Generate comprehensive debug log for all synthetic aircraft
+void SyntheticConnection::GenerateDebugLog()
+{
+    const positionTy userPos = dataRefs.GetViewPos();
+    const double currentTime = std::time(nullptr);
+    
+    LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG START ===");
+    LOG_MSG(logINFO, "Configuration: Enabled=%s, Types=%u, MaxAircraft=%d, Density=%.1f%%", 
+            config.enabled ? "YES" : "NO", config.trafficTypes, config.maxAircraft, config.density * 100.0f);
+    LOG_MSG(logINFO, "TTS Settings: Enabled=%s, UserAwareness=%s, WeatherOps=%s", 
+            config.enableTTS ? "YES" : "NO", config.userAwareness ? "YES" : "NO", config.weatherOperations ? "YES" : "NO");
+    LOG_MSG(logINFO, "Current aircraft count: %zu/%d", mapSynData.size(), config.maxAircraft);
+    
+    if (mapSynData.empty()) {
+        LOG_MSG(logINFO, "No synthetic aircraft currently active");
+        LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG END ===");
+        return;
+    }
+    
+    LOG_MSG(logINFO, "--- AIRCRAFT DETAILS ---");
+    int aircraftCount = 0;
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& synData = pair.second;
+        double distance = synData.pos.dist(userPos) / 1852.0; // nautical miles
+        double altitudeFt = synData.pos.alt_m() * 3.28084; // feet
+        
+        std::string stateNames[] = {"PARKED", "STARTUP", "TAXI_OUT", "LINE_UP_WAIT", "TAKEOFF", 
+                                   "CLIMB", "CRUISE", "HOLD", "DESCENT", "APPROACH", "LANDING", 
+                                   "TAXI_IN", "SHUTDOWN"};
+        std::string stateName;
+        if (synData.state < sizeof(stateNames)/sizeof(stateNames[0])) {
+            stateName = stateNames[synData.state];
+        } else {
+            stateName = "UNKNOWN";
+        }
+        
+        std::string trafficTypes[] = {"NONE", "GA", "AIRLINE", "", "MILITARY"};
+        std::string trafficType;
+        if (synData.trafficType < sizeof(trafficTypes)/sizeof(trafficTypes[0]) && 
+            !trafficTypes[synData.trafficType].empty()) {
+            trafficType = trafficTypes[synData.trafficType];
+        } else {
+            trafficType = "UNKNOWN";
+        }
+        
+        LOG_MSG(logINFO, "Aircraft #%d: %s (%s)", ++aircraftCount, synData.stat.call.c_str(), synData.stat.acTypeIcao.c_str());
+        LOG_MSG(logINFO, "  Type: %s, State: %s", trafficType.c_str(), stateName.c_str());
+        LOG_MSG(logINFO, "  Position: %.4f,%.4f @ %.0fft (%.1fnm from user)", 
+                synData.pos.lat(), synData.pos.lon(), altitudeFt, distance);
+        LOG_MSG(logINFO, "  Communication: %.3f MHz (%s), UserAware: %s", 
+                synData.currentComFreq, synData.currentFreqType.c_str(), synData.isUserAware ? "YES" : "NO");
+        LOG_MSG(logINFO, "  Last Comm: \"%s\" (%.0fs ago)", 
+                synData.lastComm.c_str(), currentTime - synData.lastCommTime);
+        LOG_MSG(logINFO, "  Target: Alt=%.0fft, Speed=%.0fkts, Heading=%.0f°", 
+                synData.targetAltitude * 3.28084, synData.targetSpeed / 0.514444, synData.pos.heading());
+        
+        if (synData.tcasActive && !synData.tcasAdvisory.empty()) {
+            LOG_MSG(logINFO, "  TCAS: ACTIVE - %s", synData.tcasAdvisory.c_str());
+        }
+        
+        if (!synData.flightPath.empty()) {
+            LOG_MSG(logINFO, "  Flight Path: %zu waypoints, current: %zu", 
+                    synData.flightPath.size(), synData.currentWaypoint);
+        }
+    }
+    
+    LOG_MSG(logINFO, "--- CSL MODEL STATUS ---");
+    LOG_MSG(logINFO, "Available models: GA=%zu, Airlines=%zu, Military=%zu", 
+            cslModelsByType[SYN_TRAFFIC_GA].size(),
+            cslModelsByType[SYN_TRAFFIC_AIRLINE].size(),
+            cslModelsByType[SYN_TRAFFIC_MILITARY].size());
+    
+    LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG END ===");
 }
