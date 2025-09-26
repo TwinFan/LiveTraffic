@@ -954,9 +954,9 @@ bool LTFlightDataShowAircraft()
     // is there a calculation thread running already? -> just return
     if ( CalcPosThread.joinable() ) return true;
     
-    // Verify if there are any enabled, active tracking data channels.
-    // If not bail out and inform the user.
-    if (!LTFlightDataAnyTrackingChEnabled())
+    // Verify if there are any enabled, active data channels.
+    // Prefer tracking data channels, but allow synthetic if no tracking channels are enabled.
+    if (!LTFlightDataAnyDataChEnabled())
     {
         SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
         return false;
@@ -1019,6 +1019,16 @@ bool LTFlightDataAnyTrackingChEnabled ()
     return std::any_of(listFDC.cbegin(), listFDC.cend(),
                        [](const ptrLTChannelTy& pCh)
                        { return pCh->GetChType() == LTChannel::CHT_TRACKING_DATA &&
+                                pCh->IsEnabled(); });
+}
+
+// Is at least one data channel (tracking or synthetic) enabled?
+bool LTFlightDataAnyDataChEnabled ()
+{
+    return std::any_of(listFDC.cbegin(), listFDC.cend(),
+                       [](const ptrLTChannelTy& pCh)
+                       { return (pCh->GetChType() == LTChannel::CHT_TRACKING_DATA ||
+                                 pCh->GetChType() == LTChannel::CHT_SYNTHETIC_DATA) &&
                                 pCh->IsEnabled(); });
 }
                          

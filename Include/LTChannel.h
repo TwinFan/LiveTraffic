@@ -353,6 +353,7 @@ void LTFlightDataDisable();
 void LTFlightDataStop();
 
 bool LTFlightDataAnyTrackingChEnabled ();   ///< Is at least one tracking data channel enabled?
+bool LTFlightDataAnyDataChEnabled ();       ///< Is at least one data channel (tracking or synthetic) enabled?
 bool LTFlightDataAnyChInvalid ();           ///< Is any channel invalid?
 void LTFlightDataRestartInvalidChs ();      ///< Restart all invalid channels (set valid)
 
