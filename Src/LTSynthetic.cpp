@@ -1681,10 +1681,21 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             break;
             
         case SYN_STATE_TAKEOFF:
-            // Proper departure request with runway and aircraft type
+            // Proper departure request with runway and aircraft type - add variations
             if (!runway.empty()) {
-                message = synData.stat.call + " tower, " + aircraftType + " holding short " + 
-                         runway + ", ready for departure";
+                int variation = std::rand() % 3;
+                switch (variation) {
+                    case 0:
+                        message = synData.stat.call + " tower, " + aircraftType + " holding short " + 
+                                 runway + ", ready for departure";
+                        break;
+                    case 1:
+                        message = synData.stat.call + " tower, " + aircraftType + " ready for takeoff " + runway;
+                        break;
+                    case 2:
+                        message = synData.stat.call + " tower, ready for immediate departure " + runway;
+                        break;
+                }
             } else {
                 message = synData.stat.call + " tower, " + aircraftType + " ready for departure";
             }
@@ -1705,6 +1716,13 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             }
             break;
             
+        case SYN_STATE_HOLD:
+            if (std::rand() % 100 < 20) { // 20% chance for hold report
+                std::string altitude = FormatICAOAltitude(synData.pos.alt_m());
+                message = synData.stat.call + " center, entering hold at " + altitude + ", expect further clearance";
+            }
+            break;
+            
         case SYN_STATE_DESCENT:
             if (std::rand() % 100 < 12) { // 12% chance for descent report
                 std::string currentAlt = FormatICAOAltitude(synData.pos.alt_m());
@@ -1714,9 +1732,22 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             break;
             
         case SYN_STATE_APPROACH:
-            // Proper approach request with aircraft type and intentions
-            message = synData.stat.call + " approach, " + aircraftType + " requesting vectors to " + 
-                     (runway.empty() ? "ILS approach" : "ILS " + runway);
+            // Proper approach request with aircraft type and intentions - add variations
+            int variation = std::rand() % 3;
+            switch (variation) {
+                case 0:
+                    message = synData.stat.call + " approach, " + aircraftType + " requesting vectors to " + 
+                             (runway.empty() ? "ILS approach" : "ILS " + runway);
+                    break;
+                case 1:
+                    message = synData.stat.call + " approach, " + aircraftType + " requesting " + 
+                             (runway.empty() ? "approach clearance" : runway + " approach");
+                    break;
+                case 2:
+                    message = synData.stat.call + " approach, with information alpha, requesting vectors " +
+                             (runway.empty() ? "for approach" : "ILS " + runway);
+                    break;
+            }
             break;
             
         case SYN_STATE_LANDING:
@@ -1732,6 +1763,12 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             if (std::rand() % 100 < 15) { // 15% chance for taxi-in message
                 message = synData.stat.call + " ground, " + aircraftType + " clear of " + 
                          (runway.empty() ? "runway" : runway) + ", taxi to gate";
+            }
+            break;
+            
+        case SYN_STATE_SHUTDOWN:
+            if (std::rand() % 100 < 3) { // 3% chance for shutdown message
+                message = synData.stat.call + " ground, " + aircraftType + " parking complete, shutting down";
             }
             break;
             
