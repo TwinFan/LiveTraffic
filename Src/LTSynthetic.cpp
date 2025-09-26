@@ -839,6 +839,14 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
             destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
             destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
             break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            // Default to GA behavior for undefined cases
+            destination.lat() += (std::rand() % 200 - 100) / 100.0;
+            destination.lon() += (std::rand() % 200 - 100) / 100.0;
+            destination.alt_m() = pos.alt_m() + (std::rand() % 1000);
+            break;
     }
     
     // Generate flight plan using origin and destination
@@ -1007,6 +1015,9 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                         case SYN_TRAFFIC_GA: startupChance = 25; break;      // 25% chance for GA
                         case SYN_TRAFFIC_AIRLINE: startupChance = 40; break; // 40% chance for airlines
                         case SYN_TRAFFIC_MILITARY: startupChance = 35; break; // 35% chance for military
+                        case SYN_TRAFFIC_NONE:
+                        case SYN_TRAFFIC_ALL:
+                        default: startupChance = 20; break; // Default chance
                     }
                     
                     // Time-based adjustments (more activity during day)
@@ -1185,6 +1196,12 @@ std::string SyntheticConnection::AssignRealisticRunway(const SynDataTy& synData)
             // Military can use various runways but prefer longer ones
             suitableRunways = {"09L", "09C", "09R", "27L", "27C", "27R", "01", "19", "36", "18"};
             break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            // Default to GA runways
+            suitableRunways = {"09", "27", "01", "19", "36", "18", "06", "24", "35", "17"};
+            break;
     }
     
     if (suitableRunways.empty()) {
@@ -1218,6 +1235,12 @@ void SyntheticConnection::SetRealisticCruiseAltitude(SynDataTy& synData)
         case SYN_TRAFFIC_MILITARY:
             // Military varies widely, can go very high
             synData.targetAltitude = baseAltitudeM + (1500.0 + (std::rand() % 12000)); // 5K-45K ft AGL
+            break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            // Default to GA behavior
+            synData.targetAltitude = baseAltitudeM + (600.0 + (std::rand() % 2400));
             break;
     }
     
@@ -1255,6 +1278,11 @@ void SyntheticConnection::SetRealisticDescentParameters(SynDataTy& synData)
                 break;
             case SYN_TRAFFIC_MILITARY:
                 descentRateFpm *= 1.2; // Military can descend more aggressively
+                break;
+            case SYN_TRAFFIC_NONE:
+            case SYN_TRAFFIC_ALL:
+            default:
+                descentRateFpm *= 1.0; // Default to standard descent
                 break;
         }
         
@@ -1581,37 +1609,104 @@ std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::
     std::string registration;
     
     if (countryCode == "US") {
-        // US: N-numbers (N12345, N987AB)
+        // US: N-numbers (N12345, N987AB) - use different ranges for different types
         registration = "N";
-        registration += std::to_string(1000 + (std::rand() % 9000)); // 1000-9999
-        if (std::rand() % 2 == 0) { // 50% chance to add letters
-            char letter1 = 'A' + (std::rand() % 26);
-            char letter2 = 'A' + (std::rand() % 26);
-            registration += std::string(1, letter1) + std::string(1, letter2);
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines typically use specific ranges
+                registration += std::to_string(500 + (std::rand() % 400)); // N500-N899
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military uses different patterns  
+                registration += std::to_string(100 + (std::rand() % 300)); // N100-N399
+                registration += "M";
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            default: // SYN_TRAFFIC_GA
+                registration += std::to_string(1000 + (std::rand() % 9000)); // 1000-9999
+                if (std::rand() % 2 == 0) { // 50% chance to add letters
+                    char letter1 = 'A' + (std::rand() % 26);
+                    char letter2 = 'A' + (std::rand() % 26);
+                    registration += std::string(1, letter1) + std::string(1, letter2);
+                }
+                break;
         }
     } else if (countryCode == "CA") {
         // Canada: C-numbers (C-FABC, C-GDEF)
         registration = "C-";
-        char letter1 = (std::rand() % 2 == 0) ? 'F' : 'G'; // Canadian prefix letters
-        registration += letter1;
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += "F"; // Airlines often use F prefix
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += "F"; // Canadian Forces
+                break;
+            default:
+                char letter1 = (std::rand() % 2 == 0) ? 'F' : 'G'; // Canadian prefix letters
+                registration += letter1;
+                break;
+        }
+        
         for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
     } else if (countryCode == "GB") {
         // UK: G-numbers (G-ABCD)
         registration = "G-";
-        for (int i = 0; i < 4; i++) {
+        
+        // Different first letter patterns for different aircraft types
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += static_cast<char>('A' + (std::rand() % 8)); // A-H for airlines
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += "M"; // M prefix for military
+                break;
+            default:
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+        }
+        
+        for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
     } else if (countryCode == "DE") {
         // Germany: D-numbers (D-ABCD)
         registration = "D-";
-        for (int i = 0; i < 4; i++) {
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += "A"; // A prefix for airlines
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += "M"; // M prefix for military
+                break;
+            default:
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+        }
+        
+        for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
     } else if (countryCode == "FR") {
         // France: F-numbers (F-GABC)
-        registration = "F-G";
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration = "F-G"; // Airlines use F-G
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration = "F-U"; // Military uses F-U
+                break;
+            default:
+                registration = "F-G"; // GA also commonly uses F-G
+                break;
+        }
+        
         for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
@@ -1624,15 +1719,43 @@ std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::
     } else if (countryCode == "JA") {
         // Japan: JA-numbers (JA123A)
         registration = "JA";
-        registration += std::to_string(100 + (std::rand() % 900));
+        
+        // Different ranges for different types
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += std::to_string(700 + (std::rand() % 299)); // 700-999
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += std::to_string(100 + (std::rand() % 199)); // 100-299
+                break;
+            default:
+                registration += std::to_string(300 + (std::rand() % 399)); // 300-699
+                break;
+        }
+        
         registration += static_cast<char>('A' + (std::rand() % 26));
     } else {
         // Default to US-style for unknown countries
         registration = "N";
-        registration += std::to_string(1000 + (std::rand() % 9000));
-        char letter1 = 'A' + (std::rand() % 26);
-        char letter2 = 'A' + (std::rand() % 26);
-        registration += std::string(1, letter1) + std::string(1, letter2);
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += std::to_string(500 + (std::rand() % 400));
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += std::to_string(100 + (std::rand() % 300));
+                registration += "M";
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            default:
+                registration += std::to_string(1000 + (std::rand() % 9000));
+                char letter1 = 'A' + (std::rand() % 26);
+                char letter2 = 'A' + (std::rand() % 26);
+                registration += std::string(1, letter1) + std::string(1, letter2);
+                break;
+        }
     }
     
     return registration;
@@ -2008,6 +2131,15 @@ void SyntheticConnection::CalculatePerformance(SynDataTy& synData)
                 taxiSpeedKts = 40;
                 stallSpeedKts = 180;
                 break;
+            case SYN_TRAFFIC_NONE:
+            case SYN_TRAFFIC_ALL:
+            default:
+                // Default to GA performance
+                cruiseSpeedKts = 120;
+                approachSpeedKts = 70;
+                taxiSpeedKts = 12;
+                stallSpeedKts = 50;
+                break;
         }
         LOG_MSG(logDEBUG, "Using generic performance for %s (traffic type %d)", 
                 synData.stat.acTypeIcao.c_str(), synData.trafficType);
@@ -2245,6 +2377,18 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                             newAltitude = std::max(newAltitude, absoluteMinimum);
                         }
                     }
+                    break;
+                    
+                case SYN_STATE_PARKED:
+                case SYN_STATE_STARTUP:
+                case SYN_STATE_TAXI_OUT:
+                case SYN_STATE_LINE_UP_WAIT:
+                case SYN_STATE_CRUISE:
+                case SYN_STATE_HOLD:
+                case SYN_STATE_TAXI_IN:
+                case SYN_STATE_SHUTDOWN:
+                default:
+                    // For ground states and others, maintain current altitude or apply basic constraints
                     break;
             }
             
@@ -2862,12 +3006,35 @@ std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positi
 {
     std::vector<positionTy> sidProcedure;
     
+    // Use airport identifier to customize SID generation
+    bool isLargeAirport = false;
+    bool isInternationalAirport = false;
+    
+    if (!airport.empty()) {
+        // Determine airport characteristics from identifier
+        if (airport.length() == 4 && airport[0] == 'K') {
+            // US airport with ICAO code
+            isLargeAirport = (airport == "KJFK" || airport == "KLAX" || airport == "KORD" || 
+                             airport == "KATL" || airport == "KDEN" || airport == "KDFW");
+            isInternationalAirport = isLargeAirport;
+        } else if (airport.length() >= 3) {
+            // Other airports - assume large if well-known codes
+            isLargeAirport = (airport == "LHR" || airport == "CDG" || airport == "FRA" || 
+                             airport == "NRT" || airport == "SYD" || airport == "YYZ");
+            isInternationalAirport = isLargeAirport;
+        }
+        
+        LOG_MSG(logDEBUG, "Generating SID for airport %s (large: %s, intl: %s)", 
+                airport.c_str(), isLargeAirport ? "yes" : "no", isInternationalAirport ? "yes" : "no");
+    }
+    
     // Find nearby navigation aids for SID construction
     float searchLat = static_cast<float>(airportPos.lat());
     float searchLon = static_cast<float>(airportPos.lon());
     
     // Look for VORs, NDBs, and fixes within 50nm for SID waypoints
-    const double searchRadiusNM = 50.0;
+    // Larger airports may have more complex SIDs with longer routes
+    double searchRadiusNM = isLargeAirport ? 75.0 : 50.0;
     const double searchRadiusM = searchRadiusNM * 1852.0;
     
     std::vector<XPLMNavRef> nearbyNavaids;
@@ -2897,8 +3064,9 @@ std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positi
             if (distance <= searchRadiusM && distance > 1000.0) { // Not too close, not too far
                 nearbyNavaids.push_back(navRef);
                 
-                // Limit the number of navaids we consider
-                if (nearbyNavaids.size() >= 10) break;
+                // Large airports can handle more complex SIDs with more waypoints
+                size_t maxNavaids = isLargeAirport ? 15 : 10;
+                if (nearbyNavaids.size() >= maxNavaids) break;
             }
             
             // This is a simplified search - in reality, we'd need to iterate through all navaids
@@ -2983,16 +3151,40 @@ std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const posit
 {
     std::vector<positionTy> starProcedure;
     
+    // Use airport identifier to customize STAR generation
+    bool isLargeAirport = false;
+    bool isInternationalAirport = false;
+    
+    if (!airport.empty()) {
+        // Determine airport characteristics from identifier
+        if (airport.length() == 4 && airport[0] == 'K') {
+            // US airport with ICAO code
+            isLargeAirport = (airport == "KJFK" || airport == "KLAX" || airport == "KORD" || 
+                             airport == "KATL" || airport == "KDEN" || airport == "KDFW");
+            isInternationalAirport = isLargeAirport;
+        } else if (airport.length() >= 3) {
+            // Other airports - assume large if well-known codes
+            isLargeAirport = (airport == "LHR" || airport == "CDG" || airport == "FRA" || 
+                             airport == "NRT" || airport == "SYD" || airport == "YYZ");
+            isInternationalAirport = isLargeAirport;
+        }
+        
+        LOG_MSG(logDEBUG, "Generating STAR for airport %s (large: %s, intl: %s)", 
+                airport.c_str(), isLargeAirport ? "yes" : "no", isInternationalAirport ? "yes" : "no");
+    }
+    
     // Similar to SID generation, but create an arrival procedure
     float searchLat = static_cast<float>(airportPos.lat());
     float searchLon = static_cast<float>(airportPos.lon());
     
-    const double searchRadiusNM = 100.0; // Larger radius for STAR
+    // Larger radius for STAR - international airports need even larger coverage
+    double searchRadiusNM = isInternationalAirport ? 150.0 : (isLargeAirport ? 100.0 : 75.0);
     const double searchRadiusM = searchRadiusNM * 1852.0;
     
     std::vector<XPLMNavRef> nearbyNavaids;
     
     // Search for navigation aids suitable for STAR
+    // International airports prefer more sophisticated nav aids
     XPLMNavType searchTypes[] = {xplm_Nav_VOR, xplm_Nav_Fix, xplm_Nav_ILS, xplm_Nav_Localizer};
     
     for (XPLMNavType navType : searchTypes) {
@@ -3428,6 +3620,17 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
                 // Final approach - align with runway
                 synData.targetHeading = bearing; // Direct to runway
                 break;
+                
+            case SYN_STATE_PARKED:
+            case SYN_STATE_STARTUP:
+            case SYN_STATE_TAXI_OUT:
+            case SYN_STATE_LINE_UP_WAIT:
+            case SYN_STATE_TAXI_IN:
+            case SYN_STATE_SHUTDOWN:
+            default:
+                // Ground states and others - maintain heading or use fallback
+                synData.targetHeading = bearing;
+                break;
         }
         
         // Check if we've reached the current waypoint with realistic tolerance
@@ -3582,6 +3785,15 @@ double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, Syn
         case SYN_STATE_LANDING:
             baseTolerance = 300.0; // Tight tolerance for precision approach
             break;
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_TAXI_IN:
+        case SYN_STATE_SHUTDOWN:
+        default:
+            baseTolerance = 500.0; // Default tolerance for ground states
+            break;
     }
     
     // Adjust for aircraft type
@@ -3594,6 +3806,11 @@ double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, Syn
             break;
         case SYN_TRAFFIC_MILITARY:
             baseTolerance *= 1.3; // Military may have larger tolerances
+            break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            baseTolerance *= 1.0; // Default tolerance
             break;
     }
     
@@ -3616,6 +3833,11 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
         case SYN_TRAFFIC_MILITARY:
             baseTurnRate = 4.0; // Military can turn aggressively
             break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            baseTurnRate = 2.0; // Default turn rate
+            break;
     }
     
     // Adjust for flight state
@@ -3634,6 +3856,15 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
             break;
         case SYN_STATE_HOLD:
             baseTurnRate *= 0.8; // Gentle turns in holding pattern
+            break;
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_TAXI_IN:
+        case SYN_STATE_SHUTDOWN:
+        default:
+            baseTurnRate *= 0.3; // Very slow turns for ground operations
             break;
     }
     
@@ -4313,21 +4544,45 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
     
     synData.lastFreqUpdate = currentTime;
     
+    // Use userPos to determine if aircraft is in user's vicinity for more realistic frequency selection
+    double distanceToUser = synData.pos.dist(userPos) / 1852.0; // Convert to nautical miles
+    bool nearUser = distanceToUser < 50.0; // Within 50nm of user
+    
     // Debug logging for frequency update initiation
-    LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_UPDATE: Updating frequency for %s (Current: %.3f MHz, State: %d)", 
-            synData.stat.call.c_str(), synData.currentComFreq, synData.state);
+    LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_UPDATE: Updating frequency for %s (Current: %.3f MHz, State: %d, Distance to user: %.1f nm)", 
+            synData.stat.call.c_str(), synData.currentComFreq, synData.state, distanceToUser);
     
     // Find nearest airport for frequency determination
     std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 25.0); // 25nm radius
     
+    // If near user, also consider airports near the user for more realistic frequency coordination
+    if (nearUser) {
+        std::vector<std::string> userNearbyAirports = FindNearbyAirports(userPos, 25.0);
+        
+        // Merge the two lists, prioritizing airports near both aircraft and user
+        for (const std::string& userAirport : userNearbyAirports) {
+            if (std::find(nearbyAirports.begin(), nearbyAirports.end(), userAirport) == nearbyAirports.end()) {
+                nearbyAirports.push_back(userAirport);
+            }
+        }
+    }
+    
     std::string nearestAirport;
     double minDistance = 999999.0;
     
-    // Find the closest airport
+    // Find the closest airport, with preference for airports also near user
     for (const std::string& airportCode : nearbyAirports) {
         // Get airport position (simplified - would use actual airport database)
         positionTy airportPos = synData.pos; // Placeholder
         double distance = synData.pos.dist(airportPos) / 1852.0; // Convert to NM
+        
+        // If near user, prefer airports that are also accessible to user
+        if (nearUser) {
+            double userToAirport = userPos.dist(airportPos) / 1852.0;
+            if (userToAirport < 50.0) {
+                distance *= 0.8; // 20% preference for airports near user
+            }
+        }
         
         if (distance < minDistance) {
             minDistance = distance;
@@ -4335,7 +4590,7 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
         }
     }
     
-    // Determine appropriate frequency based on flight state and position
+    // Determine appropriate frequency based on flight state, position, and proximity to user
     double newFreq = 121.5; // Default UNICOM
     std::string freqType = "unicom";
     
@@ -4690,9 +4945,60 @@ int SyntheticConnection::DetermineOptimalTCASManeuver(const SynDataTy& ownAircra
     // Maneuver types: 0=turn, 1=descend, 2=climb, 3=maintain
     
     double ownAltitude = ownAircraft.pos.alt_m() * 3.28084; // Convert to feet
+    double trafficAltitude = trafficAircraft.pos.alt_m() * 3.28084; // Convert to feet
     
     // Consider aircraft capabilities and current flight state
     const AircraftPerformance* perfData = GetAircraftPerformance(ownAircraft.stat.acTypeIcao);
+    
+    // Use traffic aircraft information to make better maneuver decisions
+    bool hasTrafficData = !trafficAircraft.stat.call.empty();
+    
+    if (hasTrafficData) {
+        // Analyze relative positions and states for coordinated response
+        double altitudeDifference = ownAltitude - trafficAircraft.pos.alt_m() * 3.28084;
+        
+        // If traffic is climbing and we're below, descend to avoid convergence
+        if (trafficAircraft.state == SYN_STATE_CLIMB && altitudeDifference < 0) {
+            LOG_MSG(logDEBUG, "TCAS: Traffic %s is climbing above us, recommending descent", 
+                    trafficAircraft.stat.call.c_str());
+            return 1; // Descend
+        }
+        
+        // If traffic is descending and we're above, climb to avoid convergence  
+        if (trafficAircraft.state == SYN_STATE_DESCENT && altitudeDifference > 0) {
+            LOG_MSG(logDEBUG, "TCAS: Traffic %s is descending below us, recommending climb", 
+                    trafficAircraft.stat.call.c_str());
+            return 2; // Climb
+        }
+        
+        // Consider traffic aircraft type for maneuver selection
+        if (trafficAircraft.trafficType == SYN_TRAFFIC_AIRLINE && ownAircraft.trafficType == SYN_TRAFFIC_GA) {
+            // GA should maneuver around airlines (airlines have priority/less maneuverable)
+            return 0; // Turn maneuver
+        }
+        
+        if (trafficAircraft.trafficType == SYN_TRAFFIC_MILITARY && ownAircraft.trafficType != SYN_TRAFFIC_MILITARY) {
+            // Civilian aircraft should avoid interfering with military operations
+            double bearingToTraffic = ownAircraft.pos.angle(trafficAircraft.pos);
+            double ownHeading = ownAircraft.pos.heading();
+            double relativeBearing = bearingToTraffic - ownHeading;
+            
+            // Normalize relative bearing
+            while (relativeBearing < -180.0) relativeBearing += 360.0;
+            while (relativeBearing > 180.0) relativeBearing -= 360.0;
+            
+            // Turn away from military aircraft
+            return 0; // Turn maneuver
+        }
+        
+        // Altitude-based coordination - aircraft at different altitudes use different strategies
+        if (std::abs(altitudeDifference) > 2000.0) {
+            // Large altitude separation - use vertical maneuver to increase separation
+            return (altitudeDifference > 0) ? 2 : 1; // Higher climbs, lower descends
+        }
+    }
+    
+    // Fall back to original logic when traffic data not available or inconclusive
     
     // GA aircraft prefer turning at lower altitudes
     if (ownAircraft.trafficType == SYN_TRAFFIC_GA && ownAltitude < 10000.0) {
@@ -4955,6 +5261,23 @@ void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, do
 {
     if (!config.weatherOperations) return;
     
+    // Use currentTime to determine weather pattern changes and updates
+    static double lastWeatherUpdate = 0.0;
+    
+    // Update weather conditions periodically based on currentTime
+    if (currentTime - lastWeatherUpdate > 300.0) { // Update every 5 minutes
+        lastWeatherUpdate = currentTime;
+        
+        // Time-based weather evolution (day/night cycle, seasonal patterns)
+        double timeOfDay = fmod(currentTime / 3600.0, 24.0); // Hour of day
+        
+        // Adjust weather patterns based on time of day
+        if (timeOfDay > 18.0 || timeOfDay < 6.0) {
+            // Night time - different weather patterns
+            synData.weatherVisibility *= 0.9; // Often reduced visibility at night
+        }
+    }
+    
     // Get current weather conditions
     GetCurrentWeatherConditions(synData.pos, synData.weatherConditions, 
                                 synData.weatherVisibility, synData.weatherWindSpeed, 
@@ -4972,16 +5295,24 @@ void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, do
         // Reduce speed for safety
         synData.targetSpeed *= 0.8;
         
-        // Delay operations
+        // Delay operations based on current time and weather severity
         if (synData.state == SYN_STATE_TAKEOFF || synData.state == SYN_STATE_APPROACH) {
-            synData.nextEventTime += 60.0 + (std::rand() % 300); // 1-6 minutes delay
+            double weatherDelay = 60.0 + (std::rand() % 300); // 1-6 minutes base delay
+            
+            // Increase delays during peak hours (morning/evening rush)
+            double hourOfDay = fmod(currentTime / 3600.0, 24.0);
+            if ((hourOfDay >= 6.0 && hourOfDay <= 9.0) || (hourOfDay >= 17.0 && hourOfDay <= 20.0)) {
+                weatherDelay *= 1.5; // 50% longer delays during peak hours
+            }
+            
+            synData.nextEventTime += weatherDelay;
         }
         
         // Prefer ILS approaches in low visibility
         if (synData.weatherVisibility < 1000.0 && synData.state == SYN_STATE_APPROACH) {
             // Force precision approach procedures
-            LOG_MSG(logDEBUG, "Aircraft %s switching to precision approach due to low visibility", 
-                    synData.stat.call.c_str());
+            LOG_MSG(logDEBUG, "Aircraft %s switching to precision approach due to low visibility at time %.1f", 
+                    synData.stat.call.c_str(), currentTime);
         }
         
         // Ground operations affected by weather
@@ -5023,10 +5354,10 @@ std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::st
 {
     std::vector<std::string> sids;
     
-    // In a full implementation, this would query the X-Plane navigation database
-    // For now, we'll provide common SID naming patterns based on airport
+    // Use airport code to generate realistic SID names specific to the airport
+    // Different airports have different SID naming conventions
     
-    // Generate realistic SID names based on common naming conventions
+    // Generate realistic SID names based on common naming conventions and airport
     if (!runway.empty()) {
         // Runway-specific SIDs
         sids.push_back(runway + " DEPARTURE");
@@ -5034,17 +5365,55 @@ std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::st
         sids.push_back(runway + "R RNAV");
     }
     
-    // Common SID naming patterns
-    const std::string sidSuffixes[] = {"1", "2", "3", "4", "5", "6", "7", "8"};
-    const std::string sidNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
-    
-    // Add some realistic SID names
-    for (int i = 0; i < 3 && i < static_cast<int>(sizeof(sidNames)/sizeof(sidNames[0])); i++) {
-        for (const auto& suffix : sidSuffixes) {
-            if (sids.size() >= 8) break; // Limit number of SIDs
-            sids.push_back(sidNames[i] + suffix);
+    // Airport-specific SID naming patterns
+    if (!airport.empty()) {
+        // Use first letters of airport code for SID names (realistic pattern)
+        std::string airportPrefix = airport.length() >= 2 ? airport.substr(0, 2) : "XX";
+        
+        // Generate airport-specific SID names
+        sids.push_back(airportPrefix + "1 DEPARTURE");
+        sids.push_back(airportPrefix + "2 DEPARTURE");
+        
+        // Major airports often have named SIDs based on geographical features
+        if (airport == "KJFK" || airport == "JFK") {
+            sids.push_back("CANDR2");
+            sids.push_back("HAPPI7");
+            sids.push_back("SKORR4");
+        } else if (airport == "KLAX" || airport == "LAX") {
+            sids.push_back("BAYST6");
+            sids.push_back("LAXX8");
+            sids.push_back("RIIVR6");
+        } else if (airport == "KORD" || airport == "ORD") {
+            sids.push_back("GARRD7");
+            sids.push_back("NUDIA7");
+            sids.push_back("OHARE9");
+        } else {
+            // Generic SID names based on airport identifier
+            const std::string sidSuffixes[] = {"1", "2", "3", "4", "5", "6"};
+            const std::string sidNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA"};
+            
+            // Add some realistic SID names incorporating airport code
+            for (int i = 0; i < 2 && i < static_cast<int>(sizeof(sidNames)/sizeof(sidNames[0])); i++) {
+                for (int j = 0; j < 2 && j < static_cast<int>(sizeof(sidSuffixes)/sizeof(sidSuffixes[0])); j++) {
+                    if (sids.size() >= 8) break; // Limit number of SIDs
+                    sids.push_back(sidNames[i] + sidSuffixes[j]);
+                }
+                if (sids.size() >= 8) break;
+            }
         }
-        if (sids.size() >= 8) break;
+    } else {
+        // Fallback when no airport code provided
+        const std::string sidSuffixes[] = {"1", "2", "3", "4", "5", "6", "7", "8"};
+        const std::string sidNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
+        
+        // Add some realistic SID names
+        for (int i = 0; i < 3 && i < static_cast<int>(sizeof(sidNames)/sizeof(sidNames[0])); i++) {
+            for (const auto& suffix : sidSuffixes) {
+                if (sids.size() >= 8) break; // Limit number of SIDs
+                sids.push_back(sidNames[i] + suffix);
+            }
+            if (sids.size() >= 8) break;
+        }
     }
     
     return sids;
@@ -5055,6 +5424,9 @@ std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::s
 {
     std::vector<std::string> stars;
     
+    // Use airport code to generate realistic STAR names specific to the airport
+    // Different airports have different STAR naming conventions
+    
     // Generate realistic STAR names based on common naming conventions
     if (!runway.empty()) {
         // Runway-specific STARs
@@ -5063,17 +5435,55 @@ std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::s
         stars.push_back(runway + "R RNAV");
     }
     
-    // Common STAR naming patterns
-    const std::string starSuffixes[] = {"1A", "2A", "3A", "1B", "2B", "3B"};
-    const std::string starNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
-    
-    // Add some realistic STAR names
-    for (int i = 0; i < 3 && i < static_cast<int>(sizeof(starNames)/sizeof(starNames[0])); i++) {
-        for (const auto& suffix : starSuffixes) {
-            if (stars.size() >= 8) break; // Limit number of STARs
-            stars.push_back(starNames[i] + suffix);
+    // Airport-specific STAR naming patterns
+    if (!airport.empty()) {
+        // Use first letters of airport code for STAR names (realistic pattern)
+        std::string airportPrefix = airport.length() >= 2 ? airport.substr(0, 2) : "XX";
+        
+        // Generate airport-specific STAR names
+        stars.push_back(airportPrefix + "1 ARRIVAL");
+        stars.push_back(airportPrefix + "2 ARRIVAL");
+        
+        // Major airports often have named STARs based on geographical features
+        if (airport == "KJFK" || airport == "JFK") {
+            stars.push_back("LENDY6");
+            stars.push_back("ROBER4");
+            stars.push_back("CAMRN4");
+        } else if (airport == "KLAX" || airport == "LAX") {
+            stars.push_back("BAYST6");
+            stars.push_back("PRADO5");
+            stars.push_back("RIIVR6");
+        } else if (airport == "KORD" || airport == "ORD") {
+            stars.push_back("BENKY5");
+            stars.push_back("EARLE6");
+            stars.push_back("LEWKE7");
+        } else {
+            // Generic STAR names based on airport identifier
+            const std::string starSuffixes[] = {"1A", "2A", "3A", "1B", "2B", "3B"};
+            const std::string starNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA"};
+            
+            // Add some realistic STAR names incorporating airport code
+            for (int i = 0; i < 2 && i < static_cast<int>(sizeof(starNames)/sizeof(starNames[0])); i++) {
+                for (int j = 0; j < 2 && j < static_cast<int>(sizeof(starSuffixes)/sizeof(starSuffixes[0])); j++) {
+                    if (stars.size() >= 8) break; // Limit number of STARs
+                    stars.push_back(starNames[i] + starSuffixes[j]);
+                }
+                if (stars.size() >= 8) break;
+            }
         }
-        if (stars.size() >= 8) break;
+    } else {
+        // Fallback when no airport code provided
+        const std::string starSuffixes[] = {"1A", "2A", "3A", "1B", "2B", "3B"};
+        const std::string starNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
+        
+        // Add some realistic STAR names
+        for (int i = 0; i < 3 && i < static_cast<int>(sizeof(starNames)/sizeof(starNames[0])); i++) {
+            for (const auto& suffix : starSuffixes) {
+                if (stars.size() >= 8) break; // Limit number of STARs
+                stars.push_back(starNames[i] + suffix);
+            }
+            if (stars.size() >= 8) break;
+        }
     }
     
     return stars;
@@ -5251,35 +5661,115 @@ std::string SyntheticConnection::GenerateExtendedCountryRegistration(const std::
     if (countryCode == "US") {
         // US: N-numbers (N12345, N987AB)
         registration = "N";
-        registration += std::to_string(1000 + (std::rand() % 9000));
-        if (std::rand() % 2 == 0) {
-            char letter1 = 'A' + (std::rand() % 26);
-            char letter2 = 'A' + (std::rand() % 26);
-            registration += std::string(1, letter1) + std::string(1, letter2);
+        
+        // Different patterns based on traffic type
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines often use specific N-number ranges
+                registration += std::to_string(500 + (std::rand() % 400)); // N500-N899 range
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military aircraft often use different patterns
+                registration += std::to_string(100 + (std::rand() % 400)); // N100-N499 range
+                registration += "M"; // M suffix for military
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            default: // SYN_TRAFFIC_GA and others
+                // General aviation uses various patterns
+                registration += std::to_string(1000 + (std::rand() % 9000));
+                if (std::rand() % 2 == 0) {
+                    char letter1 = 'A' + (std::rand() % 26);
+                    char letter2 = 'A' + (std::rand() % 26);
+                    registration += std::string(1, letter1) + std::string(1, letter2);
+                }
+                break;
         }
     } else if (countryCode == "CA") {
         // Canada: C-numbers (C-FABC, C-GDEF)
         registration = "C-";
-        char letter1 = (std::rand() % 2 == 0) ? 'F' : 'G';
-        registration += letter1;
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines often use C-F prefix
+                registration += "F";
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military uses different prefix
+                registration += "F"; // Canadian forces
+                break;
+            default:
+                // GA uses C-G prefix more commonly
+                char letter1 = (std::rand() % 2 == 0) ? 'F' : 'G';
+                registration += letter1;
+                break;
+        }
+        
         for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
     } else if (countryCode == "GB") {
         // UK: G-numbers (G-ABCD)
         registration = "G-";
-        for (int i = 0; i < 4; i++) {
+        
+        // UK has specific prefix patterns for different aircraft types
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines often use specific letter patterns
+                registration += static_cast<char>('A' + (std::rand() % 8)); // A-H range for airlines
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military uses different patterns
+                registration += "M"; // M prefix for military
+                break;
+            default:
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+        }
+        
+        for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
     } else if (countryCode == "DE") {
         // Germany: D-numbers (D-ABCD)
         registration = "D-";
-        for (int i = 0; i < 4; i++) {
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines use specific patterns
+                registration += "A"; // A prefix for airlines
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military has different patterns
+                registration += "M"; // M for military
+                break;
+            default:
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+        }
+        
+        for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
     } else if (countryCode == "FR") {
         // France: F-numbers (F-GABC)
         registration = "F-G";
+        
+        // Different second letters for different types
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration = "F-G"; // Airlines typically use F-G
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration = "F-U"; // Military uses F-U prefix
+                break;
+            default:
+                registration = "F-"; 
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+        }
+        
         for (int i = 0; i < 3; i++) {
             registration += static_cast<char>('A' + (std::rand() % 26));
         }
@@ -5292,7 +5782,20 @@ std::string SyntheticConnection::GenerateExtendedCountryRegistration(const std::
     } else if (countryCode == "JA") {
         // Japan: JA-numbers (JA123A)
         registration = "JA";
-        registration += std::to_string(100 + (std::rand() % 900));
+        
+        // Different number ranges for different types
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += std::to_string(700 + (std::rand() % 299)); // 700-999 for airlines
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += std::to_string(100 + (std::rand() % 199)); // 100-299 for military
+                break;
+            default:
+                registration += std::to_string(300 + (std::rand() % 399)); // 300-699 for GA
+                break;
+        }
+        
         registration += static_cast<char>('A' + (std::rand() % 26));
     } else if (countryCode == "CH") {
         // Switzerland: HB-numbers (HB-ABC)
@@ -5438,12 +5941,27 @@ std::string SyntheticConnection::GenerateExtendedCountryRegistration(const std::
         registration = "VN-A";
         registration += std::to_string(100 + (std::rand() % 900));
     } else {
-        // Default to US-style for unknown countries
+        // Default to US-style for unknown countries, with traffic type variation
         registration = "N";
-        registration += std::to_string(1000 + (std::rand() % 9000));
-        char letter1 = 'A' + (std::rand() % 26);
-        char letter2 = 'A' + (std::rand() % 26);
-        registration += std::string(1, letter1) + std::string(1, letter2);
+        
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                registration += std::to_string(500 + (std::rand() % 400));
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                registration += std::to_string(100 + (std::rand() % 400));
+                registration += "M";
+                registration += static_cast<char>('A' + (std::rand() % 26));
+                break;
+            default:
+                registration += std::to_string(1000 + (std::rand() % 9000));
+                char letter1 = 'A' + (std::rand() % 26);
+                char letter2 = 'A' + (std::rand() % 26);
+                registration += std::string(1, letter1) + std::string(1, letter2);
+                break;
+        }
     }
     
     return registration;
@@ -5678,18 +6196,90 @@ std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType 
     }
     
     const std::vector<size_t>& typeModels = it->second;
+    std::vector<size_t> preferredModels;
+    std::vector<size_t> alternateModels;
+    
+    // Use route information to prefer certain aircraft types
+    if (!route.empty() && trafficType == SYN_TRAFFIC_AIRLINE) {
+        // Analyze route to determine preferred aircraft
+        double routeLength = 0.0;
+        
+        // Extract route distance estimate from route string
+        // This is a simplified approach - in real implementation would parse actual route
+        if (route.find("-") != std::string::npos) {
+            // Simple heuristic: count characters as rough distance indicator
+            routeLength = static_cast<double>(route.length()) * 50.0; // Very rough estimate
+        }
+        
+        // Route-based aircraft selection
+        for (size_t modelIndex : typeModels) {
+            if (modelIndex < availableCSLModels.size()) {
+                const CSLModelData& model = availableCSLModels[modelIndex];
+                
+                // Prefer specific aircraft types based on route characteristics
+                if (routeLength > 2000.0) {
+                    // Long-haul routes - prefer wide-body aircraft
+                    if (model.icaoType.find("B77") == 0 || model.icaoType.find("B78") == 0 || 
+                        model.icaoType.find("A33") == 0 || model.icaoType.find("A34") == 0 ||
+                        model.icaoType.find("A35") == 0) {
+                        preferredModels.push_back(modelIndex);
+                        continue;
+                    }
+                } else if (routeLength > 800.0) {
+                    // Medium-haul routes - prefer narrow-body aircraft
+                    if (model.icaoType.find("B73") == 0 || model.icaoType.find("A32") == 0 || 
+                        model.icaoType.find("A31") == 0 || model.icaoType.find("E19") == 0) {
+                        preferredModels.push_back(modelIndex);
+                        continue;
+                    }
+                } else {
+                    // Short-haul routes - prefer regional aircraft
+                    if (model.icaoType.find("CRJ") == 0 || model.icaoType.find("E17") == 0 || 
+                        model.icaoType.find("DHC") == 0 || model.icaoType.find("AT7") == 0) {
+                        preferredModels.push_back(modelIndex);
+                        continue;
+                    }
+                }
+                
+                // Add to alternate models if not preferred
+                alternateModels.push_back(modelIndex);
+            }
+        }
+        
+        LOG_MSG(logDEBUG, "Route-based selection for '%s' (%.0f km): %d preferred, %d alternate models", 
+                route.c_str(), routeLength, static_cast<int>(preferredModels.size()), 
+                static_cast<int>(alternateModels.size()));
+    } else {
+        // No route analysis needed for non-airline traffic
+        alternateModels = typeModels;
+    }
+    
+    // Select from preferred models first, then alternates
+    std::vector<size_t> modelsToTry;
+    if (!preferredModels.empty()) {
+        modelsToTry = preferredModels;
+        // Add some alternates for variety (20% chance)
+        if (std::rand() % 5 == 0 && !alternateModels.empty()) {
+            modelsToTry.insert(modelsToTry.end(), alternateModels.begin(), alternateModels.end());
+        }
+    } else {
+        modelsToTry = alternateModels;
+    }
     
     // Enhanced model selection with validation
     for (int attempts = 0; attempts < 3; attempts++) {
-        size_t randomIndex = typeModels[std::rand() % typeModels.size()];
+        if (modelsToTry.empty()) break;
+        
+        size_t randomIndex = modelsToTry[std::rand() % modelsToTry.size()];
         
         if (randomIndex < availableCSLModels.size()) {
             const CSLModelData& selectedModel = availableCSLModels[randomIndex];
             
             // Validate the selected model
             if (!selectedModel.icaoType.empty() && selectedModel.icaoType.length() >= 3) {
-                LOG_MSG(logDEBUG, "Selected validated CSL model: %s (%s) for traffic type %d", 
-                        selectedModel.modelName.c_str(), selectedModel.icaoType.c_str(), trafficType);
+                LOG_MSG(logDEBUG, "Selected validated CSL model: %s (%s) for traffic type %d route '%s'", 
+                        selectedModel.modelName.c_str(), selectedModel.icaoType.c_str(), 
+                        trafficType, route.c_str());
                 return selectedModel.icaoType;
             } else {
                 LOG_MSG(logWARN, "Invalid CSL model at index %zu: ICAO='%s', name='%s', retrying...", 
@@ -5698,7 +6288,8 @@ std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType 
         }
     }
     
-    LOG_MSG(logWARN, "Failed to select valid CSL model after 3 attempts for traffic type %d", trafficType);
+    LOG_MSG(logWARN, "Failed to select valid CSL model after 3 attempts for traffic type %d route '%s'", 
+            trafficType, route.c_str());
     return ""; // Fallback after multiple failed attempts
 }
 

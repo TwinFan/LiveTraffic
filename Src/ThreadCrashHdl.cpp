@@ -360,7 +360,9 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 #endif
                  crash_thread_name,
                  sig);
-        (void) write (fd, sz, strlen(sz));
+        if (write (fd, sz, strlen(sz)) < 0) {
+            // Ignore write errors in crash handler - we're already in an error state
+        }
         
 #if APL
         // On Apple devices, we need the list of modules and their load addresses/slides
