@@ -1084,7 +1084,7 @@ std::string SyntheticConnection::GenerateFlightPlan(const positionTy& origin, co
     // Calculate approximate bearing from origin to destination
     double deltaLon = destination.lon() - origin.lon();
     double deltaLat = destination.lat() - origin.lat();
-    double bearing = std::atan2(deltaLon, deltaLat) * 180.0 / M_PI;
+    double bearing = std::atan2(deltaLon, deltaLat) * 180.0 / PI;
     if (bearing < 0) bearing += 360.0;
     
     switch (trafficType) {
