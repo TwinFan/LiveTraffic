@@ -373,7 +373,7 @@ public:
     std::string GenerateCallSign(SyntheticTrafficType trafficType, const positionTy& pos = positionTy());
     
     /// Generate aircraft type based on traffic type and operations
-    std::string GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route = "");
+    std::string GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route = "", const std::string& country = "US");
     
     /// Get country code from position (lat/lon) for registration purposes
     std::string GetCountryFromPosition(const positionTy& pos);
