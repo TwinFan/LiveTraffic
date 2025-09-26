@@ -826,8 +826,12 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     // Generate flight plan using origin and destination
     synData.flightPlan = GenerateFlightPlan(pos, destination, trafficType);
     
-    // Generate aircraft type using the flight plan information
-    std::string acType = GenerateAircraftType(trafficType, synData.flightPlan);
+    // Get country for realistic aircraft type selection
+    std::string country = (std::abs(pos.lat()) > 0.001 || std::abs(pos.lon()) > 0.001) ? 
+                         GetComprehensiveCountryFromPosition(pos) : "US";
+    
+    // Generate aircraft type using the flight plan information and country-specific data
+    std::string acType = GenerateAircraftType(trafficType, synData.flightPlan, country);
     
     // Validate and fallback if needed
     if (acType.empty() || acType.length() < 3) {
@@ -1366,24 +1370,66 @@ std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficTy
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
-            // Airline call signs like UAL123, AAL456 - typically use airline codes regardless of country
-            // Enhanced with more international carriers
-            const char* airlines[] = {
-                "UAL", "AAL", "DAL", "SWA", "JBU", "ASA", // US carriers
-                "BAW", "VIR", "EZY", // UK carriers  
-                "AFR", "AFR", // French carriers
-                "DLH", "EWG", // German carriers
-                "KLM", "TRA", // Dutch carriers
-                "SAS", "NAX", // Scandinavian carriers
-                "QFA", "JST", // Australian carriers
-                "ACA", "WJA", // Canadian carriers
-                "JAL", "ANA", // Japanese carriers
-                "CPA", "HDA", // Asian carriers
-                "TAM", "GOL", // South American carriers
-                "SAA", "MAN", // African carriers
-                "SWR", "AUA"  // European carriers
-            };
-            callSign = airlines[std::rand() % 24]; // Updated count
+            // Generate country-specific airline call signs for realistic liveries
+            if (country == "US") {
+                const char* usAirlines[] = {"UAL", "AAL", "DAL", "SWA", "JBU", "ASA", "FFT", "NKS"};
+                callSign = usAirlines[std::rand() % 8];
+            } else if (country == "GB") {
+                const char* ukAirlines[] = {"BAW", "VIR", "EZY", "RYR", "BEE"};
+                callSign = ukAirlines[std::rand() % 5];
+            } else if (country == "FR") {
+                const char* frenchAirlines[] = {"AFR", "EZY", "TVF", "HOP"};
+                callSign = frenchAirlines[std::rand() % 4];
+            } else if (country == "DE") {
+                const char* germanAirlines[] = {"DLH", "EWG", "GWI", "BER"};
+                callSign = germanAirlines[std::rand() % 4];
+            } else if (country == "NL") {
+                const char* dutchAirlines[] = {"KLM", "TRA", "MPH"};
+                callSign = dutchAirlines[std::rand() % 3];
+            } else if (country == "SE" || country == "NO" || country == "DK") {
+                const char* nordicAirlines[] = {"SAS", "NAX", "FIN", "BLF"};
+                callSign = nordicAirlines[std::rand() % 4];
+            } else if (country == "AU") {
+                const char* aussieAirlines[] = {"QFA", "JST", "VOZ", "QAN"};
+                callSign = aussieAirlines[std::rand() % 4];
+            } else if (country == "CA") {
+                const char* canadianAirlines[] = {"ACA", "WJA", "TSC", "PAL"};
+                callSign = canadianAirlines[std::rand() % 4];
+            } else if (country == "JP" || country == "JA") {
+                const char* japaneseAirlines[] = {"JAL", "ANA", "ADO", "SFJ"};
+                callSign = japaneseAirlines[std::rand() % 4];
+            } else if (country == "CN") {
+                const char* chineseAirlines[] = {"CCA", "CES", "CSN", "HDA"};
+                callSign = chineseAirlines[std::rand() % 4];
+            } else if (country == "KR") {
+                const char* koreanAirlines[] = {"KAL", "AAR", "ABL", "JIN"};
+                callSign = koreanAirlines[std::rand() % 4];
+            } else if (country == "BR") {
+                const char* brazilianAirlines[] = {"TAM", "GOL", "AZU", "ONE"};
+                callSign = brazilianAirlines[std::rand() % 4];
+            } else if (country == "AR") {
+                const char* argentineAirlines[] = {"ARG", "FLB", "JET"};
+                callSign = argentineAirlines[std::rand() % 3];
+            } else if (country == "ZA") {
+                const char* safricanAirlines[] = {"SAA", "MAN", "FLX"};
+                callSign = safricanAirlines[std::rand() % 3];
+            } else if (country == "IN") {
+                const char* indianAirlines[] = {"AIC", "IGO", "SEJ", "VTI"};
+                callSign = indianAirlines[std::rand() % 4];
+            } else if (country == "RU") {
+                const char* russianAirlines[] = {"AFL", "SBI", "SVR", "ROT"};
+                callSign = russianAirlines[std::rand() % 4];
+            } else if (country == "IT") {
+                const char* italianAirlines[] = {"AZA", "IGO", "VOL", "BLU"};
+                callSign = italianAirlines[std::rand() % 4];
+            } else if (country == "ES") {
+                const char* spanishAirlines[] = {"IBE", "VLG", "RYR", "ELY"};
+                callSign = spanishAirlines[std::rand() % 4];
+            } else {
+                // Generic international airlines for unrecognized regions
+                const char* genericAirlines[] = {"INT", "GLB", "WLD", "AIR", "FLY"};
+                callSign = genericAirlines[std::rand() % 5];
+            }
             callSign += std::to_string(100 + (std::rand() % 900)); // 100-999
             break;
         }
@@ -1554,8 +1600,8 @@ std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::
     return registration;
 }
 
-// Generate aircraft type based on traffic type
-std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route)
+// Generate aircraft type based on traffic type, considering country-specific fleets
+std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route, const std::string& country)
 {
     // Scan available CSL models periodically (every 5 minutes)
     static double lastScanTime = 0.0;
@@ -1581,82 +1627,103 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
     
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
-            // Weighted selection based on real-world GA aircraft popularity
-            // Weights reflect actual fleet numbers and training aircraft usage
+            // Country-specific General Aviation aircraft for realistic regional fleets
             struct GASelection {
                 const char* type;
                 int weight;
             };
             
-            GASelection gaTypes[] = {
-                {"C172", 40},   // Most popular trainer and rental aircraft
-                {"PA28", 20},   // Popular Cherokee/Warrior family
-                {"C182", 15},   // High-performance single
-                {"C152", 12},   // Popular older trainer
-                {"SR22", 8},    // Modern high-performance (expensive, less common)
-                {"BE36", 5}     // Bonanza (premium GA)
-            };
-            
-            // Route-based aircraft selection refinement
-            if (!route.empty()) {
-                if (route.find("long") != std::string::npos || route.find("IFR") != std::string::npos) {
-                    // Long distance GA flights prefer more capable aircraft
-                    GASelection longDistanceGA[] = {
-                        {"SR22", 40},
-                        {"C182", 35}, 
-                        {"BE36", 25}
-                    };
-                    int totalWeight = 0;
-                    for (const auto& sel : longDistanceGA) totalWeight += sel.weight;
-                    int randVal = std::rand() % totalWeight;
-                    int cumWeight = 0;
-                    for (const auto& sel : longDistanceGA) {
-                        cumWeight += sel.weight;
-                        if (randVal < cumWeight) {
-                            return sel.type;
-                        }
-                    }
-                } else if (route.find("local") != std::string::npos || route.find("VFR") != std::string::npos) {
-                    // Local flights heavily favor basic trainers
-                    GASelection localGA[] = {
-                        {"C172", 50},
-                        {"PA28", 30},
-                        {"C152", 20}
-                    };
-                    int totalWeight = 0;
-                    for (const auto& sel : localGA) totalWeight += sel.weight;
-                    int randVal = std::rand() % totalWeight;
-                    int cumWeight = 0;
-                    for (const auto& sel : localGA) {
-                        cumWeight += sel.weight;
-                        if (randVal < cumWeight) {
-                            return sel.type;
-                        }
-                    }
-                } else {
-                    // General selection with realistic weights
-                    int totalWeight = 0;
-                    for (const auto& sel : gaTypes) totalWeight += sel.weight;
-                    int randVal = std::rand() % totalWeight;
-                    int cumWeight = 0;
-                    for (const auto& sel : gaTypes) {
-                        cumWeight += sel.weight;
-                        if (randVal < cumWeight) {
-                            return sel.type;
-                        }
-                    }
-                }
-            } else {
-                // Default weighted selection
+            // Different countries have different popular GA aircraft
+            if (country == "US" || country == "CA") {
+                // North America - dominated by Cessna and Piper
+                GASelection naGATypes[] = {
+                    {"C172", 35}, {"PA28", 25}, {"C182", 15}, {"C152", 12}, {"SR22", 8}, {"BE36", 5}
+                };
                 int totalWeight = 0;
-                for (const auto& sel : gaTypes) totalWeight += sel.weight;
+                for (const auto& sel : naGATypes) totalWeight += sel.weight;
                 int randVal = std::rand() % totalWeight;
                 int cumWeight = 0;
-                for (const auto& sel : gaTypes) {
+                for (const auto& sel : naGATypes) {
                     cumWeight += sel.weight;
-                    if (randVal < cumWeight) {
-                        return sel.type;
-                    }
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "GB" || country == "IE") {
+                // UK/Ireland - mix of US aircraft and European types
+                GASelection ukGATypes[] = {
+                    {"C172", 30}, {"PA28", 25}, {"C152", 15}, {"AT3", 15}, {"GR115", 10}, {"C182", 5}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : ukGATypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : ukGATypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "DE" || country == "AT" || country == "CH") {
+                // German-speaking Europe - European training aircraft
+                GASelection deGATypes[] = {
+                    {"C172", 25}, {"DA40", 20}, {"PA28", 20}, {"AQUI", 15}, {"C152", 10}, {"GR115", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : deGATypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : deGATypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "FR") {
+                // France - European training aircraft with French preference
+                GASelection frGATypes[] = {
+                    {"TB20", 25}, {"C172", 20}, {"PA28", 20}, {"AQUI", 15}, {"DA40", 10}, {"C152", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : frGATypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : frGATypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "AU" || country == "NZ") {
+                // Australia/New Zealand - similar to US but some local types
+                GASelection auGATypes[] = {
+                    {"C172", 35}, {"PA28", 25}, {"C182", 15}, {"BE76", 10}, {"C152", 10}, {"SR22", 5}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : auGATypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : auGATypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "BR") {
+                // Brazil - mix of US aircraft and Embraer
+                GASelection brGATypes[] = {
+                    {"C172", 30}, {"PA28", 25}, {"EMB110", 15}, {"C182", 10}, {"C152", 10}, {"PA34", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : brGATypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : brGATypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else {
+                // Default international GA mix
+                GASelection defaultGATypes[] = {
+                    {"C172", 40}, {"PA28", 25}, {"C182", 15}, {"C152", 12}, {"DA40", 5}, {"BE36", 3}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : defaultGATypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : defaultGATypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
                 }
             }
             break;
@@ -1734,85 +1801,122 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
-            // Military aircraft selection based on mission type
+            // Country-specific military aircraft selection for realistic liveries
             struct MilitarySelection {
                 const char* type;
                 int weight;
             };
             
-            // Route type affects military aircraft selection
-            if (!route.empty()) {
-                if (route.find("transport") != std::string::npos || route.find("strategic") != std::string::npos) {
-                    // Transport/strategic missions - prefer cargo/tanker aircraft
-                    MilitarySelection transport[] = {
-                        {"C130", 60},   // Workhorse tactical transport
-                        {"KC135", 25},  // Strategic tanker
-                        {"E3", 15}      // AWACS surveillance
-                    };
-                    int totalWeight = 0;
-                    for (const auto& sel : transport) totalWeight += sel.weight;
-                    int randVal = std::rand() % totalWeight;
-                    int cumWeight = 0;
-                    for (const auto& sel : transport) {
-                        cumWeight += sel.weight;
-                        if (randVal < cumWeight) {
-                            return sel.type;
-                        }
-                    }
-                } else if (route.find("local ops") != std::string::npos || route.find("patrol") != std::string::npos) {
-                    // Local operations - prefer fighters
-                    MilitarySelection fighters[] = {
-                        {"F16", 60},    // Most common NATO fighter
-                        {"F18", 40}     // US Navy/Marine fighter
-                    };
-                    return (std::rand() % 100 < 60) ? "F16" : "F18";
-                } else if (route.find("FL400+") != std::string::npos) {
-                    // High altitude - prefer strategic bombers or surveillance
-                    MilitarySelection highAlt[] = {
-                        {"E3", 70},     // AWACS can fly high
-                        {"B2", 30}      // Strategic bomber
-                    };
-                    return (std::rand() % 100 < 70) ? "E3" : "B2";
-                } else {
-                    // General military mix
-                    MilitarySelection militaryTypes[] = {
-                        {"F16", 25},
-                        {"F18", 20},
-                        {"C130", 30},
-                        {"KC135", 15},
-                        {"E3", 8},
-                        {"B2", 2}       // Very rare
-                    };
-                    int totalWeight = 0;
-                    for (const auto& sel : militaryTypes) totalWeight += sel.weight;
-                    int randVal = std::rand() % totalWeight;
-                    int cumWeight = 0;
-                    for (const auto& sel : militaryTypes) {
-                        cumWeight += sel.weight;
-                        if (randVal < cumWeight) {
-                            return sel.type;
-                        }
-                    }
-                }
-            } else {
-                // Default military selection
-                MilitarySelection militaryTypes[] = {
-                    {"F16", 30},
-                    {"F18", 25},
-                    {"C130", 25},
-                    {"KC135", 12},
-                    {"E3", 6},
-                    {"B2", 2}
+            // Generate country-appropriate military aircraft
+            if (country == "US") {
+                MilitarySelection usMilitary[] = {
+                    {"F16", 25}, {"F18", 20}, {"F35", 10}, {"C130", 25}, 
+                    {"KC135", 12}, {"E3", 6}, {"B2", 2}
                 };
                 int totalWeight = 0;
-                for (const auto& sel : militaryTypes) totalWeight += sel.weight;
+                for (const auto& sel : usMilitary) totalWeight += sel.weight;
                 int randVal = std::rand() % totalWeight;
                 int cumWeight = 0;
-                for (const auto& sel : militaryTypes) {
+                for (const auto& sel : usMilitary) {
                     cumWeight += sel.weight;
-                    if (randVal < cumWeight) {
-                        return sel.type;
-                    }
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "RU") {
+                MilitarySelection rusMilitary[] = {
+                    {"SU27", 30}, {"SU35", 25}, {"MIG29", 20}, {"IL76", 15}, {"TU95", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : rusMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : rusMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "CN") {
+                MilitarySelection cnMilitary[] = {
+                    {"J10", 35}, {"J20", 20}, {"Y20", 20}, {"H6", 15}, {"JH7", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : cnMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : cnMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "GB") {
+                MilitarySelection ukMilitary[] = {
+                    {"TYPH", 40}, {"F35", 30}, {"C130", 20}, {"A400", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : ukMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : ukMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "FR") {
+                MilitarySelection frMilitary[] = {
+                    {"M2K", 35}, {"RFL", 35}, {"C130", 20}, {"A400", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : frMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : frMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "DE") {
+                MilitarySelection deMilitary[] = {
+                    {"TYPH", 50}, {"C130", 30}, {"A400", 20}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : deMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : deMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "JP" || country == "JA") {
+                MilitarySelection jpMilitary[] = {
+                    {"F15", 50}, {"F35", 30}, {"C130", 20}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : jpMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : jpMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else if (country == "IN") {
+                MilitarySelection inMilitary[] = {
+                    {"SU30", 40}, {"MIG29", 30}, {"C130", 20}, {"IL76", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : inMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : inMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
+                }
+            } else {
+                // Generic NATO/Western military for other countries
+                MilitarySelection genericMilitary[] = {
+                    {"F16", 40}, {"C130", 30}, {"F18", 20}, {"KC135", 10}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : genericMilitary) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : genericMilitary) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) return sel.type;
                 }
             }
             break;
