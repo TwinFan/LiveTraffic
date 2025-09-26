@@ -29,9 +29,10 @@
 // Define whether XPMP2 model enumeration functions are available
 // This can be set by the build system or detected at runtime
 #ifdef XPMP_2_4_OR_LATER
-#define XPMP_HAS_MODEL_ENUMERATION 1
+// #define XPMP_HAS_MODEL_ENUMERATION 1
 #else
 // For compatibility, assume the functions are not available unless explicitly enabled
+// The functions XPMPGetNumberOfInstalledModels and XPMPGetModelInfo2 may not exist in all XPMP2 versions
 // #define XPMP_HAS_MODEL_ENUMERATION 1
 #endif
 
@@ -2526,8 +2527,10 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
             synData.isUserAware ? "YES" : "NO");
     
     // Add insim text output for debugging - display in X-Plane simulator overlay
+    char freqStr[16];
+    snprintf(freqStr, sizeof(freqStr), "%.3f", synData.currentComFreq);
     std::string insimText = "[SYNTHETIC] " + synData.stat.call + ": " + message + 
-                           " (" + std::to_string((int)(synData.currentComFreq * 1000) / 1000.0) + " MHz)";
+                           " (" + std::string(freqStr) + " MHz)";
     XPLMSpeakString(insimText.c_str());
     
     LOG_MSG(logDEBUG, "TTS: %s on %.3f MHz", message.c_str(), synData.currentComFreq);
@@ -4291,7 +4294,6 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
         return;
     }
     
-    double oldFreq = synData.currentComFreq;
     synData.lastFreqUpdate = currentTime;
     
     // Debug logging for frequency update initiation
@@ -5816,12 +5818,21 @@ void SyntheticConnection::GenerateDebugLog()
         std::string stateNames[] = {"PARKED", "STARTUP", "TAXI_OUT", "LINE_UP_WAIT", "TAKEOFF", 
                                    "CLIMB", "CRUISE", "HOLD", "DESCENT", "APPROACH", "LANDING", 
                                    "TAXI_IN", "SHUTDOWN"};
-        std::string stateName = (synData.state < sizeof(stateNames)/sizeof(stateNames[0])) ? 
-                               stateNames[synData.state] : "UNKNOWN";
+        std::string stateName;
+        if (synData.state < sizeof(stateNames)/sizeof(stateNames[0])) {
+            stateName = stateNames[synData.state];
+        } else {
+            stateName = "UNKNOWN";
+        }
         
-        std::string trafficTypes[] = {"NONE", "GA", "AIRLINE", "UNKNOWN", "MILITARY"};
-        std::string trafficType = (synData.trafficType < sizeof(trafficTypes)/sizeof(trafficTypes[0])) ? 
-                                 trafficTypes[synData.trafficType] : "UNKNOWN";
+        std::string trafficTypes[] = {"NONE", "GA", "AIRLINE", "", "MILITARY"};
+        std::string trafficType;
+        if (synData.trafficType < sizeof(trafficTypes)/sizeof(trafficTypes[0]) && 
+            !trafficTypes[synData.trafficType].empty()) {
+            trafficType = trafficTypes[synData.trafficType];
+        } else {
+            trafficType = "UNKNOWN";
+        }
         
         LOG_MSG(logINFO, "Aircraft #%d: %s (%s)", ++aircraftCount, synData.stat.call.c_str(), synData.stat.acTypeIcao.c_str());
         LOG_MSG(logINFO, "  Type: %s, State: %s", trafficType.c_str(), stateName.c_str());
