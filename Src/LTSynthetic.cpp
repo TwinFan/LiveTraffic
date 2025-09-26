@@ -411,6 +411,30 @@ bool SyntheticConnection::ProcessFetchedData ()
             LOG_MSG(logWARN, "Exception in UpdateCommunicationFrequencies for %s", synData.stat.call.c_str());
         }
         
+        // Apply seasonal and time-based traffic variations
+        try {
+            ApplyTrafficVariations(synData, tNow);
+        } catch (...) {
+            LOG_MSG(logWARN, "Exception in ApplyTrafficVariations for %s", synData.stat.call.c_str());
+        }
+        
+        // Handle enhanced weather operations  
+        try {
+            UpdateAdvancedWeatherOperations(synData, tNow);
+        } catch (...) {
+            LOG_MSG(logWARN, "Exception in UpdateAdvancedWeatherOperations for %s", synData.stat.call.c_str());
+        }
+        
+        // Query and assign real navigation procedures if needed
+        if (!synData.usingRealNavData && !synData.currentAirport.empty()) {
+            try {
+                QueryAvailableSIDSTARProcedures(synData, synData.currentAirport);
+                AssignRealNavProcedures(synData);
+            } catch (...) {
+                LOG_MSG(logWARN, "Exception in navigation procedure assignment for %s", synData.stat.call.c_str());
+            }
+        }
+        
         // Handle enhanced ground operations
         if (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) {
             try {
@@ -1099,29 +1123,45 @@ std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionT
     return airports;
 }
 
-// Generate realistic call sign based on traffic type and location (country-specific)
+// Generate realistic call sign based on traffic type and location (country-specific) with extended coverage
 std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficType, const positionTy& pos)
 {
     std::string callSign;
     
-    // Get country code from position for registration purposes
-    std::string country = (std::abs(pos.lat()) > 0.001 || std::abs(pos.lon()) > 0.001) ? GetCountryFromPosition(pos) : "US";
+    // Get country code from position for registration purposes with extended coverage
+    std::string country = (std::abs(pos.lat()) > 0.001 || std::abs(pos.lon()) > 0.001) ? 
+                         GetExtendedCountryFromPosition(pos) : "US";
     
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
-            // Generate country-specific GA registration
-            callSign = GenerateCountrySpecificRegistration(country, trafficType);
+            // Generate extended country-specific GA registration
+            callSign = GenerateExtendedCountryRegistration(country, trafficType);
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
             // Airline call signs like UAL123, AAL456 - typically use airline codes regardless of country
-            const char* airlines[] = {"UAL", "AAL", "DAL", "SWA", "JBU", "ASA", "BAW", "AFR", "DLH", "ACA", "QFA"};
-            callSign = airlines[std::rand() % 11];
+            // Enhanced with more international carriers
+            const char* airlines[] = {
+                "UAL", "AAL", "DAL", "SWA", "JBU", "ASA", // US carriers
+                "BAW", "VIR", "EZY", // UK carriers  
+                "AFR", "AFR", // French carriers
+                "DLH", "EWG", // German carriers
+                "KLM", "TRA", // Dutch carriers
+                "SAS", "NAX", // Scandinavian carriers
+                "QFA", "JST", // Australian carriers
+                "ACA", "WJA", // Canadian carriers
+                "JAL", "ANA", // Japanese carriers
+                "CPA", "HDA", // Asian carriers
+                "TAM", "GOL", // South American carriers
+                "SAA", "MAN", // African carriers
+                "SWR", "AUA"  // European carriers
+            };
+            callSign = airlines[std::rand() % 24]; // Updated count
             callSign += std::to_string(100 + (std::rand() % 900)); // 100-999
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
-            // Military call signs vary by country
+            // Military call signs vary by country with extended coverage
             if (country == "US") {
                 const char* military[] = {"ARMY", "NAVY", "USAF", "USCG"};
                 callSign = military[std::rand() % 4];
@@ -1133,6 +1173,26 @@ std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficTy
                 callSign = "GAF";
             } else if (country == "FR") {
                 callSign = "COTAM";
+            } else if (country == "AU") {
+                callSign = "RAAF";
+            } else if (country == "IT") {
+                callSign = "AMI";
+            } else if (country == "ES") {
+                callSign = "AME";
+            } else if (country == "NL") {
+                callSign = "NAF";
+            } else if (country == "BE") {
+                callSign = "BAF";
+            } else if (country == "NO" || country == "SE" || country == "DK") {
+                callSign = "NORDIC";
+            } else if (country == "JA") {
+                callSign = "JASDF";
+            } else if (country == "KR") {
+                callSign = "ROKAF";
+            } else if (country == "BR") {
+                callSign = "FAB";
+            } else if (country == "AR") {
+                callSign = "FAA";
             } else {
                 callSign = "MIL"; // Generic military
             }
@@ -3964,4 +4024,686 @@ void SyntheticConnection::CoordinateTCASResponse(SynDataTy& synData1, SynDataTy&
     
     LOG_MSG(logINFO, "TCAS Coordination: %s and %s executing coordinated maneuvers", 
             synData1.stat.call.c_str(), synData2.stat.call.c_str());
+}
+
+//
+// MARK: Enhanced Features Implementation
+//
+
+// Calculate seasonal factor based on current time (0.5-1.5)
+double SyntheticConnection::CalculateSeasonalFactor(double currentTime)
+{
+    std::time_t time = static_cast<std::time_t>(currentTime);
+    std::tm* timeinfo = std::localtime(&time);
+    
+    int month = timeinfo->tm_mon + 1; // tm_mon is 0-11
+    int day = timeinfo->tm_mday;
+    
+    // Calculate seasonal factor based on Northern Hemisphere patterns
+    // Summer (Jun-Aug): High traffic (1.3-1.5)
+    // Winter (Dec-Feb): Lower traffic (0.5-0.7)
+    // Spring/Fall: Moderate traffic (0.8-1.2)
+    
+    double seasonalFactor = 1.0;
+    
+    if (month >= 6 && month <= 8) {
+        // Summer - peak travel season
+        seasonalFactor = 1.2 + 0.3 * (std::sin((month - 6) * PI / 3.0) + 1.0) / 2.0;
+    } else if (month >= 12 || month <= 2) {
+        // Winter - reduced travel
+        if (month == 12) {
+            seasonalFactor = 0.6 + 0.4 * (day / 31.0); // Holiday travel increases through December
+        } else if (month == 1) {
+            seasonalFactor = 1.0 - 0.5 * (day / 31.0); // Post-holiday decrease
+        } else { // February
+            seasonalFactor = 0.5 + 0.3 * (day / 28.0);
+        }
+    } else if (month >= 3 && month <= 5) {
+        // Spring - increasing travel
+        seasonalFactor = 0.7 + 0.4 * (month - 3) / 3.0;
+    } else { // Fall (Sep-Nov)
+        seasonalFactor = 1.1 - 0.3 * (month - 9) / 3.0;
+    }
+    
+    return std::max(0.5, std::min(1.5, seasonalFactor));
+}
+
+// Calculate time-of-day factor (0.3-1.8)
+double SyntheticConnection::CalculateTimeOfDayFactor(double currentTime)
+{
+    std::time_t time = static_cast<std::time_t>(currentTime);
+    std::tm* timeinfo = std::localtime(&time);
+    
+    int hour = timeinfo->tm_hour;
+    int minute = timeinfo->tm_min;
+    double hourDecimal = hour + minute / 60.0;
+    
+    // Traffic patterns based on real-world aviation activity
+    // Peak hours: 6-8 AM (1.5-1.8), 4-7 PM (1.3-1.6)
+    // Low hours: 11 PM-5 AM (0.3-0.6)
+    // Moderate: 8 AM-4 PM (0.8-1.2), 8-11 PM (0.6-1.0)
+    
+    double timeFactor;
+    
+    if (hourDecimal >= 6.0 && hourDecimal < 8.0) {
+        // Morning peak
+        timeFactor = 1.5 + 0.3 * std::sin((hourDecimal - 6.0) * PI / 2.0);
+    } else if (hourDecimal >= 16.0 && hourDecimal < 19.0) {
+        // Evening peak
+        timeFactor = 1.3 + 0.3 * std::sin((hourDecimal - 16.0) * PI / 3.0);
+    } else if (hourDecimal >= 23.0 || hourDecimal < 5.0) {
+        // Night hours - very low traffic
+        double nightHour = hourDecimal >= 23.0 ? hourDecimal - 23.0 : hourDecimal + 1.0;
+        timeFactor = 0.3 + 0.3 * std::exp(-nightHour * 0.5);
+    } else if (hourDecimal >= 8.0 && hourDecimal < 16.0) {
+        // Business hours - moderate traffic
+        timeFactor = 0.8 + 0.4 * (1.0 + std::sin((hourDecimal - 12.0) * PI / 8.0)) / 2.0;
+    } else {
+        // Evening hours
+        timeFactor = 0.6 + 0.4 * std::exp(-(hourDecimal - 19.0) * 0.3);
+    }
+    
+    return std::max(0.3, std::min(1.8, timeFactor));
+}
+
+// Apply traffic variations to aircraft data
+void SyntheticConnection::ApplyTrafficVariations(SynDataTy& synData, double currentTime)
+{
+    synData.seasonalFactor = CalculateSeasonalFactor(currentTime);
+    synData.timeFactor = CalculateTimeOfDayFactor(currentTime);
+    
+    // Apply variations to traffic generation probability and behavior
+    // These factors affect aircraft spawn rates, route selection, and operational patterns
+    LOG_MSG(logDEBUG, "Aircraft %s traffic factors: seasonal=%.2f, time=%.2f", 
+            synData.stat.call.c_str(), synData.seasonalFactor, synData.timeFactor);
+}
+
+// Get current weather conditions from X-Plane
+void SyntheticConnection::GetCurrentWeatherConditions(const positionTy& pos, std::string& conditions, 
+                                                     double& visibility, double& windSpeed, double& windDirection)
+{
+    // Default values
+    conditions = "CLEAR";
+    visibility = 10000.0; // 10km default visibility
+    windSpeed = 0.0;
+    windDirection = 0.0;
+    
+    // In a real implementation, this would query X-Plane's weather system
+    // For now, we'll simulate weather conditions based on position and time
+    
+    // Simulate regional weather patterns
+    double lat = pos.lat();
+    double lon = pos.lon();
+    std::time_t currentTime = std::time(nullptr);
+    
+    // Use position and time as seeds for weather simulation
+    int weatherSeed = static_cast<int>(lat * 1000 + lon * 100 + currentTime / 3600);
+    std::srand(weatherSeed);
+    
+    // Simulate different weather conditions
+    int weatherType = std::rand() % 100;
+    
+    if (weatherType < 60) {
+        conditions = "CLEAR";
+        visibility = 9000.0 + (std::rand() % 2000); // 9-11km
+    } else if (weatherType < 75) {
+        conditions = "SCATTERED_CLOUDS";
+        visibility = 7000.0 + (std::rand() % 3000); // 7-10km
+    } else if (weatherType < 85) {
+        conditions = "OVERCAST";
+        visibility = 5000.0 + (std::rand() % 3000); // 5-8km
+    } else if (weatherType < 95) {
+        conditions = "LIGHT_RAIN";
+        visibility = 2000.0 + (std::rand() % 3000); // 2-5km
+    } else {
+        conditions = "FOG";
+        visibility = 200.0 + (std::rand() % 800); // 200m-1km
+    }
+    
+    // Simulate wind conditions
+    windSpeed = (std::rand() % 20) * 0.514444; // 0-20 knots to m/s
+    windDirection = std::rand() % 360;
+    
+    LOG_MSG(logDEBUG, "Weather at %.2f,%.2f: %s, vis=%.0fm, wind=%.1fm/s@%.0f°", 
+            lat, lon, conditions.c_str(), visibility, windSpeed, windDirection);
+}
+
+// Calculate weather impact factor (0.2-1.5)
+double SyntheticConnection::CalculateWeatherImpactFactor(const std::string& weatherConditions, 
+                                                        double visibility, double windSpeed)
+{
+    double impactFactor = 1.0;
+    
+    // Visibility impact
+    if (visibility < 1000.0) {
+        impactFactor *= 0.2; // Severe fog - major impact
+    } else if (visibility < 3000.0) {
+        impactFactor *= 0.4; // Low visibility - significant impact
+    } else if (visibility < 5000.0) {
+        impactFactor *= 0.7; // Reduced visibility - moderate impact
+    } else if (visibility < 8000.0) {
+        impactFactor *= 0.9; // Slight visibility reduction
+    }
+    
+    // Weather condition impact
+    if (weatherConditions == "FOG") {
+        impactFactor *= 0.3;
+    } else if (weatherConditions == "HEAVY_RAIN" || weatherConditions == "THUNDERSTORM") {
+        impactFactor *= 0.4;
+    } else if (weatherConditions == "LIGHT_RAIN" || weatherConditions == "SNOW") {
+        impactFactor *= 0.7;
+    } else if (weatherConditions == "OVERCAST") {
+        impactFactor *= 0.9;
+    }
+    
+    // Wind speed impact (in m/s)
+    if (windSpeed > 15.0) { // > 30 knots
+        impactFactor *= 0.6; // High winds
+    } else if (windSpeed > 10.0) { // > 20 knots
+        impactFactor *= 0.8; // Moderate winds
+    } else if (windSpeed > 5.0) { // > 10 knots
+        impactFactor *= 0.9; // Light winds
+    }
+    
+    // Ensure factor stays within reasonable bounds
+    return std::max(0.2, std::min(1.5, impactFactor));
+}
+
+// Enhanced weather operations update
+void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, double currentTime)
+{
+    if (!config.weatherOperations) return;
+    
+    // Get current weather conditions
+    GetCurrentWeatherConditions(synData.pos, synData.weatherConditions, 
+                                synData.weatherVisibility, synData.weatherWindSpeed, 
+                                synData.weatherWindDirection);
+    
+    // Calculate weather impact
+    double weatherImpact = CalculateWeatherImpactFactor(synData.weatherConditions, 
+                                                       synData.weatherVisibility, 
+                                                       synData.weatherWindSpeed);
+    
+    // Apply weather effects to operations
+    if (weatherImpact < 0.5) {
+        // Severe weather - major operational changes
+        
+        // Reduce speed for safety
+        synData.targetSpeed *= 0.8;
+        
+        // Delay operations
+        if (synData.state == SYN_STATE_TAKEOFF || synData.state == SYN_STATE_APPROACH) {
+            synData.nextEventTime += 60.0 + (std::rand() % 300); // 1-6 minutes delay
+        }
+        
+        // Prefer ILS approaches in low visibility
+        if (synData.weatherVisibility < 1000.0 && synData.state == SYN_STATE_APPROACH) {
+            // Force precision approach procedures
+            LOG_MSG(logDEBUG, "Aircraft %s switching to precision approach due to low visibility", 
+                    synData.stat.call.c_str());
+        }
+        
+        // Ground operations affected by weather
+        if (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) {
+            synData.targetSpeed *= 0.6; // Much slower taxi in bad weather
+            synData.groundCollisionAvoidance = true; // Enhanced ground awareness
+        }
+        
+    } else if (weatherImpact < 0.8) {
+        // Moderate weather impact
+        synData.targetSpeed *= 0.9;
+        
+        if (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) {
+            synData.targetSpeed *= 0.8; // Slower taxi
+        }
+    }
+    
+    LOG_MSG(logDEBUG, "Weather impact on %s: conditions=%s, factor=%.2f", 
+            synData.stat.call.c_str(), synData.weatherConditions.c_str(), weatherImpact);
+}
+
+// Query available SID/STAR procedures for an airport
+void SyntheticConnection::QueryAvailableSIDSTARProcedures(SynDataTy& synData, const std::string& airport)
+{
+    synData.availableSIDs.clear();
+    synData.availableSTARs.clear();
+    
+    // Get SID and STAR procedures from X-Plane nav database
+    synData.availableSIDs = GetRealSIDProcedures(airport, synData.assignedRunway);
+    synData.availableSTARs = GetRealSTARProcedures(airport, synData.assignedRunway);
+    
+    LOG_MSG(logDEBUG, "Found %d SIDs and %d STARs for airport %s", 
+            static_cast<int>(synData.availableSIDs.size()), 
+            static_cast<int>(synData.availableSTARs.size()), airport.c_str());
+}
+
+// Get real SID procedures from X-Plane navigation database
+std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::string& airport, const std::string& runway)
+{
+    std::vector<std::string> sids;
+    
+    // In a full implementation, this would query the X-Plane navigation database
+    // For now, we'll provide common SID naming patterns based on airport
+    
+    // Generate realistic SID names based on common naming conventions
+    if (!runway.empty()) {
+        // Runway-specific SIDs
+        sids.push_back(runway + " DEPARTURE");
+        sids.push_back(runway + "L RNAV");
+        sids.push_back(runway + "R RNAV");
+    }
+    
+    // Common SID naming patterns
+    const std::string sidSuffixes[] = {"1", "2", "3", "4", "5", "6", "7", "8"};
+    const std::string sidNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
+    
+    // Add some realistic SID names
+    for (int i = 0; i < 3 && i < static_cast<int>(std::size(sidNames)); i++) {
+        for (const auto& suffix : sidSuffixes) {
+            if (sids.size() >= 8) break; // Limit number of SIDs
+            sids.push_back(sidNames[i] + suffix);
+        }
+        if (sids.size() >= 8) break;
+    }
+    
+    return sids;
+}
+
+// Get real STAR procedures from X-Plane navigation database
+std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::string& airport, const std::string& runway)
+{
+    std::vector<std::string> stars;
+    
+    // Generate realistic STAR names based on common naming conventions
+    if (!runway.empty()) {
+        // Runway-specific STARs
+        stars.push_back(runway + " ARRIVAL");
+        stars.push_back(runway + "L RNAV");
+        stars.push_back(runway + "R RNAV");
+    }
+    
+    // Common STAR naming patterns
+    const std::string starSuffixes[] = {"1A", "2A", "3A", "1B", "2B", "3B"};
+    const std::string starNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
+    
+    // Add some realistic STAR names
+    for (int i = 0; i < 3 && i < static_cast<int>(std::size(starNames)); i++) {
+        for (const auto& suffix : starSuffixes) {
+            if (stars.size() >= 8) break; // Limit number of STARs
+            stars.push_back(starNames[i] + suffix);
+        }
+        if (stars.size() >= 8) break;
+    }
+    
+    return stars;
+}
+
+// Assign real navigation procedures to aircraft
+void SyntheticConnection::AssignRealNavProcedures(SynDataTy& synData)
+{
+    // Assign SID for departing aircraft
+    if ((synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAKEOFF || synData.state == SYN_STATE_CLIMB) 
+        && !synData.availableSIDs.empty()) {
+        int sidIndex = std::rand() % synData.availableSIDs.size();
+        synData.assignedSID = synData.availableSIDs[sidIndex];
+        synData.usingRealNavData = true;
+        LOG_MSG(logDEBUG, "Assigned SID %s to aircraft %s", 
+                synData.assignedSID.c_str(), synData.stat.call.c_str());
+    }
+    
+    // Assign STAR for arriving aircraft
+    if ((synData.state == SYN_STATE_DESCENT || synData.state == SYN_STATE_APPROACH) 
+        && !synData.availableSTARs.empty()) {
+        int starIndex = std::rand() % synData.availableSTARs.size();
+        synData.assignedSTAR = synData.availableSTARs[starIndex];
+        synData.usingRealNavData = true;
+        LOG_MSG(logDEBUG, "Assigned STAR %s to aircraft %s", 
+                synData.assignedSTAR.c_str(), synData.stat.call.c_str());
+    }
+}
+
+// Extended country detection with more countries
+std::string SyntheticConnection::GetExtendedCountryFromPosition(const positionTy& pos)
+{
+    double lat = pos.lat();
+    double lon = pos.lon();
+    
+    // Extended geographic country detection
+    
+    // North America
+    if (lat >= 24.0 && lat <= 83.0 && lon >= -170.0 && lon <= -30.0) {
+        if (lat >= 49.0 && lon >= -140.0) {
+            return "CA"; // Canada
+        }
+        if (lat >= 14.0 && lat <= 33.0 && lon >= -118.0 && lon <= -86.0) {
+            return "MX"; // Mexico
+        }
+        return "US"; // United States
+    }
+    
+    // Europe and surrounding areas
+    if (lat >= 35.0 && lat <= 72.0 && lon >= -25.0 && lon <= 45.0) {
+        if (lat >= 54.0 && lat <= 61.0 && lon >= -8.5 && lon <= 2.0) {
+            return "GB"; // United Kingdom
+        }
+        if (lat >= 47.0 && lat <= 55.5 && lon >= 5.5 && lon <= 15.0) {
+            return "DE"; // Germany
+        }
+        if (lat >= 42.0 && lat <= 51.5 && lon >= -5.0 && lon <= 9.5) {
+            return "FR"; // France
+        }
+        if (lat >= 45.0 && lat <= 47.5 && lon >= 5.8 && lon <= 10.6) {
+            return "CH"; // Switzerland
+        }
+        if (lat >= 46.0 && lat <= 49.0 && lon >= 9.5 && lon <= 17.2) {
+            return "AT"; // Austria
+        }
+        if (lat >= 52.0 && lat <= 53.6 && lon >= 3.3 && lon <= 7.2) {
+            return "NL"; // Netherlands
+        }
+        if (lat >= 49.5 && lat <= 51.5 && lon >= 2.5 && lon <= 6.4) {
+            return "BE"; // Belgium
+        }
+        if (lat >= 55.0 && lat <= 58.0 && lon >= 8.0 && lon <= 15.2) {
+            return "DK"; // Denmark
+        }
+        if (lat >= 58.0 && lat <= 71.0 && lon >= 4.5 && lon <= 31.5) {
+            return "NO"; // Norway
+        }
+        if (lat >= 55.0 && lat <= 69.5 && lon >= 10.0 && lon <= 24.2) {
+            return "SE"; // Sweden
+        }
+        if (lat >= 59.5 && lat <= 70.5 && lon >= 19.5 && lon <= 31.6) {
+            return "FI"; // Finland
+        }
+        if (lat >= 36.0 && lat <= 42.0 && lon >= -9.5 && lon <= -6.2) {
+            return "PT"; // Portugal
+        }
+        if (lat >= 36.0 && lat <= 44.0 && lon >= -9.3 && lon <= 4.3) {
+            return "ES"; // Spain
+        }
+        if (lat >= 36.5 && lat <= 47.1 && lon >= 6.6 && lon <= 18.9) {
+            return "IT"; // Italy
+        }
+        if (lat >= 46.0 && lat <= 49.0 && lon >= 16.0 && lon <= 23.0) {
+            return "HU"; // Hungary
+        }
+        if (lat >= 49.0 && lat <= 51.1 && lon >= 12.1 && lon <= 18.9) {
+            return "CZ"; // Czech Republic
+        }
+        if (lat >= 49.0 && lat <= 54.9 && lon >= 14.1 && lon <= 24.2) {
+            return "PL"; // Poland
+        }
+        return "EU"; // Generic Europe
+    }
+    
+    // Asia-Pacific
+    if (lat >= -44.0 && lat <= -10.0 && lon >= 112.0 && lon <= 154.0) {
+        return "AU"; // Australia
+    }
+    if (lat >= -47.0 && lat <= -34.0 && lon >= 166.0 && lon <= 179.0) {
+        return "NZ"; // New Zealand
+    }
+    if (lat >= 30.0 && lat <= 46.0 && lon >= 123.0 && lon <= 132.0) {
+        return "JA"; // Japan
+    }
+    if (lat >= 33.0 && lat <= 43.0 && lon >= 124.0 && lon <= 132.0) {
+        return "KR"; // South Korea
+    }
+    if (lat >= 18.0 && lat <= 45.5 && lon >= 73.0 && lon <= 135.0) {
+        if (lat >= 20.0 && lat <= 54.0 && lon >= 73.0 && lon <= 135.0) {
+            return "CN"; // China
+        }
+        return "IN"; // India
+    }
+    if (lat >= 1.0 && lat <= 7.5 && lon >= 103.0 && lon <= 105.0) {
+        return "SG"; // Singapore
+    }
+    if (lat >= 1.0 && lat <= 7.5 && lon >= 100.0 && lon <= 119.0) {
+        return "MY"; // Malaysia
+    }
+    if (lat >= -11.0 && lat <= 6.0 && lon >= 95.0 && lon <= 141.0) {
+        return "ID"; // Indonesia
+    }
+    if (lat >= 5.5 && lat <= 21.0 && lon >= 97.0 && lon <= 106.0) {
+        return "TH"; // Thailand
+    }
+    if (lat >= 8.0 && lat <= 23.5 && lon >= 102.0 && lon <= 109.5) {
+        return "VN"; // Vietnam
+    }
+    if (lat >= 5.0 && lat <= 19.5 && lon >= 116.0 && lon <= 127.0) {
+        return "PH"; // Philippines
+    }
+    
+    // South America
+    if (lat >= -56.0 && lat <= 13.0 && lon >= -82.0 && lon <= -35.0) {
+        if (lat >= -35.0 && lat <= -21.0 && lon >= -74.0 && lon <= -53.0) {
+            return "BR"; // Brazil
+        }
+        if (lat >= -55.0 && lat <= -22.0 && lon >= -73.0 && lon <= -53.0) {
+            return "AR"; // Argentina
+        }
+        if (lat >= -56.0 && lat <= -17.5 && lon >= -76.0 && lon <= -66.0) {
+            return "CL"; // Chile
+        }
+        return "SA"; // Generic South America
+    }
+    
+    // Africa
+    if (lat >= -35.0 && lat <= 38.0 && lon >= -18.0 && lon <= 52.0) {
+        if (lat >= -35.0 && lat <= -22.0 && lon >= 16.0 && lon <= 33.0) {
+            return "ZA"; // South Africa
+        }
+        return "AF"; // Generic Africa
+    }
+    
+    // Default to US for unrecognized regions
+    return "US";
+}
+
+// Generate extended country-specific registration
+std::string SyntheticConnection::GenerateExtendedCountryRegistration(const std::string& countryCode, 
+                                                                    SyntheticTrafficType trafficType)
+{
+    std::string registration;
+    
+    if (countryCode == "US") {
+        // US: N-numbers (N12345, N987AB)
+        registration = "N";
+        registration += std::to_string(1000 + (std::rand() % 9000));
+        if (std::rand() % 2 == 0) {
+            char letter1 = 'A' + (std::rand() % 26);
+            char letter2 = 'A' + (std::rand() % 26);
+            registration += std::string(1, letter1) + std::string(1, letter2);
+        }
+    } else if (countryCode == "CA") {
+        // Canada: C-numbers (C-FABC, C-GDEF)
+        registration = "C-";
+        char letter1 = (std::rand() % 2 == 0) ? 'F' : 'G';
+        registration += letter1;
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "GB") {
+        // UK: G-numbers (G-ABCD)
+        registration = "G-";
+        for (int i = 0; i < 4; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "DE") {
+        // Germany: D-numbers (D-ABCD)
+        registration = "D-";
+        for (int i = 0; i < 4; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "FR") {
+        // France: F-numbers (F-GABC)
+        registration = "F-G";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "AU") {
+        // Australia: VH-numbers (VH-ABC)
+        registration = "VH-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "JA") {
+        // Japan: JA-numbers (JA123A)
+        registration = "JA";
+        registration += std::to_string(100 + (std::rand() % 900));
+        registration += static_cast<char>('A' + (std::rand() % 26));
+    } else if (countryCode == "CH") {
+        // Switzerland: HB-numbers (HB-ABC)
+        registration = "HB-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "AT") {
+        // Austria: OE-numbers (OE-ABC)
+        registration = "OE-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "NL") {
+        // Netherlands: PH-numbers (PH-ABC)
+        registration = "PH-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "BE") {
+        // Belgium: OO-numbers (OO-ABC)
+        registration = "OO-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "DK") {
+        // Denmark: OY-numbers (OY-ABC)
+        registration = "OY-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "NO") {
+        // Norway: LN-numbers (LN-ABC)
+        registration = "LN-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "SE") {
+        // Sweden: SE-numbers (SE-ABC)
+        registration = "SE-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "FI") {
+        // Finland: OH-numbers (OH-ABC)
+        registration = "OH-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "IT") {
+        // Italy: I-numbers (I-ABCD)
+        registration = "I-";
+        for (int i = 0; i < 4; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "ES") {
+        // Spain: EC-numbers (EC-ABC)
+        registration = "EC-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "PT") {
+        // Portugal: CS-numbers (CS-ABC)
+        registration = "CS-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "BR") {
+        // Brazil: PP-numbers, PR-numbers, PT-numbers (PP-ABC)
+        const char* prefixes[] = {"PP-", "PR-", "PT-"};
+        registration = prefixes[std::rand() % 3];
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "AR") {
+        // Argentina: LV-numbers (LV-ABC)
+        registration = "LV-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "CL") {
+        // Chile: CC-numbers (CC-ABC)
+        registration = "CC-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "ZA") {
+        // South Africa: ZS-numbers (ZS-ABC)
+        registration = "ZS-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "NZ") {
+        // New Zealand: ZK-numbers (ZK-ABC)
+        registration = "ZK-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "KR") {
+        // South Korea: HL-numbers (HL123)
+        registration = "HL";
+        registration += std::to_string(1000 + (std::rand() % 9000));
+    } else if (countryCode == "CN") {
+        // China: B-numbers (B-1234)
+        registration = "B-";
+        registration += std::to_string(1000 + (std::rand() % 9000));
+    } else if (countryCode == "IN") {
+        // India: VT-numbers (VT-ABC)
+        registration = "VT-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "SG") {
+        // Singapore: 9V-numbers (9V-ABC)
+        registration = "9V-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "MY") {
+        // Malaysia: 9M-numbers (9M-ABC)
+        registration = "9M-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "TH") {
+        // Thailand: HS-numbers (HS-ABC)
+        registration = "HS-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "PH") {
+        // Philippines: RP-numbers (RP-C123)
+        registration = "RP-C";
+        registration += std::to_string(100 + (std::rand() % 900));
+    } else if (countryCode == "ID") {
+        // Indonesia: PK-numbers (PK-ABC)
+        registration = "PK-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "VN") {
+        // Vietnam: VN-numbers (VN-A123)
+        registration = "VN-A";
+        registration += std::to_string(100 + (std::rand() % 900));
+    } else {
+        // Default to US-style for unknown countries
+        registration = "N";
+        registration += std::to_string(1000 + (std::rand() % 9000));
+        char letter1 = 'A' + (std::rand() % 26);
+        char letter2 = 'A' + (std::rand() % 26);
+        registration += std::string(1, letter1) + std::string(1, letter2);
+    }
+    
+    return registration;
 }

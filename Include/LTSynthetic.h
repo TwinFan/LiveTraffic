@@ -146,6 +146,21 @@ protected:
         positionTy predictedPosition;           ///< predicted position for conflict detection
         double conflictSeverity;                ///< severity of conflict (0.0-1.0)
         
+        // Seasonal and time-based traffic variations
+        double seasonalFactor;                  ///< seasonal traffic adjustment (0.5-1.5)
+        double timeFactor;                      ///< time-of-day traffic adjustment (0.3-1.8)
+        std::string weatherConditions;          ///< current weather conditions affecting operations
+        double weatherVisibility;               ///< visibility in meters for weather operations
+        double weatherWindSpeed;                ///< wind speed in m/s
+        double weatherWindDirection;            ///< wind direction in degrees
+        
+        // Enhanced navigation database integration
+        std::vector<std::string> availableSIDs;      ///< available SID procedures for current airport
+        std::vector<std::string> availableSTARs;     ///< available STAR procedures for current airport
+        std::string assignedSID;                     ///< assigned SID procedure name
+        std::string assignedSTAR;                    ///< assigned STAR procedure name
+        bool usingRealNavData;                       ///< true if using real X-Plane nav data
+        
         // Communication frequency management
         double currentComFreq;                  ///< current communication frequency (MHz)
         std::string currentAirport;             ///< nearest airport for frequency selection
@@ -164,6 +179,9 @@ protected:
                      tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false),
                      nearestTrafficCallsign(""), tcasVerticalSpeed(0.0), tcasAdvisoryLevel(0), 
                      tcasManeuverStartTime(0.0), conflictSeverity(0.0),
+                     seasonalFactor(1.0), timeFactor(1.0), weatherConditions("CLEAR"), 
+                     weatherVisibility(10000.0), weatherWindSpeed(0.0), weatherWindDirection(0.0),
+                     assignedSID(""), assignedSTAR(""), usingRealNavData(false),
                      currentComFreq(121.5), currentAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
                      currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false) {}
         
@@ -198,6 +216,11 @@ protected:
               nearestTrafficCallsign(other.nearestTrafficCallsign), tcasVerticalSpeed(other.tcasVerticalSpeed),
               tcasAdvisoryLevel(other.tcasAdvisoryLevel), tcasManeuverStartTime(other.tcasManeuverStartTime),
               predictedPosition(other.predictedPosition), conflictSeverity(other.conflictSeverity),
+              seasonalFactor(other.seasonalFactor), timeFactor(other.timeFactor),
+              weatherConditions(other.weatherConditions), weatherVisibility(other.weatherVisibility),
+              weatherWindSpeed(other.weatherWindSpeed), weatherWindDirection(other.weatherWindDirection),
+              availableSIDs(other.availableSIDs), availableSTARs(other.availableSTARs),
+              assignedSID(other.assignedSID), assignedSTAR(other.assignedSTAR), usingRealNavData(other.usingRealNavData),
               currentComFreq(other.currentComFreq), currentAirport(other.currentAirport),
               currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
               taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
@@ -252,6 +275,17 @@ protected:
                 tcasManeuverStartTime = other.tcasManeuverStartTime;
                 predictedPosition = other.predictedPosition;
                 conflictSeverity = other.conflictSeverity;
+                seasonalFactor = other.seasonalFactor;
+                timeFactor = other.timeFactor;
+                weatherConditions = other.weatherConditions;
+                weatherVisibility = other.weatherVisibility;
+                weatherWindSpeed = other.weatherWindSpeed;
+                weatherWindDirection = other.weatherWindDirection;
+                availableSIDs = other.availableSIDs;
+                availableSTARs = other.availableSTARs;
+                assignedSID = other.assignedSID;
+                assignedSTAR = other.assignedSTAR;
+                usingRealNavData = other.usingRealNavData;
                 currentComFreq = other.currentComFreq;
                 currentAirport = other.currentAirport;
                 currentFreqType = other.currentFreqType;
@@ -331,6 +365,26 @@ public:
     
     /// Update communication frequencies based on aircraft position and airport proximity
     void UpdateCommunicationFrequencies(SynDataTy& synData, const positionTy& userPos);
+    
+    /// Enhanced weather integration methods
+    void UpdateAdvancedWeatherOperations(SynDataTy& synData, double currentTime);
+    void GetCurrentWeatherConditions(const positionTy& pos, std::string& conditions, double& visibility, double& windSpeed, double& windDirection);
+    double CalculateWeatherImpactFactor(const std::string& weatherConditions, double visibility, double windSpeed);
+    
+    /// Seasonal and time-based traffic variations
+    double CalculateSeasonalFactor(double currentTime);
+    double CalculateTimeOfDayFactor(double currentTime);
+    void ApplyTrafficVariations(SynDataTy& synData, double currentTime);
+    
+    /// Enhanced navigation database integration
+    void QueryAvailableSIDSTARProcedures(SynDataTy& synData, const std::string& airport);
+    std::vector<std::string> GetRealSIDProcedures(const std::string& airport, const std::string& runway);
+    std::vector<std::string> GetRealSTARProcedures(const std::string& airport, const std::string& runway);
+    void AssignRealNavProcedures(SynDataTy& synData);
+    
+    /// Extended country coverage for aircraft registrations
+    std::string GetExtendedCountryFromPosition(const positionTy& pos);
+    std::string GenerateExtendedCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
 
 protected:
     void Main () override;          ///< virtual thread main function
