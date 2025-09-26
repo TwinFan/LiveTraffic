@@ -432,6 +432,12 @@ protected:
     /// Find nearest airports for traffic generation
     std::vector<std::string> FindNearbyAirports(const positionTy& centerPos, double radiusNM);
     
+    /// Find nearby military airports for military traffic generation
+    std::vector<std::string> FindNearbyMilitaryAirports(const positionTy& centerPos, double radiusNM);
+    
+    /// Check if airport is likely a military airport based on naming patterns
+    bool IsMilitaryAirport(const std::string& icao, const std::string& name);
+    
     /// Get airport position by ICAO code
     positionTy GetAirportPosition(const std::string& icaoCode);
     

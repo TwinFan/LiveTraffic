@@ -766,6 +766,17 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
 // Generate military traffic
 void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
 {
+    // Find nearby military airports for military operations
+    auto militaryAirports = FindNearbyMilitaryAirports(centerPos, 100.0); // 100nm radius for military operations
+    
+    if (militaryAirports.empty()) {
+        LOG_MSG(logDEBUG, "No military airports found for military traffic generation");
+        return;
+    }
+    
+    // Select random military airport
+    std::string airport = militaryAirports[std::rand() % militaryAirports.size()];
+    
     // Generate unique numeric key for military aircraft (KEY_PRIVATE expects numeric values)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
@@ -785,10 +796,10 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     LOG_MSG(logDEBUG, "Military aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
             terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
-    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, "");
+    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, airport);
     
-    LOG_MSG(logDEBUG, "Generated Military traffic: %s (%.2f nm from user)", 
-            key.c_str(), centerPos.dist(acPos) / 1852.0);
+    LOG_MSG(logDEBUG, "Generated Military traffic: %s at %s (%.2f nm from user)", 
+            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
 }
 
 // Create synthetic aircraft with realistic parameters
@@ -1369,6 +1380,7 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
 /// @note Uses X-Plane's navigation database to get all airports dynamically
 struct AirportData {
     std::string icao;   ///< ICAO airport code
+    std::string name;   ///< Airport name
     double lat;         ///< Latitude in degrees
     double lon;         ///< Longitude in degrees
 };
@@ -1398,17 +1410,20 @@ void InitializeAirportCache()
     while (airportRef != XPLM_NAV_NOT_FOUND && airportCount < MAX_CACHED_AIRPORTS) {
         float lat, lon;
         char airportID[32] = {0}; // Initialize to zero
+        char airportName[256] = {0}; // Initialize to zero for airport name
         
-        // Get airport information
+        // Get airport information including name
         XPLMGetNavAidInfo(airportRef, nullptr, &lat, &lon, nullptr, 
-                          nullptr, nullptr, airportID, nullptr, nullptr);
+                          nullptr, nullptr, airportID, airportName, nullptr);
         
         // Only include airports with valid ICAO codes (3-4 characters) and reasonable coordinates
         std::string icao(airportID);
+        std::string name(airportName);
         if (!icao.empty() && icao.length() >= 3 && icao.length() <= 4 && 
             std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
             AirportData airport;
             airport.icao = icao;
+            airport.name = name;
             airport.lat = lat;
             airport.lon = lon;
             cachedWorldAirports.push_back(airport);
@@ -1507,6 +1522,99 @@ positionTy SyntheticConnection::GetAirportPosition(const std::string& icaoCode)
     
     // If not found in cache, return invalid position
     return positionTy();
+}
+
+// Check if airport is likely a military airport based on name and ICAO patterns
+bool SyntheticConnection::IsMilitaryAirport(const std::string& icao, const std::string& name)
+{
+    // Convert to lowercase for case-insensitive matching
+    std::string nameLower = name;
+    std::string icaoLower = icao;
+    std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+    std::transform(icaoLower.begin(), icaoLower.end(), icaoLower.begin(), ::tolower);
+    
+    // Common military airport name patterns
+    std::vector<std::string> militaryPatterns = {
+        "air force base", "afb", "air base", "ab",
+        "naval air station", "nas", "naval air base", "nab",
+        "marine corps air station", "mcas", "marine air base",
+        "military", "army", "navy", "air force", "marine",
+        "joint base", "mcb", "usaf", "usn", "usmc", "usa",
+        "raf", "royal air force", "royal navy", "rnas", "mod",
+        "luftwaffe", "bundeswehr", "armee de l'air", "aeronautica militare",
+        "fuerza aerea", "air station", "training center", "test center"
+    };
+    
+    // Check if airport name contains military keywords
+    for (const auto& pattern : militaryPatterns) {
+        if (nameLower.find(pattern) != std::string::npos) {
+            return true;
+        }
+    }
+    
+    // Some additional heuristics for military airports
+    // Many military airports have specific ICAO patterns in certain countries
+    if (icaoLower.length() == 4) {
+        // US military bases often start with 'k' but some have specific patterns
+        // This is a simplified heuristic - real military airport detection would be more complex
+        if (nameLower.find("field") != std::string::npos && 
+            (nameLower.find("army") != std::string::npos || nameLower.find("air") != std::string::npos)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Find nearby military airports for military traffic generation
+std::vector<std::string> SyntheticConnection::FindNearbyMilitaryAirports(const positionTy& centerPos, double radiusNM)
+{
+    std::vector<std::string> militaryAirports;
+    
+    // Initialize airport cache from X-Plane navigation database if needed
+    InitializeAirportCache();
+    
+    const double radiusM = radiusNM * 1852.0; // Convert nautical miles to meters
+    
+    // Find military airports within the specified radius
+    for (const auto& airport : cachedWorldAirports) {
+        positionTy airportPos;
+        airportPos.lat() = airport.lat;
+        airportPos.lon() = airport.lon;
+        airportPos.alt_m() = 0.0;
+        
+        double distanceM = centerPos.dist(airportPos);
+        if (distanceM <= radiusM && IsMilitaryAirport(airport.icao, airport.name)) {
+            militaryAirports.push_back(airport.icao);
+        }
+    }
+    
+    // If no military airports found within radius, find closest military airports globally
+    if (militaryAirports.empty()) {
+        // Calculate distances to all military airports and sort by proximity
+        std::vector<std::pair<double, std::string>> airportDistances;
+        
+        for (const auto& airport : cachedWorldAirports) {
+            if (IsMilitaryAirport(airport.icao, airport.name)) {
+                positionTy airportPos;
+                airportPos.lat() = airport.lat;
+                airportPos.lon() = airport.lon;
+                airportPos.alt_m() = 0.0;
+                
+                double distanceM = centerPos.dist(airportPos);
+                airportDistances.push_back(std::make_pair(distanceM, airport.icao));
+            }
+        }
+        
+        // Sort by distance and return up to 3 closest military airports
+        std::sort(airportDistances.begin(), airportDistances.end());
+        
+        for (size_t i = 0; i < std::min(size_t(3), airportDistances.size()); i++) {
+            militaryAirports.push_back(airportDistances[i].second);
+        }
+    }
+    
+    return militaryAirports;
 }
 
 // Generate realistic call sign based on traffic type and location (comprehensive country coverage)
