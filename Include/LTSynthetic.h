@@ -270,7 +270,7 @@ protected:
     void UpdateUserAwareness(SynDataTy& synData, const positionTy& userPos);
     
     /// TCAS (Traffic Collision Avoidance System) functions
-    void UpdateTCAS(SynDataTy& synData, double currentTime);
+    void UpdateTCAS(const LTFlightData::FDKeyTy& key, SynDataTy& synData, double currentTime);
     bool CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2);
     void GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos);
     void ExecuteTCASManeuver(SynDataTy& synData, double currentTime);

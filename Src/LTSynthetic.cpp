@@ -409,7 +409,7 @@ bool SyntheticConnection::ProcessFetchedData ()
         UpdateAircraftPosition(synData, tNow);
         
         // Update TCAS (Traffic Collision Avoidance System)
-        UpdateTCAS(synData, tNow);
+        UpdateTCAS(key, synData, tNow);
         
         // Send position for LiveTraffic's processing
         LTFlightData::FDDynamicData dyn;
@@ -1781,6 +1781,7 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             break;
             
         case SYN_STATE_APPROACH:
+        {
             // Proper approach request with aircraft type and intentions - add variations
             int variation = std::rand() % 3;
             switch (variation) {
@@ -1798,6 +1799,7 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
                     break;
             }
             break;
+        }
             
         case SYN_STATE_LANDING:
             // Proper final approach call
@@ -2992,7 +2994,7 @@ positionTy SyntheticConnection::GetNextWaypoint(SynDataTy& synData)
 }
 
 // TCAS (Traffic Collision Avoidance System) implementation
-void SyntheticConnection::UpdateTCAS(SynDataTy& synData, double currentTime)
+void SyntheticConnection::UpdateTCAS(const LTFlightData::FDKeyTy& key, SynDataTy& synData, double currentTime)
 {
     // Only active for airborne aircraft
     if (!synData.tcasActive || synData.pos.f.onGrnd == GND_ON) {
@@ -3010,7 +3012,7 @@ void SyntheticConnection::UpdateTCAS(SynDataTy& synData, double currentTime)
     positionTy conflictPosition;
     
     for (const auto& otherAircraft : mapSynData) {
-        if (otherAircraft.first == synData.stat.key()) continue; // Skip self
+        if (otherAircraft.first == key) continue; // Skip self
         
         const SynDataTy& otherSynData = otherAircraft.second;
         
@@ -3064,7 +3066,7 @@ void SyntheticConnection::GenerateTCASAdvisory(SynDataTy& synData, const positio
     
     if (std::abs(altitudeDiff) < 150.0) {
         // Level flight conflict - turn advisory
-        double bearingToTraffic = synData.pos.headingTo(conflictPos);
+        double bearingToTraffic = synData.pos.angle(conflictPos);
         double currentHeading = synData.pos.heading();
         
         // Turn away from traffic
