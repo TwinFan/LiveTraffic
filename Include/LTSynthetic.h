@@ -138,10 +138,56 @@ protected:
         double tcasAvoidanceAltitude;           ///< altitude to avoid traffic
         bool inTCASAvoidance;                   ///< currently executing TCAS avoidance maneuver
         
+        // Enhanced TCAS data
+        std::string nearestTrafficCallsign;     ///< callsign of nearest conflicting traffic
+        double tcasVerticalSpeed;               ///< vertical speed during TCAS maneuver (m/s)
+        int tcasAdvisoryLevel;                  ///< 0=none, 1=traffic advisory, 2=resolution advisory
+        double tcasManeuverStartTime;           ///< when TCAS maneuver started
+        positionTy predictedPosition;           ///< predicted position for conflict detection
+        double conflictSeverity;                ///< severity of conflict (0.0-1.0)
+        
+        // Seasonal and time-based traffic variations
+        double seasonalFactor;                  ///< seasonal traffic adjustment (0.5-1.5)
+        double timeFactor;                      ///< time-of-day traffic adjustment (0.3-1.8)
+        std::string weatherConditions;          ///< current weather conditions affecting operations
+        double weatherVisibility;               ///< visibility in meters for weather operations
+        double weatherWindSpeed;                ///< wind speed in m/s
+        double weatherWindDirection;            ///< wind direction in degrees
+        
+        // Enhanced navigation database integration
+        std::vector<std::string> availableSIDs;      ///< available SID procedures for current airport
+        std::vector<std::string> availableSTARs;     ///< available STAR procedures for current airport
+        std::string assignedSID;                     ///< assigned SID procedure name
+        std::string assignedSTAR;                    ///< assigned STAR procedure name
+        bool usingRealNavData;                       ///< true if using real X-Plane nav data
+        
+        // Communication frequency management
+        double currentComFreq;                  ///< current communication frequency (MHz)
+        std::string currentAirport;             ///< nearest airport for frequency selection
+        std::string currentFreqType;            ///< frequency type (tower, ground, approach, center)
+        double lastFreqUpdate;                  ///< time of last frequency update
+        
+        // Enhanced ground operations  
+        std::vector<positionTy> taxiRoute;      ///< planned taxi route waypoints
+        size_t currentTaxiWaypoint;             ///< current taxi waypoint index
+        std::string assignedGate;               ///< assigned gate or parking position
+        bool groundCollisionAvoidance;          ///< ground collision avoidance active
+        
+        // CSL model scanning timing
+        double lastCSLScanTime;                 ///< last time CSL models were scanned
+        
         SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
                      terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0),
                      lastTCASCheck(0.0), tcasActive(true), tcasAdvisory(""),
-                     tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false) {}
+                     tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false),
+                     nearestTrafficCallsign(""), tcasVerticalSpeed(0.0), tcasAdvisoryLevel(0), 
+                     tcasManeuverStartTime(0.0), conflictSeverity(0.0),
+                     seasonalFactor(1.0), timeFactor(1.0), weatherConditions("CLEAR"), 
+                     weatherVisibility(10000.0), weatherWindSpeed(0.0), weatherWindDirection(0.0),
+                     assignedSID(""), assignedSTAR(""), usingRealNavData(false),
+                     currentComFreq(121.5), currentAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
+                     currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false),
+                     lastCSLScanTime(0.0) {}
         
         ~SynDataTy() {
             // Thread-safe cleanup of terrain probe
@@ -170,7 +216,20 @@ protected:
               headingChangeRate(other.headingChangeRate), targetHeading(other.targetHeading),
               lastTCASCheck(other.lastTCASCheck), tcasActive(other.tcasActive),
               tcasAdvisory(other.tcasAdvisory), tcasAvoidanceHeading(other.tcasAvoidanceHeading),
-              tcasAvoidanceAltitude(other.tcasAvoidanceAltitude), inTCASAvoidance(other.inTCASAvoidance) {}
+              tcasAvoidanceAltitude(other.tcasAvoidanceAltitude), inTCASAvoidance(other.inTCASAvoidance),
+              nearestTrafficCallsign(other.nearestTrafficCallsign), tcasVerticalSpeed(other.tcasVerticalSpeed),
+              tcasAdvisoryLevel(other.tcasAdvisoryLevel), tcasManeuverStartTime(other.tcasManeuverStartTime),
+              predictedPosition(other.predictedPosition), conflictSeverity(other.conflictSeverity),
+              seasonalFactor(other.seasonalFactor), timeFactor(other.timeFactor),
+              weatherConditions(other.weatherConditions), weatherVisibility(other.weatherVisibility),
+              weatherWindSpeed(other.weatherWindSpeed), weatherWindDirection(other.weatherWindDirection),
+              availableSIDs(other.availableSIDs), availableSTARs(other.availableSTARs),
+              assignedSID(other.assignedSID), assignedSTAR(other.assignedSTAR), usingRealNavData(other.usingRealNavData),
+              currentComFreq(other.currentComFreq), currentAirport(other.currentAirport),
+              currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
+              taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
+              assignedGate(other.assignedGate), groundCollisionAvoidance(other.groundCollisionAvoidance),
+              lastCSLScanTime(other.lastCSLScanTime) {}
         
         // Assignment operator - need to handle probe ownership
         SynDataTy& operator=(const SynDataTy& other) {
@@ -215,6 +274,32 @@ protected:
                 tcasAvoidanceHeading = other.tcasAvoidanceHeading;
                 tcasAvoidanceAltitude = other.tcasAvoidanceAltitude;
                 inTCASAvoidance = other.inTCASAvoidance;
+                nearestTrafficCallsign = other.nearestTrafficCallsign;
+                tcasVerticalSpeed = other.tcasVerticalSpeed;
+                tcasAdvisoryLevel = other.tcasAdvisoryLevel;
+                tcasManeuverStartTime = other.tcasManeuverStartTime;
+                predictedPosition = other.predictedPosition;
+                conflictSeverity = other.conflictSeverity;
+                seasonalFactor = other.seasonalFactor;
+                timeFactor = other.timeFactor;
+                weatherConditions = other.weatherConditions;
+                weatherVisibility = other.weatherVisibility;
+                weatherWindSpeed = other.weatherWindSpeed;
+                weatherWindDirection = other.weatherWindDirection;
+                availableSIDs = other.availableSIDs;
+                availableSTARs = other.availableSTARs;
+                assignedSID = other.assignedSID;
+                assignedSTAR = other.assignedSTAR;
+                usingRealNavData = other.usingRealNavData;
+                currentComFreq = other.currentComFreq;
+                currentAirport = other.currentAirport;
+                currentFreqType = other.currentFreqType;
+                lastFreqUpdate = other.lastFreqUpdate;
+                taxiRoute = other.taxiRoute;
+                currentTaxiWaypoint = other.currentTaxiWaypoint;
+                assignedGate = other.assignedGate;
+                groundCollisionAvoidance = other.groundCollisionAvoidance;
+                lastCSLScanTime = other.lastCSLScanTime;
             }
             return *this;
         }
@@ -233,6 +318,18 @@ protected:
     
     /// Navigation data cache for SID/STAR procedures  
     std::map<std::string, std::vector<positionTy>> sidStarCache;
+    
+    /// CSL Model database for enhanced aircraft selection
+    struct CSLModelData {
+        std::string modelName;      ///< Model name/ID
+        std::string icaoType;       ///< ICAO aircraft type
+        std::string airline;        ///< Airline code  
+        std::string livery;         ///< Livery information
+        SyntheticTrafficType category; ///< GA, Airline, or Military classification
+    };
+    std::vector<CSLModelData> availableCSLModels;   ///< Cache of available CSL models
+    std::map<SyntheticTrafficType, std::vector<size_t>> cslModelsByType; ///< Models grouped by type
+    double lastCSLScanTime;                         ///< Last time CSL models were scanned
 public:
     /// Constructor
     SyntheticConnection ();
@@ -272,11 +369,50 @@ public:
     /// Check weather impact on operations
     bool CheckWeatherImpact(const positionTy& pos, SynDataTy& synData);
     
-    /// Generate realistic call sign based on traffic type
-    std::string GenerateCallSign(SyntheticTrafficType trafficType);
+    /// Generate realistic call sign based on traffic type and location (country-specific)
+    std::string GenerateCallSign(SyntheticTrafficType trafficType, const positionTy& pos = positionTy());
     
     /// Generate aircraft type based on traffic type and operations
     std::string GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route = "");
+    
+    /// Get country code from position (lat/lon) for registration purposes
+    std::string GetCountryFromPosition(const positionTy& pos);
+    
+    /// Generate country-specific aircraft registration
+    std::string GenerateCountrySpecificRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
+    
+    /// Update communication frequencies based on aircraft position and airport proximity
+    void UpdateCommunicationFrequencies(SynDataTy& synData, const positionTy& userPos);
+    
+    /// Enhanced weather integration methods
+    void UpdateAdvancedWeatherOperations(SynDataTy& synData, double currentTime);
+    void GetCurrentWeatherConditions(const positionTy& pos, std::string& conditions, double& visibility, double& windSpeed, double& windDirection);
+    double CalculateWeatherImpactFactor(const std::string& weatherConditions, double visibility, double windSpeed);
+    
+    /// Seasonal and time-based traffic variations
+    double CalculateSeasonalFactor(double currentTime);
+    double CalculateTimeOfDayFactor(double currentTime);
+    void ApplyTrafficVariations(SynDataTy& synData, double currentTime);
+    
+    /// Enhanced navigation database integration
+    void QueryAvailableSIDSTARProcedures(SynDataTy& synData, const std::string& airport);
+    std::vector<std::string> GetRealSIDProcedures(const std::string& airport, const std::string& runway);
+    std::vector<std::string> GetRealSTARProcedures(const std::string& airport, const std::string& runway);
+    void AssignRealNavProcedures(SynDataTy& synData);
+    
+    /// Extended country coverage for aircraft registrations
+    std::string GetExtendedCountryFromPosition(const positionTy& pos);
+    std::string GenerateExtendedCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
+    
+    /// CSL Model scanning and selection
+    void ScanAvailableCSLModels();
+    SyntheticTrafficType CategorizeAircraftType(const std::string& icaoType);
+    std::vector<std::string> GetAvailableCSLModels(SyntheticTrafficType trafficType);
+    std::string SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& route);
+    
+    /// Comprehensive country registrations (100+ countries)
+    std::string GetComprehensiveCountryFromPosition(const positionTy& pos);
+    std::string GenerateComprehensiveCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
 
 protected:
     void Main () override;          ///< virtual thread main function
@@ -343,6 +479,19 @@ protected:
     bool CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2);
     void GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos);
     void ExecuteTCASManeuver(SynDataTy& synData, double currentTime);
+    
+    /// Enhanced TCAS functions
+    positionTy PredictAircraftPosition(const SynDataTy& synData, double timeAhead);
+    double CalculateClosestPointOfApproach(const SynDataTy& synData1, const SynDataTy& synData2);
+    bool CheckPredictiveConflict(const SynDataTy& synData1, const SynDataTy& synData2, double lookAheadTime);
+    void CoordinateTCASResponse(SynDataTy& synData1, SynDataTy& synData2);
+    int DetermineOptimalTCASManeuver(const SynDataTy& ownAircraft, const SynDataTy& trafficAircraft);
+    
+    /// Enhanced ground operations
+    void UpdateGroundOperations(SynDataTy& synData, double currentTime);
+    void GenerateTaxiRoute(SynDataTy& synData, const positionTy& origin, const positionTy& destination);
+    bool CheckGroundCollision(const SynDataTy& synData, const positionTy& nextPos);
+    void UpdateTaxiMovement(SynDataTy& synData, double deltaTime);
     
     /// Helper functions for realistic communication degradation
     std::string ApplyLightStaticEffects(const std::string& message);
