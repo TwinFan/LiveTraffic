@@ -460,12 +460,46 @@ bool SyntheticConnection::ProcessFetchedData ()
             case SYN_STATE_LANDING:
                 // For transition states, use terrain-based determination
                 {
-                    static XPLMProbeRef yProbe = XPLMCreateProbe(xplm_ProbeY);
-                    double terrainAlt = YProbe_at_m(synData.pos, yProbe);
-                    if (!std::isnan(terrainAlt)) {
-                        // Use the same logic as TryDeriveGrndStatus: on ground if within FD_GND_AGL of terrain
-                        isOnGround = (synData.pos.alt_m() < terrainAlt + FD_GND_AGL);
+                    // Use per-aircraft probe instead of static probe to avoid race conditions
+                    XPLMProbeRef probeToUse = synData.terrainProbe;
+                    bool needsCleanup = false;
+                    
+                    // Create temporary probe if aircraft doesn't have one
+                    if (!probeToUse) {
+                        probeToUse = XPLMCreateProbe(xplm_ProbeY);
+                        needsCleanup = true;
+                    }
+                    
+                    if (probeToUse) {
+                        try {
+                            double terrainAlt = YProbe_at_m(synData.pos, probeToUse);
+                            if (!std::isnan(terrainAlt)) {
+                                // Use the same logic as TryDeriveGrndStatus: on ground if within FD_GND_AGL of terrain
+                                isOnGround = (synData.pos.alt_m() < terrainAlt + FD_GND_AGL);
+                            } else {
+                                // Fallback: conservative approach for transition states
+                                isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
+                                            (synData.pos.alt_m() < 100.0) : // Takeoff: assume ground until 100m MSL
+                                            (synData.pos.alt_m() < 50.0);   // Landing: assume ground below 50m MSL
+                            }
+                        } catch (...) {
+                            LOG_MSG(logWARN, "Exception during terrain probe for ground state determination");
+                            // Fallback: conservative approach
+                            isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
+                                        (synData.pos.alt_m() < 100.0) :
+                                        (synData.pos.alt_m() < 50.0);
+                        }
+                        
+                        // Clean up temporary probe
+                        if (needsCleanup) {
+                            try {
+                                XPLMDestroyProbe(probeToUse);
+                            } catch (...) {
+                                // Ignore cleanup exceptions
+                            }
+                        }
                     } else {
+                        LOG_MSG(logWARN, "Failed to create terrain probe for ground state determination");
                         // Fallback: conservative approach for transition states
                         isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
                                     (synData.pos.alt_m() < 100.0) : // Takeoff: assume ground until 100m MSL
@@ -2875,20 +2909,24 @@ void SyntheticConnection::GenerateFlightPath(SynDataTy& synData, const positionT
         waypoint.alt_m() = std::max(waypoint.alt_m(), minSafeAltitude);
         
         // For mountainous terrain, add extra vertical separation between waypoints
-        if (i > 0) {
-            double altitudeDiff = std::abs(waypoint.alt_m() - synData.flightPath[i-1].alt_m());
-            if (altitudeDiff > 1000.0) { // More than 1000m altitude difference
-                // Add intermediate waypoint to smooth the climb/descent
-                positionTy intermediateWp;
-                intermediateWp.lat() = (waypoint.lat() + synData.flightPath[i-1].lat()) / 2.0;
-                intermediateWp.lon() = (waypoint.lon() + synData.flightPath[i-1].lon()) / 2.0;
-                intermediateWp.alt_m() = (waypoint.alt_m() + synData.flightPath[i-1].alt_m()) / 2.0;
-                
-                // Ensure intermediate waypoint is also terrain safe
-                double intermediateTerrainElev = GetTerrainElevation(intermediateWp, synData.terrainProbe);
-                intermediateWp.alt_m() = std::max(intermediateWp.alt_m(), intermediateTerrainElev + requiredClearance);
-                
-                synData.flightPath.push_back(intermediateWp);
+        if (i > 0 && !synData.flightPath.empty()) {
+            // Bounds check: ensure we don't access invalid indices
+            size_t prevIndex = synData.flightPath.size() - 1;
+            if (prevIndex < synData.flightPath.size()) {
+                double altitudeDiff = std::abs(waypoint.alt_m() - synData.flightPath[prevIndex].alt_m());
+                if (altitudeDiff > 1000.0) { // More than 1000m altitude difference
+                    // Add intermediate waypoint to smooth the climb/descent
+                    positionTy intermediateWp;
+                    intermediateWp.lat() = (waypoint.lat() + synData.flightPath[prevIndex].lat()) / 2.0;
+                    intermediateWp.lon() = (waypoint.lon() + synData.flightPath[prevIndex].lon()) / 2.0;
+                    intermediateWp.alt_m() = (waypoint.alt_m() + synData.flightPath[prevIndex].alt_m()) / 2.0;
+                    
+                    // Ensure intermediate waypoint is also terrain safe
+                    double intermediateTerrainElev = GetTerrainElevation(intermediateWp, synData.terrainProbe);
+                    intermediateWp.alt_m() = std::max(intermediateWp.alt_m(), intermediateTerrainElev + requiredClearance);
+                    
+                    synData.flightPath.push_back(intermediateWp);
+                }
             }
         }
         
