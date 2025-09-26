@@ -1060,24 +1060,28 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                 break;
                 
             case SYN_STATE_HOLD:
-                synData.holdingTime += currentTime - synData.stateChangeTime;
-                // Hold for 2-10 minutes with realistic probability distribution
-                double holdDuration = 120.0 + (std::rand() % 480); // 2-10 minutes
-                if (synData.holdingTime > holdDuration) {
-                    newState = SYN_STATE_DESCENT;
-                    SetRealisticDescentParameters(synData);
-                    LOG_MSG(logDEBUG, "Aircraft %s leaving hold after %.1f minutes", 
-                            synData.stat.call.c_str(), synData.holdingTime / 60.0);
+                {
+                    synData.holdingTime += currentTime - synData.stateChangeTime;
+                    // Hold for 2-10 minutes with realistic probability distribution
+                    double holdDuration = 120.0 + (std::rand() % 480); // 2-10 minutes
+                    if (synData.holdingTime > holdDuration) {
+                        newState = SYN_STATE_DESCENT;
+                        SetRealisticDescentParameters(synData);
+                        LOG_MSG(logDEBUG, "Aircraft %s leaving hold after %.1f minutes", 
+                                synData.stat.call.c_str(), synData.holdingTime / 60.0);
+                    }
                 }
                 break;
                 
             case SYN_STATE_DESCENT:
-                // Transition to approach when reaching approach altitude (typically 3000' AGL)
-                double approachAltitude = synData.terrainElevation + 900.0; // 3000 ft AGL
-                if (synData.pos.alt_m() <= approachAltitude) {
-                    newState = SYN_STATE_APPROACH;
-                    LOG_MSG(logDEBUG, "Aircraft %s beginning approach at %.0f ft AGL", 
-                            synData.stat.call.c_str(), (synData.pos.alt_m() - synData.terrainElevation) * 3.28084);
+                {
+                    // Transition to approach when reaching approach altitude (typically 3000' AGL)
+                    double approachAltitude = synData.terrainElevation + 900.0; // 3000 ft AGL
+                    if (synData.pos.alt_m() <= approachAltitude) {
+                        newState = SYN_STATE_APPROACH;
+                        LOG_MSG(logDEBUG, "Aircraft %s beginning approach at %.0f ft AGL", 
+                                synData.stat.call.c_str(), (synData.pos.alt_m() - synData.terrainElevation) * 3.28084);
+                    }
                 }
                 break;
                 
