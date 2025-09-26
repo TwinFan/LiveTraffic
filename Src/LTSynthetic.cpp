@@ -1252,6 +1252,18 @@ std::string SyntheticConnection::ApplyHeavyStaticEffects(const std::string& mess
 // Generate varied position around a center point to prevent aircraft stacking
 positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerPos, double minDistanceNM, double maxDistanceNM)
 {
+    // Basic validation of input parameters
+    if (minDistanceNM < 0.0 || maxDistanceNM < 0.0 || minDistanceNM > maxDistanceNM) {
+        LOG_MSG(logWARN, "Invalid distance parameters for GenerateVariedPosition: min=%.1f, max=%.1f", minDistanceNM, maxDistanceNM);
+        return centerPos; // Return original position as fallback
+    }
+    
+    // Validate center position
+    if (!centerPos.isNormal()) {
+        LOG_MSG(logWARN, "Invalid center position for GenerateVariedPosition");
+        return centerPos;
+    }
+    
     const int maxAttempts = 10;
     const double minSeparationNM = 1.0; // Minimum 1nm separation between aircraft
     
@@ -1291,6 +1303,8 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
     
     // If we couldn't find a suitable position after maxAttempts, just return the last generated one
     // This prevents infinite loops if the area is too crowded
+    LOG_MSG(logDEBUG, "Could not find optimal separation after %d attempts, using fallback position", maxAttempts);
+    
     double distance = minDistanceNM + (static_cast<double>(std::rand()) / RAND_MAX) * (maxDistanceNM - minDistanceNM);
     distance *= 1852.0;
     double bearing = static_cast<double>(std::rand()) / RAND_MAX * 2.0 * PI;
