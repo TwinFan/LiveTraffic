@@ -1279,6 +1279,11 @@ void SyntheticConnection::SetRealisticDescentParameters(SynDataTy& synData)
             case SYN_TRAFFIC_MILITARY:
                 descentRateFpm *= 1.2; // Military can descend more aggressively
                 break;
+            case SYN_TRAFFIC_NONE:
+            case SYN_TRAFFIC_ALL:
+            default:
+                descentRateFpm *= 1.0; // Default to standard descent
+                break;
         }
         
         synData.targetSpeed *= 0.85; // Reduce speed for descent
@@ -1599,7 +1604,7 @@ std::string SyntheticConnection::GetCountryFromPosition(const positionTy& pos)
 }
 
 // Generate country-specific aircraft registration
-std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::string& countryCode, SyntheticTrafficType trafficType)
+std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::string& countryCode, SyntheticTrafficType /*trafficType*/)
 {
     std::string registration;
     
@@ -2031,6 +2036,15 @@ void SyntheticConnection::CalculatePerformance(SynDataTy& synData)
                 taxiSpeedKts = 40;
                 stallSpeedKts = 180;
                 break;
+            case SYN_TRAFFIC_NONE:
+            case SYN_TRAFFIC_ALL:
+            default:
+                // Default to GA performance
+                cruiseSpeedKts = 120;
+                approachSpeedKts = 70;
+                taxiSpeedKts = 12;
+                stallSpeedKts = 50;
+                break;
         }
         LOG_MSG(logDEBUG, "Using generic performance for %s (traffic type %d)", 
                 synData.stat.acTypeIcao.c_str(), synData.trafficType);
@@ -2268,6 +2282,18 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                             newAltitude = std::max(newAltitude, absoluteMinimum);
                         }
                     }
+                    break;
+                    
+                case SYN_STATE_PARKED:
+                case SYN_STATE_STARTUP:
+                case SYN_STATE_TAXI_OUT:
+                case SYN_STATE_LINE_UP_WAIT:
+                case SYN_STATE_CRUISE:
+                case SYN_STATE_HOLD:
+                case SYN_STATE_TAXI_IN:
+                case SYN_STATE_SHUTDOWN:
+                default:
+                    // For ground states and others, maintain current altitude or apply basic constraints
                     break;
             }
             
@@ -2880,7 +2906,7 @@ std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airpo
 
 // Generate SID procedures using actual navigation database
 std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positionTy& airportPos, 
-                                                                    const std::string& airport, 
+                                                                    const std::string& /*airport*/, 
                                                                     const std::string& runway)
 {
     std::vector<positionTy> sidProcedure;
@@ -3001,7 +3027,7 @@ std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positi
 
 // Generate STAR procedures using actual navigation database
 std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const positionTy& airportPos, 
-                                                                      const std::string& airport, 
+                                                                      const std::string& /*airport*/, 
                                                                       const std::string& runway)
 {
     std::vector<positionTy> starProcedure;
@@ -3451,6 +3477,17 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
                 // Final approach - align with runway
                 synData.targetHeading = bearing; // Direct to runway
                 break;
+                
+            case SYN_STATE_PARKED:
+            case SYN_STATE_STARTUP:
+            case SYN_STATE_TAXI_OUT:
+            case SYN_STATE_LINE_UP_WAIT:
+            case SYN_STATE_TAXI_IN:
+            case SYN_STATE_SHUTDOWN:
+            default:
+                // Ground states and others - maintain heading or use fallback
+                synData.targetHeading = bearing;
+                break;
         }
         
         // Check if we've reached the current waypoint with realistic tolerance
@@ -3605,6 +3642,15 @@ double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, Syn
         case SYN_STATE_LANDING:
             baseTolerance = 300.0; // Tight tolerance for precision approach
             break;
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_TAXI_IN:
+        case SYN_STATE_SHUTDOWN:
+        default:
+            baseTolerance = 500.0; // Default tolerance for ground states
+            break;
     }
     
     // Adjust for aircraft type
@@ -3617,6 +3663,11 @@ double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, Syn
             break;
         case SYN_TRAFFIC_MILITARY:
             baseTolerance *= 1.3; // Military may have larger tolerances
+            break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            baseTolerance *= 1.0; // Default tolerance
             break;
     }
     
@@ -3639,6 +3690,11 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
         case SYN_TRAFFIC_MILITARY:
             baseTurnRate = 4.0; // Military can turn aggressively
             break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            baseTurnRate = 2.0; // Default turn rate
+            break;
     }
     
     // Adjust for flight state
@@ -3657,6 +3713,15 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
             break;
         case SYN_STATE_HOLD:
             baseTurnRate *= 0.8; // Gentle turns in holding pattern
+            break;
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_TAXI_IN:
+        case SYN_STATE_SHUTDOWN:
+        default:
+            baseTurnRate *= 0.3; // Very slow turns for ground operations
             break;
     }
     
@@ -4325,7 +4390,7 @@ void SyntheticConnection::ExecuteTCASManeuver(SynDataTy& synData, double current
 }
 
 // Update communication frequencies based on aircraft position and airport proximity
-void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, const positionTy& userPos)
+void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, const positionTy& /*userPos*/)
 {
     double currentTime = std::time(nullptr);
     
@@ -4708,7 +4773,7 @@ bool SyntheticConnection::CheckPredictiveConflict(const SynDataTy& synData1, con
 }
 
 // Determine optimal TCAS maneuver based on flight conditions and aircraft performance
-int SyntheticConnection::DetermineOptimalTCASManeuver(const SynDataTy& ownAircraft, const SynDataTy& trafficAircraft)
+int SyntheticConnection::DetermineOptimalTCASManeuver(const SynDataTy& ownAircraft, const SynDataTy& /*trafficAircraft*/)
 {
     // Maneuver types: 0=turn, 1=descend, 2=climb, 3=maintain
     
