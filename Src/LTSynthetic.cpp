@@ -941,7 +941,7 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
             
             // Now that we have terrain elevation, determine initial state based on AGL
             double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
-            bool initiallyOnGround = (altitudeAGL < 100.0);
+            bool initiallyOnGround = (altitudeAGL < FD_GND_AGL);
             synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
             synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
             
@@ -950,17 +950,37 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
                     altitudeAGL, initiallyOnGround ? "YES" : "NO");
         } else {
             LOG_MSG(logWARN, "Failed to create initial terrain probe for aircraft %s", synData.stat.call.c_str());
-            synData.terrainElevation = 500.0; // Conservative estimate
-            // Fallback to MSL-based determination if terrain probe fails
-            bool initiallyOnGround = (pos.alt_m() < 100.0);
+            // Try to get airport elevation as a better fallback than arbitrary 500m
+            positionTy aptPos = LTAptFindStartupLoc(synData.pos);
+            if (aptPos.isNormal()) {
+                // Use airport elevation + small margin as terrain estimate
+                synData.terrainElevation = aptPos.alt_m() + 50.0; // Airport elevation + 50m margin
+                LOG_MSG(logDEBUG, "Using airport elevation fallback: %.0fm for aircraft %s", 
+                        synData.terrainElevation, synData.stat.call.c_str());
+            } else {
+                synData.terrainElevation = std::max(0.0, pos.alt_m() - 200.0); // More conservative estimate
+            }
+            // Fallback to AGL-based determination using proper threshold
+            double altitudeAGL = pos.alt_m() - synData.terrainElevation;
+            bool initiallyOnGround = (altitudeAGL < FD_GND_AGL);
             synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
             synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
         }
     } catch (...) {
         LOG_MSG(logERR, "Exception creating terrain probe for aircraft %s", synData.stat.call.c_str());
-        synData.terrainElevation = 500.0; // Conservative estimate
-        // Fallback to MSL-based determination if terrain probe fails
-        bool initiallyOnGround = (pos.alt_m() < 100.0);
+        // Try to get airport elevation as a better fallback than arbitrary 500m
+        positionTy aptPos = LTAptFindStartupLoc(synData.pos);
+        if (aptPos.isNormal()) {
+            // Use airport elevation + small margin as terrain estimate
+            synData.terrainElevation = aptPos.alt_m() + 50.0; // Airport elevation + 50m margin
+            LOG_MSG(logDEBUG, "Using airport elevation fallback: %.0fm for aircraft %s", 
+                    synData.terrainElevation, synData.stat.call.c_str());
+        } else {
+            synData.terrainElevation = std::max(0.0, pos.alt_m() - 200.0); // More conservative estimate
+        }
+        // Fallback to AGL-based determination using proper threshold
+        double altitudeAGL = pos.alt_m() - synData.terrainElevation;
+        bool initiallyOnGround = (altitudeAGL < FD_GND_AGL);
         synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
         synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
     }
