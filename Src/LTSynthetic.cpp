@@ -2630,9 +2630,6 @@ void SyntheticConnection::UpdateUserAwareness(SynDataTy& synData, const position
                 distance);
         lastAwarenessState[synData.stat.call] = synData.isUserAware;
     }
-        LOG_MSG(logDEBUG, "Aircraft %s is no longer user-aware (distance: %.1fnm)", 
-                synData.stat.call.c_str(), distance);
-    }
     
     // Modify behavior if user-aware
     if (synData.isUserAware) {
