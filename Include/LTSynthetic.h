@@ -138,10 +138,24 @@ protected:
         double tcasAvoidanceAltitude;           ///< altitude to avoid traffic
         bool inTCASAvoidance;                   ///< currently executing TCAS avoidance maneuver
         
+        // Communication frequency management
+        double currentComFreq;                  ///< current communication frequency (MHz)
+        std::string currentAirport;             ///< nearest airport for frequency selection
+        std::string currentFreqType;            ///< frequency type (tower, ground, approach, center)
+        double lastFreqUpdate;                  ///< time of last frequency update
+        
+        // Enhanced ground operations  
+        std::vector<positionTy> taxiRoute;      ///< planned taxi route waypoints
+        size_t currentTaxiWaypoint;             ///< current taxi waypoint index
+        std::string assignedGate;               ///< assigned gate or parking position
+        bool groundCollisionAvoidance;          ///< ground collision avoidance active
+        
         SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
                      terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0),
                      lastTCASCheck(0.0), tcasActive(true), tcasAdvisory(""),
-                     tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false) {}
+                     tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false),
+                     currentComFreq(121.5), currentAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
+                     currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false) {}
         
         ~SynDataTy() {
             // Thread-safe cleanup of terrain probe
@@ -170,7 +184,11 @@ protected:
               headingChangeRate(other.headingChangeRate), targetHeading(other.targetHeading),
               lastTCASCheck(other.lastTCASCheck), tcasActive(other.tcasActive),
               tcasAdvisory(other.tcasAdvisory), tcasAvoidanceHeading(other.tcasAvoidanceHeading),
-              tcasAvoidanceAltitude(other.tcasAvoidanceAltitude), inTCASAvoidance(other.inTCASAvoidance) {}
+              tcasAvoidanceAltitude(other.tcasAvoidanceAltitude), inTCASAvoidance(other.inTCASAvoidance),
+              currentComFreq(other.currentComFreq), currentAirport(other.currentAirport),
+              currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
+              taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
+              assignedGate(other.assignedGate), groundCollisionAvoidance(other.groundCollisionAvoidance) {}
         
         // Assignment operator - need to handle probe ownership
         SynDataTy& operator=(const SynDataTy& other) {
@@ -215,6 +233,14 @@ protected:
                 tcasAvoidanceHeading = other.tcasAvoidanceHeading;
                 tcasAvoidanceAltitude = other.tcasAvoidanceAltitude;
                 inTCASAvoidance = other.inTCASAvoidance;
+                currentComFreq = other.currentComFreq;
+                currentAirport = other.currentAirport;
+                currentFreqType = other.currentFreqType;
+                lastFreqUpdate = other.lastFreqUpdate;
+                taxiRoute = other.taxiRoute;
+                currentTaxiWaypoint = other.currentTaxiWaypoint;
+                assignedGate = other.assignedGate;
+                groundCollisionAvoidance = other.groundCollisionAvoidance;
             }
             return *this;
         }
@@ -272,11 +298,20 @@ public:
     /// Check weather impact on operations
     bool CheckWeatherImpact(const positionTy& pos, SynDataTy& synData);
     
-    /// Generate realistic call sign based on traffic type
-    std::string GenerateCallSign(SyntheticTrafficType trafficType);
+    /// Generate realistic call sign based on traffic type and location (country-specific)
+    std::string GenerateCallSign(SyntheticTrafficType trafficType, const positionTy& pos = positionTy());
     
     /// Generate aircraft type based on traffic type and operations
     std::string GenerateAircraftType(SyntheticTrafficType trafficType, const std::string& route = "");
+    
+    /// Get country code from position (lat/lon) for registration purposes
+    std::string GetCountryFromPosition(const positionTy& pos);
+    
+    /// Generate country-specific aircraft registration
+    std::string GenerateCountrySpecificRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
+    
+    /// Update communication frequencies based on aircraft position and airport proximity
+    void UpdateCommunicationFrequencies(SynDataTy& synData, const positionTy& userPos);
 
 protected:
     void Main () override;          ///< virtual thread main function
@@ -343,6 +378,12 @@ protected:
     bool CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2);
     void GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos);
     void ExecuteTCASManeuver(SynDataTy& synData, double currentTime);
+    
+    /// Enhanced ground operations
+    void UpdateGroundOperations(SynDataTy& synData, double currentTime);
+    void GenerateTaxiRoute(SynDataTy& synData, const positionTy& origin, const positionTy& destination);
+    bool CheckGroundCollision(const SynDataTy& synData, const positionTy& nextPos);
+    void UpdateTaxiMovement(SynDataTy& synData, double deltaTime);
     
     /// Helper functions for realistic communication degradation
     std::string ApplyLightStaticEffects(const std::string& message);

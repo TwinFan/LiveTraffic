@@ -404,6 +404,22 @@ bool SyntheticConnection::ProcessFetchedData ()
             }
         }
         
+        // Update communication frequencies based on position and airport proximity
+        try {
+            UpdateCommunicationFrequencies(synData, posCam);
+        } catch (...) {
+            LOG_MSG(logWARN, "Exception in UpdateCommunicationFrequencies for %s", synData.stat.call.c_str());
+        }
+        
+        // Handle enhanced ground operations
+        if (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) {
+            try {
+                UpdateGroundOperations(synData, tNow);
+            } catch (...) {
+                LOG_MSG(logWARN, "Exception in UpdateGroundOperations for %s", synData.stat.call.c_str());
+            }
+        }
+        
         // Check weather impact
         if (config.weatherOperations) {
             CheckWeatherImpact(synData.pos, synData);
@@ -746,8 +762,8 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     // Set initial ground status in position data
     synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
     
-    // Generate static data
-    synData.stat.call = GenerateCallSign(trafficType);
+    // Generate static data with country-specific registration
+    synData.stat.call = GenerateCallSign(trafficType, pos);
     synData.stat.flight = synData.stat.call; // Use call sign as flight number
     synData.stat.opIcao = "SYN"; // Synthetic operator
     synData.stat.op = "Synthetic Traffic";
@@ -1083,32 +1099,43 @@ std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionT
     return airports;
 }
 
-// Generate realistic call sign based on traffic type
-std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficType)
+// Generate realistic call sign based on traffic type and location (country-specific)
+std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficType, const positionTy& pos)
 {
     std::string callSign;
     
+    // Get country code from position for registration purposes
+    std::string country = (std::abs(pos.lat()) > 0.001 || std::abs(pos.lon()) > 0.001) ? GetCountryFromPosition(pos) : "US";
+    
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
-            // GA call signs like N12345, N987AB
-            callSign = "N";
-            callSign += std::to_string(1000 + (std::rand() % 9000)); // 1000-9999
-            char letter1 = 'A' + (std::rand() % 26);
-            char letter2 = 'A' + (std::rand() % 26);
-            callSign += std::string(1, letter1) + std::string(1, letter2);
+            // Generate country-specific GA registration
+            callSign = GenerateCountrySpecificRegistration(country, trafficType);
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
-            // Airline call signs like UAL123, AAL456
-            const char* airlines[] = {"UAL", "AAL", "DAL", "SWA", "JBU", "ASA"};
-            callSign = airlines[std::rand() % 6];
+            // Airline call signs like UAL123, AAL456 - typically use airline codes regardless of country
+            const char* airlines[] = {"UAL", "AAL", "DAL", "SWA", "JBU", "ASA", "BAW", "AFR", "DLH", "ACA", "QFA"};
+            callSign = airlines[std::rand() % 11];
             callSign += std::to_string(100 + (std::rand() % 900)); // 100-999
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
-            // Military call signs like ARMY123, NAVY456
-            const char* military[] = {"ARMY", "NAVY", "USAF", "USCG"};
-            callSign = military[std::rand() % 4];
+            // Military call signs vary by country
+            if (country == "US") {
+                const char* military[] = {"ARMY", "NAVY", "USAF", "USCG"};
+                callSign = military[std::rand() % 4];
+            } else if (country == "CA") {
+                callSign = "RCAF";
+            } else if (country == "GB") {
+                callSign = "ROYAL";
+            } else if (country == "DE") {
+                callSign = "GAF";
+            } else if (country == "FR") {
+                callSign = "COTAM";
+            } else {
+                callSign = "MIL"; // Generic military
+            }
             callSign += std::to_string(100 + (std::rand() % 900)); // 100-999
             break;
         }
@@ -1118,6 +1145,120 @@ std::string SyntheticConnection::GenerateCallSign(SyntheticTrafficType trafficTy
     }
     
     return callSign;
+}
+
+// Get country code from position (lat/lon) for registration purposes  
+std::string SyntheticConnection::GetCountryFromPosition(const positionTy& pos)
+{
+    double lat = pos.lat();
+    double lon = pos.lon();
+    
+    // Simplified country detection based on geographic regions
+    // In a real implementation, this would use a proper geographic database
+    
+    // North America
+    if (lat >= 24.0 && lat <= 83.0 && lon >= -170.0 && lon <= -30.0) {
+        if (lat >= 49.0 && lon >= -140.0) {
+            return "CA"; // Canada (rough approximation)
+        }
+        if (lat >= 14.0 && lat <= 33.0 && lon >= -118.0 && lon <= -86.0) {
+            return "MX"; // Mexico (rough approximation)
+        }
+        return "US"; // United States
+    }
+    
+    // Europe
+    if (lat >= 35.0 && lat <= 72.0 && lon >= -25.0 && lon <= 45.0) {
+        if (lat >= 49.0 && lat <= 62.0 && lon >= -8.0 && lon <= 2.0) {
+            return "GB"; // United Kingdom
+        }
+        if (lat >= 47.0 && lat <= 55.5 && lon >= 5.5 && lon <= 15.0) {
+            return "DE"; // Germany
+        }
+        if (lat >= 42.0 && lat <= 51.5 && lon >= -5.0 && lon <= 9.5) {
+            return "FR"; // France
+        }
+        return "EU"; // Generic Europe
+    }
+    
+    // Australia
+    if (lat >= -44.0 && lat <= -10.0 && lon >= 112.0 && lon <= 154.0) {
+        return "AU";
+    }
+    
+    // Asia (simplified)
+    if (lat >= 1.0 && lat <= 50.0 && lon >= 73.0 && lon <= 150.0) {
+        if (lat >= 30.0 && lat <= 46.0 && lon >= 123.0 && lon <= 132.0) {
+            return "JA"; // Japan
+        }
+        return "AS"; // Generic Asia
+    }
+    
+    // Default to US for unrecognized regions
+    return "US";
+}
+
+// Generate country-specific aircraft registration
+std::string SyntheticConnection::GenerateCountrySpecificRegistration(const std::string& countryCode, SyntheticTrafficType trafficType)
+{
+    std::string registration;
+    
+    if (countryCode == "US") {
+        // US: N-numbers (N12345, N987AB)
+        registration = "N";
+        registration += std::to_string(1000 + (std::rand() % 9000)); // 1000-9999
+        if (std::rand() % 2 == 0) { // 50% chance to add letters
+            char letter1 = 'A' + (std::rand() % 26);
+            char letter2 = 'A' + (std::rand() % 26);
+            registration += std::string(1, letter1) + std::string(1, letter2);
+        }
+    } else if (countryCode == "CA") {
+        // Canada: C-numbers (C-FABC, C-GDEF)
+        registration = "C-";
+        char letter1 = (std::rand() % 2 == 0) ? 'F' : 'G'; // Canadian prefix letters
+        registration += letter1;
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "GB") {
+        // UK: G-numbers (G-ABCD)
+        registration = "G-";
+        for (int i = 0; i < 4; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "DE") {
+        // Germany: D-numbers (D-ABCD)
+        registration = "D-";
+        for (int i = 0; i < 4; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "FR") {
+        // France: F-numbers (F-GABC)
+        registration = "F-G";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "AU") {
+        // Australia: VH-numbers (VH-ABC)
+        registration = "VH-";
+        for (int i = 0; i < 3; i++) {
+            registration += static_cast<char>('A' + (std::rand() % 26));
+        }
+    } else if (countryCode == "JA") {
+        // Japan: JA-numbers (JA123A)
+        registration = "JA";
+        registration += std::to_string(100 + (std::rand() % 900));
+        registration += static_cast<char>('A' + (std::rand() % 26));
+    } else {
+        // Default to US-style for unknown countries
+        registration = "N";
+        registration += std::to_string(1000 + (std::rand() % 9000));
+        char letter1 = 'A' + (std::rand() % 26);
+        char letter2 = 'A' + (std::rand() % 26);
+        registration += std::string(1, letter1) + std::string(1, letter2);
+    }
+    
+    return registration;
 }
 
 // Generate aircraft type based on traffic type
@@ -3265,12 +3406,12 @@ void SyntheticConnection::ExecuteTCASManeuver(SynDataTy& synData, double current
     if (!synData.inTCASAvoidance) return;
     
     // Apply heading change if required
-    if (synData.tcasAvoidanceHeading != 0.0) {
+    if (std::abs(synData.tcasAvoidanceHeading) > 0.001) {
         SmoothHeadingChange(synData, synData.tcasAvoidanceHeading, 2.0); // 2 second interval
     }
     
     // Apply altitude change if required  
-    if (synData.tcasAvoidanceAltitude != 0.0) {
+    if (std::abs(synData.tcasAvoidanceAltitude) > 0.001) {
         synData.targetAltitude = synData.tcasAvoidanceAltitude;
         
         // Ensure we don't go below terrain
@@ -3278,4 +3419,270 @@ void SyntheticConnection::ExecuteTCASManeuver(SynDataTy& synData, double current
         double minSafeAltitude = synData.terrainElevation + requiredClearance;
         synData.targetAltitude = std::max(synData.targetAltitude, minSafeAltitude);
     }
+}
+
+// Update communication frequencies based on aircraft position and airport proximity
+void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, const positionTy& userPos)
+{
+    double currentTime = std::time(nullptr);
+    
+    // Update frequency every 30 seconds or when changing flight states
+    if (currentTime - synData.lastFreqUpdate < 30.0 && std::abs(synData.currentComFreq - 121.5) > 0.001) {
+        return;
+    }
+    
+    synData.lastFreqUpdate = currentTime;
+    
+    // Find nearest airport for frequency determination
+    std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 25.0); // 25nm radius
+    
+    std::string nearestAirport;
+    double minDistance = 999999.0;
+    
+    // Find the closest airport
+    for (const std::string& airportCode : nearbyAirports) {
+        // Get airport position (simplified - would use actual airport database)
+        positionTy airportPos = synData.pos; // Placeholder
+        double distance = synData.pos.dist(airportPos) / 1852.0; // Convert to NM
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestAirport = airportCode;
+        }
+    }
+    
+    // Determine appropriate frequency based on flight state and position
+    double newFreq = 121.5; // Default UNICOM
+    std::string freqType = "unicom";
+    
+    switch (synData.state) {
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+            if (minDistance < 5.0) {
+                newFreq = 121.9; // Ground frequency
+                freqType = "ground";
+            }
+            break;
+            
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_TAXI_IN:
+            if (minDistance < 3.0) {
+                newFreq = 121.9; // Ground frequency
+                freqType = "ground";
+            } else {
+                newFreq = 121.5; // UNICOM
+                freqType = "unicom";
+            }
+            break;
+            
+        case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_LANDING:
+            if (minDistance < 5.0) {
+                newFreq = 118.1; // Tower frequency
+                freqType = "tower";
+            }
+            break;
+            
+        case SYN_STATE_APPROACH:
+            if (minDistance < 15.0) {
+                newFreq = 119.1; // Approach frequency  
+                freqType = "approach";
+            } else {
+                newFreq = 120.4; // Center frequency
+                freqType = "center";
+            }
+            break;
+            
+        case SYN_STATE_CLIMB:
+            if (synData.pos.alt_m() > 3000.0) { // Above 10,000 feet
+                newFreq = 120.4; // Center frequency
+                freqType = "center";
+            } else {
+                newFreq = 119.1; // Approach/departure frequency
+                freqType = "departure";
+            }
+            break;
+            
+        case SYN_STATE_CRUISE:
+        case SYN_STATE_HOLD:
+        case SYN_STATE_DESCENT:
+            newFreq = 120.4; // Center frequency
+            freqType = "center";
+            break;
+            
+        default:
+            newFreq = 121.5; // UNICOM
+            freqType = "unicom";
+            break;
+    }
+    
+    // Add some realistic frequency variation
+    newFreq += (std::rand() % 10 - 5) * 0.025; // +/- 0.125 MHz variation
+    
+    // Update frequency if it changed significantly
+    if (std::abs(synData.currentComFreq - newFreq) > 0.1) {
+        synData.currentComFreq = newFreq;
+        synData.currentFreqType = freqType;
+        synData.currentAirport = nearestAirport;
+        
+        LOG_MSG(logDEBUG, "Aircraft %s switched to %s frequency %.3f MHz (airport: %s, distance: %.1f nm)",
+                synData.stat.call.c_str(), freqType.c_str(), newFreq, 
+                nearestAirport.c_str(), minDistance);
+    }
+}
+
+// Enhanced ground operations
+void SyntheticConnection::UpdateGroundOperations(SynDataTy& synData, double currentTime)
+{
+    // Generate taxi route if needed
+    if (synData.taxiRoute.empty() && 
+        (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN)) {
+        
+        positionTy origin = synData.pos;
+        positionTy destination = synData.pos;
+        
+        if (synData.state == SYN_STATE_TAXI_OUT) {
+            // Taxi to runway - find nearest runway
+            destination.lat() += (std::rand() % 20 - 10) / 10000.0; // Small offset for runway
+            destination.lon() += (std::rand() % 20 - 10) / 10000.0;
+        } else {
+            // Taxi to gate - find nearest gate/parking
+            if (synData.assignedGate.empty()) {
+                synData.assignedGate = "Gate " + std::to_string(1 + (std::rand() % 50));
+            }
+            destination.lat() -= (std::rand() % 30 - 15) / 10000.0; // Small offset for gate
+            destination.lon() -= (std::rand() % 30 - 15) / 10000.0;
+        }
+        
+        GenerateTaxiRoute(synData, origin, destination);
+    }
+    
+    // Update taxi movement
+    if (!synData.taxiRoute.empty()) {
+        UpdateTaxiMovement(synData, currentTime - synData.lastPosUpdateTime);
+    }
+    
+    // Ground collision avoidance
+    if (synData.groundCollisionAvoidance) {
+        positionTy nextPos = synData.pos;
+        // Calculate next position based on current movement
+        double deltaTime = 1.0; // 1 second ahead
+        double speed = synData.targetSpeed; // m/s
+        double heading = synData.pos.heading();
+        
+        nextPos.lat() += (speed * deltaTime * std::cos(heading * PI / 180.0)) / 111320.0;
+        nextPos.lon() += (speed * deltaTime * std::sin(heading * PI / 180.0)) / (111320.0 * std::cos(nextPos.lat() * PI / 180.0));
+        
+        if (CheckGroundCollision(synData, nextPos)) {
+            // Stop if collision detected
+            synData.targetSpeed = 0.0;
+            LOG_MSG(logDEBUG, "Ground collision avoidance: %s stopping", synData.stat.call.c_str());
+        }
+    }
+}
+
+// Generate taxi route waypoints
+void SyntheticConnection::GenerateTaxiRoute(SynDataTy& synData, const positionTy& origin, const positionTy& destination)
+{
+    synData.taxiRoute.clear();
+    synData.currentTaxiWaypoint = 0;
+    
+    // Simple taxi route generation - in reality would use airport taxi diagram
+    positionTy waypoint1 = origin;
+    positionTy waypoint2 = destination;
+    
+    // Add intermediate waypoint(s) for realistic taxi path
+    positionTy intermediate;
+    intermediate.lat() = (origin.lat() + destination.lat()) / 2.0;
+    intermediate.lon() = (origin.lon() + destination.lon()) / 2.0;
+    intermediate.alt_m() = origin.alt_m();
+    intermediate.heading() = origin.angle(destination);
+    
+    synData.taxiRoute.push_back(waypoint1);
+    synData.taxiRoute.push_back(intermediate);
+    synData.taxiRoute.push_back(waypoint2);
+    
+    LOG_MSG(logDEBUG, "Generated taxi route for %s with %zu waypoints", 
+            synData.stat.call.c_str(), synData.taxiRoute.size());
+}
+
+// Check for potential ground collisions with other aircraft
+bool SyntheticConnection::CheckGroundCollision(const SynDataTy& synData, const positionTy& nextPos)
+{
+    // Check against all other synthetic aircraft on ground
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& otherAc = pair.second;
+        
+        // Skip self and aircraft not on ground
+        if (pair.second.stat.call == synData.stat.call || 
+            otherAc.pos.f.onGrnd != GND_ON) {
+            continue;
+        }
+        
+        // Check distance
+        double distance = nextPos.dist(otherAc.pos);
+        
+        // Ground separation minimum based on aircraft type
+        double minSeparation = 50.0; // 50 meters default
+        if (synData.trafficType == SYN_TRAFFIC_AIRLINE || otherAc.trafficType == SYN_TRAFFIC_AIRLINE) {
+            minSeparation = 100.0; // 100 meters for airlines
+        }
+        
+        if (distance < minSeparation) {
+            LOG_MSG(logDEBUG, "Ground collision risk: %s too close to %s (%.1f m)", 
+                    synData.stat.call.c_str(), otherAc.stat.call.c_str(), distance);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Update taxi movement along planned route
+void SyntheticConnection::UpdateTaxiMovement(SynDataTy& synData, double deltaTime)
+{
+    if (synData.taxiRoute.empty() || synData.currentTaxiWaypoint >= synData.taxiRoute.size()) {
+        return;
+    }
+    
+    positionTy& currentWaypoint = synData.taxiRoute[synData.currentTaxiWaypoint];
+    double distanceToWaypoint = synData.pos.dist(currentWaypoint);
+    
+    // Check if we've reached the current waypoint (within 10 meters)
+    if (distanceToWaypoint < 10.0) {
+        synData.currentTaxiWaypoint++;
+        
+        if (synData.currentTaxiWaypoint >= synData.taxiRoute.size()) {
+            // Reached destination
+            LOG_MSG(logDEBUG, "Aircraft %s completed taxi route", synData.stat.call.c_str());
+            return;
+        }
+        
+        // Move to next waypoint
+        currentWaypoint = synData.taxiRoute[synData.currentTaxiWaypoint];
+        distanceToWaypoint = synData.pos.dist(currentWaypoint);
+    }
+    
+    // Update heading towards current waypoint
+    double targetHeading = synData.pos.angle(currentWaypoint);
+    SmoothHeadingChange(synData, targetHeading, deltaTime);
+    
+    // Adjust speed based on proximity to waypoint and other factors
+    double targetSpeed = synData.targetSpeed;
+    
+    // Slow down when approaching waypoints
+    if (distanceToWaypoint < 50.0) {
+        targetSpeed *= 0.5; // Half speed when close to waypoint
+    }
+    
+    // Further reduce speed in congested areas (simplified check)
+    if (synData.groundCollisionAvoidance) {
+        targetSpeed *= 0.7;
+    }
+    
+    // Update target speed with taxi-specific limitations
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    double maxTaxiSpeed = perfData ? perfData->taxiSpeedKts * 0.514444 : 15.0 * 0.514444; // Convert to m/s
+    synData.targetSpeed = std::min(targetSpeed, maxTaxiSpeed);
 }
