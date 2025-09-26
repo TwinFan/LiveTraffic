@@ -949,26 +949,53 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
 // Update AI behavior for existing aircraft
 void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTime)
 {
+    // Enhanced AI behavior with more realistic decision making
+    
     // Check if it's time for a state change
     if (currentTime >= synData.nextEventTime) {
         SyntheticFlightState newState = synData.state;
         
-        // Simple state machine for AI behavior
+        // Enhanced state machine for AI behavior with realistic timing and decisions
         switch (synData.state) {
             case SYN_STATE_PARKED:
-                if (std::rand() % 100 < 30) { // 30% chance to start up
-                    newState = SYN_STATE_STARTUP;
+                // More realistic startup probability based on traffic type and time
+                {
+                    int startupChance = 0;
+                    switch (synData.trafficType) {
+                        case SYN_TRAFFIC_GA: startupChance = 25; break;      // 25% chance for GA
+                        case SYN_TRAFFIC_AIRLINE: startupChance = 40; break; // 40% chance for airlines
+                        case SYN_TRAFFIC_MILITARY: startupChance = 35; break; // 35% chance for military
+                    }
+                    
+                    // Time-based adjustments (more activity during day)
+                    time_t rawTime;
+                    struct tm* timeInfo;
+                    time(&rawTime);
+                    timeInfo = localtime(&rawTime);
+                    int hour = timeInfo->tm_hour;
+                    
+                    if (hour >= 6 && hour <= 22) { // Daytime operations
+                        startupChance += 15;
+                    } else { // Night operations
+                        startupChance -= 10;
+                    }
+                    
+                    if (std::rand() % 100 < startupChance) {
+                        newState = SYN_STATE_STARTUP;
+                        LOG_MSG(logDEBUG, "Aircraft %s starting up (chance: %d%%)", 
+                                synData.stat.call.c_str(), startupChance);
+                    }
                 }
                 break;
                 
             case SYN_STATE_STARTUP:
                 newState = SYN_STATE_TAXI_OUT;
-                // Assign a runway for departure if not already assigned
+                // Assign a realistic runway for departure if not already assigned
                 if (synData.assignedRunway.empty()) {
-                    // Generate a realistic runway designation
-                    std::string runways[] = {"09L", "09R", "27L", "27R", "01", "19", "36", "18", "06", "24"};
-                    synData.assignedRunway = runways[std::rand() % 10];
+                    synData.assignedRunway = AssignRealisticRunway(synData);
                 }
+                LOG_MSG(logDEBUG, "Aircraft %s assigned runway %s for departure", 
+                        synData.stat.call.c_str(), synData.assignedRunway.c_str());
                 break;
                 
             case SYN_STATE_TAXI_OUT:
@@ -976,61 +1003,218 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                 break;
                 
             case SYN_STATE_LINE_UP_WAIT:
-                newState = SYN_STATE_TAKEOFF;
+                // Add realistic wait time at runway threshold
+                {
+                    double waitTime = currentTime - synData.stateChangeTime;
+                    if (waitTime > 15.0) { // Wait at least 15 seconds
+                        newState = SYN_STATE_TAKEOFF;
+                        LOG_MSG(logDEBUG, "Aircraft %s cleared for takeoff after %.0f seconds wait", 
+                                synData.stat.call.c_str(), waitTime);
+                    }
+                }
                 break;
                 
             case SYN_STATE_TAKEOFF:
-                newState = SYN_STATE_CLIMB;
+                // Transition to climb when reaching safe altitude (typically 1000' AGL)
+                if (synData.pos.alt_m() > (synData.terrainElevation + 300.0)) {
+                    newState = SYN_STATE_CLIMB;
+                    // Set realistic initial cruise altitude
+                    SetRealisticCruiseAltitude(synData);
+                    LOG_MSG(logDEBUG, "Aircraft %s transitioning to climb, target altitude: %.0f ft", 
+                            synData.stat.call.c_str(), synData.targetAltitude * 3.28084);
+                }
                 break;
                 
             case SYN_STATE_CLIMB:
-                if (synData.pos.alt_m() >= synData.targetAltitude * 0.9) {
+                // Transition to cruise when approaching target altitude
+                if (synData.pos.alt_m() >= synData.targetAltitude - 150.0) { // Within 500 ft
                     newState = SYN_STATE_CRUISE;
+                    LOG_MSG(logDEBUG, "Aircraft %s leveling off at %.0f ft", 
+                            synData.stat.call.c_str(), synData.pos.alt_m() * 3.28084);
                 }
                 break;
                 
             case SYN_STATE_CRUISE:
-                // Randomly enter holding or start descent
-                if (std::rand() % 100 < 20) { // 20% chance to hold
-                    newState = SYN_STATE_HOLD;
-                } else if (std::rand() % 100 < 10) { // 10% chance to descend
-                    newState = SYN_STATE_DESCENT;
+                // Enhanced cruise behavior with realistic decision making
+                {
+                    double cruiseTime = currentTime - synData.stateChangeTime;
+                    int decision = std::rand() % 100;
+                    
+                    if (cruiseTime > 600.0) { // After 10 minutes of cruise
+                        if (decision < 15) { // 15% chance to enter holding
+                            newState = SYN_STATE_HOLD;
+                            synData.holdingTime = 0.0; // Reset holding time
+                            LOG_MSG(logDEBUG, "Aircraft %s entering holding pattern", synData.stat.call.c_str());
+                        } else if (decision < 35) { // 20% chance to start descent
+                            newState = SYN_STATE_DESCENT;
+                            SetRealisticDescentParameters(synData);
+                            LOG_MSG(logDEBUG, "Aircraft %s beginning descent", synData.stat.call.c_str());
+                        }
+                    } else if (cruiseTime > 1800.0) { // After 30 minutes, more likely to descend
+                        if (decision < 60) { // 60% chance to descend
+                            newState = SYN_STATE_DESCENT;
+                            SetRealisticDescentParameters(synData);
+                        }
+                    }
                 }
                 break;
                 
             case SYN_STATE_HOLD:
                 synData.holdingTime += currentTime - synData.stateChangeTime;
-                if (synData.holdingTime > 300.0) { // Hold for max 5 minutes
+                // Hold for 2-10 minutes with realistic probability distribution
+                double holdDuration = 120.0 + (std::rand() % 480); // 2-10 minutes
+                if (synData.holdingTime > holdDuration) {
                     newState = SYN_STATE_DESCENT;
+                    SetRealisticDescentParameters(synData);
+                    LOG_MSG(logDEBUG, "Aircraft %s leaving hold after %.1f minutes", 
+                            synData.stat.call.c_str(), synData.holdingTime / 60.0);
                 }
                 break;
                 
             case SYN_STATE_DESCENT:
-                if (synData.pos.alt_m() <= 1000.0) { // Below 1000m
+                // Transition to approach when reaching approach altitude (typically 3000' AGL)
+                double approachAltitude = synData.terrainElevation + 900.0; // 3000 ft AGL
+                if (synData.pos.alt_m() <= approachAltitude) {
                     newState = SYN_STATE_APPROACH;
+                    LOG_MSG(logDEBUG, "Aircraft %s beginning approach at %.0f ft AGL", 
+                            synData.stat.call.c_str(), (synData.pos.alt_m() - synData.terrainElevation) * 3.28084);
                 }
                 break;
                 
             case SYN_STATE_APPROACH:
-                newState = SYN_STATE_LANDING;
+                // Transition to landing when close to ground (typically 500' AGL)
+                if (synData.pos.alt_m() <= (synData.terrainElevation + 150.0)) {
+                    newState = SYN_STATE_LANDING;
+                    LOG_MSG(logDEBUG, "Aircraft %s on final approach", synData.stat.call.c_str());
+                }
                 break;
                 
             case SYN_STATE_LANDING:
-                newState = SYN_STATE_TAXI_IN;
+                // Land when very close to ground
+                if (synData.pos.alt_m() <= (synData.terrainElevation + 50.0)) {
+                    newState = SYN_STATE_TAXI_IN;
+                    LOG_MSG(logDEBUG, "Aircraft %s landed successfully", synData.stat.call.c_str());
+                }
                 break;
                 
             case SYN_STATE_TAXI_IN:
                 newState = SYN_STATE_PARKED;
+                LOG_MSG(logDEBUG, "Aircraft %s parked at gate", synData.stat.call.c_str());
                 break;
                 
             case SYN_STATE_SHUTDOWN:
-                // Aircraft lifecycle complete - could be removed
+                // Aircraft lifecycle complete - could be removed or restarted
+                {
+                    double shutdownTime = currentTime - synData.stateChangeTime;
+                    if (shutdownTime > 1800.0 && std::rand() % 100 < 20) { // 20% chance after 30 minutes
+                        newState = SYN_STATE_PARKED; // Reset for new flight
+                        LOG_MSG(logDEBUG, "Aircraft %s reset for new flight", synData.stat.call.c_str());
+                    }
+                }
                 break;
         }
         
         if (newState != synData.state) {
             HandleStateTransition(synData, newState, currentTime);
         }
+    }
+}
+
+// Assign realistic runway based on aircraft type and conditions
+std::string SyntheticConnection::AssignRealisticRunway(const SynDataTy& synData)
+{
+    // Select runway based on aircraft type and realistic patterns
+    std::vector<std::string> suitableRunways;
+    
+    switch (synData.trafficType) {
+        case SYN_TRAFFIC_GA:
+            // GA aircraft typically use shorter runways
+            suitableRunways = {"09", "27", "01", "19", "36", "18", "06", "24", "35", "17"};
+            break;
+        case SYN_TRAFFIC_AIRLINE:
+            // Airlines need longer runways, prefer parallel runways
+            suitableRunways = {"09L", "09R", "27L", "27R", "01L", "01R", "19L", "19R"};
+            break;
+        case SYN_TRAFFIC_MILITARY:
+            // Military can use various runways but prefer longer ones
+            suitableRunways = {"09L", "09C", "09R", "27L", "27C", "27R", "01", "19", "36", "18"};
+            break;
+    }
+    
+    if (suitableRunways.empty()) {
+        return "09"; // Fallback
+    }
+    
+    return suitableRunways[std::rand() % suitableRunways.size()];
+}
+
+// Set realistic cruise altitude based on aircraft type and flight rules
+void SyntheticConnection::SetRealisticCruiseAltitude(SynDataTy& synData)
+{
+    double baseAltitudeM = synData.terrainElevation;
+    
+    switch (synData.trafficType) {
+        case SYN_TRAFFIC_GA:
+            // GA typically flies 2,000-10,000 ft AGL
+            synData.targetAltitude = baseAltitudeM + (600.0 + (std::rand() % 2400)); // 2K-10K ft AGL
+            break;
+        case SYN_TRAFFIC_AIRLINE:
+            // Airlines typically cruise at flight levels (FL180-FL410)
+            {
+                int flightLevel = 180 + (std::rand() % 230); // FL180-FL410
+                // Ensure proper flight level separation (even eastbound, odd westbound simulation)
+                if (flightLevel % 20 != 0) {
+                    flightLevel = (flightLevel / 20) * 20;
+                }
+                synData.targetAltitude = flightLevel * 100.0 * 0.3048; // Convert FL to meters
+            }
+            break;
+        case SYN_TRAFFIC_MILITARY:
+            // Military varies widely, can go very high
+            synData.targetAltitude = baseAltitudeM + (1500.0 + (std::rand() % 12000)); // 5K-45K ft AGL
+            break;
+    }
+    
+    // Apply aircraft performance limits
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    if (perfData) {
+        double maxAltM = perfData->serviceCeilingFt * 0.3048;
+        synData.targetAltitude = std::min(synData.targetAltitude, maxAltM * 0.9); // 90% of service ceiling
+    }
+    
+    LOG_MSG(logDEBUG, "Set cruise altitude for %s (%s): %.0f ft MSL", 
+            synData.stat.call.c_str(), 
+            synData.trafficType == SYN_TRAFFIC_GA ? "GA" : 
+            synData.trafficType == SYN_TRAFFIC_AIRLINE ? "Airline" : "Military",
+            synData.targetAltitude * 3.28084);
+}
+
+// Set realistic descent parameters for approach
+void SyntheticConnection::SetRealisticDescentParameters(SynDataTy& synData)
+{
+    // Set descent profile based on aircraft type
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    
+    if (perfData) {
+        // Use aircraft-specific descent rates
+        double descentRateFpm = perfData->descentRateFpm;
+        
+        // Adjust for traffic type
+        switch (synData.trafficType) {
+            case SYN_TRAFFIC_GA:
+                descentRateFpm *= 0.8; // GA descends more gently
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                descentRateFpm *= 1.0; // Standard airline descent
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                descentRateFpm *= 1.2; // Military can descend more aggressively
+                break;
+        }
+        
+        synData.targetSpeed *= 0.85; // Reduce speed for descent
+        LOG_MSG(logDEBUG, "Set descent parameters for %s: %.0f fpm descent rate", 
+                synData.stat.call.c_str(), descentRateFpm);
     }
 }
 
@@ -3025,15 +3209,11 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
         return;
     }
     
-    // If no flight path exists, generate one
-    if (synData.flightPath.empty()) {
-        // Generate a basic flight path for this aircraft
-        positionTy destination = synData.pos;
-        destination.lat() += (std::rand() % 200 - 100) / 1000.0; // ±0.1 degrees
-        destination.lon() += (std::rand() % 200 - 100) / 1000.0;
-        destination.alt_m() = synData.targetAltitude;
-        
-        GenerateFlightPath(synData, synData.pos, destination);
+    // Enhanced navigation with realistic flight path management
+    
+    // If no flight path exists or current path is complete, generate a new one
+    if (synData.flightPath.empty() || synData.currentWaypoint >= synData.flightPath.size()) {
+        GenerateRealisticFlightPath(synData);
     }
     
     // Get current target waypoint
@@ -3042,32 +3222,300 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
         
         // Calculate bearing to target waypoint
         double bearing = synData.pos.angle(synData.targetWaypoint);
-        synData.targetHeading = bearing;
         
-        // Check if we've reached the current waypoint
+        // Apply realistic navigation behavior based on flight state
+        switch (synData.state) {
+            case SYN_STATE_TAKEOFF:
+            case SYN_STATE_CLIMB:
+                // Follow departure procedures - gradual heading changes
+                synData.targetHeading = ApplyDepartureNavigation(synData, bearing);
+                break;
+                
+            case SYN_STATE_CRUISE:
+            case SYN_STATE_HOLD:
+                // Cruise navigation - follow airways and waypoints
+                synData.targetHeading = ApplyCruiseNavigation(synData, bearing);
+                break;
+                
+            case SYN_STATE_DESCENT:
+            case SYN_STATE_APPROACH:
+                // Arrival procedures - follow STAR and approach patterns
+                synData.targetHeading = ApplyArrivalNavigation(synData, bearing);
+                break;
+                
+            case SYN_STATE_LANDING:
+                // Final approach - align with runway
+                synData.targetHeading = bearing; // Direct to runway
+                break;
+        }
+        
+        // Check if we've reached the current waypoint with realistic tolerance
         double distanceToWaypoint = synData.pos.dist(synData.targetWaypoint);
-        if (distanceToWaypoint < 500.0) { // Within 500m of waypoint
+        double waypointTolerance = GetWaypointTolerance(synData.state, synData.trafficType);
+        
+        if (distanceToWaypoint < waypointTolerance) {
             synData.currentWaypoint++;
             
-            if (synData.currentWaypoint >= synData.flightPath.size()) {
-                // Reached end of flight path, generate new one if still in cruise
-                if (synData.state == SYN_STATE_CRUISE) {
-                    positionTy newDestination = synData.pos;
-                    newDestination.lat() += (std::rand() % 200 - 100) / 1000.0;
-                    newDestination.lon() += (std::rand() % 200 - 100) / 1000.0;
-                    newDestination.alt_m() = synData.targetAltitude;
-                    
-                    GenerateFlightPath(synData, synData.pos, newDestination);
+            if (synData.currentWaypoint < synData.flightPath.size()) {
+                LOG_MSG(logDEBUG, "Aircraft %s reached waypoint %zu, proceeding to next", 
+                        synData.stat.call.c_str(), synData.currentWaypoint - 1);
+            } else {
+                LOG_MSG(logDEBUG, "Aircraft %s completed flight path", synData.stat.call.c_str());
+                
+                // Generate continuation based on flight state
+                if (synData.state == SYN_STATE_CRUISE || synData.state == SYN_STATE_HOLD) {
+                    GenerateRealisticFlightPath(synData);
                     synData.currentWaypoint = 0;
                 }
             }
         }
     }
     
-    // Smooth heading changes to avoid sharp turns
+    // Apply smooth heading changes with realistic turn rates
     double deltaTime = currentTime - synData.lastPosUpdateTime;
     if (deltaTime > 0.0) {
+        // Set realistic turn rate based on aircraft type and flight state
+        double maxTurnRate = GetRealisticTurnRate(synData);
+        synData.headingChangeRate = maxTurnRate;
+        
         SmoothHeadingChange(synData, synData.targetHeading, deltaTime);
+    }
+}
+
+// Generate realistic flight path based on aircraft state and type
+void SyntheticConnection::GenerateRealisticFlightPath(SynDataTy& synData)
+{
+    synData.flightPath.clear();
+    synData.currentWaypoint = 0;
+    
+    positionTy currentPos = synData.pos;
+    
+    switch (synData.state) {
+        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_CLIMB:
+            // Generate departure path
+            GenerateDeparturePath(synData, currentPos);
+            break;
+            
+        case SYN_STATE_CRUISE:
+        case SYN_STATE_HOLD:
+            // Generate cruise waypoints along realistic airways
+            GenerateCruisePath(synData, currentPos);
+            break;
+            
+        case SYN_STATE_DESCENT:
+        case SYN_STATE_APPROACH:
+            // Generate arrival path
+            GenerateArrivalPath(synData, currentPos);
+            break;
+            
+        default:
+            // Generate basic waypoints for other states
+            GenerateBasicPath(synData, currentPos);
+            break;
+    }
+    
+    LOG_MSG(logDEBUG, "Generated flight path with %zu waypoints for %s in state %d", 
+            synData.flightPath.size(), synData.stat.call.c_str(), synData.state);
+}
+
+// Apply departure navigation procedures
+double SyntheticConnection::ApplyDepartureNavigation(SynDataTy& synData, double bearing)
+{
+    // Departure navigation follows SID procedures with gradual turns
+    double currentHeading = synData.pos.heading();
+    double headingDiff = bearing - currentHeading;
+    
+    // Normalize heading difference
+    while (headingDiff > 180.0) headingDiff -= 360.0;
+    while (headingDiff < -180.0) headingDiff += 360.0;
+    
+    // Limit heading changes during climb for safety
+    double maxHeadingChange = 2.0; // degrees per update for departure
+    if (std::abs(headingDiff) > maxHeadingChange) {
+        headingDiff = (headingDiff > 0) ? maxHeadingChange : -maxHeadingChange;
+    }
+    
+    return currentHeading + headingDiff;
+}
+
+// Apply cruise navigation following airways
+double SyntheticConnection::ApplyCruiseNavigation(SynDataTy& synData, double bearing)
+{
+    // Cruise navigation follows airways and maintains efficient routing
+    double currentHeading = synData.pos.heading();
+    double headingDiff = bearing - currentHeading;
+    
+    // Normalize heading difference
+    while (headingDiff > 180.0) headingDiff -= 360.0;
+    while (headingDiff < -180.0) headingDiff += 360.0;
+    
+    // More aggressive turns allowed in cruise
+    double maxHeadingChange = 3.0; // degrees per update for cruise
+    if (std::abs(headingDiff) > maxHeadingChange) {
+        headingDiff = (headingDiff > 0) ? maxHeadingChange : -maxHeadingChange;
+    }
+    
+    return currentHeading + headingDiff;
+}
+
+// Apply arrival navigation procedures
+double SyntheticConnection::ApplyArrivalNavigation(SynDataTy& synData, double bearing)
+{
+    // Arrival navigation follows STAR procedures with precision
+    double currentHeading = synData.pos.heading();
+    double headingDiff = bearing - currentHeading;
+    
+    // Normalize heading difference
+    while (headingDiff > 180.0) headingDiff -= 360.0;
+    while (headingDiff < -180.0) headingDiff += 360.0;
+    
+    // Moderate turns for approach stability
+    double maxHeadingChange = (synData.state == SYN_STATE_APPROACH) ? 1.5 : 2.5; // Slower for approach
+    if (std::abs(headingDiff) > maxHeadingChange) {
+        headingDiff = (headingDiff > 0) ? maxHeadingChange : -maxHeadingChange;
+    }
+    
+    return currentHeading + headingDiff;
+}
+
+// Get waypoint tolerance based on flight state and aircraft type
+double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, SyntheticTrafficType trafficType)
+{
+    double baseTolerance = 500.0; // 500m base tolerance
+    
+    // Adjust for flight state
+    switch (state) {
+        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_CLIMB:
+            baseTolerance = 800.0; // Larger tolerance during climb
+            break;
+        case SYN_STATE_CRUISE:
+        case SYN_STATE_HOLD:
+            baseTolerance = 1000.0; // Larger tolerance in cruise
+            break;
+        case SYN_STATE_DESCENT:
+            baseTolerance = 600.0; // Moderate tolerance during descent
+            break;
+        case SYN_STATE_APPROACH:
+        case SYN_STATE_LANDING:
+            baseTolerance = 300.0; // Tight tolerance for precision approach
+            break;
+    }
+    
+    // Adjust for aircraft type
+    switch (trafficType) {
+        case SYN_TRAFFIC_GA:
+            baseTolerance *= 0.7; // GA flies more precisely to waypoints
+            break;
+        case SYN_TRAFFIC_AIRLINE:
+            baseTolerance *= 1.0; // Standard tolerance
+            break;
+        case SYN_TRAFFIC_MILITARY:
+            baseTolerance *= 1.3; // Military may have larger tolerances
+            break;
+    }
+    
+    return baseTolerance;
+}
+
+// Get realistic turn rate based on aircraft type and flight state
+double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
+{
+    double baseTurnRate = 2.0; // degrees per second
+    
+    // Adjust for aircraft type
+    switch (synData.trafficType) {
+        case SYN_TRAFFIC_GA:
+            baseTurnRate = 3.0; // GA can turn faster
+            break;
+        case SYN_TRAFFIC_AIRLINE:
+            baseTurnRate = 1.5; // Airlines turn more slowly for passenger comfort
+            break;
+        case SYN_TRAFFIC_MILITARY:
+            baseTurnRate = 4.0; // Military can turn aggressively
+            break;
+    }
+    
+    // Adjust for flight state
+    switch (synData.state) {
+        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_CLIMB:
+            baseTurnRate *= 0.7; // Slower turns during climb
+            break;
+        case SYN_STATE_APPROACH:
+        case SYN_STATE_LANDING:
+            baseTurnRate *= 0.5; // Very slow turns on approach
+            break;
+        case SYN_STATE_CRUISE:
+        case SYN_STATE_DESCENT:
+            baseTurnRate *= 1.0; // Normal turn rate
+            break;
+        case SYN_STATE_HOLD:
+            baseTurnRate *= 0.8; // Gentle turns in holding pattern
+            break;
+    }
+    
+    return baseTurnRate;
+}
+
+// Generate departure flight path with realistic SID procedures
+void SyntheticConnection::GenerateDeparturePath(SynDataTy& synData, const positionTy& currentPos)
+{
+    // Generate realistic departure path following SID procedures
+    positionTy waypoint = currentPos;
+    
+    // Add departure waypoints with realistic spacing
+    for (int i = 1; i <= 4; i++) {
+        waypoint.lat() += (std::rand() % 20 - 10) / 1000.0 * i; // Increasing distance
+        waypoint.lon() += (std::rand() % 20 - 10) / 1000.0 * i;
+        waypoint.alt_m() = currentPos.alt_m() + (i * 300.0); // Gradual climb
+        synData.flightPath.push_back(waypoint);
+    }
+}
+
+// Generate cruise flight path following airways
+void SyntheticConnection::GenerateCruisePath(SynDataTy& synData, const positionTy& currentPos)
+{
+    // Generate realistic cruise path following airways
+    positionTy waypoint = currentPos;
+    
+    // Add cruise waypoints at typical airway intervals (50-100nm)
+    for (int i = 1; i <= 6; i++) {
+        waypoint.lat() += (std::rand() % 100 - 50) / 1000.0; // ±50 nautical miles
+        waypoint.lon() += (std::rand() % 100 - 50) / 1000.0;
+        waypoint.alt_m() = synData.targetAltitude; // Maintain cruise altitude
+        synData.flightPath.push_back(waypoint);
+    }
+}
+
+// Generate arrival flight path with STAR procedures
+void SyntheticConnection::GenerateArrivalPath(SynDataTy& synData, const positionTy& currentPos)
+{
+    // Generate realistic arrival path following STAR procedures
+    positionTy waypoint = currentPos;
+    
+    // Add arrival waypoints with descending altitudes
+    for (int i = 1; i <= 5; i++) {
+        waypoint.lat() += (std::rand() % 15 - 7) / 1000.0; // Tighter pattern
+        waypoint.lon() += (std::rand() % 15 - 7) / 1000.0;
+        waypoint.alt_m() = currentPos.alt_m() - (i * 200.0); // Gradual descent
+        waypoint.alt_m() = std::max(waypoint.alt_m(), synData.terrainElevation + 300.0); // Stay above ground
+        synData.flightPath.push_back(waypoint);
+    }
+}
+
+// Generate basic flight path for simple navigation
+void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy& currentPos)
+{
+    // Generate simple waypoints for basic navigation
+    positionTy waypoint = currentPos;
+    
+    for (int i = 1; i <= 3; i++) {
+        waypoint.lat() += (std::rand() % 30 - 15) / 1000.0;
+        waypoint.lon() += (std::rand() % 30 - 15) / 1000.0;
+        waypoint.alt_m() = currentPos.alt_m(); // Maintain current altitude
+        synData.flightPath.push_back(waypoint);
     }
 }
 

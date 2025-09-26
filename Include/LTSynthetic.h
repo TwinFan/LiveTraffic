@@ -436,6 +436,25 @@ protected:
     /// Handle state transitions for AI aircraft
     void HandleStateTransition(SynDataTy& synData, SyntheticFlightState newState, double currentTime);
     
+    /// Enhanced AI behavior helper functions
+    std::string AssignRealisticRunway(const SynDataTy& synData);
+    void SetRealisticCruiseAltitude(SynDataTy& synData);
+    void SetRealisticDescentParameters(SynDataTy& synData);
+    
+    /// Enhanced navigation system functions
+    void GenerateRealisticFlightPath(SynDataTy& synData);
+    double ApplyDepartureNavigation(SynDataTy& synData, double bearing);
+    double ApplyCruiseNavigation(SynDataTy& synData, double bearing);
+    double ApplyArrivalNavigation(SynDataTy& synData, double bearing);
+    double GetWaypointTolerance(SyntheticFlightState state, SyntheticTrafficType trafficType);
+    double GetRealisticTurnRate(const SynDataTy& synData);
+    
+    /// Flight path generation functions
+    void GenerateDeparturePath(SynDataTy& synData, const positionTy& currentPos);
+    void GenerateCruisePath(SynDataTy& synData, const positionTy& currentPos);
+    void GenerateArrivalPath(SynDataTy& synData, const positionTy& currentPos);
+    void GenerateBasicPath(SynDataTy& synData, const positionTy& currentPos);
+    
     /// Calculate performance parameters based on aircraft type
     void CalculatePerformance(SynDataTy& synData);
     
