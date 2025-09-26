@@ -26,6 +26,15 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+// Define whether XPMP2 model enumeration functions are available
+// This can be set by the build system or detected at runtime
+#ifdef XPMP_2_4_OR_LATER
+#define XPMP_HAS_MODEL_ENUMERATION 1
+#else
+// For compatibility, assume the functions are not available unless explicitly enabled
+// #define XPMP_HAS_MODEL_ENUMERATION 1
+#endif
+
 // Windows SAPI includes for Text-to-Speech
 #if IBM
 #include <sapi.h>
@@ -4958,7 +4967,7 @@ std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::st
     const std::string sidNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
     
     // Add some realistic SID names
-    for (int i = 0; i < 3 && i < static_cast<int>(std::size(sidNames)); i++) {
+    for (int i = 0; i < 3 && i < static_cast<int>(sizeof(sidNames)/sizeof(sidNames[0])); i++) {
         for (const auto& suffix : sidSuffixes) {
             if (sids.size() >= 8) break; // Limit number of SIDs
             sids.push_back(sidNames[i] + suffix);
@@ -4987,7 +4996,7 @@ std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::s
     const std::string starNames[] = {"ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT"};
     
     // Add some realistic STAR names
-    for (int i = 0; i < 3 && i < static_cast<int>(std::size(starNames)); i++) {
+    for (int i = 0; i < 3 && i < static_cast<int>(sizeof(starNames)/sizeof(starNames[0])); i++) {
         for (const auto& suffix : starSuffixes) {
             if (stars.size() >= 8) break; // Limit number of STARs
             stars.push_back(starNames[i] + suffix);
@@ -5378,10 +5387,28 @@ void SyntheticConnection::ScanAvailableCSLModels()
     availableCSLModels.clear();
     cslModelsByType.clear();
     
-    // Get number of installed CSL models from XPMP2
-    int numModels = XPMPGetNumberOfInstalledModels();
+    // Check if XPMP2 functions are available before using them
+    // These functions may not exist in all XPMP2 versions
+    int numModels = 0;
+    
+#ifdef XPMP_HAS_MODEL_ENUMERATION
+    try {
+        // Get number of installed CSL models from XPMP2
+        numModels = XPMPGetNumberOfInstalledModels();
+    } catch (...) {
+        LOG_MSG(logWARN, "XPMP2 model enumeration functions not available, using fallback CSL model detection");
+        numModels = 0;
+    }
+#else
+    // XPMP2 model enumeration not available in this version
+    LOG_MSG(logINFO, "XPMP2 model enumeration not available - synthetic aircraft will use predefined fallback models");
+    numModels = 0;
+#endif
+    
     if (numModels == 0) {
-        LOG_MSG(logINFO, "No CSL models found by XPMP2 - synthetic aircraft will use fallback models");
+        LOG_MSG(logINFO, "No CSL models found by XPMP2 or enumeration not available - synthetic aircraft will use fallback models");
+        // Create fallback CSL model entries for basic functionality
+        CreateFallbackCSLModels();
         return;
     }
     
@@ -5395,7 +5422,12 @@ void SyntheticConnection::ScanAvailableCSLModels()
         std::string modelName, icaoType, airline, livery;
         
         try {
+#ifdef XPMP_HAS_MODEL_ENUMERATION
             XPMPGetModelInfo2(i, modelName, icaoType, airline, livery);
+#else
+            // This should never execute if numModels is 0, but safety check
+            continue;
+#endif
             
             // Enhanced validation - ensure we have minimum required data
             if (modelName.empty() || icaoType.empty() || icaoType.length() < 3) {
@@ -5459,6 +5491,68 @@ void SyntheticConnection::ScanAvailableCSLModels()
         LOG_MSG(logWARN, "Very few Airline CSL models found (%d) - synthetic airline traffic may be repetitive", 
                 static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()));
     }
+}
+
+// Create fallback CSL models when XPMP2 enumeration is not available
+void SyntheticConnection::CreateFallbackCSLModels()
+{
+    // Define basic fallback aircraft models for each category
+    struct FallbackModel {
+        std::string icaoType;
+        std::string description;
+        SyntheticTrafficType category;
+    };
+    
+    const FallbackModel fallbackModels[] = {
+        // General Aviation
+        {"C172", "Cessna 172", SYN_TRAFFIC_GA},
+        {"C152", "Cessna 152", SYN_TRAFFIC_GA},
+        {"C182", "Cessna 182", SYN_TRAFFIC_GA},
+        {"PA28", "Piper Cherokee", SYN_TRAFFIC_GA},
+        {"BE20", "Beechcraft King Air", SYN_TRAFFIC_GA},
+        {"TBM8", "TBM 850", SYN_TRAFFIC_GA},
+        
+        // Airlines
+        {"B738", "Boeing 737-800", SYN_TRAFFIC_AIRLINE},
+        {"A320", "Airbus A320", SYN_TRAFFIC_AIRLINE},
+        {"A319", "Airbus A319", SYN_TRAFFIC_AIRLINE},
+        {"B737", "Boeing 737", SYN_TRAFFIC_AIRLINE},
+        {"A321", "Airbus A321", SYN_TRAFFIC_AIRLINE},
+        {"B77W", "Boeing 777-300ER", SYN_TRAFFIC_AIRLINE},
+        {"A359", "Airbus A350-900", SYN_TRAFFIC_AIRLINE},
+        {"CRJ2", "Canadair Regional Jet", SYN_TRAFFIC_AIRLINE},
+        {"E170", "Embraer E-Jet 170", SYN_TRAFFIC_AIRLINE},
+        {"DH8D", "Dash 8 Q400", SYN_TRAFFIC_AIRLINE},
+        
+        // Military
+        {"F16", "F-16 Fighting Falcon", SYN_TRAFFIC_MILITARY},
+        {"F18", "F/A-18 Hornet", SYN_TRAFFIC_MILITARY},
+        {"C130", "C-130 Hercules", SYN_TRAFFIC_MILITARY},
+        {"KC10", "KC-10 Extender", SYN_TRAFFIC_MILITARY},
+        {"A10", "A-10 Thunderbolt II", SYN_TRAFFIC_MILITARY}
+    };
+    
+    LOG_MSG(logINFO, "Creating fallback CSL model database with %zu aircraft types", 
+            sizeof(fallbackModels)/sizeof(fallbackModels[0]));
+    
+    for (const auto& model : fallbackModels) {
+        CSLModelData modelData;
+        modelData.modelName = model.description;
+        modelData.icaoType = model.icaoType;
+        modelData.airline = ""; // No specific airline for fallback models
+        modelData.livery = "Default";
+        modelData.category = model.category;
+        
+        // Add to our database
+        size_t index = availableCSLModels.size();
+        availableCSLModels.push_back(modelData);
+        cslModelsByType[modelData.category].push_back(index);
+    }
+    
+    LOG_MSG(logINFO, "Fallback CSL models created: GA=%d, Airlines=%d, Military=%d", 
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_GA].size()),
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()),
+            static_cast<int>(cslModelsByType[SYN_TRAFFIC_MILITARY].size()));
 }
 
 // Categorize aircraft type from ICAO code

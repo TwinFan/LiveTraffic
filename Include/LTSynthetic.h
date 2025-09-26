@@ -406,6 +406,7 @@ public:
     
     /// CSL Model scanning and selection
     void ScanAvailableCSLModels();
+    void CreateFallbackCSLModels();
     SyntheticTrafficType CategorizeAircraftType(const std::string& icaoType);
     std::vector<std::string> GetAvailableCSLModels(SyntheticTrafficType trafficType);
     std::string SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& route);
