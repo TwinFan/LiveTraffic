@@ -855,66 +855,254 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
     
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
-            const char* gaTypes[] = {"C172", "C152", "PA28", "C182", "SR22", "BE36"};
-            acType = gaTypes[std::rand() % 6];
+            // Weighted selection based on real-world GA aircraft popularity
+            // Weights reflect actual fleet numbers and training aircraft usage
+            struct GASelection {
+                const char* type;
+                int weight;
+            };
             
-            // For GA, route length might influence aircraft choice
+            GASelection gaTypes[] = {
+                {"C172", 40},   // Most popular trainer and rental aircraft
+                {"PA28", 20},   // Popular Cherokee/Warrior family
+                {"C182", 15},   // High-performance single
+                {"C152", 12},   // Popular older trainer
+                {"SR22", 8},    // Modern high-performance (expensive, less common)
+                {"BE36", 5}     // Bonanza (premium GA)
+            };
+            
+            // Route-based aircraft selection refinement
             if (!route.empty()) {
                 if (route.find("long") != std::string::npos || route.find("IFR") != std::string::npos) {
                     // Long distance GA flights prefer more capable aircraft
-                    const char* longDistanceGA[] = {"SR22", "BE36", "C182"};
-                    acType = longDistanceGA[std::rand() % 3];
+                    GASelection longDistanceGA[] = {
+                        {"SR22", 40},
+                        {"C182", 35}, 
+                        {"BE36", 25}
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : longDistanceGA) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : longDistanceGA) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
                 } else if (route.find("local") != std::string::npos || route.find("VFR") != std::string::npos) {
-                    // Local flights can use basic trainers
-                    const char* localGA[] = {"C172", "C152", "PA28"};
-                    acType = localGA[std::rand() % 3];
+                    // Local flights heavily favor basic trainers
+                    GASelection localGA[] = {
+                        {"C172", 50},
+                        {"PA28", 30},
+                        {"C152", 20}
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : localGA) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : localGA) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                } else {
+                    // General selection with realistic weights
+                    int totalWeight = 0;
+                    for (const auto& sel : gaTypes) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : gaTypes) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default weighted selection
+                int totalWeight = 0;
+                for (const auto& sel : gaTypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : gaTypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) {
+                        acType = sel.type;
+                        break;
+                    }
                 }
             }
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
-            const char* airlineTypes[] = {"B737", "A320", "B777", "A330", "B787", "A350"};
-            acType = airlineTypes[std::rand() % 6];
+            // Weighted selection based on real-world airline fleet sizes
+            struct AirlineSelection {
+                const char* type;
+                int weight;
+            };
+            
+            AirlineSelection airlineTypes[] = {
+                {"B737", 35},   // Most popular narrow body worldwide
+                {"A320", 35},   // Equally popular narrow body
+                {"B777", 10},   // Popular wide body
+                {"A330", 8},    // Wide body
+                {"B787", 7},    // Modern wide body
+                {"A350", 5}     // Newer wide body
+            };
             
             // Route characteristics influence aircraft selection
             if (!route.empty()) {
                 if (route.find("domestic") != std::string::npos || route.find("short") != std::string::npos) {
-                    // Short haul domestic - prefer narrow body
-                    const char* shortHaul[] = {"B737", "A320"};
-                    acType = shortHaul[std::rand() % 2];
+                    // Short haul domestic strongly favors narrow body
+                    AirlineSelection shortHaul[] = {
+                        {"B737", 50},
+                        {"A320", 50}
+                    };
+                    acType = shortHaul[std::rand() % 2].type;
                 } else if (route.find("international") != std::string::npos || route.find("long") != std::string::npos || 
                           route.find("FL350+") != std::string::npos) {
-                    // Long haul international - prefer wide body
-                    const char* longHaul[] = {"B777", "A330", "B787", "A350"};
-                    acType = longHaul[std::rand() % 4];
+                    // Long haul international prefers wide body
+                    AirlineSelection longHaul[] = {
+                        {"B777", 30},
+                        {"A330", 25},
+                        {"B787", 25},
+                        {"A350", 20}
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : longHaul) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : longHaul) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                } else {
+                    // Mixed selection with realistic weights
+                    int totalWeight = 0;
+                    for (const auto& sel : airlineTypes) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : airlineTypes) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default weighted selection
+                int totalWeight = 0;
+                for (const auto& sel : airlineTypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : airlineTypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) {
+                        acType = sel.type;
+                        break;
+                    }
                 }
             }
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
-            const char* militaryTypes[] = {"F16", "F18", "C130", "KC135", "E3", "B2"};
-            acType = militaryTypes[std::rand() % 6];
+            // Military aircraft selection based on mission type
+            struct MilitarySelection {
+                const char* type;
+                int weight;
+            };
             
             // Route type affects military aircraft selection
             if (!route.empty()) {
                 if (route.find("transport") != std::string::npos || route.find("strategic") != std::string::npos) {
                     // Transport/strategic missions - prefer cargo/tanker aircraft
-                    const char* transport[] = {"C130", "KC135", "E3"};
-                    acType = transport[std::rand() % 3];
+                    MilitarySelection transport[] = {
+                        {"C130", 60},   // Workhorse tactical transport
+                        {"KC135", 25},  // Strategic tanker
+                        {"E3", 15}      // AWACS surveillance
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : transport) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : transport) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
                 } else if (route.find("local ops") != std::string::npos || route.find("patrol") != std::string::npos) {
                     // Local operations - prefer fighters
-                    const char* fighters[] = {"F16", "F18"};
-                    acType = fighters[std::rand() % 2];
+                    MilitarySelection fighters[] = {
+                        {"F16", 60},    // Most common NATO fighter
+                        {"F18", 40}     // US Navy/Marine fighter
+                    };
+                    acType = (std::rand() % 100 < 60) ? "F16" : "F18";
                 } else if (route.find("FL400+") != std::string::npos) {
                     // High altitude - prefer strategic bombers or surveillance
-                    const char* highAlt[] = {"B2", "E3"};
-                    acType = highAlt[std::rand() % 2];
+                    MilitarySelection highAlt[] = {
+                        {"E3", 70},     // AWACS can fly high
+                        {"B2", 30}      // Strategic bomber
+                    };
+                    acType = (std::rand() % 100 < 70) ? "E3" : "B2";
+                } else {
+                    // General military mix
+                    MilitarySelection militaryTypes[] = {
+                        {"F16", 25},
+                        {"F18", 20},
+                        {"C130", 30},
+                        {"KC135", 15},
+                        {"E3", 8},
+                        {"B2", 2}       // Very rare
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : militaryTypes) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : militaryTypes) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default military selection
+                MilitarySelection militaryTypes[] = {
+                    {"F16", 30},
+                    {"F18", 25},
+                    {"C130", 25},
+                    {"KC135", 12},
+                    {"E3", 6},
+                    {"B2", 2}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : militaryTypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : militaryTypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) {
+                        acType = sel.type;
+                        break;
+                    }
                 }
             }
             break;
         }
         default:
-            acType = "C172";
+            acType = "C172"; // Safe default
             break;
     }
     
@@ -1136,6 +1324,21 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         if (altitudeChangeRate != 0.0) {
             double newAltitude = synData.pos.alt_m() + (altitudeChangeRate * deltaTime);
             
+            // Apply aircraft performance constraints
+            const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+            if (perfData) {
+                double maxAltM = perfData->maxAltFt * 0.3048; // Convert ft to m
+                double serviceCeilingM = perfData->serviceCeilingFt * 0.3048;
+                
+                // Don't exceed aircraft's maximum altitude
+                newAltitude = std::min(newAltitude, maxAltM);
+                
+                // Reduce climb rate significantly above service ceiling
+                if (newAltitude > serviceCeilingM && altitudeChangeRate > 0.0) {
+                    newAltitude = std::min(newAltitude, serviceCeilingM + 300.0); // Allow 300m above service ceiling
+                }
+            }
+            
             // Apply altitude constraints based on flight state
             switch (synData.state) {
                 case SYN_STATE_TAKEOFF:
@@ -1147,6 +1350,11 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                     // Don't exceed target altitude
                     if (newAltitude >= synData.targetAltitude) {
                         newAltitude = synData.targetAltitude;
+                        // Consider transitioning to cruise if we've reached target altitude
+                        if (std::abs(newAltitude - synData.targetAltitude) < 50.0) {
+                            // Close enough to target altitude, could transition to cruise
+                            // This will be handled by the AI behavior update in the next cycle
+                        }
                     }
                     break;
                     
@@ -1689,3 +1897,55 @@ const AircraftPerformance* SyntheticConnection::GetAircraftPerformance(const std
     auto it = aircraftPerfDB.find(icaoType);
     return (it != aircraftPerfDB.end()) ? &(it->second) : nullptr;
 }
+
+// Test function to validate aircraft performance database (for debugging)
+#ifdef DEBUG
+void SyntheticConnection::ValidateAircraftPerformanceDB()
+{
+    LOG_MSG(logDEBUG, "Validating aircraft performance database...");
+    
+    for (const auto& pair : aircraftPerfDB) {
+        const std::string& type = pair.first;
+        const AircraftPerformance& perf = pair.second;
+        
+        // Basic validation checks
+        bool isValid = true;
+        std::string errors;
+        
+        if (perf.cruiseSpeedKts <= perf.stallSpeedKts) {
+            errors += "cruise speed <= stall speed; ";
+            isValid = false;
+        }
+        
+        if (perf.approachSpeedKts <= perf.stallSpeedKts) {
+            errors += "approach speed <= stall speed; ";
+            isValid = false;
+        }
+        
+        if (perf.maxSpeedKts < perf.cruiseSpeedKts) {
+            errors += "max speed < cruise speed; ";
+            isValid = false;
+        }
+        
+        if (perf.serviceCeilingFt <= 0 || perf.maxAltFt <= 0) {
+            errors += "invalid altitude limits; ";
+            isValid = false;
+        }
+        
+        if (perf.climbRateFpm <= 0 || perf.descentRateFpm <= 0) {
+            errors += "invalid climb/descent rates; ";
+            isValid = false;
+        }
+        
+        if (isValid) {
+            LOG_MSG(logDEBUG, "%s: VALID - Cruise=%0.0f kts, Service ceiling=%0.0f ft, Climb=%0.0f fpm", 
+                    type.c_str(), perf.cruiseSpeedKts, perf.serviceCeilingFt, perf.climbRateFpm);
+        } else {
+            LOG_MSG(logERR, "%s: INVALID - %s", type.c_str(), errors.c_str());
+        }
+    }
+    
+    LOG_MSG(logDEBUG, "Aircraft performance database validation complete. %zu aircraft types loaded.", 
+            aircraftPerfDB.size());
+}
+#endif

@@ -206,6 +206,11 @@ protected:
     /// Aircraft performance database
     static std::map<std::string, AircraftPerformance> aircraftPerfDB;
     
+#ifdef DEBUG
+    /// Validate aircraft performance database (debug only)
+    static void ValidateAircraftPerformanceDB();
+#endif
+    
     /// Update aircraft position based on movement
     void UpdateAircraftPosition(SynDataTy& synData, double currentTime);
     
