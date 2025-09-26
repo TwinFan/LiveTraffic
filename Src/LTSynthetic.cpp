@@ -38,10 +38,16 @@ SyntheticConnection::mapSynDataTy SyntheticConnection::mapSynData;
 // Configuration for synthetic traffic
 SyntheticTrafficConfig SyntheticConnection::config;
 
+// Aircraft performance database
+std::map<std::string, AircraftPerformance> SyntheticConnection::aircraftPerfDB;
+
 // Constructor
 SyntheticConnection::SyntheticConnection () :
 LTFlightDataChannel(DR_CHANNEL_SYNTHETIC, SYNTHETIC_NAME, CHT_SYNTHETIC_DATA)
-{}
+{
+    // Initialize aircraft performance database on first construction
+    InitializeAircraftPerformanceDB();
+}
 
 
 // virtual thread main function
@@ -551,24 +557,44 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.stat.acTypeIcao = acType;
     synData.stat.mdl = acType;
     
-    // Set performance parameters
-    switch (trafficType) {
-        case SYN_TRAFFIC_GA:
-            synData.targetSpeed = 60.0; // 60 m/s (~120 kts) for GA
-            synData.targetAltitude = pos.alt_m() + 500.0; // 500m above current
-            break;
-        case SYN_TRAFFIC_AIRLINE:
-            synData.targetSpeed = 120.0; // 120 m/s (~240 kts) for airlines
-            synData.targetAltitude = pos.alt_m() + 2000.0; // 2000m above current
-            break;
-        case SYN_TRAFFIC_MILITARY:
-            synData.targetSpeed = 200.0; // 200 m/s (~400 kts) for military
-            synData.targetAltitude = pos.alt_m() + 3000.0; // 3000m above current
-            break;
-        default:
-            synData.targetSpeed = 80.0;
-            synData.targetAltitude = pos.alt_m() + 1000.0;
-            break;
+    // Set initial performance parameters using aircraft-specific data
+    const AircraftPerformance* perfData = GetAircraftPerformance(acType);
+    if (perfData) {
+        // Use aircraft-specific performance for initial setup
+        synData.targetSpeed = perfData->cruiseSpeedKts * 0.514444; // Convert kts to m/s
+        
+        // Set realistic target altitude based on aircraft type
+        double serviceCeilingM = perfData->serviceCeilingFt * 0.3048; // Convert ft to m
+        double currentAltM = pos.alt_m();
+        
+        // Target altitude is a fraction of service ceiling, but not too low
+        double minTargetAlt = currentAltM + 500.0; // At least 500m above current
+        double maxTargetAlt = serviceCeilingM * 0.8; // 80% of service ceiling
+        synData.targetAltitude = std::max(minTargetAlt, std::min(maxTargetAlt, currentAltM + serviceCeilingM * 0.3));
+        
+        LOG_MSG(logDEBUG, "Set initial performance for %s: speed=%0.1f kts, target alt=%0.0f ft", 
+                acType.c_str(), synData.targetSpeed / 0.514444, synData.targetAltitude / 0.3048);
+    } else {
+        // Fallback to generic performance by traffic type
+        switch (trafficType) {
+            case SYN_TRAFFIC_GA:
+                synData.targetSpeed = 120.0 * 0.514444; // 120 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 1500.0; // 1500m above current
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                synData.targetSpeed = 460.0 * 0.514444; // 460 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 10000.0; // 10km above current (cruise altitude)
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                synData.targetSpeed = 500.0 * 0.514444; // 500 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 15000.0; // 15km above current
+                break;
+            default:
+                synData.targetSpeed = 150.0 * 0.514444; // 150 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 3000.0; // 3km above current
+                break;
+        }
+        LOG_MSG(logDEBUG, "Set generic performance for %s (traffic type %d)", acType.c_str(), trafficType);
     }
     
     // Initialize other parameters
@@ -898,43 +924,101 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
 // Calculate performance parameters based on aircraft type
 void SyntheticConnection::CalculatePerformance(SynDataTy& synData)
 {
-    // Adjust speed and altitude based on flight state and aircraft type
-    double baseSpeed = 60.0; // Default GA speed
+    // Get aircraft-specific performance data
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
     
-    switch (synData.trafficType) {
-        case SYN_TRAFFIC_GA:
-            baseSpeed = 60.0; // ~120 kts
-            break;
-        case SYN_TRAFFIC_AIRLINE:
-            baseSpeed = 120.0; // ~240 kts
-            break;
-        case SYN_TRAFFIC_MILITARY:
-            baseSpeed = 200.0; // ~400 kts
-            break;
+    // Default values if no specific performance data is found (fallback to traffic type)
+    double cruiseSpeedKts = 120;
+    double approachSpeedKts = 80;
+    double taxiSpeedKts = 15;
+    double stallSpeedKts = 60;
+    
+    if (perfData) {
+        // Use aircraft-specific performance data
+        cruiseSpeedKts = perfData->cruiseSpeedKts;
+        approachSpeedKts = perfData->approachSpeedKts;
+        taxiSpeedKts = perfData->taxiSpeedKts;
+        stallSpeedKts = perfData->stallSpeedKts;
+        
+        LOG_MSG(logDEBUG, "Using performance data for %s: cruise=%0.0f kts, approach=%0.0f kts", 
+                synData.stat.acTypeIcao.c_str(), cruiseSpeedKts, approachSpeedKts);
+    } else {
+        // Fallback to generic performance by traffic type
+        switch (synData.trafficType) {
+            case SYN_TRAFFIC_GA:
+                cruiseSpeedKts = 120;
+                approachSpeedKts = 70;
+                taxiSpeedKts = 12;
+                stallSpeedKts = 50;
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                cruiseSpeedKts = 460;
+                approachSpeedKts = 150;
+                taxiSpeedKts = 25;
+                stallSpeedKts = 130;
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                cruiseSpeedKts = 500;
+                approachSpeedKts = 200;
+                taxiSpeedKts = 40;
+                stallSpeedKts = 180;
+                break;
+        }
+        LOG_MSG(logDEBUG, "Using generic performance for %s (traffic type %d)", 
+                synData.stat.acTypeIcao.c_str(), synData.trafficType);
     }
     
-    // Adjust speed based on flight state
+    // Convert knots to m/s for internal calculations (1 knot = 0.514444 m/s)
+    const double KTS_TO_MS = 0.514444;
+    
+    // Calculate target speed based on flight state with aircraft-specific values
     switch (synData.state) {
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_SHUTDOWN:
+            synData.targetSpeed = 0.0; // Stationary
+            break;
+            
         case SYN_STATE_TAXI_OUT:
         case SYN_STATE_TAXI_IN:
-            synData.targetSpeed = 5.0; // Taxi speed ~10 kts
+            synData.targetSpeed = taxiSpeedKts * KTS_TO_MS; // Aircraft-specific taxi speed
             break;
+            
         case SYN_STATE_TAKEOFF:
-            synData.targetSpeed = baseSpeed * 0.6; // Take-off speed
+            // Takeoff speed is typically 1.2 * stall speed
+            synData.targetSpeed = (stallSpeedKts * 1.2) * KTS_TO_MS;
             break;
+            
         case SYN_STATE_CLIMB:
-            synData.targetSpeed = baseSpeed * 0.8; // Climb speed
+            // Climb speed is typically between takeoff and cruise speed
+            synData.targetSpeed = (cruiseSpeedKts * 0.85) * KTS_TO_MS;
             break;
+            
         case SYN_STATE_CRUISE:
-            synData.targetSpeed = baseSpeed; // Cruise speed
+            // Use aircraft's cruise speed
+            synData.targetSpeed = cruiseSpeedKts * KTS_TO_MS;
             break;
+            
+        case SYN_STATE_HOLD:
+            // Holding speed is typically slower than cruise
+            synData.targetSpeed = (cruiseSpeedKts * 0.75) * KTS_TO_MS;
+            break;
+            
         case SYN_STATE_DESCENT:
+            // Descent speed similar to cruise but may be reduced
+            synData.targetSpeed = (cruiseSpeedKts * 0.9) * KTS_TO_MS;
+            break;
+            
         case SYN_STATE_APPROACH:
-            synData.targetSpeed = baseSpeed * 0.7; // Approach speed
+            // Use aircraft-specific approach speed
+            synData.targetSpeed = approachSpeedKts * KTS_TO_MS;
             break;
+            
         case SYN_STATE_LANDING:
-            synData.targetSpeed = baseSpeed * 0.5; // Landing speed
+            // Landing speed is typically approach speed minus 10-20 kts
+            synData.targetSpeed = (approachSpeedKts * 0.85) * KTS_TO_MS;
             break;
+            
         default:
             synData.targetSpeed = 0.0; // Stationary
             break;
@@ -977,13 +1061,21 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         case SYN_STATE_TAKEOFF:
             // Taking off - horizontal movement plus altitude gain
             shouldMove = true;
-            altitudeChangeRate = 500.0 / 60.0; // 500 ft/min converted to m/s (approximately 2.54 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double climbRateFpm = perfData ? perfData->climbRateFpm * 0.5 : 500.0; // Half climb rate for takeoff
+                altitudeChangeRate = climbRateFpm / 60.0 * 0.3048; // ft/min to m/s
+            }
             break;
             
         case SYN_STATE_CLIMB:
             // Climbing - horizontal movement plus significant altitude gain
             shouldMove = true;
-            altitudeChangeRate = 1500.0 / 60.0; // 1500 ft/min converted to m/s (approximately 7.62 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double climbRateFpm = perfData ? perfData->climbRateFpm : 1500.0;
+                altitudeChangeRate = climbRateFpm / 60.0 * 0.3048; // ft/min to m/s
+            }
             break;
             
         case SYN_STATE_CRUISE:
@@ -996,19 +1088,27 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         case SYN_STATE_DESCENT:
             // Descending - horizontal movement plus altitude loss
             shouldMove = true;
-            altitudeChangeRate = -1000.0 / 60.0; // -1000 ft/min converted to m/s (approximately -5.08 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double descentRateFpm = perfData ? perfData->descentRateFpm : 1000.0;
+                altitudeChangeRate = -descentRateFpm / 60.0 * 0.3048; // ft/min to m/s (negative for descent)
+            }
             break;
             
         case SYN_STATE_APPROACH:
             // On approach - horizontal movement plus moderate altitude loss
             shouldMove = true;
-            altitudeChangeRate = -500.0 / 60.0; // -500 ft/min converted to m/s (approximately -2.54 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double descentRateFpm = perfData ? perfData->descentRateFpm * 0.5 : 500.0; // Half descent rate for approach
+                altitudeChangeRate = -descentRateFpm / 60.0 * 0.3048; // ft/min to m/s (negative for descent)
+            }
             break;
             
         case SYN_STATE_LANDING:
             // Landing - horizontal movement plus gentle altitude loss
             shouldMove = true;
-            altitudeChangeRate = -200.0 / 60.0; // -200 ft/min converted to m/s (approximately -1.02 m/s)
+            altitudeChangeRate = -200.0 / 60.0 * 0.3048; // Gentle descent rate in m/s
             break;
     }
     
@@ -1515,4 +1615,77 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
     newPos.alt_m() = centerPos.alt_m();
     
     return newPos;
+}
+
+// Initialize aircraft performance database with realistic performance data
+// Based on typical specifications from flight manuals and published sources
+void SyntheticConnection::InitializeAircraftPerformanceDB()
+{
+    if (!aircraftPerfDB.empty()) return; // Already initialized
+    
+    // General Aviation Aircraft
+    // Cessna 172 Skyhawk - Popular training aircraft
+    aircraftPerfDB["C172"] = AircraftPerformance("C172", 122, 140, 47, 14000, 645, 500, 16000, 65, 12);
+    
+    // Cessna 152 - Training aircraft
+    aircraftPerfDB["C152"] = AircraftPerformance("C152", 107, 127, 43, 14700, 715, 480, 16000, 60, 10);
+    
+    // Piper PA-28 Cherokee/Warrior
+    aircraftPerfDB["PA28"] = AircraftPerformance("PA28", 125, 140, 55, 14300, 640, 500, 16000, 70, 12);
+    
+    // Cessna 182 Skylane - High performance single
+    aircraftPerfDB["C182"] = AircraftPerformance("C182", 145, 175, 56, 18100, 924, 600, 20000, 75, 15);
+    
+    // Cirrus SR22 - Modern high performance single
+    aircraftPerfDB["SR22"] = AircraftPerformance("SR22", 183, 213, 81, 17500, 1200, 700, 19000, 90, 15);
+    
+    // Beechcraft Bonanza A36
+    aircraftPerfDB["BE36"] = AircraftPerformance("BE36", 176, 200, 59, 18500, 1030, 650, 20000, 85, 15);
+    
+    // Commercial/Airline Aircraft
+    // Boeing 737-800 - Popular narrow body
+    aircraftPerfDB["B737"] = AircraftPerformance("B737", 453, 544, 132, 41000, 2500, 2000, 41000, 145, 25);
+    
+    // Airbus A320 - Popular narrow body
+    aircraftPerfDB["A320"] = AircraftPerformance("A320", 447, 537, 118, 39800, 2220, 1800, 41000, 138, 25);
+    
+    // Boeing 777-300ER - Wide body long haul
+    aircraftPerfDB["B777"] = AircraftPerformance("B777", 490, 590, 160, 43100, 2900, 2500, 43100, 170, 30);
+    
+    // Airbus A330-300 - Wide body
+    aircraftPerfDB["A330"] = AircraftPerformance("A330", 470, 570, 145, 42650, 2500, 2200, 42650, 160, 30);
+    
+    // Boeing 787-9 Dreamliner
+    aircraftPerfDB["B787"] = AircraftPerformance("B787", 488, 587, 138, 43000, 3000, 2300, 43000, 155, 30);
+    
+    // Airbus A350-900
+    aircraftPerfDB["A350"] = AircraftPerformance("A350", 488, 587, 140, 42000, 3100, 2400, 43000, 160, 30);
+    
+    // Military Aircraft
+    // F-16 Fighting Falcon
+    aircraftPerfDB["F16"] = AircraftPerformance("F16", 515, 1500, 200, 50000, 50000, 15000, 60000, 250, 50);
+    
+    // F/A-18 Hornet
+    aircraftPerfDB["F18"] = AircraftPerformance("F18", 570, 1190, 230, 50000, 45000, 12000, 55000, 280, 50);
+    
+    // C-130 Hercules Transport
+    aircraftPerfDB["C130"] = AircraftPerformance("C130", 336, 417, 115, 28000, 1830, 1200, 33000, 130, 35);
+    
+    // KC-135 Stratotanker
+    aircraftPerfDB["KC135"] = AircraftPerformance("KC135", 460, 585, 160, 50000, 2000, 1800, 50000, 180, 35);
+    
+    // E-3 AWACS
+    aircraftPerfDB["E3"] = AircraftPerformance("E3", 360, 530, 150, 42000, 2300, 1500, 42000, 170, 30);
+    
+    // B-2 Spirit Stealth Bomber
+    aircraftPerfDB["B2"] = AircraftPerformance("B2", 475, 630, 180, 50000, 6000, 3000, 50000, 200, 40);
+    
+    LOG_MSG(logDEBUG, "Initialized aircraft performance database with %zu aircraft types", aircraftPerfDB.size());
+}
+
+// Get aircraft performance data for a specific ICAO type
+const AircraftPerformance* SyntheticConnection::GetAircraftPerformance(const std::string& icaoType) const
+{
+    auto it = aircraftPerfDB.find(icaoType);
+    return (it != aircraftPerfDB.end()) ? &(it->second) : nullptr;
 }

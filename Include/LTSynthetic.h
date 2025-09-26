@@ -72,6 +72,27 @@ struct SyntheticTrafficConfig {
     // Note: commRange removed - now using realistic communication degradation instead of hard range limit
 };
 
+/// Individual aircraft performance data based on realistic specifications
+struct AircraftPerformance {
+    std::string icaoType;           ///< ICAO aircraft type code
+    double cruiseSpeedKts;          ///< Typical cruise speed in knots
+    double maxSpeedKts;             ///< Maximum speed in knots
+    double stallSpeedKts;           ///< Stall speed in knots (clean configuration)
+    double serviceCeilingFt;        ///< Service ceiling in feet
+    double climbRateFpm;            ///< Typical climb rate in feet per minute
+    double descentRateFpm;          ///< Typical descent rate in feet per minute
+    double maxAltFt;                ///< Maximum altitude in feet
+    double approachSpeedKts;        ///< Typical approach speed in knots
+    double taxiSpeedKts;            ///< Typical taxi speed in knots
+    
+    AircraftPerformance(const std::string& type = "", double cruise = 120, double maxSpd = 150, 
+                       double stall = 60, double ceiling = 15000, double climb = 800, double descent = 800,
+                       double maxAlt = 18000, double approach = 80, double taxi = 15)
+        : icaoType(type), cruiseSpeedKts(cruise), maxSpeedKts(maxSpd), stallSpeedKts(stall),
+          serviceCeilingFt(ceiling), climbRateFpm(climb), descentRateFpm(descent), 
+          maxAltFt(maxAlt), approachSpeedKts(approach), taxiSpeedKts(taxi) {}
+};
+
 //
 // MARK: SyntheticConnection
 //
@@ -175,6 +196,15 @@ protected:
     
     /// Calculate performance parameters based on aircraft type
     void CalculatePerformance(SynDataTy& synData);
+    
+    /// Get aircraft performance data for a specific ICAO type
+    const AircraftPerformance* GetAircraftPerformance(const std::string& icaoType) const;
+    
+    /// Initialize aircraft performance database with realistic data
+    static void InitializeAircraftPerformanceDB();
+    
+    /// Aircraft performance database
+    static std::map<std::string, AircraftPerformance> aircraftPerfDB;
     
     /// Update aircraft position based on movement
     void UpdateAircraftPosition(SynDataTy& synData, double currentTime);
