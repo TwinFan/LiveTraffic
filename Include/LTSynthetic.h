@@ -180,6 +180,12 @@ public:
     /// Find SID/STAR procedures using X-Plane navdata
     std::vector<positionTy> GetSIDSTAR(const std::string& airport, const std::string& runway, bool isSID);
     
+    /// Generate SID procedures using actual navigation database  
+    std::vector<positionTy> GenerateSIDFromNavData(const positionTy& airportPos, const std::string& airport, const std::string& runway);
+    
+    /// Generate STAR procedures using actual navigation database
+    std::vector<positionTy> GenerateSTARFromNavData(const positionTy& airportPos, const std::string& airport, const std::string& runway);
+    
     /// Generate TTS communication message
     std::string GenerateCommMessage(const SynDataTy& synData, const positionTy& userPos);
     

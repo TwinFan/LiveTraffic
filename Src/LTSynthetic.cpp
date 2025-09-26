@@ -1649,7 +1649,7 @@ std::string SyntheticConnection::GenerateFlightPlan(const positionTy& origin, co
     return flightPlan;
 }
 
-// Find SID/STAR procedures using X-Plane navdata with basic implementation
+// Find SID/STAR procedures using X-Plane navdata with actual XPLMNavigation functions
 std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airport, const std::string& runway, bool isSID)
 {
     std::vector<positionTy> procedure;
@@ -1661,93 +1661,289 @@ std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airpo
         return cacheIt->second;
     }
     
-    // Generate basic SID/STAR procedures based on airport and runway
-    // This is a simplified implementation - real implementation would use XPLMNavigation functions
+    LOG_MSG(logDEBUG, "Looking up %s for airport %s runway %s using XPLMNavigation", 
+            isSID ? "SID" : "STAR", airport.c_str(), runway.c_str());
     
-    // Get airport reference position (simplified lookup)
-    positionTy airportPos;
-    bool airportFound = false;
+    // Find the airport using XPLMNavigation
+    XPLMNavRef airportRef = XPLMFindNavAid(nullptr, airport.c_str(), nullptr, nullptr, nullptr, xplm_Nav_Airport);
     
-    // Basic airport database lookup
-    static const struct {
-        const char* icao;
-        double lat, lon;
-        double elevation;
-    } basicAirports[] = {
-        {"KORD", 41.9786, -87.9048, 205.0},
-        {"KLAX", 33.9425, -118.4081, 38.0},
-        {"KJFK", 40.6398, -73.7789, 4.0},
-        {"KBOS", 42.3643, -71.0052, 6.0},
-        {"KDEN", 39.8617, -104.6731, 1656.0},
-        {"KATL", 33.6367, -84.4281, 313.0},
-        {"KDFW", 32.8968, -97.0380, 183.0},
-        {"KSEA", 47.4502, -122.3088, 131.0}
-    };
-    
-    for (const auto& apt : basicAirports) {
-        if (airport == apt.icao) {
-            airportPos.lat() = apt.lat;
-            airportPos.lon() = apt.lon;
-            airportPos.alt_m() = apt.elevation * 0.3048; // Convert ft to m
-            airportFound = true;
-            break;
-        }
-    }
-    
-    if (!airportFound) {
-        // Cache empty result
-        sidStarCache[cacheKey] = procedure;
+    if (airportRef == XPLM_NAV_NOT_FOUND) {
+        LOG_MSG(logWARN, "Airport %s not found in navigation database", airport.c_str());
+        sidStarCache[cacheKey] = procedure; // Cache empty result
         return procedure;
     }
     
+    // Get airport information
+    float airportLat, airportLon, airportElevation;
+    int frequency;
+    float heading;
+    char airportID[32];
+    char airportName[256];
+    char reg;
+    
+    XPLMGetNavAidInfo(airportRef, nullptr, &airportLat, &airportLon, &airportElevation, 
+                      &frequency, &heading, airportID, airportName, &reg);
+    
+    positionTy airportPos;
+    airportPos.lat() = airportLat;
+    airportPos.lon() = airportLon;  
+    airportPos.alt_m() = airportElevation * 0.3048; // Convert feet to meters
+    
+    LOG_MSG(logDEBUG, "Found airport %s at %0.4f,%0.4f elevation %0.1f ft", 
+            airportID, airportLat, airportLon, airportElevation);
+    
     if (isSID) {
-        // Generate SID (Standard Instrument Departure)
-        // Create waypoints extending outward from airport
-        for (int i = 1; i <= 5; i++) {
-            positionTy waypoint;
-            double distance = i * 5000.0; // 5km intervals
-            double bearing = std::rand() % 360; // Random bearing for demo
-            
-            // Calculate waypoint position
-            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
-            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
-            
-            waypoint.lat() = airportPos.lat() + lat_offset;
-            waypoint.lon() = airportPos.lon() + lon_offset;
-            waypoint.alt_m() = airportPos.alt_m() + i * 500.0; // Climbing departure
-            
-            procedure.push_back(waypoint);
-        }
-        
-        LOG_MSG(logDEBUG, "Generated SID for %s runway %s with %d waypoints", 
-                airport.c_str(), runway.c_str(), (int)procedure.size());
+        // Generate SID (Standard Instrument Departure) using real navaid data
+        procedure = GenerateSIDFromNavData(airportPos, airport, runway);
     } else {
-        // Generate STAR (Standard Terminal Arrival Route)  
-        // Create waypoints approaching the airport
-        for (int i = 5; i >= 1; i--) {
-            positionTy waypoint;
-            double distance = i * 8000.0; // 8km intervals, approaching
-            double bearing = std::rand() % 360; // Random bearing for demo
-            
-            // Calculate waypoint position
-            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
-            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
-            
-            waypoint.lat() = airportPos.lat() + lat_offset;
-            waypoint.lon() = airportPos.lon() + lon_offset;
-            waypoint.alt_m() = airportPos.alt_m() + i * 600.0; // Descending approach
-            
-            procedure.push_back(waypoint);
-        }
-        
-        LOG_MSG(logDEBUG, "Generated STAR for %s runway %s with %d waypoints", 
-                airport.c_str(), runway.c_str(), (int)procedure.size());
+        // Generate STAR (Standard Terminal Arrival Route) using real navaid data  
+        procedure = GenerateSTARFromNavData(airportPos, airport, runway);
     }
     
     // Cache the result
     sidStarCache[cacheKey] = procedure;
     
+    LOG_MSG(logDEBUG, "Generated %s for %s runway %s with %d waypoints", 
+            isSID ? "SID" : "STAR", airport.c_str(), runway.c_str(), (int)procedure.size());
+    
     return procedure;
+}
+
+// Generate SID procedures using actual navigation database
+std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positionTy& airportPos, 
+                                                                    const std::string& airport, 
+                                                                    const std::string& runway)
+{
+    std::vector<positionTy> sidProcedure;
+    
+    // Find nearby navigation aids for SID construction
+    float searchLat = static_cast<float>(airportPos.lat());
+    float searchLon = static_cast<float>(airportPos.lon());
+    
+    // Look for VORs, NDBs, and fixes within 50nm for SID waypoints
+    const double searchRadiusNM = 50.0;
+    const double searchRadiusM = searchRadiusNM * 1852.0;
+    
+    std::vector<XPLMNavRef> nearbyNavaids;
+    
+    // Search for different types of navigation aids
+    XPLMNavType searchTypes[] = {xplm_Nav_VOR, xplm_Nav_NDB, xplm_Nav_Fix};
+    
+    for (XPLMNavType navType : searchTypes) {
+        // Find navaids of this type near the airport
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr, &searchLat, &searchLon, nullptr, navType);
+        
+        while (navRef != XPLM_NAV_NOT_FOUND) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(navRef, nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            // Calculate distance from airport
+            positionTy navPos;
+            navPos.lat() = navLat;
+            navPos.lon() = navLon;
+            navPos.alt_m() = navElevation * 0.3048;
+            
+            double distance = airportPos.dist(navPos);
+            
+            if (distance <= searchRadiusM && distance > 1000.0) { // Not too close, not too far
+                nearbyNavaids.push_back(navRef);
+                
+                // Limit the number of navaids we consider
+                if (nearbyNavaids.size() >= 10) break;
+            }
+            
+            // This is a simplified search - in reality, we'd need to iterate through all navaids
+            // For now, just take the first suitable one we find
+            break;
+        }
+    }
+    
+    // Build SID procedure from suitable navaids
+    if (!nearbyNavaids.empty()) {
+        // Sort navaids by distance and bearing for logical SID construction
+        std::sort(nearbyNavaids.begin(), nearbyNavaids.end(), 
+                  [&airportPos](XPLMNavRef a, XPLMNavRef b) {
+                      float aLat, aLon, bLat, bLon;
+                      XPLMGetNavAidInfo(a, nullptr, &aLat, &aLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      XPLMGetNavAidInfo(b, nullptr, &bLat, &bLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      
+                      positionTy aPos(aLat, aLon, 0);
+                      positionTy bPos(bLat, bLon, 0);
+                      
+                      return airportPos.dist(aPos) < airportPos.dist(bPos);
+                  });
+        
+        // Create SID waypoints using the nearest suitable navaids
+        for (size_t i = 0; i < std::min(nearbyNavaids.size(), (size_t)5); i++) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(nearbyNavaids[i], nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            positionTy waypoint;
+            waypoint.lat() = navLat;
+            waypoint.lon() = navLon;
+            waypoint.alt_m() = airportPos.alt_m() + (i + 1) * 500.0; // Climbing departure
+            
+            sidProcedure.push_back(waypoint);
+            
+            LOG_MSG(logDEBUG, "SID waypoint %zu: %s at %0.4f,%0.4f", 
+                    i + 1, navID, navLat, navLon);
+        }
+    }
+    
+    // If no suitable navaids found, generate a basic geometric SID
+    if (sidProcedure.empty()) {
+        LOG_MSG(logDEBUG, "No suitable navaids found for SID, generating basic geometric procedure");
+        
+        // Create a basic straight-out departure
+        for (int i = 1; i <= 3; i++) {
+            positionTy waypoint;
+            double distance = i * 5000.0; // 5km intervals
+            double bearing = 360.0; // Due north default
+            
+            // Try to use runway heading if available (simplified)
+            if (!runway.empty() && runway.length() >= 2) {
+                try {
+                    int runwayNum = std::stoi(runway.substr(0, 2));
+                    bearing = runwayNum * 10.0; // Convert runway number to heading
+                } catch (...) {
+                    // Keep default bearing
+                }
+            }
+            
+            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
+            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
+            
+            waypoint.lat() = airportPos.lat() + lat_offset;
+            waypoint.lon() = airportPos.lon() + lon_offset;
+            waypoint.alt_m() = airportPos.alt_m() + i * 500.0;
+            
+            sidProcedure.push_back(waypoint);
+        }
+    }
+    
+    return sidProcedure;
+}
+
+// Generate STAR procedures using actual navigation database
+std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const positionTy& airportPos, 
+                                                                      const std::string& airport, 
+                                                                      const std::string& runway)
+{
+    std::vector<positionTy> starProcedure;
+    
+    // Similar to SID generation, but create an arrival procedure
+    float searchLat = static_cast<float>(airportPos.lat());
+    float searchLon = static_cast<float>(airportPos.lon());
+    
+    const double searchRadiusNM = 100.0; // Larger radius for STAR
+    const double searchRadiusM = searchRadiusNM * 1852.0;
+    
+    std::vector<XPLMNavRef> nearbyNavaids;
+    
+    // Search for navigation aids suitable for STAR
+    XPLMNavType searchTypes[] = {xplm_Nav_VOR, xplm_Nav_Fix, xplm_Nav_ILS, xplm_Nav_Localizer};
+    
+    for (XPLMNavType navType : searchTypes) {
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr, &searchLat, &searchLon, nullptr, navType);
+        
+        while (navRef != XPLM_NAV_NOT_FOUND) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(navRef, nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            positionTy navPos;
+            navPos.lat() = navLat;
+            navPos.lon() = navLon;
+            navPos.alt_m() = navElevation * 0.3048;
+            
+            double distance = airportPos.dist(navPos);
+            
+            if (distance > 10000.0 && distance <= searchRadiusM) { // Suitable for STAR approach
+                nearbyNavaids.push_back(navRef);
+                
+                if (nearbyNavaids.size() >= 8) break;
+            }
+            
+            break; // Simplified search
+        }
+    }
+    
+    // Build STAR procedure - approach from outside to airport
+    if (!nearbyNavaids.empty()) {
+        // Sort by distance (furthest first for arrival)
+        std::sort(nearbyNavaids.begin(), nearbyNavaids.end(), 
+                  [&airportPos](XPLMNavRef a, XPLMNavRef b) {
+                      float aLat, aLon, bLat, bLon;
+                      XPLMGetNavAidInfo(a, nullptr, &aLat, &aLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      XPLMGetNavAidInfo(b, nullptr, &bLat, &bLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      
+                      positionTy aPos(aLat, aLon, 0);
+                      positionTy bPos(bLat, bLon, 0);
+                      
+                      return airportPos.dist(aPos) > airportPos.dist(bPos); // Furthest first
+                  });
+        
+        // Create descending approach waypoints
+        for (size_t i = 0; i < std::min(nearbyNavaids.size(), (size_t)4); i++) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(nearbyNavaids[i], nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            positionTy waypoint;
+            waypoint.lat() = navLat;
+            waypoint.lon() = navLon;
+            waypoint.alt_m() = airportPos.alt_m() + (4 - i) * 1000.0; // Descending approach
+            
+            starProcedure.push_back(waypoint);
+            
+            LOG_MSG(logDEBUG, "STAR waypoint %zu: %s at %0.4f,%0.4f", 
+                    i + 1, navID, navLat, navLon);
+        }
+    }
+    
+    // Generate basic geometric STAR if no navaids found
+    if (starProcedure.empty()) {
+        LOG_MSG(logDEBUG, "No suitable navaids found for STAR, generating basic geometric procedure");
+        
+        // Create a basic straight-in arrival
+        for (int i = 4; i >= 1; i--) {
+            positionTy waypoint;
+            double distance = i * 8000.0; // 8km intervals, approaching
+            double bearing = 180.0; // Default approach bearing
+            
+            // Try to use opposite runway heading for approach
+            if (!runway.empty() && runway.length() >= 2) {
+                try {
+                    int runwayNum = std::stoi(runway.substr(0, 2));
+                    bearing = (runwayNum + 18) * 10.0; // Opposite direction
+                    if (bearing >= 360.0) bearing -= 360.0;
+                } catch (...) {
+                    // Keep default bearing
+                }
+            }
+            
+            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
+            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
+            
+            waypoint.lat() = airportPos.lat() + lat_offset;
+            waypoint.lon() = airportPos.lon() + lon_offset;
+            waypoint.alt_m() = airportPos.alt_m() + i * 600.0;
+            
+            starProcedure.push_back(waypoint);
+        }
+    }
+    
+    return starProcedure;
 }
 
 // Helper functions for communication degradation effects
