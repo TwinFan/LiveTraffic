@@ -1347,6 +1347,7 @@ struct AirportData {
 
 static std::vector<AirportData> cachedWorldAirports;
 static bool airportCacheInitialized = false;
+static const size_t MAX_CACHED_AIRPORTS = 50000; // Limit cache size for performance
 
 // Initialize the airport cache using X-Plane's navigation database
 void InitializeAirportCache()
@@ -1354,11 +1355,13 @@ void InitializeAirportCache()
     if (airportCacheInitialized) return;
     
     cachedWorldAirports.clear();
+    cachedWorldAirports.reserve(10000); // Reserve space for efficiency
     
     // Get all airports from X-Plane's navigation database
     XPLMNavRef airportRef = XPLMFindFirstNavAidOfType(xplm_Nav_Airport);
     
-    while (airportRef != XPLM_NAV_NOT_FOUND) {
+    size_t airportCount = 0;
+    while (airportRef != XPLM_NAV_NOT_FOUND && airportCount < MAX_CACHED_AIRPORTS) {
         float lat, lon;
         char airportID[32];
         
@@ -1366,23 +1369,35 @@ void InitializeAirportCache()
         XPLMGetNavAidInfo(airportRef, nullptr, &lat, &lon, nullptr, 
                           nullptr, nullptr, airportID, nullptr, nullptr);
         
-        // Only include airports with valid ICAO codes (4 characters) or major airports (3 characters)
+        // Only include airports with valid ICAO codes (3-4 characters) and reasonable coordinates
         std::string icao(airportID);
-        if (icao.length() >= 3) {
+        if (icao.length() >= 3 && std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
             AirportData airport;
             airport.icao = icao;
             airport.lat = lat;
             airport.lon = lon;
             cachedWorldAirports.push_back(airport);
+            airportCount++;
         }
         
         // Get next airport
         airportRef = XPLMGetNextNavAid(airportRef);
     }
     
+    // Shrink to fit actual size for memory efficiency
+    cachedWorldAirports.shrink_to_fit();
+    
     airportCacheInitialized = true;
     LOG_MSG(logINFO, "Initialized airport cache with %zu airports from X-Plane navigation database", 
             cachedWorldAirports.size());
+}
+
+// Clear and refresh the airport cache from X-Plane navigation database
+void SyntheticConnection::RefreshAirportCache()
+{
+    airportCacheInitialized = false;
+    cachedWorldAirports.clear();
+    InitializeAirportCache();
 }
 
 // Find nearby airports for traffic generation

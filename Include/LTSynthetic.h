@@ -430,6 +430,9 @@ protected:
     /// Find nearest airports for traffic generation
     std::vector<std::string> FindNearbyAirports(const positionTy& centerPos, double radiusNM);
     
+    /// Clear and refresh the airport cache from X-Plane navigation database
+    static void RefreshAirportCache();
+    
     /// Create synthetic aircraft with realistic parameters
     bool CreateSyntheticAircraft(const std::string& key, const positionTy& pos, 
                                   SyntheticTrafficType trafficType);
