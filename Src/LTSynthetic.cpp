@@ -278,7 +278,43 @@ bool SyntheticConnection::ProcessFetchedData ()
         dyn.pChannel = this;
         dyn.spd = synData.targetSpeed;
         dyn.vsi = 0.0; // Will be calculated based on flight state
-        dyn.gnd = (synData.state <= SYN_STATE_TAXI_OUT || synData.state >= SYN_STATE_TAXI_IN);
+        
+        // Determine ground status based on flight state with terrain awareness
+        bool isOnGround = false;
+        switch (synData.state) {
+            case SYN_STATE_PARKED:
+            case SYN_STATE_STARTUP:
+            case SYN_STATE_TAXI_OUT:
+            case SYN_STATE_TAXI_IN:
+            case SYN_STATE_SHUTDOWN:
+                isOnGround = true;
+                break;
+            case SYN_STATE_TAKEOFF:
+            case SYN_STATE_LANDING:
+                // For transition states, use terrain-based determination
+                {
+                    double terrainAlt = YProbe_at_m(synData.pos);
+                    if (!std::isnan(terrainAlt)) {
+                        // Use the same logic as TryDeriveGrndStatus: on ground if within FD_GND_AGL of terrain
+                        isOnGround = (synData.pos.alt_m() < terrainAlt + FD_GND_AGL);
+                    } else {
+                        // Fallback: conservative approach for transition states
+                        isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
+                                    (synData.pos.alt_m() < 100.0) : // Takeoff: assume ground until 100m MSL
+                                    (synData.pos.alt_m() < 50.0);   // Landing: assume ground below 50m MSL
+                    }
+                }
+                break;
+            default:
+                // All other states (CLIMB, CRUISE, HOLD, DESCENT, APPROACH) are airborne
+                isOnGround = false;
+                break;
+        }
+        
+        // Set both dynamic data and position ground flags consistently
+        dyn.gnd = isOnGround;
+        synData.pos.f.onGrnd = isOnGround ? GND_ON : GND_OFF;
+        
         dyn.heading = synData.pos.heading();
         
         // Set flight phase based on synthetic state
@@ -461,11 +497,15 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.pos = pos;
     synData.pos.heading() = static_cast<double>(std::rand() % 360); // Random heading
     
-    // Set traffic type and initial state
+    // Set traffic type and initial state based on altitude
     synData.trafficType = trafficType;
-    synData.state = (pos.alt_m() < 100.0) ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
+    bool initiallyOnGround = (pos.alt_m() < 100.0);
+    synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
     synData.stateChangeTime = std::time(nullptr);
     synData.nextEventTime = synData.stateChangeTime + (30 + (std::rand() % 120)); // 30-150 seconds
+    
+    // Set initial ground status in position data
+    synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
     
     // Generate static data
     synData.stat.call = GenerateCallSign(trafficType);
