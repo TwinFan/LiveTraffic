@@ -498,6 +498,7 @@ bool SyntheticConnection::ProcessFetchedData ()
             case SYN_STATE_TAKEOFF:
             case SYN_STATE_LINE_UP_WAIT:
             case SYN_STATE_LANDING:
+            case SYN_STATE_APPROACH:
                 // For transition states, use terrain-based determination
                 {
                     // Use per-aircraft probe instead of static probe to avoid race conditions
@@ -520,6 +521,8 @@ bool SyntheticConnection::ProcessFetchedData ()
                                 // Fallback: conservative approach for transition states
                                 isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
                                             (synData.pos.alt_m() < 100.0) : // Takeoff: assume ground until 100m MSL
+                                            (synData.state == SYN_STATE_APPROACH) ?
+                                            (synData.pos.alt_m() < 50.0) : // Approach: assume ground below 50m MSL
                                             (synData.pos.alt_m() < 50.0);   // Landing: assume ground below 50m MSL
                             }
                         } catch (...) {
@@ -527,6 +530,8 @@ bool SyntheticConnection::ProcessFetchedData ()
                             // Fallback: conservative approach
                             isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
                                         (synData.pos.alt_m() < 100.0) :
+                                        (synData.state == SYN_STATE_APPROACH) ?
+                                        (synData.pos.alt_m() < 50.0) :
                                         (synData.pos.alt_m() < 50.0);
                         }
                         
@@ -543,12 +548,14 @@ bool SyntheticConnection::ProcessFetchedData ()
                         // Fallback: conservative approach for transition states
                         isOnGround = (synData.state == SYN_STATE_TAKEOFF) ? 
                                     (synData.pos.alt_m() < 100.0) : // Takeoff: assume ground until 100m MSL
+                                    (synData.state == SYN_STATE_APPROACH) ?
+                                    (synData.pos.alt_m() < 50.0) : // Approach: assume ground below 50m MSL  
                                     (synData.pos.alt_m() < 50.0);   // Landing: assume ground below 50m MSL
                     }
                 }
                 break;
             default:
-                // All other states (CLIMB, CRUISE, HOLD, DESCENT, APPROACH) are airborne
+                // All other states (CLIMB, CRUISE, HOLD, DESCENT) are airborne
                 isOnGround = false;
                 break;
         }
@@ -776,15 +783,14 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.pos = pos;
     synData.pos.heading() = static_cast<double>(std::rand() % 360); // Random heading
     
-    // Set traffic type and initial state based on altitude
+    // Set traffic type
     synData.trafficType = trafficType;
-    bool initiallyOnGround = (pos.alt_m() < 100.0);
-    synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
     synData.stateChangeTime = std::time(nullptr);
     synData.nextEventTime = synData.stateChangeTime + (30 + (std::rand() % 120)); // 30-150 seconds
     
-    // Set initial ground status in position data
-    synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
+    // Initialize state and ground status to be determined after terrain elevation is available
+    synData.state = SYN_STATE_CRUISE; // Temporary, will be corrected below
+    synData.pos.f.onGrnd = GND_OFF;   // Temporary, will be corrected below
     
     // Generate static data with country-specific registration
     synData.stat.call = GenerateCallSign(trafficType, pos);
@@ -895,13 +901,31 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
             synData.terrainProbe = tempProbe;
             LOG_MSG(logDEBUG, "Initialized terrain probe for aircraft %s at elevation %.0fm", 
                     synData.stat.call.c_str(), synData.terrainElevation);
+            
+            // Now that we have terrain elevation, determine initial state based on AGL
+            double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
+            bool initiallyOnGround = (altitudeAGL < 100.0);
+            synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
+            synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
+            
+            LOG_MSG(logDEBUG, "Aircraft %s: MSL=%.0fm, terrain=%.0fm, AGL=%.0fm, ground=%s", 
+                    synData.stat.call.c_str(), synData.pos.alt_m(), synData.terrainElevation, 
+                    altitudeAGL, initiallyOnGround ? "YES" : "NO");
         } else {
             LOG_MSG(logWARN, "Failed to create initial terrain probe for aircraft %s", synData.stat.call.c_str());
             synData.terrainElevation = 500.0; // Conservative estimate
+            // Fallback to MSL-based determination if terrain probe fails
+            bool initiallyOnGround = (pos.alt_m() < 100.0);
+            synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
+            synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
         }
     } catch (...) {
         LOG_MSG(logERR, "Exception creating terrain probe for aircraft %s", synData.stat.call.c_str());
         synData.terrainElevation = 500.0; // Conservative estimate
+        // Fallback to MSL-based determination if terrain probe fails
+        bool initiallyOnGround = (pos.alt_m() < 100.0);
+        synData.state = initiallyOnGround ? SYN_STATE_PARKED : SYN_STATE_CRUISE;
+        synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
     }
     
     return true;
