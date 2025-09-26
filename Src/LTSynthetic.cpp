@@ -293,7 +293,8 @@ bool SyntheticConnection::ProcessFetchedData ()
             case SYN_STATE_LANDING:
                 // For transition states, use terrain-based determination
                 {
-                    double terrainAlt = YProbe_at_m(synData.pos);
+                    static XPLMProbeRef yProbe = XPLMCreateProbe(xplm_ProbeY);
+                    double terrainAlt = YProbe_at_m(synData.pos, yProbe);
                     if (!std::isnan(terrainAlt)) {
                         // Use the same logic as TryDeriveGrndStatus: on ground if within FD_GND_AGL of terrain
                         isOnGround = (synData.pos.alt_m() < terrainAlt + FD_GND_AGL);
