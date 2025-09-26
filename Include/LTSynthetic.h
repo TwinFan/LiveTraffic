@@ -144,10 +144,79 @@ protected:
                      tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false) {}
         
         ~SynDataTy() {
+            // Thread-safe cleanup of terrain probe
             if (terrainProbe) {
-                XPLMDestroyProbe(terrainProbe);
+                try {
+                    XPLMDestroyProbe(terrainProbe);
+                } catch (...) {
+                    // Ignore exceptions during cleanup to prevent crash
+                }
                 terrainProbe = nullptr;
             }
+        }
+        
+        // Copy constructor - need to handle probe ownership
+        SynDataTy(const SynDataTy& other) 
+            : stat(other.stat), pos(other.pos), state(other.state), trafficType(other.trafficType),
+              stateChangeTime(other.stateChangeTime), nextEventTime(other.nextEventTime),
+              flightPlan(other.flightPlan), assignedRunway(other.assignedRunway),
+              targetAltitude(other.targetAltitude), targetSpeed(other.targetSpeed),
+              holdingTime(other.holdingTime), isUserAware(other.isUserAware),
+              lastComm(other.lastComm), lastCommTime(other.lastCommTime),
+              lastPosUpdateTime(other.lastPosUpdateTime), flightPath(other.flightPath),
+              currentWaypoint(other.currentWaypoint), targetWaypoint(other.targetWaypoint),
+              lastTerrainCheck(other.lastTerrainCheck), terrainElevation(other.terrainElevation),
+              terrainProbe(nullptr), // Don't copy probe - create new one when needed
+              headingChangeRate(other.headingChangeRate), targetHeading(other.targetHeading),
+              lastTCASCheck(other.lastTCASCheck), tcasActive(other.tcasActive),
+              tcasAdvisory(other.tcasAdvisory), tcasAvoidanceHeading(other.tcasAvoidanceHeading),
+              tcasAvoidanceAltitude(other.tcasAvoidanceAltitude), inTCASAvoidance(other.inTCASAvoidance) {}
+        
+        // Assignment operator - need to handle probe ownership
+        SynDataTy& operator=(const SynDataTy& other) {
+            if (this != &other) {
+                // Clean up existing probe first
+                if (terrainProbe) {
+                    try {
+                        XPLMDestroyProbe(terrainProbe);
+                    } catch (...) {
+                        // Ignore exceptions during cleanup
+                    }
+                    terrainProbe = nullptr;
+                }
+                
+                // Copy all other members
+                stat = other.stat;
+                pos = other.pos;
+                state = other.state;
+                trafficType = other.trafficType;
+                stateChangeTime = other.stateChangeTime;
+                nextEventTime = other.nextEventTime;
+                flightPlan = other.flightPlan;
+                assignedRunway = other.assignedRunway;
+                targetAltitude = other.targetAltitude;
+                targetSpeed = other.targetSpeed;
+                holdingTime = other.holdingTime;
+                isUserAware = other.isUserAware;
+                lastComm = other.lastComm;
+                lastCommTime = other.lastCommTime;
+                lastPosUpdateTime = other.lastPosUpdateTime;
+                flightPath = other.flightPath;
+                currentWaypoint = other.currentWaypoint;
+                targetWaypoint = other.targetWaypoint;
+                lastTerrainCheck = other.lastTerrainCheck;
+                terrainElevation = other.terrainElevation;
+                // Don't copy probe - create new one when needed
+                headingChangeRate = other.headingChangeRate;
+                targetHeading = other.targetHeading;
+                lastTCASCheck = other.lastTCASCheck;
+                tcasActive = other.tcasActive;
+                tcasAdvisory = other.tcasAdvisory;
+                tcasAvoidanceHeading = other.tcasAvoidanceHeading;
+                tcasAvoidanceAltitude = other.tcasAvoidanceAltitude;
+                inTCASAvoidance = other.inTCASAvoidance;
+            }
+            return *this;
         }
     };
     /// Stores enhanced data per tracked plane
