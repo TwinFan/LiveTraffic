@@ -471,6 +471,9 @@ protected:
     /// Process TTS communications
     void ProcessTTSCommunication(SynDataTy& synData, const std::string& message);
     
+    /// Check if user is tuned to specific frequency
+    bool IsUserTunedToFrequency(double frequency);
+    
     /// Update user awareness behavior
     void UpdateUserAwareness(SynDataTy& synData, const positionTy& userPos);
     

@@ -828,8 +828,23 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     
     // Generate aircraft type using the flight plan information
     std::string acType = GenerateAircraftType(trafficType, synData.flightPlan);
+    
+    // Validate and fallback if needed
+    if (acType.empty() || acType.length() < 3) {
+        LOG_MSG(logWARN, "Invalid aircraft type '%s' generated, using fallback", acType.c_str());
+        switch (trafficType) {
+            case SYN_TRAFFIC_GA: acType = "C172"; break;
+            case SYN_TRAFFIC_AIRLINE: acType = "B738"; break;
+            case SYN_TRAFFIC_MILITARY: acType = "F16"; break;
+            default: acType = "C172"; break;
+        }
+    }
+    
     synData.stat.acTypeIcao = acType;
     synData.stat.mdl = acType;
+    
+    LOG_MSG(logDEBUG, "Created synthetic aircraft %s with ICAO type: %s", 
+            synData.stat.call.c_str(), acType.c_str());
     
     // Set initial performance parameters using aircraft-specific data
     const AircraftPerformance* perfData = GetAircraftPerformance(acType);
@@ -2177,10 +2192,17 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
 {
     if (!config.enableTTS || message.empty()) return;
     
+    // Check if user is tuned to same frequency as aircraft
+    if (!IsUserTunedToFrequency(synData.currentComFreq)) {
+        LOG_MSG(logDEBUG, "TTS: User not tuned to frequency %.3f MHz, skipping message from %s", 
+                synData.currentComFreq, synData.stat.call.c_str());
+        return;
+    }
+    
     // Store the last communication message
     synData.lastComm = message;
     
-    LOG_MSG(logDEBUG, "TTS: %s", message.c_str());
+    LOG_MSG(logDEBUG, "TTS: %s on %.3f MHz", message.c_str(), synData.currentComFreq);
     
 #if IBM
     // Windows SAPI TTS integration
@@ -2201,8 +2223,51 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
     
 #else
     // Non-Windows platforms: log only (could implement other TTS engines here)
-    LOG_MSG(logINFO, "TTS not implemented on this platform: %s", message.c_str());
+    LOG_MSG(logINFO, "TTS not implemented on this platform: %s on %.3f MHz", 
+            message.c_str(), synData.currentComFreq);
 #endif
+}
+
+// Check if user is tuned to specific frequency
+bool SyntheticConnection::IsUserTunedToFrequency(double frequency)
+{
+    // Get user's currently tuned COM1 and COM2 frequencies
+    static XPLMDataRef com1FreqRef = nullptr;
+    static XPLMDataRef com2FreqRef = nullptr;
+    
+    // Initialize datarefs on first use
+    if (!com1FreqRef) {
+        com1FreqRef = XPLMFindDataRef("sim/cockpit2/radios/actuators/com1_frequency_hz");
+        com2FreqRef = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_frequency_hz");
+    }
+    
+    if (!com1FreqRef || !com2FreqRef) {
+        LOG_MSG(logWARN, "Failed to find COM radio frequency datarefs, allowing all TTS messages");
+        return true; // If we can't get user frequencies, allow all messages
+    }
+    
+    try {
+        // Get current COM frequencies (in Hz)
+        int com1FreqHz = XPLMGetDatai(com1FreqRef);
+        int com2FreqHz = XPLMGetDatai(com2FreqRef);
+        
+        // Convert to MHz
+        double com1FreqMHz = com1FreqHz / 1000000.0;
+        double com2FreqMHz = com2FreqHz / 1000000.0;
+        
+        // Check if aircraft frequency matches either COM radio (within 0.025 MHz tolerance)
+        bool com1Match = std::abs(frequency - com1FreqMHz) < 0.025;
+        bool com2Match = std::abs(frequency - com2FreqMHz) < 0.025;
+        
+        LOG_MSG(logDEBUG, "Frequency check: Aircraft=%.3f MHz, COM1=%.3f MHz, COM2=%.3f MHz, Match=%s", 
+                frequency, com1FreqMHz, com2FreqMHz, (com1Match || com2Match) ? "YES" : "NO");
+        
+        return com1Match || com2Match;
+        
+    } catch (...) {
+        LOG_MSG(logWARN, "Exception while checking user radio frequencies, allowing TTS message");
+        return true; // On error, allow the message
+    }
 }
 
 // Update user awareness behavior
@@ -4760,11 +4825,14 @@ void SyntheticConnection::ScanAvailableCSLModels()
     // Get number of installed CSL models from XPMP2
     int numModels = XPMPGetNumberOfInstalledModels();
     if (numModels == 0) {
-        LOG_MSG(logDEBUG, "No CSL models found by XPMP2");
+        LOG_MSG(logINFO, "No CSL models found by XPMP2 - synthetic aircraft will use fallback models");
         return;
     }
     
     LOG_MSG(logINFO, "Scanning %d available CSL models for synthetic traffic", numModels);
+    
+    int validModels = 0;
+    int skippedModels = 0;
     
     // Scan all available CSL models
     for (int i = 0; i < numModels; i++) {
@@ -4773,8 +4841,23 @@ void SyntheticConnection::ScanAvailableCSLModels()
         try {
             XPMPGetModelInfo2(i, modelName, icaoType, airline, livery);
             
-            if (modelName.empty() || icaoType.empty()) {
-                continue; // Skip invalid models
+            // Enhanced validation - ensure we have minimum required data
+            if (modelName.empty() || icaoType.empty() || icaoType.length() < 3) {
+                skippedModels++;
+                LOG_MSG(logDEBUG, "Skipping invalid CSL model %d: name='%s', icao='%s'", 
+                        i, modelName.c_str(), icaoType.c_str());
+                continue;
+            }
+            
+            // Sanitize ICAO type (uppercase, remove invalid characters)
+            std::transform(icaoType.begin(), icaoType.end(), icaoType.begin(), ::toupper);
+            icaoType.erase(std::remove_if(icaoType.begin(), icaoType.end(), 
+                          [](char c) { return !std::isalnum(c); }), icaoType.end());
+            
+            if (icaoType.length() < 3) {
+                skippedModels++;
+                LOG_MSG(logDEBUG, "Skipping model with invalid ICAO after sanitization: %s", modelName.c_str());
+                continue;
             }
             
             // Create CSL model data entry
@@ -4792,18 +4875,34 @@ void SyntheticConnection::ScanAvailableCSLModels()
             availableCSLModels.push_back(modelData);
             cslModelsByType[modelData.category].push_back(index);
             
-            LOG_MSG(logDEBUG, "CSL Model: %s (%s) - Category: %d", 
-                    modelName.c_str(), icaoType.c_str(), modelData.category);
+            validModels++;
+            LOG_MSG(logDEBUG, "CSL Model %d: %s (%s) - Category: %d, Airline: %s", 
+                    i, modelName.c_str(), icaoType.c_str(), modelData.category, airline.c_str());
             
+        } catch (const std::exception& e) {
+            skippedModels++;
+            LOG_MSG(logWARN, "Exception while processing CSL model index %d: %s", i, e.what());
         } catch (...) {
-            LOG_MSG(logWARN, "Exception while processing CSL model index %d", i);
+            skippedModels++;
+            LOG_MSG(logWARN, "Unknown exception while processing CSL model index %d", i);
         }
     }
     
-    LOG_MSG(logINFO, "CSL Scan complete: GA=%d, Airlines=%d, Military=%d models", 
+    LOG_MSG(logINFO, "CSL Scan complete: %d valid models (%d skipped) - GA=%d, Airlines=%d, Military=%d", 
+            validModels, skippedModels,
             static_cast<int>(cslModelsByType[SYN_TRAFFIC_GA].size()),
             static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()),
             static_cast<int>(cslModelsByType[SYN_TRAFFIC_MILITARY].size()));
+    
+    // Warn if we have very few models for any category
+    if (cslModelsByType[SYN_TRAFFIC_GA].size() < 3) {
+        LOG_MSG(logWARN, "Very few GA CSL models found (%d) - synthetic GA traffic may be repetitive", 
+                static_cast<int>(cslModelsByType[SYN_TRAFFIC_GA].size()));
+    }
+    if (cslModelsByType[SYN_TRAFFIC_AIRLINE].size() < 3) {
+        LOG_MSG(logWARN, "Very few Airline CSL models found (%d) - synthetic airline traffic may be repetitive", 
+                static_cast<int>(cslModelsByType[SYN_TRAFFIC_AIRLINE].size()));
+    }
 }
 
 // Categorize aircraft type from ICAO code
@@ -4852,20 +4951,33 @@ std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType 
     // Check if we have models for this traffic type
     auto it = cslModelsByType.find(trafficType);
     if (it == cslModelsByType.end() || it->second.empty()) {
+        LOG_MSG(logDEBUG, "No CSL models available for traffic type %d, using fallback", trafficType);
         return ""; // No models available, use fallback
     }
     
     const std::vector<size_t>& typeModels = it->second;
     
-    // Simple random selection for now
-    // TODO: Could enhance with route-based selection, airline matching, etc.
-    size_t randomIndex = typeModels[std::rand() % typeModels.size()];
-    
-    if (randomIndex < availableCSLModels.size()) {
-        return availableCSLModels[randomIndex].icaoType;
+    // Enhanced model selection with validation
+    for (int attempts = 0; attempts < 3; attempts++) {
+        size_t randomIndex = typeModels[std::rand() % typeModels.size()];
+        
+        if (randomIndex < availableCSLModels.size()) {
+            const CSLModelData& selectedModel = availableCSLModels[randomIndex];
+            
+            // Validate the selected model
+            if (!selectedModel.icaoType.empty() && selectedModel.icaoType.length() >= 3) {
+                LOG_MSG(logDEBUG, "Selected validated CSL model: %s (%s) for traffic type %d", 
+                        selectedModel.modelName.c_str(), selectedModel.icaoType.c_str(), trafficType);
+                return selectedModel.icaoType;
+            } else {
+                LOG_MSG(logWARN, "Invalid CSL model at index %zu: ICAO='%s', name='%s', retrying...", 
+                        randomIndex, selectedModel.icaoType.c_str(), selectedModel.modelName.c_str());
+            }
+        }
     }
     
-    return ""; // Fallback
+    LOG_MSG(logWARN, "Failed to select valid CSL model after 3 attempts for traffic type %d", trafficType);
+    return ""; // Fallback after multiple failed attempts
 }
 
 //
