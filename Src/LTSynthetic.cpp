@@ -1338,46 +1338,65 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
     }
 }
 
+// Cache for airport data to avoid repeated X-Plane API calls
+struct AirportData {
+    std::string icao;
+    double lat;
+    double lon;
+};
+
+static std::vector<AirportData> cachedWorldAirports;
+static bool airportCacheInitialized = false;
+
+// Initialize the airport cache using X-Plane's navigation database
+void InitializeAirportCache()
+{
+    if (airportCacheInitialized) return;
+    
+    cachedWorldAirports.clear();
+    
+    // Get all airports from X-Plane's navigation database
+    XPLMNavRef airportRef = XPLMFindFirstNavAidOfType(xplm_Nav_Airport);
+    
+    while (airportRef != XPLM_NAV_NOT_FOUND) {
+        float lat, lon;
+        char airportID[32];
+        
+        // Get airport information
+        XPLMGetNavAidInfo(airportRef, nullptr, &lat, &lon, nullptr, 
+                          nullptr, nullptr, airportID, nullptr, nullptr);
+        
+        // Only include airports with valid ICAO codes (4 characters) or major airports (3 characters)
+        std::string icao(airportID);
+        if (icao.length() >= 3) {
+            AirportData airport;
+            airport.icao = icao;
+            airport.lat = lat;
+            airport.lon = lon;
+            cachedWorldAirports.push_back(airport);
+        }
+        
+        // Get next airport
+        airportRef = XPLMGetNextNavAid(airportRef);
+    }
+    
+    airportCacheInitialized = true;
+    LOG_MSG(logINFO, "Initialized airport cache with %zu airports from X-Plane navigation database", 
+            cachedWorldAirports.size());
+}
+
 // Find nearby airports for traffic generation
 std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionTy& centerPos, double radiusNM)
 {
     std::vector<std::string> airports;
     
-    // Use center position and radius to determine appropriate airports
-    // Calculate distances and filter based on proximity and radius
+    // Initialize airport cache from X-Plane navigation database if needed
+    InitializeAirportCache();
     
-    // Define a set of world airports with their approximate positions
-    struct AirportData {
-        std::string icao;
-        double lat;
-        double lon;
-    };
-    
-    static const AirportData worldAirports[] = {
-        {"KORD", 41.9786, -87.9048},  // Chicago O'Hare
-        {"KLAX", 33.9425, -118.4081}, // Los Angeles  
-        {"KJFK", 40.6398, -73.7789},  // JFK New York
-        {"KBOS", 42.3643, -71.0052},  // Boston Logan
-        {"KDEN", 39.8617, -104.6731}, // Denver
-        {"KATL", 33.6367, -84.4281},  // Atlanta
-        {"KDFW", 32.8968, -97.0380},  // Dallas/Fort Worth
-        {"KIAH", 29.9844, -95.3414},  // Houston
-        {"KPHX", 33.4343, -112.0116}, // Phoenix
-        {"KSEA", 47.4502, -122.3088}, // Seattle
-        {"KLAS", 36.0840, -115.1537}, // Las Vegas
-        {"KMIA", 25.7959, -80.2870},  // Miami
-        {"KSFO", 37.6213, -122.3790}, // San Francisco
-        {"KBWI", 39.1754, -76.6683},  // Baltimore
-        {"KDCA", 38.8521, -77.0377}   // Washington Reagan
-    };
-    
-    const size_t numAirports = sizeof(worldAirports) / sizeof(worldAirports[0]);
     const double radiusM = radiusNM * 1852.0; // Convert nautical miles to meters
     
     // Find airports within the specified radius
-    for (size_t i = 0; i < numAirports; i++) {
-        const AirportData& airport = worldAirports[i];
-        
+    for (const auto& airport : cachedWorldAirports) {
         // Calculate distance from center position to airport
         positionTy airportPos;
         airportPos.lat() = airport.lat;
@@ -1397,8 +1416,7 @@ std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionT
         // Calculate distances and sort by proximity
         std::vector<std::pair<double, std::string>> airportDistances;
         
-        for (size_t i = 0; i < numAirports; i++) {
-            const AirportData& airport = worldAirports[i];
+        for (const auto& airport : cachedWorldAirports) {
             positionTy airportPos;
             airportPos.lat() = airport.lat;
             airportPos.lon() = airport.lon;
