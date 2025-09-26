@@ -335,16 +335,16 @@ bool SyntheticConnection::ProcessFetchedData ()
             // Aircraft doesn't exist, create it
             fd.SetKey(key);
             fd.UpdateData(synData.stat, synData.pos.dist(dataRefs.GetViewPos()));
-            // Send position for past timestamp first to speed up creation
-            dyn.ts = synData.pos.ts() = tNow - dataRefs.GetFdBufPeriod();
+            // Remove buffering - use current time for synthetic aircraft
+            dyn.ts = synData.pos.ts() = tNow;
             fd.AddDynData(dyn, 0, 0, &synData.pos);
             LOG_MSG(logDEBUG, "Created synthetic aircraft %s (%s)", key.c_str(), 
                     synData.trafficType == SYN_TRAFFIC_GA ? "GA" :
                     synData.trafficType == SYN_TRAFFIC_AIRLINE ? "Airline" : "Military");
         }
 
-        // Add current data item
-        dyn.ts = synData.pos.ts() = tNow - double(dataRefs.GetFdRefreshIntvl()/2);
+        // Add current data item - no buffering for synthetic traffic
+        dyn.ts = synData.pos.ts() = tNow;
         fd.AddDynData(dyn, 0, 0, &synData.pos);
         
         // next aircraft
@@ -399,13 +399,14 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Generate position at airport (for now, use center position as placeholder)
-    positionTy acPos = centerPos;
-    acPos.alt_m() += 50.0; // Start at 50m AGL
+    // Generate varied position around the user position instead of exactly at centerPos
+    positionTy acPos = GenerateVariedPosition(centerPos, 2.0, 10.0); // 2-10nm from user
+    acPos.alt_m() = 150.0 + (std::rand() % 1000); // 150-1150m AGL for GA
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA);
     
-    LOG_MSG(logDEBUG, "Generated GA traffic: %s at %s", key.c_str(), airport.c_str());
+    LOG_MSG(logDEBUG, "Generated GA traffic: %s at %s (%.2f nm from user)", 
+            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
 }
 
 // Generate airline traffic
@@ -420,13 +421,14 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Position for airline aircraft (higher altitude for arrivals/departures)
-    positionTy acPos = centerPos;
-    acPos.alt_m() += 3000.0; // Start at 3000m for arrival/departure
+    // Position for airline aircraft - spread them around at higher altitudes
+    positionTy acPos = GenerateVariedPosition(centerPos, 10.0, 50.0); // 10-50nm from user
+    acPos.alt_m() = 3000.0 + (std::rand() % 8000); // 3000-11000m for airlines
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE);
     
-    LOG_MSG(logDEBUG, "Generated Airline traffic: %s", key.c_str());
+    LOG_MSG(logDEBUG, "Generated Airline traffic: %s (%.2f nm from user)", 
+            key.c_str(), centerPos.dist(acPos) / 1852.0);
 }
 
 // Generate military traffic
@@ -436,13 +438,14 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Military aircraft can operate from various locations and altitudes
-    positionTy acPos = centerPos;
-    acPos.alt_m() += 5000.0; // Start at higher altitude
+    // Military aircraft can operate from various locations and altitudes - spread them out more
+    positionTy acPos = GenerateVariedPosition(centerPos, 20.0, 100.0); // 20-100nm from user
+    acPos.alt_m() = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY);
     
-    LOG_MSG(logDEBUG, "Generated Military traffic: %s", key.c_str());
+    LOG_MSG(logDEBUG, "Generated Military traffic: %s (%.2f nm from user)", 
+            key.c_str(), centerPos.dist(acPos) / 1852.0);
 }
 
 // Create synthetic aircraft with realistic parameters
@@ -1244,4 +1247,61 @@ std::string SyntheticConnection::ApplyHeavyStaticEffects(const std::string& mess
     }
     
     return result;
+}
+
+// Generate varied position around a center point to prevent aircraft stacking
+positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerPos, double minDistanceNM, double maxDistanceNM)
+{
+    const int maxAttempts = 10;
+    const double minSeparationNM = 1.0; // Minimum 1nm separation between aircraft
+    
+    for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+        // Generate random distance within range
+        double distance = minDistanceNM + (static_cast<double>(std::rand()) / RAND_MAX) * (maxDistanceNM - minDistanceNM);
+        distance *= 1852.0; // Convert nautical miles to meters
+        
+        // Generate random bearing
+        double bearing = static_cast<double>(std::rand()) / RAND_MAX * 2.0 * PI;
+        
+        // Calculate new position using bearing and distance
+        positionTy newPos = centerPos;
+        
+        // Simple flat earth approximation for positioning (good enough for local distances)
+        double lat_offset = (distance * cos(bearing)) / 111320.0; // 111320 m per degree latitude
+        double lon_offset = (distance * sin(bearing)) / (111320.0 * cos(centerPos.lat() * PI / 180.0));
+        
+        newPos.lat() += lat_offset;
+        newPos.lon() += lon_offset;
+        newPos.alt_m() = centerPos.alt_m(); // Keep same base altitude, will be modified by caller
+        
+        // Check if this position is far enough from existing synthetic aircraft
+        bool positionOK = true;
+        for (const auto& synAircraft : mapSynData) {
+            double dist = synAircraft.second.pos.dist(newPos) / 1852.0; // Distance in nautical miles
+            if (dist < minSeparationNM) {
+                positionOK = false;
+                break;
+            }
+        }
+        
+        if (positionOK) {
+            return newPos;
+        }
+    }
+    
+    // If we couldn't find a suitable position after maxAttempts, just return the last generated one
+    // This prevents infinite loops if the area is too crowded
+    double distance = minDistanceNM + (static_cast<double>(std::rand()) / RAND_MAX) * (maxDistanceNM - minDistanceNM);
+    distance *= 1852.0;
+    double bearing = static_cast<double>(std::rand()) / RAND_MAX * 2.0 * PI;
+    
+    positionTy newPos = centerPos;
+    double lat_offset = (distance * cos(bearing)) / 111320.0;
+    double lon_offset = (distance * sin(bearing)) / (111320.0 * cos(centerPos.lat() * PI / 180.0));
+    
+    newPos.lat() += lat_offset;
+    newPos.lon() += lon_offset;
+    newPos.alt_m() = centerPos.alt_m();
+    
+    return newPos;
 }
