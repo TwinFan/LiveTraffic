@@ -26,6 +26,131 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+// Windows SAPI includes for Text-to-Speech
+#if IBM
+#include <sapi.h>
+#include <sphelper.h>
+#pragma comment(lib, "sapi.lib")
+#endif
+
+//
+// MARK: Windows SAPI TTS Manager
+//
+
+#if IBM
+/// Windows SAPI Text-to-Speech Manager
+class TTSManager {
+private:
+    ISpVoice* pVoice;
+    bool initialized;
+    
+    // Different voice settings for different aircraft types
+    struct VoiceSettings {
+        long rate;      // Speech rate (-10 to 10)
+        long volume;    // Volume (0 to 100)  
+        long pitch;     // Pitch offset (-10 to 10)
+    };
+    
+    static const VoiceSettings gaVoice;      // General Aviation
+    static const VoiceSettings airlineVoice; // Commercial airline
+    static const VoiceSettings militaryVoice; // Military
+    
+public:
+    TTSManager() : pVoice(nullptr), initialized(false) {}
+    ~TTSManager() { Cleanup(); }
+    
+    bool Initialize() {
+        if (initialized) return true;
+        
+        HRESULT hr = CoInitialize(nullptr);
+        if (FAILED(hr)) {
+            LOG_MSG(logERR, "TTS: Failed to initialize COM");
+            return false;
+        }
+        
+        hr = CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_ALL, IID_ISpVoice, (void**)&pVoice);
+        if (FAILED(hr)) {
+            LOG_MSG(logERR, "TTS: Failed to create SAPI voice instance");
+            CoUninitialize();
+            return false;
+        }
+        
+        initialized = true;
+        LOG_MSG(logDEBUG, "TTS: SAPI initialized successfully");
+        return true;
+    }
+    
+    void Cleanup() {
+        if (pVoice) {
+            pVoice->Release();
+            pVoice = nullptr;
+        }
+        if (initialized) {
+            CoUninitialize();
+            initialized = false;
+        }
+    }
+    
+    void Speak(const std::string& text, SyntheticTrafficType trafficType, double distance) {
+        if (!initialized || !pVoice || text.empty()) return;
+        
+        // Select voice settings based on aircraft type
+        const VoiceSettings* settings = &gaVoice;
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                settings = &airlineVoice;
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                settings = &militaryVoice;
+                break;
+            default:
+                settings = &gaVoice;
+                break;
+        }
+        
+        // Apply distance-based volume reduction (simulate radio range)
+        long adjustedVolume = settings->volume;
+        if (distance > 5.0) {
+            // Reduce volume for distant aircraft (beyond 5 NM)
+            double volumeReduction = std::min(0.8, (distance - 5.0) / 20.0);
+            adjustedVolume = (long)(settings->volume * (1.0 - volumeReduction));
+        }
+        
+        // Apply voice settings
+        pVoice->SetRate(settings->rate);
+        pVoice->SetVolume(adjustedVolume);
+        
+        // Add radio effect prefix for realism
+        std::string radioText = text;
+        if (distance > 10.0) {
+            radioText = "[Static] " + radioText + " [Static]";
+        } else if (distance > 5.0) {
+            radioText = "[Weak Signal] " + radioText;
+        }
+        
+        // Convert to wide string for SAPI
+        std::wstring wideText(radioText.begin(), radioText.end());
+        
+        // Speak asynchronously to avoid blocking the main thread
+        HRESULT hr = pVoice->Speak(wideText.c_str(), SPF_ASYNC | SPF_PURGEBEFORESPEAK, nullptr);
+        if (FAILED(hr)) {
+            LOG_MSG(logWARN, "TTS: Failed to speak text: %s", text.c_str());
+        }
+    }
+    
+    static TTSManager& GetInstance() {
+        static TTSManager instance;
+        return instance;
+    }
+};
+
+// Voice settings for different aircraft types
+const TTSManager::VoiceSettings TTSManager::gaVoice = { -2, 70, 0 };        // Slower, softer for GA
+const TTSManager::VoiceSettings TTSManager::airlineVoice = { 0, 85, -1 };   // Normal, professional tone
+const TTSManager::VoiceSettings TTSManager::militaryVoice = { 1, 90, -2 };  // Faster, authoritative
+
+#endif // IBM
+
 //
 // MARK: SyntheticConnection
 //
@@ -448,7 +573,18 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     
     // Generate varied position around the user position instead of exactly at centerPos
     positionTy acPos = GenerateVariedPosition(centerPos, 2.0, 10.0); // 2-10nm from user
-    acPos.alt_m() = 150.0 + (std::rand() % 1000); // 150-1150m AGL for GA
+    
+    // Set terrain-safe altitude for GA aircraft
+    XPLMProbeRef tempProbe = nullptr;
+    double terrainElev = GetTerrainElevation(acPos, tempProbe);
+    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    
+    double baseAltitude = 150.0 + (std::rand() % 1000); // 150-1150m AGL for GA  
+    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_GA);
+    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    
+    LOG_MSG(logDEBUG, "GA aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA);
     
@@ -470,7 +606,18 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     
     // Position for airline aircraft - spread them around at higher altitudes
     positionTy acPos = GenerateVariedPosition(centerPos, 10.0, 50.0); // 10-50nm from user
-    acPos.alt_m() = 3000.0 + (std::rand() % 8000); // 3000-11000m for airlines
+    
+    // Set terrain-safe altitude for airline aircraft
+    XPLMProbeRef tempProbe = nullptr;
+    double terrainElev = GetTerrainElevation(acPos, tempProbe);
+    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    
+    double baseAltitude = 3000.0 + (std::rand() % 8000); // 3000-11000m for airlines
+    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_AIRLINE);
+    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    
+    LOG_MSG(logDEBUG, "Airline aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE);
     
@@ -487,7 +634,18 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     
     // Military aircraft can operate from various locations and altitudes - spread them out more
     positionTy acPos = GenerateVariedPosition(centerPos, 20.0, 100.0); // 20-100nm from user
-    acPos.alt_m() = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
+    
+    // Set terrain-safe altitude for military aircraft
+    XPLMProbeRef tempProbe = nullptr;
+    double terrainElev = GetTerrainElevation(acPos, tempProbe);
+    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    
+    double baseAltitude = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
+    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_MILITARY);
+    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    
+    LOG_MSG(logDEBUG, "Military aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY);
     
@@ -1371,17 +1529,21 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                 case SYN_STATE_DESCENT:
                 case SYN_STATE_APPROACH:
                 case SYN_STATE_LANDING:
-                    // Don't descend below safe terrain clearance
+                    // Enhanced terrain avoidance for descent phases
                     {
-                        double terrainElevationM = synData.terrainElevation;
-                        double minSafeClearance = 150.0; // 150m minimum clearance
+                        // Get proper clearance requirements for this phase and aircraft type
+                        double requiredClearance = GetRequiredTerrainClearance(synData.state, synData.trafficType);
+                        double minSafeAltitude = synData.terrainElevation + requiredClearance;
                         
-                        // Increase clearance for approach and landing
-                        if (synData.state == SYN_STATE_APPROACH) minSafeClearance = 100.0;
-                        else if (synData.state == SYN_STATE_LANDING) minSafeClearance = 20.0;
-                        
-                        double minSafeAltitude = terrainElevationM + minSafeClearance;
+                        // Apply terrain avoidance with extra safety margin
                         newAltitude = std::max(newAltitude, minSafeAltitude);
+                        
+                        // Special handling for approach and landing near airports
+                        if (synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_LANDING) {
+                            // Allow controlled descent to airports, but maintain minimum safety
+                            double absoluteMinimum = synData.terrainElevation + 30.0;
+                            newAltitude = std::max(newAltitude, absoluteMinimum);
+                        }
                     }
                     break;
             }
@@ -1470,7 +1632,7 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     return message;
 }
 
-// Process TTS communications (placeholder for Windows TTS integration)
+// Process TTS communications with Windows SAPI integration
 void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std::string& message)
 {
     if (!config.enableTTS || message.empty()) return;
@@ -1478,15 +1640,29 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
     // Store the last communication message
     synData.lastComm = message;
     
-    // Log the communication for now (actual TTS implementation would go here)
     LOG_MSG(logDEBUG, "TTS: %s", message.c_str());
     
-    // TODO: Integrate with Windows TTS API
-    // This would involve:
-    // 1. Initialize Windows SAPI (Speech API)
-    // 2. Create voice objects with different characteristics for different aircraft types
-    // 3. Queue the message for speech synthesis
-    // 4. Handle radio effects and audio positioning based on distance
+#if IBM
+    // Windows SAPI TTS integration
+    TTSManager& tts = TTSManager::GetInstance();
+    
+    // Initialize TTS if not already done
+    if (!tts.Initialize()) {
+        LOG_MSG(logWARN, "TTS: Failed to initialize SAPI, falling back to logging only");
+        return;
+    }
+    
+    // Calculate distance to user for audio effects
+    const positionTy userPos = dataRefs.GetViewPos();
+    double distance = synData.pos.dist(userPos) / 1852.0; // Convert to nautical miles
+    
+    // Use SAPI to speak the message with appropriate voice characteristics
+    tts.Speak(message, synData.trafficType, distance);
+    
+#else
+    // Non-Windows platforms: log only (could implement other TTS engines here)
+    LOG_MSG(logINFO, "TTS not implemented on this platform: %s", message.c_str());
+#endif
 }
 
 // Update user awareness behavior
@@ -2293,20 +2469,78 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
 // Update terrain awareness to maintain safe separation from ground
 void SyntheticConnection::UpdateTerrainAwareness(SynDataTy& synData)
 {
-    // Update terrain elevation every 5 seconds or when position changes significantly  
+    // Update terrain elevation more frequently in mountainous areas
     double currentTime = std::time(nullptr);
-    if (currentTime - synData.lastTerrainCheck > 5.0) {
-        synData.terrainElevation = GetTerrainElevation(synData.pos, synData.terrainProbe);
-        synData.lastTerrainCheck = currentTime;
+    bool needsTerrainUpdate = (currentTime - synData.lastTerrainCheck > 2.0); // Check every 2 seconds
+    
+    // Also check if position has changed significantly
+    static std::map<std::string, positionTy> lastProbePos;
+    const std::string key = synData.stat.call;
+    auto lastPosIt = lastProbePos.find(key);
+    
+    if (lastPosIt != lastProbePos.end()) {
+        double distFromLastProbe = synData.pos.dist(lastPosIt->second);
+        if (distFromLastProbe > 1000.0) { // 1km threshold
+            needsTerrainUpdate = true;
+        }
+    } else {
+        needsTerrainUpdate = true; // First time
     }
     
-    // Check for terrain conflicts and adjust altitude if needed
-    if (!IsTerrainSafe(synData.pos, 150.0)) {
-        // Terrain conflict - emergency climb
-        if (synData.state != SYN_STATE_LANDING && synData.state != SYN_STATE_APPROACH) {
-            synData.targetAltitude = std::max(synData.targetAltitude, synData.terrainElevation + 300.0);
-            LOG_MSG(logDEBUG, "Aircraft %s: Terrain conflict detected, climbing to %0.0f ft", 
-                    synData.stat.call.c_str(), synData.targetAltitude / 0.3048);
+    if (needsTerrainUpdate) {
+        synData.terrainElevation = GetTerrainElevation(synData.pos, synData.terrainProbe);
+        synData.lastTerrainCheck = currentTime;
+        lastProbePos[key] = synData.pos;
+        
+        // Also probe ahead on flight path for proactive terrain avoidance
+        positionTy aheadPos = synData.pos;
+        double headingRad = synData.pos.heading() * PI / 180.0;
+        double lookAheadDistance = synData.targetSpeed * 60.0; // 1 minute ahead at current speed
+        lookAheadDistance = std::min(lookAheadDistance, 10000.0); // Max 10km ahead
+        
+        // Calculate position 1 minute ahead
+        const double METERS_PER_DEGREE_LAT = 111320.0;
+        const double METERS_PER_DEGREE_LON = 111320.0 * cos(aheadPos.lat() * PI / 180.0);
+        
+        double deltaLat = (lookAheadDistance * cos(headingRad)) / METERS_PER_DEGREE_LAT;
+        double deltaLon = (lookAheadDistance * sin(headingRad)) / METERS_PER_DEGREE_LON;
+        
+        aheadPos.lat() += deltaLat;
+        aheadPos.lon() += deltaLon;
+        
+        double aheadTerrainElev = GetTerrainElevation(aheadPos, synData.terrainProbe);
+        
+        // If terrain ahead is significantly higher, start climbing early
+        double terrainRise = aheadTerrainElev - synData.terrainElevation;
+        if (terrainRise > 100.0) { // Terrain rises more than 100m ahead
+            if (synData.pos.alt_m() < aheadTerrainElev + 300.0) {
+                synData.targetAltitude = std::max(synData.targetAltitude, aheadTerrainElev + 500.0);
+                LOG_MSG(logINFO, "Aircraft %s: Terrain rising ahead (%.0fm), climbing to %0.0f ft", 
+                        synData.stat.call.c_str(), aheadTerrainElev, synData.targetAltitude / 0.3048);
+            }
+        }
+    }
+    
+    // Enhanced terrain safety checks based on flight phase
+    double requiredClearance = GetRequiredTerrainClearance(synData.state, synData.trafficType);
+    
+    // Check current position safety
+    if (!IsTerrainSafe(synData.pos, requiredClearance)) {
+        // Terrain conflict - immediate emergency climb
+        double emergencyAltitude = synData.terrainElevation + requiredClearance + 150.0; // Extra safety
+        
+        if (synData.state != SYN_STATE_LANDING) { // Don't emergency climb during landing
+            synData.targetAltitude = std::max(synData.targetAltitude, emergencyAltitude);
+            
+            // Force immediate climb if critically low
+            if (synData.pos.alt_m() < synData.terrainElevation + (requiredClearance * 0.5)) {
+                synData.pos.alt_m() = synData.terrainElevation + requiredClearance;
+                LOG_MSG(logWARN, "Aircraft %s: EMERGENCY TERRAIN AVOIDANCE - Immediate altitude correction to %0.0f ft", 
+                        synData.stat.call.c_str(), synData.pos.alt_m() / 0.3048);
+            } else {
+                LOG_MSG(logINFO, "Aircraft %s: Terrain conflict, climbing to %0.0f ft (clearance: %.0fm)", 
+                        synData.stat.call.c_str(), synData.targetAltitude / 0.3048, requiredClearance);
+            }
         }
     }
 }
@@ -2336,9 +2570,31 @@ void SyntheticConnection::GenerateFlightPath(SynDataTy& synData, const positionT
             waypoint.lon() += (std::rand() % 200 - 100) / 10000.0 * variation;
         }
         
-        // Ensure waypoint is terrain-safe
+        // Enhanced terrain-safe waypoint generation
         double terrainElev = GetTerrainElevation(waypoint, synData.terrainProbe);
-        waypoint.alt_m() = std::max(waypoint.alt_m(), terrainElev + 200.0);
+        double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, synData.trafficType);
+        
+        // Ensure waypoint altitude is safe with proper clearance
+        double minSafeAltitude = terrainElev + requiredClearance;
+        waypoint.alt_m() = std::max(waypoint.alt_m(), minSafeAltitude);
+        
+        // For mountainous terrain, add extra vertical separation between waypoints
+        if (i > 0) {
+            double altitudeDiff = std::abs(waypoint.alt_m() - synData.flightPath[i-1].alt_m());
+            if (altitudeDiff > 1000.0) { // More than 1000m altitude difference
+                // Add intermediate waypoint to smooth the climb/descent
+                positionTy intermediateWp;
+                intermediateWp.lat() = (waypoint.lat() + synData.flightPath[i-1].lat()) / 2.0;
+                intermediateWp.lon() = (waypoint.lon() + synData.flightPath[i-1].lon()) / 2.0;
+                intermediateWp.alt_m() = (waypoint.alt_m() + synData.flightPath[i-1].alt_m()) / 2.0;
+                
+                // Ensure intermediate waypoint is also terrain safe
+                double intermediateTerrainElev = GetTerrainElevation(intermediateWp, synData.terrainProbe);
+                intermediateWp.alt_m() = std::max(intermediateWp.alt_m(), intermediateTerrainElev + requiredClearance);
+                
+                synData.flightPath.push_back(intermediateWp);
+            }
+        }
         
         synData.flightPath.push_back(waypoint);
     }
@@ -2367,12 +2623,99 @@ double SyntheticConnection::GetTerrainElevation(const positionTy& position, XPLM
     // Use X-Plane's terrain probing system
     double elevation = YProbe_at_m(position, probeRef);
     
-    // If probing fails, use a conservative estimate
+    // If probing fails, use a conservative estimate based on nearby areas
     if (std::isnan(elevation)) {
-        elevation = 0.0; // Assume sea level if probe fails
+        // Try probing slightly offset positions to get a better estimate
+        std::vector<positionTy> offsetPositions = {
+            positionTy(position.lat() + 0.001, position.lon(), 0.0),          // North
+            positionTy(position.lat() - 0.001, position.lon(), 0.0),          // South  
+            positionTy(position.lat(), position.lon() + 0.001, 0.0),          // East
+            positionTy(position.lat(), position.lon() - 0.001, 0.0)           // West
+        };
+        
+        double maxElevation = 0.0;
+        bool foundValidElevation = false;
+        
+        for (const auto& offsetPos : offsetPositions) {
+            double offsetElev = YProbe_at_m(offsetPos, probeRef);
+            if (!std::isnan(offsetElev)) {
+                maxElevation = std::max(maxElevation, offsetElev);
+                foundValidElevation = true;
+            }
+        }
+        
+        if (foundValidElevation) {
+            elevation = maxElevation + 200.0; // Add safety margin for uncertainty
+            LOG_MSG(logWARN, "Terrain probe failed at %.6f,%.6f, using conservative estimate: %.0fm", 
+                    position.lat(), position.lon(), elevation);
+        } else {
+            // Last resort: use a very conservative mountain altitude estimate
+            // In mountainous regions, assume significant elevation
+            elevation = 1000.0; // 1000m conservative estimate for unknown terrain
+            LOG_MSG(logERR, "All terrain probes failed at %.6f,%.6f, using emergency estimate: %.0fm", 
+                    position.lat(), position.lon(), elevation);
+        }
     }
     
     return elevation;
+}
+
+// Get required terrain clearance based on flight state and aircraft type
+double SyntheticConnection::GetRequiredTerrainClearance(SyntheticFlightState state, SyntheticTrafficType trafficType)
+{
+    double baseClearance = 300.0; // Base clearance in meters
+    
+    // Adjust clearance based on aircraft type
+    switch (trafficType) {
+        case SYN_TRAFFIC_GA:
+            baseClearance = 250.0; // GA can fly lower
+            break;
+        case SYN_TRAFFIC_AIRLINE:
+            baseClearance = 400.0; // Airlines need more clearance
+            break;
+        case SYN_TRAFFIC_MILITARY:
+            baseClearance = 200.0; // Military can fly lower (but still safe)
+            break;
+        default:
+            baseClearance = 300.0;
+            break;
+    }
+    
+    // Adjust clearance based on flight phase
+    switch (state) {
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_SHUTDOWN:
+            return 0.0; // On ground
+            
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_TAXI_IN:
+            return 10.0; // Minimal clearance for taxiing
+            
+        case SYN_STATE_TAKEOFF:
+            return std::max(50.0, baseClearance * 0.3); // Lower during takeoff
+            
+        case SYN_STATE_CLIMB:
+            return baseClearance * 1.2; // Extra clearance while climbing
+            
+        case SYN_STATE_CRUISE:
+            return baseClearance * 1.5; // Maximum clearance for cruise
+            
+        case SYN_STATE_HOLD:
+            return baseClearance * 1.3; // Extra clearance for holding patterns
+            
+        case SYN_STATE_DESCENT:
+            return baseClearance * 1.1; // Slightly more clearance during descent
+            
+        case SYN_STATE_APPROACH:
+            return std::max(150.0, baseClearance * 0.6); // Reduced for approach but still safe
+            
+        case SYN_STATE_LANDING:
+            return 30.0; // Minimal safe clearance for landing
+            
+        default:
+            return baseClearance;
+    }
 }
 
 // Smooth heading changes to avoid sharp turns
