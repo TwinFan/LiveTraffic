@@ -168,6 +168,7 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
                 parkDat.stateChangeTime = std::time(nullptr);
                 parkDat.nextEventTime = parkDat.stateChangeTime + 60; // Next event in 1 minute
                 parkDat.isUserAware = false;
+                parkDat.lastPosUpdateTime = std::time(nullptr);
             }
                 
             // Test if the aircraft came too close to any other parked aircraft on the ground
@@ -272,6 +273,9 @@ bool SyntheticConnection::ProcessFetchedData ()
         
         // Calculate performance parameters
         CalculatePerformance(synData);
+        
+        // Update aircraft position based on movement
+        UpdateAircraftPosition(synData, tNow);
         
         // Send position for LiveTraffic's processing
         LTFlightData::FDDynamicData dyn;
@@ -572,6 +576,7 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.isUserAware = false;
     synData.lastComm = "";
     synData.lastCommTime = 0.0;
+    synData.lastPosUpdateTime = std::time(nullptr);
     // Flight plan already generated above based on origin/destination
     
     return true;
@@ -934,6 +939,153 @@ void SyntheticConnection::CalculatePerformance(SynDataTy& synData)
             synData.targetSpeed = 0.0; // Stationary
             break;
     }
+}
+
+// Update aircraft position based on movement
+void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double currentTime)
+{
+    // Calculate time delta since last position update
+    double deltaTime = currentTime - synData.lastPosUpdateTime;
+    
+    // Don't update if delta is too small (less than 0.1 seconds)
+    if (deltaTime < 0.1) {
+        return;
+    }
+    
+    // Save the old position for reference
+    positionTy oldPos = synData.pos;
+    
+    // Only update position if aircraft should be moving
+    bool shouldMove = false;
+    double altitudeChangeRate = 0.0; // meters per second
+    
+    switch (synData.state) {
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_SHUTDOWN:
+            // Stationary states - no movement
+            shouldMove = false;
+            break;
+            
+        case SYN_STATE_TAXI_OUT:
+        case SYN_STATE_TAXI_IN:
+            // Ground movement - horizontal only, no altitude change
+            shouldMove = (synData.targetSpeed > 0.0);
+            altitudeChangeRate = 0.0;
+            break;
+            
+        case SYN_STATE_TAKEOFF:
+            // Taking off - horizontal movement plus altitude gain
+            shouldMove = true;
+            altitudeChangeRate = 500.0 / 60.0; // 500 ft/min converted to m/s (approximately 2.54 m/s)
+            break;
+            
+        case SYN_STATE_CLIMB:
+            // Climbing - horizontal movement plus significant altitude gain
+            shouldMove = true;
+            altitudeChangeRate = 1500.0 / 60.0; // 1500 ft/min converted to m/s (approximately 7.62 m/s)
+            break;
+            
+        case SYN_STATE_CRUISE:
+        case SYN_STATE_HOLD:
+            // Level flight - horizontal movement only
+            shouldMove = true;
+            altitudeChangeRate = 0.0;
+            break;
+            
+        case SYN_STATE_DESCENT:
+            // Descending - horizontal movement plus altitude loss
+            shouldMove = true;
+            altitudeChangeRate = -1000.0 / 60.0; // -1000 ft/min converted to m/s (approximately -5.08 m/s)
+            break;
+            
+        case SYN_STATE_APPROACH:
+            // On approach - horizontal movement plus moderate altitude loss
+            shouldMove = true;
+            altitudeChangeRate = -500.0 / 60.0; // -500 ft/min converted to m/s (approximately -2.54 m/s)
+            break;
+            
+        case SYN_STATE_LANDING:
+            // Landing - horizontal movement plus gentle altitude loss
+            shouldMove = true;
+            altitudeChangeRate = -200.0 / 60.0; // -200 ft/min converted to m/s (approximately -1.02 m/s)
+            break;
+    }
+    
+    if (shouldMove && synData.targetSpeed > 0.0) {
+        // Calculate distance traveled in this time interval
+        double distanceM = synData.targetSpeed * deltaTime; // speed is in m/s
+        
+        // Convert heading from degrees to radians
+        double headingRad = synData.pos.heading() * PI / 180.0;
+        
+        // Calculate new latitude and longitude using flat earth approximation
+        // (good enough for short distances)
+        const double METERS_PER_DEGREE_LAT = 111320.0;
+        const double METERS_PER_DEGREE_LON = 111320.0 * cos(synData.pos.lat() * PI / 180.0);
+        
+        // Calculate position changes
+        double deltaLat = (distanceM * cos(headingRad)) / METERS_PER_DEGREE_LAT;
+        double deltaLon = (distanceM * sin(headingRad)) / METERS_PER_DEGREE_LON;
+        
+        // Update position
+        synData.pos.lat() += deltaLat;
+        synData.pos.lon() += deltaLon;
+        
+        // Update altitude based on vertical speed
+        if (altitudeChangeRate != 0.0) {
+            double newAltitude = synData.pos.alt_m() + (altitudeChangeRate * deltaTime);
+            
+            // Apply altitude constraints based on flight state
+            switch (synData.state) {
+                case SYN_STATE_TAKEOFF:
+                    // Don't climb too high during takeoff
+                    newAltitude = std::min(newAltitude, oldPos.alt_m() + 300.0); // Max 300m gain
+                    break;
+                    
+                case SYN_STATE_CLIMB:
+                    // Don't exceed target altitude
+                    if (newAltitude >= synData.targetAltitude) {
+                        newAltitude = synData.targetAltitude;
+                    }
+                    break;
+                    
+                case SYN_STATE_DESCENT:
+                case SYN_STATE_APPROACH:
+                case SYN_STATE_LANDING:
+                    // Don't descend below ground level
+                    newAltitude = std::max(newAltitude, 10.0); // Minimum 10m above ground
+                    break;
+            }
+            
+            synData.pos.alt_m() = newAltitude;
+        }
+        
+        // Add some random variation to heading for more realistic flight patterns
+        if (synData.state == SYN_STATE_CRUISE || synData.state == SYN_STATE_HOLD) {
+            // Small random heading changes during cruise/hold (±2 degrees)
+            if (std::rand() % 100 < 5) { // 5% chance per update
+                double headingChange = (std::rand() % 40 - 20) / 10.0; // ±2 degrees
+                double newHeading = synData.pos.heading() + headingChange;
+                
+                // Normalize heading to 0-360 range
+                while (newHeading < 0.0) newHeading += 360.0;
+                while (newHeading >= 360.0) newHeading -= 360.0;
+                
+                synData.pos.heading() = newHeading;
+            }
+        }
+        
+        // Log significant movements for debugging
+        double movedDistance = synData.pos.dist(oldPos);
+        if (movedDistance > 100.0) { // Log if moved more than 100 meters
+            LOG_MSG(logDEBUG, "Aircraft %s moved %.0fm in %.1fs (speed=%.1f m/s, state=%d)", 
+                    synData.stat.call.c_str(), movedDistance, deltaTime, synData.targetSpeed, synData.state);
+        }
+    }
+    
+    // Update the timestamp
+    synData.lastPosUpdateTime = currentTime;
 }
 
 // Generate TTS communication message

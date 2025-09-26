@@ -96,6 +96,7 @@ protected:
         bool isUserAware;                       ///< aircraft is aware of user presence
         std::string lastComm;                   ///< last communication message
         double lastCommTime;                    ///< time of last communication
+        double lastPosUpdateTime;               ///< time of last position update
     };
     /// Stores enhanced data per tracked plane
     typedef std::map<LTFlightData::FDKeyTy, SynDataTy> mapSynDataTy;
@@ -174,6 +175,9 @@ protected:
     
     /// Calculate performance parameters based on aircraft type
     void CalculatePerformance(SynDataTy& synData);
+    
+    /// Update aircraft position based on movement
+    void UpdateAircraftPosition(SynDataTy& synData, double currentTime);
     
     /// Process TTS communications
     void ProcessTTSCommunication(SynDataTy& synData, const std::string& message);
