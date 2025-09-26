@@ -1338,46 +1338,88 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
     }
 }
 
+/// @brief Cache for airport data to avoid repeated X-Plane API calls
+/// @note Uses X-Plane's navigation database to get all airports dynamically
+struct AirportData {
+    std::string icao;   ///< ICAO airport code
+    double lat;         ///< Latitude in degrees
+    double lon;         ///< Longitude in degrees
+};
+
+/// Global cache of airports loaded from X-Plane navigation database
+static std::vector<AirportData> cachedWorldAirports;
+/// Flag indicating if the airport cache has been initialized
+static bool airportCacheInitialized = false;
+/// Maximum number of airports to cache for performance reasons
+static const size_t MAX_CACHED_AIRPORTS = 50000;
+
+/// @brief Initialize the airport cache using X-Plane's navigation database
+/// @details This function replaces the hardcoded airport list with a dynamic
+/// query of X-Plane's navigation database, making all airports available
+/// regardless of X-Plane version or scenery packages installed.
+void InitializeAirportCache()
+{
+    if (airportCacheInitialized) return;
+    
+    cachedWorldAirports.clear();
+    cachedWorldAirports.reserve(10000); // Reserve space for efficiency
+    
+    // Get all airports from X-Plane's navigation database
+    XPLMNavRef airportRef = XPLMFindFirstNavAidOfType(xplm_Nav_Airport);
+    
+    size_t airportCount = 0;
+    while (airportRef != XPLM_NAV_NOT_FOUND && airportCount < MAX_CACHED_AIRPORTS) {
+        float lat, lon;
+        char airportID[32] = {0}; // Initialize to zero
+        
+        // Get airport information
+        XPLMGetNavAidInfo(airportRef, nullptr, &lat, &lon, nullptr, 
+                          nullptr, nullptr, airportID, nullptr, nullptr);
+        
+        // Only include airports with valid ICAO codes (3-4 characters) and reasonable coordinates
+        std::string icao(airportID);
+        if (!icao.empty() && icao.length() >= 3 && icao.length() <= 4 && 
+            std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
+            AirportData airport;
+            airport.icao = icao;
+            airport.lat = lat;
+            airport.lon = lon;
+            cachedWorldAirports.push_back(airport);
+            airportCount++;
+        }
+        
+        // Get next airport
+        airportRef = XPLMGetNextNavAid(airportRef);
+    }
+    
+    // Shrink to fit actual size for memory efficiency
+    cachedWorldAirports.shrink_to_fit();
+    
+    airportCacheInitialized = true;
+    LOG_MSG(logINFO, "Initialized airport cache with %zu airports from X-Plane navigation database", 
+            cachedWorldAirports.size());
+}
+
+// Clear and refresh the airport cache from X-Plane navigation database
+void SyntheticConnection::RefreshAirportCache()
+{
+    airportCacheInitialized = false;
+    cachedWorldAirports.clear();
+    InitializeAirportCache();
+}
+
 // Find nearby airports for traffic generation
 std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionTy& centerPos, double radiusNM)
 {
     std::vector<std::string> airports;
     
-    // Use center position and radius to determine appropriate airports
-    // Calculate distances and filter based on proximity and radius
+    // Initialize airport cache from X-Plane navigation database if needed
+    InitializeAirportCache();
     
-    // Define a set of world airports with their approximate positions
-    struct AirportData {
-        std::string icao;
-        double lat;
-        double lon;
-    };
-    
-    static const AirportData worldAirports[] = {
-        {"KORD", 41.9786, -87.9048},  // Chicago O'Hare
-        {"KLAX", 33.9425, -118.4081}, // Los Angeles  
-        {"KJFK", 40.6398, -73.7789},  // JFK New York
-        {"KBOS", 42.3643, -71.0052},  // Boston Logan
-        {"KDEN", 39.8617, -104.6731}, // Denver
-        {"KATL", 33.6367, -84.4281},  // Atlanta
-        {"KDFW", 32.8968, -97.0380},  // Dallas/Fort Worth
-        {"KIAH", 29.9844, -95.3414},  // Houston
-        {"KPHX", 33.4343, -112.0116}, // Phoenix
-        {"KSEA", 47.4502, -122.3088}, // Seattle
-        {"KLAS", 36.0840, -115.1537}, // Las Vegas
-        {"KMIA", 25.7959, -80.2870},  // Miami
-        {"KSFO", 37.6213, -122.3790}, // San Francisco
-        {"KBWI", 39.1754, -76.6683},  // Baltimore
-        {"KDCA", 38.8521, -77.0377}   // Washington Reagan
-    };
-    
-    const size_t numAirports = sizeof(worldAirports) / sizeof(worldAirports[0]);
     const double radiusM = radiusNM * 1852.0; // Convert nautical miles to meters
     
     // Find airports within the specified radius
-    for (size_t i = 0; i < numAirports; i++) {
-        const AirportData& airport = worldAirports[i];
-        
+    for (const auto& airport : cachedWorldAirports) {
         // Calculate distance from center position to airport
         positionTy airportPos;
         airportPos.lat() = airport.lat;
@@ -1397,8 +1439,7 @@ std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionT
         // Calculate distances and sort by proximity
         std::vector<std::pair<double, std::string>> airportDistances;
         
-        for (size_t i = 0; i < numAirports; i++) {
-            const AirportData& airport = worldAirports[i];
+        for (const auto& airport : cachedWorldAirports) {
             positionTy airportPos;
             airportPos.lat() = airport.lat;
             airportPos.lon() = airport.lon;
