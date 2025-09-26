@@ -46,6 +46,7 @@ enum SyntheticFlightState : unsigned char {
     SYN_STATE_PARKED = 0,       ///< Aircraft is parked
     SYN_STATE_STARTUP,          ///< Starting up engines
     SYN_STATE_TAXI_OUT,         ///< Taxiing to runway
+    SYN_STATE_LINE_UP_WAIT,     ///< Lined up on runway, waiting for takeoff clearance
     SYN_STATE_TAKEOFF,          ///< Taking off
     SYN_STATE_CLIMB,            ///< Climbing to cruise
     SYN_STATE_CRUISE,           ///< Cruising
@@ -129,8 +130,18 @@ protected:
         double headingChangeRate;               ///< smooth heading change rate (deg/sec)
         double targetHeading;                   ///< target heading for navigation
         
+        // TCAS (Traffic Collision Avoidance System) data
+        double lastTCASCheck;                   ///< time of last TCAS scan
+        bool tcasActive;                        ///< TCAS system active
+        std::string tcasAdvisory;               ///< current TCAS advisory (RA/TA)
+        double tcasAvoidanceHeading;            ///< heading to avoid traffic
+        double tcasAvoidanceAltitude;           ///< altitude to avoid traffic
+        bool inTCASAvoidance;                   ///< currently executing TCAS avoidance maneuver
+        
         SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
-                     terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0) {}
+                     terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0),
+                     lastTCASCheck(0.0), tcasActive(true), tcasAdvisory(""),
+                     tcasAvoidanceHeading(0.0), tcasAvoidanceAltitude(0.0), inTCASAvoidance(false) {}
         
         ~SynDataTy() {
             if (terrainProbe) {
@@ -257,6 +268,12 @@ protected:
     
     /// Update user awareness behavior
     void UpdateUserAwareness(SynDataTy& synData, const positionTy& userPos);
+    
+    /// TCAS (Traffic Collision Avoidance System) functions
+    void UpdateTCAS(SynDataTy& synData, double currentTime);
+    bool CheckTrafficConflict(const SynDataTy& synData1, const SynDataTy& synData2);
+    void GenerateTCASAdvisory(SynDataTy& synData, const positionTy& conflictPos);
+    void ExecuteTCASManeuver(SynDataTy& synData, double currentTime);
     
     /// Helper functions for realistic communication degradation
     std::string ApplyLightStaticEffects(const std::string& message);
