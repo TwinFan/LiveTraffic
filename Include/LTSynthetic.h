@@ -164,6 +164,7 @@ protected:
         // Communication frequency management
         double currentComFreq;                  ///< current communication frequency (MHz)
         std::string currentAirport;             ///< nearest airport for frequency selection
+        std::string destinationAirport;         ///< destination airport for approach/landing
         std::string currentFreqType;            ///< frequency type (tower, ground, approach, center)
         double lastFreqUpdate;                  ///< time of last frequency update
         
@@ -185,7 +186,7 @@ protected:
                      seasonalFactor(1.0), timeFactor(1.0), weatherConditions("CLEAR"), 
                      weatherVisibility(10000.0), weatherWindSpeed(0.0), weatherWindDirection(0.0),
                      assignedSID(""), assignedSTAR(""), usingRealNavData(false),
-                     currentComFreq(121.5), currentAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
+                     currentComFreq(121.5), currentAirport(""), destinationAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
                      currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false),
                      lastCSLScanTime(0.0) {}
         
@@ -226,7 +227,7 @@ protected:
               availableSIDs(other.availableSIDs), availableSTARs(other.availableSTARs),
               assignedSID(other.assignedSID), assignedSTAR(other.assignedSTAR), usingRealNavData(other.usingRealNavData),
               currentComFreq(other.currentComFreq), currentAirport(other.currentAirport),
-              currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
+              destinationAirport(other.destinationAirport), currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
               taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
               assignedGate(other.assignedGate), groundCollisionAvoidance(other.groundCollisionAvoidance),
               lastCSLScanTime(other.lastCSLScanTime) {}
@@ -293,6 +294,7 @@ protected:
                 usingRealNavData = other.usingRealNavData;
                 currentComFreq = other.currentComFreq;
                 currentAirport = other.currentAirport;
+                destinationAirport = other.destinationAirport;
                 currentFreqType = other.currentFreqType;
                 lastFreqUpdate = other.lastFreqUpdate;
                 taxiRoute = other.taxiRoute;
@@ -430,12 +432,15 @@ protected:
     /// Find nearest airports for traffic generation
     std::vector<std::string> FindNearbyAirports(const positionTy& centerPos, double radiusNM);
     
+    /// Get airport position by ICAO code
+    positionTy GetAirportPosition(const std::string& icaoCode);
+    
     /// Clear and refresh the airport cache from X-Plane navigation database
     static void RefreshAirportCache();
     
     /// Create synthetic aircraft with realistic parameters
     bool CreateSyntheticAircraft(const std::string& key, const positionTy& pos, 
-                                  SyntheticTrafficType trafficType);
+                                  SyntheticTrafficType trafficType, const std::string& destinationAirport = "");
     
     /// Handle state transitions for AI aircraft
     void HandleStateTransition(SynDataTy& synData, SyntheticFlightState newState, double currentTime);
