@@ -38,10 +38,16 @@ SyntheticConnection::mapSynDataTy SyntheticConnection::mapSynData;
 // Configuration for synthetic traffic
 SyntheticTrafficConfig SyntheticConnection::config;
 
+// Aircraft performance database
+std::map<std::string, AircraftPerformance> SyntheticConnection::aircraftPerfDB;
+
 // Constructor
 SyntheticConnection::SyntheticConnection () :
 LTFlightDataChannel(DR_CHANNEL_SYNTHETIC, SYNTHETIC_NAME, CHT_SYNTHETIC_DATA)
-{}
+{
+    // Initialize aircraft performance database on first construction
+    InitializeAircraftPerformanceDB();
+}
 
 
 // virtual thread main function
@@ -551,24 +557,44 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.stat.acTypeIcao = acType;
     synData.stat.mdl = acType;
     
-    // Set performance parameters
-    switch (trafficType) {
-        case SYN_TRAFFIC_GA:
-            synData.targetSpeed = 60.0; // 60 m/s (~120 kts) for GA
-            synData.targetAltitude = pos.alt_m() + 500.0; // 500m above current
-            break;
-        case SYN_TRAFFIC_AIRLINE:
-            synData.targetSpeed = 120.0; // 120 m/s (~240 kts) for airlines
-            synData.targetAltitude = pos.alt_m() + 2000.0; // 2000m above current
-            break;
-        case SYN_TRAFFIC_MILITARY:
-            synData.targetSpeed = 200.0; // 200 m/s (~400 kts) for military
-            synData.targetAltitude = pos.alt_m() + 3000.0; // 3000m above current
-            break;
-        default:
-            synData.targetSpeed = 80.0;
-            synData.targetAltitude = pos.alt_m() + 1000.0;
-            break;
+    // Set initial performance parameters using aircraft-specific data
+    const AircraftPerformance* perfData = GetAircraftPerformance(acType);
+    if (perfData) {
+        // Use aircraft-specific performance for initial setup
+        synData.targetSpeed = perfData->cruiseSpeedKts * 0.514444; // Convert kts to m/s
+        
+        // Set realistic target altitude based on aircraft type
+        double serviceCeilingM = perfData->serviceCeilingFt * 0.3048; // Convert ft to m
+        double currentAltM = pos.alt_m();
+        
+        // Target altitude is a fraction of service ceiling, but not too low
+        double minTargetAlt = currentAltM + 500.0; // At least 500m above current
+        double maxTargetAlt = serviceCeilingM * 0.8; // 80% of service ceiling
+        synData.targetAltitude = std::max(minTargetAlt, std::min(maxTargetAlt, currentAltM + serviceCeilingM * 0.3));
+        
+        LOG_MSG(logDEBUG, "Set initial performance for %s: speed=%0.1f kts, target alt=%0.0f ft", 
+                acType.c_str(), synData.targetSpeed / 0.514444, synData.targetAltitude / 0.3048);
+    } else {
+        // Fallback to generic performance by traffic type
+        switch (trafficType) {
+            case SYN_TRAFFIC_GA:
+                synData.targetSpeed = 120.0 * 0.514444; // 120 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 1500.0; // 1500m above current
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                synData.targetSpeed = 460.0 * 0.514444; // 460 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 10000.0; // 10km above current (cruise altitude)
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                synData.targetSpeed = 500.0 * 0.514444; // 500 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 15000.0; // 15km above current
+                break;
+            default:
+                synData.targetSpeed = 150.0 * 0.514444; // 150 kts to m/s
+                synData.targetAltitude = pos.alt_m() + 3000.0; // 3km above current
+                break;
+        }
+        LOG_MSG(logDEBUG, "Set generic performance for %s (traffic type %d)", acType.c_str(), trafficType);
     }
     
     // Initialize other parameters
@@ -578,6 +604,16 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.lastCommTime = 0.0;
     synData.lastPosUpdateTime = std::time(nullptr);
     // Flight plan already generated above based on origin/destination
+    
+    // Initialize navigation and terrain awareness
+    synData.flightPath.clear();
+    synData.currentWaypoint = 0;
+    synData.targetWaypoint = synData.pos;
+    synData.lastTerrainCheck = 0.0;
+    synData.terrainElevation = 0.0;
+    synData.terrainProbe = nullptr;
+    synData.headingChangeRate = 2.0; // Default turn rate 2 deg/sec
+    synData.targetHeading = synData.pos.heading();
     
     return true;
 }
@@ -829,66 +865,254 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
     
     switch (trafficType) {
         case SYN_TRAFFIC_GA: {
-            const char* gaTypes[] = {"C172", "C152", "PA28", "C182", "SR22", "BE36"};
-            acType = gaTypes[std::rand() % 6];
+            // Weighted selection based on real-world GA aircraft popularity
+            // Weights reflect actual fleet numbers and training aircraft usage
+            struct GASelection {
+                const char* type;
+                int weight;
+            };
             
-            // For GA, route length might influence aircraft choice
+            GASelection gaTypes[] = {
+                {"C172", 40},   // Most popular trainer and rental aircraft
+                {"PA28", 20},   // Popular Cherokee/Warrior family
+                {"C182", 15},   // High-performance single
+                {"C152", 12},   // Popular older trainer
+                {"SR22", 8},    // Modern high-performance (expensive, less common)
+                {"BE36", 5}     // Bonanza (premium GA)
+            };
+            
+            // Route-based aircraft selection refinement
             if (!route.empty()) {
                 if (route.find("long") != std::string::npos || route.find("IFR") != std::string::npos) {
                     // Long distance GA flights prefer more capable aircraft
-                    const char* longDistanceGA[] = {"SR22", "BE36", "C182"};
-                    acType = longDistanceGA[std::rand() % 3];
+                    GASelection longDistanceGA[] = {
+                        {"SR22", 40},
+                        {"C182", 35}, 
+                        {"BE36", 25}
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : longDistanceGA) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : longDistanceGA) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
                 } else if (route.find("local") != std::string::npos || route.find("VFR") != std::string::npos) {
-                    // Local flights can use basic trainers
-                    const char* localGA[] = {"C172", "C152", "PA28"};
-                    acType = localGA[std::rand() % 3];
+                    // Local flights heavily favor basic trainers
+                    GASelection localGA[] = {
+                        {"C172", 50},
+                        {"PA28", 30},
+                        {"C152", 20}
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : localGA) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : localGA) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                } else {
+                    // General selection with realistic weights
+                    int totalWeight = 0;
+                    for (const auto& sel : gaTypes) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : gaTypes) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default weighted selection
+                int totalWeight = 0;
+                for (const auto& sel : gaTypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : gaTypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) {
+                        acType = sel.type;
+                        break;
+                    }
                 }
             }
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
-            const char* airlineTypes[] = {"B737", "A320", "B777", "A330", "B787", "A350"};
-            acType = airlineTypes[std::rand() % 6];
+            // Weighted selection based on real-world airline fleet sizes
+            struct AirlineSelection {
+                const char* type;
+                int weight;
+            };
+            
+            AirlineSelection airlineTypes[] = {
+                {"B737", 35},   // Most popular narrow body worldwide
+                {"A320", 35},   // Equally popular narrow body
+                {"B777", 10},   // Popular wide body
+                {"A330", 8},    // Wide body
+                {"B787", 7},    // Modern wide body
+                {"A350", 5}     // Newer wide body
+            };
             
             // Route characteristics influence aircraft selection
             if (!route.empty()) {
                 if (route.find("domestic") != std::string::npos || route.find("short") != std::string::npos) {
-                    // Short haul domestic - prefer narrow body
-                    const char* shortHaul[] = {"B737", "A320"};
-                    acType = shortHaul[std::rand() % 2];
+                    // Short haul domestic strongly favors narrow body
+                    AirlineSelection shortHaul[] = {
+                        {"B737", 50},
+                        {"A320", 50}
+                    };
+                    acType = shortHaul[std::rand() % 2].type;
                 } else if (route.find("international") != std::string::npos || route.find("long") != std::string::npos || 
                           route.find("FL350+") != std::string::npos) {
-                    // Long haul international - prefer wide body
-                    const char* longHaul[] = {"B777", "A330", "B787", "A350"};
-                    acType = longHaul[std::rand() % 4];
+                    // Long haul international prefers wide body
+                    AirlineSelection longHaul[] = {
+                        {"B777", 30},
+                        {"A330", 25},
+                        {"B787", 25},
+                        {"A350", 20}
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : longHaul) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : longHaul) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                } else {
+                    // Mixed selection with realistic weights
+                    int totalWeight = 0;
+                    for (const auto& sel : airlineTypes) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : airlineTypes) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default weighted selection
+                int totalWeight = 0;
+                for (const auto& sel : airlineTypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : airlineTypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) {
+                        acType = sel.type;
+                        break;
+                    }
                 }
             }
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
-            const char* militaryTypes[] = {"F16", "F18", "C130", "KC135", "E3", "B2"};
-            acType = militaryTypes[std::rand() % 6];
+            // Military aircraft selection based on mission type
+            struct MilitarySelection {
+                const char* type;
+                int weight;
+            };
             
             // Route type affects military aircraft selection
             if (!route.empty()) {
                 if (route.find("transport") != std::string::npos || route.find("strategic") != std::string::npos) {
                     // Transport/strategic missions - prefer cargo/tanker aircraft
-                    const char* transport[] = {"C130", "KC135", "E3"};
-                    acType = transport[std::rand() % 3];
+                    MilitarySelection transport[] = {
+                        {"C130", 60},   // Workhorse tactical transport
+                        {"KC135", 25},  // Strategic tanker
+                        {"E3", 15}      // AWACS surveillance
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : transport) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : transport) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
                 } else if (route.find("local ops") != std::string::npos || route.find("patrol") != std::string::npos) {
                     // Local operations - prefer fighters
-                    const char* fighters[] = {"F16", "F18"};
-                    acType = fighters[std::rand() % 2];
+                    MilitarySelection fighters[] = {
+                        {"F16", 60},    // Most common NATO fighter
+                        {"F18", 40}     // US Navy/Marine fighter
+                    };
+                    acType = (std::rand() % 100 < 60) ? "F16" : "F18";
                 } else if (route.find("FL400+") != std::string::npos) {
                     // High altitude - prefer strategic bombers or surveillance
-                    const char* highAlt[] = {"B2", "E3"};
-                    acType = highAlt[std::rand() % 2];
+                    MilitarySelection highAlt[] = {
+                        {"E3", 70},     // AWACS can fly high
+                        {"B2", 30}      // Strategic bomber
+                    };
+                    acType = (std::rand() % 100 < 70) ? "E3" : "B2";
+                } else {
+                    // General military mix
+                    MilitarySelection militaryTypes[] = {
+                        {"F16", 25},
+                        {"F18", 20},
+                        {"C130", 30},
+                        {"KC135", 15},
+                        {"E3", 8},
+                        {"B2", 2}       // Very rare
+                    };
+                    int totalWeight = 0;
+                    for (const auto& sel : militaryTypes) totalWeight += sel.weight;
+                    int randVal = std::rand() % totalWeight;
+                    int cumWeight = 0;
+                    for (const auto& sel : militaryTypes) {
+                        cumWeight += sel.weight;
+                        if (randVal < cumWeight) {
+                            acType = sel.type;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default military selection
+                MilitarySelection militaryTypes[] = {
+                    {"F16", 30},
+                    {"F18", 25},
+                    {"C130", 25},
+                    {"KC135", 12},
+                    {"E3", 6},
+                    {"B2", 2}
+                };
+                int totalWeight = 0;
+                for (const auto& sel : militaryTypes) totalWeight += sel.weight;
+                int randVal = std::rand() % totalWeight;
+                int cumWeight = 0;
+                for (const auto& sel : militaryTypes) {
+                    cumWeight += sel.weight;
+                    if (randVal < cumWeight) {
+                        acType = sel.type;
+                        break;
+                    }
                 }
             }
             break;
         }
         default:
-            acType = "C172";
+            acType = "C172"; // Safe default
             break;
     }
     
@@ -898,43 +1122,101 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
 // Calculate performance parameters based on aircraft type
 void SyntheticConnection::CalculatePerformance(SynDataTy& synData)
 {
-    // Adjust speed and altitude based on flight state and aircraft type
-    double baseSpeed = 60.0; // Default GA speed
+    // Get aircraft-specific performance data
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
     
-    switch (synData.trafficType) {
-        case SYN_TRAFFIC_GA:
-            baseSpeed = 60.0; // ~120 kts
-            break;
-        case SYN_TRAFFIC_AIRLINE:
-            baseSpeed = 120.0; // ~240 kts
-            break;
-        case SYN_TRAFFIC_MILITARY:
-            baseSpeed = 200.0; // ~400 kts
-            break;
+    // Default values if no specific performance data is found (fallback to traffic type)
+    double cruiseSpeedKts = 120;
+    double approachSpeedKts = 80;
+    double taxiSpeedKts = 15;
+    double stallSpeedKts = 60;
+    
+    if (perfData) {
+        // Use aircraft-specific performance data
+        cruiseSpeedKts = perfData->cruiseSpeedKts;
+        approachSpeedKts = perfData->approachSpeedKts;
+        taxiSpeedKts = perfData->taxiSpeedKts;
+        stallSpeedKts = perfData->stallSpeedKts;
+        
+        LOG_MSG(logDEBUG, "Using performance data for %s: cruise=%0.0f kts, approach=%0.0f kts", 
+                synData.stat.acTypeIcao.c_str(), cruiseSpeedKts, approachSpeedKts);
+    } else {
+        // Fallback to generic performance by traffic type
+        switch (synData.trafficType) {
+            case SYN_TRAFFIC_GA:
+                cruiseSpeedKts = 120;
+                approachSpeedKts = 70;
+                taxiSpeedKts = 12;
+                stallSpeedKts = 50;
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                cruiseSpeedKts = 460;
+                approachSpeedKts = 150;
+                taxiSpeedKts = 25;
+                stallSpeedKts = 130;
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                cruiseSpeedKts = 500;
+                approachSpeedKts = 200;
+                taxiSpeedKts = 40;
+                stallSpeedKts = 180;
+                break;
+        }
+        LOG_MSG(logDEBUG, "Using generic performance for %s (traffic type %d)", 
+                synData.stat.acTypeIcao.c_str(), synData.trafficType);
     }
     
-    // Adjust speed based on flight state
+    // Convert knots to m/s for internal calculations (1 knot = 0.514444 m/s)
+    const double KTS_TO_MS = 0.514444;
+    
+    // Calculate target speed based on flight state with aircraft-specific values
     switch (synData.state) {
+        case SYN_STATE_PARKED:
+        case SYN_STATE_STARTUP:
+        case SYN_STATE_SHUTDOWN:
+            synData.targetSpeed = 0.0; // Stationary
+            break;
+            
         case SYN_STATE_TAXI_OUT:
         case SYN_STATE_TAXI_IN:
-            synData.targetSpeed = 5.0; // Taxi speed ~10 kts
+            synData.targetSpeed = taxiSpeedKts * KTS_TO_MS; // Aircraft-specific taxi speed
             break;
+            
         case SYN_STATE_TAKEOFF:
-            synData.targetSpeed = baseSpeed * 0.6; // Take-off speed
+            // Takeoff speed is typically 1.2 * stall speed
+            synData.targetSpeed = (stallSpeedKts * 1.2) * KTS_TO_MS;
             break;
+            
         case SYN_STATE_CLIMB:
-            synData.targetSpeed = baseSpeed * 0.8; // Climb speed
+            // Climb speed is typically between takeoff and cruise speed
+            synData.targetSpeed = (cruiseSpeedKts * 0.85) * KTS_TO_MS;
             break;
+            
         case SYN_STATE_CRUISE:
-            synData.targetSpeed = baseSpeed; // Cruise speed
+            // Use aircraft's cruise speed
+            synData.targetSpeed = cruiseSpeedKts * KTS_TO_MS;
             break;
+            
+        case SYN_STATE_HOLD:
+            // Holding speed is typically slower than cruise
+            synData.targetSpeed = (cruiseSpeedKts * 0.75) * KTS_TO_MS;
+            break;
+            
         case SYN_STATE_DESCENT:
+            // Descent speed similar to cruise but may be reduced
+            synData.targetSpeed = (cruiseSpeedKts * 0.9) * KTS_TO_MS;
+            break;
+            
         case SYN_STATE_APPROACH:
-            synData.targetSpeed = baseSpeed * 0.7; // Approach speed
+            // Use aircraft-specific approach speed
+            synData.targetSpeed = approachSpeedKts * KTS_TO_MS;
             break;
+            
         case SYN_STATE_LANDING:
-            synData.targetSpeed = baseSpeed * 0.5; // Landing speed
+            // Landing speed is typically approach speed minus 10-20 kts
+            synData.targetSpeed = (approachSpeedKts * 0.85) * KTS_TO_MS;
             break;
+            
         default:
             synData.targetSpeed = 0.0; // Stationary
             break;
@@ -977,13 +1259,21 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         case SYN_STATE_TAKEOFF:
             // Taking off - horizontal movement plus altitude gain
             shouldMove = true;
-            altitudeChangeRate = 500.0 / 60.0; // 500 ft/min converted to m/s (approximately 2.54 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double climbRateFpm = perfData ? perfData->climbRateFpm * 0.5 : 500.0; // Half climb rate for takeoff
+                altitudeChangeRate = climbRateFpm / 60.0 * 0.3048; // ft/min to m/s
+            }
             break;
             
         case SYN_STATE_CLIMB:
             // Climbing - horizontal movement plus significant altitude gain
             shouldMove = true;
-            altitudeChangeRate = 1500.0 / 60.0; // 1500 ft/min converted to m/s (approximately 7.62 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double climbRateFpm = perfData ? perfData->climbRateFpm : 1500.0;
+                altitudeChangeRate = climbRateFpm / 60.0 * 0.3048; // ft/min to m/s
+            }
             break;
             
         case SYN_STATE_CRUISE:
@@ -996,19 +1286,27 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         case SYN_STATE_DESCENT:
             // Descending - horizontal movement plus altitude loss
             shouldMove = true;
-            altitudeChangeRate = -1000.0 / 60.0; // -1000 ft/min converted to m/s (approximately -5.08 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double descentRateFpm = perfData ? perfData->descentRateFpm : 1000.0;
+                altitudeChangeRate = -descentRateFpm / 60.0 * 0.3048; // ft/min to m/s (negative for descent)
+            }
             break;
             
         case SYN_STATE_APPROACH:
             // On approach - horizontal movement plus moderate altitude loss
             shouldMove = true;
-            altitudeChangeRate = -500.0 / 60.0; // -500 ft/min converted to m/s (approximately -2.54 m/s)
+            {
+                const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                double descentRateFpm = perfData ? perfData->descentRateFpm * 0.5 : 500.0; // Half descent rate for approach
+                altitudeChangeRate = -descentRateFpm / 60.0 * 0.3048; // ft/min to m/s (negative for descent)
+            }
             break;
             
         case SYN_STATE_LANDING:
             // Landing - horizontal movement plus gentle altitude loss
             shouldMove = true;
-            altitudeChangeRate = -200.0 / 60.0; // -200 ft/min converted to m/s (approximately -1.02 m/s)
+            altitudeChangeRate = -200.0 / 60.0 * 0.3048; // Gentle descent rate in m/s
             break;
     }
     
@@ -1036,6 +1334,21 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         if (altitudeChangeRate != 0.0) {
             double newAltitude = synData.pos.alt_m() + (altitudeChangeRate * deltaTime);
             
+            // Apply aircraft performance constraints
+            const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+            if (perfData) {
+                double maxAltM = perfData->maxAltFt * 0.3048; // Convert ft to m
+                double serviceCeilingM = perfData->serviceCeilingFt * 0.3048;
+                
+                // Don't exceed aircraft's maximum altitude
+                newAltitude = std::min(newAltitude, maxAltM);
+                
+                // Reduce climb rate significantly above service ceiling
+                if (newAltitude > serviceCeilingM && altitudeChangeRate > 0.0) {
+                    newAltitude = std::min(newAltitude, serviceCeilingM + 300.0); // Allow 300m above service ceiling
+                }
+            }
+            
             // Apply altitude constraints based on flight state
             switch (synData.state) {
                 case SYN_STATE_TAKEOFF:
@@ -1047,34 +1360,38 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                     // Don't exceed target altitude
                     if (newAltitude >= synData.targetAltitude) {
                         newAltitude = synData.targetAltitude;
+                        // Consider transitioning to cruise if we've reached target altitude
+                        if (std::abs(newAltitude - synData.targetAltitude) < 50.0) {
+                            // Close enough to target altitude, could transition to cruise
+                            // This will be handled by the AI behavior update in the next cycle
+                        }
                     }
                     break;
                     
                 case SYN_STATE_DESCENT:
                 case SYN_STATE_APPROACH:
                 case SYN_STATE_LANDING:
-                    // Don't descend below ground level
-                    newAltitude = std::max(newAltitude, 10.0); // Minimum 10m above ground
+                    // Don't descend below safe terrain clearance
+                    {
+                        double terrainElevationM = synData.terrainElevation;
+                        double minSafeClearance = 150.0; // 150m minimum clearance
+                        
+                        // Increase clearance for approach and landing
+                        if (synData.state == SYN_STATE_APPROACH) minSafeClearance = 100.0;
+                        else if (synData.state == SYN_STATE_LANDING) minSafeClearance = 20.0;
+                        
+                        double minSafeAltitude = terrainElevationM + minSafeClearance;
+                        newAltitude = std::max(newAltitude, minSafeAltitude);
+                    }
                     break;
             }
             
             synData.pos.alt_m() = newAltitude;
         }
         
-        // Add some random variation to heading for more realistic flight patterns
-        if (synData.state == SYN_STATE_CRUISE || synData.state == SYN_STATE_HOLD) {
-            // Small random heading changes during cruise/hold (±2 degrees)
-            if (std::rand() % 100 < 5) { // 5% chance per update
-                double headingChange = (std::rand() % 40 - 20) / 10.0; // ±2 degrees
-                double newHeading = synData.pos.heading() + headingChange;
-                
-                // Normalize heading to 0-360 range
-                while (newHeading < 0.0) newHeading += 360.0;
-                while (newHeading >= 360.0) newHeading -= 360.0;
-                
-                synData.pos.heading() = newHeading;
-            }
-        }
+        // Update navigation and terrain awareness
+        UpdateNavigation(synData, currentTime);
+        UpdateTerrainAwareness(synData);
         
         // Log significant movements for debugging
         double movedDistance = synData.pos.dist(oldPos);
@@ -1332,7 +1649,7 @@ std::string SyntheticConnection::GenerateFlightPlan(const positionTy& origin, co
     return flightPlan;
 }
 
-// Find SID/STAR procedures using X-Plane navdata (placeholder)
+// Find SID/STAR procedures using X-Plane navdata with actual XPLMNavigation functions
 std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airport, const std::string& runway, bool isSID)
 {
     std::vector<positionTy> procedure;
@@ -1344,14 +1661,289 @@ std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airpo
         return cacheIt->second;
     }
     
-    // This would use X-Plane SDK navigation functions in a real implementation
-    // For now, just return an empty procedure
-    // TODO: Implement actual SID/STAR lookup using XPLMNavigation functions
+    LOG_MSG(logDEBUG, "Looking up %s for airport %s runway %s using XPLMNavigation", 
+            isSID ? "SID" : "STAR", airport.c_str(), runway.c_str());
+    
+    // Find the airport using XPLMNavigation
+    XPLMNavRef airportRef = XPLMFindNavAid(nullptr, airport.c_str(), nullptr, nullptr, nullptr, xplm_Nav_Airport);
+    
+    if (airportRef == XPLM_NAV_NOT_FOUND) {
+        LOG_MSG(logWARN, "Airport %s not found in navigation database", airport.c_str());
+        sidStarCache[cacheKey] = procedure; // Cache empty result
+        return procedure;
+    }
+    
+    // Get airport information
+    float airportLat, airportLon, airportElevation;
+    int frequency;
+    float heading;
+    char airportID[32];
+    char airportName[256];
+    char reg;
+    
+    XPLMGetNavAidInfo(airportRef, nullptr, &airportLat, &airportLon, &airportElevation, 
+                      &frequency, &heading, airportID, airportName, &reg);
+    
+    positionTy airportPos;
+    airportPos.lat() = airportLat;
+    airportPos.lon() = airportLon;  
+    airportPos.alt_m() = airportElevation * 0.3048; // Convert feet to meters
+    
+    LOG_MSG(logDEBUG, "Found airport %s at %0.4f,%0.4f elevation %0.1f ft", 
+            airportID, airportLat, airportLon, airportElevation);
+    
+    if (isSID) {
+        // Generate SID (Standard Instrument Departure) using real navaid data
+        procedure = GenerateSIDFromNavData(airportPos, airport, runway);
+    } else {
+        // Generate STAR (Standard Terminal Arrival Route) using real navaid data  
+        procedure = GenerateSTARFromNavData(airportPos, airport, runway);
+    }
     
     // Cache the result
     sidStarCache[cacheKey] = procedure;
     
+    LOG_MSG(logDEBUG, "Generated %s for %s runway %s with %d waypoints", 
+            isSID ? "SID" : "STAR", airport.c_str(), runway.c_str(), (int)procedure.size());
+    
     return procedure;
+}
+
+// Generate SID procedures using actual navigation database
+std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positionTy& airportPos, 
+                                                                    const std::string& airport, 
+                                                                    const std::string& runway)
+{
+    std::vector<positionTy> sidProcedure;
+    
+    // Find nearby navigation aids for SID construction
+    float searchLat = static_cast<float>(airportPos.lat());
+    float searchLon = static_cast<float>(airportPos.lon());
+    
+    // Look for VORs, NDBs, and fixes within 50nm for SID waypoints
+    const double searchRadiusNM = 50.0;
+    const double searchRadiusM = searchRadiusNM * 1852.0;
+    
+    std::vector<XPLMNavRef> nearbyNavaids;
+    
+    // Search for different types of navigation aids
+    XPLMNavType searchTypes[] = {xplm_Nav_VOR, xplm_Nav_NDB, xplm_Nav_Fix};
+    
+    for (XPLMNavType navType : searchTypes) {
+        // Find navaids of this type near the airport
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr, &searchLat, &searchLon, nullptr, navType);
+        
+        while (navRef != XPLM_NAV_NOT_FOUND) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(navRef, nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            // Calculate distance from airport
+            positionTy navPos;
+            navPos.lat() = navLat;
+            navPos.lon() = navLon;
+            navPos.alt_m() = navElevation * 0.3048;
+            
+            double distance = airportPos.dist(navPos);
+            
+            if (distance <= searchRadiusM && distance > 1000.0) { // Not too close, not too far
+                nearbyNavaids.push_back(navRef);
+                
+                // Limit the number of navaids we consider
+                if (nearbyNavaids.size() >= 10) break;
+            }
+            
+            // This is a simplified search - in reality, we'd need to iterate through all navaids
+            // For now, just take the first suitable one we find
+            break;
+        }
+    }
+    
+    // Build SID procedure from suitable navaids
+    if (!nearbyNavaids.empty()) {
+        // Sort navaids by distance and bearing for logical SID construction
+        std::sort(nearbyNavaids.begin(), nearbyNavaids.end(), 
+                  [&airportPos](XPLMNavRef a, XPLMNavRef b) {
+                      float aLat, aLon, bLat, bLon;
+                      XPLMGetNavAidInfo(a, nullptr, &aLat, &aLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      XPLMGetNavAidInfo(b, nullptr, &bLat, &bLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      
+                      positionTy aPos(aLat, aLon, 0);
+                      positionTy bPos(bLat, bLon, 0);
+                      
+                      return airportPos.dist(aPos) < airportPos.dist(bPos);
+                  });
+        
+        // Create SID waypoints using the nearest suitable navaids
+        for (size_t i = 0; i < std::min(nearbyNavaids.size(), (size_t)5); i++) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(nearbyNavaids[i], nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            positionTy waypoint;
+            waypoint.lat() = navLat;
+            waypoint.lon() = navLon;
+            waypoint.alt_m() = airportPos.alt_m() + (i + 1) * 500.0; // Climbing departure
+            
+            sidProcedure.push_back(waypoint);
+            
+            LOG_MSG(logDEBUG, "SID waypoint %zu: %s at %0.4f,%0.4f", 
+                    i + 1, navID, navLat, navLon);
+        }
+    }
+    
+    // If no suitable navaids found, generate a basic geometric SID
+    if (sidProcedure.empty()) {
+        LOG_MSG(logDEBUG, "No suitable navaids found for SID, generating basic geometric procedure");
+        
+        // Create a basic straight-out departure
+        for (int i = 1; i <= 3; i++) {
+            positionTy waypoint;
+            double distance = i * 5000.0; // 5km intervals
+            double bearing = 360.0; // Due north default
+            
+            // Try to use runway heading if available (simplified)
+            if (!runway.empty() && runway.length() >= 2) {
+                try {
+                    int runwayNum = std::stoi(runway.substr(0, 2));
+                    bearing = runwayNum * 10.0; // Convert runway number to heading
+                } catch (...) {
+                    // Keep default bearing
+                }
+            }
+            
+            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
+            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
+            
+            waypoint.lat() = airportPos.lat() + lat_offset;
+            waypoint.lon() = airportPos.lon() + lon_offset;
+            waypoint.alt_m() = airportPos.alt_m() + i * 500.0;
+            
+            sidProcedure.push_back(waypoint);
+        }
+    }
+    
+    return sidProcedure;
+}
+
+// Generate STAR procedures using actual navigation database
+std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const positionTy& airportPos, 
+                                                                      const std::string& airport, 
+                                                                      const std::string& runway)
+{
+    std::vector<positionTy> starProcedure;
+    
+    // Similar to SID generation, but create an arrival procedure
+    float searchLat = static_cast<float>(airportPos.lat());
+    float searchLon = static_cast<float>(airportPos.lon());
+    
+    const double searchRadiusNM = 100.0; // Larger radius for STAR
+    const double searchRadiusM = searchRadiusNM * 1852.0;
+    
+    std::vector<XPLMNavRef> nearbyNavaids;
+    
+    // Search for navigation aids suitable for STAR
+    XPLMNavType searchTypes[] = {xplm_Nav_VOR, xplm_Nav_Fix, xplm_Nav_ILS, xplm_Nav_Localizer};
+    
+    for (XPLMNavType navType : searchTypes) {
+        XPLMNavRef navRef = XPLMFindNavAid(nullptr, nullptr, &searchLat, &searchLon, nullptr, navType);
+        
+        while (navRef != XPLM_NAV_NOT_FOUND) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(navRef, nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            positionTy navPos;
+            navPos.lat() = navLat;
+            navPos.lon() = navLon;
+            navPos.alt_m() = navElevation * 0.3048;
+            
+            double distance = airportPos.dist(navPos);
+            
+            if (distance > 10000.0 && distance <= searchRadiusM) { // Suitable for STAR approach
+                nearbyNavaids.push_back(navRef);
+                
+                if (nearbyNavaids.size() >= 8) break;
+            }
+            
+            break; // Simplified search
+        }
+    }
+    
+    // Build STAR procedure - approach from outside to airport
+    if (!nearbyNavaids.empty()) {
+        // Sort by distance (furthest first for arrival)
+        std::sort(nearbyNavaids.begin(), nearbyNavaids.end(), 
+                  [&airportPos](XPLMNavRef a, XPLMNavRef b) {
+                      float aLat, aLon, bLat, bLon;
+                      XPLMGetNavAidInfo(a, nullptr, &aLat, &aLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      XPLMGetNavAidInfo(b, nullptr, &bLat, &bLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+                      
+                      positionTy aPos(aLat, aLon, 0);
+                      positionTy bPos(bLat, bLon, 0);
+                      
+                      return airportPos.dist(aPos) > airportPos.dist(bPos); // Furthest first
+                  });
+        
+        // Create descending approach waypoints
+        for (size_t i = 0; i < std::min(nearbyNavaids.size(), (size_t)4); i++) {
+            float navLat, navLon, navElevation;
+            char navID[32];
+            
+            XPLMGetNavAidInfo(nearbyNavaids[i], nullptr, &navLat, &navLon, &navElevation, 
+                              nullptr, nullptr, navID, nullptr, nullptr);
+            
+            positionTy waypoint;
+            waypoint.lat() = navLat;
+            waypoint.lon() = navLon;
+            waypoint.alt_m() = airportPos.alt_m() + (4 - i) * 1000.0; // Descending approach
+            
+            starProcedure.push_back(waypoint);
+            
+            LOG_MSG(logDEBUG, "STAR waypoint %zu: %s at %0.4f,%0.4f", 
+                    i + 1, navID, navLat, navLon);
+        }
+    }
+    
+    // Generate basic geometric STAR if no navaids found
+    if (starProcedure.empty()) {
+        LOG_MSG(logDEBUG, "No suitable navaids found for STAR, generating basic geometric procedure");
+        
+        // Create a basic straight-in arrival
+        for (int i = 4; i >= 1; i--) {
+            positionTy waypoint;
+            double distance = i * 8000.0; // 8km intervals, approaching
+            double bearing = 180.0; // Default approach bearing
+            
+            // Try to use opposite runway heading for approach
+            if (!runway.empty() && runway.length() >= 2) {
+                try {
+                    int runwayNum = std::stoi(runway.substr(0, 2));
+                    bearing = (runwayNum + 18) * 10.0; // Opposite direction
+                    if (bearing >= 360.0) bearing -= 360.0;
+                } catch (...) {
+                    // Keep default bearing
+                }
+            }
+            
+            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
+            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
+            
+            waypoint.lat() = airportPos.lat() + lat_offset;
+            waypoint.lon() = airportPos.lon() + lon_offset;
+            waypoint.alt_m() = airportPos.alt_m() + i * 600.0;
+            
+            starProcedure.push_back(waypoint);
+        }
+    }
+    
+    return starProcedure;
 }
 
 // Helper functions for communication degradation effects
@@ -1515,4 +2107,322 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
     newPos.alt_m() = centerPos.alt_m();
     
     return newPos;
+}
+
+// Initialize aircraft performance database with realistic performance data
+// Based on typical specifications from flight manuals and published sources
+void SyntheticConnection::InitializeAircraftPerformanceDB()
+{
+    if (!aircraftPerfDB.empty()) return; // Already initialized
+    
+    // General Aviation Aircraft
+    // Cessna 172 Skyhawk - Popular training aircraft
+    aircraftPerfDB["C172"] = AircraftPerformance("C172", 122, 140, 47, 14000, 645, 500, 16000, 65, 12);
+    
+    // Cessna 152 - Training aircraft
+    aircraftPerfDB["C152"] = AircraftPerformance("C152", 107, 127, 43, 14700, 715, 480, 16000, 60, 10);
+    
+    // Piper PA-28 Cherokee/Warrior
+    aircraftPerfDB["PA28"] = AircraftPerformance("PA28", 125, 140, 55, 14300, 640, 500, 16000, 70, 12);
+    
+    // Cessna 182 Skylane - High performance single
+    aircraftPerfDB["C182"] = AircraftPerformance("C182", 145, 175, 56, 18100, 924, 600, 20000, 75, 15);
+    
+    // Cirrus SR22 - Modern high performance single
+    aircraftPerfDB["SR22"] = AircraftPerformance("SR22", 183, 213, 81, 17500, 1200, 700, 19000, 90, 15);
+    
+    // Beechcraft Bonanza A36
+    aircraftPerfDB["BE36"] = AircraftPerformance("BE36", 176, 200, 59, 18500, 1030, 650, 20000, 85, 15);
+    
+    // Commercial/Airline Aircraft
+    // Boeing 737-800 - Popular narrow body
+    aircraftPerfDB["B737"] = AircraftPerformance("B737", 453, 544, 132, 41000, 2500, 2000, 41000, 145, 25);
+    
+    // Airbus A320 - Popular narrow body
+    aircraftPerfDB["A320"] = AircraftPerformance("A320", 447, 537, 118, 39800, 2220, 1800, 41000, 138, 25);
+    
+    // Boeing 777-300ER - Wide body long haul
+    aircraftPerfDB["B777"] = AircraftPerformance("B777", 490, 590, 160, 43100, 2900, 2500, 43100, 170, 30);
+    
+    // Airbus A330-300 - Wide body
+    aircraftPerfDB["A330"] = AircraftPerformance("A330", 470, 570, 145, 42650, 2500, 2200, 42650, 160, 30);
+    
+    // Boeing 787-9 Dreamliner
+    aircraftPerfDB["B787"] = AircraftPerformance("B787", 488, 587, 138, 43000, 3000, 2300, 43000, 155, 30);
+    
+    // Airbus A350-900
+    aircraftPerfDB["A350"] = AircraftPerformance("A350", 488, 587, 140, 42000, 3100, 2400, 43000, 160, 30);
+    
+    // Military Aircraft
+    // F-16 Fighting Falcon
+    aircraftPerfDB["F16"] = AircraftPerformance("F16", 515, 1500, 200, 50000, 50000, 15000, 60000, 250, 50);
+    
+    // F/A-18 Hornet
+    aircraftPerfDB["F18"] = AircraftPerformance("F18", 570, 1190, 230, 50000, 45000, 12000, 55000, 280, 50);
+    
+    // C-130 Hercules Transport
+    aircraftPerfDB["C130"] = AircraftPerformance("C130", 336, 417, 115, 28000, 1830, 1200, 33000, 130, 35);
+    
+    // KC-135 Stratotanker
+    aircraftPerfDB["KC135"] = AircraftPerformance("KC135", 460, 585, 160, 50000, 2000, 1800, 50000, 180, 35);
+    
+    // E-3 AWACS
+    aircraftPerfDB["E3"] = AircraftPerformance("E3", 360, 530, 150, 42000, 2300, 1500, 42000, 170, 30);
+    
+    // B-2 Spirit Stealth Bomber
+    aircraftPerfDB["B2"] = AircraftPerformance("B2", 475, 630, 180, 50000, 6000, 3000, 50000, 200, 40);
+    
+    LOG_MSG(logDEBUG, "Initialized aircraft performance database with %zu aircraft types", aircraftPerfDB.size());
+}
+
+// Get aircraft performance data for a specific ICAO type
+const AircraftPerformance* SyntheticConnection::GetAircraftPerformance(const std::string& icaoType) const
+{
+    auto it = aircraftPerfDB.find(icaoType);
+    return (it != aircraftPerfDB.end()) ? &(it->second) : nullptr;
+}
+
+// Test function to validate aircraft performance database (for debugging)
+#ifdef DEBUG
+void SyntheticConnection::ValidateAircraftPerformanceDB()
+{
+    LOG_MSG(logDEBUG, "Validating aircraft performance database...");
+    
+    for (const auto& pair : aircraftPerfDB) {
+        const std::string& type = pair.first;
+        const AircraftPerformance& perf = pair.second;
+        
+        // Basic validation checks
+        bool isValid = true;
+        std::string errors;
+        
+        if (perf.cruiseSpeedKts <= perf.stallSpeedKts) {
+            errors += "cruise speed <= stall speed; ";
+            isValid = false;
+        }
+        
+        if (perf.approachSpeedKts <= perf.stallSpeedKts) {
+            errors += "approach speed <= stall speed; ";
+            isValid = false;
+        }
+        
+        if (perf.maxSpeedKts < perf.cruiseSpeedKts) {
+            errors += "max speed < cruise speed; ";
+            isValid = false;
+        }
+        
+        if (perf.serviceCeilingFt <= 0 || perf.maxAltFt <= 0) {
+            errors += "invalid altitude limits; ";
+            isValid = false;
+        }
+        
+        if (perf.climbRateFpm <= 0 || perf.descentRateFpm <= 0) {
+            errors += "invalid climb/descent rates; ";
+            isValid = false;
+        }
+        
+        if (isValid) {
+            LOG_MSG(logDEBUG, "%s: VALID - Cruise=%0.0f kts, Service ceiling=%0.0f ft, Climb=%0.0f fpm", 
+                    type.c_str(), perf.cruiseSpeedKts, perf.serviceCeilingFt, perf.climbRateFpm);
+        } else {
+            LOG_MSG(logERR, "%s: INVALID - %s", type.c_str(), errors.c_str());
+        }
+    }
+    
+    LOG_MSG(logDEBUG, "Aircraft performance database validation complete. %zu aircraft types loaded.", 
+            aircraftPerfDB.size());
+}
+#endif
+
+// Update navigation system for smooth, realistic flight paths
+void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTime)
+{
+    // Skip navigation updates for ground operations
+    if (synData.state == SYN_STATE_PARKED || synData.state == SYN_STATE_STARTUP ||
+        synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN ||
+        synData.state == SYN_STATE_SHUTDOWN) {
+        return;
+    }
+    
+    // If no flight path exists, generate one
+    if (synData.flightPath.empty()) {
+        // Generate a basic flight path for this aircraft
+        positionTy destination = synData.pos;
+        destination.lat() += (std::rand() % 200 - 100) / 1000.0; // ±0.1 degrees
+        destination.lon() += (std::rand() % 200 - 100) / 1000.0;
+        destination.alt_m() = synData.targetAltitude;
+        
+        GenerateFlightPath(synData, synData.pos, destination);
+    }
+    
+    // Get current target waypoint
+    if (synData.currentWaypoint < synData.flightPath.size()) {
+        synData.targetWaypoint = synData.flightPath[synData.currentWaypoint];
+        
+        // Calculate bearing to target waypoint
+        double bearing = synData.pos.angleTo(synData.targetWaypoint);
+        synData.targetHeading = bearing;
+        
+        // Check if we've reached the current waypoint
+        double distanceToWaypoint = synData.pos.dist(synData.targetWaypoint);
+        if (distanceToWaypoint < 500.0) { // Within 500m of waypoint
+            synData.currentWaypoint++;
+            
+            if (synData.currentWaypoint >= synData.flightPath.size()) {
+                // Reached end of flight path, generate new one if still in cruise
+                if (synData.state == SYN_STATE_CRUISE) {
+                    positionTy newDestination = synData.pos;
+                    newDestination.lat() += (std::rand() % 200 - 100) / 1000.0;
+                    newDestination.lon() += (std::rand() % 200 - 100) / 1000.0;
+                    newDestination.alt_m() = synData.targetAltitude;
+                    
+                    GenerateFlightPath(synData, synData.pos, newDestination);
+                    synData.currentWaypoint = 0;
+                }
+            }
+        }
+    }
+    
+    // Smooth heading changes to avoid sharp turns
+    double deltaTime = currentTime - synData.lastPosUpdateTime;
+    if (deltaTime > 0.0) {
+        SmoothHeadingChange(synData, synData.targetHeading, deltaTime);
+    }
+}
+
+// Update terrain awareness to maintain safe separation from ground
+void SyntheticConnection::UpdateTerrainAwareness(SynDataTy& synData)
+{
+    // Update terrain elevation every 5 seconds or when position changes significantly  
+    double currentTime = std::time(nullptr);
+    if (currentTime - synData.lastTerrainCheck > 5.0) {
+        synData.terrainElevation = GetTerrainElevation(synData.pos, synData.terrainProbe);
+        synData.lastTerrainCheck = currentTime;
+    }
+    
+    // Check for terrain conflicts and adjust altitude if needed
+    if (!IsTerrainSafe(synData.pos, 150.0)) {
+        // Terrain conflict - emergency climb
+        if (synData.state != SYN_STATE_LANDING && synData.state != SYN_STATE_APPROACH) {
+            synData.targetAltitude = std::max(synData.targetAltitude, synData.terrainElevation + 300.0);
+            LOG_MSG(logDEBUG, "Aircraft %s: Terrain conflict detected, climbing to %0.0f ft", 
+                    synData.stat.call.c_str(), synData.targetAltitude / 0.3048);
+        }
+    }
+}
+
+// Generate a realistic flight path between two points
+void SyntheticConnection::GenerateFlightPath(SynDataTy& synData, const positionTy& origin, const positionTy& destination)
+{
+    synData.flightPath.clear();
+    synData.currentWaypoint = 0;
+    
+    // Simple flight path generation - can be enhanced with real navdata
+    double distance = origin.dist(destination);
+    int numWaypoints = std::max(2, (int)(distance / 10000.0)); // One waypoint every 10km
+    
+    for (int i = 1; i <= numWaypoints; i++) {
+        double ratio = (double)i / (double)numWaypoints;
+        
+        positionTy waypoint;
+        waypoint.lat() = origin.lat() + (destination.lat() - origin.lat()) * ratio;
+        waypoint.lon() = origin.lon() + (destination.lon() - origin.lon()) * ratio;
+        waypoint.alt_m() = origin.alt_m() + (destination.alt_m() - origin.alt_m()) * ratio;
+        
+        // Add some variation to make the path less linear
+        if (i > 1 && i < numWaypoints) {
+            double variation = 0.01; // ±0.01 degrees
+            waypoint.lat() += (std::rand() % 200 - 100) / 10000.0 * variation;
+            waypoint.lon() += (std::rand() % 200 - 100) / 10000.0 * variation;
+        }
+        
+        // Ensure waypoint is terrain-safe
+        double terrainElev = GetTerrainElevation(waypoint, synData.terrainProbe);
+        waypoint.alt_m() = std::max(waypoint.alt_m(), terrainElev + 200.0);
+        
+        synData.flightPath.push_back(waypoint);
+    }
+    
+    LOG_MSG(logDEBUG, "Generated flight path for %s with %d waypoints", 
+            synData.stat.call.c_str(), (int)synData.flightPath.size());
+}
+
+// Check if position is safe from terrain
+bool SyntheticConnection::IsTerrainSafe(const positionTy& position, double minClearance)
+{
+    // Use terrain probe to get actual elevation
+    XPLMProbeRef tempProbe = nullptr;
+    double terrainElevation = GetTerrainElevation(position, tempProbe);
+    
+    if (tempProbe) {
+        XPLMDestroyProbe(tempProbe);
+    }
+    
+    return (position.alt_m() >= (terrainElevation + minClearance));
+}
+
+// Get terrain elevation at a specific position
+double SyntheticConnection::GetTerrainElevation(const positionTy& position, XPLMProbeRef& probeRef)
+{
+    // Use X-Plane's terrain probing system
+    double elevation = YProbe_at_m(position, probeRef);
+    
+    // If probing fails, use a conservative estimate
+    if (std::isnan(elevation)) {
+        elevation = 0.0; // Assume sea level if probe fails
+    }
+    
+    return elevation;
+}
+
+// Smooth heading changes to avoid sharp turns
+void SyntheticConnection::SmoothHeadingChange(SynDataTy& synData, double targetHeading, double deltaTime)
+{
+    double currentHeading = synData.pos.heading();
+    
+    // Calculate the shortest angular distance
+    double headingDiff = targetHeading - currentHeading;
+    while (headingDiff > 180.0) headingDiff -= 360.0;
+    while (headingDiff < -180.0) headingDiff += 360.0;
+    
+    // Limit turn rate based on aircraft type and speed
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    double maxTurnRate = synData.headingChangeRate; // Default 2 deg/sec
+    
+    if (perfData) {
+        // Faster aircraft turn slower, GA aircraft turn faster
+        if (synData.trafficType == SYN_TRAFFIC_GA) {
+            maxTurnRate = 4.0; // GA can turn faster
+        } else if (synData.trafficType == SYN_TRAFFIC_AIRLINE) {
+            maxTurnRate = 1.5; // Airlines turn more slowly
+        } else if (synData.trafficType == SYN_TRAFFIC_MILITARY) {
+            maxTurnRate = 8.0; // Military can turn very fast
+        }
+    }
+    
+    // Calculate maximum heading change for this time step
+    double maxChange = maxTurnRate * deltaTime;
+    
+    // Apply smooth heading change
+    double headingChange = std::min(std::abs(headingDiff), maxChange);
+    if (headingDiff < 0.0) headingChange = -headingChange;
+    
+    double newHeading = currentHeading + headingChange;
+    
+    // Normalize to 0-360 range
+    while (newHeading < 0.0) newHeading += 360.0;
+    while (newHeading >= 360.0) newHeading -= 360.0;
+    
+    synData.pos.heading() = newHeading;
+}
+
+// Get the next waypoint in the flight path
+positionTy SyntheticConnection::GetNextWaypoint(SynDataTy& synData)
+{
+    if (synData.currentWaypoint < synData.flightPath.size()) {
+        return synData.flightPath[synData.currentWaypoint];
+    }
+    
+    // If no waypoints, return current position
+    return synData.pos;
 }

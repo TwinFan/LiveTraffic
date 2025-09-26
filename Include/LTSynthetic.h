@@ -72,6 +72,27 @@ struct SyntheticTrafficConfig {
     // Note: commRange removed - now using realistic communication degradation instead of hard range limit
 };
 
+/// Individual aircraft performance data based on realistic specifications
+struct AircraftPerformance {
+    std::string icaoType;           ///< ICAO aircraft type code
+    double cruiseSpeedKts;          ///< Typical cruise speed in knots
+    double maxSpeedKts;             ///< Maximum speed in knots
+    double stallSpeedKts;           ///< Stall speed in knots (clean configuration)
+    double serviceCeilingFt;        ///< Service ceiling in feet
+    double climbRateFpm;            ///< Typical climb rate in feet per minute
+    double descentRateFpm;          ///< Typical descent rate in feet per minute
+    double maxAltFt;                ///< Maximum altitude in feet
+    double approachSpeedKts;        ///< Typical approach speed in knots
+    double taxiSpeedKts;            ///< Typical taxi speed in knots
+    
+    AircraftPerformance(const std::string& type = "", double cruise = 120, double maxSpd = 150, 
+                       double stall = 60, double ceiling = 15000, double climb = 800, double descent = 800,
+                       double maxAlt = 18000, double approach = 80, double taxi = 15)
+        : icaoType(type), cruiseSpeedKts(cruise), maxSpeedKts(maxSpd), stallSpeedKts(stall),
+          serviceCeilingFt(ceiling), climbRateFpm(climb), descentRateFpm(descent), 
+          maxAltFt(maxAlt), approachSpeedKts(approach), taxiSpeedKts(taxi) {}
+};
+
 //
 // MARK: SyntheticConnection
 //
@@ -97,6 +118,26 @@ protected:
         std::string lastComm;                   ///< last communication message
         double lastCommTime;                    ///< time of last communication
         double lastPosUpdateTime;               ///< time of last position update
+        
+        // Navigation and terrain awareness
+        std::vector<positionTy> flightPath;     ///< waypoints for navigation
+        size_t currentWaypoint;                 ///< current waypoint index
+        positionTy targetWaypoint;              ///< current target waypoint
+        double lastTerrainCheck;                ///< time of last terrain check
+        double terrainElevation;                ///< cached terrain elevation at current position
+        XPLMProbeRef terrainProbe;             ///< terrain probe reference for this aircraft
+        double headingChangeRate;               ///< smooth heading change rate (deg/sec)
+        double targetHeading;                   ///< target heading for navigation
+        
+        SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
+                     terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0) {}
+        
+        ~SynDataTy() {
+            if (terrainProbe) {
+                XPLMDestroyProbe(terrainProbe);
+                terrainProbe = nullptr;
+            }
+        }
     };
     /// Stores enhanced data per tracked plane
     typedef std::map<LTFlightData::FDKeyTy, SynDataTy> mapSynDataTy;
@@ -139,6 +180,12 @@ public:
     /// Find SID/STAR procedures using X-Plane navdata
     std::vector<positionTy> GetSIDSTAR(const std::string& airport, const std::string& runway, bool isSID);
     
+    /// Generate SID procedures using actual navigation database  
+    std::vector<positionTy> GenerateSIDFromNavData(const positionTy& airportPos, const std::string& airport, const std::string& runway);
+    
+    /// Generate STAR procedures using actual navigation database
+    std::vector<positionTy> GenerateSTARFromNavData(const positionTy& airportPos, const std::string& airport, const std::string& runway);
+    
     /// Generate TTS communication message
     std::string GenerateCommMessage(const SynDataTy& synData, const positionTy& userPos);
     
@@ -176,8 +223,31 @@ protected:
     /// Calculate performance parameters based on aircraft type
     void CalculatePerformance(SynDataTy& synData);
     
+    /// Get aircraft performance data for a specific ICAO type
+    const AircraftPerformance* GetAircraftPerformance(const std::string& icaoType) const;
+    
+    /// Initialize aircraft performance database with realistic data
+    static void InitializeAircraftPerformanceDB();
+    
+    /// Aircraft performance database
+    static std::map<std::string, AircraftPerformance> aircraftPerfDB;
+    
+#ifdef DEBUG
+    /// Validate aircraft performance database (debug only)
+    static void ValidateAircraftPerformanceDB();
+#endif
+    
     /// Update aircraft position based on movement
     void UpdateAircraftPosition(SynDataTy& synData, double currentTime);
+    
+    /// Navigation and terrain awareness methods
+    void UpdateNavigation(SynDataTy& synData, double currentTime);
+    void UpdateTerrainAwareness(SynDataTy& synData);
+    void GenerateFlightPath(SynDataTy& synData, const positionTy& origin, const positionTy& destination);
+    bool IsTerrainSafe(const positionTy& position, double minClearance = 150.0);
+    double GetTerrainElevation(const positionTy& position, XPLMProbeRef& probeRef);
+    void SmoothHeadingChange(SynDataTy& synData, double targetHeading, double deltaTime);
+    positionTy GetNextWaypoint(SynDataTy& synData);
     
     /// Process TTS communications
     void ProcessTTSCommunication(SynDataTy& synData, const std::string& message);
