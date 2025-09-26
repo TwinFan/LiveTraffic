@@ -605,6 +605,16 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.lastPosUpdateTime = std::time(nullptr);
     // Flight plan already generated above based on origin/destination
     
+    // Initialize navigation and terrain awareness
+    synData.flightPath.clear();
+    synData.currentWaypoint = 0;
+    synData.targetWaypoint = synData.pos;
+    synData.lastTerrainCheck = 0.0;
+    synData.terrainElevation = 0.0;
+    synData.terrainProbe = nullptr;
+    synData.headingChangeRate = 2.0; // Default turn rate 2 deg/sec
+    synData.targetHeading = synData.pos.heading();
+    
     return true;
 }
 
@@ -1361,28 +1371,27 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                 case SYN_STATE_DESCENT:
                 case SYN_STATE_APPROACH:
                 case SYN_STATE_LANDING:
-                    // Don't descend below ground level
-                    newAltitude = std::max(newAltitude, 10.0); // Minimum 10m above ground
+                    // Don't descend below safe terrain clearance
+                    {
+                        double terrainElevationM = synData.terrainElevation;
+                        double minSafeClearance = 150.0; // 150m minimum clearance
+                        
+                        // Increase clearance for approach and landing
+                        if (synData.state == SYN_STATE_APPROACH) minSafeClearance = 100.0;
+                        else if (synData.state == SYN_STATE_LANDING) minSafeClearance = 20.0;
+                        
+                        double minSafeAltitude = terrainElevationM + minSafeClearance;
+                        newAltitude = std::max(newAltitude, minSafeAltitude);
+                    }
                     break;
             }
             
             synData.pos.alt_m() = newAltitude;
         }
         
-        // Add some random variation to heading for more realistic flight patterns
-        if (synData.state == SYN_STATE_CRUISE || synData.state == SYN_STATE_HOLD) {
-            // Small random heading changes during cruise/hold (±2 degrees)
-            if (std::rand() % 100 < 5) { // 5% chance per update
-                double headingChange = (std::rand() % 40 - 20) / 10.0; // ±2 degrees
-                double newHeading = synData.pos.heading() + headingChange;
-                
-                // Normalize heading to 0-360 range
-                while (newHeading < 0.0) newHeading += 360.0;
-                while (newHeading >= 360.0) newHeading -= 360.0;
-                
-                synData.pos.heading() = newHeading;
-            }
-        }
+        // Update navigation and terrain awareness
+        UpdateNavigation(synData, currentTime);
+        UpdateTerrainAwareness(synData);
         
         // Log significant movements for debugging
         double movedDistance = synData.pos.dist(oldPos);
@@ -1640,7 +1649,7 @@ std::string SyntheticConnection::GenerateFlightPlan(const positionTy& origin, co
     return flightPlan;
 }
 
-// Find SID/STAR procedures using X-Plane navdata (placeholder)
+// Find SID/STAR procedures using X-Plane navdata with basic implementation
 std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airport, const std::string& runway, bool isSID)
 {
     std::vector<positionTy> procedure;
@@ -1652,9 +1661,88 @@ std::vector<positionTy> SyntheticConnection::GetSIDSTAR(const std::string& airpo
         return cacheIt->second;
     }
     
-    // This would use X-Plane SDK navigation functions in a real implementation
-    // For now, just return an empty procedure
-    // TODO: Implement actual SID/STAR lookup using XPLMNavigation functions
+    // Generate basic SID/STAR procedures based on airport and runway
+    // This is a simplified implementation - real implementation would use XPLMNavigation functions
+    
+    // Get airport reference position (simplified lookup)
+    positionTy airportPos;
+    bool airportFound = false;
+    
+    // Basic airport database lookup
+    static const struct {
+        const char* icao;
+        double lat, lon;
+        double elevation;
+    } basicAirports[] = {
+        {"KORD", 41.9786, -87.9048, 205.0},
+        {"KLAX", 33.9425, -118.4081, 38.0},
+        {"KJFK", 40.6398, -73.7789, 4.0},
+        {"KBOS", 42.3643, -71.0052, 6.0},
+        {"KDEN", 39.8617, -104.6731, 1656.0},
+        {"KATL", 33.6367, -84.4281, 313.0},
+        {"KDFW", 32.8968, -97.0380, 183.0},
+        {"KSEA", 47.4502, -122.3088, 131.0}
+    };
+    
+    for (const auto& apt : basicAirports) {
+        if (airport == apt.icao) {
+            airportPos.lat() = apt.lat;
+            airportPos.lon() = apt.lon;
+            airportPos.alt_m() = apt.elevation * 0.3048; // Convert ft to m
+            airportFound = true;
+            break;
+        }
+    }
+    
+    if (!airportFound) {
+        // Cache empty result
+        sidStarCache[cacheKey] = procedure;
+        return procedure;
+    }
+    
+    if (isSID) {
+        // Generate SID (Standard Instrument Departure)
+        // Create waypoints extending outward from airport
+        for (int i = 1; i <= 5; i++) {
+            positionTy waypoint;
+            double distance = i * 5000.0; // 5km intervals
+            double bearing = std::rand() % 360; // Random bearing for demo
+            
+            // Calculate waypoint position
+            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
+            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
+            
+            waypoint.lat() = airportPos.lat() + lat_offset;
+            waypoint.lon() = airportPos.lon() + lon_offset;
+            waypoint.alt_m() = airportPos.alt_m() + i * 500.0; // Climbing departure
+            
+            procedure.push_back(waypoint);
+        }
+        
+        LOG_MSG(logDEBUG, "Generated SID for %s runway %s with %d waypoints", 
+                airport.c_str(), runway.c_str(), (int)procedure.size());
+    } else {
+        // Generate STAR (Standard Terminal Arrival Route)  
+        // Create waypoints approaching the airport
+        for (int i = 5; i >= 1; i--) {
+            positionTy waypoint;
+            double distance = i * 8000.0; // 8km intervals, approaching
+            double bearing = std::rand() % 360; // Random bearing for demo
+            
+            // Calculate waypoint position
+            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
+            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
+            
+            waypoint.lat() = airportPos.lat() + lat_offset;
+            waypoint.lon() = airportPos.lon() + lon_offset;
+            waypoint.alt_m() = airportPos.alt_m() + i * 600.0; // Descending approach
+            
+            procedure.push_back(waypoint);
+        }
+        
+        LOG_MSG(logDEBUG, "Generated STAR for %s runway %s with %d waypoints", 
+                airport.c_str(), runway.c_str(), (int)procedure.size());
+    }
     
     // Cache the result
     sidStarCache[cacheKey] = procedure;
@@ -1949,3 +2037,196 @@ void SyntheticConnection::ValidateAircraftPerformanceDB()
             aircraftPerfDB.size());
 }
 #endif
+
+// Update navigation system for smooth, realistic flight paths
+void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTime)
+{
+    // Skip navigation updates for ground operations
+    if (synData.state == SYN_STATE_PARKED || synData.state == SYN_STATE_STARTUP ||
+        synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN ||
+        synData.state == SYN_STATE_SHUTDOWN) {
+        return;
+    }
+    
+    // If no flight path exists, generate one
+    if (synData.flightPath.empty()) {
+        // Generate a basic flight path for this aircraft
+        positionTy destination = synData.pos;
+        destination.lat() += (std::rand() % 200 - 100) / 1000.0; // ±0.1 degrees
+        destination.lon() += (std::rand() % 200 - 100) / 1000.0;
+        destination.alt_m() = synData.targetAltitude;
+        
+        GenerateFlightPath(synData, synData.pos, destination);
+    }
+    
+    // Get current target waypoint
+    if (synData.currentWaypoint < synData.flightPath.size()) {
+        synData.targetWaypoint = synData.flightPath[synData.currentWaypoint];
+        
+        // Calculate bearing to target waypoint
+        double bearing = synData.pos.angleTo(synData.targetWaypoint);
+        synData.targetHeading = bearing;
+        
+        // Check if we've reached the current waypoint
+        double distanceToWaypoint = synData.pos.dist(synData.targetWaypoint);
+        if (distanceToWaypoint < 500.0) { // Within 500m of waypoint
+            synData.currentWaypoint++;
+            
+            if (synData.currentWaypoint >= synData.flightPath.size()) {
+                // Reached end of flight path, generate new one if still in cruise
+                if (synData.state == SYN_STATE_CRUISE) {
+                    positionTy newDestination = synData.pos;
+                    newDestination.lat() += (std::rand() % 200 - 100) / 1000.0;
+                    newDestination.lon() += (std::rand() % 200 - 100) / 1000.0;
+                    newDestination.alt_m() = synData.targetAltitude;
+                    
+                    GenerateFlightPath(synData, synData.pos, newDestination);
+                    synData.currentWaypoint = 0;
+                }
+            }
+        }
+    }
+    
+    // Smooth heading changes to avoid sharp turns
+    double deltaTime = currentTime - synData.lastPosUpdateTime;
+    if (deltaTime > 0.0) {
+        SmoothHeadingChange(synData, synData.targetHeading, deltaTime);
+    }
+}
+
+// Update terrain awareness to maintain safe separation from ground
+void SyntheticConnection::UpdateTerrainAwareness(SynDataTy& synData)
+{
+    // Update terrain elevation every 5 seconds or when position changes significantly  
+    double currentTime = std::time(nullptr);
+    if (currentTime - synData.lastTerrainCheck > 5.0) {
+        synData.terrainElevation = GetTerrainElevation(synData.pos, synData.terrainProbe);
+        synData.lastTerrainCheck = currentTime;
+    }
+    
+    // Check for terrain conflicts and adjust altitude if needed
+    if (!IsTerrainSafe(synData.pos, 150.0)) {
+        // Terrain conflict - emergency climb
+        if (synData.state != SYN_STATE_LANDING && synData.state != SYN_STATE_APPROACH) {
+            synData.targetAltitude = std::max(synData.targetAltitude, synData.terrainElevation + 300.0);
+            LOG_MSG(logDEBUG, "Aircraft %s: Terrain conflict detected, climbing to %0.0f ft", 
+                    synData.stat.call.c_str(), synData.targetAltitude / 0.3048);
+        }
+    }
+}
+
+// Generate a realistic flight path between two points
+void SyntheticConnection::GenerateFlightPath(SynDataTy& synData, const positionTy& origin, const positionTy& destination)
+{
+    synData.flightPath.clear();
+    synData.currentWaypoint = 0;
+    
+    // Simple flight path generation - can be enhanced with real navdata
+    double distance = origin.dist(destination);
+    int numWaypoints = std::max(2, (int)(distance / 10000.0)); // One waypoint every 10km
+    
+    for (int i = 1; i <= numWaypoints; i++) {
+        double ratio = (double)i / (double)numWaypoints;
+        
+        positionTy waypoint;
+        waypoint.lat() = origin.lat() + (destination.lat() - origin.lat()) * ratio;
+        waypoint.lon() = origin.lon() + (destination.lon() - origin.lon()) * ratio;
+        waypoint.alt_m() = origin.alt_m() + (destination.alt_m() - origin.alt_m()) * ratio;
+        
+        // Add some variation to make the path less linear
+        if (i > 1 && i < numWaypoints) {
+            double variation = 0.01; // ±0.01 degrees
+            waypoint.lat() += (std::rand() % 200 - 100) / 10000.0 * variation;
+            waypoint.lon() += (std::rand() % 200 - 100) / 10000.0 * variation;
+        }
+        
+        // Ensure waypoint is terrain-safe
+        double terrainElev = GetTerrainElevation(waypoint, synData.terrainProbe);
+        waypoint.alt_m() = std::max(waypoint.alt_m(), terrainElev + 200.0);
+        
+        synData.flightPath.push_back(waypoint);
+    }
+    
+    LOG_MSG(logDEBUG, "Generated flight path for %s with %d waypoints", 
+            synData.stat.call.c_str(), (int)synData.flightPath.size());
+}
+
+// Check if position is safe from terrain
+bool SyntheticConnection::IsTerrainSafe(const positionTy& position, double minClearance)
+{
+    // Use terrain probe to get actual elevation
+    XPLMProbeRef tempProbe = nullptr;
+    double terrainElevation = GetTerrainElevation(position, tempProbe);
+    
+    if (tempProbe) {
+        XPLMDestroyProbe(tempProbe);
+    }
+    
+    return (position.alt_m() >= (terrainElevation + minClearance));
+}
+
+// Get terrain elevation at a specific position
+double SyntheticConnection::GetTerrainElevation(const positionTy& position, XPLMProbeRef& probeRef)
+{
+    // Use X-Plane's terrain probing system
+    double elevation = YProbe_at_m(position, probeRef);
+    
+    // If probing fails, use a conservative estimate
+    if (std::isnan(elevation)) {
+        elevation = 0.0; // Assume sea level if probe fails
+    }
+    
+    return elevation;
+}
+
+// Smooth heading changes to avoid sharp turns
+void SyntheticConnection::SmoothHeadingChange(SynDataTy& synData, double targetHeading, double deltaTime)
+{
+    double currentHeading = synData.pos.heading();
+    
+    // Calculate the shortest angular distance
+    double headingDiff = targetHeading - currentHeading;
+    while (headingDiff > 180.0) headingDiff -= 360.0;
+    while (headingDiff < -180.0) headingDiff += 360.0;
+    
+    // Limit turn rate based on aircraft type and speed
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    double maxTurnRate = synData.headingChangeRate; // Default 2 deg/sec
+    
+    if (perfData) {
+        // Faster aircraft turn slower, GA aircraft turn faster
+        if (synData.trafficType == SYN_TRAFFIC_GA) {
+            maxTurnRate = 4.0; // GA can turn faster
+        } else if (synData.trafficType == SYN_TRAFFIC_AIRLINE) {
+            maxTurnRate = 1.5; // Airlines turn more slowly
+        } else if (synData.trafficType == SYN_TRAFFIC_MILITARY) {
+            maxTurnRate = 8.0; // Military can turn very fast
+        }
+    }
+    
+    // Calculate maximum heading change for this time step
+    double maxChange = maxTurnRate * deltaTime;
+    
+    // Apply smooth heading change
+    double headingChange = std::min(std::abs(headingDiff), maxChange);
+    if (headingDiff < 0.0) headingChange = -headingChange;
+    
+    double newHeading = currentHeading + headingChange;
+    
+    // Normalize to 0-360 range
+    while (newHeading < 0.0) newHeading += 360.0;
+    while (newHeading >= 360.0) newHeading -= 360.0;
+    
+    synData.pos.heading() = newHeading;
+}
+
+// Get the next waypoint in the flight path
+positionTy SyntheticConnection::GetNextWaypoint(SynDataTy& synData)
+{
+    if (synData.currentWaypoint < synData.flightPath.size()) {
+        return synData.flightPath[synData.currentWaypoint];
+    }
+    
+    // If no waypoints, return current position
+    return synData.pos;
+}

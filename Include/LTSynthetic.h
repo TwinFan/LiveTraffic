@@ -118,6 +118,26 @@ protected:
         std::string lastComm;                   ///< last communication message
         double lastCommTime;                    ///< time of last communication
         double lastPosUpdateTime;               ///< time of last position update
+        
+        // Navigation and terrain awareness
+        std::vector<positionTy> flightPath;     ///< waypoints for navigation
+        size_t currentWaypoint;                 ///< current waypoint index
+        positionTy targetWaypoint;              ///< current target waypoint
+        double lastTerrainCheck;                ///< time of last terrain check
+        double terrainElevation;                ///< cached terrain elevation at current position
+        XPLMProbeRef terrainProbe;             ///< terrain probe reference for this aircraft
+        double headingChangeRate;               ///< smooth heading change rate (deg/sec)
+        double targetHeading;                   ///< target heading for navigation
+        
+        SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
+                     terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0) {}
+        
+        ~SynDataTy() {
+            if (terrainProbe) {
+                XPLMDestroyProbe(terrainProbe);
+                terrainProbe = nullptr;
+            }
+        }
     };
     /// Stores enhanced data per tracked plane
     typedef std::map<LTFlightData::FDKeyTy, SynDataTy> mapSynDataTy;
@@ -213,6 +233,15 @@ protected:
     
     /// Update aircraft position based on movement
     void UpdateAircraftPosition(SynDataTy& synData, double currentTime);
+    
+    /// Navigation and terrain awareness methods
+    void UpdateNavigation(SynDataTy& synData, double currentTime);
+    void UpdateTerrainAwareness(SynDataTy& synData);
+    void GenerateFlightPath(SynDataTy& synData, const positionTy& origin, const positionTy& destination);
+    bool IsTerrainSafe(const positionTy& position, double minClearance = 150.0);
+    double GetTerrainElevation(const positionTy& position, XPLMProbeRef& probeRef);
+    void SmoothHeadingChange(SynDataTy& synData, double targetHeading, double deltaTime);
+    positionTy GetNextWaypoint(SynDataTy& synData);
     
     /// Process TTS communications
     void ProcessTTSCommunication(SynDataTy& synData, const std::string& message);
