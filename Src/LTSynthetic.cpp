@@ -470,8 +470,36 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.stat.opIcao = "SYN"; // Synthetic operator
     synData.stat.op = "Synthetic Traffic";
     
-    // Generate aircraft type
-    std::string acType = GenerateAircraftType(trafficType);
+    // Generate a realistic flight plan based on current position and traffic type
+    positionTy destination = pos; // Default destination is current position
+    
+    // Create a realistic destination based on traffic type and current position
+    switch (trafficType) {
+        case SYN_TRAFFIC_GA:
+            // GA flights typically within 200nm radius
+            destination.lat() += (std::rand() % 200 - 100) / 100.0; // +/- 1 degree (~60nm)
+            destination.lon() += (std::rand() % 200 - 100) / 100.0;
+            destination.alt_m() = pos.alt_m() + (std::rand() % 1000); // Vary altitude
+            break;
+        case SYN_TRAFFIC_AIRLINE:
+            // Airlines can travel much farther
+            destination.lat() += (std::rand() % 1000 - 500) / 100.0; // +/- 5 degrees (~300nm)
+            destination.lon() += (std::rand() % 1000 - 500) / 100.0;
+            destination.alt_m() = 10000.0 + (std::rand() % 5000); // High altitude
+            break;
+        case SYN_TRAFFIC_MILITARY:
+            // Military flights vary widely
+            destination.lat() += (std::rand() % 2000 - 1000) / 100.0; // +/- 10 degrees (~600nm)
+            destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
+            destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
+            break;
+    }
+    
+    // Generate flight plan using origin and destination
+    synData.flightPlan = GenerateFlightPlan(pos, destination, trafficType);
+    
+    // Generate aircraft type using the flight plan information
+    std::string acType = GenerateAircraftType(trafficType, synData.flightPlan);
     synData.stat.acTypeIcao = acType;
     synData.stat.mdl = acType;
     
@@ -499,7 +527,7 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     synData.holdingTime = 0.0;
     synData.isUserAware = false;
     synData.lastCommTime = 0.0;
-    synData.flightPlan = "VFR"; // Default to VFR
+    // Flight plan already generated above based on origin/destination
     
     return true;
 }
@@ -630,16 +658,79 @@ std::vector<std::string> SyntheticConnection::FindNearbyAirports(const positionT
 {
     std::vector<std::string> airports;
     
-    // This is a simplified implementation
-    // In a real implementation, you would use X-Plane's navigation database
-    // to find actual airports within the specified radius
+    // Use center position and radius to determine appropriate airports
+    // Calculate distances and filter based on proximity and radius
     
-    // For now, just return some common airport codes as placeholders
-    airports.push_back("KORD"); // Chicago O'Hare
-    airports.push_back("KLAX"); // Los Angeles
-    airports.push_back("KJFK"); // JFK New York
-    airports.push_back("KBOS"); // Boston Logan
-    airports.push_back("KDEN"); // Denver
+    // Define a set of world airports with their approximate positions
+    struct AirportData {
+        std::string icao;
+        double lat;
+        double lon;
+    };
+    
+    static const AirportData worldAirports[] = {
+        {"KORD", 41.9786, -87.9048},  // Chicago O'Hare
+        {"KLAX", 33.9425, -118.4081}, // Los Angeles  
+        {"KJFK", 40.6398, -73.7789},  // JFK New York
+        {"KBOS", 42.3643, -71.0052},  // Boston Logan
+        {"KDEN", 39.8617, -104.6731}, // Denver
+        {"KATL", 33.6367, -84.4281},  // Atlanta
+        {"KDFW", 32.8968, -97.0380},  // Dallas/Fort Worth
+        {"KIAH", 29.9844, -95.3414},  // Houston
+        {"KPHX", 33.4343, -112.0116}, // Phoenix
+        {"KSEA", 47.4502, -122.3088}, // Seattle
+        {"KLAS", 36.0840, -115.1537}, // Las Vegas
+        {"KMIA", 25.7959, -80.2870},  // Miami
+        {"KSFO", 37.6213, -122.3790}, // San Francisco
+        {"KBWI", 39.1754, -76.6683},  // Baltimore
+        {"KDCA", 38.8521, -77.0377}   // Washington Reagan
+    };
+    
+    const size_t numAirports = sizeof(worldAirports) / sizeof(worldAirports[0]);
+    const double radiusM = radiusNM * 1852.0; // Convert nautical miles to meters
+    
+    // Find airports within the specified radius
+    for (size_t i = 0; i < numAirports; i++) {
+        const AirportData& airport = worldAirports[i];
+        
+        // Calculate distance from center position to airport
+        positionTy airportPos;
+        airportPos.lat() = airport.lat;
+        airportPos.lon() = airport.lon;
+        airportPos.alt_m() = 0.0; // Sea level for distance calculation
+        
+        double distanceM = centerPos.dist(airportPos);
+        
+        // Include airport if within radius
+        if (distanceM <= radiusM) {
+            airports.push_back(airport.icao);
+        }
+    }
+    
+    // If no airports found within radius, return closest few airports
+    if (airports.empty()) {
+        // Calculate distances and sort by proximity
+        std::vector<std::pair<double, std::string>> airportDistances;
+        
+        for (size_t i = 0; i < numAirports; i++) {
+            const AirportData& airport = worldAirports[i];
+            positionTy airportPos;
+            airportPos.lat() = airport.lat;
+            airportPos.lon() = airport.lon;
+            airportPos.alt_m() = 0.0;
+            
+            double distanceM = centerPos.dist(airportPos);
+            airportDistances.push_back(std::make_pair(distanceM, airport.icao));
+        }
+        
+        // Sort by distance
+        std::sort(airportDistances.begin(), airportDistances.end());
+        
+        // Return up to 3 closest airports
+        for (size_t i = 0; i < std::min(size_t(3), airportDistances.size()); i++) {
+            airports.push_back(airportDistances[i].second);
+        }
+    }
     
     return airports;
 }
@@ -690,16 +781,60 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
         case SYN_TRAFFIC_GA: {
             const char* gaTypes[] = {"C172", "C152", "PA28", "C182", "SR22", "BE36"};
             acType = gaTypes[std::rand() % 6];
+            
+            // For GA, route length might influence aircraft choice
+            if (!route.empty()) {
+                if (route.find("long") != std::string::npos || route.find("IFR") != std::string::npos) {
+                    // Long distance GA flights prefer more capable aircraft
+                    const char* longDistanceGA[] = {"SR22", "BE36", "C182"};
+                    acType = longDistanceGA[std::rand() % 3];
+                } else if (route.find("local") != std::string::npos || route.find("VFR") != std::string::npos) {
+                    // Local flights can use basic trainers
+                    const char* localGA[] = {"C172", "C152", "PA28"};
+                    acType = localGA[std::rand() % 3];
+                }
+            }
             break;
         }
         case SYN_TRAFFIC_AIRLINE: {
             const char* airlineTypes[] = {"B737", "A320", "B777", "A330", "B787", "A350"};
             acType = airlineTypes[std::rand() % 6];
+            
+            // Route characteristics influence aircraft selection
+            if (!route.empty()) {
+                if (route.find("domestic") != std::string::npos || route.find("short") != std::string::npos) {
+                    // Short haul domestic - prefer narrow body
+                    const char* shortHaul[] = {"B737", "A320"};
+                    acType = shortHaul[std::rand() % 2];
+                } else if (route.find("international") != std::string::npos || route.find("long") != std::string::npos || 
+                          route.find("FL350+") != std::string::npos) {
+                    // Long haul international - prefer wide body
+                    const char* longHaul[] = {"B777", "A330", "B787", "A350"};
+                    acType = longHaul[std::rand() % 4];
+                }
+            }
             break;
         }
         case SYN_TRAFFIC_MILITARY: {
             const char* militaryTypes[] = {"F16", "F18", "C130", "KC135", "E3", "B2"};
             acType = militaryTypes[std::rand() % 6];
+            
+            // Route type affects military aircraft selection
+            if (!route.empty()) {
+                if (route.find("transport") != std::string::npos || route.find("strategic") != std::string::npos) {
+                    // Transport/strategic missions - prefer cargo/tanker aircraft
+                    const char* transport[] = {"C130", "KC135", "E3"};
+                    acType = transport[std::rand() % 3];
+                } else if (route.find("local ops") != std::string::npos || route.find("patrol") != std::string::npos) {
+                    // Local operations - prefer fighters
+                    const char* fighters[] = {"F16", "F18"};
+                    acType = fighters[std::rand() % 2];
+                } else if (route.find("FL400+") != std::string::npos) {
+                    // High altitude - prefer strategic bombers or surveillance
+                    const char* highAlt[] = {"B2", "E3"};
+                    acType = highAlt[std::rand() % 2];
+                }
+            }
             break;
         }
         default:
@@ -871,23 +1006,66 @@ bool SyntheticConnection::CheckWeatherImpact(const positionTy& pos, SynDataTy& s
 {
     if (!config.weatherOperations) return false;
     
-    // This is a placeholder for weather integration
-    // In a real implementation, this would:
-    // 1. Get current weather conditions at the aircraft's position
-    // 2. Check visibility, wind, precipitation
-    // 3. Adjust flight plans accordingly (delays, diversions, holds)
-    // 4. Modify aircraft behavior based on weather
+    // Use position to determine weather effects based on altitude and location
+    double altitudeFt = pos.alt_m() * 3.28084; // Convert to feet
+    double latitude = pos.lat();
     
-    // Simple simulation: randomly apply weather delays
-    if (std::rand() % 1000 < 5) { // 0.5% chance of weather impact
+    // Weather impact varies by altitude and geographic location
+    double weatherFactor = 1.0;
+    
+    // High altitude operations (above FL300) - less weather impact
+    if (altitudeFt > 30000.0) {
+        weatherFactor = 0.3; // 30% chance of weather impact
+    }
+    // Medium altitude (FL100-FL300) - moderate weather impact  
+    else if (altitudeFt > 10000.0) {
+        weatherFactor = 0.6; // 60% chance of weather impact
+    }
+    // Low altitude (below FL100) - highest weather impact
+    else {
+        weatherFactor = 1.0; // 100% baseline chance
+    }
+    
+    // Geographic factors - higher latitudes typically have more weather
+    double latitudeFactor = 1.0;
+    if (std::abs(latitude) > 60.0) {
+        latitudeFactor = 1.5; // Polar regions - more weather
+    } else if (std::abs(latitude) > 40.0) {
+        latitudeFactor = 1.2; // Temperate regions - moderate increase
+    } else if (std::abs(latitude) < 20.0) {
+        latitudeFactor = 1.3; // Tropical regions - thunderstorms and convection
+    }
+    
+    // Seasonal variation (simplified - would use actual date/time in real implementation)
+    double seasonalFactor = 0.8 + (std::rand() / static_cast<double>(RAND_MAX)) * 0.4; // 0.8 to 1.2
+    
+    // Combined weather probability
+    double finalWeatherChance = weatherFactor * latitudeFactor * seasonalFactor * 0.5; // Base 0.5% chance
+    
+    // Check if weather impact occurs
+    if ((std::rand() % 1000) < static_cast<int>(finalWeatherChance * 10)) {
         double delay = 60.0 + (std::rand() % 300); // 1-6 minute delay
+        
+        // Weather type based on altitude and position
+        std::string weatherType;
+        if (altitudeFt < 5000.0) {
+            weatherType = "fog/low visibility";
+        } else if (altitudeFt < 15000.0) {
+            weatherType = "turbulence/icing";
+        } else {
+            weatherType = "high altitude winds";
+        }
+        
         synData.nextEventTime += delay;
         
-        std::string airport = "nearby airport"; // Would get actual airport from position
-        weatherDelays[airport] = std::time(nullptr) + delay;
+        // Generate position-based weather key for caching
+        std::string weatherKey = std::to_string(static_cast<int>(pos.lat() * 10)) + "_" + 
+                                std::to_string(static_cast<int>(pos.lon() * 10));
+        weatherDelays[weatherKey] = std::time(nullptr) + delay;
         
-        LOG_MSG(logDEBUG, "Weather delay applied to %s: %.0f seconds", 
-                synData.stat.call.c_str(), delay);
+        LOG_MSG(logDEBUG, "Weather delay applied to %s at %.1f,%.1f,%.0fft: %s, %.0f seconds", 
+                synData.stat.call.c_str(), pos.lat(), pos.lon(), altitudeFt, 
+                weatherType.c_str(), delay);
         return true;
     }
     
@@ -900,18 +1078,54 @@ std::string SyntheticConnection::GenerateFlightPlan(const positionTy& origin, co
 {
     std::string flightPlan;
     
+    // Calculate distance between origin and destination
+    double distanceNM = origin.dist(destination) / 1852.0; // Convert to nautical miles
+    
+    // Calculate approximate bearing from origin to destination
+    double deltaLon = destination.lon() - origin.lon();
+    double deltaLat = destination.lat() - origin.lat();
+    double bearing = std::atan2(deltaLon, deltaLat) * 180.0 / M_PI;
+    if (bearing < 0) bearing += 360.0;
+    
     switch (trafficType) {
         case SYN_TRAFFIC_GA:
-            flightPlan = "VFR direct"; // Most GA flights are VFR
+            if (distanceNM < 50.0) {
+                // Short distance VFR flight
+                flightPlan = "VFR direct, " + std::to_string(static_cast<int>(distanceNM)) + "nm";
+            } else if (distanceNM < 200.0) {
+                // Medium distance VFR with waypoints
+                flightPlan = "VFR via waypoints, " + std::to_string(static_cast<int>(distanceNM)) + "nm, hdg " + std::to_string(static_cast<int>(bearing));
+            } else {
+                // Long distance - likely IFR for GA
+                flightPlan = "IFR airways, " + std::to_string(static_cast<int>(distanceNM)) + "nm";
+            }
             break;
+            
         case SYN_TRAFFIC_AIRLINE:
-            flightPlan = "IFR via airways"; // Airlines use IFR
+            if (distanceNM < 100.0) {
+                // Short haul domestic
+                flightPlan = "IFR direct routing, " + std::to_string(static_cast<int>(distanceNM)) + "nm domestic";
+            } else if (distanceNM < 500.0) {
+                // Medium haul with standard airways
+                flightPlan = "IFR via J-airways, " + std::to_string(static_cast<int>(distanceNM)) + "nm";
+            } else {
+                // Long haul with optimized routing
+                flightPlan = "IFR optimized routing, " + std::to_string(static_cast<int>(distanceNM)) + "nm, FL350+";
+            }
             break;
+            
         case SYN_TRAFFIC_MILITARY:
-            flightPlan = "Military routing"; // Military has special procedures
+            if (distanceNM < 200.0) {
+                // Local military operations
+                flightPlan = "Military local ops, " + std::to_string(static_cast<int>(distanceNM)) + "nm";
+            } else {
+                // Military transport or deployment
+                flightPlan = "Military strategic routing, " + std::to_string(static_cast<int>(distanceNM)) + "nm, FL400+";
+            }
             break;
+            
         default:
-            flightPlan = "Unknown";
+            flightPlan = "Unknown routing, " + std::to_string(static_cast<int>(distanceNM)) + "nm";
             break;
     }
     
