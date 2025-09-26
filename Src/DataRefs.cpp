@@ -2508,9 +2508,9 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
     }
     
-    // if a channel got disabled check if any tracking data channel is left
+    // if a channel got disabled check if any data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
-        !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
+        !LTFlightDataAnyDataChEnabled())        // but no data channel left active?
     {
         SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
     }

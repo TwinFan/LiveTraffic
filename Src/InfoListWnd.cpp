@@ -461,8 +461,8 @@ void InfoListWnd::buildInterface()
                                 }
                             }
                             
-                            // No tracking data channel enabled?
-                            if (!LTFlightDataAnyTrackingChEnabled())
+                            // No data channel enabled?
+                            if (!LTFlightDataAnyDataChEnabled())
                             {
                                 ImGui::TableNextRow();
                                 if (ImGui::TableSetColumnIndex(1)) {

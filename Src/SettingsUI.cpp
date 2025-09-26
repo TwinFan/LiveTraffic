@@ -336,7 +336,7 @@ void LTSettingsUI::buildInterface()
 
         // MARK: --- Input Channels ---
         if (ImGui::TreeNodeLinkHelp("Input Channels", nCol,
-                                    (!LTFlightDataAnyTrackingChEnabled() || LTFlightDataAnyChInvalid()) ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    (!LTFlightDataAnyDataChEnabled() || LTFlightDataAnyChInvalid()) ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
                                     LTFlightDataAnyChInvalid() ? ERR_CH_INACTIVE1 : ERR_CH_NONE_ACTIVE1,
                                     HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
                                     sFilter, nOpCl,
