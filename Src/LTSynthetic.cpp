@@ -839,6 +839,14 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
             destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
             destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
             break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            // Default to GA behavior for undefined cases
+            destination.lat() += (std::rand() % 200 - 100) / 100.0;
+            destination.lon() += (std::rand() % 200 - 100) / 100.0;
+            destination.alt_m() = pos.alt_m() + (std::rand() % 1000);
+            break;
     }
     
     // Generate flight plan using origin and destination
@@ -1007,6 +1015,9 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                         case SYN_TRAFFIC_GA: startupChance = 25; break;      // 25% chance for GA
                         case SYN_TRAFFIC_AIRLINE: startupChance = 40; break; // 40% chance for airlines
                         case SYN_TRAFFIC_MILITARY: startupChance = 35; break; // 35% chance for military
+                        case SYN_TRAFFIC_NONE:
+                        case SYN_TRAFFIC_ALL:
+                        default: startupChance = 20; break; // Default chance
                     }
                     
                     // Time-based adjustments (more activity during day)
@@ -1185,6 +1196,12 @@ std::string SyntheticConnection::AssignRealisticRunway(const SynDataTy& synData)
             // Military can use various runways but prefer longer ones
             suitableRunways = {"09L", "09C", "09R", "27L", "27C", "27R", "01", "19", "36", "18"};
             break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            // Default to GA runways
+            suitableRunways = {"09", "27", "01", "19", "36", "18", "06", "24", "35", "17"};
+            break;
     }
     
     if (suitableRunways.empty()) {
@@ -1218,6 +1235,12 @@ void SyntheticConnection::SetRealisticCruiseAltitude(SynDataTy& synData)
         case SYN_TRAFFIC_MILITARY:
             // Military varies widely, can go very high
             synData.targetAltitude = baseAltitudeM + (1500.0 + (std::rand() % 12000)); // 5K-45K ft AGL
+            break;
+        case SYN_TRAFFIC_NONE:
+        case SYN_TRAFFIC_ALL:
+        default:
+            // Default to GA behavior
+            synData.targetAltitude = baseAltitudeM + (600.0 + (std::rand() % 2400));
             break;
     }
     
@@ -4951,7 +4974,7 @@ double SyntheticConnection::CalculateWeatherImpactFactor(const std::string& weat
 }
 
 // Enhanced weather operations update
-void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, double currentTime)
+void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, double /*currentTime*/)
 {
     if (!config.weatherOperations) return;
     
@@ -5019,7 +5042,7 @@ void SyntheticConnection::QueryAvailableSIDSTARProcedures(SynDataTy& synData, co
 }
 
 // Get real SID procedures from X-Plane navigation database
-std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::string& airport, const std::string& runway)
+std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::string& /*airport*/, const std::string& runway)
 {
     std::vector<std::string> sids;
     
@@ -5051,7 +5074,7 @@ std::vector<std::string> SyntheticConnection::GetRealSIDProcedures(const std::st
 }
 
 // Get real STAR procedures from X-Plane navigation database
-std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::string& airport, const std::string& runway)
+std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::string& /*airport*/, const std::string& runway)
 {
     std::vector<std::string> stars;
     
@@ -5244,7 +5267,7 @@ std::string SyntheticConnection::GetExtendedCountryFromPosition(const positionTy
 
 // Generate extended country-specific registration
 std::string SyntheticConnection::GenerateExtendedCountryRegistration(const std::string& countryCode, 
-                                                                    SyntheticTrafficType trafficType)
+                                                                    SyntheticTrafficType /*trafficType*/)
 {
     std::string registration;
     
@@ -5668,7 +5691,7 @@ SyntheticTrafficType SyntheticConnection::CategorizeAircraftType(const std::stri
 }
 
 // Select a CSL model for synthetic aircraft
-std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& route)
+std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType trafficType, const std::string& /*route*/)
 {
     // Check if we have models for this traffic type
     auto it = cslModelsByType.find(trafficType);
