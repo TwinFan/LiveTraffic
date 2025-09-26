@@ -26,6 +26,131 @@
 // All includes are collected in one header
 #include "LiveTraffic.h"
 
+// Windows SAPI includes for Text-to-Speech
+#if IBM
+#include <sapi.h>
+#include <sphelper.h>
+#pragma comment(lib, "sapi.lib")
+#endif
+
+//
+// MARK: Windows SAPI TTS Manager
+//
+
+#if IBM
+/// Windows SAPI Text-to-Speech Manager
+class TTSManager {
+private:
+    ISpVoice* pVoice;
+    bool initialized;
+    
+    // Different voice settings for different aircraft types
+    struct VoiceSettings {
+        long rate;      // Speech rate (-10 to 10)
+        long volume;    // Volume (0 to 100)  
+        long pitch;     // Pitch offset (-10 to 10)
+    };
+    
+    static const VoiceSettings gaVoice;      // General Aviation
+    static const VoiceSettings airlineVoice; // Commercial airline
+    static const VoiceSettings militaryVoice; // Military
+    
+public:
+    TTSManager() : pVoice(nullptr), initialized(false) {}
+    ~TTSManager() { Cleanup(); }
+    
+    bool Initialize() {
+        if (initialized) return true;
+        
+        HRESULT hr = CoInitialize(nullptr);
+        if (FAILED(hr)) {
+            LOG_MSG(logERR, "TTS: Failed to initialize COM");
+            return false;
+        }
+        
+        hr = CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_ALL, IID_ISpVoice, (void**)&pVoice);
+        if (FAILED(hr)) {
+            LOG_MSG(logERR, "TTS: Failed to create SAPI voice instance");
+            CoUninitialize();
+            return false;
+        }
+        
+        initialized = true;
+        LOG_MSG(logDEBUG, "TTS: SAPI initialized successfully");
+        return true;
+    }
+    
+    void Cleanup() {
+        if (pVoice) {
+            pVoice->Release();
+            pVoice = nullptr;
+        }
+        if (initialized) {
+            CoUninitialize();
+            initialized = false;
+        }
+    }
+    
+    void Speak(const std::string& text, SyntheticTrafficType trafficType, double distance) {
+        if (!initialized || !pVoice || text.empty()) return;
+        
+        // Select voice settings based on aircraft type
+        const VoiceSettings* settings = &gaVoice;
+        switch (trafficType) {
+            case SYN_TRAFFIC_AIRLINE:
+                settings = &airlineVoice;
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                settings = &militaryVoice;
+                break;
+            default:
+                settings = &gaVoice;
+                break;
+        }
+        
+        // Apply distance-based volume reduction (simulate radio range)
+        long adjustedVolume = settings->volume;
+        if (distance > 5.0) {
+            // Reduce volume for distant aircraft (beyond 5 NM)
+            double volumeReduction = std::min(0.8, (distance - 5.0) / 20.0);
+            adjustedVolume = (long)(settings->volume * (1.0 - volumeReduction));
+        }
+        
+        // Apply voice settings
+        pVoice->SetRate(settings->rate);
+        pVoice->SetVolume(adjustedVolume);
+        
+        // Add radio effect prefix for realism
+        std::string radioText = text;
+        if (distance > 10.0) {
+            radioText = "[Static] " + radioText + " [Static]";
+        } else if (distance > 5.0) {
+            radioText = "[Weak Signal] " + radioText;
+        }
+        
+        // Convert to wide string for SAPI
+        std::wstring wideText(radioText.begin(), radioText.end());
+        
+        // Speak asynchronously to avoid blocking the main thread
+        HRESULT hr = pVoice->Speak(wideText.c_str(), SPF_ASYNC | SPF_PURGEBEFORESPEAK, nullptr);
+        if (FAILED(hr)) {
+            LOG_MSG(logWARN, "TTS: Failed to speak text: %s", text.c_str());
+        }
+    }
+    
+    static TTSManager& GetInstance() {
+        static TTSManager instance;
+        return instance;
+    }
+};
+
+// Voice settings for different aircraft types
+const TTSManager::VoiceSettings TTSManager::gaVoice = { -2, 70, 0 };        // Slower, softer for GA
+const TTSManager::VoiceSettings TTSManager::airlineVoice = { 0, 85, -1 };   // Normal, professional tone
+const TTSManager::VoiceSettings TTSManager::militaryVoice = { 1, 90, -2 };  // Faster, authoritative
+
+#endif // IBM
+
 //
 // MARK: SyntheticConnection
 //
@@ -1470,7 +1595,7 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     return message;
 }
 
-// Process TTS communications (placeholder for Windows TTS integration)
+// Process TTS communications with Windows SAPI integration
 void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std::string& message)
 {
     if (!config.enableTTS || message.empty()) return;
@@ -1478,15 +1603,29 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
     // Store the last communication message
     synData.lastComm = message;
     
-    // Log the communication for now (actual TTS implementation would go here)
     LOG_MSG(logDEBUG, "TTS: %s", message.c_str());
     
-    // TODO: Integrate with Windows TTS API
-    // This would involve:
-    // 1. Initialize Windows SAPI (Speech API)
-    // 2. Create voice objects with different characteristics for different aircraft types
-    // 3. Queue the message for speech synthesis
-    // 4. Handle radio effects and audio positioning based on distance
+#if IBM
+    // Windows SAPI TTS integration
+    TTSManager& tts = TTSManager::GetInstance();
+    
+    // Initialize TTS if not already done
+    if (!tts.Initialize()) {
+        LOG_MSG(logWARN, "TTS: Failed to initialize SAPI, falling back to logging only");
+        return;
+    }
+    
+    // Calculate distance to user for audio effects
+    const positionTy userPos = dataRefs.GetViewPos();
+    double distance = synData.pos.dist(userPos) / 1852.0; // Convert to nautical miles
+    
+    // Use SAPI to speak the message with appropriate voice characteristics
+    tts.Speak(message, synData.trafficType, distance);
+    
+#else
+    // Non-Windows platforms: log only (could implement other TTS engines here)
+    LOG_MSG(logINFO, "TTS not implemented on this platform: %s", message.c_str());
+#endif
 }
 
 // Update user awareness behavior
