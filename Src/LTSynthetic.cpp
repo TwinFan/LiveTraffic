@@ -264,6 +264,14 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     LOG_MSG(logDEBUG, "Synthetic traffic enabled: %d aircraft, types=%u, density=%.1f%%", 
             config.maxAircraft, config.trafficTypes, config.density * 100.0f);
     
+    // Generate comprehensive debug log every 5 minutes for debugging purposes
+    static double lastDebugLogTime = 0.0;
+    double currentTime = std::time(nullptr);
+    if (currentTime - lastDebugLogTime > 300.0) { // 5 minutes
+        GenerateDebugLog();
+        lastDebugLogTime = currentTime;
+    }
+    
     // Generate new synthetic traffic if we have room
     if (mapSynData.size() < static_cast<size_t>(config.maxAircraft)) {
         GenerateTraffic(centerPos);
@@ -2318,6 +2326,10 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     std::string message;
     double distance = synData.pos.dist(userPos) / 1852.0; // Convert to nautical miles
     
+    // Debug logging for communication message generation
+    LOG_MSG(logDEBUG, "SYNTHETIC_COMM_GEN: Generating message for %s (State: %d, Distance: %.1fnm, Freq: %.3f MHz)", 
+            synData.stat.call.c_str(), synData.state, distance, synData.currentComFreq);
+    
     // Calculate communication reliability based on distance (realistic degradation)
     double commReliability = 1.0;
     if (distance > 10.0) {
@@ -2485,6 +2497,10 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
         }
     }
     
+    // Debug logging for generated message
+    LOG_MSG(logDEBUG, "SYNTHETIC_COMM_GEN_RESULT: %s generated message: \"%s\" (Reliability: %.2f, Distance: %.1fnm)", 
+            synData.stat.call.c_str(), message.c_str(), commReliability, distance);
+    
     return message;
 }
 
@@ -2502,6 +2518,17 @@ void SyntheticConnection::ProcessTTSCommunication(SynDataTy& synData, const std:
     
     // Store the last communication message
     synData.lastComm = message;
+    
+    // Enhanced debug logging for synthetic traffic communications
+    LOG_MSG(logDEBUG, "SYNTHETIC_COMM: [%s] %.3f MHz - %s (State: %d, Distance: %.1fnm, UserAware: %s)", 
+            synData.stat.call.c_str(), synData.currentComFreq, message.c_str(), 
+            synData.state, synData.pos.dist(dataRefs.GetViewPos()) / 1852.0,
+            synData.isUserAware ? "YES" : "NO");
+    
+    // Add insim text output for debugging - display in X-Plane simulator overlay
+    std::string insimText = "[SYNTHETIC] " + synData.stat.call + ": " + message + 
+                           " (" + std::to_string((int)(synData.currentComFreq * 1000) / 1000.0) + " MHz)";
+    XPLMSpeakString(insimText.c_str());
     
     LOG_MSG(logDEBUG, "TTS: %s on %.3f MHz", message.c_str(), synData.currentComFreq);
     
@@ -2576,13 +2603,30 @@ void SyntheticConnection::UpdateUserAwareness(SynDataTy& synData, const position
 {
     double distance = synData.pos.dist(userPos) / 1852.0; // Distance in nautical miles
     
+    // Debug logging for user awareness tracking
+    static std::map<std::string, bool> lastAwarenessState;
+    bool previousState = lastAwarenessState[synData.stat.call];
+    
     // Aircraft becomes user-aware within 10nm
     if (distance < 10.0 && !synData.isUserAware) {
         synData.isUserAware = true;
-        LOG_MSG(logDEBUG, "Aircraft %s is now user-aware (distance: %.1fnm)", 
+        LOG_MSG(logDEBUG, "SYNTHETIC_USER_AWARENESS: Aircraft %s is now user-aware (distance: %.1fnm)", 
                 synData.stat.call.c_str(), distance);
     } else if (distance > 15.0 && synData.isUserAware) {
         synData.isUserAware = false;
+        LOG_MSG(logDEBUG, "SYNTHETIC_USER_AWARENESS: Aircraft %s is no longer user-aware (distance: %.1fnm)", 
+                synData.stat.call.c_str(), distance);
+    }
+    
+    // Log awareness state changes for debugging
+    if (synData.isUserAware != previousState) {
+        LOG_MSG(logDEBUG, "SYNTHETIC_AWARENESS_CHANGE: %s awareness changed from %s to %s at %.1fnm", 
+                synData.stat.call.c_str(), 
+                previousState ? "AWARE" : "UNAWARE",
+                synData.isUserAware ? "AWARE" : "UNAWARE",
+                distance);
+        lastAwarenessState[synData.stat.call] = synData.isUserAware;
+    }
         LOG_MSG(logDEBUG, "Aircraft %s is no longer user-aware (distance: %.1fnm)", 
                 synData.stat.call.c_str(), distance);
     }
@@ -4247,7 +4291,12 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
         return;
     }
     
+    double oldFreq = synData.currentComFreq;
     synData.lastFreqUpdate = currentTime;
+    
+    // Debug logging for frequency update initiation
+    LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_UPDATE: Updating frequency for %s (Current: %.3f MHz, State: %d)", 
+            synData.stat.call.c_str(), synData.currentComFreq, synData.state);
     
     // Find nearest airport for frequency determination
     std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 25.0); // 25nm radius
@@ -4342,8 +4391,12 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
         synData.currentFreqType = freqType;
         synData.currentAirport = nearestAirport;
         
-        LOG_MSG(logDEBUG, "Aircraft %s switched to %s frequency %.3f MHz (airport: %s, distance: %.1f nm)",
+        LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_CHANGE: Aircraft %s switched to %s frequency %.3f MHz (airport: %s, distance: %.1f nm)",
                 synData.stat.call.c_str(), freqType.c_str(), newFreq, 
+                nearestAirport.c_str(), minDistance);
+    } else {
+        LOG_MSG(logDEBUG, "SYNTHETIC_FREQ_NO_CHANGE: Aircraft %s keeping frequency %.3f MHz (airport: %s, distance: %.1f nm)",
+                synData.stat.call.c_str(), synData.currentComFreq, 
                 nearestAirport.c_str(), minDistance);
     }
 }
@@ -5732,4 +5785,70 @@ std::string SyntheticConnection::GenerateComprehensiveCountryRegistration(const 
     }
     
     return registration;
+}
+
+// Generate comprehensive debug log for all synthetic aircraft
+void SyntheticConnection::GenerateDebugLog()
+{
+    const positionTy userPos = dataRefs.GetViewPos();
+    const double currentTime = std::time(nullptr);
+    
+    LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG START ===");
+    LOG_MSG(logINFO, "Configuration: Enabled=%s, Types=%u, MaxAircraft=%d, Density=%.1f%%", 
+            config.enabled ? "YES" : "NO", config.trafficTypes, config.maxAircraft, config.density * 100.0f);
+    LOG_MSG(logINFO, "TTS Settings: Enabled=%s, UserAwareness=%s, WeatherOps=%s", 
+            config.enableTTS ? "YES" : "NO", config.userAwareness ? "YES" : "NO", config.weatherOperations ? "YES" : "NO");
+    LOG_MSG(logINFO, "Current aircraft count: %zu/%d", mapSynData.size(), config.maxAircraft);
+    
+    if (mapSynData.empty()) {
+        LOG_MSG(logINFO, "No synthetic aircraft currently active");
+        LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG END ===");
+        return;
+    }
+    
+    LOG_MSG(logINFO, "--- AIRCRAFT DETAILS ---");
+    int aircraftCount = 0;
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& synData = pair.second;
+        double distance = synData.pos.dist(userPos) / 1852.0; // nautical miles
+        double altitudeFt = synData.pos.alt_m() * 3.28084; // feet
+        
+        std::string stateNames[] = {"PARKED", "STARTUP", "TAXI_OUT", "LINE_UP_WAIT", "TAKEOFF", 
+                                   "CLIMB", "CRUISE", "HOLD", "DESCENT", "APPROACH", "LANDING", 
+                                   "TAXI_IN", "SHUTDOWN"};
+        std::string stateName = (synData.state < sizeof(stateNames)/sizeof(stateNames[0])) ? 
+                               stateNames[synData.state] : "UNKNOWN";
+        
+        std::string trafficTypes[] = {"NONE", "GA", "AIRLINE", "UNKNOWN", "MILITARY"};
+        std::string trafficType = (synData.trafficType < sizeof(trafficTypes)/sizeof(trafficTypes[0])) ? 
+                                 trafficTypes[synData.trafficType] : "UNKNOWN";
+        
+        LOG_MSG(logINFO, "Aircraft #%d: %s (%s)", ++aircraftCount, synData.stat.call.c_str(), synData.stat.acTypeIcao.c_str());
+        LOG_MSG(logINFO, "  Type: %s, State: %s", trafficType.c_str(), stateName.c_str());
+        LOG_MSG(logINFO, "  Position: %.4f,%.4f @ %.0fft (%.1fnm from user)", 
+                synData.pos.lat(), synData.pos.lon(), altitudeFt, distance);
+        LOG_MSG(logINFO, "  Communication: %.3f MHz (%s), UserAware: %s", 
+                synData.currentComFreq, synData.currentFreqType.c_str(), synData.isUserAware ? "YES" : "NO");
+        LOG_MSG(logINFO, "  Last Comm: \"%s\" (%.0fs ago)", 
+                synData.lastComm.c_str(), currentTime - synData.lastCommTime);
+        LOG_MSG(logINFO, "  Target: Alt=%.0fft, Speed=%.0fkts, Heading=%.0f°", 
+                synData.targetAltitude * 3.28084, synData.targetSpeed / 0.514444, synData.pos.heading());
+        
+        if (synData.tcasActive && !synData.tcasAdvisory.empty()) {
+            LOG_MSG(logINFO, "  TCAS: ACTIVE - %s", synData.tcasAdvisory.c_str());
+        }
+        
+        if (!synData.flightPath.empty()) {
+            LOG_MSG(logINFO, "  Flight Path: %zu waypoints, current: %zu", 
+                    synData.flightPath.size(), synData.currentWaypoint);
+        }
+    }
+    
+    LOG_MSG(logINFO, "--- CSL MODEL STATUS ---");
+    LOG_MSG(logINFO, "Available models: GA=%zu, Airlines=%zu, Military=%zu", 
+            cslModelsByType[SYN_TRAFFIC_GA].size(),
+            cslModelsByType[SYN_TRAFFIC_AIRLINE].size(),
+            cslModelsByType[SYN_TRAFFIC_MILITARY].size());
+    
+    LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG END ===");
 }

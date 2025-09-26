@@ -528,6 +528,9 @@ protected:
     
     /// Generate varied position around a center point to prevent aircraft stacking
     positionTy GenerateVariedPosition(const positionTy& centerPos, double minDistanceNM, double maxDistanceNM);
+    
+    /// Generate comprehensive debug log for all synthetic aircraft
+    void GenerateDebugLog();
 };
 
 #endif /* LTSynthetic_h */
