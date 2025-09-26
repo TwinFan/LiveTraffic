@@ -2260,7 +2260,7 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
         synData.targetWaypoint = synData.flightPath[synData.currentWaypoint];
         
         // Calculate bearing to target waypoint
-        double bearing = synData.pos.angleTo(synData.targetWaypoint);
+        double bearing = synData.pos.angle(synData.targetWaypoint);
         synData.targetHeading = bearing;
         
         // Check if we've reached the current waypoint
