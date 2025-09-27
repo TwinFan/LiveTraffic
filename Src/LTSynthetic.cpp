@@ -1193,7 +1193,6 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                     
                     // Get aircraft performance data for proper takeoff parameters
                     const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
-                    double vRotate = perfData ? perfData->stallSpeedKts * 1.2 : 70.0; // 120% of stall speed
                     double vClimbout = perfData ? perfData->stallSpeedKts * 1.4 : 85.0; // 140% of stall speed
                     
                     // Transition to climb when airborne and at safe climbout speed
@@ -2666,7 +2665,7 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
         synData.pos.lon() += deltaLon;
         
         // Update altitude based on vertical speed
-        if (altitudeChangeRate != 0.0) {
+        if (std::abs(altitudeChangeRate) > 0.001) { // Use epsilon for floating point comparison
             double newAltitude = synData.pos.alt_m() + (altitudeChangeRate * deltaTime);
             
             // Apply aircraft performance constraints
@@ -4351,6 +4350,7 @@ void SyntheticConnection::GenerateCruisePath(SynDataTy& synData, const positionT
             
             double bearing = currentPos.angle(airportPos);
             double totalDistance = currentPos.dist(airportPos);
+            (void)bearing; // Suppress unused variable warning
             
             // Generate waypoints along a direct route with realistic spacing (50-100nm intervals)
             int numWaypoints = std::max(2, static_cast<int>(totalDistance / 92600.0)); // ~50nm in meters
@@ -4404,6 +4404,8 @@ void SyntheticConnection::GenerateArrivalPath(SynDataTy& synData, const position
             // Calculate approach from current position to airport
             double bearing = currentPos.angle(airportPos);
             double distance = currentPos.dist(airportPos);
+            (void)bearing; // Suppress unused variable warning
+            (void)distance; // Suppress unused variable warning
             
             // Generate approach waypoints at strategic distances
             std::vector<double> approachDistances = {0.75, 0.5, 0.3, 0.1}; // Fractions of total distance
@@ -4458,6 +4460,8 @@ void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy
         if (airportPos.isNormal()) {
             double bearing = currentPos.angle(airportPos);
             double distance = currentPos.dist(airportPos);
+            (void)bearing; // Suppress unused variable warning  
+            (void)distance; // Suppress unused variable warning
             
             // Generate 3 waypoints progressing toward destination
             for (int i = 1; i <= 3; i++) {
@@ -4510,7 +4514,7 @@ void SyntheticConnection::GenerateHoldingPattern(SynDataTy& synData, const posit
     }
     
     // If no destination, use current heading with some variation
-    if (patternHeading == 0.0) {
+    if (std::abs(patternHeading) < 0.001) { // Use epsilon for floating point comparison
         patternHeading = synData.pos.heading() + ((std::rand() % 60 - 30) * PI / 180.0); // ±30° variation
     }
     
@@ -5303,6 +5307,7 @@ void SyntheticConnection::UpdateGroundOperations(SynDataTy& synData, double curr
             if (!synData.assignedRunway.empty()) {
                 // Try to find actual runway position
                 positionTy rwPos = origin; // Fallback to current position
+                (void)rwPos; // Suppress unused variable warning
                 
                 try {
                     // Extract runway heading and create a position ahead for taxi target
@@ -5401,6 +5406,7 @@ void SyntheticConnection::GenerateTaxiRoute(SynDataTy& synData, const positionTy
                 // Use cubic interpolation for smoother taxi paths
                 double t2 = t * t;
                 double t3 = t2 * t;
+                (void)t3; // Suppress unused variable warning - reserved for future use
                 
                 // Add some curvature to avoid straight-line taxi
                 double offsetFactor = std::sin(t * PI) * 0.0001; // Small curved offset
@@ -5646,6 +5652,7 @@ int SyntheticConnection::DetermineOptimalTCASManeuver(const SynDataTy& ownAircra
     
     double ownAltitude = ownAircraft.pos.alt_m() * 3.28084; // Convert to feet
     double trafficAltitude = trafficAircraft.pos.alt_m() * 3.28084; // Convert to feet
+    (void)trafficAltitude; // Suppress unused variable warning - reserved for future use
     
     // Consider aircraft capabilities and current flight state
     const AircraftPerformance* perfData = GetAircraftPerformance(ownAircraft.stat.acTypeIcao);
