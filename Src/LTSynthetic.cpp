@@ -1083,34 +1083,50 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     // Generate a realistic flight plan based on current position and traffic type
     positionTy destination = pos; // Default destination is current position
     
-    // Create a realistic destination based on traffic type and current position
-    switch (trafficType) {
-        case SYN_TRAFFIC_GA:
-            // GA flights typically within 200nm radius
-            destination.lat() += (std::rand() % 200 - 100) / 100.0; // +/- 1 degree (~60nm)
-            destination.lon() += (std::rand() % 200 - 100) / 100.0;
-            destination.alt_m() = pos.alt_m() + (std::rand() % 1000); // Vary altitude
-            break;
-        case SYN_TRAFFIC_AIRLINE:
-            // Airlines can travel much farther
-            destination.lat() += (std::rand() % 1000 - 500) / 100.0; // +/- 5 degrees (~300nm)
-            destination.lon() += (std::rand() % 1000 - 500) / 100.0;
-            destination.alt_m() = 10000.0 + (std::rand() % 5000); // High altitude
-            break;
-        case SYN_TRAFFIC_MILITARY:
-            // Military flights vary widely
-            destination.lat() += (std::rand() % 2000 - 1000) / 100.0; // +/- 10 degrees (~600nm)
-            destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
-            destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
-            break;
-        case SYN_TRAFFIC_NONE:
-        case SYN_TRAFFIC_ALL:
-        default:
-            // Default to GA behavior for undefined cases
-            destination.lat() += (std::rand() % 200 - 100) / 100.0;
-            destination.lon() += (std::rand() % 200 - 100) / 100.0;
-            destination.alt_m() = pos.alt_m() + (std::rand() % 1000);
-            break;
+    // If a destination airport was provided, use its position instead of generating random coordinates
+    if (!destinationAirport.empty()) {
+        positionTy airportDestination = GetAirportPosition(destinationAirport);
+        if (airportDestination.isNormal()) {
+            destination = airportDestination;
+            LOG_MSG(logDEBUG, "Using destination airport %s at lat=%.6f, lon=%.6f for flight plan", 
+                    destinationAirport.c_str(), destination.lat(), destination.lon());
+        } else {
+            LOG_MSG(logWARN, "Destination airport %s not found, using random destination for flight plan", 
+                    destinationAirport.c_str());
+            // Fall back to random destination generation below
+        }
+    }
+    
+    // If no valid destination airport or airport not found, create a realistic destination based on traffic type and current position
+    if (destinationAirport.empty() || destination.lat() == pos.lat() && destination.lon() == pos.lon()) {
+        switch (trafficType) {
+            case SYN_TRAFFIC_GA:
+                // GA flights typically within 200nm radius
+                destination.lat() += (std::rand() % 200 - 100) / 100.0; // +/- 1 degree (~60nm)
+                destination.lon() += (std::rand() % 200 - 100) / 100.0;
+                destination.alt_m() = pos.alt_m() + (std::rand() % 1000); // Vary altitude
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines can travel much farther
+                destination.lat() += (std::rand() % 1000 - 500) / 100.0; // +/- 5 degrees (~300nm)
+                destination.lon() += (std::rand() % 1000 - 500) / 100.0;
+                destination.alt_m() = 10000.0 + (std::rand() % 5000); // High altitude
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military flights vary widely
+                destination.lat() += (std::rand() % 2000 - 1000) / 100.0; // +/- 10 degrees (~600nm)
+                destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
+                destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
+                break;
+            case SYN_TRAFFIC_NONE:
+            case SYN_TRAFFIC_ALL:
+            default:
+                // Default to GA behavior for undefined cases
+                destination.lat() += (std::rand() % 200 - 100) / 100.0;
+                destination.lon() += (std::rand() % 200 - 100) / 100.0;
+                destination.alt_m() = pos.alt_m() + (std::rand() % 1000);
+                break;
+        }
     }
     
     // Generate flight plan using origin and destination
@@ -1189,6 +1205,31 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     
     // Set destination airport
     synData.destinationAirport = destinationAirport;
+    
+    // Set route information (origin -> destination) for proper flight data structure
+    // Origin is the airport where the aircraft is currently located/spawned
+    std::string originAirport = "";
+    
+    // Try to find the closest airport to the spawn position as the origin
+    auto nearbyAirports = FindNearbyAirports(pos, 5.0); // Within 5nm of spawn point
+    if (!nearbyAirports.empty()) {
+        originAirport = nearbyAirports[0]; // Closest airport
+    }
+    
+    // Set origin and destination in the flight data structure
+    if (!originAirport.empty() && !destinationAirport.empty()) {
+        synData.stat.setOrigDest(originAirport, destinationAirport);
+        LOG_MSG(logDEBUG, "Set route %s -> %s for aircraft %s", 
+                originAirport.c_str(), destinationAirport.c_str(), synData.stat.call.c_str());
+    } else if (!originAirport.empty()) {
+        // Local flight - origin and destination are the same
+        synData.stat.setOrigDest(originAirport, originAirport);
+        LOG_MSG(logDEBUG, "Set local flight at %s for aircraft %s", 
+                originAirport.c_str(), synData.stat.call.c_str());
+    } else {
+        LOG_MSG(logDEBUG, "No origin airport found for aircraft %s, route will be empty", 
+                synData.stat.call.c_str());
+    }
     
     // Flight plan already generated above based on origin/destination
     
