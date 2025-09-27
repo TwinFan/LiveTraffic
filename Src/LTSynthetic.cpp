@@ -656,6 +656,10 @@ bool SyntheticConnection::ProcessFetchedData ()
                 synData.pos.f.flightPhase = FPH_LANDING;
                 dyn.vsi = -200.0; // 200 ft/min descent
                 break;
+            case SYN_STATE_SHUTDOWN:
+                synData.pos.f.flightPhase = FPH_PARKED; // Shutting down at gate
+                dyn.vsi = 0.0;
+                break;
             default:
                 synData.pos.f.flightPhase = FPH_UNKNOWN;
                 dyn.vsi = 0.0;
@@ -1191,10 +1195,27 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                 
             case SYN_STATE_STARTUP:
                 newState = SYN_STATE_TAXI_OUT;
+                
                 // Assign a realistic runway for departure if not already assigned
                 if (synData.assignedRunway.empty()) {
                     synData.assignedRunway = AssignRealisticRunway(synData);
                 }
+                
+                // Clear any previous gate assignment since we're starting a new flight
+                synData.assignedGate = "";
+                
+                // Generate new destination for this flight
+                if (synData.destinationAirport.empty()) {
+                    // Find a reasonable destination airport
+                    std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 200.0); // Within 200nm
+                    if (!nearbyAirports.empty() && nearbyAirports.size() > 1) {
+                        // Pick a different airport than current location
+                        synData.destinationAirport = nearbyAirports[1 + (std::rand() % (nearbyAirports.size() - 1))];
+                        LOG_MSG(logDEBUG, "Aircraft %s assigned destination %s for new flight", 
+                                synData.stat.call.c_str(), synData.destinationAirport.c_str());
+                    }
+                }
+                
                 LOG_MSG(logDEBUG, "Aircraft %s assigned runway %s for departure", 
                         synData.stat.call.c_str(), synData.assignedRunway.c_str());
                 break;
@@ -1210,12 +1231,19 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                         // Completed taxi route, now check position relative to assigned runway
                         readyForRunway = true;
                     } else if (synData.taxiRoute.empty()) {
-                        // No taxi route - assume we're already positioned (fallback)
-                        readyForRunway = true;
+                        // No taxi route - check if enough time has passed for taxi-out
+                        double taxiTime = currentTime - synData.stateChangeTime;
+                        if (taxiTime > 180.0) { // After 3 minutes of taxi-out
+                            readyForRunway = true;
+                        }
                     }
                     
                     if (readyForRunway) {
                         newState = SYN_STATE_LINE_UP_WAIT;
+                        
+                        // Clear taxi route since we've reached the runway
+                        synData.taxiRoute.clear();
+                        synData.currentTaxiWaypoint = 0;
                         
                         // Align with runway heading
                         if (!synData.assignedRunway.empty()) {
@@ -1396,17 +1424,65 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                 break;
                 
             case SYN_STATE_TAXI_IN:
-                newState = SYN_STATE_PARKED;
-                LOG_MSG(logDEBUG, "Aircraft %s parked at gate", synData.stat.call.c_str());
+                // Only transition to parked when we've reached our assigned gate
+                {
+                    bool reachedGate = false;
+                    
+                    // Check if we've completed the taxi route to the gate
+                    if (!synData.taxiRoute.empty() && 
+                        synData.currentTaxiWaypoint >= synData.taxiRoute.size()) {
+                        reachedGate = true;
+                    } else if (synData.taxiRoute.empty()) {
+                        // No taxi route - use time and distance based determination
+                        double taxiTime = currentTime - synData.stateChangeTime;
+                        if (taxiTime > 120.0) { // After 2 minutes of taxi-in
+                            reachedGate = true;
+                        }
+                    }
+                    
+                    // Also check if we're close to the assigned gate position (if available)
+                    if (!synData.assignedGate.empty() && !reachedGate) {
+                        // If we have an assigned gate, check proximity
+                        if (!synData.taxiRoute.empty()) {
+                            positionTy gatePos = synData.taxiRoute.back(); // Last waypoint is gate
+                            double distanceToGate = synData.pos.dist(gatePos);
+                            if (distanceToGate < 50.0) { // Within 50m of gate
+                                reachedGate = true;
+                            }
+                        }
+                    }
+                    
+                    if (reachedGate) {
+                        newState = SYN_STATE_SHUTDOWN;
+                        LOG_MSG(logDEBUG, "Aircraft %s reached gate %s, beginning shutdown", 
+                                synData.stat.call.c_str(), 
+                                synData.assignedGate.empty() ? "unknown" : synData.assignedGate.c_str());
+                    }
+                }
                 break;
                 
             case SYN_STATE_SHUTDOWN:
-                // Aircraft lifecycle complete - could be removed or restarted
+                // Aircraft lifecycle complete - transition through proper shutdown sequence
                 {
                     double shutdownTime = currentTime - synData.stateChangeTime;
-                    if (shutdownTime > 1800.0 && std::rand() % 100 < 20) { // 20% chance after 30 minutes
-                        newState = SYN_STATE_PARKED; // Reset for new flight
-                        LOG_MSG(logDEBUG, "Aircraft %s reset for new flight", synData.stat.call.c_str());
+                    
+                    // Proper shutdown sequence: engines off, systems shut down
+                    if (shutdownTime > 180.0) { // 3 minutes for shutdown procedures
+                        newState = SYN_STATE_PARKED;
+                        
+                        // Clear gate assignment to allow reuse for new flights
+                        synData.assignedGate = "";
+                        synData.taxiRoute.clear();
+                        synData.currentTaxiWaypoint = 0;
+                        synData.flightPath.clear();
+                        synData.currentWaypoint = 0;
+                        
+                        // Reset performance parameters
+                        synData.targetSpeed = 0.0;
+                        synData.targetAltitude = synData.pos.alt_m();
+                        
+                        LOG_MSG(logDEBUG, "Aircraft %s completed shutdown, now parked and available for next flight", 
+                                synData.stat.call.c_str());
                     }
                 }
                 break;
@@ -1572,6 +1648,12 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
         case SYN_STATE_APPROACH:
         case SYN_STATE_LANDING:
             synData.nextEventTime = currentTime + (60 + std::rand() % 120); // 1-3 minutes
+            break;
+        case SYN_STATE_SHUTDOWN:
+            synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for shutdown
+            break;
+        case SYN_STATE_PARKED:
+            synData.nextEventTime = currentTime + (300 + std::rand() % 600); // 5-15 minutes parked before next flight
             break;
         default:
             synData.nextEventTime = currentTime + 300; // Default 5 minutes
