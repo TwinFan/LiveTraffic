@@ -7433,3 +7433,51 @@ int SyntheticConnection::CountSceneryObjects(const positionTy& centerPos, double
     
     return objectCount;
 }
+
+// Generate realistic SID name based on runway and position
+std::string SyntheticConnection::GenerateRealisticSIDName(const std::string& runway, const positionTy& pos)
+{
+    // Common SID naming patterns used at airports worldwide
+    static const std::vector<std::string> sidNames = {
+        "ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", 
+        "GOLF", "HOTEL", "INDIA", "JULIET", "KILO", "LIMA"
+    };
+    
+    // Select based on runway and add realistic suffix
+    size_t nameIndex = (runway.empty() ? 0 : runway[0] - '0') % sidNames.size();
+    std::string sidName = sidNames[nameIndex];
+    
+    // Add numeric suffix (1-9)
+    int suffix = 1 + (static_cast<int>(pos.lat() * 1000) % 9);
+    sidName += std::to_string(suffix);
+    
+    // Add runway designator for departure SIDs
+    if (!runway.empty()) {
+        sidName += runway.substr(0, 2); // Take first two characters of runway
+    }
+    
+    return sidName;
+}
+
+// Generate realistic STAR name based on airport and position  
+std::string SyntheticConnection::GenerateRealisticSTARName(const std::string& airport, const positionTy& pos)
+{
+    // Common STAR naming patterns
+    static const std::vector<std::string> starNames = {
+        "MIKE", "NOVEMBER", "OSCAR", "PAPA", "QUEBEC", "ROMEO",
+        "SIERRA", "TANGO", "UNIFORM", "VICTOR", "WHISKEY", "XRAY"
+    };
+    
+    // Select based on airport code
+    size_t nameIndex = airport.empty() ? 0 : (airport[0] - 'A') % starNames.size();
+    std::string starName = starNames[nameIndex];
+    
+    // Add numeric suffix 
+    int suffix = 1 + (static_cast<int>(pos.lon() * 1000) % 9);
+    starName += std::to_string(suffix);
+    
+    // Add arrival designator
+    starName += "ARR";
+    
+    return starName;
+}
