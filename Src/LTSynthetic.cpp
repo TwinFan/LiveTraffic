@@ -1508,16 +1508,27 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
         // Enhanced state machine for AI behavior with realistic timing and decisions
         switch (synData.state) {
             case SYN_STATE_PARKED:
-                // More realistic startup probability based on traffic type and time
+                // Enhanced startup probability with guaranteed progression to prevent stuck aircraft
                 {
+                    double parkedTime = currentTime - synData.stateChangeTime;
+                    
+                    // GUARANTEED TIMEOUT: Force startup after maximum parked time to prevent stuck aircraft
+                    if (parkedTime > 3600.0) { // After 60 minutes, force startup regardless of conditions
+                        newState = SYN_STATE_STARTUP;
+                        LOG_MSG(logDEBUG, "Aircraft %s forced startup after maximum parked time (60 min)", 
+                                synData.stat.call.c_str());
+                        break; // Exit immediately
+                    }
+                    
+                    // Progressive startup probability based on traffic type and parked time
                     int startupChance = 0;
                     switch (synData.trafficType) {
-                        case SYN_TRAFFIC_GA: startupChance = 25; break;      // 25% chance for GA
-                        case SYN_TRAFFIC_AIRLINE: startupChance = 40; break; // 40% chance for airlines
-                        case SYN_TRAFFIC_MILITARY: startupChance = 35; break; // 35% chance for military
+                        case SYN_TRAFFIC_GA: startupChance = 35; break;      // Increased from 25%
+                        case SYN_TRAFFIC_AIRLINE: startupChance = 50; break; // Increased from 40%
+                        case SYN_TRAFFIC_MILITARY: startupChance = 45; break; // Increased from 35%
                         case SYN_TRAFFIC_NONE:
                         case SYN_TRAFFIC_ALL:
-                        default: startupChance = 20; break; // Default chance
+                        default: startupChance = 30; break; // Increased from 20%
                     }
                     
                     // Time-based adjustments (more activity during day)
@@ -1528,15 +1539,31 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                     int hour = timeInfo->tm_hour;
                     
                     if (hour >= 6 && hour <= 22) { // Daytime operations
-                        startupChance += 15;
+                        startupChance += 20; // Increased from 15%
                     } else { // Night operations
-                        startupChance -= 10;
+                        startupChance -= 5; // Reduced penalty (was -10)
                     }
+                    
+                    // Progressive probability increases based on parked time to prevent stuck aircraft
+                    if (parkedTime > 2400.0) { // After 40 minutes
+                        startupChance += 40; // Much higher chance
+                        LOG_MSG(logDEBUG, "Aircraft %s has been parked for %.1f minutes, high startup priority", 
+                                synData.stat.call.c_str(), parkedTime / 60.0);
+                    } else if (parkedTime > 1800.0) { // After 30 minutes
+                        startupChance += 25;
+                    } else if (parkedTime > 1200.0) { // After 20 minutes
+                        startupChance += 15;
+                    } else if (parkedTime > 600.0) { // After 10 minutes
+                        startupChance += 10;
+                    }
+                    
+                    // Cap at 95% to maintain some realism while ensuring high probability
+                    startupChance = std::min(95, std::max(5, startupChance)); // Minimum 5% chance always
                     
                     if (std::rand() % 100 < startupChance) {
                         newState = SYN_STATE_STARTUP;
-                        LOG_MSG(logDEBUG, "Aircraft %s starting up (chance: %d%%)", 
-                                synData.stat.call.c_str(), startupChance);
+                        LOG_MSG(logDEBUG, "Aircraft %s starting up (chance: %d%%, parked: %.1f min)", 
+                                synData.stat.call.c_str(), startupChance, parkedTime / 60.0);
                     }
                 }
                 break;
@@ -2187,7 +2214,7 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
             synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for shutdown
             break;
         case SYN_STATE_PARKED:
-            synData.nextEventTime = currentTime + (300 + std::rand() % 600); // 5-15 minutes parked before next flight
+            synData.nextEventTime = currentTime + (120 + std::rand() % 360); // 2-8 minutes parked checks (more frequent)
             break;
         case SYN_STATE_MISSED_APPROACH:
             synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for missed approach procedure
