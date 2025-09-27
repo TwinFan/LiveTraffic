@@ -7098,8 +7098,8 @@ void SyntheticConnection::ExecuteGoAroundProcedure(SynDataTy& synData, double cu
         synData.targetAltitude = synData.pos.alt_m() + 300.0;
     }
     
-    // Set climb parameters
-    synData.dyn.vsi = 1500.0; // 1500 ft/min climb rate during go-around
+    // The climb parameters (including vsi) are automatically handled 
+    // by the state machine in UpdateAircraftPosition for SYN_STATE_GO_AROUND
     
     // Update flight phase
     synData.pos.f.flightPhase = FPH_CLIMB;
