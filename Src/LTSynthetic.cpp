@@ -490,6 +490,28 @@ bool SyntheticConnection::ProcessFetchedData ()
             LOG_MSG(logWARN, "Exception in UpdateAdvancedWeatherOperations for %s", synData.stat.call.c_str());
         }
         
+        // Handle weather-based go-around and diversion logic
+        if (config.weatherOperations) {
+            try {
+                // Check for go-around conditions during approach phases
+                if (ShouldExecuteGoAround(synData, tNow)) {
+                    ExecuteGoAroundProcedure(synData, tNow);
+                }
+                
+                // Check for diversion requirements after multiple go-around attempts
+                if (ShouldDivertDueToWeather(synData, tNow)) {
+                    ExecuteDiversionProcedure(synData, tNow);
+                }
+                
+                // Update weather check timing
+                if ((tNow - synData.lastWeatherCheck) > 60.0) { // Update every minute
+                    synData.lastWeatherCheck = tNow;
+                }
+            } catch (...) {
+                LOG_MSG(logWARN, "Exception in weather go-around/diversion logic for %s", synData.stat.call.c_str());
+            }
+        }
+        
         // Query and assign real navigation procedures if needed
         if (!synData.usingRealNavData && !synData.currentAirport.empty()) {
             try {
@@ -758,6 +780,26 @@ bool SyntheticConnection::ProcessFetchedData ()
             case SYN_STATE_SHUTDOWN:
                 synData.pos.f.flightPhase = FPH_PARKED; // Shutting down at gate
                 dyn.vsi = 0.0;
+                break;
+                
+            case SYN_STATE_MISSED_APPROACH:
+                synData.pos.f.flightPhase = FPH_CLIMB; // Climbing during missed approach
+                // Missed approach climb rate - typically higher than normal climb
+                {
+                    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                    double climbRateFpm = perfData ? perfData->climbRateFpm * 1.2 : 1200.0; // 120% of normal climb
+                    dyn.vsi = climbRateFpm;
+                }
+                break;
+                
+            case SYN_STATE_GO_AROUND:
+                synData.pos.f.flightPhase = FPH_CLIMB; // Climbing during go-around
+                // Go-around climb rate - aggressive climb for obstacle clearance
+                {
+                    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                    double climbRateFpm = perfData ? perfData->climbRateFpm * 1.5 : 1500.0; // 150% of normal climb
+                    dyn.vsi = climbRateFpm;
+                }
                 break;
                 
             default:
@@ -1815,6 +1857,59 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                     }
                 }
                 break;
+                
+            case SYN_STATE_MISSED_APPROACH:
+                // Missed approach - transition to approach pattern or go-around depending on conditions
+                {
+                    double missedApproachTime = currentTime - synData.stateChangeTime;
+                    double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
+                    
+                    // Complete missed approach procedure and re-enter approach pattern
+                    if (missedApproachTime > 180.0 && altitudeAGL > 500.0) { // After 3 minutes and above 1500 ft AGL
+                        // Check if conditions have improved for another approach attempt
+                        if (synData.goAroundAttempts < 3) {
+                            newState = SYN_STATE_APPROACH;
+                            LOG_MSG(logDEBUG, "Aircraft %s completing missed approach, re-entering approach pattern (attempt #%d)", 
+                                    synData.stat.call.c_str(), synData.goAroundAttempts);
+                        } else {
+                            // Too many attempts, climb to cruise for diversion
+                            newState = SYN_STATE_CLIMB;
+                            LOG_MSG(logDEBUG, "Aircraft %s climbing to cruise after missed approach (max attempts reached)", 
+                                    synData.stat.call.c_str());
+                        }
+                    }
+                }
+                break;
+                
+            case SYN_STATE_GO_AROUND:
+                // Go-around - complete procedure and re-enter approach pattern or divert
+                {
+                    double goAroundTime = currentTime - synData.stateChangeTime;
+                    double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
+                    
+                    // Complete go-around procedure
+                    if (goAroundTime > 300.0 && altitudeAGL > 600.0) { // After 5 minutes and above 2000 ft AGL
+                        if (!synData.weatherDiversionRequired && synData.goAroundAttempts < 3) {
+                            // Weather conditions permit another approach
+                            newState = SYN_STATE_APPROACH;
+                            LOG_MSG(logDEBUG, "Aircraft %s completing go-around, re-entering approach pattern (attempt #%d)", 
+                                    synData.stat.call.c_str(), synData.goAroundAttempts);
+                        } else {
+                            // Weather diversion required or too many attempts
+                            if (synData.weatherDiversionRequired && !synData.alternateAirport.empty()) {
+                                newState = SYN_STATE_CRUISE;
+                                LOG_MSG(logDEBUG, "Aircraft %s proceeding to alternate airport %s after go-around", 
+                                        synData.stat.call.c_str(), synData.alternateAirport.c_str());
+                            } else {
+                                // Hold for improved conditions
+                                newState = SYN_STATE_HOLD;
+                                LOG_MSG(logDEBUG, "Aircraft %s entering holding pattern after go-around", 
+                                        synData.stat.call.c_str());
+                            }
+                        }
+                    }
+                }
+                break;
         }
         
         if (newState != synData.state) {
@@ -2003,6 +2098,12 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
             break;
         case SYN_STATE_PARKED:
             synData.nextEventTime = currentTime + (300 + std::rand() % 600); // 5-15 minutes parked before next flight
+            break;
+        case SYN_STATE_MISSED_APPROACH:
+            synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for missed approach procedure
+            break;
+        case SYN_STATE_GO_AROUND:
+            synData.nextEventTime = currentTime + (300 + std::rand() % 300); // 5-10 minutes for go-around circuit
             break;
         default:
             synData.nextEventTime = currentTime + 300; // Default 5 minutes
@@ -6808,6 +6909,249 @@ void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, do
     
     LOG_MSG(logDEBUG, "Weather impact on %s: conditions=%s, factor=%.2f", 
             synData.stat.call.c_str(), synData.weatherConditions.c_str(), weatherImpact);
+}
+
+// Check if aircraft should execute go-around based on weather conditions
+bool SyntheticConnection::ShouldExecuteGoAround(const SynDataTy& synData, double currentTime)
+{
+    if (!config.weatherOperations) return false;
+    
+    // Only consider go-around during approach phases
+    if (synData.state != SYN_STATE_APPROACH && synData.state != SYN_STATE_FINAL && synData.state != SYN_STATE_FLARE) {
+        return false;
+    }
+    
+    // Don't allow too many go-around attempts
+    if (synData.goAroundAttempts >= 3) {
+        LOG_MSG(logDEBUG, "Aircraft %s reached max go-around attempts (3)", synData.stat.call.c_str());
+        return false;
+    }
+    
+    // Don't execute another go-around too soon after the last one
+    if ((currentTime - synData.lastGoAroundTime) < 300.0) { // 5 minutes minimum between attempts
+        return false;
+    }
+    
+    // Calculate weather-based go-around probability
+    double weatherImpact = CalculateWeatherImpactFactor(synData.weatherConditions, synData.weatherVisibility, synData.weatherWindSpeed);
+    
+    // Severe weather conditions trigger go-around
+    if (weatherImpact < 0.3) {
+        // Very severe conditions - high probability of go-around
+        if ((std::rand() % 100) < 70) { // 70% chance
+            LOG_MSG(logINFO, "Aircraft %s executing weather go-around due to severe conditions: %s, visibility %.0fm", 
+                    synData.stat.call.c_str(), synData.weatherConditions.c_str(), synData.weatherVisibility);
+            return true;
+        }
+    } else if (weatherImpact < 0.5) {
+        // Moderate severe conditions - medium probability
+        if ((std::rand() % 100) < 30) { // 30% chance
+            LOG_MSG(logINFO, "Aircraft %s executing weather go-around due to poor conditions: %s, visibility %.0fm", 
+                    synData.stat.call.c_str(), synData.weatherConditions.c_str(), synData.weatherVisibility);
+            return true;
+        }
+    }
+    
+    // Additional factors for go-around decision
+    // Low visibility during final approach
+    if (synData.state == SYN_STATE_FINAL && synData.weatherVisibility < 800.0) { // Less than 1/2 mile visibility
+        if ((std::rand() % 100) < 40) { // 40% chance
+            LOG_MSG(logINFO, "Aircraft %s executing go-around due to low visibility on final: %.0fm", 
+                    synData.stat.call.c_str(), synData.weatherVisibility);
+            return true;
+        }
+    }
+    
+    // Strong crosswinds during flare phase
+    if (synData.state == SYN_STATE_FLARE && synData.weatherWindSpeed > 20.0) { // > 40 knots
+        if ((std::rand() % 100) < 25) { // 25% chance
+            LOG_MSG(logINFO, "Aircraft %s executing go-around due to strong winds during flare: %.1f m/s", 
+                    synData.stat.call.c_str(), synData.weatherWindSpeed);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Check if aircraft should divert to alternate airport due to weather
+bool SyntheticConnection::ShouldDivertDueToWeather(const SynDataTy& synData, double currentTime)
+{
+    if (!config.weatherOperations) return false;
+    
+    // Only consider diversion if aircraft has attempted multiple go-arounds
+    if (synData.goAroundAttempts < 2) {
+        return false;
+    }
+    
+    // Don't divert if already diverted or if no alternate airport available
+    if (synData.weatherDiversionRequired || synData.alternateAirport.empty()) {
+        return false;
+    }
+    
+    // Calculate sustained severe weather probability
+    double weatherImpact = CalculateWeatherImpactFactor(synData.weatherConditions, synData.weatherVisibility, synData.weatherWindSpeed);
+    
+    // Persistent severe weather after multiple go-around attempts triggers diversion
+    if (weatherImpact < 0.4 && synData.goAroundAttempts >= 2) {
+        LOG_MSG(logINFO, "Aircraft %s considering diversion after %d go-around attempts due to persistent severe weather: %s", 
+                synData.stat.call.c_str(), synData.goAroundAttempts, synData.weatherConditions.c_str());
+        
+        // Check if conditions have been poor for sustained period
+        if ((currentTime - synData.lastWeatherCheck) > 600.0) { // 10 minutes of poor conditions
+            if ((std::rand() % 100) < 80) { // 80% chance of diversion
+                LOG_MSG(logINFO, "Aircraft %s diverting to %s due to sustained severe weather at destination", 
+                        synData.stat.call.c_str(), synData.alternateAirport.c_str());
+                return true;
+            }
+        }
+    }
+    
+    // Fuel considerations (simplified - in real implementation would track fuel state)
+    if (synData.goAroundAttempts >= 3) {
+        LOG_MSG(logINFO, "Aircraft %s forced to divert to %s due to fuel considerations after %d go-around attempts", 
+                synData.stat.call.c_str(), synData.alternateAirport.c_str(), synData.goAroundAttempts);
+        return true;
+    }
+    
+    return false;
+}
+
+// Execute go-around procedure
+void SyntheticConnection::ExecuteGoAroundProcedure(SynDataTy& synData, double currentTime)
+{
+    // Update go-around tracking
+    synData.goAroundAttempts++;
+    synData.lastGoAroundTime = currentTime;
+    
+    // Transition to go-around state
+    synData.state = SYN_STATE_GO_AROUND;
+    synData.stateChangeTime = currentTime;
+    
+    // Set go-around flight parameters
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    if (perfData) {
+        synData.targetSpeed = perfData->cruiseSpeedKts * 0.7; // Reduced speed for go-around
+        synData.targetAltitude = synData.pos.alt_m() + 300.0; // Climb 1000 ft
+    } else {
+        synData.targetSpeed = 150.0; // Default go-around speed
+        synData.targetAltitude = synData.pos.alt_m() + 300.0;
+    }
+    
+    // Set climb parameters
+    synData.dyn.vsi = 1500.0; // 1500 ft/min climb rate during go-around
+    
+    // Update flight phase
+    synData.pos.f.flightPhase = FPH_CLIMB;
+    
+    // Schedule next approach attempt or diversion decision
+    synData.nextEventTime = currentTime + 900.0; // 15 minutes before next approach attempt
+    
+    // TTS communication for go-around
+    if (config.enableTTS && synData.isUserAware) {
+        std::string goAroundMsg = synData.stat.call + " going around due to weather conditions";
+        ProcessTTSCommunication(synData, goAroundMsg);
+    }
+    
+    LOG_MSG(logINFO, "Aircraft %s executing go-around procedure (attempt #%d) due to weather", 
+            synData.stat.call.c_str(), synData.goAroundAttempts);
+}
+
+// Execute diversion procedure to alternate airport
+void SyntheticConnection::ExecuteDiversionProcedure(SynDataTy& synData, double currentTime)
+{
+    if (synData.alternateAirport.empty()) {
+        // Find an alternate airport if none assigned
+        synData.alternateAirport = FindAlternateAirport(synData);
+        if (synData.alternateAirport.empty()) {
+            LOG_MSG(logWARN, "Aircraft %s cannot find alternate airport for diversion", synData.stat.call.c_str());
+            return;
+        }
+    }
+    
+    // Set diversion flag
+    synData.weatherDiversionRequired = true;
+    
+    // Update destination to alternate airport
+    std::string originalDestination = synData.destinationAirport;
+    synData.destinationAirport = synData.alternateAirport;
+    
+    // Transition to cruise state for diversion routing
+    synData.state = SYN_STATE_CRUISE;
+    synData.stateChangeTime = currentTime;
+    
+    // Set cruise parameters for diversion
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    if (perfData) {
+        synData.targetSpeed = perfData->cruiseSpeedKts;
+        synData.targetAltitude = std::max(synData.pos.alt_m(), perfData->serviceCeilingFt * 0.3048 * 0.6); // 60% of service ceiling
+    } else {
+        synData.targetSpeed = 200.0; // Default cruise speed
+        synData.targetAltitude = std::max(synData.pos.alt_m(), 6000.0); // Minimum 20,000 ft
+    }
+    
+    // Update flight path to alternate airport
+    positionTy alternatePos = GetAirportPosition(synData.alternateAirport);
+    if (alternatePos.lat() != 0.0 || alternatePos.lon() != 0.0) {
+        GenerateFlightPath(synData, synData.pos, alternatePos);
+    }
+    
+    // Reset go-around attempts for new destination
+    synData.goAroundAttempts = 0;
+    
+    // TTS communication for diversion
+    if (config.enableTTS && synData.isUserAware) {
+        std::string diversionMsg = synData.stat.call + " diverting to " + synData.alternateAirport + " due to weather at " + originalDestination;
+        ProcessTTSCommunication(synData, diversionMsg);
+    }
+    
+    LOG_MSG(logINFO, "Aircraft %s diverting from %s to %s due to weather conditions", 
+            synData.stat.call.c_str(), originalDestination.c_str(), synData.alternateAirport.c_str());
+}
+
+// Find suitable alternate airport for diversion
+std::string SyntheticConnection::FindAlternateAirport(const SynDataTy& synData)
+{
+    // Get nearby airports within reasonable diversion range
+    std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 200.0); // 200 NM radius
+    
+    // Filter airports by weather conditions and suitability
+    for (const std::string& airportCode : nearbyAirports) {
+        // Skip if same as original destination
+        if (airportCode == synData.destinationAirport) {
+            continue;
+        }
+        
+        // Get airport position to check weather
+        positionTy airportPos = GetAirportPosition(airportCode);
+        if (airportPos.lat() == 0.0 && airportPos.lon() == 0.0) {
+            continue; // Invalid airport position
+        }
+        
+        // Check weather at alternate airport
+        std::string altWeatherConditions;
+        double altVisibility, altWindSpeed, altWindDirection;
+        GetCurrentWeatherConditions(airportPos, altWeatherConditions, altVisibility, altWindSpeed, altWindDirection);
+        
+        double altWeatherImpact = CalculateWeatherImpactFactor(altWeatherConditions, altVisibility, altWindSpeed);
+        
+        // Select airport with better weather conditions
+        if (altWeatherImpact > 0.6) { // Good weather at alternate
+            LOG_MSG(logDEBUG, "Selected alternate airport %s with better weather: %s, visibility %.0fm", 
+                    airportCode.c_str(), altWeatherConditions.c_str(), altVisibility);
+            return airportCode;
+        }
+    }
+    
+    // If no airport with good weather found, select closest suitable airport
+    if (!nearbyAirports.empty()) {
+        std::string closestAirport = nearbyAirports[0];
+        LOG_MSG(logDEBUG, "No alternate airport with good weather found, selecting closest: %s", closestAirport.c_str());
+        return closestAirport;
+    }
+    
+    LOG_MSG(logWARN, "No suitable alternate airports found for diversion");
+    return "";
 }
 
 // Query available SID/STAR procedures for an airport
