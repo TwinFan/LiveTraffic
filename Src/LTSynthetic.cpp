@@ -5114,7 +5114,9 @@ void SyntheticConnection::UpdateTerrainAwareness(SynDataTy& synData)
         // Terrain conflict - immediate emergency climb
         double emergencyAltitude = synData.terrainElevation + requiredClearance + 150.0; // Extra safety
         
-        if (synData.state != SYN_STATE_LANDING) { // Don't emergency climb during landing
+        if (synData.state != SYN_STATE_APPROACH && synData.state != SYN_STATE_FINAL && 
+            synData.state != SYN_STATE_FLARE && synData.state != SYN_STATE_TOUCH_DOWN && 
+            synData.state != SYN_STATE_ROLL_OUT) { // Don't emergency climb during landing
             synData.targetAltitude = std::max(synData.targetAltitude, emergencyAltitude);
             
             // Force immediate climb if critically low
@@ -6172,17 +6174,17 @@ int SyntheticConnection::DetermineOptimalTCASManeuver(const SynDataTy& ownAircra
     
     if (hasTrafficData) {
         // Analyze relative positions and states for coordinated response
-        double altitudeDifference = ownAltitude - trafficAircraft.pos.alt_m() * 3.28084;
+        double relativeAltitudeDiff = ownAltitude - trafficAircraft.pos.alt_m() * 3.28084;
         
         // If traffic is climbing and we're below, descend to avoid convergence
-        if (trafficAircraft.state == SYN_STATE_CLIMB && altitudeDifference < 0) {
+        if (trafficAircraft.state == SYN_STATE_CLIMB && relativeAltitudeDiff < 0) {
             LOG_MSG(logDEBUG, "TCAS: Traffic %s is climbing above us, recommending descent", 
                     trafficAircraft.stat.call.c_str());
             return 1; // Descend
         }
         
         // If traffic is descending and we're above, climb to avoid convergence  
-        if (trafficAircraft.state == SYN_STATE_DESCENT && altitudeDifference > 0) {
+        if (trafficAircraft.state == SYN_STATE_DESCENT && relativeAltitudeDiff > 0) {
             LOG_MSG(logDEBUG, "TCAS: Traffic %s is descending below us, recommending climb", 
                     trafficAircraft.stat.call.c_str());
             return 2; // Climb
