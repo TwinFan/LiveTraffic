@@ -684,6 +684,14 @@ PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, int inMsg, void * /*i
 #endif
     
     switch (inMsg) {
+        // *** scenery loaded ***
+        case XPLM_MSG_SCENERY_LOADED:
+            // Clear scenery-based density cache when new scenery is loaded
+            // This will force recalculation of density on next traffic generation
+            SyntheticConnection::InvalidateSceneryDensityCache();
+            LOG_MSG(logINFO, "Scenery loaded - cleared dynamic density cache");
+            break;
+            
         // *** entering VR mode ***
         case XPLM_MSG_ENTERED_VR:
             ACIWnd::MoveAllVR(true);

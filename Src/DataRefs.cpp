@@ -586,6 +586,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/synthetic/user_awareness",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/synthetic/weather_operations",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/synthetic/comm_range",        DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/dynamic_density",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/synthetic/scenery_density_min", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,  GET_VAR, true },
+    {"livetraffic/cfg/synthetic/scenery_density_max", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,  GET_VAR, true },
 
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
@@ -698,6 +701,9 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_SYN_USER_AWARENESS:     return &bSynUserAwareness;
         case DR_CFG_SYN_WEATHER_OPERATIONS: return &bSynWeatherOperations;
         case DR_CFG_SYN_COMM_RANGE:         return &synCommRange;
+        case DR_CFG_SYN_DYNAMIC_DENSITY:    return &bSynDynamicDensity;
+        case DR_CFG_SYN_SCENERY_DENSITY_MIN: return &synSceneryDensityMin;
+        case DR_CFG_SYN_SCENERY_DENSITY_MAX: return &synSceneryDensityMax;
 
         default:
             // flight channels

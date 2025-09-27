@@ -70,6 +70,9 @@ struct SyntheticTrafficConfig {
     bool enableTTS = false;                 ///< Enable TTS communications
     bool userAwareness = true;              ///< Aircraft react to user presence
     bool weatherOperations = true;          ///< Weather-based operations
+    bool dynamicDensity = false;            ///< Enable dynamic density based on X-Plane scenery
+    float sceneryDensityMin = 0.1f;         ///< Minimum density in sparse scenery areas
+    float sceneryDensityMax = 1.0f;         ///< Maximum density in dense scenery areas
     // Note: commRange removed - now using realistic communication degradation instead of hard range limit
 };
 
@@ -416,6 +419,9 @@ public:
     /// Comprehensive country registrations (100+ countries)
     std::string GetComprehensiveCountryFromPosition(const positionTy& pos);
     std::string GenerateComprehensiveCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
+    
+    /// Invalidate scenery density cache (called when scenery changes)
+    static void InvalidateSceneryDensityCache();
 
 protected:
     void Main () override;          ///< virtual thread main function
@@ -546,6 +552,17 @@ protected:
     
     /// Generate comprehensive debug log for all synthetic aircraft
     void GenerateDebugLog();
+    
+    /// Calculate dynamic density based on X-Plane scenery complexity
+    float CalculateSceneryBasedDensity(const positionTy& centerPos);
+    
+    /// Count objects and scenery complexity in area
+    int CountSceneryObjects(const positionTy& centerPos, double radiusNM);
+    
+    /// Get effective traffic density (static or dynamic)
+    float GetEffectiveDensity(const positionTy& centerPos);
+
+protected:
 };
 
 #endif /* LTSynthetic_h */

@@ -91,6 +91,7 @@
 #include "XPLMProcessing.h"
 #include "XPLMCamera.h"
 #include "XPLMNavigation.h"
+#include "XPLMScenery.h"
 
 // Base64
 #include "base64.h"
