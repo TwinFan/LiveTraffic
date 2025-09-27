@@ -558,6 +558,9 @@ protected:
     
     /// Get effective traffic density (static or dynamic)
     float GetEffectiveDensity(const positionTy& centerPos);
+    
+    /// Invalidate scenery density cache (called when scenery changes)
+    static void InvalidateSceneryDensityCache();
 };
 
 #endif /* LTSynthetic_h */

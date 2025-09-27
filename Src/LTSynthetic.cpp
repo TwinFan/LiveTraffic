@@ -252,6 +252,17 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.dynamicDensity = dataRefs.bSynDynamicDensity != 0;
     config.sceneryDensityMin = static_cast<float>(dataRefs.synSceneryDensityMin) / 100.0f;
     config.sceneryDensityMax = static_cast<float>(dataRefs.synSceneryDensityMax) / 100.0f;
+    
+    // Validate scenery density range
+    if (config.sceneryDensityMin > config.sceneryDensityMax) {
+        std::swap(config.sceneryDensityMin, config.sceneryDensityMax);
+        LOG_MSG(logWARN, "Scenery density min/max swapped - min was greater than max");
+    }
+    
+    // Clamp values to valid ranges
+    config.sceneryDensityMin = std::max(0.0f, std::min(1.0f, config.sceneryDensityMin));
+    config.sceneryDensityMax = std::max(0.0f, std::min(1.0f, config.sceneryDensityMax));
+    
     // Note: commRange removed - now using realistic communication degradation instead of hard cutoff
     
     if (!config.enabled) {
@@ -280,6 +291,20 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     // Generate new synthetic traffic if we have room
     if (mapSynData.size() < static_cast<size_t>(config.maxAircraft)) {
         GenerateTraffic(centerPos);
+    } else {
+        // Log occasionally when at capacity with dynamic density info
+        static double lastCapacityLogTime = 0.0;
+        if (currentTime - lastCapacityLogTime > 120.0) { // Every 2 minutes
+            if (config.dynamicDensity) {
+                float effectiveDensity = GetEffectiveDensity(centerPos);
+                LOG_MSG(logDEBUG, "At max capacity (%zu/%d aircraft), dynamic density would be %.1f%%", 
+                        mapSynData.size(), config.maxAircraft, effectiveDensity * 100.0f);
+            } else {
+                LOG_MSG(logDEBUG, "At max capacity (%zu/%d aircraft), static density %.1f%%", 
+                        mapSynData.size(), config.maxAircraft, config.density * 100.0f);
+            }
+            lastCapacityLogTime = currentTime;
+        }
     }
     
     // --- Enhanced Parked Aircraft Management ---
@@ -7061,6 +7086,16 @@ void SyntheticConnection::GenerateDebugLog()
 // MARK: Scenery-based Dynamic Density Implementation
 //
 
+// Global cache invalidation flag for scenery density
+static bool g_sceneryDensityCacheInvalidated = false;
+
+/// Invalidate scenery density cache (called when scenery changes)
+void SyntheticConnection::InvalidateSceneryDensityCache()
+{
+    g_sceneryDensityCacheInvalidated = true;
+    LOG_MSG(logDEBUG, "Scenery density cache invalidated");
+}
+
 /// Get effective traffic density (static or dynamic based on configuration)
 float SyntheticConnection::GetEffectiveDensity(const positionTy& centerPos)
 {
@@ -7074,7 +7109,7 @@ float SyntheticConnection::GetEffectiveDensity(const positionTy& centerPos)
 /// Calculate dynamic density based on X-Plane scenery complexity
 float SyntheticConnection::CalculateSceneryBasedDensity(const positionTy& centerPos)
 {
-    // Cache the scenery density calculation for performance
+    // Static cache variables for scenery density calculation
     static positionTy lastPos;
     static float lastDensity = config.density;
     static double lastCalculationTime = 0.0;
@@ -7082,12 +7117,12 @@ float SyntheticConnection::CalculateSceneryBasedDensity(const positionTy& center
     
     double currentTime = std::time(nullptr);
     
-    // Check if we need to recalculate (position changed significantly or cache expired)
+    // Check if we need to recalculate (position changed significantly, cache expired, or cache invalidated)
     double positionChange = centerPos.isNormal() && lastPos.isNormal() 
         ? centerPos.dist(lastPos) / 1852.0  // distance in nautical miles
         : 999.0;  // Force recalculation if positions are invalid
     
-    if (positionChange < 2.0 && (currentTime - lastCalculationTime) < CACHE_DURATION) {
+    if (!g_sceneryDensityCacheInvalidated && positionChange < 2.0 && (currentTime - lastCalculationTime) < CACHE_DURATION) {
         return lastDensity; // Use cached value
     }
     
@@ -7122,12 +7157,15 @@ float SyntheticConnection::CalculateSceneryBasedDensity(const positionTy& center
     lastPos = centerPos;
     lastDensity = calculatedDensity;
     lastCalculationTime = currentTime;
+    g_sceneryDensityCacheInvalidated = false; // Reset invalidation flag
     
     LOG_MSG(logDEBUG, "Dynamic density calculated: airports=%d, factor=%.2f, density=%.2f%% (%.1fnm from last calc)", 
             airportCount, sceneryDensityFactor, calculatedDensity * 100.0f, positionChange);
     
     return calculatedDensity;
 }
+
+
 
 /// Count objects and scenery complexity in area
 int SyntheticConnection::CountSceneryObjects(const positionTy& centerPos, double radiusNM)
