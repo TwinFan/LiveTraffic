@@ -281,6 +281,13 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.sceneryDensityMin = std::max(0.0f, std::min(1.0f, config.sceneryDensityMin));
     config.sceneryDensityMax = std::max(0.0f, std::min(1.0f, config.sceneryDensityMax));
     
+    // Validate dynamic density configuration on startup (only once)
+    static bool hasValidated = false;
+    if (!hasValidated && config.enabled) {
+        ValidateDynamicDensityConfiguration();
+        hasValidated = true;
+    }
+    
     // Note: commRange removed - now using realistic communication degradation instead of hard cutoff
     
     if (!config.enabled) {
@@ -8606,13 +8613,18 @@ void SyntheticConnection::GenerateDebugLog()
             config.enabled ? "YES" : "NO", config.trafficTypes, config.maxAircraft, 
             config.density * 100.0f, config.dynamicDensity ? "(base for dynamic)" : "(static)");
     
+    // Enhanced dynamic density debugging
     if (config.dynamicDensity) {
         float effectiveDensity = GetEffectiveDensity(userPos);
         LOG_MSG(logINFO, "Dynamic Density: Effective=%.1f%%, Range=[%.1f%% - %.1f%%]", 
                 effectiveDensity * 100.0f, 
                 config.sceneryDensityMin * 100.0f, 
                 config.sceneryDensityMax * 100.0f);
+        
+        // Add detailed debugging for current position
+        DebugDynamicDensityCalculation(userPos);
     }
+    
     LOG_MSG(logINFO, "TTS Settings: Enabled=%s, UserAwareness=%s, WeatherOps=%s", 
             config.enableTTS ? "YES" : "NO", config.userAwareness ? "YES" : "NO", config.weatherOperations ? "YES" : "NO");
     LOG_MSG(logINFO, "Current aircraft count: %zu/%d", mapSynData.size(), config.maxAircraft);
@@ -8727,20 +8739,27 @@ float SyntheticConnection::CalculateSceneryBasedDensity(const positionTy& center
     int airportCount = CountSceneryObjects(centerPos, 25.0); // 25nm radius
     
     // Base density calculation on airport and scenery object density
+    // IMPROVED: More granular density calculation with better thresholds
     float sceneryDensityFactor;
     
-    if (airportCount >= 15) {
-        // Very dense area (major metropolitan areas)
+    if (airportCount >= 12) {
+        // Very dense area (major metropolitan areas like NYC, LA)
         sceneryDensityFactor = 1.0f;
     } else if (airportCount >= 8) {
-        // Dense area (urban/suburban)
-        sceneryDensityFactor = 0.8f;
-    } else if (airportCount >= 4) {
+        // Dense area (large cities, suburban areas)
+        sceneryDensityFactor = 0.85f;
+    } else if (airportCount >= 5) {
+        // Moderately dense area (medium cities)
+        sceneryDensityFactor = 0.65f;
+    } else if (airportCount >= 3) {
         // Moderate density (small cities/towns)
-        sceneryDensityFactor = 0.5f;
-    } else if (airportCount >= 1) {
-        // Sparse area (rural with some airports)
+        sceneryDensityFactor = 0.45f;
+    } else if (airportCount >= 2) {
+        // Low-moderate density (rural with some development)
         sceneryDensityFactor = 0.3f;
+    } else if (airportCount >= 1) {
+        // Sparse area (rural with minimal development)
+        sceneryDensityFactor = 0.2f;
     } else {
         // Very sparse area (remote/wilderness)
         sceneryDensityFactor = 0.1f;
@@ -8803,6 +8822,177 @@ int SyntheticConnection::CountSceneryObjects(const positionTy& centerPos, double
     // - Population density estimates based on coordinates
     
     return objectCount;
+}
+
+// Validate dynamic density configuration and alert to potential issues
+void SyntheticConnection::ValidateDynamicDensityConfiguration()
+{
+    LOG_MSG(logINFO, "=== Dynamic Density Configuration Validation ===");
+    
+    // Check if dynamic density is enabled
+    if (!config.dynamicDensity) {
+        LOG_MSG(logINFO, "Dynamic density is DISABLED - using static density %.1f%%", config.density * 100.0f);
+        return;
+    }
+    
+    LOG_MSG(logINFO, "Dynamic density is ENABLED");
+    LOG_MSG(logINFO, "  Base density: %.1f%%", config.density * 100.0f);
+    LOG_MSG(logINFO, "  Scenery density range: %.1f%% - %.1f%%", 
+            config.sceneryDensityMin * 100.0f, config.sceneryDensityMax * 100.0f);
+    
+    // Check for configuration issues
+    if (config.sceneryDensityMin >= config.sceneryDensityMax) {
+        LOG_MSG(logWARN, "ISSUE: Scenery density min (%.1f%%) >= max (%.1f%%) - no dynamic range!", 
+                config.sceneryDensityMin * 100.0f, config.sceneryDensityMax * 100.0f);
+    }
+    
+    if (config.sceneryDensityMax - config.sceneryDensityMin < 0.1f) {
+        LOG_MSG(logWARN, "ISSUE: Scenery density range is very narrow (%.1f%%) - limited dynamic effect", 
+                (config.sceneryDensityMax - config.sceneryDensityMin) * 100.0f);
+    }
+    
+    // Check airport cache status
+    InitializeAirportCache();
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "CRITICAL: Airport cache is empty - dynamic density will not work!");
+        return;
+    }
+    
+    LOG_MSG(logINFO, "Airport cache contains %zu airports", cachedWorldAirports.size());
+    
+    // Test a few known locations
+    TestDynamicDensityScenarios();
+}
+
+// Debug dynamic density calculation for specific position
+void SyntheticConnection::DebugDynamicDensityCalculation(const positionTy& centerPos)
+{
+    LOG_MSG(logINFO, "=== Dynamic Density Debug for Position (%.6f, %.6f) ===", 
+            centerPos.lat(), centerPos.lon());
+    
+    if (!config.dynamicDensity) {
+        LOG_MSG(logINFO, "Dynamic density disabled, static density: %.1f%%", config.density * 100.0f);
+        return;
+    }
+    
+    // Count airports in different radii to show density gradient
+    int airports5nm = CountSceneryObjects(centerPos, 5.0);
+    int airports10nm = CountSceneryObjects(centerPos, 10.0);
+    int airports25nm = CountSceneryObjects(centerPos, 25.0);
+    int airports50nm = CountSceneryObjects(centerPos, 50.0);
+    
+    LOG_MSG(logINFO, "Airport count within radii:");
+    LOG_MSG(logINFO, "  5nm: %d airports", airports5nm);
+    LOG_MSG(logINFO, "  10nm: %d airports", airports10nm);
+    LOG_MSG(logINFO, "  25nm: %d airports (used for calculation)", airports25nm);
+    LOG_MSG(logINFO, "  50nm: %d airports", airports50nm);
+    
+    // Show density calculation breakdown
+    float densityFactor;
+    std::string densityCategory;
+    
+    if (airports25nm >= 15) {
+        densityFactor = 1.0f;
+        densityCategory = "Very Dense (Metropolitan)";
+    } else if (airports25nm >= 8) {
+        densityFactor = 0.8f;
+        densityCategory = "Dense (Urban/Suburban)";
+    } else if (airports25nm >= 4) {
+        densityFactor = 0.5f;
+        densityCategory = "Moderate (Small Cities)";
+    } else if (airports25nm >= 1) {
+        densityFactor = 0.3f;
+        densityCategory = "Sparse (Rural)";
+    } else {
+        densityFactor = 0.1f;
+        densityCategory = "Very Sparse (Remote)";
+    }
+    
+    float calculatedDensity = config.sceneryDensityMin + 
+                             densityFactor * (config.sceneryDensityMax - config.sceneryDensityMin);
+    
+    LOG_MSG(logINFO, "Density calculation:");
+    LOG_MSG(logINFO, "  Category: %s", densityCategory.c_str());
+    LOG_MSG(logINFO, "  Density Factor: %.2f", densityFactor);
+    LOG_MSG(logINFO, "  Min Density: %.1f%%", config.sceneryDensityMin * 100.0f);
+    LOG_MSG(logINFO, "  Max Density: %.1f%%", config.sceneryDensityMax * 100.0f);
+    LOG_MSG(logINFO, "  Final Density: %.1f%%", calculatedDensity * 100.0f);
+    
+    // List nearby airports
+    LOG_MSG(logINFO, "Nearby airports within 25nm:");
+    int listedCount = 0;
+    const double radiusM = 25.0 * 1852.0;
+    
+    for (const auto& airport : cachedWorldAirports) {
+        positionTy airportPos;
+        airportPos.lat() = airport.lat;
+        airportPos.lon() = airport.lon;
+        
+        double distance = centerPos.dist(airportPos);
+        if (distance <= radiusM && listedCount < 10) { // Limit to 10 for readability
+            LOG_MSG(logINFO, "  %s (%s) - %.1fnm", 
+                    airport.icao.c_str(), airport.name.c_str(), distance / 1852.0);
+            listedCount++;
+        }
+    }
+    
+    if (listedCount == 0) {
+        LOG_MSG(logINFO, "  No airports within 25nm");
+    } else if (airports25nm > listedCount) {
+        LOG_MSG(logINFO, "  ... and %d more airports", airports25nm - listedCount);
+    }
+}
+
+// Test dynamic density scenarios at known locations
+bool SyntheticConnection::TestDynamicDensityScenarios()
+{
+    LOG_MSG(logINFO, "=== Testing Dynamic Density Scenarios ===");
+    
+    struct TestLocation {
+        const char* name;
+        double lat, lon;
+        float expectedMinDensity;
+        float expectedMaxDensity;
+    };
+    
+    // Test locations with expected density ranges
+    std::vector<TestLocation> testLocations = {
+        {"New York Metro Area", 40.7128, -74.0060, 0.6f, 1.0f},  // Very dense
+        {"Los Angeles Area", 34.0522, -118.2437, 0.6f, 1.0f},    // Very dense
+        {"Chicago Area", 41.8781, -87.6298, 0.4f, 0.8f},         // Dense
+        {"Denver Area", 39.7392, -104.9903, 0.2f, 0.6f},         // Moderate
+        {"Fairbanks, Alaska", 64.8378, -147.7164, 0.1f, 0.4f},   // Sparse
+        {"Pacific Ocean", 30.0, -150.0, 0.1f, 0.3f}              // Remote
+    };
+    
+    bool allTestsPassed = true;
+    
+    for (const auto& location : testLocations) {
+        positionTy testPos(location.lat, location.lon, 0.0, std::time(nullptr));
+        float actualDensity = CalculateSceneryBasedDensity(testPos);
+        
+        bool testPassed = (actualDensity >= location.expectedMinDensity && 
+                          actualDensity <= location.expectedMaxDensity);
+        
+        if (testPassed) {
+            LOG_MSG(logINFO, "✓ %s: %.1f%% (expected %.1f%% - %.1f%%)", 
+                    location.name, actualDensity * 100.0f, 
+                    location.expectedMinDensity * 100.0f, location.expectedMaxDensity * 100.0f);
+        } else {
+            LOG_MSG(logWARN, "✗ %s: %.1f%% (expected %.1f%% - %.1f%%) - OUTSIDE EXPECTED RANGE", 
+                    location.name, actualDensity * 100.0f, 
+                    location.expectedMinDensity * 100.0f, location.expectedMaxDensity * 100.0f);
+            allTestsPassed = false;
+        }
+    }
+    
+    if (allTestsPassed) {
+        LOG_MSG(logINFO, "All dynamic density scenario tests PASSED ✓");
+    } else {
+        LOG_MSG(logWARN, "Some dynamic density scenario tests FAILED - density calculation may need adjustment");
+    }
+    
+    return allTestsPassed;
 }
 
 // Generate realistic SID name based on runway and position

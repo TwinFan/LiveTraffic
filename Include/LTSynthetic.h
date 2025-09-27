@@ -432,6 +432,11 @@ public:
     double GetRunwayLength(const std::string& runwayId);
     void DebugGroundMovement(SynDataTy& synData);
     
+    /// Dynamic density validation and debugging methods
+    void ValidateDynamicDensityConfiguration();
+    void DebugDynamicDensityCalculation(const positionTy& centerPos);
+    bool TestDynamicDensityScenarios();
+    
     /// Seasonal and time-based traffic variations
     double CalculateSeasonalFactor(double currentTime);
     double CalculateTimeOfDayFactor(double currentTime);
