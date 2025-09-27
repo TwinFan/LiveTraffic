@@ -3058,9 +3058,21 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
             
             // Apply altitude constraints based on flight state
             switch (synData.state) {
-                case SYN_STATE_TAKEOFF:
-                    // Don't climb too high during takeoff
-                    newAltitude = std::min(newAltitude, oldPos.alt_m() + 300.0); // Max 300m gain
+                case SYN_STATE_TAKEOFF_ROLL:
+                case SYN_STATE_ROTATE:
+                    // Stay on runway elevation during ground operations
+                    newAltitude = std::max(newAltitude, synData.terrainElevation);
+                    newAltitude = std::min(newAltitude, synData.terrainElevation + 10.0); // Max 10m above runway
+                    break;
+                    
+                case SYN_STATE_LIFT_OFF:
+                    // Don't climb too high during initial liftoff
+                    newAltitude = std::min(newAltitude, oldPos.alt_m() + 100.0); // Max 100m gain
+                    break;
+                    
+                case SYN_STATE_INITIAL_CLIMB:
+                    // Limit initial climb rate
+                    newAltitude = std::min(newAltitude, oldPos.alt_m() + 150.0); // Max 150m gain
                     break;
                     
                 case SYN_STATE_CLIMB:
@@ -3077,7 +3089,9 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                     
                 case SYN_STATE_DESCENT:
                 case SYN_STATE_APPROACH:
-                case SYN_STATE_LANDING:
+                case SYN_STATE_FINAL:
+                case SYN_STATE_FLARE:
+                case SYN_STATE_TOUCH_DOWN:
                     // Enhanced terrain avoidance for descent phases
                     {
                         // Get proper clearance requirements for this phase and aircraft type
@@ -3088,7 +3102,8 @@ void SyntheticConnection::UpdateAircraftPosition(SynDataTy& synData, double curr
                         newAltitude = std::max(newAltitude, minSafeAltitude);
                         
                         // Special handling for approach and landing near airports
-                        if (synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_LANDING) {
+                        if (synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_FINAL || 
+                            synData.state == SYN_STATE_FLARE) {
                             // Allow controlled descent to airports, but maintain minimum safety
                             double absoluteMinimum = synData.terrainElevation + 30.0;
                             newAltitude = std::max(newAltitude, absoluteMinimum);
@@ -3259,24 +3274,45 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             }
             break;
             
-        case SYN_STATE_TAKEOFF:
-            // Proper departure request with runway and aircraft type - add variations
+        case SYN_STATE_TAKEOFF_ROLL:
+            // Proper takeoff roll communications
             if (!runway.empty()) {
                 int variation = std::rand() % 3;
                 switch (variation) {
                     case 0:
-                        message = synData.stat.call + " tower, " + aircraftType + " holding short " + 
-                                 runway + ", ready for departure";
+                        message = synData.stat.call + " tower, " + aircraftType + " rolling runway " + runway;
                         break;
                     case 1:
-                        message = synData.stat.call + " tower, " + aircraftType + " ready for takeoff " + runway;
+                        message = synData.stat.call + " tower, " + aircraftType + " departing runway " + runway;
                         break;
-                    case 2:
-                        message = synData.stat.call + " tower, ready for immediate departure " + runway;
+                    default:
+                        message = synData.stat.call + " tower, " + aircraftType + " takeoff roll runway " + runway;
                         break;
                 }
             } else {
-                message = synData.stat.call + " tower, " + aircraftType + " ready for departure";
+                message = synData.stat.call + " tower, " + aircraftType + " rolling for takeoff";
+            }
+            break;
+            
+        case SYN_STATE_ROTATE:
+            // Brief rotation message (rare)
+            if (std::rand() % 100 < 5) { // 5% chance
+                message = synData.stat.call + " tower, " + aircraftType + " rotating";
+            }
+            break;
+            
+        case SYN_STATE_LIFT_OFF:
+            // Liftoff confirmation (rare)
+            if (std::rand() % 100 < 10) { // 10% chance
+                message = synData.stat.call + " tower, " + aircraftType + " airborne";
+            }
+            break;
+            
+        case SYN_STATE_INITIAL_CLIMB:
+            // Initial climb communication
+            if (std::rand() % 100 < 15) { // 15% chance
+                message = synData.stat.call + " departure, " + aircraftType + " passing " + 
+                         std::to_string((int)(synData.pos.alt_m() * 3.28084 / 100)) + "00 feet";
             }
             break;
             
@@ -3338,12 +3374,37 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             break;
         }
             
-        case SYN_STATE_LANDING:
-            // Proper final approach call
+        case SYN_STATE_FINAL:
+            // Final approach communications
             if (!runway.empty()) {
-                message = synData.stat.call + " tower, " + aircraftType + " established ILS " + runway;
+                message = synData.stat.call + " tower, " + aircraftType + " final runway " + runway;
             } else {
-                message = synData.stat.call + " tower, established on final approach";
+                message = synData.stat.call + " tower, " + aircraftType + " on final approach";
+            }
+            break;
+            
+        case SYN_STATE_FLARE:
+            // Flare phase - usually no communication
+            if (std::rand() % 100 < 3) { // 3% chance
+                message = synData.stat.call + " tower, " + aircraftType + " short final";
+            }
+            break;
+            
+        case SYN_STATE_TOUCH_DOWN:
+            // Touchdown - very rare communication
+            if (std::rand() % 100 < 2) { // 2% chance
+                message = synData.stat.call + " tower, " + aircraftType + " down";
+            }
+            break;
+            
+        case SYN_STATE_ROLL_OUT:
+            // Rollout communications
+            if (std::rand() % 100 < 10) { // 10% chance
+                if (!runway.empty()) {
+                    message = synData.stat.call + " ground, " + aircraftType + " clear of runway " + runway;
+                } else {
+                    message = synData.stat.call + " ground, " + aircraftType + " clear of runway";
+                }
             }
             break;
             
@@ -4329,7 +4390,14 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
         
         // Apply realistic navigation behavior based on flight state
         switch (synData.state) {
-            case SYN_STATE_TAKEOFF:
+            case SYN_STATE_TAKEOFF_ROLL:
+            case SYN_STATE_ROTATE:
+                // Runway heading - maintain runway centerline
+                synData.targetHeading = synData.pos.heading(); // Maintain current heading
+                break;
+                
+            case SYN_STATE_LIFT_OFF:
+            case SYN_STATE_INITIAL_CLIMB:
             case SYN_STATE_CLIMB:
                 // Follow departure procedures - gradual heading changes
                 synData.targetHeading = ApplyDepartureNavigation(synData, bearing);
@@ -4347,7 +4415,9 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
                 synData.targetHeading = ApplyArrivalNavigation(synData, bearing);
                 break;
                 
-            case SYN_STATE_LANDING:
+            case SYN_STATE_FINAL:
+            case SYN_STATE_FLARE:
+            case SYN_STATE_TOUCH_DOWN:
                 // Final approach - align with runway
                 synData.targetHeading = bearing; // Direct to runway
                 break;
@@ -4356,6 +4426,7 @@ void SyntheticConnection::UpdateNavigation(SynDataTy& synData, double currentTim
             case SYN_STATE_STARTUP:
             case SYN_STATE_TAXI_OUT:
             case SYN_STATE_LINE_UP_WAIT:
+            case SYN_STATE_ROLL_OUT:
             case SYN_STATE_TAXI_IN:
             case SYN_STATE_SHUTDOWN:
             default:
@@ -4440,7 +4511,10 @@ void SyntheticConnection::GenerateRealisticFlightPath(SynDataTy& synData)
     positionTy currentPos = synData.pos;
     
     switch (synData.state) {
-        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_TAKEOFF_ROLL:
+        case SYN_STATE_ROTATE:
+        case SYN_STATE_LIFT_OFF:
+        case SYN_STATE_INITIAL_CLIMB:
         case SYN_STATE_CLIMB:
             // Generate departure path
             GenerateDeparturePath(synData, currentPos);
@@ -4458,6 +4532,7 @@ void SyntheticConnection::GenerateRealisticFlightPath(SynDataTy& synData)
             
         case SYN_STATE_DESCENT:
         case SYN_STATE_APPROACH:
+        case SYN_STATE_FINAL:
             // Generate arrival path
             GenerateArrivalPath(synData, currentPos);
             break;
