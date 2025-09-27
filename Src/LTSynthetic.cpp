@@ -526,6 +526,9 @@ bool SyntheticConnection::ProcessFetchedData ()
         if (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) {
             try {
                 UpdateGroundOperations(synData, tNow);
+                
+                // Debug ground movement issues
+                DebugGroundMovement(synData);
             } catch (...) {
                 LOG_MSG(logWARN, "Exception in UpdateGroundOperations for %s", synData.stat.call.c_str());
             }
@@ -6956,6 +6959,20 @@ bool SyntheticConnection::ShouldExecuteGoAround(const SynDataTy& synData, double
         return false;
     }
     
+    // NEW: Check if runway is occupied - immediate go-around trigger
+    if (IsRunwayOccupied(synData)) {
+        LOG_MSG(logINFO, "Aircraft %s executing go-around due to runway occupation on %s", 
+                synData.stat.call.c_str(), synData.assignedRunway.c_str());
+        return true;
+    }
+    
+    // NEW: Check if runway is too short for aircraft - go-around if on final/flare
+    if ((synData.state == SYN_STATE_FINAL || synData.state == SYN_STATE_FLARE) && !IsRunwaySuitableForAircraft(synData)) {
+        LOG_MSG(logINFO, "Aircraft %s executing go-around due to insufficient runway length on %s", 
+                synData.stat.call.c_str(), synData.assignedRunway.c_str());
+        return true;
+    }
+    
     // Calculate weather-based go-around probability
     double weatherImpact = CalculateWeatherImpactFactor(synData.weatherConditions, synData.weatherVisibility, synData.weatherWindSpeed);
     
@@ -7176,6 +7193,173 @@ std::string SyntheticConnection::FindAlternateAirport(const SynDataTy& synData)
     
     LOG_MSG(logWARN, "No suitable alternate airports found for diversion");
     return "";
+}
+
+// Check if runway is occupied by other aircraft
+bool SyntheticConnection::IsRunwayOccupied(const SynDataTy& synData)
+{
+    if (synData.assignedRunway.empty()) {
+        return false; // No specific runway assigned
+    }
+    
+    // Check all other synthetic aircraft for runway occupation
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& otherAc = pair.second;
+        
+        // Skip self
+        if (otherAc.stat.call == synData.stat.call) {
+            continue;
+        }
+        
+        // Check if other aircraft is on the same runway
+        if (otherAc.assignedRunway == synData.assignedRunway && otherAc.pos.f.onGrnd == GND_ON) {
+            // Check if other aircraft is in runway-occupying state
+            if (otherAc.state == SYN_STATE_LINE_UP_WAIT ||
+                otherAc.state == SYN_STATE_TAKEOFF_ROLL ||
+                otherAc.state == SYN_STATE_ROTATE ||
+                otherAc.state == SYN_STATE_LIFT_OFF ||
+                otherAc.state == SYN_STATE_ROLL_OUT ||
+                otherAc.state == SYN_STATE_TOUCH_DOWN) {
+                
+                LOG_MSG(logDEBUG, "Runway %s occupied by %s (state: %d)", 
+                        synData.assignedRunway.c_str(), otherAc.stat.call.c_str(), otherAc.state);
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// Check if runway is suitable (long enough) for aircraft type
+bool SyntheticConnection::IsRunwaySuitableForAircraft(const SynDataTy& synData)
+{
+    if (synData.assignedRunway.empty()) {
+        return true; // No specific runway to check
+    }
+    
+    double requiredLength = GetRequiredRunwayLength(synData.stat.acTypeIcao, synData.trafficType);
+    double runwayLength = GetRunwayLength(synData.assignedRunway);
+    
+    bool suitable = runwayLength >= requiredLength;
+    
+    if (!suitable) {
+        LOG_MSG(logDEBUG, "Runway %s (%.0f ft) too short for %s %s (requires %.0f ft)", 
+                synData.assignedRunway.c_str(), runwayLength, 
+                synData.stat.acTypeIcao.c_str(), synData.stat.call.c_str(), requiredLength);
+    }
+    
+    return suitable;
+}
+
+// Get required runway length for aircraft type
+double SyntheticConnection::GetRequiredRunwayLength(const std::string& icaoType, SyntheticTrafficType trafficType)
+{
+    // Try to get from performance database first
+    const AircraftPerformance* perfData = GetAircraftPerformance(icaoType);
+    if (perfData && perfData->minRunwayLengthFt > 0) {
+        return perfData->minRunwayLengthFt;
+    }
+    
+    // Fallback based on traffic type and common aircraft
+    if (trafficType == SYN_TRAFFIC_GA) {
+        // GA aircraft typically need shorter runways
+        if (icaoType == "C172" || icaoType == "PA28" || icaoType == "C152") {
+            return 2000.0; // 2000 ft for small GA
+        } else if (icaoType == "SR22" || icaoType == "C182") {
+            return 2500.0; // 2500 ft for performance GA
+        } else {
+            return 3000.0; // Default GA runway length
+        }
+    } else if (trafficType == SYN_TRAFFIC_AIRLINE) {
+        // Airlines need longer runways
+        if (icaoType == "A380" || icaoType == "B748") {
+            return 9000.0; // Very large aircraft
+        } else if (icaoType == "B777" || icaoType == "A330" || icaoType == "B787") {
+            return 8000.0; // Wide-body aircraft
+        } else if (icaoType == "B737" || icaoType == "A320" || icaoType == "B738") {
+            return 6000.0; // Narrow-body aircraft
+        } else {
+            return 7000.0; // Default airline runway length
+        }
+    } else if (trafficType == SYN_TRAFFIC_MILITARY) {
+        // Military aircraft vary widely
+        if (icaoType == "C130" || icaoType == "A400") {
+            return 4000.0; // Military transport
+        } else if (icaoType == "F16" || icaoType == "F18") {
+            return 8000.0; // Fighter jets typically need long runways
+        } else {
+            return 6000.0; // Default military runway length
+        }
+    }
+    
+    return 5000.0; // Conservative default
+}
+
+// Get runway length (simplified implementation)
+double SyntheticConnection::GetRunwayLength(const std::string& runwayId)
+{
+    // In a real implementation, this would query X-Plane's navigation database
+    // For now, we'll estimate based on runway number and common patterns
+    
+    if (runwayId.empty() || runwayId.length() < 2) {
+        return 8000.0; // Default runway length
+    }
+    
+    // Extract runway number to estimate typical runway lengths at different airport types
+    std::string runwayNumber = runwayId.substr(0, 2);
+    
+    // Longer runway numbers (like 36) are often at larger airports
+    try {
+        int rwyNum = std::stoi(runwayNumber);
+        
+        // Estimate based on common patterns:
+        // - Runways 01-09: Often shorter runways at smaller airports
+        // - Runways 10-27: Typical medium-large airport runways  
+        // - Runways 28-36: Often major airport runways
+        
+        if (rwyNum >= 1 && rwyNum <= 9) {
+            return 4000.0 + (std::rand() % 2000); // 4000-6000 ft
+        } else if (rwyNum >= 28 && rwyNum <= 36) {
+            return 8000.0 + (std::rand() % 4000); // 8000-12000 ft
+        } else {
+            return 6000.0 + (std::rand() % 3000); // 6000-9000 ft
+        }
+    } catch (...) {
+        // If runway number parsing fails, use default
+        return 8000.0;
+    }
+}
+
+// Debug ground movement issues
+void SyntheticConnection::DebugGroundMovement(SynDataTy& synData)
+{
+    // Check if aircraft is stuck on ground
+    if (synData.pos.f.onGrnd == GND_ON && 
+        (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN)) {
+        
+        LOG_MSG(logDEBUG, "Ground Movement Debug for %s: State=%d, TargetSpeed=%.1f, TaxiRoute=%zu waypoints, CurrentWaypoint=%zu", 
+                synData.stat.call.c_str(), synData.state, synData.targetSpeed / 0.514444, 
+                synData.taxiRoute.size(), synData.currentTaxiWaypoint);
+        
+        // Check if aircraft has no taxi route
+        if (synData.taxiRoute.empty()) {
+            LOG_MSG(logDEBUG, "Aircraft %s has no taxi route, will generate one", synData.stat.call.c_str());
+        }
+        
+        // Check if aircraft has zero speed
+        if (synData.targetSpeed < 0.1) {
+            LOG_MSG(logDEBUG, "Aircraft %s has zero speed, setting minimum taxi speed", synData.stat.call.c_str());
+            const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+            double taxiSpeedKts = perfData ? perfData->taxiSpeedKts : 15.0;
+            synData.targetSpeed = taxiSpeedKts * 0.514444; // Convert to m/s
+        }
+        
+        // Check if aircraft has reached end of taxi route
+        if (!synData.taxiRoute.empty() && synData.currentTaxiWaypoint >= synData.taxiRoute.size()) {
+            LOG_MSG(logDEBUG, "Aircraft %s completed taxi route, ready for next state transition", synData.stat.call.c_str());
+        }
+    }
 }
 
 // Query available SID/STAR procedures for an airport

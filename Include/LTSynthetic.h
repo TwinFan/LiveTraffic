@@ -96,13 +96,14 @@ struct AircraftPerformance {
     double maxAltFt;                ///< Maximum altitude in feet
     double approachSpeedKts;        ///< Typical approach speed in knots
     double taxiSpeedKts;            ///< Typical taxi speed in knots
+    double minRunwayLengthFt;       ///< Minimum runway length required in feet
     
     AircraftPerformance(const std::string& type = "", double cruise = 120, double maxSpd = 150, 
                        double stall = 60, double ceiling = 15000, double climb = 800, double descent = 800,
-                       double maxAlt = 18000, double approach = 80, double taxi = 15)
+                       double maxAlt = 18000, double approach = 80, double taxi = 15, double minRunway = 3000)
         : icaoType(type), cruiseSpeedKts(cruise), maxSpeedKts(maxSpd), stallSpeedKts(stall),
           serviceCeilingFt(ceiling), climbRateFpm(climb), descentRateFpm(descent), 
-          maxAltFt(maxAlt), approachSpeedKts(approach), taxiSpeedKts(taxi) {}
+          maxAltFt(maxAlt), approachSpeedKts(approach), taxiSpeedKts(taxi), minRunwayLengthFt(minRunway) {}
 };
 
 //
@@ -423,6 +424,13 @@ public:
     void ExecuteGoAroundProcedure(SynDataTy& synData, double currentTime);
     void ExecuteDiversionProcedure(SynDataTy& synData, double currentTime);
     std::string FindAlternateAirport(const SynDataTy& synData);
+    
+    /// Runway occupation and performance-based go-around logic
+    bool IsRunwayOccupied(const SynDataTy& synData);
+    bool IsRunwaySuitableForAircraft(const SynDataTy& synData);
+    double GetRequiredRunwayLength(const std::string& icaoType, SyntheticTrafficType trafficType);
+    double GetRunwayLength(const std::string& runwayId);
+    void DebugGroundMovement(SynDataTy& synData);
     
     /// Seasonal and time-based traffic variations
     double CalculateSeasonalFactor(double currentTime);
