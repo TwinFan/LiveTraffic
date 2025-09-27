@@ -561,6 +561,12 @@ protected:
     
     /// Get effective traffic density (static or dynamic)
     float GetEffectiveDensity(const positionTy& centerPos);
+    
+    /// Generate realistic SID name based on runway and position
+    std::string GenerateRealisticSIDName(const std::string& runway, const positionTy& pos);
+    
+    /// Generate realistic STAR name based on airport and position  
+    std::string GenerateRealisticSTARName(const std::string& airport, const positionTy& pos);
 
 protected:
 };
