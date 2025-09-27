@@ -496,9 +496,9 @@ bool SyntheticConnection::ProcessFetchedData ()
             CheckWeatherImpact(synData.pos, synData);
         }
         
-        // Handle TTS communications
+        // Handle TTS communications - make it more frequent and less restrictive
         if (config.enableTTS && synData.isUserAware && 
-            (tNow - synData.lastCommTime) > 30.0) { // Every 30 seconds max
+            (tNow - synData.lastCommTime) > 15.0) { // Every 15 seconds max (reduced from 30)
             std::string commMsg = GenerateCommMessage(synData, posCam);
             if (!commMsg.empty()) {
                 ProcessTTSCommunication(synData, commMsg);
@@ -762,7 +762,16 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     LOG_MSG(logDEBUG, "GA aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
             terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
-    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA, airport);
+    // Find a different destination airport for the aircraft
+    std::string destinationAirport = "";
+    if (!airports.empty() && airports.size() > 1) {
+        // Choose a different airport as destination
+        do {
+            destinationAirport = airports[std::rand() % airports.size()];
+        } while (destinationAirport == airport && airports.size() > 1);
+    }
+    
+    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA, destinationAirport);
     
     LOG_MSG(logDEBUG, "Generated GA traffic: %s at %s (%.2f nm from user)", 
             key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
@@ -798,7 +807,16 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     LOG_MSG(logDEBUG, "Airline aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
             terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
-    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE, airport);
+    // Find a different destination airport for airline traffic
+    std::string destinationAirport = "";
+    if (!airports.empty() && airports.size() > 1) {
+        // Choose a different airport as destination
+        do {
+            destinationAirport = airports[std::rand() % airports.size()];
+        } while (destinationAirport == airport && airports.size() > 1);
+    }
+    
+    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE, destinationAirport);
     
     LOG_MSG(logDEBUG, "Generated Airline traffic: %s at %s (%.2f nm from user)", 
             key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
@@ -837,7 +855,16 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     LOG_MSG(logDEBUG, "Military aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
             terrainElev, terrainElev + requiredClearance, acPos.alt_m());
     
-    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, airport);
+    // Find a different destination airport for military traffic
+    std::string destinationAirport = "";
+    if (!militaryAirports.empty() && militaryAirports.size() > 1) {
+        // Choose a different airport as destination
+        do {
+            destinationAirport = militaryAirports[std::rand() % militaryAirports.size()];
+        } while (destinationAirport == airport && militaryAirports.size() > 1);
+    }
+    
+    CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, destinationAirport);
     
     LOG_MSG(logDEBUG, "Generated Military traffic: %s at %s (%.2f nm from user)", 
             key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
@@ -1169,10 +1196,16 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                         }
                     }
                     
-                    // Original random behavior as fallback
+                    // Original random behavior as fallback or if no valid destination
                     int decision = std::rand() % 100;
                     
-                    if (cruiseTime > 600.0) { // After 10 minutes of cruise
+                    if (cruiseTime > 1800.0) { // After 30 minutes, more likely to descend
+                        if (decision < 60) { // 60% chance to descend
+                            newState = SYN_STATE_DESCENT;
+                            SetRealisticDescentParameters(synData);
+                            LOG_MSG(logDEBUG, "Aircraft %s beginning descent after long cruise", synData.stat.call.c_str());
+                        }
+                    } else if (cruiseTime > 600.0) { // After 10 minutes of cruise
                         if (decision < 15) { // 15% chance to enter holding
                             newState = SYN_STATE_HOLD;
                             synData.holdingTime = 0.0; // Reset holding time
@@ -1181,11 +1214,6 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                             newState = SYN_STATE_DESCENT;
                             SetRealisticDescentParameters(synData);
                             LOG_MSG(logDEBUG, "Aircraft %s beginning descent", synData.stat.call.c_str());
-                        }
-                    } else if (cruiseTime > 1800.0) { // After 30 minutes, more likely to descend
-                        if (decision < 60) { // 60% chance to descend
-                            newState = SYN_STATE_DESCENT;
-                            SetRealisticDescentParameters(synData);
                         }
                     }
                 }
@@ -2741,19 +2769,19 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
     
     // Calculate communication reliability based on distance (realistic degradation)
     double commReliability = 1.0;
-    if (distance > 10.0) {
-        // Communication starts degrading after 10 nautical miles
-        // Reliability drops exponentially with distance following realistic radio propagation
-        commReliability = std::exp(-0.1 * (distance - 10.0));
+    if (distance > 15.0) {
+        // Communication starts degrading after 15 nautical miles
+        // More gradual reliability drop for better user experience
+        commReliability = std::max(0.3, 1.0 - (distance - 15.0) / 40.0); // Gradual decline to 30% at 55nm
     }
     
-    // Random factor for atmospheric conditions and interference
-    double atmosphericFactor = 0.8 + (std::rand() / static_cast<double>(RAND_MAX)) * 0.4; // 0.8 to 1.2
+    // Random factor for atmospheric conditions - less aggressive than before
+    double atmosphericFactor = 0.9 + (std::rand() / static_cast<double>(RAND_MAX)) * 0.2; // 0.9 to 1.1
     commReliability *= atmosphericFactor;
     
-    // Randomly determine if message gets through based on reliability
+    // Reduce random blocking for better user experience - only block in poor conditions
     double randomThreshold = std::rand() / static_cast<double>(RAND_MAX);
-    if (randomThreshold > commReliability) return ""; // Message blocked/lost
+    if (randomThreshold > commReliability && commReliability < 0.6) return ""; // Only block when reliability is poor
     
     // Generate message based on flight state using proper ICAO phraseology
     std::string aircraftType = GetAircraftTypeForComms(synData.stat.acTypeIcao, synData.trafficType);
@@ -2816,9 +2844,16 @@ std::string SyntheticConnection::GenerateCommMessage(const SynDataTy& synData, c
             break;
             
         case SYN_STATE_CRUISE:
-            if (std::rand() % 100 < 10) { // 10% chance for level report
+            if (std::rand() % 100 < 25) { // 25% chance for level report (increased from 10%)
                 std::string altitude = FormatICAOAltitude(synData.pos.alt_m());
-                message = synData.stat.call + " center, level " + altitude;
+                int variation = std::rand() % 3;
+                if (variation == 0) {
+                    message = synData.stat.call + " center, level " + altitude;
+                } else if (variation == 1) {
+                    message = synData.stat.call + " center, maintaining " + altitude;
+                } else {
+                    message = synData.stat.call + " center, cruising " + altitude;
+                }
             }
             break;
             
@@ -3018,12 +3053,12 @@ void SyntheticConnection::UpdateUserAwareness(SynDataTy& synData, const position
     static std::map<std::string, bool> lastAwarenessState;
     bool previousState = lastAwarenessState[synData.stat.call];
     
-    // Aircraft becomes user-aware within 10nm
-    if (distance < 10.0 && !synData.isUserAware) {
+    // Aircraft becomes user-aware within 25nm (more realistic range for radio communications)
+    if (distance < 25.0 && !synData.isUserAware) {
         synData.isUserAware = true;
         LOG_MSG(logDEBUG, "SYNTHETIC_USER_AWARENESS: Aircraft %s is now user-aware (distance: %.1fnm)", 
                 synData.stat.call.c_str(), distance);
-    } else if (distance > 15.0 && synData.isUserAware) {
+    } else if (distance > 30.0 && synData.isUserAware) {
         synData.isUserAware = false;
         LOG_MSG(logDEBUG, "SYNTHETIC_USER_AWARENESS: Aircraft %s is no longer user-aware (distance: %.1fnm)", 
                 synData.stat.call.c_str(), distance);
