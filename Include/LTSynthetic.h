@@ -41,19 +41,25 @@ enum SyntheticTrafficType : unsigned char {
     SYN_TRAFFIC_ALL     = 7     ///< All traffic types
 };
 
-/// Synthetic flight states for AI behavior
+/// Synthetic flight states for AI behavior - Enhanced to match detailed flight phases
 enum SyntheticFlightState : unsigned char {
     SYN_STATE_PARKED = 0,       ///< Aircraft is parked
     SYN_STATE_STARTUP,          ///< Starting up engines
     SYN_STATE_TAXI_OUT,         ///< Taxiing to runway
     SYN_STATE_LINE_UP_WAIT,     ///< Lined up on runway, waiting for takeoff clearance
-    SYN_STATE_TAKEOFF,          ///< Taking off
-    SYN_STATE_CLIMB,            ///< Climbing to cruise
+    SYN_STATE_TAKEOFF_ROLL,     ///< Takeoff roll on runway
+    SYN_STATE_ROTATE,           ///< Rotating for liftoff
+    SYN_STATE_LIFT_OFF,         ///< Just lifted off runway
+    SYN_STATE_INITIAL_CLIMB,    ///< Initial climb phase (gear up)
+    SYN_STATE_CLIMB,            ///< Regular climb phase
     SYN_STATE_CRUISE,           ///< Cruising
     SYN_STATE_HOLD,             ///< In holding pattern
     SYN_STATE_DESCENT,          ///< Descending
     SYN_STATE_APPROACH,         ///< On approach
-    SYN_STATE_LANDING,          ///< Landing
+    SYN_STATE_FINAL,            ///< Final approach
+    SYN_STATE_FLARE,            ///< Flare for landing
+    SYN_STATE_TOUCH_DOWN,       ///< Touchdown moment
+    SYN_STATE_ROLL_OUT,         ///< Landing rollout
     SYN_STATE_TAXI_IN,          ///< Taxiing to gate
     SYN_STATE_SHUTDOWN          ///< Shutting down
 };
