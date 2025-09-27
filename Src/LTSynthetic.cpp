@@ -1508,16 +1508,27 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
         // Enhanced state machine for AI behavior with realistic timing and decisions
         switch (synData.state) {
             case SYN_STATE_PARKED:
-                // More realistic startup probability based on traffic type and time
+                // Enhanced startup probability with guaranteed progression to prevent stuck aircraft
                 {
+                    double parkedTime = currentTime - synData.stateChangeTime;
+                    
+                    // GUARANTEED TIMEOUT: Force startup after maximum parked time to prevent stuck aircraft
+                    if (parkedTime > 3600.0) { // After 60 minutes, force startup regardless of conditions
+                        newState = SYN_STATE_STARTUP;
+                        LOG_MSG(logDEBUG, "Aircraft %s forced startup after maximum parked time (60 min)", 
+                                synData.stat.call.c_str());
+                        break; // Exit immediately
+                    }
+                    
+                    // Progressive startup probability based on traffic type and parked time
                     int startupChance = 0;
                     switch (synData.trafficType) {
-                        case SYN_TRAFFIC_GA: startupChance = 25; break;      // 25% chance for GA
-                        case SYN_TRAFFIC_AIRLINE: startupChance = 40; break; // 40% chance for airlines
-                        case SYN_TRAFFIC_MILITARY: startupChance = 35; break; // 35% chance for military
+                        case SYN_TRAFFIC_GA: startupChance = 35; break;      // Increased from 25%
+                        case SYN_TRAFFIC_AIRLINE: startupChance = 50; break; // Increased from 40%
+                        case SYN_TRAFFIC_MILITARY: startupChance = 45; break; // Increased from 35%
                         case SYN_TRAFFIC_NONE:
                         case SYN_TRAFFIC_ALL:
-                        default: startupChance = 20; break; // Default chance
+                        default: startupChance = 30; break; // Increased from 20%
                     }
                     
                     // Time-based adjustments (more activity during day)
@@ -1528,15 +1539,31 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                     int hour = timeInfo->tm_hour;
                     
                     if (hour >= 6 && hour <= 22) { // Daytime operations
-                        startupChance += 15;
+                        startupChance += 20; // Increased from 15%
                     } else { // Night operations
-                        startupChance -= 10;
+                        startupChance -= 5; // Reduced penalty (was -10)
                     }
+                    
+                    // Progressive probability increases based on parked time to prevent stuck aircraft
+                    if (parkedTime > 2400.0) { // After 40 minutes
+                        startupChance += 40; // Much higher chance
+                        LOG_MSG(logDEBUG, "Aircraft %s has been parked for %.1f minutes, high startup priority", 
+                                synData.stat.call.c_str(), parkedTime / 60.0);
+                    } else if (parkedTime > 1800.0) { // After 30 minutes
+                        startupChance += 25;
+                    } else if (parkedTime > 1200.0) { // After 20 minutes
+                        startupChance += 15;
+                    } else if (parkedTime > 600.0) { // After 10 minutes
+                        startupChance += 10;
+                    }
+                    
+                    // Cap at 95% to maintain some realism while ensuring high probability
+                    startupChance = std::min(95, std::max(5, startupChance)); // Minimum 5% chance always
                     
                     if (std::rand() % 100 < startupChance) {
                         newState = SYN_STATE_STARTUP;
-                        LOG_MSG(logDEBUG, "Aircraft %s starting up (chance: %d%%)", 
-                                synData.stat.call.c_str(), startupChance);
+                        LOG_MSG(logDEBUG, "Aircraft %s starting up (chance: %d%%, parked: %.1f min)", 
+                                synData.stat.call.c_str(), startupChance, parkedTime / 60.0);
                     }
                 }
                 break;
@@ -1687,46 +1714,102 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                 break;
                 
             case SYN_STATE_CRUISE:
-                // Enhanced cruise behavior with realistic decision making
+                // Enhanced cruise behavior with realistic decision making and guaranteed transitions
                 {
                     double cruiseTime = currentTime - synData.stateChangeTime;
                     
-                    // Check if near destination airport and should start descent
+                    // GUARANTEED TIMEOUT: Force transition after maximum cruise time to prevent stuck aircraft
+                    if (cruiseTime > 2700.0) { // After 45 minutes, force descent regardless of conditions
+                        newState = SYN_STATE_DESCENT;
+                        SetRealisticDescentParameters(synData);
+                        LOG_MSG(logDEBUG, "Aircraft %s forced descent after maximum cruise time (45 min)", 
+                                synData.stat.call.c_str());
+                        break; // Exit immediately
+                    }
+                    
+                    // Check and validate destination airport
+                    bool hasValidDestination = false;
+                    double distanceToAirport = 999999.0;
+                    
                     if (!synData.destinationAirport.empty()) {
                         positionTy airportPos = GetAirportPosition(synData.destinationAirport);
                         if (airportPos.isNormal()) {
-                            double distanceToAirport = synData.pos.dist(airportPos);
-                            // Start descent when within reasonable distance based on altitude
-                            double descentDistance = std::max(15000.0, (synData.pos.alt_m() - synData.terrainElevation - 300.0) * 8.0); // ~8:1 descent ratio
-                            
-                            if (distanceToAirport < descentDistance && cruiseTime > 300.0) { // At least 5 min cruise
-                                newState = SYN_STATE_DESCENT;
-                                SetRealisticDescentParameters(synData);
-                                LOG_MSG(logDEBUG, "Aircraft %s beginning descent to %s (%.1f nm away)", 
-                                        synData.stat.call.c_str(), synData.destinationAirport.c_str(), distanceToAirport / 1852.0);
-                                break; // Exit the case early
+                            hasValidDestination = true;
+                            distanceToAirport = synData.pos.dist(airportPos);
+                        } else {
+                            // Destination airport is invalid - clear it immediately
+                            LOG_MSG(logDEBUG, "Aircraft %s destination airport %s invalid, clearing destination", 
+                                    synData.stat.call.c_str(), synData.destinationAirport.c_str());
+                            synData.destinationAirport = "";
+                        }
+                    }
+                    
+                    // If no destination after validation or originally empty, try to find one
+                    if (synData.destinationAirport.empty() && cruiseTime > 60.0) { // After 1 minute of cruise
+                        std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 100.0);
+                        if (!nearbyAirports.empty()) {
+                            synData.destinationAirport = nearbyAirports[0];
+                            positionTy newAirportPos = GetAirportPosition(synData.destinationAirport);
+                            if (newAirportPos.isNormal()) {
+                                hasValidDestination = true;
+                                distanceToAirport = synData.pos.dist(newAirportPos);
+                                LOG_MSG(logDEBUG, "Aircraft %s assigned new destination %s (%.1f nm away)", 
+                                        synData.stat.call.c_str(), synData.destinationAirport.c_str(), 
+                                        distanceToAirport / 1852.0);
+                            } else {
+                                synData.destinationAirport = ""; // Clear if new airport also invalid
                             }
                         }
                     }
                     
-                    // Original random behavior as fallback or if no valid destination
+                    // Check if near valid destination and should start descent
+                    if (hasValidDestination) {
+                        // Improved descent distance calculation - more generous to prevent stuck aircraft
+                        double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
+                        double descentDistance = std::max(10000.0, altitudeAGL * 6.0); // ~6:1 descent ratio (more generous)
+                        
+                        if (distanceToAirport < descentDistance && cruiseTime > 300.0) { // At least 5 min cruise
+                            newState = SYN_STATE_DESCENT;
+                            SetRealisticDescentParameters(synData);
+                            LOG_MSG(logDEBUG, "Aircraft %s beginning descent to %s (%.1f nm away, AGL=%.0f ft)", 
+                                    synData.stat.call.c_str(), synData.destinationAirport.c_str(), 
+                                    distanceToAirport / 1852.0, altitudeAGL * 3.28084);
+                            break; // Exit the case early
+                        }
+                    }
+                    
+                    // Enhanced fallback behavior with higher probabilities to prevent stuck aircraft
                     int decision = std::rand() % 100;
                     
-                    if (cruiseTime > 1800.0) { // After 30 minutes, more likely to descend
-                        if (decision < 60) { // 60% chance to descend
+                    if (cruiseTime > 1800.0) { // After 30 minutes, much more likely to transition
+                        if (decision < 75) { // 75% chance to descend (increased from 60%)
                             newState = SYN_STATE_DESCENT;
                             SetRealisticDescentParameters(synData);
-                            LOG_MSG(logDEBUG, "Aircraft %s beginning descent after long cruise", synData.stat.call.c_str());
+                            LOG_MSG(logDEBUG, "Aircraft %s beginning descent after long cruise (30+ min)", synData.stat.call.c_str());
                         }
-                    } else if (cruiseTime > 600.0) { // After 10 minutes of cruise
-                        if (decision < 15) { // 15% chance to enter holding
-                            newState = SYN_STATE_HOLD;
-                            synData.holdingTime = 0.0; // Reset holding time
-                            LOG_MSG(logDEBUG, "Aircraft %s entering holding pattern", synData.stat.call.c_str());
-                        } else if (decision < 35) { // 20% chance to start descent
-                            newState = SYN_STATE_DESCENT;
-                            SetRealisticDescentParameters(synData);
-                            LOG_MSG(logDEBUG, "Aircraft %s beginning descent", synData.stat.call.c_str());
+                    } else if (cruiseTime > 1200.0) { // After 20 minutes, higher probability  
+                        if (decision < 50) { // 50% chance to transition
+                            if (decision < 15) { // 15% for holding
+                                newState = SYN_STATE_HOLD;
+                                synData.holdingTime = 0.0;
+                                LOG_MSG(logDEBUG, "Aircraft %s entering holding pattern after 20 min cruise", synData.stat.call.c_str());
+                            } else { // 35% for descent
+                                newState = SYN_STATE_DESCENT;
+                                SetRealisticDescentParameters(synData);
+                                LOG_MSG(logDEBUG, "Aircraft %s beginning descent after 20 min cruise", synData.stat.call.c_str());
+                            }
+                        }
+                    } else if (cruiseTime > 600.0) { // After 10 minutes, higher probability than before
+                        if (decision < 30) { // 30% chance to transition (increased from 20%)
+                            if (decision < 10) { // 10% for holding
+                                newState = SYN_STATE_HOLD;
+                                synData.holdingTime = 0.0;
+                                LOG_MSG(logDEBUG, "Aircraft %s entering holding pattern after 10 min cruise", synData.stat.call.c_str());
+                            } else { // 20% for descent
+                                newState = SYN_STATE_DESCENT;
+                                SetRealisticDescentParameters(synData);
+                                LOG_MSG(logDEBUG, "Aircraft %s beginning descent after 10 min cruise", synData.stat.call.c_str());
+                            }
                         }
                     }
                 }
@@ -2104,7 +2187,7 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
             synData.nextEventTime = currentTime + (300 + std::rand() % 600); // 5-15 minutes
             break;
         case SYN_STATE_CRUISE:
-            synData.nextEventTime = currentTime + (600 + std::rand() % 1800); // 10-40 minutes
+            synData.nextEventTime = currentTime + (180 + std::rand() % 300); // 3-8 minutes (more frequent checks)
             break;
         case SYN_STATE_HOLD:
             synData.nextEventTime = currentTime + (60 + std::rand() % 240); // 1-5 minutes
@@ -2131,7 +2214,7 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
             synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for shutdown
             break;
         case SYN_STATE_PARKED:
-            synData.nextEventTime = currentTime + (300 + std::rand() % 600); // 5-15 minutes parked before next flight
+            synData.nextEventTime = currentTime + (120 + std::rand() % 360); // 2-8 minutes parked checks (more frequent)
             break;
         case SYN_STATE_MISSED_APPROACH:
             synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for missed approach procedure
