@@ -5,3 +5,6 @@
 [submodule "Lib/metaf"]
 	path = Lib/metaf
 	url = https://github.com/TwinFan/metaf
+[submodule "Lib/parson"]
+	path = Lib/parson
+	url = https://github.com/kgabis/parson
