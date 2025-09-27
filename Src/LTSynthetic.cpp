@@ -839,7 +839,7 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     positionTy acPos;
     
     if (generateOnGround) {
-        // Generate ground aircraft at airports
+        // Generate ground aircraft ONLY at airports - no fallback to airborne
         positionTy airportPos = GetAirportPosition(airport);
         if (airportPos.isNormal()) {
             // Position aircraft at or near the airport
@@ -856,8 +856,9 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
             LOG_MSG(logDEBUG, "GA ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
                     terrainElev, acPos.alt_m());
         } else {
-            // Fallback to airborne if airport position unavailable
-            generateOnGround = false;
+            // Skip spawning if airport position unavailable - ground aircraft ONLY at airports
+            LOG_MSG(logDEBUG, "Skipping GA ground aircraft - airport %s position unavailable", airport.c_str());
+            return;
         }
     }
     
@@ -915,7 +916,7 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     positionTy acPos;
     
     if (generateOnGround) {
-        // Generate ground aircraft at airports
+        // Generate ground aircraft ONLY at airports - no fallback to airborne
         positionTy airportPos = GetAirportPosition(airport);
         if (airportPos.isNormal()) {
             // Position aircraft at or near the airport (airlines need more space)
@@ -932,8 +933,9 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
             LOG_MSG(logDEBUG, "Airline ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
                     terrainElev, acPos.alt_m());
         } else {
-            // Fallback to airborne if airport position unavailable
-            generateOnGround = false;
+            // Skip spawning if airport position unavailable - ground aircraft ONLY at airports
+            LOG_MSG(logDEBUG, "Skipping Airline ground aircraft - airport %s position unavailable", airport.c_str());
+            return;
         }
     }
     
@@ -988,20 +990,51 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Military aircraft can operate from various locations and altitudes - spread them out more
-    positionTy acPos = GenerateVariedPosition(centerPos, 20.0, 100.0); // 20-100nm from user
+    // Determine if this should be a ground or airborne aircraft (20% ground, 80% airborne for military)
+    bool generateOnGround = (std::rand() % 100) < 20;
     
-    // Set terrain-safe altitude for military aircraft
-    XPLMProbeRef tempProbe = nullptr;
-    double terrainElev = GetTerrainElevation(acPos, tempProbe);
-    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    positionTy acPos;
     
-    double baseAltitude = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
-    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_MILITARY);
-    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    if (generateOnGround) {
+        // Generate ground aircraft ONLY at military airports - no fallback to airborne
+        positionTy airportPos = GetAirportPosition(airport);
+        if (airportPos.isNormal()) {
+            // Position aircraft at or near the military airport
+            acPos = GenerateVariedPosition(airportPos, 0.1, 2.5); // Within 0.1-2.5nm of military airport
+            
+            // Set ground altitude with terrain elevation
+            XPLMProbeRef tempProbe = nullptr;
+            double terrainElev = GetTerrainElevation(acPos, tempProbe);
+            if (tempProbe) XPLMDestroyProbe(tempProbe);
+            
+            // Set altitude slightly above terrain (ground level)
+            acPos.alt_m() = terrainElev + 6.0; // 6m above ground for military aircraft
+            
+            LOG_MSG(logDEBUG, "Military ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
+                    terrainElev, acPos.alt_m());
+        } else {
+            // Skip spawning if airport position unavailable - ground aircraft ONLY at airports
+            LOG_MSG(logDEBUG, "Skipping Military ground aircraft - airport %s position unavailable", airport.c_str());
+            return;
+        }
+    }
     
-    LOG_MSG(logDEBUG, "Military aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
-            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    if (!generateOnGround) {
+        // Military aircraft can operate from various locations and altitudes - spread them out more
+        acPos = GenerateVariedPosition(centerPos, 20.0, 100.0); // 20-100nm from user
+        
+        // Set terrain-safe altitude for military aircraft
+        XPLMProbeRef tempProbe = nullptr;
+        double terrainElev = GetTerrainElevation(acPos, tempProbe);
+        if (tempProbe) XPLMDestroyProbe(tempProbe);
+        
+        double baseAltitude = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
+        double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_MILITARY);
+        acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+        
+        LOG_MSG(logDEBUG, "Military airborne aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+                terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    }
     
     // Find a different destination airport for military traffic
     std::string destinationAirport = "";
@@ -1014,8 +1047,9 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, destinationAirport);
     
-    LOG_MSG(logDEBUG, "Generated Military traffic: %s at %s (%.2f nm from user)", 
-            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
+    LOG_MSG(logDEBUG, "Generated Military traffic: %s at %s (%.2f nm from user) %s", 
+            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0,
+            generateOnGround ? "ON GROUND" : "AIRBORNE");
 }
 
 // Create synthetic aircraft with realistic parameters
