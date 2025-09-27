@@ -2212,8 +2212,16 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                 // has already an aircraft
                 else {
                     // Synthetic channels are to be kicked out as soon as any other channel has data,
-                    // ie. only for other types we still consider skipping the data:
-                    if (pLstChn && pLstChn->GetChType() != LTChannel::CHT_SYNTHETIC_DATA)
+                    // ie. if the current/last channel is synthetic and incoming data is real, switch immediately:
+                    if (pLstChn && pLstChn->GetChType() == LTChannel::CHT_SYNTHETIC_DATA &&
+                        inDyn.pChannel && inDyn.pChannel->GetChType() != LTChannel::CHT_SYNTHETIC_DATA)
+                    {
+                        // Real data overrides synthetic data immediately - no waiting
+                        LOG_MSG(logDEBUG, "Synthetic traffic data for %s being replaced by real data from %s", 
+                                keyDbg().c_str(), inDyn.pChannel->ChName());
+                    }
+                    // For non-synthetic channels, we still consider the normal timing restrictions:
+                    else if (pLstChn && pLstChn->GetChType() != LTChannel::CHT_SYNTHETIC_DATA)
                     {
                         // If there still are position to be processed we don't switch channel
                         if (!posDeque.empty())
