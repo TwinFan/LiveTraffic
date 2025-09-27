@@ -747,20 +747,50 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Generate varied position around the user position instead of exactly at centerPos
-    positionTy acPos = GenerateVariedPosition(centerPos, 2.0, 10.0); // 2-10nm from user
+    // Determine if this should be a ground or airborne aircraft (60% ground, 40% airborne)
+    bool generateOnGround = (std::rand() % 100) < 60;
     
-    // Set terrain-safe altitude for GA aircraft
-    XPLMProbeRef tempProbe = nullptr;
-    double terrainElev = GetTerrainElevation(acPos, tempProbe);
-    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    positionTy acPos;
     
-    double baseAltitude = 150.0 + (std::rand() % 1000); // 150-1150m AGL for GA  
-    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_GA);
-    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    if (generateOnGround) {
+        // Generate ground aircraft at airports
+        positionTy airportPos = GetAirportPosition(airport);
+        if (airportPos.isNormal()) {
+            // Position aircraft at or near the airport
+            acPos = GenerateVariedPosition(airportPos, 0.1, 2.0); // Within 0.1-2nm of airport
+            
+            // Set ground altitude with terrain elevation
+            XPLMProbeRef tempProbe = nullptr;
+            double terrainElev = GetTerrainElevation(acPos, tempProbe);
+            if (tempProbe) XPLMDestroyProbe(tempProbe);
+            
+            // Set altitude slightly above terrain (ground level)
+            acPos.alt_m() = terrainElev + 5.0; // 5m above ground for ground aircraft
+            
+            LOG_MSG(logDEBUG, "GA ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
+                    terrainElev, acPos.alt_m());
+        } else {
+            // Fallback to airborne if airport position unavailable
+            generateOnGround = false;
+        }
+    }
     
-    LOG_MSG(logDEBUG, "GA aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
-            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    if (!generateOnGround) {
+        // Generate airborne aircraft around user position
+        acPos = GenerateVariedPosition(centerPos, 2.0, 10.0); // 2-10nm from user
+        
+        // Set terrain-safe altitude for GA aircraft
+        XPLMProbeRef tempProbe = nullptr;
+        double terrainElev = GetTerrainElevation(acPos, tempProbe);
+        if (tempProbe) XPLMDestroyProbe(tempProbe);
+        
+        double baseAltitude = 150.0 + (std::rand() % 1000); // 150-1150m AGL for GA  
+        double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_GA);
+        acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+        
+        LOG_MSG(logDEBUG, "GA airborne aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+                terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    }
     
     // Find a different destination airport for the aircraft
     std::string destinationAirport = "";
@@ -773,8 +803,9 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA, destinationAirport);
     
-    LOG_MSG(logDEBUG, "Generated GA traffic: %s at %s (%.2f nm from user)", 
-            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
+    LOG_MSG(logDEBUG, "Generated GA traffic: %s at %s (%.2f nm from user) %s", 
+            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0,
+            generateOnGround ? "ON GROUND" : "AIRBORNE");
 }
 
 // Generate airline traffic
@@ -792,20 +823,50 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Position for airline aircraft - spread them around at higher altitudes
-    positionTy acPos = GenerateVariedPosition(centerPos, 10.0, 50.0); // 10-50nm from user
+    // Determine if this should be a ground or airborne aircraft (30% ground, 70% airborne for airlines)
+    bool generateOnGround = (std::rand() % 100) < 30;
     
-    // Set terrain-safe altitude for airline aircraft
-    XPLMProbeRef tempProbe = nullptr;
-    double terrainElev = GetTerrainElevation(acPos, tempProbe);
-    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    positionTy acPos;
     
-    double baseAltitude = 3000.0 + (std::rand() % 8000); // 3000-11000m for airlines
-    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_AIRLINE);
-    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    if (generateOnGround) {
+        // Generate ground aircraft at airports
+        positionTy airportPos = GetAirportPosition(airport);
+        if (airportPos.isNormal()) {
+            // Position aircraft at or near the airport (airlines need more space)
+            acPos = GenerateVariedPosition(airportPos, 0.2, 3.0); // Within 0.2-3nm of airport
+            
+            // Set ground altitude with terrain elevation
+            XPLMProbeRef tempProbe = nullptr;
+            double terrainElev = GetTerrainElevation(acPos, tempProbe);
+            if (tempProbe) XPLMDestroyProbe(tempProbe);
+            
+            // Set altitude slightly above terrain (ground level)
+            acPos.alt_m() = terrainElev + 8.0; // 8m above ground for larger airline aircraft
+            
+            LOG_MSG(logDEBUG, "Airline ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
+                    terrainElev, acPos.alt_m());
+        } else {
+            // Fallback to airborne if airport position unavailable
+            generateOnGround = false;
+        }
+    }
     
-    LOG_MSG(logDEBUG, "Airline aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
-            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    if (!generateOnGround) {
+        // Position for airline aircraft - spread them around at higher altitudes
+        acPos = GenerateVariedPosition(centerPos, 10.0, 50.0); // 10-50nm from user
+        
+        // Set terrain-safe altitude for airline aircraft
+        XPLMProbeRef tempProbe = nullptr;
+        double terrainElev = GetTerrainElevation(acPos, tempProbe);
+        if (tempProbe) XPLMDestroyProbe(tempProbe);
+        
+        double baseAltitude = 3000.0 + (std::rand() % 8000); // 3000-11000m for airlines
+        double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_AIRLINE);
+        acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+        
+        LOG_MSG(logDEBUG, "Airline airborne aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+                terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    }
     
     // Find a different destination airport for airline traffic
     std::string destinationAirport = "";
@@ -818,8 +879,9 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE, destinationAirport);
     
-    LOG_MSG(logDEBUG, "Generated Airline traffic: %s at %s (%.2f nm from user)", 
-            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
+    LOG_MSG(logDEBUG, "Generated Airline traffic: %s at %s (%.2f nm from user) %s", 
+            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0,
+            generateOnGround ? "ON GROUND" : "AIRBORNE");
 }
 
 // Generate military traffic
@@ -6227,24 +6289,66 @@ std::vector<std::string> SyntheticConnection::GetRealSTARProcedures(const std::s
 // Assign real navigation procedures to aircraft
 void SyntheticConnection::AssignRealNavProcedures(SynDataTy& synData)
 {
-    // Assign SID for departing aircraft
-    if ((synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAKEOFF || synData.state == SYN_STATE_CLIMB) 
-        && !synData.availableSIDs.empty()) {
-        int sidIndex = std::rand() % synData.availableSIDs.size();
-        synData.assignedSID = synData.availableSIDs[sidIndex];
-        synData.usingRealNavData = true;
-        LOG_MSG(logDEBUG, "Assigned SID %s to aircraft %s", 
-                synData.assignedSID.c_str(), synData.stat.call.c_str());
-    }
-    
-    // Assign STAR for arriving aircraft
-    if ((synData.state == SYN_STATE_DESCENT || synData.state == SYN_STATE_APPROACH) 
-        && !synData.availableSTARs.empty()) {
-        int starIndex = std::rand() % synData.availableSTARs.size();
-        synData.assignedSTAR = synData.availableSTARs[starIndex];
-        synData.usingRealNavData = true;
-        LOG_MSG(logDEBUG, "Assigned STAR %s to aircraft %s", 
-                synData.assignedSTAR.c_str(), synData.stat.call.c_str());
+    // Enhanced SID/STAR assignment with better error handling and realistic procedures
+    try {
+        // Only assign procedures for appropriate flight states
+        if (synData.state == SYN_STATE_PARKED || synData.state == SYN_STATE_STARTUP || 
+            synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAKEOFF) {
+            
+            // Assign SID for departing aircraft
+            if (synData.assignedSID.empty()) {
+                // Try to get current airport from position
+                positionTy airportPos = LTAptFindStartupLoc(synData.pos);
+                if (airportPos.isNormal()) {
+                    // Generate realistic SID name based on runway and geographic position
+                    std::string sidName = GenerateRealisticSIDName(synData.assignedRunway, synData.pos);
+                    synData.assignedSID = sidName;
+                    synData.usingRealNavData = true;
+                    
+                    LOG_MSG(logDEBUG, "Assigned SID %s to departing aircraft %s on runway %s", 
+                            sidName.c_str(), synData.stat.call.c_str(), synData.assignedRunway.c_str());
+                } else {
+                    // Fallback SID assignment
+                    synData.assignedSID = "STANDARD" + synData.assignedRunway + "DEP";
+                    synData.usingRealNavData = false;
+                    LOG_MSG(logDEBUG, "Assigned fallback SID %s to aircraft %s", 
+                            synData.assignedSID.c_str(), synData.stat.call.c_str());
+                }
+            }
+        }
+        
+        // Assign STAR for arriving aircraft
+        if ((synData.state == SYN_STATE_DESCENT || synData.state == SYN_STATE_APPROACH) && 
+            synData.assignedSTAR.empty() && !synData.destinationAirport.empty()) {
+            
+            positionTy airportPos = GetAirportPosition(synData.destinationAirport);
+            if (airportPos.isNormal()) {
+                // Generate realistic STAR name for arrival
+                std::string starName = GenerateRealisticSTARName(synData.destinationAirport, synData.pos);
+                synData.assignedSTAR = starName;
+                synData.usingRealNavData = true;
+                
+                LOG_MSG(logDEBUG, "Assigned STAR %s to arriving aircraft %s for airport %s", 
+                        starName.c_str(), synData.stat.call.c_str(), synData.destinationAirport.c_str());
+            } else {
+                // Fallback STAR assignment
+                synData.assignedSTAR = synData.destinationAirport + "STAR1";
+                synData.usingRealNavData = false;
+                LOG_MSG(logDEBUG, "Assigned fallback STAR %s to aircraft %s", 
+                        synData.assignedSTAR.c_str(), synData.stat.call.c_str());
+            }
+        }
+        
+    } catch (...) {
+        LOG_MSG(logWARN, "Exception in SID/STAR assignment for aircraft %s", synData.stat.call.c_str());
+        // Ensure we have fallback assignments
+        if (synData.assignedSID.empty() && !synData.assignedRunway.empty()) {
+            synData.assignedSID = "STANDARD" + synData.assignedRunway + "DEP";
+        }
+        if (synData.assignedSTAR.empty() && !synData.destinationAirport.empty()) {
+            synData.assignedSTAR = synData.destinationAirport + "STAR1";
+        }
+        synData.usingRealNavData = false;
     }
 }
 
