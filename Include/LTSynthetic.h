@@ -437,6 +437,12 @@ public:
     void DebugDynamicDensityCalculation(const positionTy& centerPos);
     bool TestDynamicDensityScenarios();
     
+    /// Traffic generation and CSL model validation methods
+    void ValidateTrafficGenerationSystem();
+    void DebugCSLModelMatching();
+    bool TestTrafficGenerationRates();
+    void CheckForLingeringIssues();
+    
     /// Seasonal and time-based traffic variations
     double CalculateSeasonalFactor(double currentTime);
     double CalculateTimeOfDayFactor(double currentTime);

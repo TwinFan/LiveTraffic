@@ -29,11 +29,22 @@
 // Define whether XPMP2 model enumeration functions are available
 // This can be set by the build system or detected at runtime
 #ifdef XPMP_2_4_OR_LATER
-// #define XPMP_HAS_MODEL_ENUMERATION 1
+// Enable model enumeration for XPMP 2.4 and later versions
+#define XPMP_HAS_MODEL_ENUMERATION 1
 #else
 // For compatibility, assume the functions are not available unless explicitly enabled
 // The functions XPMPGetNumberOfInstalledModels and XPMPGetModelInfo2 may not exist in all XPMP2 versions
+// Uncomment the line below if you have XPMP2 with model enumeration support
 // #define XPMP_HAS_MODEL_ENUMERATION 1
+#endif
+
+// Alternative: Try to detect XPMP2 model enumeration functions at compile time
+// This is more robust than version checking alone
+#ifndef XPMP_HAS_MODEL_ENUMERATION
+    // If we have these function declarations available, enable the feature
+    #ifdef XPMPGetNumberOfInstalledModels
+        #define XPMP_HAS_MODEL_ENUMERATION 1
+    #endif
 #endif
 
 // Windows SAPI includes for Text-to-Speech
@@ -285,6 +296,8 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     static bool hasValidated = false;
     if (!hasValidated && config.enabled) {
         ValidateDynamicDensityConfiguration();
+        ValidateTrafficGenerationSystem();
+        CheckForLingeringIssues();
         hasValidated = true;
     }
     
@@ -8993,6 +9006,249 @@ bool SyntheticConnection::TestDynamicDensityScenarios()
     }
     
     return allTestsPassed;
+}
+
+// Validate traffic generation system and identify potential issues
+void SyntheticConnection::ValidateTrafficGenerationSystem()
+{
+    LOG_MSG(logINFO, "=== Traffic Generation System Validation ===");
+    
+    // Check basic configuration
+    LOG_MSG(logINFO, "Configuration: Enabled=%s, MaxAircraft=%d, Types=%u", 
+            config.enabled ? "YES" : "NO", config.maxAircraft, config.trafficTypes);
+    
+    if (!config.enabled) {
+        LOG_MSG(logWARN, "Traffic generation is DISABLED");
+        return;
+    }
+    
+    // Check traffic type configuration
+    if (config.trafficTypes == 0) {
+        LOG_MSG(logERR, "CRITICAL: No traffic types enabled - no aircraft can be generated!");
+        return;
+    }
+    
+    bool hasGA = (config.trafficTypes & SYN_TRAFFIC_GA) != 0;
+    bool hasAirline = (config.trafficTypes & SYN_TRAFFIC_AIRLINE) != 0;
+    bool hasMilitary = (config.trafficTypes & SYN_TRAFFIC_MILITARY) != 0;
+    
+    LOG_MSG(logINFO, "Traffic types enabled: GA=%s, Airline=%s, Military=%s", 
+            hasGA ? "YES" : "NO", hasAirline ? "YES" : "NO", hasMilitary ? "YES" : "NO");
+    
+    // Check density configuration
+    if (config.density <= 0.0f) {
+        LOG_MSG(logERR, "CRITICAL: Traffic density is zero or negative (%.3f) - no aircraft will generate!", config.density);
+    } else if (config.density < 0.1f) {
+        LOG_MSG(logWARN, "Very low traffic density (%.1f%%) - aircraft generation will be rare", config.density * 100.0f);
+    }
+    
+    // Check CSL model availability
+    DebugCSLModelMatching();
+    
+    // Check airport cache for traffic generation
+    InitializeAirportCache();
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "CRITICAL: Airport cache is empty - ground traffic generation will fail!");
+    } else {
+        LOG_MSG(logINFO, "Airport cache: %zu airports available", cachedWorldAirports.size());
+    }
+    
+    // Test traffic generation rates
+    TestTrafficGenerationRates();
+}
+
+// Debug CSL model matching system
+void SyntheticConnection::DebugCSLModelMatching()
+{
+    LOG_MSG(logINFO, "=== CSL Model Matching Debug ===");
+    
+    // Check if XPMP model enumeration is available
+    #ifdef XPMP_HAS_MODEL_ENUMERATION
+        LOG_MSG(logINFO, "XPMP model enumeration: ENABLED (compiled with XPMP_HAS_MODEL_ENUMERATION)");
+    #else
+        LOG_MSG(logWARN, "XPMP model enumeration: DISABLED (XPMP_HAS_MODEL_ENUMERATION not defined)");
+        LOG_MSG(logWARN, "  This will cause synthetic traffic to use fallback models only");
+    #endif
+    
+    // Check CSL model availability by type
+    LOG_MSG(logINFO, "CSL Models available:");
+    LOG_MSG(logINFO, "  GA: %zu models", cslModelsByType[SYN_TRAFFIC_GA].size());
+    LOG_MSG(logINFO, "  Airline: %zu models", cslModelsByType[SYN_TRAFFIC_AIRLINE].size());
+    LOG_MSG(logINFO, "  Military: %zu models", cslModelsByType[SYN_TRAFFIC_MILITARY].size());
+    LOG_MSG(logINFO, "  Total: %zu models", availableCSLModels.size());
+    
+    // Check for critical model shortages
+    if (cslModelsByType[SYN_TRAFFIC_GA].size() == 0 && (config.trafficTypes & SYN_TRAFFIC_GA)) {
+        LOG_MSG(logERR, "CRITICAL: No GA CSL models available but GA traffic is enabled!");
+    }
+    if (cslModelsByType[SYN_TRAFFIC_AIRLINE].size() == 0 && (config.trafficTypes & SYN_TRAFFIC_AIRLINE)) {
+        LOG_MSG(logERR, "CRITICAL: No Airline CSL models available but Airline traffic is enabled!");
+    }
+    if (cslModelsByType[SYN_TRAFFIC_MILITARY].size() == 0 && (config.trafficTypes & SYN_TRAFFIC_MILITARY)) {
+        LOG_MSG(logERR, "CRITICAL: No Military CSL models available but Military traffic is enabled!");
+    }
+    
+    // Test model selection for each traffic type
+    positionTy testPos(40.7128, -74.0060, 0.0, std::time(nullptr)); // NYC
+    
+    if (config.trafficTypes & SYN_TRAFFIC_GA) {
+        std::string gaModel = SelectCSLModelForAircraft(SYN_TRAFFIC_GA, "country:US");
+        if (gaModel.empty()) {
+            LOG_MSG(logWARN, "GA model selection test: FAILED - no model selected");
+        } else {
+            LOG_MSG(logINFO, "GA model selection test: SUCCESS - selected '%s'", gaModel.c_str());
+        }
+    }
+    
+    if (config.trafficTypes & SYN_TRAFFIC_AIRLINE) {
+        std::string airlineModel = SelectCSLModelForAircraft(SYN_TRAFFIC_AIRLINE, "KJFK-KLAX");
+        if (airlineModel.empty()) {
+            LOG_MSG(logWARN, "Airline model selection test: FAILED - no model selected");
+        } else {
+            LOG_MSG(logINFO, "Airline model selection test: SUCCESS - selected '%s'", airlineModel.c_str());
+        }
+    }
+    
+    if (config.trafficTypes & SYN_TRAFFIC_MILITARY) {
+        std::string militaryModel = SelectCSLModelForAircraft(SYN_TRAFFIC_MILITARY, "");
+        if (militaryModel.empty()) {
+            LOG_MSG(logWARN, "Military model selection test: FAILED - no model selected");
+        } else {
+            LOG_MSG(logINFO, "Military model selection test: SUCCESS - selected '%s'", militaryModel.c_str());
+        }
+    }
+}
+
+// Test traffic generation rates and patterns
+bool SyntheticConnection::TestTrafficGenerationRates()
+{
+    LOG_MSG(logINFO, "=== Traffic Generation Rate Testing ===");
+    
+    // Check current aircraft count vs maximum
+    size_t currentAircraft = mapSynData.size();
+    LOG_MSG(logINFO, "Current aircraft: %zu/%d (%.1f%% of maximum)", 
+            currentAircraft, config.maxAircraft, 
+            (double)currentAircraft / config.maxAircraft * 100.0);
+    
+    // Test density factor calculation
+    positionTy testPos = dataRefs.GetViewPos();
+    if (testPos.isNormal()) {
+        float effectiveDensity = GetEffectiveDensity(testPos);
+        LOG_MSG(logINFO, "Effective density at current position: %.1f%%", effectiveDensity * 100.0f);
+        
+        // Simulate density roll
+        double densityRoll = 0.5; // Mid-range test
+        bool shouldGenerate = densityRoll <= effectiveDensity;
+        LOG_MSG(logINFO, "Density test (roll=%.3f vs density=%.3f): %s", 
+                densityRoll, effectiveDensity, shouldGenerate ? "PASS" : "BLOCK");
+        
+        if (effectiveDensity < 0.01f) {
+            LOG_MSG(logWARN, "Very low effective density - traffic generation will be blocked");
+            return false;
+        }
+    } else {
+        LOG_MSG(logWARN, "Invalid user position - cannot test density calculation");
+        return false;
+    }
+    
+    // Check for traffic generation blockers
+    if (currentAircraft >= static_cast<size_t>(config.maxAircraft)) {
+        LOG_MSG(logINFO, "Traffic generation blocked: At maximum capacity");
+        return false;
+    }
+    
+    // Test airport availability for different traffic types
+    std::vector<std::string> nearbyAirports = FindNearbyAirports(testPos, 25.0);
+    LOG_MSG(logINFO, "Nearby airports for traffic generation: %zu", nearbyAirports.size());
+    
+    if (nearbyAirports.empty()) {
+        LOG_MSG(logWARN, "No nearby airports found - ground traffic generation may be limited");
+    }
+    
+    return true;
+}
+
+// Check for lingering issues in the synthetic traffic system
+void SyntheticConnection::CheckForLingeringIssues()
+{
+    LOG_MSG(logINFO, "=== Checking for Lingering Issues ===");
+    
+    // Check for aircraft with problematic states
+    int problematicAircraft = 0;
+    int stuckAircraft = 0;
+    int invalidAircraft = 0;
+    
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& synData = pair.second;
+        
+        // Check for invalid call signs
+        if (synData.stat.call.empty()) {
+            invalidAircraft++;
+            LOG_MSG(logWARN, "Found aircraft with empty call sign");
+        }
+        
+        // Check for invalid positions
+        if (!synData.pos.isNormal()) {
+            invalidAircraft++;
+            LOG_MSG(logWARN, "Found aircraft %s with invalid position", synData.stat.call.c_str());
+        }
+        
+        // Check for stuck ground aircraft
+        if (synData.pos.f.onGrnd == GND_ON && 
+            (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) &&
+            synData.targetSpeed < 0.1) {
+            stuckAircraft++;
+            LOG_MSG(logWARN, "Found stuck ground aircraft: %s (state=%d, speed=%.1f)", 
+                    synData.stat.call.c_str(), synData.state, synData.targetSpeed);
+        }
+        
+        // Check for aircraft with invalid ICAO types
+        if (synData.stat.acTypeIcao.empty() || synData.stat.acTypeIcao.length() < 3) {
+            problematicAircraft++;
+            LOG_MSG(logWARN, "Aircraft %s has invalid ICAO type: '%s'", 
+                    synData.stat.call.c_str(), synData.stat.acTypeIcao.c_str());
+        }
+        
+        // Check for very old aircraft that might be lingering
+        double currentTime = std::time(nullptr);
+        if (currentTime - synData.stateChangeTime > 3600.0) { // More than 1 hour in same state
+            problematicAircraft++;
+            LOG_MSG(logWARN, "Aircraft %s has been in state %d for %.0f minutes", 
+                    synData.stat.call.c_str(), synData.state, (currentTime - synData.stateChangeTime) / 60.0);
+        }
+    }
+    
+    LOG_MSG(logINFO, "Issue Summary:");
+    LOG_MSG(logINFO, "  Invalid aircraft: %d", invalidAircraft);
+    LOG_MSG(logINFO, "  Stuck aircraft: %d", stuckAircraft);
+    LOG_MSG(logINFO, "  Problematic aircraft: %d", problematicAircraft);
+    LOG_MSG(logINFO, "  Total aircraft checked: %zu", mapSynData.size());
+    
+    if (invalidAircraft > 0) {
+        LOG_MSG(logWARN, "Found %d invalid aircraft - they should be removed automatically", invalidAircraft);
+    }
+    
+    if (stuckAircraft > 0) {
+        LOG_MSG(logWARN, "Found %d stuck ground aircraft - ground movement debugging is active", stuckAircraft);
+    }
+    
+    if (problematicAircraft > 0) {
+        LOG_MSG(logWARN, "Found %d problematic aircraft - monitor for proper state transitions", problematicAircraft);
+    }
+    
+    // Check CSL model compilation define
+    #ifndef XPMP_HAS_MODEL_ENUMERATION
+        LOG_MSG(logWARN, "LINGERING ISSUE: XPMP_HAS_MODEL_ENUMERATION not defined");
+        LOG_MSG(logWARN, "  This may prevent access to installed CSL models, causing fallback-only operation");
+        LOG_MSG(logWARN, "  Consider defining XPMP_HAS_MODEL_ENUMERATION in build configuration");
+    #endif
+    
+    // Check for empty airport cache
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "LINGERING ISSUE: Airport cache is empty");
+        LOG_MSG(logERR, "  This will prevent proper ground traffic generation");
+        LOG_MSG(logERR, "  Check X-Plane navigation database access");
+    }
 }
 
 // Generate realistic SID name based on runway and position
