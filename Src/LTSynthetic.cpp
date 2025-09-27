@@ -4010,11 +4010,10 @@ std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positi
                 }
             }
             
-            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
-            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
-            
-            waypoint.lat() = airportPos.lat() + lat_offset;
-            waypoint.lon() = airportPos.lon() + lon_offset;
+            positionTy waypoint;
+            // Use proper coordinate calculation instead of manual trigonometry
+            vectorTy waypointVector(bearing, distance);
+            waypoint = CoordPlusVector(airportPos, waypointVector);
             waypoint.alt_m() = airportPos.alt_m() + i * 500.0;
             
             sidProcedure.push_back(waypoint);
@@ -4150,11 +4149,10 @@ std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const posit
                 }
             }
             
-            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
-            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
-            
-            waypoint.lat() = airportPos.lat() + lat_offset;
-            waypoint.lon() = airportPos.lon() + lon_offset;
+            positionTy waypoint;
+            // Use proper coordinate calculation instead of manual trigonometry
+            vectorTy waypointVector(bearing, distance);
+            waypoint = CoordPlusVector(airportPos, waypointVector);
             waypoint.alt_m() = airportPos.alt_m() + i * 600.0;
             
             starProcedure.push_back(waypoint);
@@ -4868,8 +4866,9 @@ void SyntheticConnection::GenerateDeparturePath(SynDataTy& synData, const positi
                 double bearingVariation = ((std::rand() % 60 - 30) * PI / 180.0); // ±30 degrees in radians
                 double actualBearing = bearing + bearingVariation * (1.0 / i); // Less variation as we progress
                 
-                waypoint.lat() = currentPos.lat() + (distance / 111320.0) * std::cos(actualBearing);
-                waypoint.lon() = currentPos.lon() + (distance / (111320.0 * std::cos(currentPos.lat() * PI / 180.0))) * std::sin(actualBearing);
+                // Use proper coordinate calculation instead of manual trigonometry
+                vectorTy waypointVector(actualBearing, distance);
+                waypoint = CoordPlusVector(currentPos, waypointVector);
                 waypoint.alt_m() = currentPos.alt_m() + (i * 300.0); // Gradual climb
                 
                 synData.flightPath.push_back(waypoint);
@@ -4920,15 +4919,20 @@ void SyntheticConnection::GenerateCruisePath(SynDataTy& synData, const positionT
                 double adjustedBearing = bearing + bearingVariation;
                 
                 positionTy waypoint;
-                // Use bearing-based calculation for more realistic great circle routing
-                waypoint.lat() = currentPos.lat() + (waypointDistance * std::cos(adjustedBearing)) / 111320.0;
-                waypoint.lon() = currentPos.lon() + (waypointDistance * std::sin(adjustedBearing)) / (111320.0 * std::cos(currentPos.lat() * PI / 180.0));
+                // Use proper coordinate calculation instead of manual trigonometry
+                vectorTy waypointVector(adjustedBearing, waypointDistance);
+                waypoint = CoordPlusVector(currentPos, waypointVector);
                 waypoint.alt_m() = synData.targetAltitude; // Maintain cruise altitude
                 
                 // Add slight random variation to simulate realistic airways (±5nm)
                 double variation = 9260.0; // ~5nm in meters
-                waypoint.lat() += ((std::rand() % 200 - 100) / 100.0) * (variation / 111320.0); // Convert to degrees
-                waypoint.lon() += ((std::rand() % 200 - 100) / 100.0) * (variation / (111320.0 * std::cos(waypoint.lat() * PI / 180.0)));
+                double varyLat = ((std::rand() % 200 - 100) / 100.0) * variation;
+                double varyLon = ((std::rand() % 200 - 100) / 100.0) * variation;
+                if (varyLat != 0 || varyLon != 0) {
+                    vectorTy variationVector(std::atan2(varyLon, varyLat) * 180.0 / PI, 
+                                           std::sqrt(varyLat*varyLat + varyLon*varyLon));
+                    waypoint = CoordPlusVector(waypoint, variationVector);
+                }
                 
                 synData.flightPath.push_back(waypoint);
             }
@@ -5028,15 +5032,20 @@ void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy
                 double waypointDistance = distance * fraction;
                 
                 positionTy waypoint;
-                // Use bearing-based calculation for more accurate navigation
-                waypoint.lat() = currentPos.lat() + (waypointDistance * std::cos(bearing)) / 111320.0;
-                waypoint.lon() = currentPos.lon() + (waypointDistance * std::sin(bearing)) / (111320.0 * std::cos(currentPos.lat() * PI / 180.0));
+                // Use proper coordinate calculation instead of manual trigonometry
+                vectorTy waypointVector(bearing, waypointDistance);
+                waypoint = CoordPlusVector(currentPos, waypointVector);
                 waypoint.alt_m() = currentPos.alt_m(); // Maintain current altitude
                 
                 // Add slight variation to simulate realistic navigation (±2nm)
                 double variation = 3704.0; // ~2nm in meters
-                waypoint.lat() += ((std::rand() % 100 - 50) / 100.0) * (variation / 111320.0);
-                waypoint.lon() += ((std::rand() % 100 - 50) / 100.0) * (variation / (111320.0 * std::cos(waypoint.lat() * PI / 180.0)));
+                double varyLat = ((std::rand() % 100 - 50) / 100.0) * variation;
+                double varyLon = ((std::rand() % 100 - 50) / 100.0) * variation;
+                if (varyLat != 0 || varyLon != 0) {
+                    vectorTy variationVector(std::atan2(varyLon, varyLat) * 180.0 / PI, 
+                                           std::sqrt(varyLat*varyLat + varyLon*varyLon));
+                    waypoint = CoordPlusVector(waypoint, variationVector);
+                }
                 
                 synData.flightPath.push_back(waypoint);
             }
