@@ -162,6 +162,24 @@ const TTSManager::VoiceSettings TTSManager::militaryVoice = { 1, 90, -2 };  // F
 #endif // IBM
 
 //
+// MARK: Forward declarations for airport cache
+//
+
+/// @brief Structure to hold airport data from X-Plane navigation database
+struct AirportData {
+    std::string icao;   ///< ICAO airport code
+    std::string name;   ///< Airport name
+    double lat;         ///< Latitude in degrees
+    double lon;         ///< Longitude in degrees
+};
+
+/// @brief Global cache of airports loaded from X-Plane navigation database
+extern std::vector<AirportData> cachedWorldAirports;
+
+/// @brief Initialize the airport cache using X-Plane's navigation database
+void InitializeAirportCache();
+
+//
 // MARK: SyntheticConnection
 //
 
@@ -1994,15 +2012,9 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
 
 /// @brief Cache for airport data to avoid repeated X-Plane API calls
 /// @note Uses X-Plane's navigation database to get all airports dynamically
-struct AirportData {
-    std::string icao;   ///< ICAO airport code
-    std::string name;   ///< Airport name
-    double lat;         ///< Latitude in degrees
-    double lon;         ///< Longitude in degrees
-};
 
 /// Global cache of airports loaded from X-Plane navigation database
-static std::vector<AirportData> cachedWorldAirports;
+std::vector<AirportData> cachedWorldAirports;
 /// Flag indicating if the airport cache has been initialized
 static bool airportCacheInitialized = false;
 /// Maximum number of airports to cache for performance reasons
@@ -4107,7 +4119,6 @@ std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positi
                 }
             }
             
-            positionTy waypoint;
             // Use proper coordinate calculation instead of manual trigonometry
             vectorTy waypointVector(bearing, distance);
             waypoint = CoordPlusVector(airportPos, waypointVector);
@@ -4246,7 +4257,6 @@ std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const posit
                 }
             }
             
-            positionTy waypoint;
             // Use proper coordinate calculation instead of manual trigonometry
             vectorTy waypointVector(bearing, distance);
             waypoint = CoordPlusVector(airportPos, waypointVector);
