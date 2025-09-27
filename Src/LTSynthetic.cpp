@@ -1459,6 +1459,18 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
         synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
     }
     
+    // Initialize weather conditions for new aircraft
+    try {
+        GetCurrentWeatherConditions(synData.pos, synData.weatherConditions, 
+                                   synData.weatherVisibility, synData.weatherWindSpeed, 
+                                   synData.weatherWindDirection);
+        synData.lastWeatherCheck = std::time(nullptr);
+        LOG_MSG(logDEBUG, "Initialized weather for aircraft %s: %s, visibility %.0fm", 
+                synData.stat.call.c_str(), synData.weatherConditions.c_str(), synData.weatherVisibility);
+    } catch (...) {
+        LOG_MSG(logWARN, "Failed to initialize weather conditions for aircraft %s", synData.stat.call.c_str());
+    }
+    
     return true;
 }
 
@@ -6113,6 +6125,18 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
             freqType = "center";
             break;
             
+        case SYN_STATE_MISSED_APPROACH:
+        case SYN_STATE_GO_AROUND:
+            // Go-around procedures typically use tower frequency for immediate coordination
+            if (minDistance < 10.0) {
+                newFreq = 118.1; // Tower frequency for go-around coordination
+                freqType = "tower";
+            } else {
+                newFreq = 119.1; // Approach frequency for sequencing
+                freqType = "approach";
+            }
+            break;
+            
         default:
             newFreq = 121.5; // UNICOM
             freqType = "unicom";
@@ -6953,10 +6977,10 @@ bool SyntheticConnection::ShouldExecuteGoAround(const SynDataTy& synData, double
     }
     
     // Additional factors for go-around decision
-    // Low visibility during final approach
-    if (synData.state == SYN_STATE_FINAL && synData.weatherVisibility < 800.0) { // Less than 1/2 mile visibility
+    // Low visibility during approach or final approach
+    if ((synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_FINAL) && synData.weatherVisibility < 800.0) { // Less than 1/2 mile visibility
         if ((std::rand() % 100) < 40) { // 40% chance
-            LOG_MSG(logINFO, "Aircraft %s executing go-around due to low visibility on final: %.0fm", 
+            LOG_MSG(logINFO, "Aircraft %s executing go-around due to low visibility: %.0fm", 
                     synData.stat.call.c_str(), synData.weatherVisibility);
             return true;
         }
