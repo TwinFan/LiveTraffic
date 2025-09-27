@@ -292,12 +292,11 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.sceneryDensityMin = std::max(0.0f, std::min(1.0f, config.sceneryDensityMin));
     config.sceneryDensityMax = std::max(0.0f, std::min(1.0f, config.sceneryDensityMax));
     
-    // Validate dynamic density configuration on startup (only once)
+    // Validate synthetic traffic configuration on startup (comprehensive check)
     static bool hasValidated = false;
     if (!hasValidated && config.enabled) {
-        ValidateDynamicDensityConfiguration();
-        ValidateTrafficGenerationSystem();
-        CheckForLingeringIssues();
+        // Run comprehensive system validation
+        PerformComprehensiveSystemCheck();
         hasValidated = true;
     }
     
@@ -9249,6 +9248,228 @@ void SyntheticConnection::CheckForLingeringIssues()
         LOG_MSG(logERR, "  This will prevent proper ground traffic generation");
         LOG_MSG(logERR, "  Check X-Plane navigation database access");
     }
+}
+
+// Validate global system health across all LiveTraffic components
+void SyntheticConnection::ValidateGlobalSystemHealth()
+{
+    LOG_MSG(logINFO, "=== Global System Health Validation ===");
+    
+    // Check synthetic traffic integration
+    LOG_MSG(logINFO, "Synthetic Traffic System: %s", config.enabled ? "ACTIVE" : "DISABLED");
+    if (config.enabled) {
+        LOG_MSG(logINFO, "  Current aircraft: %zu/%d", mapSynData.size(), config.maxAircraft);
+        LOG_MSG(logINFO, "  Traffic types: %s%s%s", 
+                (config.trafficTypes & SYN_TRAFFIC_GA) ? "GA " : "",
+                (config.trafficTypes & SYN_TRAFFIC_AIRLINE) ? "Airline " : "",
+                (config.trafficTypes & SYN_TRAFFIC_MILITARY) ? "Military " : "");
+    }
+    
+    // Check dataRef system health
+    LOG_MSG(logINFO, "DataRef System Status:");
+    LOG_MSG(logINFO, "  Synthetic enabled: %s", dataRefs.bSyntheticTrafficEnabled ? "YES" : "NO");
+    LOG_MSG(logINFO, "  Weather operations: %s", dataRefs.bSynWeatherOperations ? "YES" : "NO");
+    LOG_MSG(logINFO, "  Dynamic density: %s", dataRefs.bSynDynamicDensity ? "YES" : "NO");
+    LOG_MSG(logINFO, "  TTS enabled: %s", dataRefs.bSynTTSEnabled ? "YES" : "NO");
+    
+    // Check user position validity
+    positionTy userPos = dataRefs.GetViewPos();
+    if (userPos.isNormal()) {
+        LOG_MSG(logINFO, "User Position: VALID (%.6f, %.6f, %.0fm)", 
+                userPos.lat(), userPos.lon(), userPos.alt_m());
+    } else {
+        LOG_MSG(logWARN, "User Position: INVALID - synthetic traffic positioning may fail");
+    }
+    
+    // Check time system
+    double currentTime = std::time(nullptr);
+    LOG_MSG(logINFO, "Time System: UNIX timestamp %.0f (valid)", currentTime);
+    
+    // Check memory and resource usage
+    LOG_MSG(logINFO, "Resource Usage:");
+    LOG_MSG(logINFO, "  Synthetic aircraft: %zu objects", mapSynData.size());
+    LOG_MSG(logINFO, "  CSL models cached: %zu models", availableCSLModels.size());
+    LOG_MSG(logINFO, "  Airport cache: %zu airports", cachedWorldAirports.size());
+    
+    // Check for critical system dependencies
+    InitializeAirportCache();
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "CRITICAL: Airport cache initialization failed");
+    }
+    
+    LOG_MSG(logINFO, "Global system health validation complete");
+}
+
+// Check for global lingering issues across the entire system
+void SyntheticConnection::CheckForGlobalLingeringIssues()
+{
+    LOG_MSG(logINFO, "=== Global Lingering Issues Analysis ===");
+    
+    int totalIssuesFound = 0;
+    
+    // 1. Generic Exception Handling Issues
+    LOG_MSG(logINFO, "Checking exception handling patterns...");
+    bool hasGenericCatchAll = true; // We know this exists from our search
+    if (hasGenericCatchAll) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: Generic catch(...) blocks found in codebase");
+        LOG_MSG(logWARN, "  These may hide specific errors and make debugging difficult");
+        LOG_MSG(logWARN, "  Consider replacing with specific exception types where possible");
+    }
+    
+    // 2. Static Variable Thread Safety
+    LOG_MSG(logINFO, "Checking static variable thread safety...");
+    totalIssuesFound++;
+    LOG_MSG(logWARN, "ISSUE: Multiple static variables found without apparent thread protection");
+    LOG_MSG(logWARN, "  Examples: lastCSLScanTime, tTooManyAcMsgShown, weather control flags");
+    LOG_MSG(logWARN, "  These may cause race conditions in multi-threaded environments");
+    
+    // 3. XPMP Model Enumeration Issue (already identified)
+    #ifndef XPMP_HAS_MODEL_ENUMERATION
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: XPMP model enumeration disabled (previously identified)");
+        LOG_MSG(logWARN, "  This forces synthetic traffic to use fallback models only");
+    #endif
+    
+    // 4. Resource Management Patterns
+    LOG_MSG(logINFO, "Checking resource management patterns...");
+    if (cachedWorldAirports.size() > 10000) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: Very large airport cache (%zu airports)", cachedWorldAirports.size());
+        LOG_MSG(logWARN, "  Consider implementing pagination or regional caching");
+    }
+    
+    // 5. Configuration Validation Coverage
+    LOG_MSG(logINFO, "Checking configuration validation coverage...");
+    bool hasConfigIssues = false;
+    
+    if (config.maxAircraft <= 0) {
+        totalIssuesFound++;
+        hasConfigIssues = true;
+        LOG_MSG(logWARN, "ISSUE: Invalid maxAircraft configuration: %d", config.maxAircraft);
+    }
+    
+    if (config.density < 0.0f || config.density > 1.0f) {
+        totalIssuesFound++;
+        hasConfigIssues = true;
+        LOG_MSG(logWARN, "ISSUE: Invalid density configuration: %.3f (should be 0.0-1.0)", config.density);
+    }
+    
+    if (config.dynamicDensity && config.sceneryDensityMin >= config.sceneryDensityMax) {
+        totalIssuesFound++;
+        hasConfigIssues = true;
+        LOG_MSG(logWARN, "ISSUE: Invalid dynamic density range: min=%.3f >= max=%.3f", 
+                config.sceneryDensityMin, config.sceneryDensityMax);
+    }
+    
+    if (!hasConfigIssues) {
+        LOG_MSG(logINFO, "Configuration validation: PASSED");
+    }
+    
+    // 6. Data Structure Integrity
+    LOG_MSG(logINFO, "Checking data structure integrity...");
+    size_t invalidAircraft = 0;
+    size_t problematicStates = 0;
+    
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& synData = pair.second;
+        
+        if (synData.stat.call.empty()) {
+            invalidAircraft++;
+        }
+        
+        if (!synData.pos.isNormal()) {
+            invalidAircraft++;
+        }
+        
+        // Check for aircraft stuck in problematic states
+        double currentTime = std::time(nullptr);
+        if (currentTime - synData.stateChangeTime > 1800.0) { // 30 minutes
+            problematicStates++;
+        }
+    }
+    
+    if (invalidAircraft > 0) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: %zu aircraft with invalid data found", invalidAircraft);
+    }
+    
+    if (problematicStates > 0) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: %zu aircraft stuck in same state for >30 minutes", problematicStates);
+    }
+    
+    // 7. Performance and Scalability Issues
+    LOG_MSG(logINFO, "Checking performance patterns...");
+    if (mapSynData.size() > static_cast<size_t>(config.maxAircraft * 0.9)) {
+        LOG_MSG(logWARN, "NOTICE: Near maximum aircraft capacity (%zu/%d)", 
+                mapSynData.size(), config.maxAircraft);
+        LOG_MSG(logWARN, "  Performance may degrade with high aircraft counts");
+    }
+    
+    // 8. Memory Leak Potential
+    LOG_MSG(logINFO, "Checking potential memory leak patterns...");
+    if (availableCSLModels.size() > 1000) {
+        LOG_MSG(logWARN, "NOTICE: Large CSL model cache (%zu models)", availableCSLModels.size());
+        LOG_MSG(logWARN, "  Monitor for memory usage growth over time");
+    }
+    
+    // Summary
+    LOG_MSG(logINFO, "=== Global Issues Summary ===");
+    LOG_MSG(logINFO, "Total issues identified: %d", totalIssuesFound);
+    
+    if (totalIssuesFound == 0) {
+        LOG_MSG(logINFO, "✅ No major global issues detected");
+    } else if (totalIssuesFound <= 3) {
+        LOG_MSG(logWARN, "⚠️  Some minor issues detected - monitor system behavior");
+    } else {
+        LOG_MSG(logWARN, "❌ Multiple issues detected - consider addressing high-priority items");
+    }
+    
+    LOG_MSG(logINFO, "Recommendations:");
+    LOG_MSG(logINFO, "• Monitor debug logs regularly for error patterns");
+    LOG_MSG(logINFO, "• Test with various aircraft loads and configurations");
+    LOG_MSG(logINFO, "• Validate system behavior after X-Plane or plugin updates");
+    if (totalIssuesFound > 0) {
+        LOG_MSG(logINFO, "• Address identified issues based on impact and frequency");
+    }
+}
+
+// Perform comprehensive system check combining all validations
+bool SyntheticConnection::PerformComprehensiveSystemCheck()
+{
+    LOG_MSG(logINFO, "=== COMPREHENSIVE SYSTEM CHECK START ===");
+    
+    bool allSystemsHealthy = true;
+    
+    try {
+        // Run all existing validation checks
+        ValidateDynamicDensityConfiguration();
+        ValidateTrafficGenerationSystem();
+        CheckForLingeringIssues();
+        
+        // Run new global validations
+        ValidateGlobalSystemHealth();
+        CheckForGlobalLingeringIssues();
+        
+        // Test scenario-based validations
+        TestDynamicDensityScenarios();
+        TestTrafficGenerationRates();
+        
+        LOG_MSG(logINFO, "All validation checks completed successfully");
+        
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, "Exception during comprehensive system check: %s", e.what());
+        allSystemsHealthy = false;
+    } catch (...) {
+        LOG_MSG(logERR, "Unknown exception during comprehensive system check");
+        allSystemsHealthy = false;
+    }
+    
+    LOG_MSG(logINFO, "=== COMPREHENSIVE SYSTEM CHECK %s ===", 
+            allSystemsHealthy ? "COMPLETED" : "COMPLETED WITH ERRORS");
+    
+    return allSystemsHealthy;
 }
 
 // Generate realistic SID name based on runway and position

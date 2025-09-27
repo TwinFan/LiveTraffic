@@ -443,6 +443,11 @@ public:
     bool TestTrafficGenerationRates();
     void CheckForLingeringIssues();
     
+    /// Global system validation methods
+    void ValidateGlobalSystemHealth();
+    void CheckForGlobalLingeringIssues();
+    bool PerformComprehensiveSystemCheck();
+    
     /// Seasonal and time-based traffic variations
     double CalculateSeasonalFactor(double currentTime);
     double CalculateTimeOfDayFactor(double currentTime);
