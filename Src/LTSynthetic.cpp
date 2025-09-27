@@ -1897,10 +1897,14 @@ void InitializeAirportCache()
         // Only include airports with valid ICAO codes (3-4 characters) and reasonable coordinates
         std::string icao(airportID);
         std::string name(airportName);
+        
+        // Normalize ICAO code to uppercase for consistent matching
+        std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
+        
         if (!icao.empty() && icao.length() >= 3 && icao.length() <= 4 && 
             std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
             AirportData airport;
-            airport.icao = icao;
+            airport.icao = icao;  // Now stored in uppercase
             airport.name = name;
             airport.lat = lat;
             airport.lon = lon;
@@ -1987,18 +1991,27 @@ positionTy SyntheticConnection::GetAirportPosition(const std::string& icaoCode)
     // Initialize airport cache if needed
     InitializeAirportCache();
     
-    // Search for the airport in the cache
+    // Convert search ICAO to uppercase for consistent matching
+    std::string searchIcao = icaoCode;
+    std::transform(searchIcao.begin(), searchIcao.end(), searchIcao.begin(), ::toupper);
+    
+    // Search for the airport in the cache (now using consistent uppercase comparison)
     for (const auto& airport : cachedWorldAirports) {
-        if (airport.icao == icaoCode) {
-            positionTy pos;
-            pos.lat() = airport.lat;
-            pos.lon() = airport.lon;
-            pos.alt_m() = 0.0; // Will be updated with actual elevation later
+        if (airport.icao == searchIcao) {  // Both are uppercase now
+            positionTy pos(airport.lat, airport.lon, 0.0, // lat, lon, alt_m (will be updated with actual elevation later)
+                          std::time(nullptr),             // current timestamp
+                          NAN,                            // heading (unknown)
+                          NAN, NAN,                       // pitch, roll (unknown) 
+                          GND_ON);                        // on ground for airport positions
+            
+            LOG_MSG(logDEBUG, "Found airport %s at position lat=%.6f, lon=%.6f", 
+                    icaoCode.c_str(), airport.lat, airport.lon);
             return pos;
         }
     }
     
     // If not found in cache, return invalid position
+    LOG_MSG(logDEBUG, "Airport %s not found in cache", icaoCode.c_str());
     return positionTy();
 }
 
