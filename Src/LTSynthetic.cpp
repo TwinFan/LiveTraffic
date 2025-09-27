@@ -4638,7 +4638,12 @@ double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, Syn
     
     // Adjust for flight state
     switch (state) {
-        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_TAKEOFF_ROLL:
+        case SYN_STATE_ROTATE:
+            baseTolerance = 200.0; // Very tight tolerance on runway
+            break;
+        case SYN_STATE_LIFT_OFF:
+        case SYN_STATE_INITIAL_CLIMB:
         case SYN_STATE_CLIMB:
             baseTolerance = 800.0; // Larger tolerance during climb
             break;
@@ -4650,8 +4655,15 @@ double SyntheticConnection::GetWaypointTolerance(SyntheticFlightState state, Syn
             baseTolerance = 600.0; // Moderate tolerance during descent
             break;
         case SYN_STATE_APPROACH:
-        case SYN_STATE_LANDING:
-            baseTolerance = 300.0; // Tight tolerance for precision approach
+            baseTolerance = 400.0; // Tighter tolerance on approach
+            break;
+        case SYN_STATE_FINAL:
+        case SYN_STATE_FLARE:
+        case SYN_STATE_TOUCH_DOWN:
+            baseTolerance = 200.0; // Very tight tolerance for precision approach
+            break;
+        case SYN_STATE_ROLL_OUT:
+            baseTolerance = 150.0; // Very tight tolerance on runway
             break;
         case SYN_STATE_PARKED:
         case SYN_STATE_STARTUP:
@@ -4710,12 +4722,19 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
     
     // Adjust for flight state
     switch (synData.state) {
-        case SYN_STATE_TAKEOFF:
+        case SYN_STATE_TAKEOFF_ROLL:
+        case SYN_STATE_ROTATE:
+            baseTurnRate *= 0.1; // Minimal turns on runway
+            break;
+        case SYN_STATE_LIFT_OFF:
+        case SYN_STATE_INITIAL_CLIMB:
         case SYN_STATE_CLIMB:
             baseTurnRate *= 0.7; // Slower turns during climb
             break;
         case SYN_STATE_APPROACH:
-        case SYN_STATE_LANDING:
+        case SYN_STATE_FINAL:
+        case SYN_STATE_FLARE:
+        case SYN_STATE_TOUCH_DOWN:
             baseTurnRate *= 0.5; // Very slow turns on approach
             break;
         case SYN_STATE_CRUISE:
@@ -4729,6 +4748,7 @@ double SyntheticConnection::GetRealisticTurnRate(const SynDataTy& synData)
         case SYN_STATE_STARTUP:
         case SYN_STATE_TAXI_OUT:
         case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_ROLL_OUT:
         case SYN_STATE_TAXI_IN:
         case SYN_STATE_SHUTDOWN:
         default:
@@ -5302,14 +5322,18 @@ double SyntheticConnection::GetRequiredTerrainClearance(SyntheticFlightState sta
             
         case SYN_STATE_TAXI_OUT:
         case SYN_STATE_TAXI_IN:
+        case SYN_STATE_ROLL_OUT:
             return 10.0; // Minimal clearance for taxiing
             
         case SYN_STATE_LINE_UP_WAIT:
+        case SYN_STATE_TAKEOFF_ROLL:
+        case SYN_STATE_ROTATE:
             return 10.0; // Minimal clearance on runway
             
-        case SYN_STATE_TAKEOFF:
-            return std::max(50.0, baseClearance * 0.3); // Lower during takeoff
+        case SYN_STATE_LIFT_OFF:
+            return std::max(30.0, baseClearance * 0.2); // Lower during liftoff
             
+        case SYN_STATE_INITIAL_CLIMB:
         case SYN_STATE_CLIMB:
             return baseClearance * 1.2; // Extra clearance while climbing
             
@@ -5325,7 +5349,13 @@ double SyntheticConnection::GetRequiredTerrainClearance(SyntheticFlightState sta
         case SYN_STATE_APPROACH:
             return std::max(150.0, baseClearance * 0.6); // Reduced for approach but still safe
             
-        case SYN_STATE_LANDING:
+        case SYN_STATE_FINAL:
+            return std::max(100.0, baseClearance * 0.4); // Lower for final approach
+            
+        case SYN_STATE_FLARE:
+            return 50.0; // Very low clearance for flare
+            
+        case SYN_STATE_TOUCH_DOWN:
             return 30.0; // Minimal safe clearance for landing
             
         default:
@@ -5685,8 +5715,12 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
             break;
             
         case SYN_STATE_LINE_UP_WAIT:
-        case SYN_STATE_TAKEOFF:
-        case SYN_STATE_LANDING:
+        case SYN_STATE_TAKEOFF_ROLL:
+        case SYN_STATE_ROTATE:
+        case SYN_STATE_LIFT_OFF:
+        case SYN_STATE_FINAL:
+        case SYN_STATE_FLARE:
+        case SYN_STATE_TOUCH_DOWN:
             if (minDistance < 5.0) {
                 newFreq = 118.1; // Tower frequency
                 freqType = "tower";
@@ -6479,7 +6513,8 @@ void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, do
         synData.targetSpeed *= 0.8;
         
         // Delay operations based on current time and weather severity
-        if (synData.state == SYN_STATE_TAKEOFF || synData.state == SYN_STATE_APPROACH) {
+        if ((synData.state == SYN_STATE_TAKEOFF_ROLL || synData.state == SYN_STATE_ROTATE || 
+             synData.state == SYN_STATE_LIFT_OFF) || synData.state == SYN_STATE_APPROACH) {
             double weatherDelay = 60.0 + (std::rand() % 300); // 1-6 minutes base delay
             
             // Increase delays during peak hours (morning/evening rush)
@@ -6679,7 +6714,8 @@ void SyntheticConnection::AssignRealNavProcedures(SynDataTy& synData)
     try {
         // Only assign procedures for appropriate flight states
         if (synData.state == SYN_STATE_PARKED || synData.state == SYN_STATE_STARTUP || 
-            synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAKEOFF) {
+            synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAKEOFF_ROLL || 
+            synData.state == SYN_STATE_ROTATE || synData.state == SYN_STATE_LIFT_OFF) {
             
             // Assign SID for departing aircraft
             if (synData.assignedSID.empty()) {
