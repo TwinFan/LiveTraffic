@@ -900,10 +900,22 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     // Find a different destination airport for the aircraft
     std::string destinationAirport = "";
     if (!airports.empty() && airports.size() > 1) {
-        // Choose a different airport as destination
+        // Choose a different airport as destination and validate it exists
+        int attempts = 0;
+        const int maxAttempts = 5;
         do {
             destinationAirport = airports[std::rand() % airports.size()];
-        } while (destinationAirport == airport && airports.size() > 1);
+            attempts++;
+        } while (destinationAirport == airport && airports.size() > 1 && attempts < maxAttempts);
+        
+        // Validate that the destination airport actually exists
+        if (!destinationAirport.empty()) {
+            positionTy destPos = GetAirportPosition(destinationAirport);
+            if (!destPos.isNormal()) {
+                LOG_MSG(logWARN, "Destination airport %s selected but position unavailable, clearing destination", destinationAirport.c_str());
+                destinationAirport = ""; // Clear invalid destination
+            }
+        }
     }
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA, destinationAirport);
@@ -995,10 +1007,22 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     // Find a different destination airport for airline traffic
     std::string destinationAirport = "";
     if (!airports.empty() && airports.size() > 1) {
-        // Choose a different airport as destination
+        // Choose a different airport as destination and validate it exists
+        int attempts = 0;
+        const int maxAttempts = 5;
         do {
             destinationAirport = airports[std::rand() % airports.size()];
-        } while (destinationAirport == airport && airports.size() > 1);
+            attempts++;
+        } while (destinationAirport == airport && airports.size() > 1 && attempts < maxAttempts);
+        
+        // Validate that the destination airport actually exists
+        if (!destinationAirport.empty()) {
+            positionTy destPos = GetAirportPosition(destinationAirport);
+            if (!destPos.isNormal()) {
+                LOG_MSG(logWARN, "Destination airport %s selected but position unavailable, clearing destination", destinationAirport.c_str());
+                destinationAirport = ""; // Clear invalid destination
+            }
+        }
     }
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE, destinationAirport);
@@ -1093,10 +1117,22 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     // Find a different destination airport for military traffic
     std::string destinationAirport = "";
     if (!militaryAirports.empty() && militaryAirports.size() > 1) {
-        // Choose a different airport as destination
+        // Choose a different airport as destination and validate it exists
+        int attempts = 0;
+        const int maxAttempts = 5;
         do {
             destinationAirport = militaryAirports[std::rand() % militaryAirports.size()];
-        } while (destinationAirport == airport && militaryAirports.size() > 1);
+            attempts++;
+        } while (destinationAirport == airport && militaryAirports.size() > 1 && attempts < maxAttempts);
+        
+        // Validate that the destination airport actually exists
+        if (!destinationAirport.empty()) {
+            positionTy destPos = GetAirportPosition(destinationAirport);
+            if (!destPos.isNormal()) {
+                LOG_MSG(logWARN, "Destination airport %s selected but position unavailable, clearing destination", destinationAirport.c_str());
+                destinationAirport = ""; // Clear invalid destination
+            }
+        }
     }
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, destinationAirport);
@@ -1268,6 +1304,13 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     auto nearbyAirports = FindNearbyAirports(pos, 5.0); // Within 5nm of spawn point
     if (!nearbyAirports.empty()) {
         originAirport = nearbyAirports[0]; // Closest airport
+        
+        // Validate that the origin airport actually exists
+        positionTy originPos = GetAirportPosition(originAirport);
+        if (!originPos.isNormal()) {
+            LOG_MSG(logWARN, "Origin airport %s selected but position unavailable, clearing origin", originAirport.c_str());
+            originAirport = ""; // Clear invalid origin
+        }
     }
     
     // Set origin and destination in the flight data structure
@@ -4323,6 +4366,67 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
         return centerPos;
     }
     
+    // For small distances (ground aircraft), try to find actual airport startup/parking positions
+    if (maxDistanceNM <= 1.0) { // Ground aircraft typically use small distances
+        for (int parkingAttempt = 0; parkingAttempt < 5; parkingAttempt++) {
+            // Try to find a startup position near the center position
+            positionTy parkingPos = LTAptFindStartupLoc(centerPos, maxDistanceNM * 1852.0); // Convert to meters
+            
+            if (parkingPos.isNormal()) {
+                // Check if this parking position is far enough from existing aircraft
+                bool positionOK = true;
+                const double minSeparationNM = 0.02; // 20 meters minimum separation for parked aircraft
+                
+                for (const auto& synAircraft : mapSynData) {
+                    double dist = synAircraft.second.pos.dist(parkingPos) / 1852.0; // Distance in nautical miles
+                    if (dist < minSeparationNM) {
+                        positionOK = false;
+                        break;
+                    }
+                }
+                
+                if (positionOK) {
+                    // Set altitude to match center position (will be updated with terrain elevation by caller)
+                    parkingPos.alt_m() = centerPos.alt_m();
+                    LOG_MSG(logDEBUG, "Found parking position at startup location: %.6f, %.6f", 
+                            parkingPos.lat(), parkingPos.lon());
+                    return parkingPos;
+                }
+                
+                // If this parking position is too close to existing aircraft, try to find another one
+                // by slightly adjusting the search center
+                double offsetBearing = (parkingAttempt * 72.0) * PI / 180.0; // 72° intervals (5 attempts)
+                double offsetDistance = 50.0; // 50 meters offset
+                vectorTy offsetVector(offsetBearing * 180.0 / PI, offsetDistance);
+                positionTy adjustedCenter = CoordPlusVector(centerPos, offsetVector);
+                parkingPos = LTAptFindStartupLoc(adjustedCenter, maxDistanceNM * 1852.0);
+                
+                if (parkingPos.isNormal()) {
+                    // Check separation again with adjusted position
+                    positionOK = true;
+                    for (const auto& synAircraft : mapSynData) {
+                        double dist = synAircraft.second.pos.dist(parkingPos) / 1852.0;
+                        if (dist < minSeparationNM) {
+                            positionOK = false;
+                            break;
+                        }
+                    }
+                    
+                    if (positionOK) {
+                        parkingPos.alt_m() = centerPos.alt_m();
+                        LOG_MSG(logDEBUG, "Found parking position at adjusted startup location: %.6f, %.6f", 
+                                parkingPos.lat(), parkingPos.lon());
+                        return parkingPos;
+                    }
+                }
+            }
+        }
+        
+        LOG_MSG(logDEBUG, "No suitable parking positions found, using random positioning");
+    }
+    
+    // Fall back to original random positioning logic
+    
     const int maxAttempts = 10;
     const double minSeparationNM = 1.0; // Minimum 1nm separation between aircraft
     
@@ -4336,7 +4440,7 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
         
         // Calculate new position using proper coordinate functions instead of manual trigonometry
         vectorTy offsetVector(bearing * 180.0 / PI, distance);  // Convert radians to degrees for vectorTy
-        newPos = CoordPlusVector(centerPos, offsetVector);
+        positionTy newPos = CoordPlusVector(centerPos, offsetVector);
         newPos.alt_m() = centerPos.alt_m(); // Keep same base altitude, will be modified by caller
         
         // Check if this position is far enough from existing synthetic aircraft
