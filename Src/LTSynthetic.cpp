@@ -249,6 +249,9 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.enableTTS = dataRefs.bSynTTSEnabled != 0;
     config.userAwareness = dataRefs.bSynUserAwareness != 0;
     config.weatherOperations = dataRefs.bSynWeatherOperations != 0;
+    config.dynamicDensity = dataRefs.bSynDynamicDensity != 0;
+    config.sceneryDensityMin = static_cast<float>(dataRefs.synSceneryDensityMin) / 100.0f;
+    config.sceneryDensityMax = static_cast<float>(dataRefs.synSceneryDensityMax) / 100.0f;
     // Note: commRange removed - now using realistic communication degradation instead of hard cutoff
     
     if (!config.enabled) {
@@ -262,8 +265,9 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
         return true;  // Synthetic traffic disabled
     }
     
-    LOG_MSG(logDEBUG, "Synthetic traffic enabled: %d aircraft, types=%u, density=%.1f%%", 
-            config.maxAircraft, config.trafficTypes, config.density * 100.0f);
+    LOG_MSG(logDEBUG, "Synthetic traffic enabled: %d aircraft, types=%u, density=%.1f%% %s", 
+            config.maxAircraft, config.trafficTypes, config.density * 100.0f,
+            config.dynamicDensity ? "(dynamic)" : "(static)");
     
     // Generate comprehensive debug log every 5 minutes for debugging purposes
     static double lastDebugLogTime = 0.0;
@@ -673,16 +677,28 @@ bool SyntheticConnection::GenerateTraffic(const positionTy& centerPos)
         return false; // Already at maximum capacity
     }
     
+    // Get effective density based on configuration (static or dynamic)
+    float effectiveDensity = GetEffectiveDensity(centerPos);
+    
+    // Apply density factor - only generate aircraft based on density probability
+    double densityRoll = static_cast<double>(std::rand()) / RAND_MAX;
+    if (densityRoll > effectiveDensity) {
+        LOG_MSG(logDEBUG, "Skipping traffic generation due to density factor (%.3f > %.3f)", 
+                densityRoll, effectiveDensity);
+        return false; // Skip this generation cycle based on density
+    }
+    
     // Determine what type of traffic to generate based on configuration
-    double rand = static_cast<double>(std::rand()) / RAND_MAX;
+    double typeRoll = static_cast<double>(std::rand()) / RAND_MAX;
     
-    LOG_MSG(logDEBUG, "Generating synthetic traffic (rand=%.3f, types=%u)", rand, config.trafficTypes);
+    LOG_MSG(logDEBUG, "Generating synthetic traffic (density=%.3f, type_roll=%.3f, types=%u)", 
+            effectiveDensity, typeRoll, config.trafficTypes);
     
-    if ((config.trafficTypes & SYN_TRAFFIC_GA) && rand < config.gaRatio) {
+    if ((config.trafficTypes & SYN_TRAFFIC_GA) && typeRoll < config.gaRatio) {
         GenerateGATraffic(centerPos);
-    } else if ((config.trafficTypes & SYN_TRAFFIC_AIRLINE) && rand < (config.gaRatio + config.airlineRatio)) {
+    } else if ((config.trafficTypes & SYN_TRAFFIC_AIRLINE) && typeRoll < (config.gaRatio + config.airlineRatio)) {
         GenerateAirlineTraffic(centerPos);
-    } else if ((config.trafficTypes & SYN_TRAFFIC_MILITARY) && rand < 1.0) {
+    } else if ((config.trafficTypes & SYN_TRAFFIC_MILITARY) && typeRoll < 1.0) {
         GenerateMilitaryTraffic(centerPos);
     } else {
         LOG_MSG(logDEBUG, "No synthetic traffic generated this cycle");
@@ -6964,8 +6980,17 @@ void SyntheticConnection::GenerateDebugLog()
     const double currentTime = std::time(nullptr);
     
     LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG START ===");
-    LOG_MSG(logINFO, "Configuration: Enabled=%s, Types=%u, MaxAircraft=%d, Density=%.1f%%", 
-            config.enabled ? "YES" : "NO", config.trafficTypes, config.maxAircraft, config.density * 100.0f);
+    LOG_MSG(logINFO, "Configuration: Enabled=%s, Types=%u, MaxAircraft=%d, Density=%.1f%% %s", 
+            config.enabled ? "YES" : "NO", config.trafficTypes, config.maxAircraft, 
+            config.density * 100.0f, config.dynamicDensity ? "(base for dynamic)" : "(static)");
+    
+    if (config.dynamicDensity) {
+        float effectiveDensity = GetEffectiveDensity(userPos);
+        LOG_MSG(logINFO, "Dynamic Density: Effective=%.1f%%, Range=[%.1f%% - %.1f%%]", 
+                effectiveDensity * 100.0f, 
+                config.sceneryDensityMin * 100.0f, 
+                config.sceneryDensityMax * 100.0f);
+    }
     LOG_MSG(logINFO, "TTS Settings: Enabled=%s, UserAwareness=%s, WeatherOps=%s", 
             config.enableTTS ? "YES" : "NO", config.userAwareness ? "YES" : "NO", config.weatherOperations ? "YES" : "NO");
     LOG_MSG(logINFO, "Current aircraft count: %zu/%d", mapSynData.size(), config.maxAircraft);
@@ -7030,4 +7055,117 @@ void SyntheticConnection::GenerateDebugLog()
             cslModelsByType[SYN_TRAFFIC_MILITARY].size());
     
     LOG_MSG(logINFO, "=== SYNTHETIC TRAFFIC DEBUG LOG END ===");
+}
+
+//
+// MARK: Scenery-based Dynamic Density Implementation
+//
+
+/// Get effective traffic density (static or dynamic based on configuration)
+float SyntheticConnection::GetEffectiveDensity(const positionTy& centerPos)
+{
+    if (config.dynamicDensity) {
+        return CalculateSceneryBasedDensity(centerPos);
+    } else {
+        return config.density;
+    }
+}
+
+/// Calculate dynamic density based on X-Plane scenery complexity
+float SyntheticConnection::CalculateSceneryBasedDensity(const positionTy& centerPos)
+{
+    // Cache the scenery density calculation for performance
+    static positionTy lastPos;
+    static float lastDensity = config.density;
+    static double lastCalculationTime = 0.0;
+    static const double CACHE_DURATION = 30.0; // Recalculate every 30 seconds
+    
+    double currentTime = std::time(nullptr);
+    
+    // Check if we need to recalculate (position changed significantly or cache expired)
+    double positionChange = centerPos.isNormal() && lastPos.isNormal() 
+        ? centerPos.dist(lastPos) / 1852.0  // distance in nautical miles
+        : 999.0;  // Force recalculation if positions are invalid
+    
+    if (positionChange < 2.0 && (currentTime - lastCalculationTime) < CACHE_DURATION) {
+        return lastDensity; // Use cached value
+    }
+    
+    // Count airports and scenery complexity in the area
+    int airportCount = CountSceneryObjects(centerPos, 25.0); // 25nm radius
+    
+    // Base density calculation on airport and scenery object density
+    float sceneryDensityFactor;
+    
+    if (airportCount >= 15) {
+        // Very dense area (major metropolitan areas)
+        sceneryDensityFactor = 1.0f;
+    } else if (airportCount >= 8) {
+        // Dense area (urban/suburban)
+        sceneryDensityFactor = 0.8f;
+    } else if (airportCount >= 4) {
+        // Moderate density (small cities/towns)
+        sceneryDensityFactor = 0.5f;
+    } else if (airportCount >= 1) {
+        // Sparse area (rural with some airports)
+        sceneryDensityFactor = 0.3f;
+    } else {
+        // Very sparse area (remote/wilderness)
+        sceneryDensityFactor = 0.1f;
+    }
+    
+    // Apply the scenery density factor between min and max configured values
+    float calculatedDensity = config.sceneryDensityMin + 
+                             sceneryDensityFactor * (config.sceneryDensityMax - config.sceneryDensityMin);
+    
+    // Update cache
+    lastPos = centerPos;
+    lastDensity = calculatedDensity;
+    lastCalculationTime = currentTime;
+    
+    LOG_MSG(logDEBUG, "Dynamic density calculated: airports=%d, factor=%.2f, density=%.2f%% (%.1fnm from last calc)", 
+            airportCount, sceneryDensityFactor, calculatedDensity * 100.0f, positionChange);
+    
+    return calculatedDensity;
+}
+
+/// Count objects and scenery complexity in area
+int SyntheticConnection::CountSceneryObjects(const positionTy& centerPos, double radiusNM)
+{
+    // Initialize airport cache if needed
+    InitializeAirportCache();
+    
+    int objectCount = 0;
+    const double radiusM = radiusNM * 1852.0; // Convert nautical miles to meters
+    
+    // Count airports within the radius as primary indicator of scenery density
+    for (const auto& airport : cachedWorldAirports) {
+        positionTy airportPos;
+        airportPos.lat() = airport.lat;
+        airportPos.lon() = airport.lon;
+        airportPos.alt_m() = 0.0;
+        
+        double distanceM = centerPos.dist(airportPos);
+        
+        if (distanceM <= radiusM) {
+            objectCount++;
+            
+            // Weight different types of airports differently
+            if (airport.name.find("International") != std::string::npos || 
+                airport.name.find("Airport") != std::string::npos) {
+                objectCount += 2; // Major airports count more
+            }
+            
+            if (IsMilitaryAirport(airport.icao, airport.name)) {
+                objectCount += 1; // Military airports indicate developed areas
+            }
+        }
+    }
+    
+    // Additional heuristics could include:
+    // - Navigation aids (VOR, NDB, ILS) density
+    // - Custom scenery object density (if X-Plane API supports this)
+    // - Population density estimates based on coordinates
+    
+    return objectCount;
 }

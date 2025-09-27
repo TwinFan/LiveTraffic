@@ -442,6 +442,9 @@ enum dataRefsLT {
     DR_CFG_SYN_USER_AWARENESS,
     DR_CFG_SYN_WEATHER_OPERATIONS,
     DR_CFG_SYN_COMM_RANGE,
+    DR_CFG_SYN_DYNAMIC_DENSITY,
+    DR_CFG_SYN_SCENERY_DENSITY_MIN,
+    DR_CFG_SYN_SCENERY_DENSITY_MAX,
 
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
@@ -839,6 +842,9 @@ public:
     int bSynUserAwareness = true;               ///< Aircraft react to user presence
     int bSynWeatherOperations = true;           ///< Weather-based operations
     int synCommRange = 25;                      ///< Communications range in nautical miles
+    int bSynDynamicDensity = false;             ///< Enable dynamic density based on X-Plane scenery
+    int synSceneryDensityMin = 10;              ///< Minimum density in sparse scenery areas (percentage)
+    int synSceneryDensityMax = 100;             ///< Maximum density in dense scenery areas (percentage)
     
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
