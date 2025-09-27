@@ -18,7 +18,9 @@ enum SyntheticFlightState : unsigned char {
     SYN_STATE_TOUCH_DOWN,
     SYN_STATE_ROLL_OUT,
     SYN_STATE_TAXI_IN,
-    SYN_STATE_SHUTDOWN
+    SYN_STATE_SHUTDOWN,
+    SYN_STATE_MISSED_APPROACH,
+    SYN_STATE_GO_AROUND
 };
 
 void test_switch(SyntheticFlightState state) {
@@ -31,6 +33,10 @@ void test_switch(SyntheticFlightState state) {
         case SYN_STATE_TAKEOFF_ROLL:
         case SYN_STATE_ROTATE:
         case SYN_STATE_LIFT_OFF:
+            break;
+        case SYN_STATE_MISSED_APPROACH:
+        case SYN_STATE_GO_AROUND:
+            // New go-around states
             break;
         default:
             break;

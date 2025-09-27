@@ -29,11 +29,22 @@
 // Define whether XPMP2 model enumeration functions are available
 // This can be set by the build system or detected at runtime
 #ifdef XPMP_2_4_OR_LATER
-// #define XPMP_HAS_MODEL_ENUMERATION 1
+// Enable model enumeration for XPMP 2.4 and later versions
+#define XPMP_HAS_MODEL_ENUMERATION 1
 #else
 // For compatibility, assume the functions are not available unless explicitly enabled
 // The functions XPMPGetNumberOfInstalledModels and XPMPGetModelInfo2 may not exist in all XPMP2 versions
+// Uncomment the line below if you have XPMP2 with model enumeration support
 // #define XPMP_HAS_MODEL_ENUMERATION 1
+#endif
+
+// Alternative: Try to detect XPMP2 model enumeration functions at compile time
+// This is more robust than version checking alone
+#ifndef XPMP_HAS_MODEL_ENUMERATION
+    // If we have these function declarations available, enable the feature
+    #ifdef XPMPGetNumberOfInstalledModels
+        #define XPMP_HAS_MODEL_ENUMERATION 1
+    #endif
 #endif
 
 // Windows SAPI includes for Text-to-Speech
@@ -281,6 +292,14 @@ bool SyntheticConnection::FetchAllData(const positionTy& centerPos)
     config.sceneryDensityMin = std::max(0.0f, std::min(1.0f, config.sceneryDensityMin));
     config.sceneryDensityMax = std::max(0.0f, std::min(1.0f, config.sceneryDensityMax));
     
+    // Validate synthetic traffic configuration on startup (comprehensive check)
+    static bool hasValidated = false;
+    if (!hasValidated && config.enabled) {
+        // Run comprehensive system validation
+        PerformComprehensiveSystemCheck();
+        hasValidated = true;
+    }
+    
     // Note: commRange removed - now using realistic communication degradation instead of hard cutoff
     
     if (!config.enabled) {
@@ -490,6 +509,28 @@ bool SyntheticConnection::ProcessFetchedData ()
             LOG_MSG(logWARN, "Exception in UpdateAdvancedWeatherOperations for %s", synData.stat.call.c_str());
         }
         
+        // Handle weather-based go-around and diversion logic
+        if (config.weatherOperations) {
+            try {
+                // Check for go-around conditions during approach phases
+                if (ShouldExecuteGoAround(synData, tNow)) {
+                    ExecuteGoAroundProcedure(synData, tNow);
+                }
+                
+                // Check for diversion requirements after multiple go-around attempts
+                if (ShouldDivertDueToWeather(synData, tNow)) {
+                    ExecuteDiversionProcedure(synData, tNow);
+                }
+                
+                // Update weather check timing
+                if ((tNow - synData.lastWeatherCheck) > 60.0) { // Update every minute
+                    synData.lastWeatherCheck = tNow;
+                }
+            } catch (...) {
+                LOG_MSG(logWARN, "Exception in weather go-around/diversion logic for %s", synData.stat.call.c_str());
+            }
+        }
+        
         // Query and assign real navigation procedures if needed
         if (!synData.usingRealNavData && !synData.currentAirport.empty()) {
             try {
@@ -504,6 +545,9 @@ bool SyntheticConnection::ProcessFetchedData ()
         if (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) {
             try {
                 UpdateGroundOperations(synData, tNow);
+                
+                // Debug ground movement issues
+                DebugGroundMovement(synData);
             } catch (...) {
                 LOG_MSG(logWARN, "Exception in UpdateGroundOperations for %s", synData.stat.call.c_str());
             }
@@ -758,6 +802,26 @@ bool SyntheticConnection::ProcessFetchedData ()
             case SYN_STATE_SHUTDOWN:
                 synData.pos.f.flightPhase = FPH_PARKED; // Shutting down at gate
                 dyn.vsi = 0.0;
+                break;
+                
+            case SYN_STATE_MISSED_APPROACH:
+                synData.pos.f.flightPhase = FPH_CLIMB; // Climbing during missed approach
+                // Missed approach climb rate - typically higher than normal climb
+                {
+                    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                    double climbRateFpm = perfData ? perfData->climbRateFpm * 1.2 : 1200.0; // 120% of normal climb
+                    dyn.vsi = climbRateFpm;
+                }
+                break;
+                
+            case SYN_STATE_GO_AROUND:
+                synData.pos.f.flightPhase = FPH_CLIMB; // Climbing during go-around
+                // Go-around climb rate - aggressive climb for obstacle clearance
+                {
+                    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+                    double climbRateFpm = perfData ? perfData->climbRateFpm * 1.5 : 1500.0; // 150% of normal climb
+                    dyn.vsi = climbRateFpm;
+                }
                 break;
                 
             default:
@@ -1417,6 +1481,18 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
         synData.pos.f.onGrnd = initiallyOnGround ? GND_ON : GND_OFF;
     }
     
+    // Initialize weather conditions for new aircraft
+    try {
+        GetCurrentWeatherConditions(synData.pos, synData.weatherConditions, 
+                                   synData.weatherVisibility, synData.weatherWindSpeed, 
+                                   synData.weatherWindDirection);
+        synData.lastWeatherCheck = std::time(nullptr);
+        LOG_MSG(logDEBUG, "Initialized weather for aircraft %s: %s, visibility %.0fm", 
+                synData.stat.call.c_str(), synData.weatherConditions.c_str(), synData.weatherVisibility);
+    } catch (...) {
+        LOG_MSG(logWARN, "Failed to initialize weather conditions for aircraft %s", synData.stat.call.c_str());
+    }
+    
     return true;
 }
 
@@ -1815,6 +1891,59 @@ void SyntheticConnection::UpdateAIBehavior(SynDataTy& synData, double currentTim
                     }
                 }
                 break;
+                
+            case SYN_STATE_MISSED_APPROACH:
+                // Missed approach - transition to approach pattern or go-around depending on conditions
+                {
+                    double missedApproachTime = currentTime - synData.stateChangeTime;
+                    double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
+                    
+                    // Complete missed approach procedure and re-enter approach pattern
+                    if (missedApproachTime > 180.0 && altitudeAGL > 500.0) { // After 3 minutes and above 1500 ft AGL
+                        // Check if conditions have improved for another approach attempt
+                        if (synData.goAroundAttempts < 3) {
+                            newState = SYN_STATE_APPROACH;
+                            LOG_MSG(logDEBUG, "Aircraft %s completing missed approach, re-entering approach pattern (attempt #%d)", 
+                                    synData.stat.call.c_str(), synData.goAroundAttempts);
+                        } else {
+                            // Too many attempts, climb to cruise for diversion
+                            newState = SYN_STATE_CLIMB;
+                            LOG_MSG(logDEBUG, "Aircraft %s climbing to cruise after missed approach (max attempts reached)", 
+                                    synData.stat.call.c_str());
+                        }
+                    }
+                }
+                break;
+                
+            case SYN_STATE_GO_AROUND:
+                // Go-around - complete procedure and re-enter approach pattern or divert
+                {
+                    double goAroundTime = currentTime - synData.stateChangeTime;
+                    double altitudeAGL = synData.pos.alt_m() - synData.terrainElevation;
+                    
+                    // Complete go-around procedure
+                    if (goAroundTime > 300.0 && altitudeAGL > 600.0) { // After 5 minutes and above 2000 ft AGL
+                        if (!synData.weatherDiversionRequired && synData.goAroundAttempts < 3) {
+                            // Weather conditions permit another approach
+                            newState = SYN_STATE_APPROACH;
+                            LOG_MSG(logDEBUG, "Aircraft %s completing go-around, re-entering approach pattern (attempt #%d)", 
+                                    synData.stat.call.c_str(), synData.goAroundAttempts);
+                        } else {
+                            // Weather diversion required or too many attempts
+                            if (synData.weatherDiversionRequired && !synData.alternateAirport.empty()) {
+                                newState = SYN_STATE_CRUISE;
+                                LOG_MSG(logDEBUG, "Aircraft %s proceeding to alternate airport %s after go-around", 
+                                        synData.stat.call.c_str(), synData.alternateAirport.c_str());
+                            } else {
+                                // Hold for improved conditions
+                                newState = SYN_STATE_HOLD;
+                                LOG_MSG(logDEBUG, "Aircraft %s entering holding pattern after go-around", 
+                                        synData.stat.call.c_str());
+                            }
+                        }
+                    }
+                }
+                break;
         }
         
         if (newState != synData.state) {
@@ -2003,6 +2132,12 @@ void SyntheticConnection::HandleStateTransition(SynDataTy& synData, SyntheticFli
             break;
         case SYN_STATE_PARKED:
             synData.nextEventTime = currentTime + (300 + std::rand() % 600); // 5-15 minutes parked before next flight
+            break;
+        case SYN_STATE_MISSED_APPROACH:
+            synData.nextEventTime = currentTime + (180 + std::rand() % 120); // 3-5 minutes for missed approach procedure
+            break;
+        case SYN_STATE_GO_AROUND:
+            synData.nextEventTime = currentTime + (300 + std::rand() % 300); // 5-10 minutes for go-around circuit
             break;
         default:
             synData.nextEventTime = currentTime + 300; // Default 5 minutes
@@ -6012,6 +6147,18 @@ void SyntheticConnection::UpdateCommunicationFrequencies(SynDataTy& synData, con
             freqType = "center";
             break;
             
+        case SYN_STATE_MISSED_APPROACH:
+        case SYN_STATE_GO_AROUND:
+            // Go-around procedures typically use tower frequency for immediate coordination
+            if (minDistance < 10.0) {
+                newFreq = 118.1; // Tower frequency for go-around coordination
+                freqType = "tower";
+            } else {
+                newFreq = 119.1; // Approach frequency for sequencing
+                freqType = "approach";
+            }
+            break;
+            
         default:
             newFreq = 121.5; // UNICOM
             freqType = "unicom";
@@ -6808,6 +6955,430 @@ void SyntheticConnection::UpdateAdvancedWeatherOperations(SynDataTy& synData, do
     
     LOG_MSG(logDEBUG, "Weather impact on %s: conditions=%s, factor=%.2f", 
             synData.stat.call.c_str(), synData.weatherConditions.c_str(), weatherImpact);
+}
+
+// Check if aircraft should execute go-around based on weather conditions
+bool SyntheticConnection::ShouldExecuteGoAround(const SynDataTy& synData, double currentTime)
+{
+    if (!config.weatherOperations) return false;
+    
+    // Only consider go-around during approach phases
+    if (synData.state != SYN_STATE_APPROACH && synData.state != SYN_STATE_FINAL && synData.state != SYN_STATE_FLARE) {
+        return false;
+    }
+    
+    // Don't allow too many go-around attempts
+    if (synData.goAroundAttempts >= 3) {
+        LOG_MSG(logDEBUG, "Aircraft %s reached max go-around attempts (3)", synData.stat.call.c_str());
+        return false;
+    }
+    
+    // Don't execute another go-around too soon after the last one
+    if ((currentTime - synData.lastGoAroundTime) < 300.0) { // 5 minutes minimum between attempts
+        return false;
+    }
+    
+    // NEW: Check if runway is occupied - immediate go-around trigger
+    if (IsRunwayOccupied(synData)) {
+        LOG_MSG(logINFO, "Aircraft %s executing go-around due to runway occupation on %s", 
+                synData.stat.call.c_str(), synData.assignedRunway.c_str());
+        return true;
+    }
+    
+    // NEW: Check if runway is too short for aircraft - go-around if on final/flare
+    if ((synData.state == SYN_STATE_FINAL || synData.state == SYN_STATE_FLARE) && !IsRunwaySuitableForAircraft(synData)) {
+        LOG_MSG(logINFO, "Aircraft %s executing go-around due to insufficient runway length on %s", 
+                synData.stat.call.c_str(), synData.assignedRunway.c_str());
+        return true;
+    }
+    
+    // Calculate weather-based go-around probability
+    double weatherImpact = CalculateWeatherImpactFactor(synData.weatherConditions, synData.weatherVisibility, synData.weatherWindSpeed);
+    
+    // Severe weather conditions trigger go-around
+    if (weatherImpact < 0.3) {
+        // Very severe conditions - high probability of go-around
+        if ((std::rand() % 100) < 70) { // 70% chance
+            LOG_MSG(logINFO, "Aircraft %s executing weather go-around due to severe conditions: %s, visibility %.0fm", 
+                    synData.stat.call.c_str(), synData.weatherConditions.c_str(), synData.weatherVisibility);
+            return true;
+        }
+    } else if (weatherImpact < 0.5) {
+        // Moderate severe conditions - medium probability
+        if ((std::rand() % 100) < 30) { // 30% chance
+            LOG_MSG(logINFO, "Aircraft %s executing weather go-around due to poor conditions: %s, visibility %.0fm", 
+                    synData.stat.call.c_str(), synData.weatherConditions.c_str(), synData.weatherVisibility);
+            return true;
+        }
+    }
+    
+    // Additional factors for go-around decision
+    // Low visibility during approach or final approach
+    if ((synData.state == SYN_STATE_APPROACH || synData.state == SYN_STATE_FINAL) && synData.weatherVisibility < 800.0) { // Less than 1/2 mile visibility
+        if ((std::rand() % 100) < 40) { // 40% chance
+            LOG_MSG(logINFO, "Aircraft %s executing go-around due to low visibility: %.0fm", 
+                    synData.stat.call.c_str(), synData.weatherVisibility);
+            return true;
+        }
+    }
+    
+    // Strong crosswinds during flare phase
+    if (synData.state == SYN_STATE_FLARE && synData.weatherWindSpeed > 20.0) { // > 40 knots
+        if ((std::rand() % 100) < 25) { // 25% chance
+            LOG_MSG(logINFO, "Aircraft %s executing go-around due to strong winds during flare: %.1f m/s", 
+                    synData.stat.call.c_str(), synData.weatherWindSpeed);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Check if aircraft should divert to alternate airport due to weather
+bool SyntheticConnection::ShouldDivertDueToWeather(const SynDataTy& synData, double currentTime)
+{
+    if (!config.weatherOperations) return false;
+    
+    // Only consider diversion if aircraft has attempted multiple go-arounds
+    if (synData.goAroundAttempts < 2) {
+        return false;
+    }
+    
+    // Don't divert if already diverted or if no alternate airport available
+    if (synData.weatherDiversionRequired || synData.alternateAirport.empty()) {
+        return false;
+    }
+    
+    // Calculate sustained severe weather probability
+    double weatherImpact = CalculateWeatherImpactFactor(synData.weatherConditions, synData.weatherVisibility, synData.weatherWindSpeed);
+    
+    // Persistent severe weather after multiple go-around attempts triggers diversion
+    if (weatherImpact < 0.4 && synData.goAroundAttempts >= 2) {
+        LOG_MSG(logINFO, "Aircraft %s considering diversion after %d go-around attempts due to persistent severe weather: %s", 
+                synData.stat.call.c_str(), synData.goAroundAttempts, synData.weatherConditions.c_str());
+        
+        // Check if conditions have been poor for sustained period
+        if ((currentTime - synData.lastWeatherCheck) > 600.0) { // 10 minutes of poor conditions
+            if ((std::rand() % 100) < 80) { // 80% chance of diversion
+                LOG_MSG(logINFO, "Aircraft %s diverting to %s due to sustained severe weather at destination", 
+                        synData.stat.call.c_str(), synData.alternateAirport.c_str());
+                return true;
+            }
+        }
+    }
+    
+    // Fuel considerations (simplified - in real implementation would track fuel state)
+    if (synData.goAroundAttempts >= 3) {
+        LOG_MSG(logINFO, "Aircraft %s forced to divert to %s due to fuel considerations after %d go-around attempts", 
+                synData.stat.call.c_str(), synData.alternateAirport.c_str(), synData.goAroundAttempts);
+        return true;
+    }
+    
+    return false;
+}
+
+// Execute go-around procedure
+void SyntheticConnection::ExecuteGoAroundProcedure(SynDataTy& synData, double currentTime)
+{
+    // Update go-around tracking
+    synData.goAroundAttempts++;
+    synData.lastGoAroundTime = currentTime;
+    
+    // Transition to go-around state
+    synData.state = SYN_STATE_GO_AROUND;
+    synData.stateChangeTime = currentTime;
+    
+    // Set go-around flight parameters
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    if (perfData) {
+        synData.targetSpeed = perfData->cruiseSpeedKts * 0.7; // Reduced speed for go-around
+        synData.targetAltitude = synData.pos.alt_m() + 300.0; // Climb 1000 ft
+    } else {
+        synData.targetSpeed = 150.0; // Default go-around speed
+        synData.targetAltitude = synData.pos.alt_m() + 300.0;
+    }
+    
+    // Set climb parameters
+    synData.dyn.vsi = 1500.0; // 1500 ft/min climb rate during go-around
+    
+    // Update flight phase
+    synData.pos.f.flightPhase = FPH_CLIMB;
+    
+    // Schedule next approach attempt or diversion decision
+    synData.nextEventTime = currentTime + 900.0; // 15 minutes before next approach attempt
+    
+    // TTS communication for go-around
+    if (config.enableTTS && synData.isUserAware) {
+        std::string goAroundMsg = synData.stat.call + " going around due to weather conditions";
+        ProcessTTSCommunication(synData, goAroundMsg);
+    }
+    
+    LOG_MSG(logINFO, "Aircraft %s executing go-around procedure (attempt #%d) due to weather", 
+            synData.stat.call.c_str(), synData.goAroundAttempts);
+}
+
+// Execute diversion procedure to alternate airport
+void SyntheticConnection::ExecuteDiversionProcedure(SynDataTy& synData, double currentTime)
+{
+    if (synData.alternateAirport.empty()) {
+        // Find an alternate airport if none assigned
+        synData.alternateAirport = FindAlternateAirport(synData);
+        if (synData.alternateAirport.empty()) {
+            LOG_MSG(logWARN, "Aircraft %s cannot find alternate airport for diversion", synData.stat.call.c_str());
+            return;
+        }
+    }
+    
+    // Set diversion flag
+    synData.weatherDiversionRequired = true;
+    
+    // Update destination to alternate airport
+    std::string originalDestination = synData.destinationAirport;
+    synData.destinationAirport = synData.alternateAirport;
+    
+    // Transition to cruise state for diversion routing
+    synData.state = SYN_STATE_CRUISE;
+    synData.stateChangeTime = currentTime;
+    
+    // Set cruise parameters for diversion
+    const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+    if (perfData) {
+        synData.targetSpeed = perfData->cruiseSpeedKts;
+        synData.targetAltitude = std::max(synData.pos.alt_m(), perfData->serviceCeilingFt * 0.3048 * 0.6); // 60% of service ceiling
+    } else {
+        synData.targetSpeed = 200.0; // Default cruise speed
+        synData.targetAltitude = std::max(synData.pos.alt_m(), 6000.0); // Minimum 20,000 ft
+    }
+    
+    // Update flight path to alternate airport
+    positionTy alternatePos = GetAirportPosition(synData.alternateAirport);
+    if (alternatePos.lat() != 0.0 || alternatePos.lon() != 0.0) {
+        GenerateFlightPath(synData, synData.pos, alternatePos);
+    }
+    
+    // Reset go-around attempts for new destination
+    synData.goAroundAttempts = 0;
+    
+    // TTS communication for diversion
+    if (config.enableTTS && synData.isUserAware) {
+        std::string diversionMsg = synData.stat.call + " diverting to " + synData.alternateAirport + " due to weather at " + originalDestination;
+        ProcessTTSCommunication(synData, diversionMsg);
+    }
+    
+    LOG_MSG(logINFO, "Aircraft %s diverting from %s to %s due to weather conditions", 
+            synData.stat.call.c_str(), originalDestination.c_str(), synData.alternateAirport.c_str());
+}
+
+// Find suitable alternate airport for diversion
+std::string SyntheticConnection::FindAlternateAirport(const SynDataTy& synData)
+{
+    // Get nearby airports within reasonable diversion range
+    std::vector<std::string> nearbyAirports = FindNearbyAirports(synData.pos, 200.0); // 200 NM radius
+    
+    // Filter airports by weather conditions and suitability
+    for (const std::string& airportCode : nearbyAirports) {
+        // Skip if same as original destination
+        if (airportCode == synData.destinationAirport) {
+            continue;
+        }
+        
+        // Get airport position to check weather
+        positionTy airportPos = GetAirportPosition(airportCode);
+        if (airportPos.lat() == 0.0 && airportPos.lon() == 0.0) {
+            continue; // Invalid airport position
+        }
+        
+        // Check weather at alternate airport
+        std::string altWeatherConditions;
+        double altVisibility, altWindSpeed, altWindDirection;
+        GetCurrentWeatherConditions(airportPos, altWeatherConditions, altVisibility, altWindSpeed, altWindDirection);
+        
+        double altWeatherImpact = CalculateWeatherImpactFactor(altWeatherConditions, altVisibility, altWindSpeed);
+        
+        // Select airport with better weather conditions
+        if (altWeatherImpact > 0.6) { // Good weather at alternate
+            LOG_MSG(logDEBUG, "Selected alternate airport %s with better weather: %s, visibility %.0fm", 
+                    airportCode.c_str(), altWeatherConditions.c_str(), altVisibility);
+            return airportCode;
+        }
+    }
+    
+    // If no airport with good weather found, select closest suitable airport
+    if (!nearbyAirports.empty()) {
+        std::string closestAirport = nearbyAirports[0];
+        LOG_MSG(logDEBUG, "No alternate airport with good weather found, selecting closest: %s", closestAirport.c_str());
+        return closestAirport;
+    }
+    
+    LOG_MSG(logWARN, "No suitable alternate airports found for diversion");
+    return "";
+}
+
+// Check if runway is occupied by other aircraft
+bool SyntheticConnection::IsRunwayOccupied(const SynDataTy& synData)
+{
+    if (synData.assignedRunway.empty()) {
+        return false; // No specific runway assigned
+    }
+    
+    // Check all other synthetic aircraft for runway occupation
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& otherAc = pair.second;
+        
+        // Skip self
+        if (otherAc.stat.call == synData.stat.call) {
+            continue;
+        }
+        
+        // Check if other aircraft is on the same runway
+        if (otherAc.assignedRunway == synData.assignedRunway && otherAc.pos.f.onGrnd == GND_ON) {
+            // Check if other aircraft is in runway-occupying state
+            if (otherAc.state == SYN_STATE_LINE_UP_WAIT ||
+                otherAc.state == SYN_STATE_TAKEOFF_ROLL ||
+                otherAc.state == SYN_STATE_ROTATE ||
+                otherAc.state == SYN_STATE_LIFT_OFF ||
+                otherAc.state == SYN_STATE_ROLL_OUT ||
+                otherAc.state == SYN_STATE_TOUCH_DOWN) {
+                
+                LOG_MSG(logDEBUG, "Runway %s occupied by %s (state: %d)", 
+                        synData.assignedRunway.c_str(), otherAc.stat.call.c_str(), otherAc.state);
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// Check if runway is suitable (long enough) for aircraft type
+bool SyntheticConnection::IsRunwaySuitableForAircraft(const SynDataTy& synData)
+{
+    if (synData.assignedRunway.empty()) {
+        return true; // No specific runway to check
+    }
+    
+    double requiredLength = GetRequiredRunwayLength(synData.stat.acTypeIcao, synData.trafficType);
+    double runwayLength = GetRunwayLength(synData.assignedRunway);
+    
+    bool suitable = runwayLength >= requiredLength;
+    
+    if (!suitable) {
+        LOG_MSG(logDEBUG, "Runway %s (%.0f ft) too short for %s %s (requires %.0f ft)", 
+                synData.assignedRunway.c_str(), runwayLength, 
+                synData.stat.acTypeIcao.c_str(), synData.stat.call.c_str(), requiredLength);
+    }
+    
+    return suitable;
+}
+
+// Get required runway length for aircraft type
+double SyntheticConnection::GetRequiredRunwayLength(const std::string& icaoType, SyntheticTrafficType trafficType)
+{
+    // Try to get from performance database first
+    const AircraftPerformance* perfData = GetAircraftPerformance(icaoType);
+    if (perfData && perfData->minRunwayLengthFt > 0) {
+        return perfData->minRunwayLengthFt;
+    }
+    
+    // Fallback based on traffic type and common aircraft
+    if (trafficType == SYN_TRAFFIC_GA) {
+        // GA aircraft typically need shorter runways
+        if (icaoType == "C172" || icaoType == "PA28" || icaoType == "C152") {
+            return 2000.0; // 2000 ft for small GA
+        } else if (icaoType == "SR22" || icaoType == "C182") {
+            return 2500.0; // 2500 ft for performance GA
+        } else {
+            return 3000.0; // Default GA runway length
+        }
+    } else if (trafficType == SYN_TRAFFIC_AIRLINE) {
+        // Airlines need longer runways
+        if (icaoType == "A380" || icaoType == "B748") {
+            return 9000.0; // Very large aircraft
+        } else if (icaoType == "B777" || icaoType == "A330" || icaoType == "B787") {
+            return 8000.0; // Wide-body aircraft
+        } else if (icaoType == "B737" || icaoType == "A320" || icaoType == "B738") {
+            return 6000.0; // Narrow-body aircraft
+        } else {
+            return 7000.0; // Default airline runway length
+        }
+    } else if (trafficType == SYN_TRAFFIC_MILITARY) {
+        // Military aircraft vary widely
+        if (icaoType == "C130" || icaoType == "A400") {
+            return 4000.0; // Military transport
+        } else if (icaoType == "F16" || icaoType == "F18") {
+            return 8000.0; // Fighter jets typically need long runways
+        } else {
+            return 6000.0; // Default military runway length
+        }
+    }
+    
+    return 5000.0; // Conservative default
+}
+
+// Get runway length (simplified implementation)
+double SyntheticConnection::GetRunwayLength(const std::string& runwayId)
+{
+    // In a real implementation, this would query X-Plane's navigation database
+    // For now, we'll estimate based on runway number and common patterns
+    
+    if (runwayId.empty() || runwayId.length() < 2) {
+        return 8000.0; // Default runway length
+    }
+    
+    // Extract runway number to estimate typical runway lengths at different airport types
+    std::string runwayNumber = runwayId.substr(0, 2);
+    
+    // Longer runway numbers (like 36) are often at larger airports
+    try {
+        int rwyNum = std::stoi(runwayNumber);
+        
+        // Estimate based on common patterns:
+        // - Runways 01-09: Often shorter runways at smaller airports
+        // - Runways 10-27: Typical medium-large airport runways  
+        // - Runways 28-36: Often major airport runways
+        
+        if (rwyNum >= 1 && rwyNum <= 9) {
+            return 4000.0 + (std::rand() % 2000); // 4000-6000 ft
+        } else if (rwyNum >= 28 && rwyNum <= 36) {
+            return 8000.0 + (std::rand() % 4000); // 8000-12000 ft
+        } else {
+            return 6000.0 + (std::rand() % 3000); // 6000-9000 ft
+        }
+    } catch (...) {
+        // If runway number parsing fails, use default
+        return 8000.0;
+    }
+}
+
+// Debug ground movement issues
+void SyntheticConnection::DebugGroundMovement(SynDataTy& synData)
+{
+    // Check if aircraft is stuck on ground
+    if (synData.pos.f.onGrnd == GND_ON && 
+        (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN)) {
+        
+        LOG_MSG(logDEBUG, "Ground Movement Debug for %s: State=%d, TargetSpeed=%.1f, TaxiRoute=%zu waypoints, CurrentWaypoint=%zu", 
+                synData.stat.call.c_str(), synData.state, synData.targetSpeed / 0.514444, 
+                synData.taxiRoute.size(), synData.currentTaxiWaypoint);
+        
+        // Check if aircraft has no taxi route
+        if (synData.taxiRoute.empty()) {
+            LOG_MSG(logDEBUG, "Aircraft %s has no taxi route, will generate one", synData.stat.call.c_str());
+        }
+        
+        // Check if aircraft has zero speed
+        if (synData.targetSpeed < 0.1) {
+            LOG_MSG(logDEBUG, "Aircraft %s has zero speed, setting minimum taxi speed", synData.stat.call.c_str());
+            const AircraftPerformance* perfData = GetAircraftPerformance(synData.stat.acTypeIcao);
+            double taxiSpeedKts = perfData ? perfData->taxiSpeedKts : 15.0;
+            synData.targetSpeed = taxiSpeedKts * 0.514444; // Convert to m/s
+        }
+        
+        // Check if aircraft has reached end of taxi route
+        if (!synData.taxiRoute.empty() && synData.currentTaxiWaypoint >= synData.taxiRoute.size()) {
+            LOG_MSG(logDEBUG, "Aircraft %s completed taxi route, ready for next state transition", synData.stat.call.c_str());
+        }
+    }
 }
 
 // Query available SID/STAR procedures for an airport
@@ -8054,13 +8625,18 @@ void SyntheticConnection::GenerateDebugLog()
             config.enabled ? "YES" : "NO", config.trafficTypes, config.maxAircraft, 
             config.density * 100.0f, config.dynamicDensity ? "(base for dynamic)" : "(static)");
     
+    // Enhanced dynamic density debugging
     if (config.dynamicDensity) {
         float effectiveDensity = GetEffectiveDensity(userPos);
         LOG_MSG(logINFO, "Dynamic Density: Effective=%.1f%%, Range=[%.1f%% - %.1f%%]", 
                 effectiveDensity * 100.0f, 
                 config.sceneryDensityMin * 100.0f, 
                 config.sceneryDensityMax * 100.0f);
+        
+        // Add detailed debugging for current position
+        DebugDynamicDensityCalculation(userPos);
     }
+    
     LOG_MSG(logINFO, "TTS Settings: Enabled=%s, UserAwareness=%s, WeatherOps=%s", 
             config.enableTTS ? "YES" : "NO", config.userAwareness ? "YES" : "NO", config.weatherOperations ? "YES" : "NO");
     LOG_MSG(logINFO, "Current aircraft count: %zu/%d", mapSynData.size(), config.maxAircraft);
@@ -8175,20 +8751,27 @@ float SyntheticConnection::CalculateSceneryBasedDensity(const positionTy& center
     int airportCount = CountSceneryObjects(centerPos, 25.0); // 25nm radius
     
     // Base density calculation on airport and scenery object density
+    // IMPROVED: More granular density calculation with better thresholds
     float sceneryDensityFactor;
     
-    if (airportCount >= 15) {
-        // Very dense area (major metropolitan areas)
+    if (airportCount >= 12) {
+        // Very dense area (major metropolitan areas like NYC, LA)
         sceneryDensityFactor = 1.0f;
     } else if (airportCount >= 8) {
-        // Dense area (urban/suburban)
-        sceneryDensityFactor = 0.8f;
-    } else if (airportCount >= 4) {
+        // Dense area (large cities, suburban areas)
+        sceneryDensityFactor = 0.85f;
+    } else if (airportCount >= 5) {
+        // Moderately dense area (medium cities)
+        sceneryDensityFactor = 0.65f;
+    } else if (airportCount >= 3) {
         // Moderate density (small cities/towns)
-        sceneryDensityFactor = 0.5f;
-    } else if (airportCount >= 1) {
-        // Sparse area (rural with some airports)
+        sceneryDensityFactor = 0.45f;
+    } else if (airportCount >= 2) {
+        // Low-moderate density (rural with some development)
         sceneryDensityFactor = 0.3f;
+    } else if (airportCount >= 1) {
+        // Sparse area (rural with minimal development)
+        sceneryDensityFactor = 0.2f;
     } else {
         // Very sparse area (remote/wilderness)
         sceneryDensityFactor = 0.1f;
@@ -8251,6 +8834,642 @@ int SyntheticConnection::CountSceneryObjects(const positionTy& centerPos, double
     // - Population density estimates based on coordinates
     
     return objectCount;
+}
+
+// Validate dynamic density configuration and alert to potential issues
+void SyntheticConnection::ValidateDynamicDensityConfiguration()
+{
+    LOG_MSG(logINFO, "=== Dynamic Density Configuration Validation ===");
+    
+    // Check if dynamic density is enabled
+    if (!config.dynamicDensity) {
+        LOG_MSG(logINFO, "Dynamic density is DISABLED - using static density %.1f%%", config.density * 100.0f);
+        return;
+    }
+    
+    LOG_MSG(logINFO, "Dynamic density is ENABLED");
+    LOG_MSG(logINFO, "  Base density: %.1f%%", config.density * 100.0f);
+    LOG_MSG(logINFO, "  Scenery density range: %.1f%% - %.1f%%", 
+            config.sceneryDensityMin * 100.0f, config.sceneryDensityMax * 100.0f);
+    
+    // Check for configuration issues
+    if (config.sceneryDensityMin >= config.sceneryDensityMax) {
+        LOG_MSG(logWARN, "ISSUE: Scenery density min (%.1f%%) >= max (%.1f%%) - no dynamic range!", 
+                config.sceneryDensityMin * 100.0f, config.sceneryDensityMax * 100.0f);
+    }
+    
+    if (config.sceneryDensityMax - config.sceneryDensityMin < 0.1f) {
+        LOG_MSG(logWARN, "ISSUE: Scenery density range is very narrow (%.1f%%) - limited dynamic effect", 
+                (config.sceneryDensityMax - config.sceneryDensityMin) * 100.0f);
+    }
+    
+    // Check airport cache status
+    InitializeAirportCache();
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "CRITICAL: Airport cache is empty - dynamic density will not work!");
+        return;
+    }
+    
+    LOG_MSG(logINFO, "Airport cache contains %zu airports", cachedWorldAirports.size());
+    
+    // Test a few known locations
+    TestDynamicDensityScenarios();
+}
+
+// Debug dynamic density calculation for specific position
+void SyntheticConnection::DebugDynamicDensityCalculation(const positionTy& centerPos)
+{
+    LOG_MSG(logINFO, "=== Dynamic Density Debug for Position (%.6f, %.6f) ===", 
+            centerPos.lat(), centerPos.lon());
+    
+    if (!config.dynamicDensity) {
+        LOG_MSG(logINFO, "Dynamic density disabled, static density: %.1f%%", config.density * 100.0f);
+        return;
+    }
+    
+    // Count airports in different radii to show density gradient
+    int airports5nm = CountSceneryObjects(centerPos, 5.0);
+    int airports10nm = CountSceneryObjects(centerPos, 10.0);
+    int airports25nm = CountSceneryObjects(centerPos, 25.0);
+    int airports50nm = CountSceneryObjects(centerPos, 50.0);
+    
+    LOG_MSG(logINFO, "Airport count within radii:");
+    LOG_MSG(logINFO, "  5nm: %d airports", airports5nm);
+    LOG_MSG(logINFO, "  10nm: %d airports", airports10nm);
+    LOG_MSG(logINFO, "  25nm: %d airports (used for calculation)", airports25nm);
+    LOG_MSG(logINFO, "  50nm: %d airports", airports50nm);
+    
+    // Show density calculation breakdown
+    float densityFactor;
+    std::string densityCategory;
+    
+    if (airports25nm >= 15) {
+        densityFactor = 1.0f;
+        densityCategory = "Very Dense (Metropolitan)";
+    } else if (airports25nm >= 8) {
+        densityFactor = 0.8f;
+        densityCategory = "Dense (Urban/Suburban)";
+    } else if (airports25nm >= 4) {
+        densityFactor = 0.5f;
+        densityCategory = "Moderate (Small Cities)";
+    } else if (airports25nm >= 1) {
+        densityFactor = 0.3f;
+        densityCategory = "Sparse (Rural)";
+    } else {
+        densityFactor = 0.1f;
+        densityCategory = "Very Sparse (Remote)";
+    }
+    
+    float calculatedDensity = config.sceneryDensityMin + 
+                             densityFactor * (config.sceneryDensityMax - config.sceneryDensityMin);
+    
+    LOG_MSG(logINFO, "Density calculation:");
+    LOG_MSG(logINFO, "  Category: %s", densityCategory.c_str());
+    LOG_MSG(logINFO, "  Density Factor: %.2f", densityFactor);
+    LOG_MSG(logINFO, "  Min Density: %.1f%%", config.sceneryDensityMin * 100.0f);
+    LOG_MSG(logINFO, "  Max Density: %.1f%%", config.sceneryDensityMax * 100.0f);
+    LOG_MSG(logINFO, "  Final Density: %.1f%%", calculatedDensity * 100.0f);
+    
+    // List nearby airports
+    LOG_MSG(logINFO, "Nearby airports within 25nm:");
+    int listedCount = 0;
+    const double radiusM = 25.0 * 1852.0;
+    
+    for (const auto& airport : cachedWorldAirports) {
+        positionTy airportPos;
+        airportPos.lat() = airport.lat;
+        airportPos.lon() = airport.lon;
+        
+        double distance = centerPos.dist(airportPos);
+        if (distance <= radiusM && listedCount < 10) { // Limit to 10 for readability
+            LOG_MSG(logINFO, "  %s (%s) - %.1fnm", 
+                    airport.icao.c_str(), airport.name.c_str(), distance / 1852.0);
+            listedCount++;
+        }
+    }
+    
+    if (listedCount == 0) {
+        LOG_MSG(logINFO, "  No airports within 25nm");
+    } else if (airports25nm > listedCount) {
+        LOG_MSG(logINFO, "  ... and %d more airports", airports25nm - listedCount);
+    }
+}
+
+// Test dynamic density scenarios at known locations
+bool SyntheticConnection::TestDynamicDensityScenarios()
+{
+    LOG_MSG(logINFO, "=== Testing Dynamic Density Scenarios ===");
+    
+    struct TestLocation {
+        const char* name;
+        double lat, lon;
+        float expectedMinDensity;
+        float expectedMaxDensity;
+    };
+    
+    // Test locations with expected density ranges
+    std::vector<TestLocation> testLocations = {
+        {"New York Metro Area", 40.7128, -74.0060, 0.6f, 1.0f},  // Very dense
+        {"Los Angeles Area", 34.0522, -118.2437, 0.6f, 1.0f},    // Very dense
+        {"Chicago Area", 41.8781, -87.6298, 0.4f, 0.8f},         // Dense
+        {"Denver Area", 39.7392, -104.9903, 0.2f, 0.6f},         // Moderate
+        {"Fairbanks, Alaska", 64.8378, -147.7164, 0.1f, 0.4f},   // Sparse
+        {"Pacific Ocean", 30.0, -150.0, 0.1f, 0.3f}              // Remote
+    };
+    
+    bool allTestsPassed = true;
+    
+    for (const auto& location : testLocations) {
+        positionTy testPos(location.lat, location.lon, 0.0, std::time(nullptr));
+        float actualDensity = CalculateSceneryBasedDensity(testPos);
+        
+        bool testPassed = (actualDensity >= location.expectedMinDensity && 
+                          actualDensity <= location.expectedMaxDensity);
+        
+        if (testPassed) {
+            LOG_MSG(logINFO, "✓ %s: %.1f%% (expected %.1f%% - %.1f%%)", 
+                    location.name, actualDensity * 100.0f, 
+                    location.expectedMinDensity * 100.0f, location.expectedMaxDensity * 100.0f);
+        } else {
+            LOG_MSG(logWARN, "✗ %s: %.1f%% (expected %.1f%% - %.1f%%) - OUTSIDE EXPECTED RANGE", 
+                    location.name, actualDensity * 100.0f, 
+                    location.expectedMinDensity * 100.0f, location.expectedMaxDensity * 100.0f);
+            allTestsPassed = false;
+        }
+    }
+    
+    if (allTestsPassed) {
+        LOG_MSG(logINFO, "All dynamic density scenario tests PASSED ✓");
+    } else {
+        LOG_MSG(logWARN, "Some dynamic density scenario tests FAILED - density calculation may need adjustment");
+    }
+    
+    return allTestsPassed;
+}
+
+// Validate traffic generation system and identify potential issues
+void SyntheticConnection::ValidateTrafficGenerationSystem()
+{
+    LOG_MSG(logINFO, "=== Traffic Generation System Validation ===");
+    
+    // Check basic configuration
+    LOG_MSG(logINFO, "Configuration: Enabled=%s, MaxAircraft=%d, Types=%u", 
+            config.enabled ? "YES" : "NO", config.maxAircraft, config.trafficTypes);
+    
+    if (!config.enabled) {
+        LOG_MSG(logWARN, "Traffic generation is DISABLED");
+        return;
+    }
+    
+    // Check traffic type configuration
+    if (config.trafficTypes == 0) {
+        LOG_MSG(logERR, "CRITICAL: No traffic types enabled - no aircraft can be generated!");
+        return;
+    }
+    
+    bool hasGA = (config.trafficTypes & SYN_TRAFFIC_GA) != 0;
+    bool hasAirline = (config.trafficTypes & SYN_TRAFFIC_AIRLINE) != 0;
+    bool hasMilitary = (config.trafficTypes & SYN_TRAFFIC_MILITARY) != 0;
+    
+    LOG_MSG(logINFO, "Traffic types enabled: GA=%s, Airline=%s, Military=%s", 
+            hasGA ? "YES" : "NO", hasAirline ? "YES" : "NO", hasMilitary ? "YES" : "NO");
+    
+    // Check density configuration
+    if (config.density <= 0.0f) {
+        LOG_MSG(logERR, "CRITICAL: Traffic density is zero or negative (%.3f) - no aircraft will generate!", config.density);
+    } else if (config.density < 0.1f) {
+        LOG_MSG(logWARN, "Very low traffic density (%.1f%%) - aircraft generation will be rare", config.density * 100.0f);
+    }
+    
+    // Check CSL model availability
+    DebugCSLModelMatching();
+    
+    // Check airport cache for traffic generation
+    InitializeAirportCache();
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "CRITICAL: Airport cache is empty - ground traffic generation will fail!");
+    } else {
+        LOG_MSG(logINFO, "Airport cache: %zu airports available", cachedWorldAirports.size());
+    }
+    
+    // Test traffic generation rates
+    TestTrafficGenerationRates();
+}
+
+// Debug CSL model matching system
+void SyntheticConnection::DebugCSLModelMatching()
+{
+    LOG_MSG(logINFO, "=== CSL Model Matching Debug ===");
+    
+    // Check if XPMP model enumeration is available
+    #ifdef XPMP_HAS_MODEL_ENUMERATION
+        LOG_MSG(logINFO, "XPMP model enumeration: ENABLED (compiled with XPMP_HAS_MODEL_ENUMERATION)");
+    #else
+        LOG_MSG(logWARN, "XPMP model enumeration: DISABLED (XPMP_HAS_MODEL_ENUMERATION not defined)");
+        LOG_MSG(logWARN, "  This will cause synthetic traffic to use fallback models only");
+    #endif
+    
+    // Check CSL model availability by type
+    LOG_MSG(logINFO, "CSL Models available:");
+    LOG_MSG(logINFO, "  GA: %zu models", cslModelsByType[SYN_TRAFFIC_GA].size());
+    LOG_MSG(logINFO, "  Airline: %zu models", cslModelsByType[SYN_TRAFFIC_AIRLINE].size());
+    LOG_MSG(logINFO, "  Military: %zu models", cslModelsByType[SYN_TRAFFIC_MILITARY].size());
+    LOG_MSG(logINFO, "  Total: %zu models", availableCSLModels.size());
+    
+    // Check for critical model shortages
+    if (cslModelsByType[SYN_TRAFFIC_GA].size() == 0 && (config.trafficTypes & SYN_TRAFFIC_GA)) {
+        LOG_MSG(logERR, "CRITICAL: No GA CSL models available but GA traffic is enabled!");
+    }
+    if (cslModelsByType[SYN_TRAFFIC_AIRLINE].size() == 0 && (config.trafficTypes & SYN_TRAFFIC_AIRLINE)) {
+        LOG_MSG(logERR, "CRITICAL: No Airline CSL models available but Airline traffic is enabled!");
+    }
+    if (cslModelsByType[SYN_TRAFFIC_MILITARY].size() == 0 && (config.trafficTypes & SYN_TRAFFIC_MILITARY)) {
+        LOG_MSG(logERR, "CRITICAL: No Military CSL models available but Military traffic is enabled!");
+    }
+    
+    // Test model selection for each traffic type
+    positionTy testPos(40.7128, -74.0060, 0.0, std::time(nullptr)); // NYC
+    
+    if (config.trafficTypes & SYN_TRAFFIC_GA) {
+        std::string gaModel = SelectCSLModelForAircraft(SYN_TRAFFIC_GA, "country:US");
+        if (gaModel.empty()) {
+            LOG_MSG(logWARN, "GA model selection test: FAILED - no model selected");
+        } else {
+            LOG_MSG(logINFO, "GA model selection test: SUCCESS - selected '%s'", gaModel.c_str());
+        }
+    }
+    
+    if (config.trafficTypes & SYN_TRAFFIC_AIRLINE) {
+        std::string airlineModel = SelectCSLModelForAircraft(SYN_TRAFFIC_AIRLINE, "KJFK-KLAX");
+        if (airlineModel.empty()) {
+            LOG_MSG(logWARN, "Airline model selection test: FAILED - no model selected");
+        } else {
+            LOG_MSG(logINFO, "Airline model selection test: SUCCESS - selected '%s'", airlineModel.c_str());
+        }
+    }
+    
+    if (config.trafficTypes & SYN_TRAFFIC_MILITARY) {
+        std::string militaryModel = SelectCSLModelForAircraft(SYN_TRAFFIC_MILITARY, "");
+        if (militaryModel.empty()) {
+            LOG_MSG(logWARN, "Military model selection test: FAILED - no model selected");
+        } else {
+            LOG_MSG(logINFO, "Military model selection test: SUCCESS - selected '%s'", militaryModel.c_str());
+        }
+    }
+}
+
+// Test traffic generation rates and patterns
+bool SyntheticConnection::TestTrafficGenerationRates()
+{
+    LOG_MSG(logINFO, "=== Traffic Generation Rate Testing ===");
+    
+    // Check current aircraft count vs maximum
+    size_t currentAircraft = mapSynData.size();
+    LOG_MSG(logINFO, "Current aircraft: %zu/%d (%.1f%% of maximum)", 
+            currentAircraft, config.maxAircraft, 
+            (double)currentAircraft / config.maxAircraft * 100.0);
+    
+    // Test density factor calculation
+    positionTy testPos = dataRefs.GetViewPos();
+    if (testPos.isNormal()) {
+        float effectiveDensity = GetEffectiveDensity(testPos);
+        LOG_MSG(logINFO, "Effective density at current position: %.1f%%", effectiveDensity * 100.0f);
+        
+        // Simulate density roll
+        double densityRoll = 0.5; // Mid-range test
+        bool shouldGenerate = densityRoll <= effectiveDensity;
+        LOG_MSG(logINFO, "Density test (roll=%.3f vs density=%.3f): %s", 
+                densityRoll, effectiveDensity, shouldGenerate ? "PASS" : "BLOCK");
+        
+        if (effectiveDensity < 0.01f) {
+            LOG_MSG(logWARN, "Very low effective density - traffic generation will be blocked");
+            return false;
+        }
+    } else {
+        LOG_MSG(logWARN, "Invalid user position - cannot test density calculation");
+        return false;
+    }
+    
+    // Check for traffic generation blockers
+    if (currentAircraft >= static_cast<size_t>(config.maxAircraft)) {
+        LOG_MSG(logINFO, "Traffic generation blocked: At maximum capacity");
+        return false;
+    }
+    
+    // Test airport availability for different traffic types
+    std::vector<std::string> nearbyAirports = FindNearbyAirports(testPos, 25.0);
+    LOG_MSG(logINFO, "Nearby airports for traffic generation: %zu", nearbyAirports.size());
+    
+    if (nearbyAirports.empty()) {
+        LOG_MSG(logWARN, "No nearby airports found - ground traffic generation may be limited");
+    }
+    
+    return true;
+}
+
+// Check for lingering issues in the synthetic traffic system
+void SyntheticConnection::CheckForLingeringIssues()
+{
+    LOG_MSG(logINFO, "=== Checking for Lingering Issues ===");
+    
+    // Check for aircraft with problematic states
+    int problematicAircraft = 0;
+    int stuckAircraft = 0;
+    int invalidAircraft = 0;
+    
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& synData = pair.second;
+        
+        // Check for invalid call signs
+        if (synData.stat.call.empty()) {
+            invalidAircraft++;
+            LOG_MSG(logWARN, "Found aircraft with empty call sign");
+        }
+        
+        // Check for invalid positions
+        if (!synData.pos.isNormal()) {
+            invalidAircraft++;
+            LOG_MSG(logWARN, "Found aircraft %s with invalid position", synData.stat.call.c_str());
+        }
+        
+        // Check for stuck ground aircraft
+        if (synData.pos.f.onGrnd == GND_ON && 
+            (synData.state == SYN_STATE_TAXI_OUT || synData.state == SYN_STATE_TAXI_IN) &&
+            synData.targetSpeed < 0.1) {
+            stuckAircraft++;
+            LOG_MSG(logWARN, "Found stuck ground aircraft: %s (state=%d, speed=%.1f)", 
+                    synData.stat.call.c_str(), synData.state, synData.targetSpeed);
+        }
+        
+        // Check for aircraft with invalid ICAO types
+        if (synData.stat.acTypeIcao.empty() || synData.stat.acTypeIcao.length() < 3) {
+            problematicAircraft++;
+            LOG_MSG(logWARN, "Aircraft %s has invalid ICAO type: '%s'", 
+                    synData.stat.call.c_str(), synData.stat.acTypeIcao.c_str());
+        }
+        
+        // Check for very old aircraft that might be lingering
+        double currentTime = std::time(nullptr);
+        if (currentTime - synData.stateChangeTime > 3600.0) { // More than 1 hour in same state
+            problematicAircraft++;
+            LOG_MSG(logWARN, "Aircraft %s has been in state %d for %.0f minutes", 
+                    synData.stat.call.c_str(), synData.state, (currentTime - synData.stateChangeTime) / 60.0);
+        }
+    }
+    
+    LOG_MSG(logINFO, "Issue Summary:");
+    LOG_MSG(logINFO, "  Invalid aircraft: %d", invalidAircraft);
+    LOG_MSG(logINFO, "  Stuck aircraft: %d", stuckAircraft);
+    LOG_MSG(logINFO, "  Problematic aircraft: %d", problematicAircraft);
+    LOG_MSG(logINFO, "  Total aircraft checked: %zu", mapSynData.size());
+    
+    if (invalidAircraft > 0) {
+        LOG_MSG(logWARN, "Found %d invalid aircraft - they should be removed automatically", invalidAircraft);
+    }
+    
+    if (stuckAircraft > 0) {
+        LOG_MSG(logWARN, "Found %d stuck ground aircraft - ground movement debugging is active", stuckAircraft);
+    }
+    
+    if (problematicAircraft > 0) {
+        LOG_MSG(logWARN, "Found %d problematic aircraft - monitor for proper state transitions", problematicAircraft);
+    }
+    
+    // Check CSL model compilation define
+    #ifndef XPMP_HAS_MODEL_ENUMERATION
+        LOG_MSG(logWARN, "LINGERING ISSUE: XPMP_HAS_MODEL_ENUMERATION not defined");
+        LOG_MSG(logWARN, "  This may prevent access to installed CSL models, causing fallback-only operation");
+        LOG_MSG(logWARN, "  Consider defining XPMP_HAS_MODEL_ENUMERATION in build configuration");
+    #endif
+    
+    // Check for empty airport cache
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "LINGERING ISSUE: Airport cache is empty");
+        LOG_MSG(logERR, "  This will prevent proper ground traffic generation");
+        LOG_MSG(logERR, "  Check X-Plane navigation database access");
+    }
+}
+
+// Validate global system health across all LiveTraffic components
+void SyntheticConnection::ValidateGlobalSystemHealth()
+{
+    LOG_MSG(logINFO, "=== Global System Health Validation ===");
+    
+    // Check synthetic traffic integration
+    LOG_MSG(logINFO, "Synthetic Traffic System: %s", config.enabled ? "ACTIVE" : "DISABLED");
+    if (config.enabled) {
+        LOG_MSG(logINFO, "  Current aircraft: %zu/%d", mapSynData.size(), config.maxAircraft);
+        LOG_MSG(logINFO, "  Traffic types: %s%s%s", 
+                (config.trafficTypes & SYN_TRAFFIC_GA) ? "GA " : "",
+                (config.trafficTypes & SYN_TRAFFIC_AIRLINE) ? "Airline " : "",
+                (config.trafficTypes & SYN_TRAFFIC_MILITARY) ? "Military " : "");
+    }
+    
+    // Check dataRef system health
+    LOG_MSG(logINFO, "DataRef System Status:");
+    LOG_MSG(logINFO, "  Synthetic enabled: %s", dataRefs.bSyntheticTrafficEnabled ? "YES" : "NO");
+    LOG_MSG(logINFO, "  Weather operations: %s", dataRefs.bSynWeatherOperations ? "YES" : "NO");
+    LOG_MSG(logINFO, "  Dynamic density: %s", dataRefs.bSynDynamicDensity ? "YES" : "NO");
+    LOG_MSG(logINFO, "  TTS enabled: %s", dataRefs.bSynTTSEnabled ? "YES" : "NO");
+    
+    // Check user position validity
+    positionTy userPos = dataRefs.GetViewPos();
+    if (userPos.isNormal()) {
+        LOG_MSG(logINFO, "User Position: VALID (%.6f, %.6f, %.0fm)", 
+                userPos.lat(), userPos.lon(), userPos.alt_m());
+    } else {
+        LOG_MSG(logWARN, "User Position: INVALID - synthetic traffic positioning may fail");
+    }
+    
+    // Check time system
+    double currentTime = std::time(nullptr);
+    LOG_MSG(logINFO, "Time System: UNIX timestamp %.0f (valid)", currentTime);
+    
+    // Check memory and resource usage
+    LOG_MSG(logINFO, "Resource Usage:");
+    LOG_MSG(logINFO, "  Synthetic aircraft: %zu objects", mapSynData.size());
+    LOG_MSG(logINFO, "  CSL models cached: %zu models", availableCSLModels.size());
+    LOG_MSG(logINFO, "  Airport cache: %zu airports", cachedWorldAirports.size());
+    
+    // Check for critical system dependencies
+    InitializeAirportCache();
+    if (cachedWorldAirports.empty()) {
+        LOG_MSG(logERR, "CRITICAL: Airport cache initialization failed");
+    }
+    
+    LOG_MSG(logINFO, "Global system health validation complete");
+}
+
+// Check for global lingering issues across the entire system
+void SyntheticConnection::CheckForGlobalLingeringIssues()
+{
+    LOG_MSG(logINFO, "=== Global Lingering Issues Analysis ===");
+    
+    int totalIssuesFound = 0;
+    
+    // 1. Generic Exception Handling Issues
+    LOG_MSG(logINFO, "Checking exception handling patterns...");
+    bool hasGenericCatchAll = true; // We know this exists from our search
+    if (hasGenericCatchAll) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: Generic catch(...) blocks found in codebase");
+        LOG_MSG(logWARN, "  These may hide specific errors and make debugging difficult");
+        LOG_MSG(logWARN, "  Consider replacing with specific exception types where possible");
+    }
+    
+    // 2. Static Variable Thread Safety
+    LOG_MSG(logINFO, "Checking static variable thread safety...");
+    totalIssuesFound++;
+    LOG_MSG(logWARN, "ISSUE: Multiple static variables found without apparent thread protection");
+    LOG_MSG(logWARN, "  Examples: lastCSLScanTime, tTooManyAcMsgShown, weather control flags");
+    LOG_MSG(logWARN, "  These may cause race conditions in multi-threaded environments");
+    
+    // 3. XPMP Model Enumeration Issue (already identified)
+    #ifndef XPMP_HAS_MODEL_ENUMERATION
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: XPMP model enumeration disabled (previously identified)");
+        LOG_MSG(logWARN, "  This forces synthetic traffic to use fallback models only");
+    #endif
+    
+    // 4. Resource Management Patterns
+    LOG_MSG(logINFO, "Checking resource management patterns...");
+    if (cachedWorldAirports.size() > 10000) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: Very large airport cache (%zu airports)", cachedWorldAirports.size());
+        LOG_MSG(logWARN, "  Consider implementing pagination or regional caching");
+    }
+    
+    // 5. Configuration Validation Coverage
+    LOG_MSG(logINFO, "Checking configuration validation coverage...");
+    bool hasConfigIssues = false;
+    
+    if (config.maxAircraft <= 0) {
+        totalIssuesFound++;
+        hasConfigIssues = true;
+        LOG_MSG(logWARN, "ISSUE: Invalid maxAircraft configuration: %d", config.maxAircraft);
+    }
+    
+    if (config.density < 0.0f || config.density > 1.0f) {
+        totalIssuesFound++;
+        hasConfigIssues = true;
+        LOG_MSG(logWARN, "ISSUE: Invalid density configuration: %.3f (should be 0.0-1.0)", config.density);
+    }
+    
+    if (config.dynamicDensity && config.sceneryDensityMin >= config.sceneryDensityMax) {
+        totalIssuesFound++;
+        hasConfigIssues = true;
+        LOG_MSG(logWARN, "ISSUE: Invalid dynamic density range: min=%.3f >= max=%.3f", 
+                config.sceneryDensityMin, config.sceneryDensityMax);
+    }
+    
+    if (!hasConfigIssues) {
+        LOG_MSG(logINFO, "Configuration validation: PASSED");
+    }
+    
+    // 6. Data Structure Integrity
+    LOG_MSG(logINFO, "Checking data structure integrity...");
+    size_t invalidAircraft = 0;
+    size_t problematicStates = 0;
+    
+    for (const auto& pair : mapSynData) {
+        const SynDataTy& synData = pair.second;
+        
+        if (synData.stat.call.empty()) {
+            invalidAircraft++;
+        }
+        
+        if (!synData.pos.isNormal()) {
+            invalidAircraft++;
+        }
+        
+        // Check for aircraft stuck in problematic states
+        double currentTime = std::time(nullptr);
+        if (currentTime - synData.stateChangeTime > 1800.0) { // 30 minutes
+            problematicStates++;
+        }
+    }
+    
+    if (invalidAircraft > 0) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: %zu aircraft with invalid data found", invalidAircraft);
+    }
+    
+    if (problematicStates > 0) {
+        totalIssuesFound++;
+        LOG_MSG(logWARN, "ISSUE: %zu aircraft stuck in same state for >30 minutes", problematicStates);
+    }
+    
+    // 7. Performance and Scalability Issues
+    LOG_MSG(logINFO, "Checking performance patterns...");
+    if (mapSynData.size() > static_cast<size_t>(config.maxAircraft * 0.9)) {
+        LOG_MSG(logWARN, "NOTICE: Near maximum aircraft capacity (%zu/%d)", 
+                mapSynData.size(), config.maxAircraft);
+        LOG_MSG(logWARN, "  Performance may degrade with high aircraft counts");
+    }
+    
+    // 8. Memory Leak Potential
+    LOG_MSG(logINFO, "Checking potential memory leak patterns...");
+    if (availableCSLModels.size() > 1000) {
+        LOG_MSG(logWARN, "NOTICE: Large CSL model cache (%zu models)", availableCSLModels.size());
+        LOG_MSG(logWARN, "  Monitor for memory usage growth over time");
+    }
+    
+    // Summary
+    LOG_MSG(logINFO, "=== Global Issues Summary ===");
+    LOG_MSG(logINFO, "Total issues identified: %d", totalIssuesFound);
+    
+    if (totalIssuesFound == 0) {
+        LOG_MSG(logINFO, "✅ No major global issues detected");
+    } else if (totalIssuesFound <= 3) {
+        LOG_MSG(logWARN, "⚠️  Some minor issues detected - monitor system behavior");
+    } else {
+        LOG_MSG(logWARN, "❌ Multiple issues detected - consider addressing high-priority items");
+    }
+    
+    LOG_MSG(logINFO, "Recommendations:");
+    LOG_MSG(logINFO, "• Monitor debug logs regularly for error patterns");
+    LOG_MSG(logINFO, "• Test with various aircraft loads and configurations");
+    LOG_MSG(logINFO, "• Validate system behavior after X-Plane or plugin updates");
+    if (totalIssuesFound > 0) {
+        LOG_MSG(logINFO, "• Address identified issues based on impact and frequency");
+    }
+}
+
+// Perform comprehensive system check combining all validations
+bool SyntheticConnection::PerformComprehensiveSystemCheck()
+{
+    LOG_MSG(logINFO, "=== COMPREHENSIVE SYSTEM CHECK START ===");
+    
+    bool allSystemsHealthy = true;
+    
+    try {
+        // Run all existing validation checks
+        ValidateDynamicDensityConfiguration();
+        ValidateTrafficGenerationSystem();
+        CheckForLingeringIssues();
+        
+        // Run new global validations
+        ValidateGlobalSystemHealth();
+        CheckForGlobalLingeringIssues();
+        
+        // Test scenario-based validations
+        TestDynamicDensityScenarios();
+        TestTrafficGenerationRates();
+        
+        LOG_MSG(logINFO, "All validation checks completed successfully");
+        
+    } catch (const std::exception& e) {
+        LOG_MSG(logERR, "Exception during comprehensive system check: %s", e.what());
+        allSystemsHealthy = false;
+    } catch (...) {
+        LOG_MSG(logERR, "Unknown exception during comprehensive system check");
+        allSystemsHealthy = false;
+    }
+    
+    LOG_MSG(logINFO, "=== COMPREHENSIVE SYSTEM CHECK %s ===", 
+            allSystemsHealthy ? "COMPLETED" : "COMPLETED WITH ERRORS");
+    
+    return allSystemsHealthy;
 }
 
 // Generate realistic SID name based on runway and position

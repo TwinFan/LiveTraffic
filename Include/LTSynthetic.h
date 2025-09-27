@@ -61,7 +61,9 @@ enum SyntheticFlightState : unsigned char {
     SYN_STATE_TOUCH_DOWN,       ///< Touchdown moment
     SYN_STATE_ROLL_OUT,         ///< Landing rollout
     SYN_STATE_TAXI_IN,          ///< Taxiing to gate
-    SYN_STATE_SHUTDOWN          ///< Shutting down
+    SYN_STATE_SHUTDOWN,         ///< Shutting down
+    SYN_STATE_MISSED_APPROACH,  ///< Missed approach procedure
+    SYN_STATE_GO_AROUND         ///< Go-around maneuver
 };
 
 /// Configuration for synthetic traffic generation
@@ -94,13 +96,14 @@ struct AircraftPerformance {
     double maxAltFt;                ///< Maximum altitude in feet
     double approachSpeedKts;        ///< Typical approach speed in knots
     double taxiSpeedKts;            ///< Typical taxi speed in knots
+    double minRunwayLengthFt;       ///< Minimum runway length required in feet
     
     AircraftPerformance(const std::string& type = "", double cruise = 120, double maxSpd = 150, 
                        double stall = 60, double ceiling = 15000, double climb = 800, double descent = 800,
-                       double maxAlt = 18000, double approach = 80, double taxi = 15)
+                       double maxAlt = 18000, double approach = 80, double taxi = 15, double minRunway = 3000)
         : icaoType(type), cruiseSpeedKts(cruise), maxSpeedKts(maxSpd), stallSpeedKts(stall),
           serviceCeilingFt(ceiling), climbRateFpm(climb), descentRateFpm(descent), 
-          maxAltFt(maxAlt), approachSpeedKts(approach), taxiSpeedKts(taxi) {}
+          maxAltFt(maxAlt), approachSpeedKts(approach), taxiSpeedKts(taxi), minRunwayLengthFt(minRunway) {}
 };
 
 //
@@ -186,6 +189,13 @@ protected:
         // CSL model scanning timing
         double lastCSLScanTime;                 ///< last time CSL models were scanned
         
+        // Go-around and diversion logic fields
+        int goAroundAttempts;                   ///< number of go-around attempts for this flight
+        double lastGoAroundTime;                ///< time of last go-around execution
+        bool weatherDiversionRequired;          ///< flag indicating weather diversion needed
+        std::string alternateAirport;           ///< alternate airport for diversion
+        double lastWeatherCheck;                ///< time of last weather condition check for approach decisions
+        
         SynDataTy() : currentWaypoint(0), lastTerrainCheck(0.0), terrainElevation(0.0), 
                      terrainProbe(nullptr), headingChangeRate(2.0), targetHeading(0.0),
                      lastTCASCheck(0.0), tcasActive(true), tcasAdvisory(""),
@@ -197,7 +207,8 @@ protected:
                      assignedSID(""), assignedSTAR(""), usingRealNavData(false),
                      currentComFreq(121.5), currentAirport(""), destinationAirport(""), currentFreqType("unicom"), lastFreqUpdate(0.0),
                      currentTaxiWaypoint(0), assignedGate(""), groundCollisionAvoidance(false),
-                     lastCSLScanTime(0.0) {}
+                     lastCSLScanTime(0.0), goAroundAttempts(0), lastGoAroundTime(0.0), 
+                     weatherDiversionRequired(false), alternateAirport(""), lastWeatherCheck(0.0) {}
         
         ~SynDataTy() {
             // Thread-safe cleanup of terrain probe
@@ -239,7 +250,9 @@ protected:
               destinationAirport(other.destinationAirport), currentFreqType(other.currentFreqType), lastFreqUpdate(other.lastFreqUpdate),
               taxiRoute(other.taxiRoute), currentTaxiWaypoint(other.currentTaxiWaypoint),
               assignedGate(other.assignedGate), groundCollisionAvoidance(other.groundCollisionAvoidance),
-              lastCSLScanTime(other.lastCSLScanTime) {}
+              lastCSLScanTime(other.lastCSLScanTime), goAroundAttempts(other.goAroundAttempts),
+              lastGoAroundTime(other.lastGoAroundTime), weatherDiversionRequired(other.weatherDiversionRequired),
+              alternateAirport(other.alternateAirport), lastWeatherCheck(other.lastWeatherCheck) {}
         
         // Assignment operator - need to handle probe ownership
         SynDataTy& operator=(const SynDataTy& other) {
@@ -311,6 +324,11 @@ protected:
                 assignedGate = other.assignedGate;
                 groundCollisionAvoidance = other.groundCollisionAvoidance;
                 lastCSLScanTime = other.lastCSLScanTime;
+                goAroundAttempts = other.goAroundAttempts;
+                lastGoAroundTime = other.lastGoAroundTime;
+                weatherDiversionRequired = other.weatherDiversionRequired;
+                alternateAirport = other.alternateAirport;
+                lastWeatherCheck = other.lastWeatherCheck;
             }
             return *this;
         }
@@ -399,6 +417,36 @@ public:
     void UpdateAdvancedWeatherOperations(SynDataTy& synData, double currentTime);
     void GetCurrentWeatherConditions(const positionTy& pos, std::string& conditions, double& visibility, double& windSpeed, double& windDirection);
     double CalculateWeatherImpactFactor(const std::string& weatherConditions, double visibility, double windSpeed);
+    
+    /// Go-around and diversion logic for weather-based operations
+    bool ShouldExecuteGoAround(const SynDataTy& synData, double currentTime);
+    bool ShouldDivertDueToWeather(const SynDataTy& synData, double currentTime);
+    void ExecuteGoAroundProcedure(SynDataTy& synData, double currentTime);
+    void ExecuteDiversionProcedure(SynDataTy& synData, double currentTime);
+    std::string FindAlternateAirport(const SynDataTy& synData);
+    
+    /// Runway occupation and performance-based go-around logic
+    bool IsRunwayOccupied(const SynDataTy& synData);
+    bool IsRunwaySuitableForAircraft(const SynDataTy& synData);
+    double GetRequiredRunwayLength(const std::string& icaoType, SyntheticTrafficType trafficType);
+    double GetRunwayLength(const std::string& runwayId);
+    void DebugGroundMovement(SynDataTy& synData);
+    
+    /// Dynamic density validation and debugging methods
+    void ValidateDynamicDensityConfiguration();
+    void DebugDynamicDensityCalculation(const positionTy& centerPos);
+    bool TestDynamicDensityScenarios();
+    
+    /// Traffic generation and CSL model validation methods
+    void ValidateTrafficGenerationSystem();
+    void DebugCSLModelMatching();
+    bool TestTrafficGenerationRates();
+    void CheckForLingeringIssues();
+    
+    /// Global system validation methods
+    void ValidateGlobalSystemHealth();
+    void CheckForGlobalLingeringIssues();
+    bool PerformComprehensiveSystemCheck();
     
     /// Seasonal and time-based traffic variations
     double CalculateSeasonalFactor(double currentTime);
