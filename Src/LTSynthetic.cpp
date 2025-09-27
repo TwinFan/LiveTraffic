@@ -1974,9 +1974,15 @@ std::string SyntheticConnection::GenerateAircraftType(SyntheticTrafficType traff
     }
     
     // First try to select from available CSL models
-    std::string acType = SelectCSLModelForAircraft(trafficType, route);
+    // For GA aircraft, pass country information to enable regional preferences
+    std::string routeWithCountry = route;
+    if (trafficType == SYN_TRAFFIC_GA && !country.empty()) {
+        routeWithCountry = "country:" + country;
+    }
+    
+    std::string acType = SelectCSLModelForAircraft(trafficType, routeWithCountry);
     if (!acType.empty()) {
-        LOG_MSG(logDEBUG, "Selected CSL model: %s for traffic type %d", acType.c_str(), trafficType);
+        LOG_MSG(logDEBUG, "Selected CSL model: %s for traffic type %d (country: %s)", acType.c_str(), trafficType, country.c_str());
         return acType;
     }
     
@@ -6602,13 +6608,26 @@ SyntheticTrafficType SyntheticConnection::CategorizeAircraftType(const std::stri
         return SYN_TRAFFIC_AIRLINE;
     }
     
-    // Large twin-engine aircraft (likely commercial)
+    // Enhanced GA aircraft detection - explicitly identify common GA types
+    // Single-engine GA aircraft
+    if (upper.find("C1") == 0 || // Cessna 100 series (C152, C172, C182, etc.)
+        upper.find("PA2") == 0 || upper.find("PA3") == 0 || // Piper Cherokee series
+        upper.find("DA2") == 0 || upper.find("DA4") == 0 || // Diamond DA20, DA40
+        upper.find("GR115") == 0 || upper.find("AQUI") == 0 || // Grob 115, Aquila
+        upper.find("TB") == 0 || // Socata TB series
+        upper.find("SR2") == 0) { // Cirrus SR20/SR22
+        return SYN_TRAFFIC_GA;
+    }
+    
+    // Twin-engine GA aircraft (high-end GA)
     if (upper.find("BE20") == 0 || upper.find("BE30") == 0 || upper.find("BE40") == 0 ||
+        upper.find("BE55") == 0 || upper.find("BE58") == 0 || upper.find("BE76") == 0 ||
+        upper.find("PA34") == 0 || upper.find("PA44") == 0 || // Piper twins
         upper.find("MU2") == 0 || upper.find("TBM") == 0) {
         return SYN_TRAFFIC_GA; // High-end GA
     }
     
-    // Everything else is GA
+    // Everything else is GA (default)
     return SYN_TRAFFIC_GA;
 }
 
@@ -6626,8 +6645,122 @@ std::string SyntheticConnection::SelectCSLModelForAircraft(SyntheticTrafficType 
     std::vector<size_t> preferredModels;
     std::vector<size_t> alternateModels;
     
-    // Use route information to prefer certain aircraft types
-    if (!route.empty() && trafficType == SYN_TRAFFIC_AIRLINE) {
+    // Enhanced GA aircraft selection based on regional preferences
+    if (trafficType == SYN_TRAFFIC_GA) {
+        // Extract country information from route if available (format: "country:XX" or just "XX")
+        std::string countryCode;
+        if (!route.empty()) {
+            size_t colonPos = route.find(':');
+            if (colonPos != std::string::npos && colonPos + 1 < route.size()) {
+                countryCode = route.substr(colonPos + 1);
+            } else if (route.length() == 2) {
+                countryCode = route;
+            }
+        }
+        
+        // Define GA aircraft preferences by region/country  
+        std::vector<std::string> preferredGATypes;
+        std::vector<std::string> commonGATypes;
+        
+        if (countryCode == "US" || countryCode == "CA") {
+            // North America - Cessna and Piper dominated
+            preferredGATypes = {"C172", "C152", "C182", "PA28", "SR22", "BE36"};
+            commonGATypes = {"C150", "C170", "PA34", "BE76"};
+        } else if (countryCode == "GB" || countryCode == "IE") {
+            // UK/Ireland - mixed US and European
+            preferredGATypes = {"C172", "PA28", "C152", "AT3", "GR115"};
+            commonGATypes = {"C182", "BE20", "DA40"};
+        } else if (countryCode == "DE" || countryCode == "AT" || countryCode == "CH") {
+            // German-speaking Europe - European training aircraft
+            preferredGATypes = {"DA40", "AQUI", "GR115", "C172", "PA28"};
+            commonGATypes = {"DA20", "C152", "BE20"};
+        } else if (countryCode == "FR") {
+            // France - European preference with French aircraft
+            preferredGATypes = {"TB20", "AQUI", "C172", "PA28", "DA40"};
+            commonGATypes = {"TB10", "DA20", "C152"};
+        } else if (countryCode == "AU" || countryCode == "NZ") {
+            // Australia/New Zealand - similar to US
+            preferredGATypes = {"C172", "PA28", "C182", "BE76", "SR22"};
+            commonGATypes = {"C152", "BE20", "DA40"};
+        } else {
+            // Default international GA mix
+            preferredGATypes = {"C172", "PA28", "C182", "C152"};
+            commonGATypes = {"DA40", "BE20", "SR22"};
+        }
+        
+        // Categorize available GA models based on preferences
+        std::map<std::string, size_t> preferredModelMap;
+        std::vector<size_t> commonModels;
+        std::vector<size_t> otherModels;
+        
+        for (size_t modelIndex : typeModels) {
+            if (modelIndex < availableCSLModels.size()) {
+                const CSLModelData& model = availableCSLModels[modelIndex];
+                
+                // Check if this model matches preferred types
+                bool isPreferred = false;
+                bool isCommon = false;
+                
+                for (const std::string& prefType : preferredGATypes) {
+                    if (model.icaoType.find(prefType) == 0) {
+                        preferredModelMap[prefType] = modelIndex;
+                        isPreferred = true;
+                        break;
+                    }
+                }
+                
+                if (!isPreferred) {
+                    for (const std::string& commType : commonGATypes) {
+                        if (model.icaoType.find(commType) == 0) {
+                            commonModels.push_back(modelIndex);
+                            isCommon = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!isPreferred && !isCommon) {
+                    otherModels.push_back(modelIndex);
+                }
+            }
+        }
+        
+        // Select from preferred models in preference order
+        for (const std::string& prefType : preferredGATypes) {
+            auto prefIt = preferredModelMap.find(prefType);
+            if (prefIt != preferredModelMap.end()) {
+                size_t selectedIndex = prefIt->second;
+                const CSLModelData& selectedModel = availableCSLModels[selectedIndex];
+                LOG_MSG(logDEBUG, "Selected preferred GA CSL model: %s (%s) for country '%s'", 
+                        selectedModel.modelName.c_str(), selectedModel.icaoType.c_str(), countryCode.c_str());
+                return selectedModel.icaoType;
+            }
+        }
+        
+        // No preferred found, try common models
+        if (!commonModels.empty()) {
+            size_t selectedIndex = commonModels[std::rand() % commonModels.size()];
+            const CSLModelData& selectedModel = availableCSLModels[selectedIndex];
+            LOG_MSG(logDEBUG, "Selected common GA CSL model: %s (%s) for country '%s'", 
+                    selectedModel.modelName.c_str(), selectedModel.icaoType.c_str(), countryCode.c_str());
+            return selectedModel.icaoType;
+        }
+        
+        // Last resort: other GA models
+        if (!otherModels.empty()) {
+            size_t selectedIndex = otherModels[std::rand() % otherModels.size()];
+            const CSLModelData& selectedModel = availableCSLModels[selectedIndex];
+            LOG_MSG(logDEBUG, "Selected fallback GA CSL model: %s (%s) for country '%s'", 
+                    selectedModel.modelName.c_str(), selectedModel.icaoType.c_str(), countryCode.c_str());
+            return selectedModel.icaoType;
+        }
+        
+        LOG_MSG(logDEBUG, "GA model selection for country '%s': %d preferred, %d common, %d other models", 
+                countryCode.c_str(), static_cast<int>(preferredModelMap.size()), 
+                static_cast<int>(commonModels.size()), static_cast<int>(otherModels.size()));
+                
+    } else if (!route.empty() && trafficType == SYN_TRAFFIC_AIRLINE) {
+        // Use route information to prefer certain aircraft types
         // Analyze route to determine preferred aircraft
         double routeLength = 0.0;
         
