@@ -839,11 +839,29 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     positionTy acPos;
     
     if (generateOnGround) {
-        // Generate ground aircraft at airports
+        // Generate ground aircraft ONLY at airports - no fallback to airborne
         positionTy airportPos = GetAirportPosition(airport);
         if (airportPos.isNormal()) {
-            // Position aircraft at or near the airport
-            acPos = GenerateVariedPosition(airportPos, 0.1, 2.0); // Within 0.1-2nm of airport
+            // Double-check that the airport actually exists by verifying it's in our cache
+            bool airportExists = false;
+            InitializeAirportCache(); // Ensure cache is initialized
+            std::string upperAirport = airport;
+            std::transform(upperAirport.begin(), upperAirport.end(), upperAirport.begin(), ::toupper);
+            
+            for (const auto& cachedAirport : cachedWorldAirports) {
+                if (cachedAirport.icao == upperAirport) {
+                    airportExists = true;
+                    break;
+                }
+            }
+            
+            if (!airportExists) {
+                LOG_MSG(logWARN, "Skipping GA ground aircraft - airport %s exists in nearby list but not in airport cache", airport.c_str());
+                return;
+            }
+            
+            // Position aircraft very close to the airport to ensure they're actually AT the airport
+            acPos = GenerateVariedPosition(airportPos, 0.05, 0.5); // Within 0.05-0.5nm of airport center
             
             // Set ground altitude with terrain elevation
             XPLMProbeRef tempProbe = nullptr;
@@ -856,8 +874,9 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
             LOG_MSG(logDEBUG, "GA ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
                     terrainElev, acPos.alt_m());
         } else {
-            // Fallback to airborne if airport position unavailable
-            generateOnGround = false;
+            // Skip spawning if airport position unavailable - ground aircraft ONLY at airports
+            LOG_MSG(logDEBUG, "Skipping GA ground aircraft - airport %s position unavailable", airport.c_str());
+            return;
         }
     }
     
@@ -881,10 +900,22 @@ void SyntheticConnection::GenerateGATraffic(const positionTy& centerPos)
     // Find a different destination airport for the aircraft
     std::string destinationAirport = "";
     if (!airports.empty() && airports.size() > 1) {
-        // Choose a different airport as destination
+        // Choose a different airport as destination and validate it exists
+        int attempts = 0;
+        const int maxAttempts = 5;
         do {
             destinationAirport = airports[std::rand() % airports.size()];
-        } while (destinationAirport == airport && airports.size() > 1);
+            attempts++;
+        } while (destinationAirport == airport && airports.size() > 1 && attempts < maxAttempts);
+        
+        // Validate that the destination airport actually exists
+        if (!destinationAirport.empty()) {
+            positionTy destPos = GetAirportPosition(destinationAirport);
+            if (!destPos.isNormal()) {
+                LOG_MSG(logWARN, "Destination airport %s selected but position unavailable, clearing destination", destinationAirport.c_str());
+                destinationAirport = ""; // Clear invalid destination
+            }
+        }
     }
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_GA, destinationAirport);
@@ -915,11 +946,29 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     positionTy acPos;
     
     if (generateOnGround) {
-        // Generate ground aircraft at airports
+        // Generate ground aircraft ONLY at airports - no fallback to airborne
         positionTy airportPos = GetAirportPosition(airport);
         if (airportPos.isNormal()) {
-            // Position aircraft at or near the airport (airlines need more space)
-            acPos = GenerateVariedPosition(airportPos, 0.2, 3.0); // Within 0.2-3nm of airport
+            // Double-check that the airport actually exists by verifying it's in our cache
+            bool airportExists = false;
+            InitializeAirportCache(); // Ensure cache is initialized
+            std::string upperAirport = airport;
+            std::transform(upperAirport.begin(), upperAirport.end(), upperAirport.begin(), ::toupper);
+            
+            for (const auto& cachedAirport : cachedWorldAirports) {
+                if (cachedAirport.icao == upperAirport) {
+                    airportExists = true;
+                    break;
+                }
+            }
+            
+            if (!airportExists) {
+                LOG_MSG(logWARN, "Skipping Airline ground aircraft - airport %s exists in nearby list but not in airport cache", airport.c_str());
+                return;
+            }
+            
+            // Position aircraft close to the airport (airlines need more space but still at airport)
+            acPos = GenerateVariedPosition(airportPos, 0.1, 1.0); // Within 0.1-1nm of airport center
             
             // Set ground altitude with terrain elevation
             XPLMProbeRef tempProbe = nullptr;
@@ -932,8 +981,9 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
             LOG_MSG(logDEBUG, "Airline ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
                     terrainElev, acPos.alt_m());
         } else {
-            // Fallback to airborne if airport position unavailable
-            generateOnGround = false;
+            // Skip spawning if airport position unavailable - ground aircraft ONLY at airports
+            LOG_MSG(logDEBUG, "Skipping Airline ground aircraft - airport %s position unavailable", airport.c_str());
+            return;
         }
     }
     
@@ -957,10 +1007,22 @@ void SyntheticConnection::GenerateAirlineTraffic(const positionTy& centerPos)
     // Find a different destination airport for airline traffic
     std::string destinationAirport = "";
     if (!airports.empty() && airports.size() > 1) {
-        // Choose a different airport as destination
+        // Choose a different airport as destination and validate it exists
+        int attempts = 0;
+        const int maxAttempts = 5;
         do {
             destinationAirport = airports[std::rand() % airports.size()];
-        } while (destinationAirport == airport && airports.size() > 1);
+            attempts++;
+        } while (destinationAirport == airport && airports.size() > 1 && attempts < maxAttempts);
+        
+        // Validate that the destination airport actually exists
+        if (!destinationAirport.empty()) {
+            positionTy destPos = GetAirportPosition(destinationAirport);
+            if (!destPos.isNormal()) {
+                LOG_MSG(logWARN, "Destination airport %s selected but position unavailable, clearing destination", destinationAirport.c_str());
+                destinationAirport = ""; // Clear invalid destination
+            }
+        }
     }
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_AIRLINE, destinationAirport);
@@ -988,34 +1050,96 @@ void SyntheticConnection::GenerateMilitaryTraffic(const positionTy& centerPos)
     unsigned long numericKey = (static_cast<unsigned long>(std::rand()) << 16) | (std::time(nullptr) & 0xFFFF);
     std::string key = std::to_string(numericKey);
     
-    // Military aircraft can operate from various locations and altitudes - spread them out more
-    positionTy acPos = GenerateVariedPosition(centerPos, 20.0, 100.0); // 20-100nm from user
+    // Determine if this should be a ground or airborne aircraft (20% ground, 80% airborne for military)
+    bool generateOnGround = (std::rand() % 100) < 20;
     
-    // Set terrain-safe altitude for military aircraft
-    XPLMProbeRef tempProbe = nullptr;
-    double terrainElev = GetTerrainElevation(acPos, tempProbe);
-    if (tempProbe) XPLMDestroyProbe(tempProbe);
+    positionTy acPos;
     
-    double baseAltitude = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
-    double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_MILITARY);
-    acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+    if (generateOnGround) {
+        // Generate ground aircraft ONLY at military airports - no fallback to airborne
+        positionTy airportPos = GetAirportPosition(airport);
+        if (airportPos.isNormal()) {
+            // Double-check that the airport actually exists by verifying it's in our cache
+            bool airportExists = false;
+            InitializeAirportCache(); // Ensure cache is initialized
+            std::string upperAirport = airport;
+            std::transform(upperAirport.begin(), upperAirport.end(), upperAirport.begin(), ::toupper);
+            
+            for (const auto& cachedAirport : cachedWorldAirports) {
+                if (cachedAirport.icao == upperAirport) {
+                    airportExists = true;
+                    break;
+                }
+            }
+            
+            if (!airportExists) {
+                LOG_MSG(logWARN, "Skipping Military ground aircraft - airport %s exists in nearby list but not in airport cache", airport.c_str());
+                return;
+            }
+            
+            // Position aircraft close to the military airport
+            acPos = GenerateVariedPosition(airportPos, 0.05, 0.8); // Within 0.05-0.8nm of military airport center
+            
+            // Set ground altitude with terrain elevation
+            XPLMProbeRef tempProbe = nullptr;
+            double terrainElev = GetTerrainElevation(acPos, tempProbe);
+            if (tempProbe) XPLMDestroyProbe(tempProbe);
+            
+            // Set altitude slightly above terrain (ground level)
+            acPos.alt_m() = terrainElev + 6.0; // 6m above ground for military aircraft
+            
+            LOG_MSG(logDEBUG, "Military ground aircraft altitude: terrain=%.0fm, final=%.0fm", 
+                    terrainElev, acPos.alt_m());
+        } else {
+            // Skip spawning if airport position unavailable - ground aircraft ONLY at airports
+            LOG_MSG(logDEBUG, "Skipping Military ground aircraft - airport %s position unavailable", airport.c_str());
+            return;
+        }
+    }
     
-    LOG_MSG(logDEBUG, "Military aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
-            terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    if (!generateOnGround) {
+        // Military aircraft can operate from various locations and altitudes - spread them out more
+        acPos = GenerateVariedPosition(centerPos, 20.0, 100.0); // 20-100nm from user
+        
+        // Set terrain-safe altitude for military aircraft
+        XPLMProbeRef tempProbe = nullptr;
+        double terrainElev = GetTerrainElevation(acPos, tempProbe);
+        if (tempProbe) XPLMDestroyProbe(tempProbe);
+        
+        double baseAltitude = 5000.0 + (std::rand() % 15000); // 5000-20000m for military
+        double requiredClearance = GetRequiredTerrainClearance(SYN_STATE_CRUISE, SYN_TRAFFIC_MILITARY);
+        acPos.alt_m() = std::max(baseAltitude, terrainElev + requiredClearance);
+        
+        LOG_MSG(logDEBUG, "Military airborne aircraft altitude: terrain=%.0fm, required=%.0fm, final=%.0fm", 
+                terrainElev, terrainElev + requiredClearance, acPos.alt_m());
+    }
     
     // Find a different destination airport for military traffic
     std::string destinationAirport = "";
     if (!militaryAirports.empty() && militaryAirports.size() > 1) {
-        // Choose a different airport as destination
+        // Choose a different airport as destination and validate it exists
+        int attempts = 0;
+        const int maxAttempts = 5;
         do {
             destinationAirport = militaryAirports[std::rand() % militaryAirports.size()];
-        } while (destinationAirport == airport && militaryAirports.size() > 1);
+            attempts++;
+        } while (destinationAirport == airport && militaryAirports.size() > 1 && attempts < maxAttempts);
+        
+        // Validate that the destination airport actually exists
+        if (!destinationAirport.empty()) {
+            positionTy destPos = GetAirportPosition(destinationAirport);
+            if (!destPos.isNormal()) {
+                LOG_MSG(logWARN, "Destination airport %s selected but position unavailable, clearing destination", destinationAirport.c_str());
+                destinationAirport = ""; // Clear invalid destination
+            }
+        }
     }
     
     CreateSyntheticAircraft(key, acPos, SYN_TRAFFIC_MILITARY, destinationAirport);
     
-    LOG_MSG(logDEBUG, "Generated Military traffic: %s at %s (%.2f nm from user)", 
-            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0);
+    LOG_MSG(logDEBUG, "Generated Military traffic: %s at %s (%.2f nm from user) %s", 
+            key.c_str(), airport.c_str(), centerPos.dist(acPos) / 1852.0,
+            generateOnGround ? "ON GROUND" : "AIRBORNE");
 }
 
 // Create synthetic aircraft with realistic parameters
@@ -1049,34 +1173,50 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     // Generate a realistic flight plan based on current position and traffic type
     positionTy destination = pos; // Default destination is current position
     
-    // Create a realistic destination based on traffic type and current position
-    switch (trafficType) {
-        case SYN_TRAFFIC_GA:
-            // GA flights typically within 200nm radius
-            destination.lat() += (std::rand() % 200 - 100) / 100.0; // +/- 1 degree (~60nm)
-            destination.lon() += (std::rand() % 200 - 100) / 100.0;
-            destination.alt_m() = pos.alt_m() + (std::rand() % 1000); // Vary altitude
-            break;
-        case SYN_TRAFFIC_AIRLINE:
-            // Airlines can travel much farther
-            destination.lat() += (std::rand() % 1000 - 500) / 100.0; // +/- 5 degrees (~300nm)
-            destination.lon() += (std::rand() % 1000 - 500) / 100.0;
-            destination.alt_m() = 10000.0 + (std::rand() % 5000); // High altitude
-            break;
-        case SYN_TRAFFIC_MILITARY:
-            // Military flights vary widely
-            destination.lat() += (std::rand() % 2000 - 1000) / 100.0; // +/- 10 degrees (~600nm)
-            destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
-            destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
-            break;
-        case SYN_TRAFFIC_NONE:
-        case SYN_TRAFFIC_ALL:
-        default:
-            // Default to GA behavior for undefined cases
-            destination.lat() += (std::rand() % 200 - 100) / 100.0;
-            destination.lon() += (std::rand() % 200 - 100) / 100.0;
-            destination.alt_m() = pos.alt_m() + (std::rand() % 1000);
-            break;
+    // If a destination airport was provided, use its position instead of generating random coordinates
+    if (!destinationAirport.empty()) {
+        positionTy airportDestination = GetAirportPosition(destinationAirport);
+        if (airportDestination.isNormal()) {
+            destination = airportDestination;
+            LOG_MSG(logDEBUG, "Using destination airport %s at lat=%.6f, lon=%.6f for flight plan", 
+                    destinationAirport.c_str(), destination.lat(), destination.lon());
+        } else {
+            LOG_MSG(logWARN, "Destination airport %s not found, using random destination for flight plan", 
+                    destinationAirport.c_str());
+            // Fall back to random destination generation below
+        }
+    }
+    
+    // If no valid destination airport or airport not found, create a realistic destination based on traffic type and current position
+    if (destinationAirport.empty() || destination.lat() == pos.lat() && destination.lon() == pos.lon()) {
+        switch (trafficType) {
+            case SYN_TRAFFIC_GA:
+                // GA flights typically within 200nm radius
+                destination.lat() += (std::rand() % 200 - 100) / 100.0; // +/- 1 degree (~60nm)
+                destination.lon() += (std::rand() % 200 - 100) / 100.0;
+                destination.alt_m() = pos.alt_m() + (std::rand() % 1000); // Vary altitude
+                break;
+            case SYN_TRAFFIC_AIRLINE:
+                // Airlines can travel much farther
+                destination.lat() += (std::rand() % 1000 - 500) / 100.0; // +/- 5 degrees (~300nm)
+                destination.lon() += (std::rand() % 1000 - 500) / 100.0;
+                destination.alt_m() = 10000.0 + (std::rand() % 5000); // High altitude
+                break;
+            case SYN_TRAFFIC_MILITARY:
+                // Military flights vary widely
+                destination.lat() += (std::rand() % 2000 - 1000) / 100.0; // +/- 10 degrees (~600nm)
+                destination.lon() += (std::rand() % 2000 - 1000) / 100.0;
+                destination.alt_m() = 15000.0 + (std::rand() % 10000); // Very high altitude
+                break;
+            case SYN_TRAFFIC_NONE:
+            case SYN_TRAFFIC_ALL:
+            default:
+                // Default to GA behavior for undefined cases
+                destination.lat() += (std::rand() % 200 - 100) / 100.0;
+                destination.lon() += (std::rand() % 200 - 100) / 100.0;
+                destination.alt_m() = pos.alt_m() + (std::rand() % 1000);
+                break;
+        }
     }
     
     // Generate flight plan using origin and destination
@@ -1155,6 +1295,38 @@ bool SyntheticConnection::CreateSyntheticAircraft(const std::string& key, const 
     
     // Set destination airport
     synData.destinationAirport = destinationAirport;
+    
+    // Set route information (origin -> destination) for proper flight data structure
+    // Origin is the airport where the aircraft is currently located/spawned
+    std::string originAirport = "";
+    
+    // Try to find the closest airport to the spawn position as the origin
+    auto nearbyAirports = FindNearbyAirports(pos, 5.0); // Within 5nm of spawn point
+    if (!nearbyAirports.empty()) {
+        originAirport = nearbyAirports[0]; // Closest airport
+        
+        // Validate that the origin airport actually exists
+        positionTy originPos = GetAirportPosition(originAirport);
+        if (!originPos.isNormal()) {
+            LOG_MSG(logWARN, "Origin airport %s selected but position unavailable, clearing origin", originAirport.c_str());
+            originAirport = ""; // Clear invalid origin
+        }
+    }
+    
+    // Set origin and destination in the flight data structure
+    if (!originAirport.empty() && !destinationAirport.empty()) {
+        synData.stat.setOrigDest(originAirport, destinationAirport);
+        LOG_MSG(logDEBUG, "Set route %s -> %s for aircraft %s", 
+                originAirport.c_str(), destinationAirport.c_str(), synData.stat.call.c_str());
+    } else if (!originAirport.empty()) {
+        // Local flight - origin and destination are the same
+        synData.stat.setOrigDest(originAirport, originAirport);
+        LOG_MSG(logDEBUG, "Set local flight at %s for aircraft %s", 
+                originAirport.c_str(), synData.stat.call.c_str());
+    } else {
+        LOG_MSG(logDEBUG, "No origin airport found for aircraft %s, route will be empty", 
+                synData.stat.call.c_str());
+    }
     
     // Flight plan already generated above based on origin/destination
     
@@ -1863,10 +2035,14 @@ void InitializeAirportCache()
         // Only include airports with valid ICAO codes (3-4 characters) and reasonable coordinates
         std::string icao(airportID);
         std::string name(airportName);
+        
+        // Normalize ICAO code to uppercase for consistent matching
+        std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
+        
         if (!icao.empty() && icao.length() >= 3 && icao.length() <= 4 && 
             std::abs(lat) <= 90.0 && std::abs(lon) <= 180.0) {
             AirportData airport;
-            airport.icao = icao;
+            airport.icao = icao;  // Now stored in uppercase
             airport.name = name;
             airport.lat = lat;
             airport.lon = lon;
@@ -1953,18 +2129,27 @@ positionTy SyntheticConnection::GetAirportPosition(const std::string& icaoCode)
     // Initialize airport cache if needed
     InitializeAirportCache();
     
-    // Search for the airport in the cache
+    // Convert search ICAO to uppercase for consistent matching
+    std::string searchIcao = icaoCode;
+    std::transform(searchIcao.begin(), searchIcao.end(), searchIcao.begin(), ::toupper);
+    
+    // Search for the airport in the cache (now using consistent uppercase comparison)
     for (const auto& airport : cachedWorldAirports) {
-        if (airport.icao == icaoCode) {
-            positionTy pos;
-            pos.lat() = airport.lat;
-            pos.lon() = airport.lon;
-            pos.alt_m() = 0.0; // Will be updated with actual elevation later
+        if (airport.icao == searchIcao) {  // Both are uppercase now
+            positionTy pos(airport.lat, airport.lon, 0.0, // lat, lon, alt_m (will be updated with actual elevation later)
+                          std::time(nullptr),             // current timestamp
+                          NAN,                            // heading (unknown)
+                          NAN, NAN,                       // pitch, roll (unknown) 
+                          GND_ON);                        // on ground for airport positions
+            
+            LOG_MSG(logDEBUG, "Found airport %s at position lat=%.6f, lon=%.6f", 
+                    icaoCode.c_str(), airport.lat, airport.lon);
             return pos;
         }
     }
     
     // If not found in cache, return invalid position
+    LOG_MSG(logDEBUG, "Airport %s not found in cache", icaoCode.c_str());
     return positionTy();
 }
 
@@ -3922,11 +4107,10 @@ std::vector<positionTy> SyntheticConnection::GenerateSIDFromNavData(const positi
                 }
             }
             
-            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
-            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
-            
-            waypoint.lat() = airportPos.lat() + lat_offset;
-            waypoint.lon() = airportPos.lon() + lon_offset;
+            positionTy waypoint;
+            // Use proper coordinate calculation instead of manual trigonometry
+            vectorTy waypointVector(bearing, distance);
+            waypoint = CoordPlusVector(airportPos, waypointVector);
             waypoint.alt_m() = airportPos.alt_m() + i * 500.0;
             
             sidProcedure.push_back(waypoint);
@@ -4062,11 +4246,10 @@ std::vector<positionTy> SyntheticConnection::GenerateSTARFromNavData(const posit
                 }
             }
             
-            double lat_offset = (distance * cos(bearing * PI / 180.0)) / 111320.0;
-            double lon_offset = (distance * sin(bearing * PI / 180.0)) / (111320.0 * cos(airportPos.lat() * PI / 180.0));
-            
-            waypoint.lat() = airportPos.lat() + lat_offset;
-            waypoint.lon() = airportPos.lon() + lon_offset;
+            positionTy waypoint;
+            // Use proper coordinate calculation instead of manual trigonometry
+            vectorTy waypointVector(bearing, distance);
+            waypoint = CoordPlusVector(airportPos, waypointVector);
             waypoint.alt_m() = airportPos.alt_m() + i * 600.0;
             
             starProcedure.push_back(waypoint);
@@ -4183,6 +4366,67 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
         return centerPos;
     }
     
+    // For small distances (ground aircraft), try to find actual airport startup/parking positions
+    if (maxDistanceNM <= 1.0) { // Ground aircraft typically use small distances
+        for (int parkingAttempt = 0; parkingAttempt < 5; parkingAttempt++) {
+            // Try to find a startup position near the center position
+            positionTy parkingPos = LTAptFindStartupLoc(centerPos, maxDistanceNM * 1852.0); // Convert to meters
+            
+            if (parkingPos.isNormal()) {
+                // Check if this parking position is far enough from existing aircraft
+                bool positionOK = true;
+                const double minSeparationNM = 0.02; // 20 meters minimum separation for parked aircraft
+                
+                for (const auto& synAircraft : mapSynData) {
+                    double dist = synAircraft.second.pos.dist(parkingPos) / 1852.0; // Distance in nautical miles
+                    if (dist < minSeparationNM) {
+                        positionOK = false;
+                        break;
+                    }
+                }
+                
+                if (positionOK) {
+                    // Set altitude to match center position (will be updated with terrain elevation by caller)
+                    parkingPos.alt_m() = centerPos.alt_m();
+                    LOG_MSG(logDEBUG, "Found parking position at startup location: %.6f, %.6f", 
+                            parkingPos.lat(), parkingPos.lon());
+                    return parkingPos;
+                }
+                
+                // If this parking position is too close to existing aircraft, try to find another one
+                // by slightly adjusting the search center
+                double offsetBearing = (parkingAttempt * 72.0) * PI / 180.0; // 72° intervals (5 attempts)
+                double offsetDistance = 50.0; // 50 meters offset
+                vectorTy offsetVector(offsetBearing * 180.0 / PI, offsetDistance);
+                positionTy adjustedCenter = CoordPlusVector(centerPos, offsetVector);
+                parkingPos = LTAptFindStartupLoc(adjustedCenter, maxDistanceNM * 1852.0);
+                
+                if (parkingPos.isNormal()) {
+                    // Check separation again with adjusted position
+                    positionOK = true;
+                    for (const auto& synAircraft : mapSynData) {
+                        double dist = synAircraft.second.pos.dist(parkingPos) / 1852.0;
+                        if (dist < minSeparationNM) {
+                            positionOK = false;
+                            break;
+                        }
+                    }
+                    
+                    if (positionOK) {
+                        parkingPos.alt_m() = centerPos.alt_m();
+                        LOG_MSG(logDEBUG, "Found parking position at adjusted startup location: %.6f, %.6f", 
+                                parkingPos.lat(), parkingPos.lon());
+                        return parkingPos;
+                    }
+                }
+            }
+        }
+        
+        LOG_MSG(logDEBUG, "No suitable parking positions found, using random positioning");
+    }
+    
+    // Fall back to original random positioning logic
+    
     const int maxAttempts = 10;
     const double minSeparationNM = 1.0; // Minimum 1nm separation between aircraft
     
@@ -4194,15 +4438,9 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
         // Generate random bearing
         double bearing = static_cast<double>(std::rand()) / RAND_MAX * 2.0 * PI;
         
-        // Calculate new position using bearing and distance
-        positionTy newPos = centerPos;
-        
-        // Simple flat earth approximation for positioning (good enough for local distances)
-        double lat_offset = (distance * cos(bearing)) / 111320.0; // 111320 m per degree latitude
-        double lon_offset = (distance * sin(bearing)) / (111320.0 * cos(centerPos.lat() * PI / 180.0));
-        
-        newPos.lat() += lat_offset;
-        newPos.lon() += lon_offset;
+        // Calculate new position using proper coordinate functions instead of manual trigonometry
+        vectorTy offsetVector(bearing * 180.0 / PI, distance);  // Convert radians to degrees for vectorTy
+        positionTy newPos = CoordPlusVector(centerPos, offsetVector);
         newPos.alt_m() = centerPos.alt_m(); // Keep same base altitude, will be modified by caller
         
         // Check if this position is far enough from existing synthetic aircraft
@@ -4228,12 +4466,9 @@ positionTy SyntheticConnection::GenerateVariedPosition(const positionTy& centerP
     distance *= 1852.0;
     double bearing = static_cast<double>(std::rand()) / RAND_MAX * 2.0 * PI;
     
-    positionTy newPos = centerPos;
-    double lat_offset = (distance * cos(bearing)) / 111320.0;
-    double lon_offset = (distance * sin(bearing)) / (111320.0 * cos(centerPos.lat() * PI / 180.0));
-    
-    newPos.lat() += lat_offset;
-    newPos.lon() += lon_offset;
+    // Use proper coordinate functions for fallback position as well
+    vectorTy offsetVector(bearing * 180.0 / PI, distance);  // Convert radians to degrees
+    positionTy newPos = CoordPlusVector(centerPos, offsetVector);
     newPos.alt_m() = centerPos.alt_m();
     
     return newPos;
@@ -4780,8 +5015,9 @@ void SyntheticConnection::GenerateDeparturePath(SynDataTy& synData, const positi
                 double bearingVariation = ((std::rand() % 60 - 30) * PI / 180.0); // ±30 degrees in radians
                 double actualBearing = bearing + bearingVariation * (1.0 / i); // Less variation as we progress
                 
-                waypoint.lat() = currentPos.lat() + (distance / 111320.0) * std::cos(actualBearing);
-                waypoint.lon() = currentPos.lon() + (distance / (111320.0 * std::cos(currentPos.lat() * PI / 180.0))) * std::sin(actualBearing);
+                // Use proper coordinate calculation instead of manual trigonometry
+                vectorTy waypointVector(actualBearing, distance);
+                waypoint = CoordPlusVector(currentPos, waypointVector);
                 waypoint.alt_m() = currentPos.alt_m() + (i * 300.0); // Gradual climb
                 
                 synData.flightPath.push_back(waypoint);
@@ -4832,15 +5068,20 @@ void SyntheticConnection::GenerateCruisePath(SynDataTy& synData, const positionT
                 double adjustedBearing = bearing + bearingVariation;
                 
                 positionTy waypoint;
-                // Use bearing-based calculation for more realistic great circle routing
-                waypoint.lat() = currentPos.lat() + (waypointDistance * std::cos(adjustedBearing)) / 111320.0;
-                waypoint.lon() = currentPos.lon() + (waypointDistance * std::sin(adjustedBearing)) / (111320.0 * std::cos(currentPos.lat() * PI / 180.0));
+                // Use proper coordinate calculation instead of manual trigonometry
+                vectorTy waypointVector(adjustedBearing, waypointDistance);
+                waypoint = CoordPlusVector(currentPos, waypointVector);
                 waypoint.alt_m() = synData.targetAltitude; // Maintain cruise altitude
                 
                 // Add slight random variation to simulate realistic airways (±5nm)
                 double variation = 9260.0; // ~5nm in meters
-                waypoint.lat() += ((std::rand() % 200 - 100) / 100.0) * (variation / 111320.0); // Convert to degrees
-                waypoint.lon() += ((std::rand() % 200 - 100) / 100.0) * (variation / (111320.0 * std::cos(waypoint.lat() * PI / 180.0)));
+                double varyLat = ((std::rand() % 200 - 100) / 100.0) * variation;
+                double varyLon = ((std::rand() % 200 - 100) / 100.0) * variation;
+                if (varyLat != 0 || varyLon != 0) {
+                    vectorTy variationVector(std::atan2(varyLon, varyLat) * 180.0 / PI, 
+                                           std::sqrt(varyLat*varyLat + varyLon*varyLon));
+                    waypoint = CoordPlusVector(waypoint, variationVector);
+                }
                 
                 synData.flightPath.push_back(waypoint);
             }
@@ -4940,15 +5181,20 @@ void SyntheticConnection::GenerateBasicPath(SynDataTy& synData, const positionTy
                 double waypointDistance = distance * fraction;
                 
                 positionTy waypoint;
-                // Use bearing-based calculation for more accurate navigation
-                waypoint.lat() = currentPos.lat() + (waypointDistance * std::cos(bearing)) / 111320.0;
-                waypoint.lon() = currentPos.lon() + (waypointDistance * std::sin(bearing)) / (111320.0 * std::cos(currentPos.lat() * PI / 180.0));
+                // Use proper coordinate calculation instead of manual trigonometry
+                vectorTy waypointVector(bearing, waypointDistance);
+                waypoint = CoordPlusVector(currentPos, waypointVector);
                 waypoint.alt_m() = currentPos.alt_m(); // Maintain current altitude
                 
                 // Add slight variation to simulate realistic navigation (±2nm)
                 double variation = 3704.0; // ~2nm in meters
-                waypoint.lat() += ((std::rand() % 100 - 50) / 100.0) * (variation / 111320.0);
-                waypoint.lon() += ((std::rand() % 100 - 50) / 100.0) * (variation / (111320.0 * std::cos(waypoint.lat() * PI / 180.0)));
+                double varyLat = ((std::rand() % 100 - 50) / 100.0) * variation;
+                double varyLon = ((std::rand() % 100 - 50) / 100.0) * variation;
+                if (varyLat != 0 || varyLon != 0) {
+                    vectorTy variationVector(std::atan2(varyLon, varyLat) * 180.0 / PI, 
+                                           std::sqrt(varyLat*varyLat + varyLon*varyLon));
+                    waypoint = CoordPlusVector(waypoint, variationVector);
+                }
                 
                 synData.flightPath.push_back(waypoint);
             }
