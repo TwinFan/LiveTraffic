@@ -419,6 +419,9 @@ public:
     /// Comprehensive country registrations (100+ countries)
     std::string GetComprehensiveCountryFromPosition(const positionTy& pos);
     std::string GenerateComprehensiveCountryRegistration(const std::string& countryCode, SyntheticTrafficType trafficType);
+    
+    /// Invalidate scenery density cache (called when scenery changes)
+    static void InvalidateSceneryDensityCache();
 
 protected:
     void Main () override;          ///< virtual thread main function
@@ -558,9 +561,8 @@ protected:
     
     /// Get effective traffic density (static or dynamic)
     float GetEffectiveDensity(const positionTy& centerPos);
-    
-    /// Invalidate scenery density cache (called when scenery changes)
-    static void InvalidateSceneryDensityCache();
+
+protected:
 };
 
 #endif /* LTSynthetic_h */
