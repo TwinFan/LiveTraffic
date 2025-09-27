@@ -152,6 +152,11 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/portable-file-dialogs")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/metaf/include")
 
+# Windows-specific includes
+if (WIN32)
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
+endif()
+
 ################################################################################
 # Source groups
 ################################################################################
@@ -312,7 +317,7 @@ list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 
 # MSVC doesn't like to find a file named "libcurl.lib", so we just tell it where to look
 if (MSVC)
-    set(CURL_INCLUDE_DIR        "lib/CURL")
+    set(CURL_INCLUDE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/curl")
     set(CURL_LIBRARY_RELEASE    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
     set(CURL_LIBRARY_DEBUG      "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/libcurl_a.lib")
 endif()
@@ -324,7 +329,12 @@ message("   CURL_LIBRARIES       = ${CURL_LIBRARIES}")
 if (WIN32)
     # We have built a static up-to-date version of CURL just for ourselves, compile/link it statically
     add_compile_definitions(CURL_STATICLIB)
-    target_link_libraries(LiveTraffic "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/zlibstatic.lib" )
+    if (MSVC)
+        # MSVC CURL library is already configured above via CURL_LIBRARY_RELEASE/DEBUG
+        target_link_libraries(LiveTraffic "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL/zlibstatic.lib" )
+    endif()
+    # Note: For MinGW builds, the Docker environment provides a pre-built static libcurl
+    # which should be found by the find_package(CURL) command above
 endif ()
 include_directories( ${CURL_INCLUDE_DIRS} )
 target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
@@ -332,18 +342,47 @@ target_link_libraries( LiveTraffic ${CURL_LIBRARIES} )
 # Link X-Plane plugin libraries. They are only provided for OS X and Windows.
 if (WIN32 OR APPLE)
     # FMOD for sound
-    find_library(FMOD_LIBRARY NAMES fmod_vc.lib libfmod.dylib REQUIRED)
-    message ("   FMOD_LIBRARY         = ${FMOD_LIBRARY}")
+    if (MSVC)
+        find_library(FMOD_LIBRARY NAMES fmod_vc.lib REQUIRED)
+    elseif (APPLE)
+        find_library(FMOD_LIBRARY NAMES libfmod.dylib REQUIRED)
+    else()
+        # For MinGW/other Windows compilers, try to find FMOD library in standard locations
+        find_library(FMOD_LIBRARY NAMES fmod libfmod fmod64)
+        if (NOT FMOD_LIBRARY)
+            message(WARNING "FMOD library not found for MinGW build. Sound support may be limited.")
+            # Create a dummy target to avoid link errors
+            set(FMOD_LIBRARY "")
+        endif()
+    endif()
+    
+    if(FMOD_LIBRARY)
+        message ("   FMOD_LIBRARY         = ${FMOD_LIBRARY}")
+    endif()
 
     # XPLM, the X-Plane SDK
-    find_library(XPLM_LIBRARY NAMES XPLM XPLM_64.lib REQUIRED)
-    target_link_libraries(LiveTraffic ${XPLM_LIBRARY} ${FMOD_LIBRARY})
+    if (MSVC)
+        find_library(XPLM_LIBRARY NAMES XPLM_64.lib REQUIRED)
+    else()
+        find_library(XPLM_LIBRARY NAMES XPLM XPLM_64 REQUIRED)
+    endif()
+    
+    if(FMOD_LIBRARY)
+        target_link_libraries(LiveTraffic ${XPLM_LIBRARY} ${FMOD_LIBRARY})
+    else()
+        target_link_libraries(LiveTraffic ${XPLM_LIBRARY})
+    endif()
 endif ()
 
 
 if (WIN32)
     # Link platform-specific libraries especially for networking
-    target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32 normaliz)
+    if (MSVC)
+        target_link_libraries(LiveTraffic ws2_32.lib iphlpapi wldap32.lib advapi32.lib crypt32.lib opengl32 normaliz)
+    else()
+        # For MinGW, use library names without .lib extension
+        target_link_libraries(LiveTraffic ws2_32 iphlpapi wldap32 advapi32 crypt32 opengl32 normaliz)
+    endif()
     if (MINGW)
         # Include MingW threads
         target_link_libraries(LiveTraffic mingw_stdthreads)
@@ -395,3 +434,4 @@ set_target_properties(LiveTraffic
     OUTPUT_NAME "LiveTraffic"
     SUFFIX ".xpl"
 )
+

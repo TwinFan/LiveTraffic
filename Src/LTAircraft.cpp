@@ -1143,6 +1143,23 @@ const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
             return *reinterpret_cast<const LTAircraft::FlightModel*>(fd.pMdl);
     }
     
+    // Check if this aircraft comes from a synthetic channel
+    const LTChannel* pChn = nullptr;
+    if (fd.GetCurrChannel(pChn) && pChn && pChn->GetChType() == LTChannel::CHT_SYNTHETIC_DATA) {
+        // For synthetic aircraft, use the special SyntheticSmooth model
+        const FlightModel* pSyntheticModel = GetFlightModel("SyntheticSmooth");
+        if (pSyntheticModel) {
+            fd.pMdl = pSyntheticModel;
+            // Still determine ICAO type for completeness
+            bool bDefaulted;
+            const std::string& acTypeIcao = DetermineIcaoType(fd, bDefaulted);
+            if (pIcaoType)
+                *pIcaoType = bDefaulted ? nullptr : &acTypeIcao;
+            return *pSyntheticModel;
+        }
+        // If SyntheticSmooth model is not found, fall through to normal logic
+    }
+    
     // 1. find an aircraft ICAO type based on input
     bool bDefaulted;
     const std::string& acTypeIcao = DetermineIcaoType(fd, bDefaulted);

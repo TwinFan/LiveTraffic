@@ -574,6 +574,22 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/fore_flight/traffic",     DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/fore_flight/interval",    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
 
+    // Synthetic Traffic configuration
+    {"livetraffic/cfg/synthetic/enabled",           DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/synthetic/traffic_types",     DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/max_aircraft",      DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/traffic_density",   DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/ga_ratio",          DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/airline_ratio",     DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/military_ratio",    DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/tts_enabled",       DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/synthetic/user_awareness",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/synthetic/weather_operations",DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/synthetic/comm_range",        DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/cfg/synthetic/dynamic_density",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/synthetic/scenery_density_min", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,  GET_VAR, true },
+    {"livetraffic/cfg/synthetic/scenery_density_max", DataRefs::LTGetInt, DataRefs::LTSetCfgValue,  GET_VAR, true },
+
     // channels, in ascending order of priority
     {"livetraffic/channel/futuredatachn/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/channel/fore_flight/sender",      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -672,6 +688,22 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_FF_SEND_USER_PLANE:     return &bffUserPlane;
         case DR_CFG_FF_SEND_TRAFFIC:        return &ffTraffic;
         case DR_CFG_FF_SEND_TRAFFIC_INTVL:  return &ffSendTrfcIntvl;
+
+        // Synthetic Traffic configuration
+        case DR_CFG_SYN_TRAFFIC_ENABLED:    return &bSyntheticTrafficEnabled;
+        case DR_CFG_SYN_TRAFFIC_TYPES:      return &synTrafficTypes;
+        case DR_CFG_SYN_MAX_AIRCRAFT:       return &synMaxAircraft;
+        case DR_CFG_SYN_TRAFFIC_DENSITY:    return &synTrafficDensity;
+        case DR_CFG_SYN_GA_RATIO:           return &synGARatio;
+        case DR_CFG_SYN_AIRLINE_RATIO:      return &synAirlineRatio;
+        case DR_CFG_SYN_MILITARY_RATIO:     return &synMilitaryRatio;
+        case DR_CFG_SYN_TTS_ENABLED:        return &bSynTTSEnabled;
+        case DR_CFG_SYN_USER_AWARENESS:     return &bSynUserAwareness;
+        case DR_CFG_SYN_WEATHER_OPERATIONS: return &bSynWeatherOperations;
+        case DR_CFG_SYN_COMM_RANGE:         return &synCommRange;
+        case DR_CFG_SYN_DYNAMIC_DENSITY:    return &bSynDynamicDensity;
+        case DR_CFG_SYN_SCENERY_DENSITY_MIN: return &synSceneryDensityMin;
+        case DR_CFG_SYN_SCENERY_DENSITY_MAX: return &synSceneryDensityMax;
 
         default:
             // flight channels
@@ -2482,9 +2514,9 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
     }
     
-    // if a channel got disabled check if any tracking data channel is left
+    // if a channel got disabled check if any data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
-        !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
+        !LTFlightDataAnyDataChEnabled())        // but no data channel left active?
     {
         SHOW_MSG(logERR, ERR_CH_NONE_ACTIVE);
     }

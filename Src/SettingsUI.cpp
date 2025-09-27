@@ -227,8 +227,6 @@ void LTSettingsUI::buildInterface()
                 ImGui::FilteredCfgNumber("Hide ground a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_GND, 0, 500, 10, "%d m");
                 ImGui::FilteredCfgNumber("Hide airborne a/c closer than", sFilter, DR_CFG_HIDE_NEARBY_AIR, 0, 5000, 100, "%d m");
                 ImGui::FilteredCfgCheckbox("Hide static objects", sFilter, DR_CFG_HIDE_STATIC_TWR,      "Do not display static objects like towers");
-                ImGui::FilteredCfgCheckbox("Keep parked aircraft", sFilter, DR_CHANNEL_SYNTHETIC,
-                                           "Keep parked aircraft in their parking position even when no live tracking data is available any longer.");
                 ImGui::FilteredCfgCheckbox("Use 3rd party camera", sFilter, DR_CFG_EXTERNAL_CAMERA, "Don't activate LiveTraffic's camera view when clicking the camera button\nbut expect a 3rd party camera plugin to spring on instead");
                 if (ImGui::FilteredLabel("XPMP2 Remote Client support", sFilter)) {
                     const float cbWidth = ImGui::CalcTextSize("Auto Detect (default)_____").x;
@@ -245,9 +243,100 @@ void LTSettingsUI::buildInterface()
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
         }
 
+        // MARK: --- Synthetic Traffic ---
+        if (ImGui::TreeNodeLinkHelp("Synthetic Traffic", nCol,
+                                    dataRefs.bSyntheticTrafficEnabled ? ICON_FA_CHECK_CIRCLE : nullptr, nullptr,
+                                    dataRefs.bSyntheticTrafficEnabled ? "Synthetic traffic is enabled" : nullptr,
+                                    nullptr, nullptr, // No specific help link yet
+                                    sFilter, nOpCl, ImGuiTreeNodeFlags_SpanFullWidth))
+        {
+            ImGui::FilteredCfgCheckbox("Enable Synthetic Traffic", sFilter, DR_CFG_SYN_TRAFFIC_ENABLED, 
+                                       "Enable comprehensive synthetic traffic generation with AI behavior");
+            
+            if (dataRefs.bSyntheticTrafficEnabled) {
+                ImGui::FilteredCfgNumber("Maximum Aircraft", sFilter, DR_CFG_SYN_MAX_AIRCRAFT, 1, 200, 5, "%d aircraft");
+                ImGui::FilteredCfgNumber("Traffic Density", sFilter, DR_CFG_SYN_TRAFFIC_DENSITY, 0, 100, 10, "%d %%");
+                
+                // Traffic Type Configuration
+                if (ImGui::TreeNodeLinkHelp("Traffic Types", nCol,
+                                            nullptr, nullptr, nullptr,
+                                            nullptr, nullptr,
+                                            sFilter, nOpCl, ImGuiTreeNodeFlags_SpanFullWidth))
+                {
+                    // Traffic type checkboxes
+                    bool bGA = (dataRefs.synTrafficTypes & SYN_TRAFFIC_MASK_GA) != 0;
+                    if (ImGui::Checkbox("General Aviation", &bGA)) {
+                        if (bGA) dataRefs.synTrafficTypes |= SYN_TRAFFIC_MASK_GA;
+                        else dataRefs.synTrafficTypes &= ~SYN_TRAFFIC_MASK_GA;
+                        DATA_REFS_LT[DR_CFG_SYN_TRAFFIC_TYPES].setData(dataRefs.synTrafficTypes);
+                    }
+                    
+                    bool bAirline = (dataRefs.synTrafficTypes & SYN_TRAFFIC_MASK_AIRLINE) != 0;
+                    if (ImGui::Checkbox("Commercial Airlines", &bAirline)) {
+                        if (bAirline) dataRefs.synTrafficTypes |= SYN_TRAFFIC_MASK_AIRLINE;
+                        else dataRefs.synTrafficTypes &= ~SYN_TRAFFIC_MASK_AIRLINE;
+                        DATA_REFS_LT[DR_CFG_SYN_TRAFFIC_TYPES].setData(dataRefs.synTrafficTypes);
+                    }
+                    
+                    bool bMilitary = (dataRefs.synTrafficTypes & SYN_TRAFFIC_MASK_MILITARY) != 0;
+                    if (ImGui::Checkbox("Military Aircraft", &bMilitary)) {
+                        if (bMilitary) dataRefs.synTrafficTypes |= SYN_TRAFFIC_MASK_MILITARY;
+                        else dataRefs.synTrafficTypes &= ~SYN_TRAFFIC_MASK_MILITARY;
+                        DATA_REFS_LT[DR_CFG_SYN_TRAFFIC_TYPES].setData(dataRefs.synTrafficTypes);
+                    }
+                    
+                    ImGui::FilteredCfgNumber("GA Ratio", sFilter, DR_CFG_SYN_GA_RATIO, 0, 100, 5, "%d %%");
+                    ImGui::FilteredCfgNumber("Airline Ratio", sFilter, DR_CFG_SYN_AIRLINE_RATIO, 0, 100, 5, "%d %%");
+                    ImGui::FilteredCfgNumber("Military Ratio", sFilter, DR_CFG_SYN_MILITARY_RATIO, 0, 100, 5, "%d %%");
+                    
+                    if (!*sFilter) ImGui::TreePop();
+                }
+                
+                // Advanced Features
+                if (ImGui::TreeNodeLinkHelp("Advanced Features", nCol,
+                                            nullptr, nullptr, nullptr,
+                                            nullptr, nullptr,
+                                            sFilter, nOpCl, ImGuiTreeNodeFlags_SpanFullWidth))
+                {
+                    ImGui::FilteredCfgCheckbox("TTS Communications", sFilter, DR_CFG_SYN_TTS_ENABLED,
+                                               "Enable text-to-speech radio communications from synthetic aircraft");
+                    ImGui::FilteredCfgCheckbox("User Awareness", sFilter, DR_CFG_SYN_USER_AWARENESS,
+                                               "Synthetic aircraft react to user aircraft presence");
+                    ImGui::FilteredCfgCheckbox("Weather-Based Operations", sFilter, DR_CFG_SYN_WEATHER_OPERATIONS,
+                                               "Aircraft operations affected by weather conditions");
+                    ImGui::FilteredCfgNumber("Communication Range", sFilter, DR_CFG_SYN_COMM_RANGE, 5, 100, 5, "%d nm");
+                    
+                    if (!*sFilter) ImGui::TreePop();
+                }
+                
+                // Status Information
+                if (ImGui::FilteredLabel("Current Status", sFilter)) {
+                    // Show current synthetic aircraft count and status
+                    SyntheticConnection* pSynCh = dynamic_cast<SyntheticConnection*>(LTFlightDataGetCh(DR_CHANNEL_SYNTHETIC));
+                    if (pSynCh) {
+                        const auto& config = pSynCh->GetConfig();
+                        ImGui::Text("Active: %s, Max: %d aircraft", 
+                                    config.enabled ? "Yes" : "No", 
+                                    config.maxAircraft);
+                        if (config.enabled) {
+                            ImGui::Text("Types: %s%s%s", 
+                                        (config.trafficTypes & SYN_TRAFFIC_GA) ? "GA " : "",
+                                        (config.trafficTypes & SYN_TRAFFIC_AIRLINE) ? "Airline " : "",
+                                        (config.trafficTypes & SYN_TRAFFIC_MILITARY) ? "Military" : "");
+                        }
+                    } else {
+                        ImGui::Text("Synthetic channel not available");
+                    }
+                    ImGui::TableNextCell();
+                }
+            }
+            
+            if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
+        }
+
         // MARK: --- Input Channels ---
         if (ImGui::TreeNodeLinkHelp("Input Channels", nCol,
-                                    (!LTFlightDataAnyTrackingChEnabled() || LTFlightDataAnyChInvalid()) ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
+                                    (!LTFlightDataAnyDataChEnabled() || LTFlightDataAnyChInvalid()) ? ICON_FA_EXCLAMATION_TRIANGLE : nullptr, nullptr,
                                     LTFlightDataAnyChInvalid() ? ERR_CH_INACTIVE1 : ERR_CH_NONE_ACTIVE1,
                                     HELP_SET_INPUT_CH, "Open Help on Channels in Browser",
                                     sFilter, nOpCl,

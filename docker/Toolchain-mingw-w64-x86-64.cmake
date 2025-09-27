@@ -2,7 +2,7 @@
 #
 # Expected environment variables and example values:
 # MINGW_TOOLCHAIN_PREFIX = "x86_64-w64-mingw32"
-# OSX_SDK_PATH = "/usr/x86_64-w64-mingw32"
+# MINGW_PATH = "/usr/x86_64-w64-mingw32"
 
 set(CMAKE_SYSTEM_NAME                       Windows)
 set(CMAKE_INSTALL_PREFIX                    $ENV{MINGW_PATH})

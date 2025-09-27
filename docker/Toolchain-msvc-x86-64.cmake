@@ -2,3 +2,5 @@
 
 set(CMAKE_EXE_LINKER_FLAGS                  "/machine:x64 /INCREMENTAL:NO /LTCG"        CACHE STRING        "Linker Flags"                  FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO   "/machine:x64 /INCREMENTAL:NO /LTCG /DEBUG" CACHE STRING        "Linker Flags"                  FORCE)
+set(CMAKE_MODULE_LINKER_FLAGS               "/machine:x64 /INCREMENTAL:NO /LTCG"        CACHE STRING        "Module Linker Flags"           FORCE)
+set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "/machine:x64 /INCREMENTAL:NO /LTCG /DEBUG" CACHE STRING       "Module Linker Flags"           FORCE)

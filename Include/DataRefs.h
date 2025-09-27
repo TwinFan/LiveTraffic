@@ -430,6 +430,22 @@ enum dataRefsLT {
     DR_CFG_FF_SEND_TRAFFIC,
     DR_CFG_FF_SEND_TRAFFIC_INTVL,
 
+    // Synthetic Traffic configuration
+    DR_CFG_SYN_TRAFFIC_ENABLED,
+    DR_CFG_SYN_TRAFFIC_TYPES,
+    DR_CFG_SYN_MAX_AIRCRAFT,
+    DR_CFG_SYN_TRAFFIC_DENSITY,
+    DR_CFG_SYN_GA_RATIO,
+    DR_CFG_SYN_AIRLINE_RATIO,
+    DR_CFG_SYN_MILITARY_RATIO,
+    DR_CFG_SYN_TTS_ENABLED,
+    DR_CFG_SYN_USER_AWARENESS,
+    DR_CFG_SYN_WEATHER_OPERATIONS,
+    DR_CFG_SYN_COMM_RANGE,
+    DR_CFG_SYN_DYNAMIC_DENSITY,
+    DR_CFG_SYN_SCENERY_DENSITY_MIN,
+    DR_CFG_SYN_SCENERY_DENSITY_MAX,
+
     // channels, in ascending order of priority
     DR_CHANNEL_FUTUREDATACHN_ONLINE,    // placeholder, first channel
     DR_CHANNEL_FORE_FLIGHT_SENDER,
@@ -481,6 +497,15 @@ enum TrafficToSendTy : int {
     TTS_NONE = 0,                       ///< Don't send any traffic
     TTS_ALL,                            ///< Send all known planes
     TTS_NONTCAS_ONLY,                   ///< Send only planes that don't have a TCAS slot in X-Plane
+};
+
+/// Types of synthetic traffic to generate (must match LTSynthetic.h)
+enum SyntheticTrafficTypeMask : int {
+    SYN_TRAFFIC_MASK_NONE    = 0,    ///< No synthetic traffic
+    SYN_TRAFFIC_MASK_GA      = 1,    ///< General Aviation traffic
+    SYN_TRAFFIC_MASK_AIRLINE = 2,    ///< Commercial airline traffic
+    SYN_TRAFFIC_MASK_MILITARY= 4,    ///< Military traffic
+    SYN_TRAFFIC_MASK_ALL     = 7     ///< All traffic types
 };
 
 /// How to control weather?
@@ -804,6 +829,22 @@ public:
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     long ADSBExRReset = 0;              ///< [s] ADSBEx: When will the quota reset?
+    
+    // Synthetic Traffic configuration
+    int bSyntheticTrafficEnabled = true;        ///< Enable synthetic traffic generation (default enabled for development)
+    int synTrafficTypes = SYN_TRAFFIC_MASK_GA;       ///< Bitmask of traffic types to generate
+    int synMaxAircraft = 200;                   ///< Maximum number of synthetic aircraft
+    int synTrafficDensity = 50;                 ///< Traffic density percentage (0-100)
+    int synGARatio = 60;                        ///< Ratio of GA traffic (percentage)
+    int synAirlineRatio = 30;                   ///< Ratio of airline traffic (percentage)
+    int synMilitaryRatio = 10;                  ///< Ratio of military traffic (percentage)
+    int bSynTTSEnabled = false;                 ///< Enable TTS communications
+    int bSynUserAwareness = true;               ///< Aircraft react to user presence
+    int bSynWeatherOperations = true;           ///< Weather-based operations
+    int synCommRange = 25;                      ///< Communications range in nautical miles
+    int bSynDynamicDensity = false;             ///< Enable dynamic density based on X-Plane scenery
+    int synSceneryDensityMin = 10;              ///< Minimum density in sparse scenery areas (percentage)
+    int synSceneryDensityMax = 100;             ///< Maximum density in dense scenery areas (percentage)
     
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity

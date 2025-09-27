@@ -200,6 +200,17 @@ EXT_CAMERA_VERT_OFS    5    # vertical...
 [Glider:LightAC]
 # The section named "Glider" is used to identify a glider
 
+[SyntheticSmooth:MediumJets]
+# Smoother flight model specifically for synthetic aircraft to avoid "drunk" appearance
+# Based on MediumJets but with more stable parameters for computer-generated flight paths
+TAXI_TURN_TIME        20    # [s] time for a 360° turn on the ground - smoother than 30s
+FLIGHT_TURN_TIME      90    # [s] time for a typical 360° turn in flight - smoother than 120s
+MIN_FLIGHT_TURN_TIME  60    # [s] minimum allowable time for a 360° turn in flight - smoother
+ROLL_RATE              8    # [°/s] roll rate in normal turns - faster for smoother appearance
+PITCH_RATE             4    # [°/s] pitch rate of change - slightly faster for responsiveness
+VSI_MAX             3000    # [ft/min] lower max vertical speed for more realistic synthetic behavior
+ROLL_MAX_BANK         25    # [°] max bank angle - reduced for more conservative turns
+
 [Heli:MediumJets]
 GEAR_DEFLECTION        0.25 # [m] main gear deflection during touch-down
 VSI_MAX             2500    # [ft/min] maximum vertical speed, beyond this considered invalid data
