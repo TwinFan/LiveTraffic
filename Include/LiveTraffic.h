@@ -328,18 +328,14 @@ inline double GetSysTime ()
     // divided by 1000000 to create seconds with fractionals
     / 1000000.0; }
 
-/// Returns timezone difference between local and GMT in seconds
-int timeOffsetUTC();
-
-/// Converts date/time (UTC) to epoch value
-inline time_t mktime_utc (std::tm& tm)
-{ return mktime(&tm) + timeOffsetUTC(); }
-
-/// Converts a UTC time to epoch value, assuming today's date
-time_t mktime_utc (int h, int min, int s);
-
 /// Converts a UTC date/time to epoch value
 time_t mktime_utc (int y, int m, int d, int h, int min, int s);
+
+/// Converts date/time (UTC) to epoch value
+time_t mktime_utc (std::tm& tm);
+
+/// Converts a UTC time to epoch value, assuming today's date
+time_t mktime_utc_today (int h, int min, int s);
 
 /// Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
 time_t mktime_string (const std::string& s);

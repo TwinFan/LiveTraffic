@@ -217,7 +217,8 @@ enum pluginStateTy {
 enum dataRefsXP {
     DR_MISC_NETW_TIME = 0,
     DR_LOCAL_TIME_SEC,
-    DR_LOCAL_DATE_DAYS,
+    DR_LOCAL_DAY,                       ///< sim/cockpit2/clock_timer/current_day    int    n    day    Numeric day of month
+    DR_LOCAL_MONTH,                     ///< sim/cockpit2/clock_timer/current_month    int    n    month    Numeric month of the year
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
     DR_REPLAY_MODE,                     ///< sim/operation/prefs/replay_mode    int    y    enum    Are we in replay mode?
@@ -869,7 +870,8 @@ public:
     inline bool  IsVREnabled() const            { return lastVREnabled; }
 
     bool IsUsingSystemTime() const              { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]); }
-    int GetLocalDateDays() const                { return XPLMGetDatai(adrXP[DR_LOCAL_DATE_DAYS]); }
+    int GetLocalDayOfMonth() const              { return XPLMGetDatai(adrXP[DR_LOCAL_DAY]); }
+    int GetLocalMonth() const                   { return XPLMGetDatai(adrXP[DR_LOCAL_MONTH]); }
     float GetLocalTimeSec() const               { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
     float GetZuluTimeSec() const                { return XPLMGetDataf(adrXP[DR_ZULU_TIME_SEC]); }
     long long GetXPSimTime_ms() const           { return lastXPSimTime_ms; }

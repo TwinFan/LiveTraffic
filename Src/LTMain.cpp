@@ -656,29 +656,50 @@ std::string Cleartext (const std::string& _obfuscated)
 // MARK: Time Functions
 //
 
-// returns offset to UTC in seconds
-/// @see https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
-int timeOffsetUTC()
+/// @brief Returns number of days since civil 1970-01-01.  Negative values indicate days prior to 1970-01-01.
+/// @see http://howardhinnant.github.io/date_algorithms.html#days_from_civil
+/// @author Howard Hinnant
+/// @details Preconditions:
+///                 y-m-d represents a date in the civil (Gregorian) calendar
+///                 m is in [1, 12]
+///                 d is in [1, last_day_of_month(y, m)]
+///                 y is "approximately" in
+///                   [numeric_limits<Int>::min()/366, numeric_limits<Int>::max()/366]
+///                 Exact range of validity is:
+///                 [civil_from_days(numeric_limits<Int>::min()),
+///                  civil_from_days(numeric_limits<Int>::max()-719468)]
+constexpr int days_from_civil(int y, int m, int d) noexcept
 {
-    static int cachedOffset = INT_MIN;
+    static_assert(std::numeric_limits<int>::digits >= 18,
+                  "This algorithm has not been ported to a 16 bit unsigned integer");
+    static_assert(std::numeric_limits<int>::digits >= 20,
+                  "This algorithm has not been ported to a 16 bit signed integer");
+    y -= m <= 2;
+    const int era = (y >= 0 ? y : y-399) / 400;
+    const int yoe = y - era * 400;                          // [0, 399]
+    const int doy = (153*(m > 2 ? m-3 : m+9) + 2)/5 + d-1;  // [0, 365]
+    const int doe = yoe * 365 + yoe/4 - yoe/100 + doy;      // [0, 146096]
+    return era * 146097 + doe - 719468;
+}
 
-    if (cachedOffset > INT_MIN)
-        return cachedOffset;
-    else {
-        time_t gmt, rawtime = time(NULL);
-        struct tm gbuf;
-        gmtime_s(&gbuf, &rawtime);
+/// @brief Converts a UTC date/time to epoch value
+/// @see Adapted from https://stackoverflow.com/a/59797075
+time_t mktime_utc (int y, int m, int d, int h, int min, int s)
+{
+    LOG_ASSERT(1 <= m && m <= 12);
+    const int days_since_epoch = days_from_civil(y, m, d);
+    return 60L * (60L * (24L * days_since_epoch + h) + min) + s;
+}
 
-        // Request that mktime() looks up dst in timezone database
-        gbuf.tm_isdst = -1;
-        gmt = mktime(&gbuf);
-
-        return cachedOffset = (int)difftime(rawtime, gmt);
-    }
+/// Converts date/time (UTC) to epoch value
+time_t mktime_utc (std::tm& tm)
+{
+    return mktime_utc(tm.tm_year + 1900, tm.tm_mon+1, tm.tm_mday,
+                      tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 // Converts a UTC time to epoch value, assuming today's date
-time_t mktime_utc (int h, int min, int s)
+time_t mktime_utc_today (int h, int min, int s)
 {
     const time_t now = time(NULL);
     struct tm gbuf;
@@ -696,22 +717,6 @@ time_t mktime_utc (int h, int min, int s)
     while (now - ret < -86400)
         ret -= 86400;
     return ret;
-}
-
-/// Converts a UTC date/time to epoch value
-time_t mktime_utc (int y, int m, int d, int h, int min, int s)
-{
-    const time_t now = time(NULL);
-    struct tm gbuf;
-    gmtime_s(&gbuf, &now);
-    gbuf.tm_year = y - 1900;
-    gbuf.tm_mon  = m-1;
-    gbuf.tm_mday = d;
-    gbuf.tm_hour = h;
-    gbuf.tm_min  = min;
-    gbuf.tm_sec  = s;
-    gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
-    return mktime_utc(gbuf);
 }
 
 // Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value

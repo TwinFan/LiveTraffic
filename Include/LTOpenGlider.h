@@ -226,6 +226,7 @@ protected:
     /// @see http://wiki.glidernet.org/opt-in-opt-out
     /// @param sDevId Device id to be looked up
     /// @param[out] key key of a/c found. KEY_FLARM, or KEY_ICAO if publishable, KEY_OGN with a generated anonymous key if not to be published
+    /// @param[out] privateKey original key of a/c found in case key shall stay private
     /// @param[out] stat Filled with aircraft master data taken from DDB
     /// @return Shall the aircraft be displayed at all? (Otherwise it is marked non-trackable and we shall not show it.)
     bool AcListLookup (const std::string& sDevId,
