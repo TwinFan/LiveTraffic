@@ -645,9 +645,9 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
         return true;                            // -> ignore
     
     // Timestamp - skip too old records
-    time_t ts = mktime_utc(std::stoi(m.str(M_TS_H)),
-                           std::stoi(m.str(M_TS_MIN)),
-                           std::stoi(m.str(M_TS_S)));
+    time_t ts = mktime_utc_today(std::stoi(m.str(M_TS_H)),
+                                 std::stoi(m.str(M_TS_MIN)),
+                                 std::stoi(m.str(M_TS_S)));
     if (ts < time_t(dataRefs.GetSimTime()))
         return true;
     

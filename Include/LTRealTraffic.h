@@ -42,7 +42,7 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
-#define RT_ENDP                 "v4"
+#define RT_ENDP                 "v5"
 #define RT_METAR_UNKN           "UNKN"
 
 #define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/" RT_ENDP "/auth"

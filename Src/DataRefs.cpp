@@ -335,7 +335,8 @@ bool WndRect::keepOnScreen ()
 const char* DATA_REFS_XP[] = {
     "sim/network/misc/network_time_sec",        // float	n	seconds	The current elapsed time synched across the network (used as timestamp in Log.txt)
     "sim/time/local_time_sec",
-    "sim/time/local_date_days",
+    "sim/cockpit2/clock_timer/current_day",     // int    n    day    Numeric day of month
+    "sim/cockpit2/clock_timer/current_month",   // int    n    month    Numeric month of the year
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
     "sim/operation/prefs/replay_mode",          //    int    y    enum    Are we in replay mode?
@@ -1046,72 +1047,43 @@ float DataRefs::GetMiscNetwTime() const
 ///          if zulu data is before, on, or after local date.
 void DataRefs::UpdateXPSimTime()
 {
-    // convert all numbers right away to milliseconds as we need that in the end anyway
-    // and that way we preserve the meaning of the fractional seconds coming from X-Plane
-    constexpr long long DAY_MS = 24LL * 60LL * 60LL * 1000LL;
-    long long t = (long long)(GetLocalDateDays()) * DAY_MS;
-    const long long localTime = (long long)(GetLocalTimeSec() * 1000.0f);
-    const long long zuluTime =  (long long)(GetZuluTimeSec()  * 1000.0f);
-    // if local and zulu time are different at all (testing for more than one minute difference)
-    if (std::llabs(localTime - zuluTime) > 60000LL) {
-        // Eastern hemisphere? -> Zulu is _behind_ local time
-        if (lastUsersPlanePos.lon() > 0.0) {
-            // but if the local Zulu time component is actually _ahead of_ local time, then need to decrement zulu date
-            if (zuluTime > localTime)
-                t -= DAY_MS;
-        } else {
-            // Western hemisphere -> Zulu is _ahead of_ local time
-            // but if the zulu time component is actually _behind_ local time, then need to increment zulu date
-            if (zuluTime < localTime)
-                t += DAY_MS;
-        }
-    }
-    // Now t is date in zulu days, just add time component
-    t += zuluTime;
+    constexpr time_t DAY_S = 24LL * 60LL * 60LL;        // 1 day in seconds
+
+    const int locDay = GetLocalDayOfMonth();            // local day of XP user time
+    const int locMon = GetLocalMonth();                 // local month of XP user time
+    const float locTimeSec = GetLocalTimeSec();         // local time of day in fractional seconds
+    const float utcTimeSec = GetZuluTimeSec();          // ZULU/UTC time of day in fractional seconds
+    const long diffHours = std::lround((locTimeSec-utcTimeSec)/3600.0f);
+    const double lon = GetUsersPlanePos().lon();        // user plane's longitude, needed for estimate of time zone difference
+    const long estTZDiff = std::lround(lon/15.0);       // estimate timezone difference in hours ('positive' = east = local is ahead of UTC)
     
-    // Last thing to do: Add the beginning of the right year to it
-    // Complications: X-Plane has no notion of a "year", it just returns days since start of the year
-    //                X-Plane offers only 28 days for February, so it runs on a 365d year
-    //                If the day of the year is past current real life day of year, then assume "last year"
-    //                But: What do we do with leap years in reality???
-    
-    // Find this year's beginning
+    // What's the current year?
     time_t now;
     std::tm tm;
     time(&now);                     // today, actually 'now'
     gmtime_s(&tm, &now);
-    // to get to jan01 of the same year reduce by all the days of the year and current time
-    const time_t jan01 = now - tm.tm_yday * 24*60*60
-                             - tm.tm_hour *    60*60
-                             - tm.tm_min  *       60
-                             - tm.tm_sec;
+
+    // Calculate UTC time for the given local date and current year
+    time_t utc = mktime_utc(tm.tm_year+1900, locMon, locDay, 0, 0, 0);
     
-    // Convert to milliseconds, then add to our result
-    t += (long long)(jan01) * 1000LL;
+    // Realistically, Local and UTC should not be more than 12h apart.
+    // estTZDiff should point in the right direction.
+    if (diffHours >= 12 && estTZDiff <= 1)              // local should be behind -> UTC is on next day already
+        utc += DAY_S;
+    else if (diffHours <= -12 && estTZDiff >= -1)       // local should be ahead -> UTC is still on previous day
+        utc -= DAY_S;
     
-    // if t is now (more than 1s) in the future, then we reduce t by an entire year,
-    // supposingly pointing to the same day last year
-    if (t > (long long)(now+1) * 1000LL) {
-        // Save a date representation of what we computed so far in the future
-        time_t unix_t = time_t(t / 1000LL);
-        std::tm tm_future;
-        gmtime_s(&tm_future, &unix_t);
-        
-        // reduce by 365 days
-        t -= 365LL * DAY_MS;
-        
-        // Would we need to skip over a leap year's 29th Feb?
-        // Goal is: We need to end up on the same day of the month,
-        //          so convert back to calendar days and let's check
-        unix_t = time_t(t / 1000LL);
-        gmtime_s(&tm, &unix_t);
-        // If day of month don't agree then reduce by another day to cover leap day
-        if (tm.tm_mday != tm_future.tm_mday)
-            t -= DAY_MS;
+    // If the calculated result is in the future we need to go back one year
+    if (utc > now) {
+        utc = mktime_utc(tm.tm_year -1 +1900, locMon, locDay, 0, 0, 0);
+        if (diffHours >= 12 && estTZDiff <= 1)              // local should be behind -> UTC is on next day already
+            utc += DAY_S;
+        else if (diffHours <= -12 && estTZDiff >= -1)       // local should be ahead -> UTC is still on previous day
+            utc -= DAY_S;
     }
     
-    // Done: store as our last calculate value
-    lastXPSimTime_ms = (long long)t;
+    // finally, add the fractional seconds of the day to properly form milliseconds
+    lastXPSimTime_ms = utc * 1000LL + std::llround(utcTimeSec * 1000.0f);
 }
 
 
