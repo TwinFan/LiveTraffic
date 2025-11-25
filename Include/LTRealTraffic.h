@@ -16,7 +16,7 @@
 ///             to deal in the Software without restriction, including without limitation
 ///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
 ///             and/or sell copies of the Software, and to permit persons to whom the
-///             Software is furnished to do so, subject to the following conditions:\n
+///             Software is furnished to do so, subject to the follow ing conditions:\n
 ///             The above copyright notice and this permission notice shall be included in
 ///             all copies or substantial portions of the Software.\n
 ///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,18 +42,18 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
-#define RT_ENDP                 "v5"
+#define RT_BASE_URL             "https://rtwa.flyrealtraffic.com/v5"
 #define RT_METAR_UNKN           "UNKN"
 
-#define RT_AUTH_URL             "https://rtw.flyrealtraffic.com/" RT_ENDP "/auth"
+#define RT_AUTH_URL             RT_BASE_URL "/auth"
 #define RT_AUTH_POST            "license=%s&software=%s"
-#define RT_DEAUTH_URL           "https://rtw.flyrealtraffic.com/" RT_ENDP "/deauth"
+#define RT_DEAUTH_URL           RT_BASE_URL "/deauth"
 #define RT_DEAUTH_POST          "GUID=%s"
-#define RT_NEAREST_METAR_URL    "https://rtw.flyrealtraffic.com/" RT_ENDP "/nearestmetar"
+#define RT_NEAREST_METAR_URL    RT_BASE_URL "/nearestmetar"
 #define RT_NEAREST_METAR_POST   "GUID=%s&lat=%.2f&lon=%.2f&toffset=%ld&maxcount=7"
-#define RT_WEATHER_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/weather"
+#define RT_WEATHER_URL          RT_BASE_URL "/weather"
 #define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=%s&querytype=locwx&toffset=%ld"
-#define RT_TRAFFIC_URL          "https://rtw.flyrealtraffic.com/" RT_ENDP "/traffic"
+#define RT_TRAFFIC_URL          RT_BASE_URL "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
 #define RT_TRAFFIC_POST_BUFFER  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=%d&buffertime=10"
 #define RT_TRAFFIC_POST_PARKED  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=parkedtraffic&toffset=%ld"
