@@ -896,6 +896,7 @@ bool LTFlightDataEnable()
     listFDC.emplace_back(new ADSBExchangeConnection);
     listFDC.emplace_back(new ADSBfiConnection);
     listFDC.emplace_back(new OpenSkyConnection);
+    listFDC.emplace_back(new SkyLinkConnection);
     listFDC.emplace_back(new ADSBHubConnection());
     listFDC.emplace_back(new OpenGliderConnection);
     listFDC.emplace_back(new FSCConnection);
@@ -1083,8 +1084,6 @@ void LTFlightDataAcMaintenance()
             AddAcTy (LTFlightData& _fd) : pFd(&_fd),
             dist(_fd.GetPosDeque().empty() ? NAN : CoordDistance(dataRefs.GetViewPos(), _fd.GetPosDeque().front()))
             {}
-            /// Copy by default (needed for sorting in an vector)
-            AddAcTy (const AddAcTy& o) = default;
         };
         /// The actual list of a/c waiting for (potential) creation
         std::vector<AddAcTy> vecAddAc;

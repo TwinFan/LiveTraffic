@@ -53,6 +53,16 @@ protected:
     std::string sADSBExKeyEntry;    ///< current ADSBEx key entry
     bool bADSBExKeyClearText = false;   ///< Is ADSBEx key displayed clear text?
     
+    // Channel: SkyLink
+    enum {
+        SKYLINK_KEY_NO_ACTION = 0,  ///< no key test currently happening
+        SKYLINK_KEY_TESTING,        ///< key test underway
+        SKYLINK_KEY_FAILED,         ///< key test ended with failure
+        SKYLINK_KEY_SUCCESS,        ///< key test succeeded
+    } eSkyLinkKeyTest = SKYLINK_KEY_NO_ACTION;
+    std::string sSkyLinkKeyEntry;   ///< current SkyLink key entry
+    bool bSkyLinkKeyClearText = false;   ///< Is SkyLink key displayed clear text?
+    
     // Channel: Open Glider Network
     /// buffers for editing of Flarm a/c type mappings
     std::array<std::string,14> aFlarmAcTys;

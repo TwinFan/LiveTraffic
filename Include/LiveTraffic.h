@@ -143,6 +143,7 @@ extern DataRefs dataRefs;
 #include "LTRealTraffic.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
+#include "LTSkyLink.h"
 #include "LTADSBHub.h"
 #include "LTOpenGlider.h"
 #include "LTFSCharter.h"
@@ -345,6 +346,9 @@ std::string ts2string (time_t t);
 
 /// Converts an epoch timestamp to a Zulu time string incl. 10th of seconds
 std::string ts2string (double _zt, int secDecimals=1);
+
+/// Parse an ISO8601 UTC Time string, like "2025-12-07T11:30:45.939825"
+std::chrono::system_clock::time_point parse_iso8601_utc(const std::string& s);
 
 /// Convert an XP network time float to a string
 std::string NetwTimeString (float _runS);

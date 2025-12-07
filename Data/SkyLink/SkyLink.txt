@@ -1,0 +1,108 @@
+# SUCCESS RESPONSE
+
+HTTP/1.1 200 OK
+access-control-allow-credentials: true
+access-control-allow-origin: *
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9aa452165b020ac2-FRA
+content-length: 2424
+content-type: application/json
+date: Sun, 07 Dec 2025 13:20:29 GMT
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=dD0PVpDryrptrKlCjsGh3yTGHw6kiju2o2DG%2BnkPNjSfsRSJg1KruUS37KuClx%2FO6A0G8tnzPybolAGBXIdllISisNkeIJAA0O17f9gOQlT2Gg%3D%3D"}]}
+server: RapidAPI-1.2.8
+x-rapidapi-region: AWS - eu-central-1
+x-rapidapi-request-id: dfebdaef4ca8beb49fb4fe4b1c1d4b782f7b86403fb44ebf57ab72bab65921d5
+x-rapidapi-version: 1.2.8
+x-ratelimit-rapid-free-plans-hard-limit-limit: 500000
+x-ratelimit-rapid-free-plans-hard-limit-remaining: 499997
+x-ratelimit-rapid-free-plans-hard-limit-reset: 2677536
+x-ratelimit-requests-limit: 1000
+x-ratelimit-requests-remaining: 997
+x-ratelimit-requests-reset: 2677536
+
+{"aircraft":[{"icao24":"4BBD06","callsign":"TKJ6TJ","latitude":50.08754,"longitude":8.779811,"altitude":38000,"ground_speed":357.941345,"track":293.198608,"vertical_rate":0,"is_on_ground":false,"last_seen":"2025-12-07T13:20:26.052505","first_seen":"2025-12-07T11:25:35.440558","registration":null,"aircraft_type":null,"airline":null},{"icao24":"4A4EAE","callsign":"HYS201","latitude":50.04808,"longitude":8.620148,"altitude":950,"ground_speed":126.873955,"track":249.708221,"vertical_rate":-704,"is_on_ground":false,"last_seen":"2025-12-07T13:20:26.028728","first_seen":"2025-12-07T11:30:45.939825","registration":"YR-SUN","aircraft_type":"A320","airline":null},{"icao24":"3C66AE","callsign":"DLH8EJ","latitude":50.040001,"longitude":8.557518,"altitude":0,"ground_speed":139.864227,"track":249.491898,"vertical_rate":-768,"is_on_ground":true,"last_seen":"2025-12-07T13:18:29.460833","first_seen":"2025-12-07T11:43:42.361124","registration":"D-AIUN","aircraft_type":"A320","airline":"Lufthansa"},{"icao24":"3DE585","callsign":"IBIS2","latitude":49.961285,"longitude":8.610833,"altitude":712,"ground_speed":98.731964,"track":173.018936,"vertical_rate":-704,"is_on_ground":false,"last_seen":"2025-12-07T13:19:06.532769","first_seen":"2025-12-07T12:37:55.462111","registration":"D-HHEB","aircraft_type":"EC45","airline":null},{"icao24":"885177","callsign":"THA921","latitude":49.939362,"longitude":8.633303,"altitude":3875,"ground_speed":253.12645,"track":91.811119,"vertical_rate":768,"is_on_ground":false,"last_seen":"2025-12-07T13:20:20.866193","first_seen":"2025-12-07T13:18:50.842882","registration":"HS-TKW","aircraft_type":"B77W","airline":"Thai Airways"},{"icao24":"4076B1","callsign":"TUI218P","latitude":50.032516,"longitude":8.566969,"altitude":0,"ground_speed":128.160049,"track":249.443954,"vertical_rate":-576,"is_on_ground":true,"last_seen":"2025-12-07T13:19:17.136951","first_seen":"2025-12-07T13:19:11.842421","registration":"G-TAWX","aircraft_type":"B738","airline":"TUI Airways"},{"icao24":"4BB856","callsign":"PGT9TH","latitude":50.00441,"longitude":8.526041,"altitude":1125,"ground_speed":146.003418,"track":179.607574,"vertical_rate":2560,"is_on_ground":false,"last_seen":"2025-12-07T13:20:26.052037","first_seen":"2025-12-07T13:20:26.052011","registration":"TC-NBV","aircraft_type":"A20N","airline":"Pegasus Airlines"}],"total_count":7,"timestamp":"2025-12-07T13:20:29.229262"}
+
+
+# EROR RESPONSE
+
+HTTP/1.1 500 Server Error
+access-control-allow-credentials: true
+access-control-allow-origin: *
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9aa458677fa36d26-FRA
+content-length: 106
+content-type: application/json
+date: Sun, 07 Dec 2025 13:24:47 GMT
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=VFketFiZy50z6K3geEGlu7OghEhXtv81xSHRW6%2BCGDDUwLNmwz0l6HqqBGsdXA5rRhVOD%2FE00GiH1IRX%2FAR%2BEMt93%2FvB%2B2p3Xn%2BTLLzSFrNr1w%3D%3D"}]}
+server: RapidAPI-1.2.8
+x-rapidapi-region: AWS - eu-central-1
+x-rapidapi-request-id: 5724479df698562e7a26f7dbc9a390def3d10c424387ac942de1444620eb1752
+x-rapidapi-version: 1.2.8
+x-ratelimit-rapid-free-plans-hard-limit-limit: 500000
+x-ratelimit-rapid-free-plans-hard-limit-remaining: 499997
+x-ratelimit-rapid-free-plans-hard-limit-reset: 2677278
+x-ratelimit-requests-limit: 1000
+x-ratelimit-requests-remaining: 997
+x-ratelimit-requests-reset: 2677278
+"{\"detail\":\"Failed to retrieve aircraft data: 400: Radius search requires lat, lon, and radius parameters\"}"
+
+{"detail":"Failed to retrieve aircraft data: 400: Radius search requires lat, lon, and radius parameters"}
+
+
+
+
+HTTP/1.1 422 Client Error
+access-control-allow-credentials: true
+access-control-allow-origin: *
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9aa759d3bcfcf2c0-FRA
+content-length: 297
+content-type: application/json
+date: Sun, 07 Dec 2025 22:10:03 GMT
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=hLO8MuO9LD19F5xnPt43Nuvv1XvptGFpwe1%2BS59js2z6AdCP93zNxc%2FvqlTiHWPHubH0u7hBPhNcBVxJkhIGft%2FuvWwLD5DlbACp9zksBc7jkA%3D%3D"}]}
+server: RapidAPI-1.2.8
+x-rapidapi-region: AWS - eu-central-1
+x-rapidapi-request-id: 5c96194f02e4978ea39e74c6ee774b22461f0b6e22af15daf11a8206d59a08a8
+x-rapidapi-version: 1.2.8
+x-ratelimit-rapid-free-plans-hard-limit-limit: 500000
+x-ratelimit-rapid-free-plans-hard-limit-remaining: 499991
+x-ratelimit-rapid-free-plans-hard-limit-reset: 2645762
+x-ratelimit-requests-limit: 1000
+x-ratelimit-requests-remaining: 991
+x-ratelimit-requests-reset: 2645762
+"{\"detail\":[{\"type\":\"less_than_equal\",\"loc\":[\"query\",\"lat\"],\"msg\":\"Input should be less than or equal to 90\",\"input\":\"199999999999\",\"ctx\":{\"le\":90.0}},{\"type\":\"less_than_equal\",\"loc\":[\"query\",\"lon\"],\"msg\":\"Input should be less than or equal to 180\",\"input\":\"11111111111111112\",\"ctx\":{\"le\":180.0}}]}"
+
+
+
+
+
+# HEALTH RESPONSE
+
+HTTP/1.1 200 OK
+access-control-allow-credentials: true
+access-control-allow-origin: *
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9aa70cfdae8992b3-FRA
+content-length: 144
+content-type: application/json
+date: Sun, 07 Dec 2025 21:17:36 GMT
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1kTcp7JYcovVoUle35QGlvnwCCtiRcLrcuKhrHsyqcmR4xDzxNkQY7bocW%2Fsy%2F8ze4GC3J6YPAtpzayXw%2FOOaIcvxVXQs3sygQOJa16MlgFGzA%3D%3D"}]}
+server: RapidAPI-1.2.8
+x-rapidapi-region: AWS - eu-central-1
+x-rapidapi-request-id: 09b03f51d972eb907e1ae55186bb45a876a2adb054c453d57374c541dd59c80e
+x-rapidapi-version: 1.2.8
+x-ratelimit-rapid-free-plans-hard-limit-limit: 500000
+x-ratelimit-rapid-free-plans-hard-limit-remaining: 499996
+x-ratelimit-rapid-free-plans-hard-limit-reset: 2648909
+x-ratelimit-requests-limit: 1000
+x-ratelimit-requests-remaining: 996
+x-ratelimit-requests-reset: 2648909
+{"status":"healthy","connected":true,"active_aircraft_count":8168,"connection_uptime":null,"last_message_received":"2025-12-07T21:17:35.242398"}

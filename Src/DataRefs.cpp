@@ -587,6 +587,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/sky_link/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
@@ -2187,6 +2188,8 @@ bool DataRefs::LoadConfigFile()
                 if (conv != CFG_V420)
                     SetADSBExAPIKey(Cleartext(sVal));
             }
+            else if (sDataRef == CFG_SKYLINK_API_KEY)
+                SetSkyLinkAPIKey(Cleartext(sVal));
             else if (sDataRef == CFG_RT_LICENSE)
                 SetRTLicense(Cleartext(sVal));
             else if (sDataRef == CFG_FSC_USER)
@@ -2334,6 +2337,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_OPENSKY_SECRET << ' ' << Obfuscate(sOpenSkySecret) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
+    if (!GetSkyLinkAPIKey().empty())
+        fOut << CFG_SKYLINK_API_KEY << ' ' << Obfuscate(GetSkyLinkAPIKey()) << '\n';
     if (!GetRTLicense().empty())
         fOut << CFG_RT_LICENSE << ' ' << Obfuscate(GetRTLicense()) << '\n';
     if (!sFSCUser.empty())

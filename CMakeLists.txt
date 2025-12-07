@@ -23,7 +23,7 @@ endif()
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 project(LiveTraffic
-        VERSION 4.3.2
+        VERSION 4.4.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -177,6 +177,7 @@ set(Header_Files
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
     Include/LTSayIntentions.h
+    Include/LTSkyLink.h
     Include/LTSynthetic.h
     Include/LTWeather.h
     Include/SettingsUI.h
@@ -227,6 +228,7 @@ set(Source_Files
     Src/LTRealTraffic.cpp
     Src/LTSynthetic.cpp
     Src/LTSayIntentions.cpp
+    Src/LTSkyLink.cpp
     Src/LTVersion.cpp
     Src/LTWeather.cpp
     Src/SettingsUI.cpp

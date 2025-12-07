@@ -765,6 +765,38 @@ std::string ts2string (double _zt, int secDecimals)
     return std::string(s);
 }
 
+/// @brief Parse an ISO8601 UTC Time string, like "2025-12-07T11:30:45.939825"
+/// @author ChatGPT
+std::chrono::system_clock::time_point parse_iso8601_utc(const std::string& s)
+{
+    std::tm tm = {};
+    int microseconds = 0;
+    
+    // Parse date and time up to seconds
+    if (sscanf(s.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d.%6d",
+               &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+               &tm.tm_hour, &tm.tm_min, &tm.tm_sec,
+               &microseconds) != 7) {
+        throw std::runtime_error("Invalid timestamp format");
+    }
+    
+    tm.tm_year -= 1900; // years since 1900
+    tm.tm_mon  -= 1;    // months since January
+    
+    // Convert to time_t assuming UTC (not local time!)
+#if defined(_WIN32)
+    std::time_t tt = _mkgmtime(&tm);
+#else
+    std::time_t tt = timegm(&tm);
+#endif
+    
+    std::chrono::system_clock::time_point tp = std::chrono::system_clock::from_time_t(tt);
+    tp += std::chrono::microseconds(microseconds);
+    
+    return tp;
+}
+
+
 // Convert an XP network time float to a string
 std::string NetwTimeString (float runS)
 {

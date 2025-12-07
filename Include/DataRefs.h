@@ -443,6 +443,7 @@ enum dataRefsLT {
     DR_CHANNEL_OPEN_SKY_ONLINE,
     DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
     DR_CHANNEL_OPEN_SKY_AC_MASTERFILE,
+    DR_CHANNEL_SKY_LINK,
     DR_CHANNEL_ADSB_FI_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
@@ -764,6 +765,7 @@ protected:
     std::string sOpenSkyClient;         ///< OpenSky Network Client ID
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
+    std::string sSkyLinkAPIKey;         ///< SkyLink API key
     std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
     std::string sFSCPwd;                ///< FSCharter login password
@@ -805,7 +807,10 @@ public:
     long ADSBExRLimit = 0;              // ADSBEx: Limit on RapidAPI
     long ADSBExRRemain = 0;             // ADSBEx: Remaining Requests on RapidAPI
     long ADSBExRReset = 0;              ///< [s] ADSBEx: When will the quota reset?
-    
+    long SkyLinkRLimit = 0;             ///< SkyLink: Limit on RapidAPI
+    long SkyLinkRRemain = 0;            ///< SkyLink: Remaining Requests on RapidAPI
+    long SkyLinkRReset = 0;             ///< [s] SkyLink: When will the quota reset?
+
     // UI information
     int UIopacity = DEF_UI_OPACITY;     ///< [%] UI opacity
     int UIFontScale = DEF_UI_FONT_SCALE; ///< [%] Font scale
@@ -1025,6 +1030,9 @@ public:
 
     const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }
+    
+    const std::string& GetSkyLinkAPIKey () const { return sSkyLinkAPIKey; }
+    void SetSkyLinkAPIKey (const std::string& apiKey) { sSkyLinkAPIKey = apiKey; }
     
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
