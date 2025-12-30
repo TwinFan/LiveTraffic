@@ -66,8 +66,8 @@ endif()
 if(DEFINED ENV{FSC_PROD_CLIENT_SECRET})
     set(FSC_PROD_CLIENT_SECRET "$ENV{FSC_PROD_CLIENT_SECRET}" CACHE STRING "FSCharter production client secret (base64)")
 else()
-    # Default fallback value (current production secret)
-    set(FSC_PROD_CLIENT_SECRET "Z216cnpCcWR1aUNBT2JqWWhMekYzclRXZFV3Um9oMEFKSVpkMWlxWQ==" CACHE STRING "FSCharter production client secret (base64)")
+    # Default fallback value (placeholder - needs to be configured)
+    set(FSC_PROD_CLIENT_SECRET "INOP" CACHE STRING "FSCharter production client secret (base64)")
 endif()
 
 # Staging environment
