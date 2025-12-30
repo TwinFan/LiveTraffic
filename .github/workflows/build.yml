@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       platform: lin
+      FSC_PROD_CLIENT_SECRET: ${{ secrets.FSC_PROD_CLIENT_SECRET }}
+      FSC_STAGING_CLIENT_SECRET: ${{ secrets.FSC_STAGING_CLIENT_SECRET }}
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4       # must checkout before we can use our own actions
@@ -43,6 +45,8 @@ jobs:
     runs-on: macos-14
     env:
       platform: mac
+      FSC_PROD_CLIENT_SECRET: ${{ secrets.FSC_PROD_CLIENT_SECRET }}
+      FSC_STAGING_CLIENT_SECRET: ${{ secrets.FSC_STAGING_CLIENT_SECRET }}
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4       # must checkout before we can use our own actions
@@ -88,6 +92,8 @@ jobs:
     runs-on: windows-2022
     env:
       platform: win
+      FSC_PROD_CLIENT_SECRET: ${{ secrets.FSC_PROD_CLIENT_SECRET }}
+      FSC_STAGING_CLIENT_SECRET: ${{ secrets.FSC_STAGING_CLIENT_SECRET }}
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4       # must checkout before we can use our own actions

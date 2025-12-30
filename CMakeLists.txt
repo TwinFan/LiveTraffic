@@ -47,6 +47,53 @@ if (VERSION_BETA)
     message("             BETA Version")
 endif()
 
+#
+# MARK: Build Configuration from Environment Variables
+#
+
+# FSCharter OAuth Configuration
+# These can be set via environment variables or CMake cache variables
+# For GitHub Actions, set these as repository secrets
+# For local builds, set environment variables before running cmake
+
+# Production environment
+set(FSC_PROD_SERVER "v2.fscharter.net" CACHE STRING "FSCharter production server")
+if(DEFINED ENV{FSC_PROD_CLIENT_ID})
+    set(FSC_PROD_CLIENT_ID "$ENV{FSC_PROD_CLIENT_ID}" CACHE STRING "FSCharter production client ID")
+else()
+    set(FSC_PROD_CLIENT_ID "3" CACHE STRING "FSCharter production client ID")
+endif()
+if(DEFINED ENV{FSC_PROD_CLIENT_SECRET})
+    set(FSC_PROD_CLIENT_SECRET "$ENV{FSC_PROD_CLIENT_SECRET}" CACHE STRING "FSCharter production client secret (base64)")
+else()
+    # Default fallback value (current production secret)
+    set(FSC_PROD_CLIENT_SECRET "Z216cnpCcWR1aUNBT2JqWWhMekYzclRXZFV3Um9oMEFKSVpkMWlxWQ==" CACHE STRING "FSCharter production client secret (base64)")
+endif()
+
+# Staging environment
+set(FSC_STAGING_SERVER "staging.fscharter.net" CACHE STRING "FSCharter staging server")
+if(DEFINED ENV{FSC_STAGING_CLIENT_ID})
+    set(FSC_STAGING_CLIENT_ID "$ENV{FSC_STAGING_CLIENT_ID}" CACHE STRING "FSCharter staging client ID")
+else()
+    set(FSC_STAGING_CLIENT_ID "3" CACHE STRING "FSCharter staging client ID")
+endif()
+if(DEFINED ENV{FSC_STAGING_CLIENT_SECRET})
+    set(FSC_STAGING_CLIENT_SECRET "$ENV{FSC_STAGING_CLIENT_SECRET}" CACHE STRING "FSCharter staging client secret (base64)")
+else()
+    # Default fallback value (placeholder - needs to be configured)
+    set(FSC_STAGING_CLIENT_SECRET "INOP" CACHE STRING "FSCharter staging client secret (base64)")
+endif()
+
+# Generate BuildConfig.h from template
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/Include/BuildConfig.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/Include/BuildConfig.h"
+    @ONLY
+)
+
+message("   FSCharter Production: ${FSC_PROD_SERVER} (Client ID: ${FSC_PROD_CLIENT_ID})")
+message("   FSCharter Staging:    ${FSC_STAGING_SERVER} (Client ID: ${FSC_STAGING_CLIENT_ID})")
+
 # By default we build Release with Debug Info (and strip the debug info in post-processing)
 if ((NOT DEFINED CMAKE_BUILD_TYPE) OR (CMAKE_BUILD_TYPE STREQUAL ""))
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
@@ -138,6 +185,7 @@ endif()
 
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/Include")  # For generated BuildConfig.h
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
