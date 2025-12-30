@@ -25,6 +25,7 @@
 
 // All includes are collected in one header
 #include "LiveTraffic.h"
+#include "BuildConfig.h"
 
 //
 // MARK: FSCharter Environment Configuration
@@ -42,9 +43,10 @@ struct FSCEnvTy {
 typedef std::array<FSCEnvTy, 2> FSCEnvArrTy;
 
 /// The list of available configurations
+/// These values are injected at build time from environment variables via BuildConfig.h
 static FSCEnvArrTy FSC_ENV = {
-    FSCEnvTy{"fscharter.net",        3,  "bmw2Y0pFTUJHcUJZQ3FPS1hKVUlSeWgzZkFydUN4WERrY3k5RUtEbQ==" },
-    FSCEnvTy{"master.fscharter.net", 3,  "bmw2Y0pFTUJHcUJZQ3FPS1hKVUlSeWgzZkFydUN4WERrY3k5RUtEbQ==" },
+    FSCEnvTy{FSC_PROD_SERVER,    FSC_PROD_CLIENT_ID,    FSC_PROD_CLIENT_SECRET },
+    FSCEnvTy{FSC_STAGING_SERVER, FSC_STAGING_CLIENT_ID, FSC_STAGING_CLIENT_SECRET },
 };
 
 //
