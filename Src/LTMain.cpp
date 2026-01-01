@@ -719,25 +719,28 @@ time_t mktime_utc_today (int h, int min, int s)
     return ret;
 }
 
-// Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
-time_t mktime_string (const std::string& s)
+// Convert time string "YYYY-MM-DDTHH:MM:SS.SSS" to epoch value plus fractions of seconds as decimals
+// Examples from WorldTimeAPI: "2026-01-01T17:49:11.635667+00:00"
+/// @returns `NAN` if string couldn't be parsed
+double mktimefrac_string (const std::string& s)
 {
-    static std::regex reTm ("(\\d{4})-(\\d{2})-(\\d{2}) (\\d{1,2}):(\\d{2}):(\\d{2})");
-    std::smatch mTm;
-    std::regex_search(s, mTm, reTm);
-    if (mTm.size() != 7)
-        return 0;
-        
     struct tm gbuf;
     memset(&gbuf, 0, sizeof(gbuf));
-    gbuf.tm_year = std::stoi(mTm.str(1)) - 1900;
-    gbuf.tm_mon  = std::stoi(mTm.str(2)) -    1;
-    gbuf.tm_mday = std::stoi(mTm.str(3));
-    gbuf.tm_hour = std::stoi(mTm.str(4));
-    gbuf.tm_min  = std::stoi(mTm.str(5));
-    gbuf.tm_sec  = std::stoi(mTm.str(6));
-    gbuf.tm_isdst = -1;         // re-lookup timezone/DST information!
-    return mktime_utc(gbuf);
+    float ss = NAN;
+    int ret = sscanf(s.c_str(), "%u-%u-%u%*1[ T]%u:%u:%f",
+                     &gbuf.tm_year, &gbuf.tm_mon, &gbuf.tm_mday,
+                     &gbuf.tm_hour, &gbuf.tm_min, &ss);
+
+    // Must have 6 values, and year can't be zero
+    if (ret != 6 || gbuf.tm_year == 0)
+        return NAN;
+    
+    // convert to unixtime
+    gbuf.tm_year -= 1900;           // adjust to the weird input values for mktime
+    gbuf.tm_mon  --;
+    gbuf.tm_isdst = -1;             // re-lookup timezone/DST information!
+    const time_t t = mktime_utc(gbuf);
+    return double(t) + double(ss);  // add the seconds incl. fraction to it
 }
 
 

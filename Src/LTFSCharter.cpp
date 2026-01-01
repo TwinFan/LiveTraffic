@@ -352,7 +352,7 @@ bool FSCConnection::ProcessFetchedData ()
             continue;
         
         // position time
-        double posTime = (double)mktime_string(jog_s(pJAc, FSC_FLIGHT_TS));
+        double posTime = mktimefrac_string(jog_s(pJAc, FSC_FLIGHT_TS));
         const bool bGnd = jog_b(pJAc, FSC_FLIGHT_ON_GND);
         if (posTime <= tsCutOff) {
             // We allow aircraft on the ground with outdated data,
