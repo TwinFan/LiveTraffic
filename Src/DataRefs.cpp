@@ -2476,20 +2476,15 @@ int DataRefs::CntChannelEnabled () const
 //       NTP Query suggested by Chat.GPT
 //
 
-
+// Most required includes and defines are already included through Lib/XPMP2/src/Network.h
 #if IBM
-#include <winsock2.h>
 typedef SSIZE_T ssize_t;
 #define net_errno WSAGetLastError()         // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
 #define close closesocket
 #else
-#include <sys/socket.h>
-#include <netdb.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #define net_errno errno
-typedef int SOCKET;             ///< Windows defines SOCKET, so we define it for non-Windows manually
-constexpr SOCKET INVALID_SOCKET = -1;
 #endif
 
 double GetNTPTime()
