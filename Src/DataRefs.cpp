@@ -2472,141 +2472,143 @@ int DataRefs::CntChannelEnabled () const
 }
 
 //
-// MARK: Time.io Network Time
+// MARK: Internet UTC Time
+//       NTP Query suggested by Chat.GPT
 //
 
-/// CURL WriteData callback function, just stores all what comes in
-size_t InternetTimeWriteData (char *ptr, size_t, size_t nmemb, void* userdata)
+
+#if IBM
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <ws2def.h>                                 // for WSACMSGHDR...
+#define net_errno WSAGetLastError()     // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
+#define close closesocket
+#else
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#define net_errno errno
+#endif
+
+double GetNTPTime()
 {
-    // add buffer to our std::string
-    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
-    readBuf.append(ptr, nmemb);
+    constexpr uint64_t NTP_TIMESTAMP_DELTA = 2208988800ULL;
+    constexpr size_t NTP_PACKET_SIZE = 48;
     
-    // all consumed
-    return nmemb;
+    addrinfo hints{};
+    addrinfo* res = nullptr;
+    int sockfd = -1;
+    double seconds = NAN;           // the return value
+    
+    try {
+        hints.ai_family   = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        
+        const int rc = getaddrinfo("pool.ntp.org", "123", &hints, &res);
+        if (rc != 0) {
+            LOG_MSG(logERR, "getaddrinfo failed: %d", rc);
+            throw std::exception();
+        }
+        
+        sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+        if (sockfd < 0) {
+            LOG_MSG(logERR, "socket failed: %d", int(net_errno));
+            throw std::exception();
+        }
+        
+        // Optional but recommended: receive timeout
+#if IBM
+        DWORD timeout_ms = 5000;
+        setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
+                   (const char*)&timeout_ms, sizeof(timeout_ms));
+#else
+        timeval timeout{};
+        timeout.tv_sec = 10;
+        timeout.tv_usec = 0;
+        setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+#endif
+        uint8_t packet[NTP_PACKET_SIZE]{};
+        packet[0] = 0x1B; // LI=0, VN=3, Mode=3 (client)
+        
+        // Send "request"
+        ssize_t sent = sendto(sockfd,
+                              packet,
+                              sizeof(packet),
+                              0,
+                              res->ai_addr,
+                              res->ai_addrlen);
+        
+        if (sent != (ssize_t)sizeof(packet)) {
+            LOG_MSG(logERR, "sendto failed: %d", int(net_errno));
+            throw std::exception();
+        }
+        // Receive "response"
+        ssize_t received = recvfrom(sockfd,
+                                    packet,
+                                    sizeof(packet),
+                                    0,
+                                    nullptr,
+                                    nullptr);
+        
+        if (received < 0) {
+            LOG_MSG(logERR, "recvfrom failed (timeout?): %d", int(net_errno));
+            throw std::exception();
+        }
+        if (received < (ssize_t)NTP_PACKET_SIZE) {
+            LOG_MSG(logERR, "Short NTP packet, %d instead of %d bytes",
+                    int(received), int(NTP_PACKET_SIZE));
+            throw std::exception();
+        }
+        
+        // Extract transmit timestamp (bytes 40–47)
+        uint32_t sec_part;
+        uint32_t frac_part;
+        
+        std::memcpy(&sec_part,  packet + 40, 4);
+        std::memcpy(&frac_part, packet + 44, 4);
+        
+        sec_part  = ntohl(sec_part);
+        frac_part = ntohl(frac_part);
+        
+        seconds =
+        (double)(sec_part - NTP_TIMESTAMP_DELTA) +
+        (double)frac_part / 4294967296.0; // 2^32
+    }
+    catch (...)
+    {}
+    
+    // Cleanup
+    if (sockfd >= 0)
+        close(sockfd);
+    if (res)
+        freeaddrinfo(res);
+    
+    return seconds;
 }
 
-/// @brief Performs a GET HTTP on WorldTime API to get current UTC time and compares to local time
+
+
+/// @brief Gets UTC time from an NTP server, returns difference to local time
 /// @note Assumes to be called via std::async or the like as it blocks during HTTP retrieval
-/// @see http://worldtimeapi.org/
-/// @details The data returned looks something like
-///          @code
-///          {
-///              "utc_offset": "+00:00",
-///              "timezone": "UTC",
-///              "day_of_week": 4,
-///              "day_of_year": 1,
-///              "datetime": "2026-01-01T17:38:23.768259+00:00",
-///              "utc_datetime": "2026-01-01T17:38:23.768259+00:00",
-///              "unixtime": 1767289103,
-///              "raw_offset": 0,
-///              "week_number": 1,
-///              "dst": false,
-///              "abbreviation": "UTC",
-///              "dst_offset": 0,
-///              "dst_from": null,
-///              "dst_until": null,
-///              "client_ip": "2a02:908:8a8:8f80:d0df:d22e:92dd:5338"
-///          }
-///          @endcode
-/// @returns time difference to local time
-double InternetGetUTCTimeDiff ()
+/// @returns time difference to local time in seconds with fractional seconds
+static double InternetGetUTCTimeDiff ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_InternetTime", LC_ALL_MASK);
 
-    // --- Perform the GET ---
-    char curl_errtxt[CURL_ERROR_SIZE];
-    std::string readBuf;
-    readBuf.reserve(500);       // typical response is about 230 chars
-
-    // initialize the CURL handle
-    CURL *pCurl = curl_easy_init();
-    if (!pCurl) {
-        LOG_MSG(logERR,ERR_CURL_EASY_INIT);
-        return NAN;
-    }
-    
-    // prepare the handle with the right options
-    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
-    curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, InternetTimeWriteData);
-    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
-    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    curl_easy_setopt(pCurl, CURLOPT_URL, "http://worldtimeapi.org/api/timezone/utc");
-    
-    // perform the HTTP get request
-    using namespace std::chrono;
-    CURLcode cc = CURLE_OK;
-    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
-    {
-        // problem with querying revocation list?
-        if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
-            // try not to query revoke list
-            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, __func__);
-            // and just give it another try
-            cc = curl_easy_perform(pCurl);
-        }
-        
-        // if (still) error, then log error
-        if (cc != CURLE_OK) {
-            LOG_MSG(logERR, "Could not get current time from WorldTimeAPI.org: %d - %s", cc, curl_errtxt);
-        }
-    }
     // Local time just after receiving the response
-    const auto localMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-
-    if (cc == CURLE_OK)
-    {
-        // CURL was OK, now check HTTP response code
-        long httpResponse = 0;
-        curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-        
-        // not HTTP_OK?
-        if (httpResponse != HTTP_OK) {
-            LOG_MSG(logERR, "Could not get current time from WorldTimeAPI.org: %d - %s", (int)httpResponse, ERR_HTTP_NOT_OK)
-        }
-    }
-    
-    // cleanup CURL handle
-    curl_easy_cleanup(pCurl);
-    
-    // --- Process the data returned ---
-    if (!readBuf.empty()) {
-        // Pass the data through the JSON parser
-        JSONRootPtr pRoot (readBuf.c_str());
-        if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return NAN; }
-        
-        // first get the structure's main object
-        JSON_Object* pObj = json_object(pRoot.get());
-        if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return NAN; }
-        
-        // the time string, like "2026-01-01T17:49:11.635667+00:00"
-        const std::string utcTime = jog_s(pObj, "utc_datetime");
-        if (!utcTime.empty()) {
-            const double utc = mktimefrac_string(utcTime);
-            if (!std::isnan(utc)) {
-                // successfully converted the response to unix time plus fractional seconds
-                // the difference is:
-                const double localTime_d = localMs / 1000.0;
-                const double diffTime = utc - localTime_d;
-                LOG_MSG(logINFO, "WorldTimeAPI.org says it is %s UTC, %.2fs diff to local time",
-                        utcTime.c_str(), diffTime);
-                return diffTime;
-            }
-        }
-
-        LOG_MSG(logERR, "Could not get current time from WorldTimeAPI.org: %d - %s: '%s'",
-                int(HTTP_OK), "No or non-parseable time", utcTime.c_str());
+    using namespace std::chrono;
+    const double start_ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const double utc_s = GetNTPTime();
+    if (std::isnan(utc_s))
         return NAN;
-    }
-
-    // return if we found something
-    LOG_MSG(logERR, "Could not get current time from WorldTimeAPI.org: %d - %s",
-            int(HTTP_OK), "No response body");
-    return NAN;
+    const double end_ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const double local_s = (start_ms + end_ms) / 2000.0;          // average between start and end
+    const double diffTime = utc_s - local_s;
+    LOG_MSG(logINFO, "NTP says it is %s UTC, %.3fs diff to local time",
+            ts2string(utc_s, 3).c_str(), diffTime);
+    return diffTime;
 }
 
 // Get current time from a network resource to determine the offset of this computer to real time
