@@ -10,9 +10,6 @@
 # Build directories
 build*/*
 
-# Generated build configuration
-Include/BuildConfig.h
-
 # Generated documentation
 docs/html/
 
@@ -26,5 +23,3 @@ xcuserdata/
 
 # MS Office Temporary Files
 ~$*
-/.idea/editor.xml
-/.idea/workspace.xml

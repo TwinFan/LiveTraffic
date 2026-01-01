@@ -1,6 +1,6 @@
 # LiveTraffic - Set up to be used in the provided docker environment to build lin, mac, and win
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.18)
 
 # Mac: Need to tell early on that we want a cross platform build
 if(DEFINED ENV{platform})
@@ -57,7 +57,6 @@ endif()
 # For local builds, set environment variables before running cmake
 
 # Production environment
-set(FSC_PROD_SERVER "v2.fscharter.net" CACHE STRING "FSCharter production server")
 if(DEFINED ENV{FSC_PROD_CLIENT_ID})
     set(FSC_PROD_CLIENT_ID "$ENV{FSC_PROD_CLIENT_ID}" CACHE STRING "FSCharter production client ID")
 else()
@@ -66,12 +65,11 @@ endif()
 if(DEFINED ENV{FSC_PROD_CLIENT_SECRET})
     set(FSC_PROD_CLIENT_SECRET "$ENV{FSC_PROD_CLIENT_SECRET}" CACHE STRING "FSCharter production client secret (base64)")
 else()
-    # Default fallback value (placeholder - needs to be configured)
+    # Default fallback value, is handled specifically by LiveTraffic code
     set(FSC_PROD_CLIENT_SECRET "INOP" CACHE STRING "FSCharter production client secret (base64)")
 endif()
 
 # Staging environment
-set(FSC_STAGING_SERVER "staging.fscharter.net" CACHE STRING "FSCharter staging server")
 if(DEFINED ENV{FSC_STAGING_CLIENT_ID})
     set(FSC_STAGING_CLIENT_ID "$ENV{FSC_STAGING_CLIENT_ID}" CACHE STRING "FSCharter staging client ID")
 else()
@@ -80,19 +78,14 @@ endif()
 if(DEFINED ENV{FSC_STAGING_CLIENT_SECRET})
     set(FSC_STAGING_CLIENT_SECRET "$ENV{FSC_STAGING_CLIENT_SECRET}" CACHE STRING "FSCharter staging client secret (base64)")
 else()
-    # Default fallback value (placeholder - needs to be configured)
+    # Default fallback value, is handled specifically by LiveTraffic code
     set(FSC_STAGING_CLIENT_SECRET "INOP" CACHE STRING "FSCharter staging client secret (base64)")
 endif()
 
-# Generate BuildConfig.h from template
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/Include/BuildConfig.h.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/Include/BuildConfig.h"
-    @ONLY
-)
-
-message("   FSCharter Production: ${FSC_PROD_SERVER} (Client ID: ${FSC_PROD_CLIENT_ID})")
-message("   FSCharter Staging:    ${FSC_STAGING_SERVER} (Client ID: ${FSC_STAGING_CLIENT_ID})")
+string(SUBSTRING "${FSC_PROD_CLIENT_SECRET}" 0 10 _short_secret)    
+message("FSCharter Production          = Client ID: ${FSC_PROD_CLIENT_ID}, Client Secret: ${_short_secret}")
+string(SUBSTRING "${FSC_STAGING_CLIENT_SECRET}" 0 10 _short_secret)
+message("FSCharter Staging             = Client ID: ${FSC_STAGING_CLIENT_ID}, Client Secret: ${_short_secret}")
 
 # By default we build Release with Debug Info (and strip the debug info in post-processing)
 if ((NOT DEFINED CMAKE_BUILD_TYPE) OR (CMAKE_BUILD_TYPE STREQUAL ""))
@@ -185,7 +178,6 @@ endif()
 
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
-include_directories("${CMAKE_CURRENT_BINARY_DIR}/Include")  # For generated BuildConfig.h
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
@@ -318,6 +310,18 @@ if (APPLE)
     PROPERTIES
         COMPILE_OPTIONS "-Wno-deprecated-declarations")
 endif()
+
+# FSCharter OAuth Configuration
+# We keep them restricted to the one file for which they are relevat to reduce log output clutter.
+set_property(
+    SOURCE
+        Src/LTFSCharter.cpp
+    PROPERTY COMPILE_DEFINITIONS
+        FSC_PROD_CLIENT_ID=${FSC_PROD_CLIENT_ID}
+        FSC_PROD_CLIENT_SECRET="${FSC_PROD_CLIENT_SECRET}"
+        FSC_STAGING_CLIENT_ID=${FSC_STAGING_CLIENT_ID}
+        FSC_STAGING_CLIENT_SECRET="${FSC_STAGING_CLIENT_SECRET}"
+)
 
 ################################################################################
 # Define pre-compiled header

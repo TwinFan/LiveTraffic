@@ -722,7 +722,7 @@ time_t mktime_utc_today (int h, int min, int s)
 // Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
 time_t mktime_string (const std::string& s)
 {
-    static std::regex reTm ("(\\d{4})-(\\d{2})-(\\d{2}) (\\d{1,2}):(\\d{2}):(\\d{2})");
+    static std::regex reTm ("(\\d{4})-(\\d{2})-(\\d{2})[ T](\\d{1,2}):(\\d{2}):(\\d{2})");
     std::smatch mTm;
     std::regex_search(s, mTm, reTm);
     if (mTm.size() != 7)
