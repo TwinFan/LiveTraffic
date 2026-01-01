@@ -1083,8 +1083,6 @@ void LTFlightDataAcMaintenance()
             AddAcTy (LTFlightData& _fd) : pFd(&_fd),
             dist(_fd.GetPosDeque().empty() ? NAN : CoordDistance(dataRefs.GetViewPos(), _fd.GetPosDeque().front()))
             {}
-            /// Copy by default (needed for sorting in an vector)
-            AddAcTy (const AddAcTy& o) = default;
         };
         /// The actual list of a/c waiting for (potential) creation
         std::vector<AddAcTy> vecAddAc;
