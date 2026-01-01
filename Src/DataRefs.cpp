@@ -2479,9 +2479,8 @@ int DataRefs::CntChannelEnabled () const
 
 #if IBM
 #include <winsock2.h>
-#include <ws2tcpip.h>
-#include <ws2def.h>                                 // for WSACMSGHDR...
-#define net_errno WSAGetLastError()     // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
+typedef SSIZE_T ssize_t;
+#define net_errno WSAGetLastError()         // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
 #define close closesocket
 #else
 #include <sys/socket.h>
@@ -2489,6 +2488,8 @@ int DataRefs::CntChannelEnabled () const
 #include <unistd.h>
 #include <arpa/inet.h>
 #define net_errno errno
+typedef int SOCKET;             ///< Windows defines SOCKET, so we define it for non-Windows manually
+constexpr SOCKET INVALID_SOCKET = -1;
 #endif
 
 double GetNTPTime()
@@ -2498,7 +2499,7 @@ double GetNTPTime()
     
     addrinfo hints{};
     addrinfo* res = nullptr;
-    int sockfd = -1;
+    SOCKET sockfd = INVALID_SOCKET;
     double seconds = NAN;           // the return value
     
     try {
@@ -2512,14 +2513,14 @@ double GetNTPTime()
         }
         
         sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-        if (sockfd < 0) {
+        if (sockfd == INVALID_SOCKET) {
             LOG_MSG(logERR, "socket failed: %d", int(net_errno));
             throw std::exception();
         }
         
         // Optional but recommended: receive timeout
 #if IBM
-        DWORD timeout_ms = 5000;
+        DWORD timeout_ms = 10000;
         setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
                    (const char*)&timeout_ms, sizeof(timeout_ms));
 #else
@@ -2528,7 +2529,7 @@ double GetNTPTime()
         timeout.tv_usec = 0;
         setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 #endif
-        uint8_t packet[NTP_PACKET_SIZE]{};
+        char packet[NTP_PACKET_SIZE]{};
         packet[0] = 0x1B; // LI=0, VN=3, Mode=3 (client)
         
         // Send "request"
@@ -2537,7 +2538,7 @@ double GetNTPTime()
                               sizeof(packet),
                               0,
                               res->ai_addr,
-                              res->ai_addrlen);
+                              int(res->ai_addrlen));
         
         if (sent != (ssize_t)sizeof(packet)) {
             LOG_MSG(logERR, "sendto failed: %d", int(net_errno));
@@ -2579,7 +2580,7 @@ double GetNTPTime()
     {}
     
     // Cleanup
-    if (sockfd >= 0)
+    if (sockfd != INVALID_SOCKET)
         close(sockfd);
     if (res)
         freeaddrinfo(res);
@@ -2599,11 +2600,11 @@ static double InternetGetUTCTimeDiff ()
 
     // Local time just after receiving the response
     using namespace std::chrono;
-    const double start_ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const double start_ms = (double)duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     const double utc_s = GetNTPTime();
     if (std::isnan(utc_s))
         return NAN;
-    const double end_ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const double end_ms = (double)duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     const double local_s = (start_ms + end_ms) / 2000.0;          // average between start and end
     const double diffTime = utc_s - local_s;
     LOG_MSG(logINFO, "NTP says it is %s UTC, %.3fs diff to local time",
