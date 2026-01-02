@@ -880,7 +880,7 @@ bool DataRefs::Init ()
     // Using a modern graphics driver? (Metal, Vulkan)
     bUsingModernDriver = adrXP[DR_MODERN_DRIVER] ? XPLMGetDatai(adrXP[DR_MODERN_DRIVER]) != 0 : false;
     
-    // Start looking up time from TimeIo, will actually start an async process
+    // Start looking up time from the internet, will actually start an async process
     GetNetwTsOffset();
 
     // read Doc8643 file (which we could live without)
@@ -2472,145 +2472,142 @@ int DataRefs::CntChannelEnabled () const
 }
 
 //
-// MARK: Time.io Network Time
+// MARK: Internet UTC Time
+//       NTP Query suggested by Chat.GPT
 //
 
-/// CURL WriteData callback function, just stores all what comes in
-size_t TimeIoWriteData (char *ptr, size_t, size_t nmemb, void* userdata)
+// Most required includes and defines are already included through Lib/XPMP2/src/Network.h
+#if IBM
+typedef SSIZE_T ssize_t;
+#define net_errno WSAGetLastError()         // https://docs.microsoft.com/en-us/windows/desktop/WinSock/error-codes-errno-h-errno-and-wsagetlasterror-2
+#define close closesocket
+#else
+#include <unistd.h>
+#include <arpa/inet.h>
+#define net_errno errno
+#endif
+
+double GetNTPTime()
 {
-    // add buffer to our std::string
-    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
-    readBuf.append(ptr, nmemb);
+    constexpr uint64_t NTP_TIMESTAMP_DELTA = 2208988800ULL;
+    constexpr size_t NTP_PACKET_SIZE = 48;
     
-    // all consumed
-    return nmemb;
+    addrinfo hints{};
+    addrinfo* res = nullptr;
+    SOCKET sockfd = INVALID_SOCKET;
+    double seconds = NAN;           // the return value
+    
+    try {
+        hints.ai_family   = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        
+        const int rc = getaddrinfo("pool.ntp.org", "123", &hints, &res);
+        if (rc != 0) {
+            LOG_MSG(logERR, "getaddrinfo failed: %d", rc);
+            throw std::exception();
+        }
+        
+        sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+        if (sockfd == INVALID_SOCKET) {
+            LOG_MSG(logERR, "socket failed: %d", int(net_errno));
+            throw std::exception();
+        }
+        
+        // Optional but recommended: receive timeout
+#if IBM
+        DWORD timeout_ms = 10000;
+        setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
+                   (const char*)&timeout_ms, sizeof(timeout_ms));
+#else
+        timeval timeout{};
+        timeout.tv_sec = 10;
+        timeout.tv_usec = 0;
+        setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+#endif
+        char packet[NTP_PACKET_SIZE]{};
+        packet[0] = 0x1B; // LI=0, VN=3, Mode=3 (client)
+        
+        // Send "request"
+        ssize_t sent = sendto(sockfd,
+                              packet,
+                              sizeof(packet),
+                              0,
+                              res->ai_addr,
+#if IBM
+                              int(res->ai_addrlen));
+#else
+                              res->ai_addrlen);
+#endif
+
+        if (sent != (ssize_t)sizeof(packet)) {
+            LOG_MSG(logERR, "sendto failed: %d", int(net_errno));
+            throw std::exception();
+        }
+        // Receive "response"
+        ssize_t received = recvfrom(sockfd,
+                                    packet,
+                                    sizeof(packet),
+                                    0,
+                                    nullptr,
+                                    nullptr);
+        
+        if (received < 0) {
+            LOG_MSG(logERR, "recvfrom failed (timeout?): %d", int(net_errno));
+            throw std::exception();
+        }
+        if (received < (ssize_t)NTP_PACKET_SIZE) {
+            LOG_MSG(logERR, "Short NTP packet, %d instead of %d bytes",
+                    int(received), int(NTP_PACKET_SIZE));
+            throw std::exception();
+        }
+        
+        // Extract transmit timestamp (bytes 40–47)
+        uint32_t sec_part;
+        uint32_t frac_part;
+        
+        std::memcpy(&sec_part,  packet + 40, 4);
+        std::memcpy(&frac_part, packet + 44, 4);
+        
+        sec_part  = ntohl(sec_part);
+        frac_part = ntohl(frac_part);
+        
+        seconds =
+        (double)(sec_part - NTP_TIMESTAMP_DELTA) +
+        (double)frac_part / 4294967296.0; // 2^32
+    }
+    catch (...)
+    {}
+    
+    // Cleanup
+    if (sockfd != INVALID_SOCKET)
+        close(sockfd);
+    if (res)
+        freeaddrinfo(res);
+    
+    return seconds;
 }
 
-/// @brief Performs a GET HTTP on TimeIO API to get current UTC time and compares to local time
+
+
+/// @brief Gets UTC time from an NTP server, returns difference to local time
 /// @note Assumes to be called via std::async or the like as it blocks during HTTP retrieval
-/// @see https://timeapi.io/swagger/index.html
-/// @details The data returned by TimeIo looks something like
-///          @code
-///          {
-///            "year": 2025,
-///            "month": 5,
-///            "day": 31,
-///            "hour": 20,
-///            "minute": 36,
-///            "seconds": 28,
-///            "milliSeconds": 219,
-///            "dateTime": "2025-05-31T20:36:28.2194241",
-///            "date": "05/31/2025",
-///            "time": "20:36",
-///            "timeZone": "UTC",
-///            "dayOfWeek": "Saturday",
-///            "dstActive": false
-///          }
-///          @endcode
-///          and is returned as a Unix timestamp uncluding millisends,
-///          in the example case `1748723788.219`.
-/// @returns time difference to local time
-double TimeIoGetUTCTimeDiff ()
+/// @returns time difference to local time in seconds with fractional seconds
+static double InternetGetUTCTimeDiff ()
 {
     // This is a communication thread's main function, set thread's name and C locale
-    ThreadSettings TS ("LT_TimeIo", LC_ALL_MASK);
-    double diffTime = NAN;
+    ThreadSettings TS ("LT_InternetTime", LC_ALL_MASK);
 
-    // --- Perform the GET ---
-    char curl_errtxt[CURL_ERROR_SIZE];
-    std::string readBuf;
-    readBuf.reserve(500);       // typical response is about 230 chars
-
-    // initialize the CURL handle
-    CURL *pCurl = curl_easy_init();
-    if (!pCurl) {
-        LOG_MSG(logERR,ERR_CURL_EASY_INIT);
-        return NAN;
-    }
-    
-    // prepare the handle with the right options
-    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
-    curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
-    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, TimeIoWriteData);
-    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
-    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    curl_easy_setopt(pCurl, CURLOPT_URL, "https://timeapi.io/api/time/current/zone?timeZone=UTC");
-    
-    // perform the HTTP get request
+    // Local time just after receiving the response
     using namespace std::chrono;
-    const auto startMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    CURLcode cc = CURLE_OK;
-    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
-    {
-        // problem with querying revocation list?
-        if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
-            // try not to query revoke list
-            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
-            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, "TimeIoGetUTCTime");
-            // and just give it another try
-            cc = curl_easy_perform(pCurl);
-        }
-        
-        // if (still) error, then log error
-        if (cc != CURLE_OK) {
-            LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s", cc, curl_errtxt);
-        }
-    }
-    const auto endMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-
-    if (cc == CURLE_OK)
-    {
-        // CURL was OK, now check HTTP response code
-        long httpResponse = 0;
-        curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
-        
-        // not HTTP_OK?
-        if (httpResponse != HTTP_OK) {
-            LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s", (int)httpResponse, ERR_HTTP_NOT_OK)
-        }
-    }
-    
-    // cleanup CURL handle
-    curl_easy_cleanup(pCurl);
-    
-    // --- Process the data returned ---
-    if (!readBuf.empty()) {
-        // Pass the data through the JSON parser
-        JSONRootPtr pRoot (readBuf.c_str());
-        if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); return NAN; }
-        
-        // first get the structure's main object
-        JSON_Object* pObj = json_object(pRoot.get());
-        if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); return NAN; }
-        
-        const long year         = jog_l(pObj, "year");
-        // year _cannot_ be 0, hence use a last sanity check
-        if (year > 0) {
-            const time_t utcTime_t = mktime_utc(int(year),
-                                                int(jog_l(pObj, "month")),
-                                                int(jog_l(pObj, "day")),
-                                                int(jog_l(pObj, "hour")),
-                                                int(jog_l(pObj, "minute")),
-                                                int(jog_l(pObj, "seconds")));
-
-            // add milliseconds
-            const long milli    = jog_l(pObj, "milliSeconds");
-            const double utcTime_d = double(utcTime_t) + double(milli) / 1000.0;
-            
-            // local time is the mid-point between startMs and endMs
-            const double localTime_d = (double(startMs) + double(endMs)) / 2000.0;
-            
-            // the difference is:
-            diffTime = utcTime_d - localTime_d;
-        }
-        else {
-            LOG_MSG(logERR, "Could not get current time from TimeAPI.io: %d - %s",
-                    int(HTTP_OK), "No or zero 'year' value, possibly invalid response");
-        }
-    }
-
-    // return if we found something
+    const double start_ms = (double)duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const double utc_s = GetNTPTime();
+    if (std::isnan(utc_s))
+        return NAN;
+    const double end_ms = (double)duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    const double local_s = (start_ms + end_ms) / 2000.0;          // average between start and end
+    const double diffTime = utc_s - local_s;
+    LOG_MSG(logINFO, "NTP says it is %s UTC, %.3fs diff to local time",
+            ts2string(utc_s, 3).c_str(), diffTime);
     return diffTime;
 }
 
@@ -2621,16 +2618,16 @@ void DataRefs::GetNetwTsOffset ()
     if (!std::isnan(chTsOffset))
         return;
     
-    // the future by which we get data from TimeIo
-    static std::future<double> futTimeIo;
+    // the future by which we get time data
+    static std::future<double> futInternetTime;
     static bool bInProgress = false;
     if (!bInProgress) {
         // Perform the HTTP request asynchronously, we will be called again to check on the result
         bInProgress = true;
-        futTimeIo = std::async(std::launch::async, TimeIoGetUTCTimeDiff);
+        futInternetTime = std::async(std::launch::async, InternetGetUTCTimeDiff);
     }
-    if (futTimeIo.valid()) {
-        chTsOffset = futTimeIo.get();
+    else if (futInternetTime.valid()) {
+        chTsOffset = futInternetTime.get();
         if (std::isnan(chTsOffset))         // error? We won't try again but just use zero
             chTsOffset = 0.0;
         else {

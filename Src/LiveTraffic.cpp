@@ -490,7 +490,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             // Inform dataRef tools about our dataRefs
             dataRefs.InformDataRefEditors();
             
-            // Check if we've got a response from TimeIo
+            // Check if we've got a UTC time
             dataRefs.GetNetwTsOffset();
             
             // If weather setting is yet undetermined make a choice
@@ -509,7 +509,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             return 2;
         }
         case ONCE_CB_AUTOSTART:
-            // Check last time if we've got a response from TimeIo
+            // Check last time if we've got a UTC time
             dataRefs.GetNetwTsOffset();
             
             // Log a timestamp to synch timing for analysis purposes

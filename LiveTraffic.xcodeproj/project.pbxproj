@@ -613,7 +613,7 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastUpgradeCheck = 1630;
+				LastUpgradeCheck = 2620;
 			};
 			buildConfigurationList = D607B16209A5563100699BC3 /* Build configuration list for PBXProject "LiveTraffic" */;
 			compatibilityVersion = "Xcode 12.0";
@@ -834,7 +834,7 @@
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 3;
-				LIVETRAFFIC_VER_PATCH = 2;
+				LIVETRAFFIC_VER_PATCH = 3;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -842,6 +842,7 @@
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/12";
 			};
 			name = Debug;
@@ -953,13 +954,14 @@
 				LIVETRAFFIC_VERSION_BETA = 0;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 3;
-				LIVETRAFFIC_VER_PATCH = 2;
+				LIVETRAFFIC_VER_PATCH = 3;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				XPLANE11_ROOT = "$(USER_APPS_DIR)/X-Plane/12";
 			};
 			name = Release;
