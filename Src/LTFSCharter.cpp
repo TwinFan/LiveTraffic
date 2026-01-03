@@ -1,12 +1,12 @@
 /// @file       LTFSCharter.cpp
 /// @brief      FSCharter: Requests and processes FSC tracking data
-/// @see        https://fscharter.net/
+/// @see        https://v2.fscharter.net/
 /// @details    Implements FSCConnection:\n
 ///             - Takes care of login (OAuth)\n
 ///             - Provides a proper REST-conform URL\n
 ///             - Interprets the response and passes the tracking data on to LTFlightData.\n
 /// @author     Birger Hoppe
-/// @copyright  (c) 2021 Birger Hoppe
+/// @copyright  (c) 2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -32,7 +32,7 @@
 
 /// Defines all relevant aspects of an FSCharter environment
 struct FSCEnvTy {
-    std::string     server;     ///< server domain, like "fscharter.net"
+    std::string     server;     ///< server domain, like "v2.fscharter.net"
     unsigned        client_id=0;///< client_id when connecting using OAuth
     /// encoded client_secret for OAuth connection
     std::string     client_secrect_enc;
@@ -41,10 +41,12 @@ struct FSCEnvTy {
 /// Type of array the environment configuration is stored in
 typedef std::array<FSCEnvTy, 2> FSCEnvArrTy;
 
-/// The list of available configurations
+/// The list of available configurations. Switch between environments is only possible by changing LiveTraffic's config file. It is not a UI option. An end user will always be on production environment `0`
+/// Client ID and Secret need to be injected at build time through compiler defines.
+/// In automatic build they come via Github Action Secrets. See CMakeList.txt.
 static FSCEnvArrTy FSC_ENV = {
-    FSCEnvTy{"fscharter.net",        3,  "bmw2Y0pFTUJHcUJZQ3FPS1hKVUlSeWgzZkFydUN4WERrY3k5RUtEbQ==" },
-    FSCEnvTy{"master.fscharter.net", 3,  "bmw2Y0pFTUJHcUJZQ3FPS1hKVUlSeWgzZkFydUN4WERrY3k5RUtEbQ==" },
+    FSCEnvTy{FSC_PROD_SERVER,    FSC_PROD_CLIENT_ID,    FSC_PROD_CLIENT_SECRET },
+    FSCEnvTy{FSC_STAGING_SERVER, FSC_STAGING_CLIENT_ID, FSC_STAGING_CLIENT_SECRET },
 };
 
 //
@@ -63,8 +65,8 @@ struct FSCAnonIdTy {
 /// Starting value for anonymous FSC Ids
 unsigned long FSCAnonIdTy::prevId = 0x010000;
 
-/// The map for mapping original to anonymous id
-static std::map<unsigned long,FSCAnonIdTy> mapFSCAnonId;
+/// The map for mapping original id (a string looking like aircraft registration) to a numerical anonymous id
+static std::map<std::string,FSCAnonIdTy> mapFSCAnonId;
 
 //
 //MARK: FSCharter
@@ -85,6 +87,12 @@ LTFlightDataChannel(DR_CHANNEL_FSCHARTER, FSC_NAME)
              FSC_BASE_URL,
              FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str());
     base_url = url;
+    
+    // Can't due to no FSC client secret compiled into the binary?
+    if (!IsBuiltIn()) {
+        LOG_MSG(logERR, "Cannot start " FSC_NAME " as this binary has been built without support for it.");
+        SetValid(false, true);
+    }
 }
 
 
@@ -104,6 +112,8 @@ std::string FSCConnection::GetStatusStr () const
 // get status info, considering FSC-specific texts for login phases
 std::string FSCConnection::GetStatusText () const
 {
+    if (!IsBuiltIn())
+        return "No support for " FSC_NAME " built into this binary";
     if (!IsValid() || !IsEnabled() || fscStatus == FSC_STATUS_OK)
         return LTChannel::GetStatusText();
     else
@@ -272,13 +282,13 @@ bool FSCConnection::ProcessFetchedData ()
     // --- Standard Tracking Data ---
     //
     
-    // Only proceed in case HTTP response was OK
-    if (httpResponse != HTTP_OK) {
-        // Maybe there's more error information in the response...
-        if (ExtractErrorTexts())
-            LOG_MSG(logERR, "%s Error response: %s %ld, %s",
-                    ChName(), error_status.c_str(), error_code, error_message.c_str());
-        
+    // Maybe there's error information in the response
+    if (ExtractErrorTexts())
+        LOG_MSG(logERR, "%s Error response: %s, %s",
+                ChName(), error_status.c_str(), error_message.c_str());
+
+    // Only proceed in case HTTP response was OK and no functional error in response
+    if (httpResponse != HTTP_OK || error_status != FSC_SUCCESS) {
         // There are a few typical responses that may happen when FSCharter
         // is just temporarily unresponsive. But in all _other_ cases
         // we increase the error counter.
@@ -300,14 +310,6 @@ bool FSCConnection::ProcessFetchedData ()
     // first get the structre's main object
     JSON_Object* pObj = json_object(pRoot.get());
     if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
-    
-    // Check for additonal server-defined error information in the response
-    if (ExtractErrorTexts(pObj)) {
-        LOG_MSG(logERR, "%s: Error info in received tracking data: %s %ld, %s",
-                ChName(), error_status.c_str(), error_code, error_message.c_str());
-        IncErrCnt();
-        return false;
-    }
     
     // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
     const double tsCutOff = dataRefs.GetSimTime();
@@ -343,7 +345,7 @@ bool FSCConnection::ProcessFetchedData ()
         
         // the key: FSC aircraft id mapped to an anonymous id
         // Look up or -if non-exist- create an anonymous id
-        const unsigned long acId    = (unsigned long)jog_l(pJAc, FSC_FLIGHT_ID);
+        const std::string acId      = jog_s(pJAc, FSC_FLIGHT_ID);
         const unsigned long anonId  = mapFSCAnonId[acId];
         LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_FSC, anonId);
         
@@ -352,7 +354,7 @@ bool FSCConnection::ProcessFetchedData ()
             continue;
         
         // position time
-        double posTime = (double)mktime_string(jog_s(pJAc, FSC_FLIGHT_TS));
+        double posTime = mktimefrac_string(jog_s(pJAc, FSC_FLIGHT_TS));
         const bool bGnd = jog_b(pJAc, FSC_FLIGHT_ON_GND);
         if (posTime <= tsCutOff) {
             // We allow aircraft on the ground with outdated data,
@@ -366,7 +368,6 @@ bool FSCConnection::ProcessFetchedData ()
         }
         
         std::string s;
-        long l = 0;
         try {
             // from here on access to fdMap guarded by a mutex
             // until FD object is inserted and updated
@@ -399,13 +400,14 @@ bool FSCConnection::ProcessFetchedData ()
             }
             stat.call       =   jog_s(pJAc, FSC_FLIGHT_PILOT);
             stat.setOrigDest(jog_s(pJAc, FSC_FLIGHT_DEP), jog_s(pJAc, FSC_FLIGHT_ARR));
+            /* the "route_number" and "job_number" are now non-descript GUIDs that are not well suited for display, so we pretend we don't have a flight number
             stat.flight     =   jog_s(pJAc, FSC_FLIGHT_ROUTE_NO);
-            l               =   jog_l(pJAc, FSC_FLIGHT_JOB_NO);
-            if (l > 0) {
+            s               =   jog_s(pJAc, FSC_FLIGHT_JOB_NO);
+            if (!s.empty()) {
                 stat.flight+=   '-';
-                stat.flight+=   std::to_string(l);
-            }
-            s               =   jog_s(pJAc, FSC_FLIGHT_SLUG);
+                stat.flight+=   s;
+            } */
+            s               =   jog_s(pJAc, FSC_FLIGHT_JOB_NO); // need to use "job_number", not "flight_slug", to find the flight on the web
             if (!s.empty())
                 stat.slug = base_url + FSC_CURR_FLIGHT + s;
             stat.op         =   jog_s(pJAc, FSC_FLIGHT_COMPANY);
@@ -450,34 +452,37 @@ bool FSCConnection::ProcessFetchedData ()
 }
 
 
-// Extracts all error texts from `response` into the `error*` fields
+// Extracts `status` and potential error texts from FSC's response in `netData`
 /// @return Did we find any sign of an error?
-bool FSCConnection::ExtractErrorTexts (const JSON_Object* pObj)
+bool FSCConnection::ExtractErrorTexts ()
 {
     // try parsing as JSON
+    JSONRootPtr pRoot (netData);
+    const JSON_Object* pObj = pRoot ? json_object(pRoot.get()) : nullptr;
     if (!pObj) {
-        JSONRootPtr pRoot (netData);
-        pObj = pRoot ? json_object(pRoot.get()) : nullptr;
-        if (!pObj)
-        {
-            // if the response is not a JSON then we just read everything into message
-            error_status  = "no JSON";
-            error_code    = HTTP_NO_JSON;
-            error_message = netData;
-            return true;
-        }
+        // if the response is not a JSON then it's a problem and we just read everything into message
+        error_status  = "no JSON";
+        error_message = netData;
+        return true;
     }
     
-    // look for and return values from the response
-    error_status    = jog_s(pObj, "status");
-    error_code      = jog_l(pObj, "code");
-    error_message   = jog_s(pObj, "message");
-    if (error_message.empty())
-        // Some technical errors contain more info including a complete trace
-        error_message = jog_s(pObj, "data.exception");
+    // Success?
+    error_status    = jog_s(pObj, FSC_STATUS);
+    if (error_status == FSC_SUCCESS) {
+        error_message.clear();
+        return false;
+    }
     
-    // did we find anything of concern?
-    return (error_status != "success") || !error_message.empty();
+    // Otherwise just return the entire message, too complex to parse reasonably
+    error_message = netData;
+    return true;
+}
+
+
+// Returns `true` if something of reasonable length has been compiled into the binary as FSC client secret, otherwise FSC cannot be used
+bool FSCConnection::IsBuiltIn ()
+{
+    return FSC_ENV.at(dataRefs.GetFSCEnv()).client_secrect_enc.length() > 30;
 }
     
 
@@ -491,6 +496,13 @@ void FSCConnection::Main ()
     fscStatus = FSC_STATUS_NONE;
     token.clear();
     token_type.clear();
+    
+    // Can't due to no FSC client secret compiled into the binary?
+    if (!IsBuiltIn()) {
+        LOG_MSG(logERR, "Cannot start " FSC_NAME " as this binary has been built without support for it.");
+        SetValid(false, true);
+        return;
+    }
 
     // main loop
     while ( shallRun() ) {

@@ -337,8 +337,9 @@ time_t mktime_utc (std::tm& tm);
 /// Converts a UTC time to epoch value, assuming today's date
 time_t mktime_utc_today (int h, int min, int s);
 
-/// Convert time string "YYYY-MM-DD HH:MM:SS" to epoch value
-time_t mktime_string (const std::string& s);
+/// @brief Convert time string "YYYY-MM-DDTHH:MM:SS.SSS" to epoch value plus fractions of seconds as decimals
+/// @details Examples from WorldTimeAPI: "2026-01-01T17:49:11.635667+00:00"
+double mktimefrac_string (const std::string& s);
 
 // format timestamp
 std::string ts2string (time_t t);

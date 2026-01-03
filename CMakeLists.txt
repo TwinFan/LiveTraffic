@@ -1,6 +1,6 @@
 # LiveTraffic - Set up to be used in the provided docker environment to build lin, mac, and win
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.18)
 
 # Mac: Need to tell early on that we want a cross platform build
 if(DEFINED ENV{platform})
@@ -23,7 +23,7 @@ endif()
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 project(LiveTraffic
-        VERSION 4.3.2
+        VERSION 4.3.3
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -46,6 +46,46 @@ message("== Building: ${PROJECT_NAME} ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION
 if (VERSION_BETA)
     message("             BETA Version")
 endif()
+
+#
+# MARK: Build Configuration from Environment Variables
+#
+
+# FSCharter OAuth Configuration
+# These can be set via environment variables or CMake cache variables
+# For GitHub Actions, set these as repository secrets
+# For local builds, set environment variables before running cmake
+
+# Production environment
+if(DEFINED ENV{FSC_PROD_CLIENT_ID})
+    set(FSC_PROD_CLIENT_ID "$ENV{FSC_PROD_CLIENT_ID}" CACHE STRING "FSCharter production client ID")
+else()
+    set(FSC_PROD_CLIENT_ID "3" CACHE STRING "FSCharter production client ID")
+endif()
+if(DEFINED ENV{FSC_PROD_CLIENT_SECRET})
+    set(FSC_PROD_CLIENT_SECRET "$ENV{FSC_PROD_CLIENT_SECRET}" CACHE STRING "FSCharter production client secret (base64)")
+else()
+    # Default fallback value, is handled specifically by LiveTraffic code
+    set(FSC_PROD_CLIENT_SECRET "INOP" CACHE STRING "FSCharter production client secret (base64)")
+endif()
+
+# Staging environment
+if(DEFINED ENV{FSC_STAGING_CLIENT_ID})
+    set(FSC_STAGING_CLIENT_ID "$ENV{FSC_STAGING_CLIENT_ID}" CACHE STRING "FSCharter staging client ID")
+else()
+    set(FSC_STAGING_CLIENT_ID "3" CACHE STRING "FSCharter staging client ID")
+endif()
+if(DEFINED ENV{FSC_STAGING_CLIENT_SECRET})
+    set(FSC_STAGING_CLIENT_SECRET "$ENV{FSC_STAGING_CLIENT_SECRET}" CACHE STRING "FSCharter staging client secret (base64)")
+else()
+    # Default fallback value, is handled specifically by LiveTraffic code
+    set(FSC_STAGING_CLIENT_SECRET "INOP" CACHE STRING "FSCharter staging client secret (base64)")
+endif()
+
+string(SUBSTRING "${FSC_PROD_CLIENT_SECRET}" 0 10 _short_secret)    
+message("FSCharter Production          = Client ID: ${FSC_PROD_CLIENT_ID}, Client Secret: ${_short_secret}")
+string(SUBSTRING "${FSC_STAGING_CLIENT_SECRET}" 0 10 _short_secret)
+message("FSCharter Staging             = Client ID: ${FSC_STAGING_CLIENT_ID}, Client Secret: ${_short_secret}")
 
 # By default we build Release with Debug Info (and strip the debug info in post-processing)
 if ((NOT DEFINED CMAKE_BUILD_TYPE) OR (CMAKE_BUILD_TYPE STREQUAL ""))
@@ -270,6 +310,18 @@ if (APPLE)
     PROPERTIES
         COMPILE_OPTIONS "-Wno-deprecated-declarations")
 endif()
+
+# FSCharter OAuth Configuration
+# We keep them restricted to the one file for which they are relevat to reduce log output clutter.
+set_property(
+    SOURCE
+        Src/LTFSCharter.cpp
+    PROPERTY COMPILE_DEFINITIONS
+        FSC_PROD_CLIENT_ID=${FSC_PROD_CLIENT_ID}
+        FSC_PROD_CLIENT_SECRET="${FSC_PROD_CLIENT_SECRET}"
+        FSC_STAGING_CLIENT_ID=${FSC_STAGING_CLIENT_ID}
+        FSC_STAGING_CLIENT_SECRET="${FSC_STAGING_CLIENT_SECRET}"
+)
 
 ################################################################################
 # Define pre-compiled header

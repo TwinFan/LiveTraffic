@@ -4,6 +4,9 @@
 .vs/
 .vscode/
 
+# Environment variables (secrets)
+.env
+
 # Build directories
 build*/*
 
