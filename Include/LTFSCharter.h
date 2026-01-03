@@ -1,12 +1,12 @@
 /// @file       LTFSCharter.h
 /// @brief      FSCharter: Requests and processes FSC tracking data
-/// @see        https://fscharter.net/
+/// @see        https://v2.fscharter.net/
 /// @details    Defines FSCConnection:\n
 ///             - Takes care of login (OAuth)\n
 ///             - Provides a proper REST-conform URL\n
 ///             - Interprets the response and passes the tracking data on to LTFlightData.\n
 /// @author     Birger Hoppe
-/// @copyright  (c) 2021 Birger Hoppe
+/// @copyright  (c) 2025 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -26,19 +26,22 @@
 #ifndef LTFSCharter_h
 #define LTFSCharter_h
 
-#include "LTFSCharter.h"
+#include "LTChannel.h"
 
 //MARK: FSCharter Constants
-#define FSC_CHECK_NAME          "FSCharter Flight Board"
-#define FSC_CHECK_URL           "https://fscharter.net/flight-board"
+#define FSC_NAME                "FSCharter"
+#define FSC_PROD_SERVER         "v2.fscharter.net"
+#define FSC_STAGING_SERVER      "staging.fscharter.net"
+
+#define FSC_CHECK_NAME          "FSCharter Flight Map"
+#define FSC_CHECK_URL           "https://" FSC_PROD_SERVER "/live-flight-map"
 #define FSC_CHECK_POPUP         "See who's flying in FSCharter just now"
 
-#define FSC_NAME                "FSCharter"
-
 #define FSC_BASE_URL            "https://%s/"
+
 #define FSC_GET_TRAFFIC         "api/live-traffic"
 #define FSC_LOGIN               "oauth/token"
-#define FSC_CURR_FLIGHT         "flights?flight="      // + flightSlug
+#define FSC_CURR_FLIGHT         "job-legs/"         // + job_number
 
 // HTTP headers to send
 #define FSC_HEADER_JSON_SEND            "Content-Type: application/json"
@@ -68,6 +71,9 @@
 #define FSC_FLIGHT_ARR                  "arrival_ident"
 #define FSC_FLIGHT_SLUG                 "flight_slug"
 
+#define FSC_STATUS                      "status"
+#define FSC_SUCCESS                     "success"
+
 //
 //MARK: FSCharter
 //
@@ -96,7 +102,6 @@ protected:
     // error information
     std::string error_status;       ///< text of `status` tag in response, like "success" or "error"
     std::string error_message;      ///< text of `message` tag in error response
-    long        error_code=0;       ///< value of `code` tag in error response
 
 public:
     FSCConnection ();
@@ -113,8 +118,11 @@ public:
 //    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
 //    { gndRange = FSC_SMOOTH_GROUND; airbRange = FSC_SMOOTH_AIRBORNE; return true; }
     
-    /// Extracts all error texts from `response` into the `error*` fields
-    bool ExtractErrorTexts (const JSON_Object* pObj = nullptr);
+    /// Extracts `status` and potential error texts from FSC's response in `netData`
+    bool ExtractErrorTexts ();
+    
+    /// Returns `true` if something of reasonable length has been compiled into the binary as FSC client secret, otherwise FSC cannot be used
+    static bool IsBuiltIn ();
     
 protected:
     void Main () override;          ///< virtual thread main function

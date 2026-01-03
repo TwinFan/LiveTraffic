@@ -2533,8 +2533,12 @@ double GetNTPTime()
                               sizeof(packet),
                               0,
                               res->ai_addr,
+#if IBM
                               int(res->ai_addrlen));
-        
+#else
+                              res->ai_addrlen);
+#endif
+
         if (sent != (ssize_t)sizeof(packet)) {
             LOG_MSG(logERR, "sendto failed: %d", int(net_errno));
             throw std::exception();
