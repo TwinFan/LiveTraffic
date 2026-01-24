@@ -23,7 +23,7 @@ endif()
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 project(LiveTraffic
-        VERSION 4.3.3
+        VERSION 4.3.4
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 

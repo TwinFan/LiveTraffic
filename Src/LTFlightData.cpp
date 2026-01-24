@@ -2245,8 +2245,11 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
             if (std::find_if(dynDataDeque.cbegin(),dynDataDeque.cend(),
                              [&inDyn](const FDDynamicData& i){return inDyn.similarTo(i);}) == dynDataDeque.cend())
             {
-                // add to list and keep sorted
+                // add to list
                 dynDataDeque.emplace_back(inDyn);
+                // Potentially upgrade to Mode S transponder usage based on plane size
+                DetermineTransponderMode(dynDataDeque.back().radar.mode);
+                // and keep sorted
                 std::sort(dynDataDeque.begin(),dynDataDeque.end());
             }
             
@@ -2373,6 +2376,27 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
             return;                 // short-cut...ts in dynDataDeque would only further increase
         }
     }
+}
+
+
+// In case of "larger" aircraft, upgrade to use Mode S
+// returns if the value has been modified
+bool LTFlightData::DetermineTransponderMode (XPMPTransponderMode& mode)
+{
+    // The only modes we potentially 'upgrade' is A and C:
+    if (mode == xpmpTransponderMode_ModeA ||
+        mode == xpmpTransponderMode_ModeC)
+    {
+        // Consider if this is a 'larger' aircraft based on
+        // wake turbulence category being 'M' or more
+        if (statData.pDoc8643 && statData.pDoc8643->GetWakeCat() >= 1) {
+            mode = xpmpTransponderMode_ModeS_TAOnly;
+            return true;
+        }
+    }
+
+    // nothing changed
+    return false;
 }
 
 

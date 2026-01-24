@@ -1018,7 +1018,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         
         // Dynamic data
         LTFlightData::FDDynamicData dyn;
-        dyn.radar.mode          = xpmpTransponderMode_Standby;
+        dyn.radar.mode          = xpmpTransponderMode_Off;
         dyn.gnd                 = true;
         dyn.heading             = pos.heading();
         dyn.ts                  = pos.ts();

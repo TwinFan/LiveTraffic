@@ -102,6 +102,10 @@ public:
         (classification[0] == 'H' || classification[0] == 'G') : false;
     }
     
+    /// @brief Returns the wake category as per XP12's wake system
+    /// @see https://developer.x-plane.com/article/plugin-traffic-wake-turbulence/
+    int GetWakeCat() const;
+
     // static functions for reading the doc8643.txt file
     // and returning information from it
 public:

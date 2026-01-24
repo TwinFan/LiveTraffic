@@ -2943,9 +2943,24 @@ void LTAircraft::UpdatePosition (float, int cycle)
         
         // -> deactivate TCAS in some cases like parked or taxiing outside runway
         // (will be re-activated by the above code every 100th cycle)
-        if (phase == FPH_PARKED ||
-            (dataRefs.IsAINotOnGnd() && !IsOnRwy() && phase == FPH_TAXI))
+        if (phase == FPH_PARKED)                        // off while parked
+            acRadar.mode = xpmpTransponderMode_Off;
+        // reduce to standby during taxiing if settings say so
+        else if (phase == FPH_TAXI && dataRefs.IsAINotOnGnd() && !IsOnRwy())
             acRadar.mode = xpmpTransponderMode_Standby;
+        // In case any of the S modes is being used, dynamically change the mode based on situation
+        if (acRadar.mode >= xpmpTransponderMode_ModeS_Gnd) {
+            if (IsOnGrnd()) {
+                if (IsOnRwy())
+                    acRadar.mode = xpmpTransponderMode_ModeS_TAOnly;
+                else
+                    acRadar.mode = xpmpTransponderMode_ModeS_Gnd;
+            }
+            else if (GetPHeight_ft() > 1000)
+                acRadar.mode = xpmpTransponderMode_ModeS_TARA;
+            else
+                acRadar.mode = xpmpTransponderMode_ModeS_TAOnly;
+        }
 
         // *** Informational Texts ***
 

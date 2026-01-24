@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2620"
-   version = "1.8">
+   version = "2.0">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
@@ -36,6 +36,7 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       disableMainThreadChecker = "YES"
       launchStyle = "0"
+      askForAppToLaunch = "Yes"
       useCustomWorkingDirectory = "YES"
       customWorkingDirectory = "/Users/birger/Applications/X-Plane/11"
       ignoresPersistentStateOnLaunch = "NO"
@@ -44,12 +45,8 @@
       debugServiceExtension = "internal"
       enableGPUFrameCaptureMode = "3"
       enableGPUValidationMode = "1"
-      allowLocationSimulation = "NO">
-      <PathRunnable
-         runnableDebuggingMode = "0"
-         BundleIdentifier = "com.laminar-research.X-Plane"
-         FilePath = "/Users/birger/Applications/X-Plane/12/X-Plane.app">
-      </PathRunnable>
+      allowLocationSimulation = "NO"
+      launchAutomaticallySubstyle = "2">
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
