@@ -36,9 +36,9 @@
 // MARK: RealTraffic Constants
 //
 
-#define RT_CHECK_NAME           "RealTraffic's web site"
-#define RT_CHECK_URL            "https://rtweb.flyrealtraffic.com/"
-#define RT_CHECK_POPUP          "Open RealTraffic's web site, which has a traffic status overview"
+#define RT_CHECK_NAME           "Visit RealTraffic"
+#define RT_CHECK_URL            "https://www.flyrealtraffic.com/"
+#define RT_CHECK_POPUP          "Open RealTraffic's web site"
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
@@ -89,6 +89,9 @@ constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///<
 constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
+
+// Constants for RT Application connection
+constexpr std::chrono::milliseconds RT_APP_POS_INTVL = std::chrono::milliseconds(200);  ///< Position update interval for RT App (5 Hz = 200ms)
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {
@@ -330,7 +333,8 @@ protected:
     volatile ThrStatusTy eTcpThrStatus = THR_NONE;
 
     // UDP sockets
-    XPMP2::UDPReceiver udpTrafficData;
+    XPMP2::UDPReceiver udpTrafficData;      ///< UDP receiver for traffic data (port 49005)
+    XPMP2::UDPReceiver udpWeatherData;      ///< UDP receiver for weather data (port 49004)
 #if APL == 1 || LIN == 1
     // the self-pipe to shut down the UDP listener thread gracefully
     SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
@@ -410,6 +414,7 @@ protected:
     bool ProcessRecvedTrafficData (const char* traffic);
     bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a RTTFC type message
     bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a AITFC or XTRAFFICPSX type message
+    bool ProcessRecvedWeatherData (const char* weather);                                      ///< Process UDP weather JSON from RT Application
     
     /// Determine timestamp adjustment necessary in case of historic data
     void AdjustTimestamp (double& ts);

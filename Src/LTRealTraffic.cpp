@@ -71,7 +71,7 @@ void RealTrafficConnection::Stop (bool bWaitJoin)
     if (isRunning()) {
         if (eThrStatus < THR_STOP)
             eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
-        
+
 #if APL == 1 || LIN == 1
         // Mac/Lin: Try writing something to the self-pipe to stop gracefully
         if (udpPipe[1] == INVALID_SOCKET ||
@@ -82,11 +82,12 @@ void RealTrafficConnection::Stop (bool bWaitJoin)
             // close all connections, this will also break out of all
             // blocking calls for receiving message and hence terminate the threads
             udpTrafficData.Close();
+            udpWeatherData.Close();
 #if APL == 1 || LIN == 1
         }
 #endif
     }
-    
+
     // Parent class processing: Wait for the thread to join
     LTFlightDataChannel::Stop(bWaitJoin);
 }
@@ -101,8 +102,10 @@ std::string RealTrafficConnection::GetStatusText () const
         return LTChannel::GetStatusText();
 
     // --- Direct Connection? ---
-    if (eConnType == RT_CONN_REQU_REPL) {
-        std::string s =
+    // Use dataRefs setting instead of eConnType to reflect current configuration
+    if (dataRefs.GetRTConnType() == RT_CONN_REQU_REPL) {
+        // Only show request-specific status if thread is actually running
+        std::string s = !isRunning() ? LTChannel::GetStatusText() :
             curr.eRequType == CurrTy::RT_REQU_AUTH          ? "Authenticating..." :
             curr.eRequType == CurrTy::RT_REQU_DEAUTH        ? "De-authenticating..." :
             curr.eRequType == CurrTy::RT_REQU_PARKED        ? "Fetching parked aircraft..." :
@@ -206,7 +209,7 @@ void RealTrafficConnection::MainDirect ()
                                                  rtWx.w.atmosphere_alt_levels_m);
     }
 
-    while ( shallRun() ) {
+    while ( shallRun() && dataRefs.GetRTConnType() == RT_CONN_REQU_REPL ) {
         // LiveTraffic Top Level Exception Handling
         try {
             // where are we right now?
@@ -220,7 +223,7 @@ void RealTrafficConnection::MainDirect ()
                     // reduce error count if processed successfully
                     // as a chance to appear OK in the long run
                     DecErrCnt();
-                
+
                 // Determine next action and wait time
                 tNextWakeup = SetRequType(pos);
             }
@@ -228,15 +231,15 @@ void RealTrafficConnection::MainDirect ()
                 // Camera position is yet invalid, retry in a second
                 tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(1);
             }
-            
+
             // sleep for a bit or if woken up for termination
             // by condition variable trigger
             {
                 std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
                 FDThreadSynchCV.wait_until(lk, tNextWakeup,
-                                           [this]{return !shallRun();});
+                                           [this]{return !shallRun() || dataRefs.GetRTConnType() != RT_CONN_REQU_REPL;});
             }
-            
+
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
             IncErrCnt();
@@ -1295,23 +1298,36 @@ void RealTrafficConnection::MainUDP ()
     try {
         // set startup status
         SetStatus(RT_STATUS_STARTING);
-        
+
         // Clear the list of historic time stamp differences
         dequeTS.clear();
 
+        // If we could theoretically set weather we prepare the interpolation settings
+        if (WeatherCanSet()) {
+            rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
+                                                     rtWx.w.atmosphere_alt_levels_m);
+        }
+
         // Start the TCP listening thread, that waits for an incoming TCP connection from the RealTraffic app
         StartTcpConnection();
-        // Next time we should send a position update
+        // Next time we should send a position update (5 Hz = every 200ms)
         std::chrono::time_point<std::chrono::steady_clock> tNextPos =
-        std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+        std::chrono::steady_clock::now() + RT_APP_POS_INTVL;
 
-        // --- UDP Listener ---
-        
-        // Open the UDP port
+        // --- UDP Listeners ---
+
+        // Open the UDP port for traffic data (port 49005 by default)
         udpTrafficData.Open (RT_LOCALHOST,
                              DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
                              RT_NET_BUF_SIZE);
         int maxSock = (int)udpTrafficData.getSocket() + 1;
+
+        // Open the UDP port for weather data (port 49004 by default)
+        udpWeatherData.Open (RT_LOCALHOST,
+                             DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT),
+                             RT_NET_BUF_SIZE);
+        maxSock = std::max(maxSock, (int)udpWeatherData.getSocket() + 1);
+
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the UDP socket gracefully
         if (pipe(udpPipe) < 0)
@@ -1320,24 +1336,28 @@ void RealTrafficConnection::MainUDP ()
         maxSock = std::max(maxSock, udpPipe[0]+1);
 #endif
 
+        LOG_MSG(logINFO, "RealTraffic Application: Listening for traffic on UDP port %d, weather on UDP port %d",
+                DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
+                DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT));
+
         // --- Main Loop ---
-        
-        while (shallRun() && udpTrafficData.isOpen() && IsConnecting())
+
+        while (shallRun() && udpTrafficData.isOpen() && IsConnecting() && dataRefs.GetRTConnType() == RT_CONN_APP)
         {
             // wait for a UDP datagram on either socket (traffic, weather)
             fd_set sRead;
             FD_ZERO(&sRead);
-            FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
+            FD_SET(udpTrafficData.getSocket(), &sRead);     // check traffic socket
+            FD_SET(udpWeatherData.getSocket(), &sRead);     // check weather socket
 #if APL == 1 || LIN == 1
             FD_SET(udpPipe[0], &sRead);
 #endif
-            // We specify a timeout, which will really rarely trigger,
-            // but this way we make sure that we send our position every once in a while even with no traffic around
-            struct timeval timeout = { dataRefs.GetFdRefreshIntvl(), 0 };
+            // We specify a short timeout (200ms) to ensure we can send position updates at 5 Hz
+            struct timeval timeout = { 0, 200000 };  // 200ms for 5 Hz position updates
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
-            
-            // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (!shallRun()) break;
+
+            // short-cut if we are to shut down or connection type changed
+            if (!shallRun() || dataRefs.GetRTConnType() != RT_CONN_APP) break;
 
             // select call failed???
             if(retval == -1)
@@ -1348,7 +1368,7 @@ void RealTrafficConnection::MainUDP ()
             {
                 // read UDP datagram
                 long rcvdBytes = udpTrafficData.recv();
-                
+
                 // received something?
                 if (rcvdBytes > 0)
                 {
@@ -1361,7 +1381,21 @@ void RealTrafficConnection::MainUDP ()
                 else
                     retval = -1;
             }
-            
+
+            // select successful - weather data
+            if (retval > 0 && FD_ISSET(udpWeatherData.getSocket(), &sRead))
+            {
+                // read UDP datagram
+                long rcvdBytes = udpWeatherData.recv();
+
+                // received something?
+                if (rcvdBytes > 0)
+                {
+                    // have it processed
+                    ProcessRecvedWeatherData(udpWeatherData.getBuf());
+                }
+            }
+
             // handling of errors, both from select and from recv
             if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
                 // not just a normal timeout?
@@ -1375,16 +1409,15 @@ void RealTrafficConnection::MainUDP ()
                     break;
                 }
             }
-            
+
             // --- Maintenance Activities ---
 
             // If we are connected via TCP to RealTraffic
             if (tcpPosSender.IsConnected()) {
-                // Send current position and time every once in a while
+                // Send position at 5 Hz (every 200ms) to keep RT App updated
                 if (std::chrono::steady_clock::now() > tNextPos) {
-                    SendXPSimTime();
                     SendUsersPlanePos();
-                    tNextPos = std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                    tNextPos = std::chrono::steady_clock::now() + RT_APP_POS_INTVL;
                 }
             }
             // Not connected by TCP, are we still listening and waiting?
@@ -1393,7 +1426,7 @@ void RealTrafficConnection::MainUDP ()
                 StopTcpConnection();
                 StartTcpConnection();
             }
-            
+
             // cleanup map of last datagrams
             CleanupMapDatagrams();
             // map is empty? That only happens if we don't receive data continuously
@@ -1409,11 +1442,13 @@ void RealTrafficConnection::MainUDP ()
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
         IncErrCnt();
     }
-    
+
     // Let's make absolutely sure that any connection is really closed
     // once we return from this thread
     if (udpTrafficData.isOpen())
         udpTrafficData.Close();
+    if (udpWeatherData.isOpen())
+        udpWeatherData.Close();
 #if APL == 1 || LIN == 1
     // close the self-pipe sockets
     for (SOCKET &s: udpPipe) {
@@ -1424,7 +1459,10 @@ void RealTrafficConnection::MainUDP ()
 
     // Make sure the TCP listener is down
     StopTcpConnection();
-    
+
+    // Reset weather control
+    WeatherReset();
+
     // stopped
     SetStatus(RT_STATUS_NONE);
 
@@ -1702,10 +1740,10 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
     snprintf(s,sizeof(s),
              "Qs121=%ld;%ld;%.15f;%ld;%ld;%.15f;%.15f\n",
              lround(deg2rad(pos.pitch()) * 100000.0),   // pitch
-             lround(deg2rad(pos.roll()) * 100000.0),    // bank/roll
+             lround(deg2rad(-pos.roll()) * 100000.0),   // bank/roll (inverted)
              deg2rad(pos.heading()),                    // heading
-             lround(pos.alt_ft() * 1000.0),             // altitude
-             lround(speed_m),                           // speed
+             lround(pos.alt_ft() * 1000.0),             // altitude (ft * 1000)
+             lround(speed_m * KT_per_M_per_S * 1000.0),  // ground speed (knots * 1000)
              deg2rad(pos.lat()),                        // latitude
              deg2rad(pos.lon())                         // longitude
     );
@@ -1717,9 +1755,9 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 // send the position of the user's plane
 void RealTrafficConnection::SendUsersPlanePos()
 {
-    double airSpeed_m = 0.0;
-    positionTy pos = dataRefs.GetUsersPlanePos(&airSpeed_m);
-    SendPos(pos, airSpeed_m);
+    double groundSpeed_m = 0.0;
+    positionTy pos = dataRefs.GetUsersPlanePos(nullptr, nullptr, nullptr, &groundSpeed_m);
+    SendPos(pos, groundSpeed_m);
 }
 
 
@@ -2237,11 +2275,64 @@ void RealTrafficConnection::CleanupMapDatagrams()
     // or in other words: Remove all data that had no updates for
     // the outdated period, planes will vanish soon anyway
     const double cutOff = dataRefs.GetSimTime() - dataRefs.GetAcOutdatedIntvl();
-    
+
     for (auto it = mapDatagrams.begin(); it != mapDatagrams.end(); ) {
         if (it->second.posTime < cutOff)
             it = mapDatagrams.erase(it);
         else
-            ++it;            
+            ++it;
     }
+}
+
+// Process UDP weather JSON from RT Application
+bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
+{
+    // sanity check: not empty
+    if (!weather || !weather[0])
+        return false;
+
+    // Raw data logging
+    DebugLogRaw(weather, HTTP_FLAG_UDP);
+
+    // Don't process weather if weather control is not set to RealTraffic
+    if (dataRefs.GetWeatherControl() != WC_REAL_TRAFFIC)
+        return true;
+
+    // Parse JSON
+    JSON_Value* pRoot = json_parse_string(weather);
+    if (!pRoot) {
+        LOG_MSG(logWARN, "RealTraffic: Could not parse weather JSON: %s", weather);
+        return false;
+    }
+
+    // Get the root object
+    JSON_Object* pMain = json_object(pRoot);
+    if (!pMain) {
+        json_value_free(pRoot);
+        LOG_MSG(logWARN, "RealTraffic: Weather JSON has no root object");
+        return false;
+    }
+
+    // Store current position for weather processing
+    rtWx.pos = dataRefs.GetViewPos();
+
+    // The weather JSON can have different formats depending on how RT App sends it
+    // Check for 'data' object (similar to direct API response) or use root directly
+    const JSON_Object* pData = json_object_get_object(pMain, "data");
+    if (pData) {
+        // Has 'data' wrapper like direct API response
+        ProcessWeather(pData);
+    } else {
+        // Use root object directly (simpler UDP format)
+        ProcessWeather(pMain);
+    }
+
+    json_value_free(pRoot);
+
+    // Have the weather set
+    rtWx.w.update_immediately = false;
+    WeatherSet(rtWx.w);
+
+    LOG_MSG(logDEBUG, "RealTraffic Application: Processed weather data");
+    return true;
 }

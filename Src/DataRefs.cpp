@@ -1114,7 +1114,8 @@ void DataRefs::SetViewType(XPViewTypes vt)
 // return user's plane pos
 positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
                                       double* pTrack,
-                                      double* pHeightAGL_m) const
+                                      double* pHeightAGL_m,
+                                      double* pGroundSpeed_m) const
 {
     // access guarded by a lock
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
@@ -1124,6 +1125,7 @@ positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
     if (pTrueAirspeed_m)    *pTrueAirspeed_m    = lastUsersTrueAirspeed;
     if (pTrack)             *pTrack             = lastUsersTrack;
     if (pHeightAGL_m)       *pHeightAGL_m       = lastUsersAGL_ft * M_per_FT;
+    if (pGroundSpeed_m)     *pGroundSpeed_m     = lastUsersGroundSpeed;
 
     return ret;
 }
@@ -1149,8 +1151,9 @@ void DataRefs::UpdateUsersPlanePos ()
     // cache the position
     lastUsersPlanePos = pos;
     
-    // also fetch true airspeed and track
+    // also fetch true airspeed, ground speed, and track
     lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TAS]);
+    lastUsersGroundSpeed    = XPLMGetDataf(adrXP[DR_PLANE_GS]);
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
 
     // fetch current height AGL and convert to feet

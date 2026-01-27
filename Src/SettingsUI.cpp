@@ -625,48 +625,61 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 const bool bRTCon = dataRefs.IsChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
+                // Also check if the channel thread is actually running (more robust than just checking enabled state)
+                const LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE);
+                const bool bRTRunning = pRTCh && pRTCh->isRunning();
 
-                // Connection Type: App or Request/Reply
+                // Connection Type: Direct API or RealTraffic Application
                 if (ImGui::FilteredLabel("Connection Type", sFilter)) {
-                    const float cbWidth = ImGui::CalcTextSize("Direct (enter license below)_____").x;
-                    ImGui::SetNextItemWidth(cbWidth);
                     int n = dataRefs.GetRTConnType();
-                    if (ImGui::Combo("##RTConnType", &n, "Direct (enter license below)\0Via RealTraffic app\0", 3))
-                        DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(n);
-                    ImGui::TableNextCell();
-                }
-
-                // License
-                if (ImGui::FilteredLabel("RealTraffic License", sFilter)) {
-                    // "Eye" button changes password flag
-                    ImGui::Selectable(ICON_FA_EYE "##RTLicenseVisible", &bRTLicClearText,
-                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Show/Hide license");
-                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::InputTextWithHint("##RealTrafficLicense",
-                                             "Enter or paste RealTraffic license key to use Direct connection",
-                                             &sRTLicenseEntry,
-                                             // clear text or password mode?
-                                             (bRTLicClearText ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password) |
-                                             // prohibit changes to the license while channel on
-                                             (bRTCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
-
-                    // Save button or hint how to change
-                    if (bRTCon) {
-                        ImGui::TextUnformatted("Disable the channel first if you want to change the license.");
+                    // Disable combo while channel is active or thread is still running - user must disable channel first and wait for it to stop
+                    if (bRTCon || bRTRunning) {
+                        // Show current mode as text (non-editable) when channel is running
+                        ImGui::TextUnformatted(n == RT_CONN_REQU_REPL ? "RealTraffic Direct API" : "RealTraffic Application");
+                        ImGui::SameLine();
+                        ImGui::TextDisabled("%s", bRTRunning ? "(Stop channel to change mode)" : "(Disable channel to change)");
                     } else {
-                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the license and activates the channel")) {
-                            dataRefs.SetRTLicense(sRTLicenseEntry);                                     // Save license
-                            DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(RT_CONN_REQU_REPL);            // Set connection to "Direct"
-                            if (LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE))   // Set channel back to valid
-                                pRTCh->SetValid(true,false);
-                            dataRefs.SetChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE, true);           // ...and enable it
-                            bRTLicClearText = false;                                                    // and hide the license now
+                        const float cbWidth = ImGui::CalcTextSize("RealTraffic Direct API (enter license below)_____").x;
+                        ImGui::SetNextItemWidth(cbWidth);
+                        if (ImGui::Combo("##RTConnType", &n, "RealTraffic Direct API (enter license below)\0RealTraffic Application\0", 3)) {
+                            DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(n);
                         }
                     }
                     ImGui::TableNextCell();
+                }
+
+                // License - only shown for Direct API mode
+                if (dataRefs.GetRTConnType() == RT_CONN_REQU_REPL) {
+                    if (ImGui::FilteredLabel("RealTraffic License", sFilter)) {
+                        // "Eye" button changes password flag
+                        ImGui::Selectable(ICON_FA_EYE "##RTLicenseVisible", &bRTLicClearText,
+                                          ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("%s", "Show/Hide license");
+                        ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::InputTextWithHint("##RealTrafficLicense",
+                                                 "Enter or paste RealTraffic license key to use Direct API",
+                                                 &sRTLicenseEntry,
+                                                 // clear text or password mode?
+                                                 (bRTLicClearText ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password) |
+                                                 // prohibit changes to the license while channel on or thread running
+                                                 ((bRTCon || bRTRunning) ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+
+                        // Save button or hint how to change
+                        if (bRTCon || bRTRunning) {
+                            ImGui::TextUnformatted(bRTRunning ? "Stop channel to change license." : "Disable the channel first if you want to change the license.");
+                        } else {
+                            if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the license and activates the channel")) {
+                                dataRefs.SetRTLicense(sRTLicenseEntry);                                     // Save license
+                                if (LTChannel* pRTCh = LTFlightDataGetCh(DR_CHANNEL_REAL_TRAFFIC_ONLINE))   // Set channel back to valid
+                                    pRTCh->SetValid(true,false);
+                                dataRefs.SetChannelEnabled(DR_CHANNEL_REAL_TRAFFIC_ONLINE, true);           // ...and enable it
+                                bRTLicClearText = false;                                                    // and hide the license now
+                            }
+                        }
+                        ImGui::TableNextCell();
+                    }
                 }
                 
                 // Historic Data

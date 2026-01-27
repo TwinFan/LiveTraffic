@@ -494,8 +494,8 @@ enum WeatherCtrlTy : int {
 
 /// Which RealTraffic connection type to use?
 enum RTConnTypeTy : int {
-    RT_CONN_REQU_REPL = 0,              ///< Expect a license and use request/reply
-    RT_CONN_APP,                        ///< Expect the app to run and listen on UDP
+    RT_CONN_REQU_REPL = 0,              ///< RealTraffic Direct API: Expect a license and use request/reply
+    RT_CONN_APP,                        ///< RealTraffic Application: TCP server + UDP listeners for traffic/weather
 };
 
 // first/last channel; number of channels:
@@ -849,7 +849,8 @@ protected:
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
     int         lastUsersAGL_ft = 0;            ///< cached user's plane height above ground
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
-    double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
+    double      lastUsersTrack        = 0.0;    ///< cached user's plane's track
+    double      lastUsersGroundSpeed  = 0.0;    ///< [m/s] cached user's plane's ground speed
 
     /// Wind Layer Data
     struct WindLayerTy {
@@ -881,7 +882,8 @@ public:
     void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double* pTrueAirspeed_m = nullptr,
                                 double* pTrack = nullptr,
-                                double* pHeightAGL_m = nullptr) const;
+                                double* pHeightAGL_m = nullptr,
+                                double* pGroundSpeed_m = nullptr) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks
