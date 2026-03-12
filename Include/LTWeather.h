@@ -94,7 +94,8 @@ public:
     float    qnh_base_elevation = NAN;              ///< float      y    float          Base elevation for QNH. Takes into account local physical variations from a spheroid.
     float    qnh_pas = NAN;                         ///< float      y    float          Base elevation for QNH. Takes into account local physical variations from a spheroid.
     float    rain_percent = NAN;                    ///< float      y    ratio          [0.0 - 1.0] The percentage of rain falling.
-    std::array<float,13> atmosphere_alt_levels_m;   ///< float[13]  n    meters         The altitudes for the thirteen atmospheric layers returned in other sim/weather/region datarefs.
+    /// float[13]  n    meters         The altitudes for the thirteen atmospheric layers returned in other sim/weather/region datarefs. Doesn't change, so we get it once during startup
+    static std::array<float,13> atmosphere_alt_levels_m;
     std::array<float,13> wind_altitude_msl_m;       ///< float[13]  y    meters         >= 0. The center altitude of this layer of wind in MSL meters.
     std::array<float,13> wind_speed_msc;            ///< float[13]  y    kts            >= 0. The wind speed in knots.
     std::array<float,13> wind_direction_degt;       ///< float[13]  y    degrees        [0 - 360] The direction the wind is blowing from in degrees from true north clockwise.

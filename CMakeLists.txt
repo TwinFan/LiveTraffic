@@ -165,8 +165,8 @@ else()
         # Use highest optimization level in Release builds
         add_compile_options(/MD /Zi /GL- /O2)
     else()
-        # Use position-independent code and highest optimization level
-        add_compile_options(-O3 -fPIC)
+        # Use position-independent code and highest optimization level plus some minimal debug info for stack traces
+        add_compile_options(-O3 -fPIC -g1)
     endif()
 endif()
 

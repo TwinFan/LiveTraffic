@@ -224,10 +224,27 @@ bool WeatherInitDataRefs ()
     ;
 }
 
+/// float[13]  n    meters         The altitudes for the thirteen atmospheric layers returned in other sim/weather/region datarefs. Doesn't change, so we get it once during startup
+std::array<float,13> LTWeather::atmosphere_alt_levels_m = {
+       0.0f,            // These are the actual XP12 values, but don't worry, just for static init...
+     540.105591f,       // ...we fetch actual values from XP12 in WeatherInit
+     988.46643f,
+     1948.28162f,
+     3010.81445f,
+     4206.54492f,
+     5572.04883f,
+     7182.30712f,
+     9160.15429f,
+    10362.8955f,
+    11887.2002f,
+    13594.0801f,
+    16179.3936f,
+};
+
+
 // Constructor sets all arrays to all `NAN`
 LTWeather::LTWeather()
 {
-    wdr_atmosphere_alt_levels_m.get(atmosphere_alt_levels_m);
     wind_altitude_msl_m.fill(NAN);
     wind_speed_msc.fill(NAN);
     wind_direction_degt.fill(NAN);
@@ -292,7 +309,6 @@ void LTWeather::Get (const std::string& logMsg)
     qnh_base_elevation          = wdr_qnh_base_elevation.get();
     qnh_pas                     = wdr_qnh_pas.get();
     rain_percent                = wdr_rain_percent.get();
-    wdr_atmosphere_alt_levels_m.get(atmosphere_alt_levels_m);
     wdr_wind_altitude_msl_m.get(wind_altitude_msl_m);
     wdr_wind_speed_msc.get(wind_speed_msc);
     wdr_wind_direction_degt.get(wind_direction_degt);
@@ -1396,6 +1412,10 @@ bool WeatherInit ()
     bWeatherCanSet = WeatherInitDataRefs();
     if (!bWeatherCanSet) {
         LOG_MSG(logWARN, "Could not find all Weather dataRefs, cannot set X-Plane's weather (X-Plane < v12?)");
+    }
+    else {
+        // get XP's altitude levels
+        wdr_atmosphere_alt_levels_m.get(LTWeather::atmosphere_alt_levels_m);
     }
     return bWeatherCanSet;
 }
