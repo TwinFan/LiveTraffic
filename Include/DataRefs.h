@@ -847,6 +847,7 @@ protected:
     float       lastNetwTime    = 0.0f;         ///< cached network time
     double      lastSimTime     = NAN;          ///< cached simulated time
     long long   lastXPSimTime_ms = 0;           ///< X-Plane's simulated time in milliseconds since the Unix epoch
+    bool        lastUsingSystemTime = false;    ///< cached: Is sim using system time?
     bool        lastReplay      = true;         ///< cached: is replay mode?
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
@@ -872,8 +873,8 @@ public:
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
     inline bool  IsVREnabled() const            { return lastVREnabled; }
-
-    bool IsUsingSystemTime() const              { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]); }
+    bool IsUsingSystemTime() const              { return lastUsingSystemTime; }
+    
     int GetLocalDayOfMonth() const              { return XPLMGetDatai(adrXP[DR_LOCAL_DAY]); }
     int GetLocalMonth() const                   { return XPLMGetDatai(adrXP[DR_LOCAL_MONTH]); }
     float GetLocalTimeSec() const               { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }

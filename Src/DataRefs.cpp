@@ -2663,6 +2663,7 @@ void DataRefs::UpdateCachedValues ()
 
     lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
     lastReplay = XPLMGetDatai(adrXP[DR_REPLAY_MODE]);
+    lastUsingSystemTime = XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]);
     lastVREnabled =                         // is VR enabled?
     #ifdef DEBUG
         bSimVREntered ? true :              // simulate some aspects of VR
