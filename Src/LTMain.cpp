@@ -1063,7 +1063,7 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             // Potentially refresh weather information
             dataRefs.WeatherFetchMETAR();
             // Update the weather (short-cuts if nothing to do)
-            WeatherUpdate();
+            WeatherUpdate_xp();
             
             // Refresh airport data from apt.dat (in case camera moved far)
             if (LTAptRefresh()) {                   // fresh airport data available?

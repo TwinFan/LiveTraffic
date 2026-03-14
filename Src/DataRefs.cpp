@@ -2857,7 +2857,7 @@ bool DataRefs::WeatherFetchMETAR ()
 }
 
 // Called by the asynch process spawned by ::WeatherUpdate to inform us of the weather
-float DataRefs::SetWeather (float hPa, float lat, float lon,
+float DataRefs::SetWeather (float hPa,
                             const std::string& stationId,
                             const std::string& METAR)
 {
@@ -2869,11 +2869,6 @@ float DataRefs::SetWeather (float hPa, float lat, float lon,
     lastWeatherUpd = GetMiscNetwTime();         // ...now
     lastWeatherStationId = stationId;
     lastWeatherMETAR = METAR;
-    
-    // If we didn't get a station id we can find a matching airport now
-    if (lastWeatherStationId.empty() && !std::isnan(lat) && !std::isnan(lon)) {
-        lastWeatherStationId = GetNearestAirportId(lat, lon);
-    }
     
     // Let's see if we can quickly find the QNH from the metar, which we prefer
     const float qnh = WeatherQNHfromMETAR(METAR);

@@ -501,7 +501,7 @@ float LoopCBOneTimeSetup (float, float, int, void*)
             // Set to "RealTraffic weather" if X-Plane is set to real weather
             //  and user has a RT license.
             if (dataRefs.GetWeatherControl() < WC_NONE)
-                DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData((WeatherIsXPRealWeather() && !dataRefs.GetRTLicense().empty()) ?
+                DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData((WeatherIsXPRealWeather_xp() && !dataRefs.GetRTLicense().empty()) ?
                                                              WC_REAL_TRAFFIC : WC_NONE);
             
             // next: Auto Start, but wait another 2 seconds for that
@@ -589,7 +589,7 @@ PLUGIN_API int XPluginStart(
         if (!dataRefs.Init()) { DestroyWindow(); return 0; }
         
         // init Weather module (optional)
-        WeatherInit();
+        WeatherInit_xp();
         
         // read FlightModel.prf file (which we could live without)
         LTAircraft::FlightModel::ReadFlightModelFile();
@@ -629,10 +629,6 @@ PLUGIN_API int  XPluginEnable(void)
         // Register callback to inform DataRef Editor later on
         eOneTimeState = ONCE_CB_ADD_DREFS;
         XPLMRegisterFlightLoopCallback(LoopCBOneTimeSetup, 1, NULL);
-        
-        // Start reading apt.dat
-        if (dataRefs.GetFdSnapTaxiDist_m() > 0.0)
-            LTAptEnable();
         
         // Enable showing aircraft
         if (!LTMainEnable()) return 0;

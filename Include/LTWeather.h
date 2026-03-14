@@ -1,7 +1,9 @@
 /// @file       LTWeather.h
 /// @brief      Set X-Plane weather / Fetch real weather information from AWC
+/// @note       Functions ending in `_xp` are calling X-Plane, i.e. must _not_ be called
+///             from worker threads. Others are considered thread-safe.
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2024 Birger Hoppe
+/// @copyright  (c) 2018-2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -24,7 +26,7 @@
 class LTWeather;
 
 /// Initialize Weather module, dataRefs
-bool WeatherInit ();
+bool WeatherInit_xp ();
 /// Shutdown Weather module
 void WeatherStop ();
 
@@ -33,9 +35,9 @@ bool WeatherCanSet ();
 /// Are we controlling weather?
 bool WeatherInControl ();
 /// Is X-Plane set to use real weather?
-bool WeatherIsXPRealWeather ();
+bool WeatherIsXPRealWeather_xp ();
 /// Have X-Plane use its real weather
-void WeatherSetXPRealWeather ();
+void WeatherSetXPRealWeather_xp ();
 
 /// Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w);
@@ -45,19 +47,19 @@ void WeatherSet (const std::string& metar, const std::string& metarIcao);
 /// @details Defines a weather solely based on the METAR, sets it,
 ///          then turns _off_ any further weather generation, so it stays constant.
 /// @note Must be called from main thread
-void WeatherSetConstant (const std::string& metar);
+void WeatherSetConstant_xp (const std::string& metar);
 /// Actually update X-Plane's weather if there is anything to do (called from main thread)
-void WeatherUpdate ();
+void WeatherUpdate_xp ();
 /// Reset weather settings to what they were before X-Plane took over
 void WeatherReset ();
 
 /// Log current weather
-void WeatherLogCurrent (const std::string& msg);
+void WeatherLogCurrent_xp (const std::string& msg);
 
 /// Current METAR in use for weather generation
 const std::string& WeatherGetMETAR ();
 /// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
-std::string WeatherGetSource ();
+std::string WeatherGetSource_xp ();
 
 /// Extract QNH or SLP from METAR, NAN if not found any info, which is rather unlikely
 float WeatherQNHfromMETAR (const std::string& metar);
@@ -167,8 +169,8 @@ public:
                            bool bInterpolateNext);
 
 protected:
-    void Set () const;                              ///< Set the given weather in X-Plane
-    void Get (const std::string& logMsg = "");      ///< Read weather from X-Plane, if `logMsg` non-empty then log immediately (mith `logMsg` appearing on top)
+    void Set_xp () const;                           ///< Set the given weather in X-Plane
+    void Get_xp (const std::string& logMsg = "");   ///< Read weather from X-Plane, if `logMsg` non-empty then log immediately (mith `logMsg` appearing on top)
     void Log (const std::string& msg) const;        ///< Log values to Log.txt
 
     bool IncorporateMETAR ();                       ///< add information from the METAR into the data (run from XP's main thread, so can use XP SDK, just before LTWeather::Set())
@@ -176,11 +178,11 @@ protected:
 // Some global functions require access
 friend void WeatherSet (const LTWeather& w);
 friend void WeatherSet (const std::string& metar, const std::string& metarIcao);
-friend void WeatherSetConstant (const std::string& metar);
-friend void WeatherDoSet (bool bTakeControl);
-friend void WeatherUpdate ();
+friend void WeatherSetConstant_xp (const std::string& metar);
+friend void WeatherDoSet_xp (bool bTakeControl);
+friend void WeatherUpdate_xp ();
 friend void WeatherReset ();
-friend void WeatherLogCurrent (const std::string& msg);
+friend void WeatherLogCurrent_xp (const std::string& msg);
 };
 
 //

@@ -622,7 +622,6 @@ bool RealTrafficConnection::ProcessFetchedData ()
         // If this is live data, not historic, then we can use it instead of separately querying METAR
         if (!isHistoric()) {
             rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH,
-                                                 (float)rtWx.pos.lat(), (float)rtWx.pos.lon(),
                                                  s, metar);
         }
         // historic data

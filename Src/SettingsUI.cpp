@@ -953,7 +953,7 @@ void LTSettingsUI::buildInterface()
                                          ImGuiInputTextFlags_CharsUppercase |
                                          ImGuiInputTextFlags_AutoSelectAll |
                                          ImGuiInputTextFlags_EnterReturnsTrue))
-                WeatherSetConstant(txtManualMETAR);
+                WeatherSetConstant_xp(txtManualMETAR);
             
             
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
@@ -1466,7 +1466,7 @@ void LTSettingsUI::buildInterface()
                                            "Logs detailed information about how X-Plane's weather is set (into Log.txt)");
                 if (ImGui::FilteredLabel("Log Weather now", sFilter)) {
                     if (ImGui::ButtonTooltip("Log Weather now","Places information on current weather into Log.txt"))
-                        WeatherLogCurrent("Current weather:");
+                        WeatherLogCurrent_xp("Current weather:");
                     ImGui::TableNextCell();
                 }
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,

@@ -1123,10 +1123,10 @@ public:
     
     // Weather
     bool WeatherFetchMETAR ();              ///< check if weather updated needed, then do
-    /// @brief set/update current weather, tries reading QNH from METAR
-    /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
+    /// @brief set/update current weather information, tries reading QNH from METAR
+    /// @details Thread-safe call. Also triggers setting actual weather if mode is "from METAR"
     /// @returns QNH (`hPa` if not read from `METAR`)
-    float SetWeather (float hPa, float lat, float lon, const std::string& stationId,
+    float SetWeather (float hPa, const std::string& stationId,
                       const std::string& METAR);
     /// Get current sea level air pressure
     double GetPressureHPA() const { return lastWeatherHPA; }
