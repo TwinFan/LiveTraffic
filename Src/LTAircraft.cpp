@@ -1307,7 +1307,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         
         // tell the world we've added something
         dataRefs.IncNumAc();
-        LOG_MSG(logINFO,INFO_AC_ADDED,
+        LOG_MSG(logDEBUG,INFO_AC_ADDED,
                 labelInternal.c_str(),
                 statCopy.opIcao.c_str(),
                 GetModelName().c_str(),
@@ -1329,7 +1329,7 @@ LTAircraft::~LTAircraft()
     
     // Decrease number of visible aircraft and log a message about that fact
     dataRefs.DecNumAc();
-    LOG_MSG(logINFO,INFO_AC_REMOVED,labelInternal.c_str());
+    LOG_MSG(logDEBUG,INFO_AC_REMOVED,labelInternal.c_str());
 }
 
 void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)

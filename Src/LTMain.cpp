@@ -978,7 +978,105 @@ float interpolate (const std::vector<float>& scale,
 }
 
 //
-//MARK: Callbacks
+//MARK: One-Time Setup (Flight Loop Callback)
+//
+
+/// One-Time Setup state
+static enum ONCE_CB_STATE
+{ ONCE_CB_ADD_DREFS=0, ONCE_CB_AUTOSTART, ONCE_WAIT_FOR_VER, ONCE_CB_DONE }
+eOneTimeState = ONCE_CB_ADD_DREFS;
+
+/// Puts some timestamps into the log for analysis purposes
+void LogTimestamps ()
+{
+    // Log current timestamp and sim-time-stamp
+    LOG_MSG(logMSG, MSG_TIMESTAMPS,
+            ts2string(std::time(nullptr)).c_str(),
+            dataRefs.GetSimTimeString().c_str());
+}
+
+/// Handling some step-by-step one-time setup tasks
+float LoopOneTimeSetup ()
+{
+    static std::future<bool> futVerCheck;
+    
+    switch (eOneTimeState) {
+        case ONCE_CB_ADD_DREFS:
+        {
+            // Create a message window and say hello
+            SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
+            if constexpr (LIVETRAFFIC_VERSION_BETA)
+                SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);
+#ifdef DEBUG
+            SHOW_MSG(logWARN, DBG_DEBUG_BUILD);
+#endif
+            
+            // Show FMOD Logo (https://www.fmod.com/attribution)
+            CreateMsgWindow(WIN_TIME_DISPLAY, logMSG, MSG_FMOD_SOUND);
+            
+            // Inform dataRef tools about our dataRefs
+            dataRefs.InformDataRefEditors();
+            
+            // Check if we've got a UTC time
+            dataRefs.GetNetwTsOffset();
+            
+            // If weather setting is yet undetermined make a choice
+            // (This is one-time code introduced with weather functionality,
+            //  should actually be in DataRefs::LoadConfig,
+            //  but can't because determining if user has set real weather
+            //  only works later, in the flight loops.)
+            // Set to "RealTraffic weather" if X-Plane is set to real weather
+            //  and user has a RT license.
+            if (dataRefs.GetWeatherControl() < WC_NONE)
+                DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData((WeatherIsXPRealWeather_xp() && !dataRefs.GetRTLicense().empty()) ?
+                                                             WC_REAL_TRAFFIC : WC_NONE);
+            
+            // next: Auto Start, but wait another 2 seconds for that
+            eOneTimeState = ONCE_CB_AUTOSTART;
+            return 2;
+        }
+        case ONCE_CB_AUTOSTART:
+            // Check last time if we've got a UTC time
+            dataRefs.GetNetwTsOffset();
+            
+            // Log a timestamp to synch timing for analysis purposes
+            LogTimestamps ();
+            
+            // Auto Start display of aircraft
+            if (dataRefs.GetAutoStart())
+                dataRefs.SetAircraftDisplayed(true);
+            
+            // check at X-Plane.org for version updates
+            if (dataRefs.NeedNewVerCheck()) {
+                futVerCheck = std::async(std::launch::async, FetchLatestLTVersion);
+                eOneTimeState = ONCE_WAIT_FOR_VER;
+                return 2;
+            }
+            
+            // done, don't call me again
+            eOneTimeState = ONCE_CB_DONE;
+            return 0;
+            
+        case ONCE_WAIT_FOR_VER:
+            // did the version check not yet come back?
+            if (std::future_status::ready != futVerCheck.wait_for(std::chrono::microseconds(0)))
+                return 2;
+            
+            // version check successful?
+            if (futVerCheck.get())
+                HandleNewVersionAvail();      // handle the outcome
+            
+            // done
+            eOneTimeState = ONCE_CB_DONE;
+            [[fallthrough]];
+        default:
+            // don't want to be called again
+            return 0;
+    }
+}
+
+//
+// MARK: Callbacks
 //
 
 // collects all updates that need to be done up to every flight loop cycle
@@ -1011,7 +1109,8 @@ void LTRegularUpdates()
 // creates/destroys aircraft by looping the flight data map
 float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*)
 {
-    static float elapsedSinceLastAcMaint = 0.0f;
+    // initialize in a way that the first maintenance is immediate
+    static float elapsedSinceLastAcMaint = AC_MAINT_INTVL;
     do {
         // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
@@ -1019,9 +1118,13 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
             // regular calls collected here
             LTRegularUpdates();
             
-            // all the rest we do only every 2s
+            // keep track of elapsed time since last 'expensive' maintenance
             elapsedSinceLastAcMaint += inElapsedSinceLastCall;
-            if (elapsedSinceLastAcMaint < AC_MAINT_INTVL)
+
+            // all the rest we do only every 2s
+            if (elapsedSinceLastAcMaint < AC_MAINT_INTVL ||
+                // We really depend on a position...bail if XP doesn't yet know where we are
+                !dataRefs.GetViewPos().isNormal(true,true))
                 return FLIGHT_LOOP_INTVL;          // call me again
             
             // fall through to the expensive stuff
@@ -1060,6 +1163,10 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
         
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
+            // Do one-time inits
+            if (eOneTimeState < ONCE_CB_DONE)
+                LoopOneTimeSetup();
+            
             // Potentially refresh weather information
             dataRefs.WeatherFetchMETAR();
             // Update the weather (short-cuts if nothing to do)
