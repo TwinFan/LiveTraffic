@@ -182,9 +182,9 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/inc")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/SDK/CHeaders/XPLM")      # Using XPMP2's copy of the X-Plane SDK
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/fmod/logo")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
@@ -355,10 +355,10 @@ target_link_libraries(LiveTraffic XPMP2)
 
 # Specify library search locations.
 if (APPLE)
-    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Mac")
+    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/SDK/Libraries/Mac")
 elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/SDK/Libraries/Win")
 endif ()
 list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 

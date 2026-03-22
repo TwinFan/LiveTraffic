@@ -771,7 +771,7 @@
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/SDK/Libraries/Mac",
+					"$(PROJECT_DIR)/Lib/XPMP2/lib/SDK/Libraries/Mac",
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				FSC_PROD_CLIENT_ID = 3;
@@ -817,7 +817,7 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					"Lib/SDK/CHeaders/**",
+					Lib/XPMP2/lib/SDK/CHeaders/XPLM,
 					Lib/XPMP2/inc,
 					Lib/XPMP2/lib/fmod/logo,
 					Lib/base64,
@@ -891,7 +891,7 @@
 				EXECUTABLE_EXTENSION = xpl;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Lib/SDK/Libraries/Mac",
+					"$(PROJECT_DIR)/Lib/XPMP2/lib/SDK/Libraries/Mac",
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				FSC_PROD_CLIENT_ID = 3;
@@ -937,7 +937,7 @@
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (
-					"Lib/SDK/CHeaders/**",
+					Lib/XPMP2/lib/SDK/CHeaders/XPLM,
 					Lib/XPMP2/inc,
 					Lib/XPMP2/lib/fmod/logo,
 					Lib/base64,
