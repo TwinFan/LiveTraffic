@@ -1392,14 +1392,16 @@ void RealTrafficConnection::MainUDP ()
                 // read UDP datagram
                 long rcvdBytes = udpWeatherData.recv();
 
+/* TODO: Reenable once RT App Weather works
+         Currently disabled because what we get more often than not is a forwarded "tiny delta" notice
                 // received something?
                 if (rcvdBytes > 0)
                 {
                     // have it processed
                     ProcessRecvedWeatherData(udpWeatherData.getBuf());
                 }
+ */
             }
-
             // handling of errors, both from select and from recv
             if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
                 // not just a normal timeout?

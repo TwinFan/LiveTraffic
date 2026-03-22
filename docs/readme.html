@@ -148,9 +148,17 @@
     <P>Change log:</P>
     
     <ul>
-        <li>
-            Fixes <a href="https://forums.x-plane.org/forums/topic/344522-lt-433-crashes-xp-1241b1/">CTD in 12.4.1-b1</a>
-            when using RealTraffic in Direct Mode.
+        <li><strong>RealTraffic</strong>:
+            <ul>
+                <li>
+                    Direct Mode:
+                    Fixes <a href="https://forums.x-plane.org/forums/topic/344522-lt-433-crashes-xp-1241b1/">CTD in 12.4.1-b1</a>
+                </li>
+                <li>Direct Mode: Fixes wind speeds when using RealTraffic weather;
+                    previously were about 100% too strong.</li>
+                <li>App Mode: Stops warning about
+                    <code>Discarded invalid message: {"type":"RTTFC_EOT"}</code>.</li>
+            </ul>
         </li>
         <li>
             Different transponder modes are derived and sent to X-Plane for
@@ -159,6 +167,9 @@
             ones "Mode S", and depending on location it further differentiates
             between "GND", "TA-Only", and "TA/TR" mode.
         </li>
+        <li>Fixed a memory overrun in networking, which had the potential of
+            triggering crashes anywhere in X-Plane, especially if using
+            OpenGlider or ADS-B Hub as channels as they are sending long messages.</li>
         <li>
             Reduced logging level of aircraft created/removed messages to
             DEBUG. Previously was INFO, flooding the log.

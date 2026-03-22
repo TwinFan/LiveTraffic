@@ -636,7 +636,7 @@ void LTSettingsUI::buildInterface()
                         // Show current mode as text (non-editable) when channel is running
                         ImGui::TextUnformatted(n == RT_CONN_REQU_REPL ? "RealTraffic Direct API" : "RealTraffic Application");
                         ImGui::SameLine();
-                        ImGui::TextDisabled("%s", bRTRunning ? "(Stop channel to change mode)" : "(Disable channel to change)");
+                        ImGui::TextDisabled("%s", "(Disable channel to change mode)");
                     } else {
                         const float cbWidth = ImGui::CalcTextSize("RealTraffic Direct API (enter license below)_____").x;
                         ImGui::SetNextItemWidth(cbWidth);
