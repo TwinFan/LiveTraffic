@@ -363,9 +363,9 @@ for (const float& f: var) lOut << std::setw(8) << f << " "; \
 lOut << unit "\n";
     
     LOG_WARR("wind_alt:    ",   wind_altitude_msl_m,        "m");
-    LOG_WARR("wind_speed:  ",   wind_speed_msc,             "kts");
+    LOG_WARR("wind_speed:  ",   wind_speed_msc,             "m/s");
     LOG_WARR("wind_dir:    ",   wind_direction_degt,        "deg");
-    LOG_WARR("shear_speed: ",   shear_speed_msc,            "kts");
+    LOG_WARR("shear_speed: ",   shear_speed_msc,            "m/s");
     LOG_WARR("shear_dir:   ",   shear_direction_degt,       "deg");
     LOG_WARR("turbulence:  ",   turbulence,                 "");
     LOG_WARR("dewpoint:    ",   dewpoint_deg_c,             "C");

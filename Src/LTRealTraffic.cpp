@@ -1198,7 +1198,7 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     if (pWSPDs) {
         rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pWSPDs), rtWx.w.wind_speed_msc);
         std::for_each(rtWx.w.wind_speed_msc.begin(), rtWx.w.wind_speed_msc.end(),
-                      [](float& f){ f *= float(NM_per_KM); });                  // convert from km/h to kn=nm/h
+                      [](float& f){ f *= float(MSC_per_KMH); });                // convert from km/h to m/s
     }
     if (pWDIRs)
         rtWx.w.InterpolateDir(rtWx.interp, jag_f_vector(pWDIRs), rtWx.w.wind_direction_degt);
@@ -1258,7 +1258,7 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     WeatherSet(rtWx.w);
 }
 
-// in direct mode process one cloud layer
+// Process one cloud layer
 void RealTrafficConnection::ProcessCloudLayer(const JSON_Object* pCL, size_t i)
 {
     if (!pCL) return;
