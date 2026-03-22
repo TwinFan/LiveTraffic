@@ -580,6 +580,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/real_traffic/listen_port",DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/traffic_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/channel/real_traffic/weather_port",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
+    {"livetraffic/channel/real_traffic/send_pos_frequ",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,  GET_VAR, true },
     {"livetraffic/channel/real_traffic/sim_time_ctrl",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,   GET_VAR, true },
     {"livetraffic/channel/real_traffic/man_toffset",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,     GET_VAR, true },
     {"livetraffic/channel/real_traffic/connect_type",DataRefs::LTGetInt,DataRefs::LTSetCfgValue,    GET_VAR, true },
@@ -679,6 +680,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_RT_LISTEN_PORT:         return &rtListenPort;
         case DR_CFG_RT_TRAFFIC_PORT:        return &rtTrafficPort;
         case DR_CFG_RT_WEATHER_PORT:        return &rtWeatherPort;
+        case DR_CFG_RT_SEND_POS_FREQU:      return &rtSendPosFrequ;
         case DR_CFG_RT_SIM_TIME_CTRL:       return &rtSTC;
         case DR_CFG_RT_MAN_TOFFSET:         return &rtManTOfs;
         case DR_CFG_RT_CONNECT_TYPE:        return &rtConnType;
@@ -1128,7 +1130,8 @@ void DataRefs::SetViewType(XPViewTypes vt)
 // return user's plane pos
 positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
                                       double* pTrack,
-                                      double* pHeightAGL_m) const
+                                      double* pHeightAGL_m,
+                                      double* pGroundSpeed_m) const
 {
     // access guarded by a lock
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
@@ -1138,6 +1141,7 @@ positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
     if (pTrueAirspeed_m)    *pTrueAirspeed_m    = lastUsersTrueAirspeed;
     if (pTrack)             *pTrack             = lastUsersTrack;
     if (pHeightAGL_m)       *pHeightAGL_m       = lastUsersAGL_ft * M_per_FT;
+    if (pGroundSpeed_m)     *pGroundSpeed_m     = lastUsersGroundSpeed;
 
     return ret;
 }
@@ -1163,8 +1167,9 @@ void DataRefs::UpdateUsersPlanePos ()
     // cache the position
     lastUsersPlanePos = pos;
     
-    // also fetch true airspeed and track
+    // also fetch true airspeed, ground speed, and track
     lastUsersTrueAirspeed   = XPLMGetDataf(adrXP[DR_PLANE_TAS]);
+    lastUsersGroundSpeed    = XPLMGetDataf(adrXP[DR_PLANE_GS]);
     lastUsersTrack          = XPLMGetDataf(adrXP[DR_PLANE_TRACK]);
 
     // fetch current height AGL and convert to feet
@@ -2624,6 +2629,30 @@ static double InternetGetUTCTimeDiff ()
             ts2string(utc_s, 3).c_str(), diffTime);
     return diffTime;
 }
+
+// [min] Time offset to be sent to RealTraffic for (potentially) historic data
+long DataRefs::GetRTHistTimeOff () const
+{
+    switch (GetRTSTC()) {
+            // don't send any ofset ever
+        case STC_NO_CTRL: return 0L;
+            // send what got configured manually
+        case STC_SIM_TIME_MANUALLY: return GetRTManTOfs();
+            // Send as per current simulation time
+        case STC_SIM_TIME_PLUS_BUFFER:
+            if (IsUsingSystemTime()) {     // Using system time means: No ofset
+                return 0L;
+            } else {
+                // Simulated 'now' in seconds since the epoch
+                const time_t simNow = time_t(GetXPSimTime_ms() / 1000LL);
+                const time_t now = time(nullptr);
+                // offset between older 'simNow' and current 'now' in minutes, minus buffering period, but non-negative
+                return std::max (0L, long(now - simNow - GetFdBufPeriod()) / 60L);
+            }
+    }
+    return 0L;
+}
+
 
 // Get current time from a network resource to determine the offset of this computer to real time
 void DataRefs::GetNetwTsOffset ()

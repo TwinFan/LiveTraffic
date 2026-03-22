@@ -426,6 +426,7 @@ enum dataRefsLT {
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
+    DR_CFG_RT_SEND_POS_FREQU,
     DR_CFG_RT_SIM_TIME_CTRL,
     DR_CFG_RT_MAN_TOFFSET,
     DR_CFG_RT_CONNECT_TYPE,
@@ -498,8 +499,8 @@ enum WeatherCtrlTy : int {
 
 /// Which RealTraffic connection type to use?
 enum RTConnTypeTy : int {
-    RT_CONN_REQU_REPL = 0,              ///< Expect a license and use request/reply
-    RT_CONN_APP,                        ///< Expect the app to run and listen on UDP
+    RT_CONN_REQU_REPL = 0,              ///< RealTraffic Direct API: Expect a license and use request/reply
+    RT_CONN_APP,                        ///< RealTraffic Application: TCP server + UDP listeners for traffic/weather
 };
 
 // first/last channel; number of channels:
@@ -749,6 +750,7 @@ protected:
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
+    int rtSendPosFrequ  = 250;          ///< [ms] How often to send position updates to the RealTraffic App
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
@@ -854,7 +856,8 @@ protected:
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
     int         lastUsersAGL_ft = 0;            ///< cached user's plane height above ground
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
-    double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
+    double      lastUsersTrack        = 0.0;    ///< cached user's plane's track
+    double      lastUsersGroundSpeed  = 0.0;    ///< [m/s] cached user's plane's ground speed
 
     /// Wind Layer Data
     struct WindLayerTy {
@@ -886,7 +889,8 @@ public:
     void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double* pTrueAirspeed_m = nullptr,
                                 double* pTrack = nullptr,
-                                double* pHeightAGL_m = nullptr) const;
+                                double* pHeightAGL_m = nullptr,
+                                double* pGroundSpeed_m = nullptr) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks
@@ -1034,9 +1038,12 @@ public:
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
     int GetRTManTOfs () const { return rtManTOfs; }             ///< [min] manually configured time offset in minutes
+    /// [min] Time offset to be sent to RealTraffic for (potentially) historic data
+    long GetRTHistTimeOff () const;
     RTConnTypeTy GetRTConnType () const { return rtConnType; }
     const std::string& GetRTLicense () const { return sRTLicense; }
     void SetRTLicense (const std::string& license) { sRTLicense = license; }
+    int GetRTSendPosFrequ() const { return rtSendPosFrequ; }    ///< [ms] How often to send position updates to the RealTraffic App?
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)
