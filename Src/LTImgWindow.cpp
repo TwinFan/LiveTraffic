@@ -831,28 +831,28 @@ void LTImgWindow::buildWndButtons ()
 
         if (bBtnHelp) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
+            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_QUESTION_CIRCLE, "Open Help in Browser"))
                 LTOpenHelp(szHelpURL);
             --numBtn;
         }
         if (bBtnVR) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
+            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT, "Move into VR"))
                 nextWinMode = WND_MODE_VR;
             --numBtn;
         }
         if (bBtnPopIn) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
+            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_WINDOW_MAXIMIZE, "Move back into X-Plane"))
                 nextWinMode = WND_MODE_FLOAT;
             --numBtn;
         }
         if (bBtnPopOut) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (numBtn * btnWidth));
+            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_WINDOW_RESTORE, "Pop out into separate window"))
                 nextWinMode = WND_MODE_POPOUT;
             --numBtn;

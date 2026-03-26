@@ -263,7 +263,7 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
     unsigned long Ar = maxKey;      // key value at position R
     while (L != R) {
         // approximation by linear interpolation
-        m = L + (size_t)std::floor(float(key-Al)/float(Ar-Al) * (R-L));
+        m = L + (size_t)std::floor(float(key-Al)/float(Ar-Al) * float(R-L));
         
         // test if record at m is less than the key
         f.seekg((long long)(m * recLen));
@@ -773,9 +773,9 @@ std::string NetwTimeString (float runS)
 {
     // Extract hours, minutes, and seconds (incl. fractions) from runS
     const unsigned runH = unsigned(runS / 3600.0f);
-    runS -= runH * 3600.0f;
+    runS -= float(runH) * 3600.0f;
     const unsigned runM = unsigned(runS / 60.0f);
-    runS -= runM * 60.0f;
+    runS -= float(runM) * 60.0f;
 
     // Convert to string
     char s[20];

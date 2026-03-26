@@ -192,9 +192,9 @@ bool AutoATCConnection::ProcessFetchedData ()
         // Position
         positionTy pos (jog_n_nan(pAc, AATC_LAT),
                         jog_n_nan(pAc, AATC_LON),
-                        jog_l(pAc, AATC_ALT) * M_per_FT,
+                        double(jog_l(pAc, AATC_ALT)) * M_per_FT,
                         timestamp,
-                        jog_l(pAc, AATC_HEADING));
+                        double(jog_l(pAc, AATC_HEADING)));
         
         // AutoATC seems to send all traffic, no matter how far away.
         // Cut out planes too far away
