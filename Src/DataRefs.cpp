@@ -353,6 +353,7 @@ const char* DATA_REFS_XP[] = {
     "sim/cockpit2/clock_timer/current_month",   // int    n    month    Numeric month of the year
     "sim/time/use_system_time",
     "sim/time/zulu_time_sec",
+    "sim/time/paused",                          //    int    n    boolean    Is the sim paused?
     "sim/operation/prefs/replay_mode",          //    int    y    enum    Are we in replay mode?
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
@@ -649,7 +650,7 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_HIDE_PARKING:           return &hideParking;
         case DR_CFG_HIDE_NEARBY_GND:        return &hideNearbyGnd;
         case DR_CFG_HIDE_NEARBY_AIR:        return &hideNearbyAir;
-        case DR_CFG_HIDE_IN_REPLAY:         return &hideInReplay;
+        case DR_CFG_HIDE_PAUSED_REPLAY:     return &hidePausedReplay;
         case DR_CFG_HIDE_STATIC_TWR:        return &hideStaticTwr;
         case DR_CFG_COPY_OBJ_FILES:         return &cpyObjFiles;
         case DR_CFG_CONTRAIL_MIN_ALT:       return &contrailAltMin_ft;
@@ -2691,6 +2692,7 @@ void DataRefs::UpdateCachedValues ()
     std::lock_guard<std::recursive_mutex> lock(mutexDrUpdate);
 
     lastNetwTime = XPLMGetDataf(adrXP[DR_MISC_NETW_TIME]);
+    lastPaused = XPLMGetDatai(adrXP[DR_SIM_PAUSED]);
     lastReplay = XPLMGetDatai(adrXP[DR_REPLAY_MODE]);
     lastUsingSystemTime = XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]);
     lastVREnabled =                         // is VR enabled?

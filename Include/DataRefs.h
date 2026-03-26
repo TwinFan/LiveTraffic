@@ -225,6 +225,7 @@ enum dataRefsXP {
     DR_LOCAL_MONTH,                     ///< sim/cockpit2/clock_timer/current_month    int    n    month    Numeric month of the year
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
+    DR_SIM_PAUSED,                      ///< sim/time/paused    int    n    boolean    Is the sim paused?
     DR_REPLAY_MODE,                     ///< sim/operation/prefs/replay_mode    int    y    enum    Are we in replay mode?
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
@@ -395,7 +396,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_PARKING,
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
-    DR_CFG_HIDE_IN_REPLAY,
+    DR_CFG_HIDE_PAUSED_REPLAY,
     DR_CFG_HIDE_STATIC_TWR,
     DR_CFG_COPY_OBJ_FILES,
     DR_CFG_CONTRAIL_MIN_ALT,
@@ -734,7 +735,7 @@ protected:
     int hideParking     = 0;            ///< hide a/c parking at a startup-position (gate, ramp)?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
-    int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
+    int hidePausedReplay= false;        ///< Shall no planes been shown while Paused or in Replay mode (to avoid collisions)?
     int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
     int  contrailAltMin_ft  = DEF_CONTR_ALT_MIN;    ///< [ft] Auto Contrails: Minimum altitude
@@ -850,7 +851,8 @@ protected:
     double      lastSimTime     = NAN;          ///< cached simulated time
     long long   lastXPSimTime_ms = 0;           ///< X-Plane's simulated time in milliseconds since the Unix epoch
     bool        lastUsingSystemTime = false;    ///< cached: Is sim using system time?
-    bool        lastReplay      = true;         ///< cached: is replay mode?
+    bool        lastPaused      = false;        ///< cached: Is sim paused?
+    bool        lastReplay      = false;        ///< cached: is replay mode?
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
@@ -926,8 +928,8 @@ public:
     // livetraffic/sim/date and .../time
     static int LTGetSimDateTime(void* p);
 
-    /// Are we in replay mode?
-    bool IsReplayMode() const { return lastReplay; }
+    bool IsSimPaused() const { return lastPaused; }         ///< Is sim paused?
+    bool IsReplayMode() const { return lastReplay; }        ///< Are we in replay mode?
     
     // livetraffic/cfg/aircrafts_displayed: Aircraft Displayed
     static void LTSetAircraftDisplayed(void* p, int i);
@@ -988,11 +990,11 @@ public:
     inline bool GetHideParking() const { return hideParking != 0; }
     inline int GetHideNearby(bool bGnd) const   ///< return "hide nearby" config
     { return bGnd ? hideNearbyGnd : hideNearbyAir; }
-    inline bool GetHideInReplay() const { return hideInReplay; }
+    inline bool GetHidePausedReplay() const { return hidePausedReplay; }
     inline bool GetHideStaticTwr () const { return hideStaticTwr; }
     bool WarnAutoHiding() const                 ///< any auto-hiding activated, that we should warn the user about?
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
-             hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
+             hideNearbyGnd > 0 || hideNearbyAir > 0 || hidePausedReplay; }
     bool IsAutoHidingActive() const             ///< any auto-hiding activated, including options no warning is issued about?
     { return hideStaticTwr || WarnAutoHiding(); }
     /// "Keep Parked Aircraft" is equivalent to "Synthetic Channel enabled"

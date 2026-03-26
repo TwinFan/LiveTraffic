@@ -2538,7 +2538,7 @@ bool LTAircraft::CalcVisible ()
     bool bPrevVisible = IsVisible();
     
     // Hide in replay mode?
-    if (dataRefs.GetHideInReplay() && dataRefs.IsReplayMode())
+    if (dataRefs.GetHidePausedReplay() && (dataRefs.IsReplayMode() || dataRefs.IsSimPaused()))
         XPMP2::Aircraft::SetVisible(false);
     // automatic is off -> take over manually given state
     else if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
