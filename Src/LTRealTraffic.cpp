@@ -360,7 +360,9 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
     // What kind of request will we need?
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:
-            snprintf(s,sizeof(s), RT_AUTH_POST,
+            snprintf(s,sizeof(s),
+                     stribeginwith(dataRefs.GetRTLicense(), "rt_") ?
+                     RT_AUTH_TOKEN_POST : RT_AUTH_LIC_POST,
                      dataRefs.GetRTLicense().c_str(),
                      HTTP_USER_AGENT);
             break;
@@ -1798,9 +1800,9 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // not enough fields found for any message?
     if (tfc.size() < RT_MIN_TFC_FIELDS)
     {
-        // RealTraffic sends an "RTTFC_EOT" message when it is done sending one round of updates,
-        // but we don't need it and silently ignore it
-        if (std::strstr(traffic, "RTTFC_EOT"))
+        // RealTraffic sends an "RTPARK_EOT"/"RTTFC_EOT" message when it is done sending one round of updates,
+        // but we don't need it and silently ignore any kind of "_EOT" message
+        if (std::strstr(traffic, "_EOT"))
             return true;
         // Otherwise it's worth a warning because it's unexpected
         LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic);

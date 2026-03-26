@@ -649,16 +649,16 @@ void LTSettingsUI::buildInterface()
 
                 // License - only shown for Direct API mode
                 if (dataRefs.GetRTConnType() == RT_CONN_REQU_REPL) {
-                    if (ImGui::FilteredLabel("RealTraffic License", sFilter)) {
+                    if (ImGui::FilteredLabel("RealTraffic Token/License", sFilter)) {
                         // "Eye" button changes password flag
                         ImGui::Selectable(ICON_FA_EYE "##RTLicenseVisible", &bRTLicClearText,
                                           ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
                         if (ImGui::IsItemHovered())
-                            ImGui::SetTooltip("%s", "Show/Hide license");
+                            ImGui::SetTooltip("%s", "Show/Hide token/license");
                         ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
                         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                         ImGui::InputTextWithHint("##RealTrafficLicense",
-                                                 "Enter or paste RealTraffic license key to use Direct API",
+                                                 "Enter or paste RealTraffic token or license key to use Direct API",
                                                  &sRTLicenseEntry,
                                                  // clear text or password mode?
                                                  (bRTLicClearText ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password) |

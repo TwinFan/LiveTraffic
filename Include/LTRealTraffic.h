@@ -42,11 +42,12 @@
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
-#define RT_BASE_URL             "https://rtwa.flyrealtraffic.com/v5"
+#define RT_BASE_URL             "https://rtwa.flyrealtraffic.com/v6"
 #define RT_METAR_UNKN           "UNKN"
 
 #define RT_AUTH_URL             RT_BASE_URL "/auth"
-#define RT_AUTH_POST            "license=%s&software=%s"
+#define RT_AUTH_LIC_POST        "license=%s&software=%s"
+#define RT_AUTH_TOKEN_POST      "token=%s&software=%s"
 #define RT_DEAUTH_URL           RT_BASE_URL "/deauth"
 #define RT_DEAUTH_POST          "GUID=%s"
 #define RT_NEAREST_METAR_URL    RT_BASE_URL "/nearestmetar"
