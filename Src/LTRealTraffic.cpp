@@ -560,7 +560,9 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // In `dataepoch` RealTraffic delivers the point in time when the data was valid.
     // That is relevant especially for historic data, when `dataepoch` is in the past.
-    const long epoch = jog_l(pObj, "dataepoch");
+    long epoch = jog_l(pObj, "endepoch");               // we're getting an 'endepoch' only for buffered data, but if so we need to process this one
+    if (epoch < long(JAN_FIRST_2019))
+        epoch = jog_l(pObj, "dataepoch");               // this is the value we typically will process
     if (epoch > long(JAN_FIRST_2019))
     {
         // "now" is the simulated time plus the buffering period
@@ -607,18 +609,18 @@ bool RealTrafficConnection::ProcessFetchedData ()
         IncErrCnt();
         return false;
     }
-    // Has buffered data? Then we need to loop those buffers
+    // Has buffered data? Then we need to loop those buffers in order
     bool bRet = true;
-    if (json_object_has_value_of_type(pData, "buffer_0", JSONObject)) {
-        // But we want to process them in correct chronological order,
-        // so we need to find out the last buffer and work our way up
-        for (int i = (int) json_object_get_count(pData) - 1;
-             i >= 0; --i)
+    const JSON_Object* pAcBuf = json_object_get_object(pData, "buffer_0");
+    if (pAcBuf) {
+        // loop over all "buffer_x" until we find no more
+        for (int i = 0; pAcBuf; ++i)
         {
             char bufName[20];
             snprintf(bufName, sizeof(bufName), "buffer_%d", i);
-            if (!ProcessTrafficBuffer(json_object_get_object(pData, bufName))) {
-                if (i == 0) {                            // really important only is buffer_0, the one with the real-time data
+            pAcBuf = json_object_get_object(pData, bufName);
+            if (pAcBuf && !ProcessTrafficBuffer(pAcBuf)) {
+                if (i == 0) {                            // buffer_0 must exist
                     LOG_MSG(logWARN, "Couldn't process 'buffer_0'!");
                     IncErrCnt();
                     bRet = false;
