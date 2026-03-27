@@ -1307,7 +1307,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         
         // tell the world we've added something
         dataRefs.IncNumAc();
-        LOG_MSG(logINFO,INFO_AC_ADDED,
+        LOG_MSG(logDEBUG,INFO_AC_ADDED,
                 labelInternal.c_str(),
                 statCopy.opIcao.c_str(),
                 GetModelName().c_str(),
@@ -1329,7 +1329,7 @@ LTAircraft::~LTAircraft()
     
     // Decrease number of visible aircraft and log a message about that fact
     dataRefs.DecNumAc();
-    LOG_MSG(logINFO,INFO_AC_REMOVED,labelInternal.c_str());
+    LOG_MSG(logDEBUG,INFO_AC_REMOVED,labelInternal.c_str());
 }
 
 void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
@@ -2538,7 +2538,7 @@ bool LTAircraft::CalcVisible ()
     bool bPrevVisible = IsVisible();
     
     // Hide in replay mode?
-    if (dataRefs.GetHideInReplay() && dataRefs.IsReplayMode())
+    if (dataRefs.GetHidePausedReplay() && (dataRefs.IsReplayMode() || dataRefs.IsSimPaused()))
         XPMP2::Aircraft::SetVisible(false);
     // automatic is off -> take over manually given state
     else if (!dataRefs.IsAutoHidingActive() || !bAutoVisible)
@@ -2943,9 +2943,24 @@ void LTAircraft::UpdatePosition (float, int cycle)
         
         // -> deactivate TCAS in some cases like parked or taxiing outside runway
         // (will be re-activated by the above code every 100th cycle)
-        if (phase == FPH_PARKED ||
-            (dataRefs.IsAINotOnGnd() && !IsOnRwy() && phase == FPH_TAXI))
+        if (phase == FPH_PARKED)                        // off while parked
+            acRadar.mode = xpmpTransponderMode_Off;
+        // reduce to standby during taxiing if settings say so
+        else if (phase == FPH_TAXI && dataRefs.IsAINotOnGnd() && !IsOnRwy())
             acRadar.mode = xpmpTransponderMode_Standby;
+        // In case any of the S modes is being used, dynamically change the mode based on situation
+        if (acRadar.mode >= xpmpTransponderMode_ModeS_Gnd) {
+            if (IsOnGrnd()) {
+                if (IsOnRwy())
+                    acRadar.mode = xpmpTransponderMode_ModeS_TAOnly;
+                else
+                    acRadar.mode = xpmpTransponderMode_ModeS_Gnd;
+            }
+            else if (GetPHeight_ft() > 1000)
+                acRadar.mode = xpmpTransponderMode_ModeS_TARA;
+            else
+                acRadar.mode = xpmpTransponderMode_ModeS_TAOnly;
+        }
 
         // *** Informational Texts ***
 

@@ -36,17 +36,18 @@
 // MARK: RealTraffic Constants
 //
 
-#define RT_CHECK_NAME           "RealTraffic's web site"
-#define RT_CHECK_URL            "https://rtweb.flyrealtraffic.com/"
-#define RT_CHECK_POPUP          "Open RealTraffic's web site, which has a traffic status overview"
+#define RT_CHECK_NAME           "RealTraffic Web Site"
+#define RT_CHECK_URL            "https://www.flyrealtraffic.com/"
+#define RT_CHECK_POPUP          "Open RealTraffic's web site"
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
-#define RT_BASE_URL             "https://rtwa.flyrealtraffic.com/v5"
+#define RT_BASE_URL             "https://rtwa.flyrealtraffic.com/v6"
 #define RT_METAR_UNKN           "UNKN"
 
 #define RT_AUTH_URL             RT_BASE_URL "/auth"
-#define RT_AUTH_POST            "license=%s&software=%s"
+#define RT_AUTH_LIC_POST        "license=%s&software=%s"
+#define RT_AUTH_TOKEN_POST      "token=%s&software=%s"
 #define RT_DEAUTH_URL           RT_BASE_URL "/deauth"
 #define RT_DEAUTH_POST          "GUID=%s"
 #define RT_NEAREST_METAR_URL    RT_BASE_URL "/nearestmetar"
@@ -89,6 +90,7 @@ constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///<
 constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
+constexpr int RT_CNT_SEND_TIMING = 240;                                     ///< RT App: After how many position position message also to send a timing message? (with 250ms period, 240 means: every minute)
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {
@@ -256,8 +258,6 @@ public:
 protected:
     // general lock to synch thread access to object members
     std::recursive_mutex rtMutex;
-    // Actually running which kind of connection?
-    RTConnTypeTy eConnType = RT_CONN_REQU_REPL;
     // RealTraffic connection status
     volatile rtStatusTy status = RT_STATUS_NONE;
     
@@ -280,7 +280,7 @@ protected:
         } eRequType = RT_REQU_AUTH;                     ///< Which type of request is being performed now?
         std::string sGUID;                              ///< UID returned by RealTraffic upon authentication, valid for 10s only
         positionTy pos;                                 ///< viewer position for which we receive Realtraffic data
-        long tOff = 0;                                  ///< time offset for which we request data
+        long tOff = 0;                                  ///< [min] time offset for which we request data
     } curr;                                             ///< Data for the current request
 
     /// What's the next time we could send a traffic request?
@@ -314,9 +314,15 @@ protected:
         
         LTWeather w;                                    ///< interface to setting X-Plane's weather
         std::array<LTWeather::InterpolSet,13> interp;   ///< interpolation settings to convert from RT's 20 layers to XP's 13
-        
+    protected:
+        bool bFirstTime = true;
+    public:
         /// Set all relevant values
         void set (double qnh, long _tOff, bool bResetErr = true);
+        /// Reset "first time" flag
+        void ResetFirstTime () { bFirstTime = true; }
+        /// Check if calling for first time, then reset flag
+        bool IsFirstTime () { if (!bFirstTime) return false; bFirstTime = false; return true; }
     } rtWx;                                             ///< Data with which latest weather was requested
     /// How many flights does RealTraffic have in total?
     long lTotalFlights = -1;
@@ -330,7 +336,8 @@ protected:
     volatile ThrStatusTy eTcpThrStatus = THR_NONE;
 
     // UDP sockets
-    XPMP2::UDPReceiver udpTrafficData;
+    XPMP2::UDPReceiver udpTrafficData;      ///< UDP receiver for traffic data (port 49005)
+    XPMP2::UDPReceiver udpWeatherData;      ///< UDP receiver for weather data (port 49004)
 #if APL == 1 || LIN == 1
     // the self-pipe to shut down the UDP listener thread gracefully
     SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
@@ -340,7 +347,7 @@ protected:
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     /// rolling list of timestamp (diff to now) for detecting historic sending
     std::deque<double> dequeTS;
-    /// current timestamp adjustment
+    /// [s] current timestamp adjustment
     double tsAdjust = 0.0;
 
 public:
@@ -375,15 +382,19 @@ protected:
     /// Which request do we need next and when can we send it?
     std::chrono::time_point<std::chrono::steady_clock> SetRequType (const positionTy& pos);
 public:
-    bool IsFirstRequ () const { return lTotalFlights < 0; } ///< Have not received any traffic data before?
+    bool IsFirstTrafficRequ () const { return lTotalFlights < 0; } ///< Have not received any traffic data before?
     std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
     bool ProcessFetchedData () override;                    ///< in direct mode process the received data
     bool ProcessTrafficBuffer (const JSON_Object* pBuf);    ///< in direct mode process an object with aircraft data, essentially a fake array
     bool ProcessParkedAcBuffer (const JSON_Object* pData);  ///< in direct mode process an object with parked aircraft data, essentially a fake array
     void ProcessNearestMETAR (const JSON_Array* pData);     ///< in direct mode process NearestMETAR response, find a suitable METAR from the returned array
-    void ProcessWeather(const JSON_Object* pData);          ///< in direct mode process detailed weather information
-    void ProcessCloudLayer(const JSON_Object* pCL,size_t i);///< in direct mode process one cloud layer
+
+    // MARK: Weather Processing for both Direct and UDP connections
+protected:
+    bool PreProcessWeather(const JSON_Object* pData);       ///< weather: process QNH and error, returns if successful
+    void ProcessWeather(const JSON_Object* pData);          ///< process detailed weather information
+    void ProcessCloudLayer(const JSON_Object* pCL,size_t i);///< process one cloud layer
 
     // MARK: UDP/TCP via App
 protected:
@@ -401,15 +412,17 @@ protected:
     void StopTcpConnection ();                              ///< stop the TCP listening thread
     void SendMsg (const char* msg);                         ///< Send and log a message to RealTraffic
     void SendTime (long long ts);                           ///< Send a timestamp to RealTraffic
-    void SendXPSimTime();                                   ///< Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
+    void SendXPSimTime(bool bForce);                        ///< Send XP's current simulated time to RealTraffic, adapted to "today or earlier", every once in a while, or if `bForce`
     void SendPos (const positionTy& pos, double speed_m);   ///< Send position/speed info for own ship to RealTraffic
     void SendUsersPlanePos();                               ///< Send user's plane's position/speed to RealTraffic
+    void RequestBufferTraffic();                            ///< Send request for initial traffic for buffering
 
     // MARK: Data Processing
     // Process received datagrams
     bool ProcessRecvedTrafficData (const char* traffic);
     bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a RTTFC type message
     bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a AITFC or XTRAFFICPSX type message
+    bool ProcessRecvedWeatherData (const char* weather);                                      ///< Process UDP weather JSON from RT Application
     
     /// Determine timestamp adjustment necessary in case of historic data
     void AdjustTimestamp (double& ts);

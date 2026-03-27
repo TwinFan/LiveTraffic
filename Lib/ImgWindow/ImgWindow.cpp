@@ -318,6 +318,7 @@ ImgWindow::RenderImGui(ImDrawData *draw_data)
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	glPopAttrib();
 	glPopClientAttrib();
 }

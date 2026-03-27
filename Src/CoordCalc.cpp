@@ -438,7 +438,8 @@ positionTy& positionTy::normalize()
 }
 
 // is a good valid position?
-bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
+bool positionTy::isNormal (bool bAllowNanAltIfGnd,
+                           bool bTestNonZero) const
 {
     LOG_ASSERT(f.unitAngle==UNIT_DEG && f.unitCoord==UNIT_WORLD);
     return
@@ -447,6 +448,13 @@ bool positionTy::isNormal (bool bAllowNanAltIfGnd) const
         // should normal latitudes/longitudes
         (  -90 <= lat() && lat() <=    90)  &&
         ( -180 <= lon() && lon() <=   180) &&
+        // test for non-zero
+        ( !bTestNonZero ||
+            (
+             (lat() < -0.00001 || lat() > 0.00001) &&
+             (lon() < -0.00001 || lon() > 0.00001)
+            )
+        ) &&
         // altitude can be Null - but only if on ground and specifically allowed by parameter
         ( (IsOnGnd() && bAllowNanAltIfGnd) ||
         // altitude: a 'little' below MSL might be possible (dead sea),

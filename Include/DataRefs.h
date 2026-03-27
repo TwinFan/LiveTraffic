@@ -102,6 +102,10 @@ public:
         (classification[0] == 'H' || classification[0] == 'G') : false;
     }
     
+    /// @brief Returns the wake category as per XP12's wake system
+    /// @see https://developer.x-plane.com/article/plugin-traffic-wake-turbulence/
+    int GetWakeCat() const;
+
     // static functions for reading the doc8643.txt file
     // and returning information from it
 public:
@@ -221,6 +225,7 @@ enum dataRefsXP {
     DR_LOCAL_MONTH,                     ///< sim/cockpit2/clock_timer/current_month    int    n    month    Numeric month of the year
     DR_USE_SYSTEM_TIME,
     DR_ZULU_TIME_SEC,
+    DR_SIM_PAUSED,                      ///< sim/time/paused    int    n    boolean    Is the sim paused?
     DR_REPLAY_MODE,                     ///< sim/operation/prefs/replay_mode    int    y    enum    Are we in replay mode?
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
@@ -391,7 +396,7 @@ enum dataRefsLT {
     DR_CFG_HIDE_PARKING,
     DR_CFG_HIDE_NEARBY_GND,
     DR_CFG_HIDE_NEARBY_AIR,
-    DR_CFG_HIDE_IN_REPLAY,
+    DR_CFG_HIDE_PAUSED_REPLAY,
     DR_CFG_HIDE_STATIC_TWR,
     DR_CFG_COPY_OBJ_FILES,
     DR_CFG_CONTRAIL_MIN_ALT,
@@ -422,6 +427,7 @@ enum dataRefsLT {
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
+    DR_CFG_RT_SEND_POS_FREQU,
     DR_CFG_RT_SIM_TIME_CTRL,
     DR_CFG_RT_MAN_TOFFSET,
     DR_CFG_RT_CONNECT_TYPE,
@@ -494,8 +500,8 @@ enum WeatherCtrlTy : int {
 
 /// Which RealTraffic connection type to use?
 enum RTConnTypeTy : int {
-    RT_CONN_REQU_REPL = 0,              ///< Expect a license and use request/reply
-    RT_CONN_APP,                        ///< Expect the app to run and listen on UDP
+    RT_CONN_REQU_REPL = 0,              ///< RealTraffic Direct API: Expect a license and use request/reply
+    RT_CONN_APP,                        ///< RealTraffic Application: TCP server + UDP listeners for traffic/weather
 };
 
 // first/last channel; number of channels:
@@ -729,7 +735,7 @@ protected:
     int hideParking     = 0;            ///< hide a/c parking at a startup-position (gate, ramp)?
     int hideNearbyGnd   = 0;            // [m] hide a/c if closer than this to user's aircraft on the ground
     int hideNearbyAir   = 0;            // [m] hide a/c if closer than this to user's aircraft in the air
-    int hideInReplay    = false;        ///< Shall no planes been shown while in Replay mode (to avoid collisions)?
+    int hidePausedReplay= false;        ///< Shall no planes been shown while Paused or in Replay mode (to avoid collisions)?
     int hideStaticTwr   = true;         ///< filter out TWR objects from the channels
     int cpyObjFiles     = 1;            ///< copy `.obj` files for replacing dataRefs and textures
     int  contrailAltMin_ft  = DEF_CONTR_ALT_MIN;    ///< [ft] Auto Contrails: Minimum altitude
@@ -745,6 +751,7 @@ protected:
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
+    int rtSendPosFrequ  = 250;          ///< [ms] How often to send position updates to the RealTraffic App
     SimTimeCtrlTy rtSTC = STC_SIM_TIME_PLUS_BUFFER;    ///< Which sim time to send to RealTraffic?
     int rtManTOfs       = 0;            ///< manually configure time offset for requesting historic data
     RTConnTypeTy rtConnType = RT_CONN_REQU_REPL;        ///< Which type of connection to use for RealTraffic data
@@ -843,13 +850,16 @@ protected:
     float       lastNetwTime    = 0.0f;         ///< cached network time
     double      lastSimTime     = NAN;          ///< cached simulated time
     long long   lastXPSimTime_ms = 0;           ///< X-Plane's simulated time in milliseconds since the Unix epoch
-    bool        lastReplay      = true;         ///< cached: is replay mode?
+    bool        lastUsingSystemTime = false;    ///< cached: Is sim using system time?
+    bool        lastPaused      = false;        ///< cached: Is sim paused?
+    bool        lastReplay      = false;        ///< cached: is replay mode?
     bool        lastVREnabled   = false;        ///< cached info: VR enabled?
     bool        bUsingModernDriver = false;     ///< modern driver in use?
     positionTy  lastUsersPlanePos;              ///< cached user's plane position
     int         lastUsersAGL_ft = 0;            ///< cached user's plane height above ground
     double      lastUsersTrueAirspeed = 0.0;    ///< [m/s] cached user's plane's air speed
-    double      lastUsersTrack        = 0.0;    ///< cacher user's plane's track
+    double      lastUsersTrack        = 0.0;    ///< cached user's plane's track
+    double      lastUsersGroundSpeed  = 0.0;    ///< [m/s] cached user's plane's ground speed
 
     /// Wind Layer Data
     struct WindLayerTy {
@@ -868,8 +878,8 @@ public:
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
     inline bool  IsVREnabled() const            { return lastVREnabled; }
-
-    bool IsUsingSystemTime() const              { return XPLMGetDatai(adrXP[DR_USE_SYSTEM_TIME]); }
+    bool IsUsingSystemTime() const              { return lastUsingSystemTime; }
+    
     int GetLocalDayOfMonth() const              { return XPLMGetDatai(adrXP[DR_LOCAL_DAY]); }
     int GetLocalMonth() const                   { return XPLMGetDatai(adrXP[DR_LOCAL_MONTH]); }
     float GetLocalTimeSec() const               { return XPLMGetDataf(adrXP[DR_LOCAL_TIME_SEC]); }
@@ -881,7 +891,8 @@ public:
     void SetViewType(XPViewTypes vt);
     positionTy GetUsersPlanePos(double* pTrueAirspeed_m = nullptr,
                                 double* pTrack = nullptr,
-                                double* pHeightAGL_m = nullptr) const;
+                                double* pHeightAGL_m = nullptr,
+                                double* pGroundSpeed_m = nullptr) const;
 
 //MARK: DataRef provision by LiveTraffic
     // Generic Get/Set callbacks
@@ -917,8 +928,8 @@ public:
     // livetraffic/sim/date and .../time
     static int LTGetSimDateTime(void* p);
 
-    /// Are we in replay mode?
-    bool IsReplayMode() const { return lastReplay; }
+    bool IsSimPaused() const { return lastPaused; }         ///< Is sim paused?
+    bool IsReplayMode() const { return lastReplay; }        ///< Are we in replay mode?
     
     // livetraffic/cfg/aircrafts_displayed: Aircraft Displayed
     static void LTSetAircraftDisplayed(void* p, int i);
@@ -979,11 +990,11 @@ public:
     inline bool GetHideParking() const { return hideParking != 0; }
     inline int GetHideNearby(bool bGnd) const   ///< return "hide nearby" config
     { return bGnd ? hideNearbyGnd : hideNearbyAir; }
-    inline bool GetHideInReplay() const { return hideInReplay; }
+    inline bool GetHidePausedReplay() const { return hidePausedReplay; }
     inline bool GetHideStaticTwr () const { return hideStaticTwr; }
     bool WarnAutoHiding() const                 ///< any auto-hiding activated, that we should warn the user about?
     { return hideBelowAGL > 0  || hideTaxiing != 0 || hideParking != 0 ||
-             hideNearbyGnd > 0 || hideNearbyAir > 0 || hideInReplay; }
+             hideNearbyGnd > 0 || hideNearbyAir > 0 || hidePausedReplay; }
     bool IsAutoHidingActive() const             ///< any auto-hiding activated, including options no warning is issued about?
     { return hideStaticTwr || WarnAutoHiding(); }
     /// "Keep Parked Aircraft" is equivalent to "Synthetic Channel enabled"
@@ -1029,9 +1040,12 @@ public:
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
     int GetRTManTOfs () const { return rtManTOfs; }             ///< [min] manually configured time offset in minutes
+    /// [min] Time offset to be sent to RealTraffic for (potentially) historic data
+    long GetRTHistTimeOff () const;
     RTConnTypeTy GetRTConnType () const { return rtConnType; }
     const std::string& GetRTLicense () const { return sRTLicense; }
     void SetRTLicense (const std::string& license) { sRTLicense = license; }
+    int GetRTSendPosFrequ() const { return rtSendPosFrequ; }    ///< [ms] How often to send position updates to the RealTraffic App?
     
     size_t GetFSCEnv() const { return (size_t)fscEnv; }
     void GetFSCharterCredentials (std::string& user, std::string& pwd)
@@ -1118,10 +1132,10 @@ public:
     
     // Weather
     bool WeatherFetchMETAR ();              ///< check if weather updated needed, then do
-    /// @brief set/update current weather, tries reading QNH from METAR
-    /// @details if lat/lon ar NAN, then location of provided station is taken if found, else current camera pos
+    /// @brief set/update current weather information, tries reading QNH from METAR
+    /// @details Thread-safe call. Also triggers setting actual weather if mode is "from METAR"
     /// @returns QNH (`hPa` if not read from `METAR`)
-    float SetWeather (float hPa, float lat, float lon, const std::string& stationId,
+    float SetWeather (float hPa, const std::string& stationId,
                       const std::string& METAR);
     /// Get current sea level air pressure
     double GetPressureHPA() const { return lastWeatherHPA; }

@@ -413,7 +413,7 @@ void InfoListWnd::buildInterface()
                             // Weather
                             ImGui::TableNextRow();
                             if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("Weather Source");
-                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(WeatherGetSource().c_str());
+                            if (ImGui::TableSetColumnIndex(1)) ImGui::TextUnformatted(WeatherGetSource_xp().c_str());
                             
                             // If generated weather's METAR deviates from live weather, then display the generation source, too
                             const std::string& MetarForWeatherGeneration = WeatherGetMETAR();

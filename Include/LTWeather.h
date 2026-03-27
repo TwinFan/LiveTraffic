@@ -1,7 +1,9 @@
 /// @file       LTWeather.h
 /// @brief      Set X-Plane weather / Fetch real weather information from AWC
+/// @note       Functions ending in `_xp` are calling X-Plane, i.e. must _not_ be called
+///             from worker threads. Others are considered thread-safe.
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2024 Birger Hoppe
+/// @copyright  (c) 2018-2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -24,7 +26,7 @@
 class LTWeather;
 
 /// Initialize Weather module, dataRefs
-bool WeatherInit ();
+bool WeatherInit_xp ();
 /// Shutdown Weather module
 void WeatherStop ();
 
@@ -33,9 +35,9 @@ bool WeatherCanSet ();
 /// Are we controlling weather?
 bool WeatherInControl ();
 /// Is X-Plane set to use real weather?
-bool WeatherIsXPRealWeather ();
+bool WeatherIsXPRealWeather_xp ();
 /// Have X-Plane use its real weather
-void WeatherSetXPRealWeather ();
+void WeatherSetXPRealWeather_xp ();
 
 /// Thread-safely store weather information to be set in X-Plane in the main thread later
 void WeatherSet (const LTWeather& w);
@@ -45,19 +47,19 @@ void WeatherSet (const std::string& metar, const std::string& metarIcao);
 /// @details Defines a weather solely based on the METAR, sets it,
 ///          then turns _off_ any further weather generation, so it stays constant.
 /// @note Must be called from main thread
-void WeatherSetConstant (const std::string& metar);
+void WeatherSetConstant_xp (const std::string& metar);
 /// Actually update X-Plane's weather if there is anything to do (called from main thread)
-void WeatherUpdate ();
+void WeatherUpdate_xp ();
 /// Reset weather settings to what they were before X-Plane took over
 void WeatherReset ();
 
 /// Log current weather
-void WeatherLogCurrent (const std::string& msg);
+void WeatherLogCurrent_xp (const std::string& msg);
 
 /// Current METAR in use for weather generation
 const std::string& WeatherGetMETAR ();
 /// Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
-std::string WeatherGetSource ();
+std::string WeatherGetSource_xp ();
 
 /// Extract QNH or SLP from METAR, NAN if not found any info, which is rather unlikely
 float WeatherQNHfromMETAR (const std::string& metar);
@@ -94,11 +96,12 @@ public:
     float    qnh_base_elevation = NAN;              ///< float      y    float          Base elevation for QNH. Takes into account local physical variations from a spheroid.
     float    qnh_pas = NAN;                         ///< float      y    float          Base elevation for QNH. Takes into account local physical variations from a spheroid.
     float    rain_percent = NAN;                    ///< float      y    ratio          [0.0 - 1.0] The percentage of rain falling.
-    std::array<float,13> atmosphere_alt_levels_m;   ///< float[13]  n    meters         The altitudes for the thirteen atmospheric layers returned in other sim/weather/region datarefs.
+    /// float[13]  n    meters         The altitudes for the thirteen atmospheric layers returned in other sim/weather/region datarefs. Doesn't change, so we get it once during startup
+    static std::array<float,13> atmosphere_alt_levels_m;
     std::array<float,13> wind_altitude_msl_m;       ///< float[13]  y    meters         >= 0. The center altitude of this layer of wind in MSL meters.
-    std::array<float,13> wind_speed_msc;            ///< float[13]  y    kts            >= 0. The wind speed in knots.
+    std::array<float,13> wind_speed_msc;            ///< float[13]  y    m/s            >= 0. The wind speed in m/s
     std::array<float,13> wind_direction_degt;       ///< float[13]  y    degrees        [0 - 360] The direction the wind is blowing from in degrees from true north clockwise.
-    std::array<float,13> shear_speed_msc;           ///< float[13]  y    kts            >= 0. The gain from the shear in knots.
+    std::array<float,13> shear_speed_msc;           ///< float[13]  y    m/s            >= 0. The gain from the shear in m/s.
     std::array<float,13> shear_direction_degt;      ///< float[13]  y    degrees        [0 - 360]. The direction for a wind shear, per above.
     std::array<float,13> turbulence;                ///< float[13]  y    float          [0.0 - 1.0] A turbulence factor, 0-10, the unit is just a scale.
     std::array<float,13> dewpoint_deg_c;            ///< float[13]  y    degreesC       The dew point at specified levels in the atmosphere.
@@ -166,8 +169,8 @@ public:
                            bool bInterpolateNext);
 
 protected:
-    void Set () const;                              ///< Set the given weather in X-Plane
-    void Get (const std::string& logMsg = "");      ///< Read weather from X-Plane, if `logMsg` non-empty then log immediately (mith `logMsg` appearing on top)
+    void Set_xp () const;                           ///< Set the given weather in X-Plane
+    void Get_xp (const std::string& logMsg = "");   ///< Read weather from X-Plane, if `logMsg` non-empty then log immediately (mith `logMsg` appearing on top)
     void Log (const std::string& msg) const;        ///< Log values to Log.txt
 
     bool IncorporateMETAR ();                       ///< add information from the METAR into the data (run from XP's main thread, so can use XP SDK, just before LTWeather::Set())
@@ -175,11 +178,11 @@ protected:
 // Some global functions require access
 friend void WeatherSet (const LTWeather& w);
 friend void WeatherSet (const std::string& metar, const std::string& metarIcao);
-friend void WeatherSetConstant (const std::string& metar);
-friend void WeatherDoSet (bool bTakeControl);
-friend void WeatherUpdate ();
+friend void WeatherSetConstant_xp (const std::string& metar);
+friend void WeatherDoSet_xp (bool bTakeControl);
+friend void WeatherUpdate_xp ();
 friend void WeatherReset ();
-friend void WeatherLogCurrent (const std::string& msg);
+friend void WeatherLogCurrent_xp (const std::string& msg);
 };
 
 //

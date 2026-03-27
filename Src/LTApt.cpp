@@ -2517,13 +2517,6 @@ static bool bAptsAdded = false;
 /// Is data available?
 static bool bAptAvailable = false;
 
-// Start reading apt.dat file(s)
-bool LTAptEnable ()
-{
-    LTAptRefresh();
-    return true;
-}
-
 /// Update altitudes of runways
 void LTAptUpdateRwyAltitudes ()
 {
@@ -2551,7 +2544,7 @@ bool LTAptRefresh ()
     // Distance since last read not far enough?
     // Must have travelled at least as far as standard search radius for planes:
     const positionTy camera = DataRefs::GetViewPos();
-    if (!camera.isNormal(true))                     // have no good camery position (yet)
+    if (!camera.isNormal(true,true))                // have no good camery position (yet)
         return false;
 
     double radius = dataRefs.GetFdStdDistance_m();

@@ -395,7 +395,7 @@ public:
     // has a position and altitude?
     bool hasPosAlt () const { return !std::isnan(lat()) && !std::isnan(lon()) && !std::isnan(alt_m()); }
     // is a good valid normalized position incl timestamp?
-    bool isNormal (bool bAllowNanAltIfGnd = false) const;
+    bool isNormal (bool bAllowNanAltIfGnd = false, bool bTestNonZero = false) const;
     // is fully valid? (isNormal + heading, pitch, roll)?
     bool isFullyValid() const;
     /// Has a valid edge in the taxiway network of some airport?

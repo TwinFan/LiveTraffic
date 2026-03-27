@@ -383,6 +383,10 @@ public:
     
     inline int GetRcvr() const { return rcvr; }
     
+    /// @brief In case of "larger" aircraft, upgrade to use Mode S
+    /// @returns if the value has been modified
+    bool DetermineTransponderMode (XPMPTransponderMode& mode);
+    
     // access static data
     void UpdateData ( const FDStaticData& inStat, double distance, DatRequTy masterDataType = DATREQU_NONE );
     bool TryGetSafeCopy ( FDStaticData& outStat ) const;

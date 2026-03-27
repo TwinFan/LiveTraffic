@@ -24,9 +24,6 @@
 #ifndef LTApt_h
 #define LTApt_h
 
-/// Start reading apt.dat file(s), build an index
-bool LTAptEnable ();
-
 /// @brief Update the airport data with airports around current camera position
 /// @returns if fresh airport data has just been loaded completely
 bool LTAptRefresh ();

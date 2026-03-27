@@ -58,8 +58,10 @@
 ///                 </response>
 ///                 @endcode
 ///
+/// @note       Functions ending in `_xp` are calling X-Plane, i.e. must _not_ be called
+///             from worker threads. Others are considered thread-safe.
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2024 Birger Hoppe
+/// @copyright  (c) 2018-2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -185,7 +187,7 @@ constexpr float WDR_CT_STRATUS      = 1.0f; ///< 1 = Stratus
 constexpr float WDR_CT_CUMULUS      = 2.0f; ///< 2 = Cumulus
 constexpr float WDR_CT_CUMULONIMBUS = 3.0f; ///< 3 = Cumulo-nimbus
 
-bool WeatherInitDataRefs ()
+bool WeatherInitDataRefs_xp ()
 {
     return true
     && wdr_visibility_reported_sm     .find("sim/weather/region/visibility_reported_sm")
@@ -224,10 +226,27 @@ bool WeatherInitDataRefs ()
     ;
 }
 
+/// float[13]  n    meters         The altitudes for the thirteen atmospheric layers returned in other sim/weather/region datarefs. Doesn't change, so we get it once during startup
+std::array<float,13> LTWeather::atmosphere_alt_levels_m = {
+       0.0f,            // These are the actual XP12 values, but don't worry, just for static init...
+     540.105591f,       // ...we fetch actual values from XP12 in WeatherInit
+     988.46643f,
+     1948.28162f,
+     3010.81445f,
+     4206.54492f,
+     5572.04883f,
+     7182.30712f,
+     9160.15429f,
+    10362.8955f,
+    11887.2002f,
+    13594.0801f,
+    16179.3936f,
+};
+
+
 // Constructor sets all arrays to all `NAN`
 LTWeather::LTWeather()
 {
-    wdr_atmosphere_alt_levels_m.get(atmosphere_alt_levels_m);
     wind_altitude_msl_m.fill(NAN);
     wind_speed_msc.fill(NAN);
     wind_direction_degt.fill(NAN);
@@ -244,7 +263,7 @@ LTWeather::LTWeather()
 }
 
 // Set the given weather in X-Plane
-void LTWeather::Set () const
+void LTWeather::Set_xp () const
 {
     wdr_update_immediately.set(update_immediately);
 
@@ -284,7 +303,7 @@ void LTWeather::Set () const
 }
 
 // Read weather from X-Plane
-void LTWeather::Get (const std::string& logMsg)
+void LTWeather::Get_xp (const std::string& logMsg)
 {
     visibility_reported_sm      = wdr_visibility_reported_sm.get();
     sealevel_pressure_pas       = wdr_sealevel_pressure_pas.get();
@@ -292,7 +311,6 @@ void LTWeather::Get (const std::string& logMsg)
     qnh_base_elevation          = wdr_qnh_base_elevation.get();
     qnh_pas                     = wdr_qnh_pas.get();
     rain_percent                = wdr_rain_percent.get();
-    wdr_atmosphere_alt_levels_m.get(atmosphere_alt_levels_m);
     wdr_wind_altitude_msl_m.get(wind_altitude_msl_m);
     wdr_wind_speed_msc.get(wind_speed_msc);
     wdr_wind_direction_degt.get(wind_direction_degt);
@@ -345,9 +363,9 @@ for (const float& f: var) lOut << std::setw(8) << f << " "; \
 lOut << unit "\n";
     
     LOG_WARR("wind_alt:    ",   wind_altitude_msl_m,        "m");
-    LOG_WARR("wind_speed:  ",   wind_speed_msc,             "kts");
+    LOG_WARR("wind_speed:  ",   wind_speed_msc,             "m/s");
     LOG_WARR("wind_dir:    ",   wind_direction_degt,        "deg");
-    LOG_WARR("shear_speed: ",   shear_speed_msc,            "kts");
+    LOG_WARR("shear_speed: ",   shear_speed_msc,            "m/s");
     LOG_WARR("shear_dir:   ",   shear_direction_degt,       "deg");
     LOG_WARR("turbulence:  ",   turbulence,                 "");
     LOG_WARR("dewpoint:    ",   dewpoint_deg_c,             "C");
@@ -1199,8 +1217,6 @@ bool gbFoundNoMETAR = false;
 ///          We are looking for the closest station in that list
 bool WeatherProcessResponse (const std::string& _r)
 {
-    double bestLat = NAN;
-    double bestLon = NAN;
     double bestDist = DBL_MAX;
     double bestHPa = NAN;
     std::string stationId;
@@ -1246,8 +1262,6 @@ bool WeatherProcessResponse (const std::string& _r)
             continue;;
         
         // We have a new nearest METAR
-        bestLat = lat;
-        bestLon = lon;
         bestDist = vec.dist;
         bestHPa = hPa;
         stationId = jog_s(pMObj, "icaoId");
@@ -1255,14 +1269,14 @@ bool WeatherProcessResponse (const std::string& _r)
     }
     
     // If we found something
-    if (!std::isnan(bestLat) && !std::isnan(bestLon) && !std::isnan(bestHPa)) {
+    if (!std::isnan(bestHPa)) {
         // If previously we had not found anything say huray
         if (gbFoundNoMETAR) {
             LOG_MSG(logINFO, INFO_FOUND_WEATHER_AGAIN, stationId.c_str());
             gbFoundNoMETAR = false;
         }
         // tell ourselves what we found
-        dataRefs.SetWeather(float(bestHPa), float(bestLat), float(bestLon),
+        dataRefs.SetWeather(float(bestHPa),
                             stationId, METAR);
         return true;
     }
@@ -1386,16 +1400,21 @@ static int weatherOrigChangeMode = -1;          ///< Original value of `sim/weat
 
 static std::recursive_mutex mtxWeather;         ///< manages access to weather storage
 static LTWeather nextWeather;                   ///< next weather to set
+static bool bRefreshWeatherFromCurrent = false; ///< before applying METAR, shall we read current XP weather?
 static bool bSetWeather = false;                ///< is there a next weather to set?
 static bool bResetWeather = false;              ///< Shall weather be reset, ie. handed back to XP?
 static LTWeather setWeather;                    ///< the weather we set last time
 
 // Initialize Weather module, dataRefs
-bool WeatherInit ()
+bool WeatherInit_xp ()
 {
-    bWeatherCanSet = WeatherInitDataRefs();
+    bWeatherCanSet = WeatherInitDataRefs_xp();
     if (!bWeatherCanSet) {
         LOG_MSG(logWARN, "Could not find all Weather dataRefs, cannot set X-Plane's weather (X-Plane < v12?)");
+    }
+    else {
+        // get XP's altitude levels
+        wdr_atmosphere_alt_levels_m.get(LTWeather::atmosphere_alt_levels_m);
     }
     return bWeatherCanSet;
 }
@@ -1419,13 +1438,13 @@ bool WeatherInControl ()
 }
 
 // Is X-Plane set to use real weather?
-bool WeatherIsXPRealWeather ()
+bool WeatherIsXPRealWeather_xp ()
 {
     return WeatherCanSet() && wdr_change_mode.get() == WDR_CM_REAL_WEATHER;
 }
 
 // Have X-Plane use its real weather
-void WeatherSetXPRealWeather ()
+void WeatherSetXPRealWeather_xp ()
 {
     if (WeatherCanSet())
         wdr_change_mode.set(WDR_CM_REAL_WEATHER);
@@ -1433,7 +1452,7 @@ void WeatherSetXPRealWeather ()
 }
 
 /// Internal function that actually sets X-Planes weather to what's defined in nextWeather
-void WeatherDoSet (bool bTakeControl)
+void WeatherDoSet_xp (bool bTakeControl)
 {
     // Remember user's setting prior to us changing weather
     if (weatherOrigSource < 0) {
@@ -1446,9 +1465,9 @@ void WeatherDoSet (bool bTakeControl)
             // Log weather before take-over
             if (dataRefs.ShallLogWeather()) {
                 LOG_MSG(logDEBUG, "Weather originally %s (source = %d, change mode = %d)",
-                        WeatherGetSource().c_str(),
+                        WeatherGetSource_xp().c_str(),
                         weatherOrigSource, weatherOrigChangeMode);
-                LTWeather().Get("Weather just prior to LiveTraffic overriding it:");
+                LTWeather().Get_xp("Weather just prior to LiveTraffic overriding it:");
             }
             // Shall we take over control?
             if (bTakeControl) {
@@ -1461,10 +1480,10 @@ void WeatherDoSet (bool bTakeControl)
     }
 
     // actually set the weather in X-Plane
-    nextWeather.Set();
+    nextWeather.Set_xp();
     nextWeather.update_immediately = false;
     // get all values from X-Plane right away, after XP's processing
-    setWeather.Get();
+    setWeather.Get_xp();
     // if weather's position is given remember that
     if (nextWeather.pos.hasPosAlt())
         setWeather.pos = nextWeather.pos;
@@ -1496,17 +1515,16 @@ void WeatherSet (const std::string& metar, const std::string& metarIcao)
     // Access to weather storage, copy weather info
     std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
     if (nextWeather.metar != metar) {               // makes only sense in case something has changed
-        nextWeather = LTWeather();                  // reset all, reads `atmosphere_alt_levels_m` already
-        nextWeather.Get();                          // get current weather from X-Plane as basis
         nextWeather.metar = metar;                  // just store METAR, will be processed/incorporated later in the main thread
         nextWeather.metarFieldIcao = metarIcao;
         nextWeather.posMetarField = positionTy();
+        bRefreshWeatherFromCurrent = true;          // in main thread, read XP's weather first before applying METAR
         bSetWeather = true;
     }
 }
 
 // Set weather constantly to this METAR
-void WeatherSetConstant (const std::string& metar)
+void WeatherSetConstant_xp (const std::string& metar)
 {
     if (!dataRefs.IsXPThread() || !WeatherCanSet()) {
         LOG_MSG(logDEBUG, "Requested to set weather, but cannot due to not being in main thread or missing dataRefs");
@@ -1565,17 +1583,17 @@ void WeatherSetConstant (const std::string& metar)
         setWeather.posMetarField    = nextWeather.posMetarField;
 
         nextWeather.update_immediately = true;
-        WeatherDoSet(false);
+        WeatherDoSet_xp(false);
         SHOW_MSG(logINFO, "Constant weather set based on METAR");
     }
 }
 
     
 // Actually update X-Plane's weather if there is anything to do (called from main thread)
-void WeatherUpdate ()
+void WeatherUpdate_xp ()
 {
-    // Quick exit if we can't or shan't
-    if (!WeatherCanSet() || !dataRefs.IsXPThread()) return;
+    // Quick exit if we shan't
+    if (!WeatherCanSet()) return;
     
     // If the ask is to reset weather
     if (bResetWeather) {
@@ -1587,7 +1605,7 @@ void WeatherUpdate ()
     double altAGL_m = 0.0f;
     const positionTy posUser = dataRefs.GetUsersPlanePos(nullptr, nullptr, &altAGL_m);
     // Using XP Real Weather just now because we want it so?
-    const bool bXPRealWeather = WeatherIsXPRealWeather() && WeatherInControl();
+    const bool bXPRealWeather = WeatherIsXPRealWeather_xp() && WeatherInControl();
     
     // Access to weather storage guarded by a lock
     std::lock_guard<std::recursive_mutex> mtx (mtxWeather);
@@ -1622,7 +1640,7 @@ void WeatherUpdate ()
                 // Remember that we did _not_ use a METAR to define weather
                 setWeather.ClearMETAR();
                 // Set to XP real weather
-                WeatherSetXPRealWeather();
+                WeatherSetXPRealWeather_xp();
                 bWeatherControlling = true;
             }
             return;
@@ -1658,6 +1676,21 @@ void WeatherUpdate ()
     // If there is a METAR to process, then now is the moment
     if (bProcessMETAR)
     {
+        // Re-init weather from current XP weather
+        if (bRefreshWeatherFromCurrent) {
+            // need to temporarily save METAR information
+            std::string sMetar = std::move(nextWeather.metar);
+            std::string sIcao = std::move(nextWeather.metarFieldIcao);
+            positionTy pos = nextWeather.posMetarField;
+            // Reset all, read from X-Plane
+            nextWeather = LTWeather();
+            nextWeather.Get_xp();
+            // restore METAR info
+            nextWeather.metar = std::move(sMetar);
+            nextWeather.metarFieldIcao = std::move(sIcao);
+            nextWeather.posMetarField = pos;
+        }
+        
         if (nextWeather.IncorporateMETAR()) {
             // Remember the METAR we used
             setWeather.metar            = nextWeather.metar;
@@ -1671,12 +1704,15 @@ void WeatherUpdate ()
         // Remember that we did _not_ use a METAR to define weather
         setWeather.ClearMETAR();
     }
-    
+
+    // Reset the refresh-from-xp-flag
+    bRefreshWeatherFromCurrent = false;
+
     // Set weather with immediate effect if first time, or if position changed dramatically
     nextWeather.update_immediately |= !WeatherInControl() ||
                                       !setWeather.pos.hasPosAlt() ||
                                       setWeather.pos.dist(posUser) > WEATHER_MAX_DIST_M;
-    WeatherDoSet(true);
+    WeatherDoSet_xp(true);
 }
 
 // Reset weather settings to what they were before X-Plane took over
@@ -1696,7 +1732,7 @@ void WeatherReset ()
         SHOW_MSG(logINFO, "LiveTraffic no longer controls X-Plane's weather, reset to previous settings");
         if (dataRefs.ShallLogWeather()) {
             LOG_MSG(logDEBUG, "Weather reset to %s (source = %d, change mode = %d)",
-                    WeatherGetSource().c_str(),
+                    WeatherGetSource_xp().c_str(),
                     weatherOrigSource, weatherOrigChangeMode);
         }
     }
@@ -1709,9 +1745,9 @@ void WeatherReset ()
 }
 
 // Log current weather
-void WeatherLogCurrent (const std::string& msg)
+void WeatherLogCurrent_xp (const std::string& msg)
 {
-    LTWeather().Get(msg);
+    LTWeather().Get_xp(msg);
 }
 
 // Current METAR in use for weather generation
@@ -1721,7 +1757,7 @@ const std::string& WeatherGetMETAR ()
 }
 
 // Return a human readable string on the weather source, is "LiveTraffic" if WeatherInControl()
-std::string WeatherGetSource ()
+std::string WeatherGetSource_xp ()
 {
     // Preset closest to current conditions
     static std::array<const char*,10> WEATHER_PRESETS = {
@@ -1745,7 +1781,7 @@ std::string WeatherGetSource ()
                 return "LiveTraffic using RealTraffic weather data";
             case WC_METAR_XP:
                 snprintf(t, sizeof(t), "LiveTraffic, using %s %dft AGL",
-                         (WeatherIsXPRealWeather() ? "XP's real weather above" : "METAR up to"),
+                         (WeatherIsXPRealWeather_xp() ? "XP's real weather above" : "METAR up to"),
                          dataRefs.GetWeatherMaxMetarHeight_ft());
                 return std::string(t);
             case WC_NONE:

@@ -48,6 +48,7 @@ constexpr int M_per_NM      = 1852;     // meter per 1 nautical mile = 1/60 of a
 constexpr double M_per_FT   = 0.3048;   // meter per 1 foot
 constexpr int M_per_KM      = 1000;
 constexpr double KT_per_M_per_S = 1.94384;  // 1m/s = 1.94384kt
+constexpr double MSC_per_KMH = 0.2777777778;    ///< m/s per km/h
 constexpr double NM_per_KM  = 1000.0 / double(M_per_NM);
 constexpr double M_per_SM   = 1609.344; ///< meters per statute mile
 constexpr int SEC_per_M     = 60;       // 60 seconds per minute

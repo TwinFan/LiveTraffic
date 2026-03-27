@@ -145,9 +145,9 @@ bool SayIntentionsConnection::ProcessFetchedData ()
         // Position
         positionTy pos (jog_n_nan(pAc, SI_LAT),
                         jog_n_nan(pAc, SI_LON),
-                        jog_l(pAc, SI_ALT) * M_per_FT,
+                        double(jog_l(pAc, SI_ALT)) * M_per_FT,
                         tsRequest,
-                        jog_l(pAc, SI_HEADING));
+                        double(jog_l(pAc, SI_HEADING)));
         
         // SI returns all world's traffic, we restrict to what's within defined limits
         const double dist = pos.dist(viewPos);

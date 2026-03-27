@@ -434,7 +434,7 @@ float interpolate (const std::vector<float>& scale,
 /// @brief random long between too given values invlusive
 /// @see https://stackoverflow.com/a/7560171
 inline long randoml (long min, long max)
-{ return long(((double) rand() / (RAND_MAX+1.0)) * (max-min+1)) + min; }
+{ return long(((double) rand() / (RAND_MAX+1.0)) * double(max-min+1)) + min; }
 
 /// Fetches the latest available LiveTraffic version number
 bool FetchLatestLTVersion ();

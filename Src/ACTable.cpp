@@ -88,7 +88,7 @@ std::array<ACTColDefTy,ACT_COL_COUNT> gCols {{
     {"Gear",             40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Flaps",            40,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
     {"Lights",          140,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
-    {"TCAS Idx",         25,    ImGui::IM_ALIGN_RIGHT,  ImGuiTableColumnFlags_DefaultHide},
+    {"TCAS Idx",         25,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
     {"Flight Model",    150,    ImGui::IM_ALIGN_LEFT,   ImGuiTableColumnFlags_DefaultHide},
 
     // This stays last
@@ -181,9 +181,11 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v_f(ACT_COL_FLAPS,  "%.f%%",    pAc->GetFlapsPos() * 100.0);
         v[ACT_COL_LIGHTS]       = pAc->GetLightsStr();
         if (pAc->IsCurrentlyShownAsTcasTarget()) {
-            v_f(ACT_COL_TCAS_IDX, "%.f", pAc->GetTcasTargetIdx());
+            snprintf(s, sizeof(s), "%02d %s",
+                     pAc->GetTcasTargetIdx(),
+                     pAc->acRadar.GetModeStr());
+            v[ACT_COL_TCAS_IDX] = s;
         } else {
-            vf[ACT_COL_TCAS_IDX] = NAN;
             v[ACT_COL_TCAS_IDX].clear();
         }
         v[ACT_COL_FLIGHTMDL]    = pAc->pMdl->modelName;

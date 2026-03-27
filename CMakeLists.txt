@@ -20,10 +20,10 @@ else()
     set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Archs to build")
 endif()
 
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CACHE{CMAKE_BUILD_TYPE} TYPE STRING VALUE "RelWithDebInfo")
 
 project(LiveTraffic
-        VERSION 4.3.3
+        VERSION 4.3.5
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -165,8 +165,8 @@ else()
         # Use highest optimization level in Release builds
         add_compile_options(/MD /Zi /GL- /O2)
     else()
-        # Use position-independent code and highest optimization level
-        add_compile_options(-O3 -fPIC)
+        # Use position-independent code and highest optimization level plus some minimal debug info for stack traces
+        add_compile_options(-O3 -fPIC -g1)
     endif()
 endif()
 
@@ -182,9 +182,9 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/inc")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/SDK/CHeaders/XPLM")      # Using XPMP2's copy of the X-Plane SDK
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/fmod/logo")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/CHeaders/XPLM")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
@@ -355,10 +355,10 @@ target_link_libraries(LiveTraffic XPMP2)
 
 # Specify library search locations.
 if (APPLE)
-    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Mac")
+    list(APPEND CMAKE_FRAMEWORK_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/SDK/Libraries/Mac")
 elseif (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/CURL")
-    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/SDK/Libraries/Win")
+    list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/SDK/Libraries/Win")
 endif ()
 list(APPEND CMAKE_LIBRARY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Lib/fmod")
 

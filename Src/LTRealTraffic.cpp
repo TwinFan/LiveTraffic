@@ -71,7 +71,7 @@ void RealTrafficConnection::Stop (bool bWaitJoin)
     if (isRunning()) {
         if (eThrStatus < THR_STOP)
             eThrStatus = THR_STOP;          // indicate to the thread that it has to end itself
-        
+
 #if APL == 1 || LIN == 1
         // Mac/Lin: Try writing something to the self-pipe to stop gracefully
         if (udpPipe[1] == INVALID_SOCKET ||
@@ -82,11 +82,12 @@ void RealTrafficConnection::Stop (bool bWaitJoin)
             // close all connections, this will also break out of all
             // blocking calls for receiving message and hence terminate the threads
             udpTrafficData.Close();
+            udpWeatherData.Close();
 #if APL == 1 || LIN == 1
         }
 #endif
     }
-    
+
     // Parent class processing: Wait for the thread to join
     LTFlightDataChannel::Stop(bWaitJoin);
 }
@@ -101,8 +102,10 @@ std::string RealTrafficConnection::GetStatusText () const
         return LTChannel::GetStatusText();
 
     // --- Direct Connection? ---
-    if (eConnType == RT_CONN_REQU_REPL) {
-        std::string s =
+    // Use dataRefs setting instead of eConnType to reflect current configuration
+    if (dataRefs.GetRTConnType() == RT_CONN_REQU_REPL) {
+        // Only show request-specific status if thread is actually running
+        std::string s = !isRunning() ? LTChannel::GetStatusText() :
             curr.eRequType == CurrTy::RT_REQU_AUTH          ? "Authenticating..." :
             curr.eRequType == CurrTy::RT_REQU_DEAUTH        ? "De-authenticating..." :
             curr.eRequType == CurrTy::RT_REQU_PARKED        ? "Fetching parked aircraft..." :
@@ -189,7 +192,6 @@ void RealTrafficConnection::MainDirect ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_Direct", LC_ALL_MASK);
-    eConnType = RT_CONN_REQU_REPL;
     // Clear the list of historic time stamp differences
     dequeTS.clear();
     // Some more data resets to make sure we start over with the series of requests
@@ -197,6 +199,7 @@ void RealTrafficConnection::MainDirect ()
     curr.sGUID.clear();
     rtWx.QNH = NAN;
     rtWx.nErr = 0;
+    rtWx.ResetFirstTime();
     lTotalFlights = -1;
     // can right away read parked traffic if parked aircraft enabled and airport data is already available, otherwise we'll be triggered later when airport data has been processed
     bDoParkedTraffic = dataRefs.ShallKeepParkedAircraft() && LTAptAvailable();
@@ -206,7 +209,7 @@ void RealTrafficConnection::MainDirect ()
                                                  rtWx.w.atmosphere_alt_levels_m);
     }
 
-    while ( shallRun() ) {
+    while ( shallRun() && dataRefs.GetRTConnType() == RT_CONN_REQU_REPL ) {
         // LiveTraffic Top Level Exception Handling
         try {
             // where are we right now?
@@ -220,7 +223,7 @@ void RealTrafficConnection::MainDirect ()
                     // reduce error count if processed successfully
                     // as a chance to appear OK in the long run
                     DecErrCnt();
-                
+
                 // Determine next action and wait time
                 tNextWakeup = SetRequType(pos);
             }
@@ -228,15 +231,15 @@ void RealTrafficConnection::MainDirect ()
                 // Camera position is yet invalid, retry in a second
                 tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(1);
             }
-            
+
             // sleep for a bit or if woken up for termination
             // by condition variable trigger
             {
                 std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
                 FDThreadSynchCV.wait_until(lk, tNextWakeup,
-                                           [this]{return !shallRun();});
+                                           [this]{return !shallRun() || dataRefs.GetRTConnType() != RT_CONN_REQU_REPL;});
             }
-            
+
         } catch (const std::exception& e) {
             LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
             IncErrCnt();
@@ -264,7 +267,9 @@ void RealTrafficConnection::MainDirect ()
     
     // Reset weather control (this assumes noone else can control weather and
     // would need to change once any other source in LiveTraffic can do so)
-    WeatherReset();
+    // however only if actually stopping RT, but not in case of a switch between App and UI
+    if (!shallRun())
+        WeatherReset();
 }
 
 // Which request do we need next and when?
@@ -274,30 +279,7 @@ std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetReq
     curr.pos = _pos;
     
     // Time offset: in minutes compared to now
-    curr.tOff = 0L;
-    switch (dataRefs.GetRTSTC()) {
-        case STC_NO_CTRL:                           // don't send any ofset ever
-            curr.tOff = 0L;
-            break;
-            
-        case STC_SIM_TIME_MANUALLY:                 // send what got configured manually
-            curr.tOff = dataRefs.GetRTManTOfs();
-            break;
-            
-        case STC_SIM_TIME_PLUS_BUFFER:              // Send as per current simulation time
-            if (dataRefs.IsUsingSystemTime()) {     // Using system time means: No ofset
-                curr.tOff = 0;
-            } else {
-                // Simulated 'now' in seconds since the epoch
-                const time_t simNow = time_t(dataRefs.GetXPSimTime_ms() / 1000LL);
-                const time_t now = time(nullptr);
-                // offset between older 'simNow' and current 'now' in minutes, minus buffering period
-                curr.tOff = long(now - simNow - dataRefs.GetFdBufPeriod()) / 60L;
-                // must be positive
-                if (curr.tOff < 0) curr.tOff = 0;
-            }
-            break;
-    }
+    curr.tOff = dataRefs.GetRTHistTimeOff();
     
     if (!shallRun()) {                                          // end the session?
         curr.eRequType = CurrTy::RT_REQU_DEAUTH;
@@ -378,7 +360,9 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
     // What kind of request will we need?
     switch (curr.eRequType) {
         case CurrTy::RT_REQU_AUTH:
-            snprintf(s,sizeof(s), RT_AUTH_POST,
+            snprintf(s,sizeof(s),
+                     stribeginwith(dataRefs.GetRTLicense(), "rt_") ?
+                     RT_AUTH_TOKEN_POST : RT_AUTH_LIC_POST,
                      dataRefs.GetRTLicense().c_str(),
                      HTTP_USER_AGENT);
             break;
@@ -408,7 +392,7 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
             const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
             
             // If we request traffic for the very first time, then we ask for some buffer into the past for faster plane display
-            if ((curr.eRequType == CurrTy::RT_REQU_TRAFFIC) && IsFirstRequ()) {
+            if ((curr.eRequType == CurrTy::RT_REQU_TRAFFIC) && IsFirstTrafficRequ()) {
                 snprintf(s,sizeof(s), RT_TRAFFIC_POST_BUFFER,
                          curr.sGUID.c_str(),
                          box.nw.lat(), box.se.lat(),
@@ -562,88 +546,9 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // --- Weather ---
     if (curr.eRequType == CurrTy::RT_REQU_WEATHER) {
-        // Here, we are interested in just a single value: local Pressure
-        double wxQNH = jog_n_nan(pObj, "data.QNH");         // ideally QNH
-        if (std::isnan(wxQNH))
-            wxQNH = jog_n_nan(pObj, "data.locWX.SLP");      // of not given then SLP
-        
-        // Error in locWX data?
-        std::string s = jog_s(pObj, "data.locWX.Error");                    // sometimes errors are given in a specific field
-        if (s.empty()) {                                                    // and at other times there is something in the 'Info' field...not very consistent
-            s = jog_s(pObj, "data.locWX.Info");
-            if (!s.empty() &&
-                s != "TinyDelta" &&                                         // if we request too often then Info is 'TinyDelta', and we let it sit in 's'
-                s.substr(0,6) != "error:")                                  // any error starts with "error:" and we let it sit in 's'
-                s.clear();
-        }
-        
-        // Any error, either explicitely or because local pressure is bogus?
-        if (!s.empty() || std::isnan(wxQNH) || wxQNH < 800.0)
-        {
-            if (s == "File requested") {
-                // Error "File requested" often occurs when requesting historic weather that isn't cached on the server, so we only issue debug-level message
-                LOG_MSG(logDEBUG, "Weather details being fetched at RealTraffic, will try again in 60s");
-            } else {
-                // Anything else is unexpected
-                if (!s.empty()) {
-                    LOG_MSG(logERR, "Requesting RealTraffic weather returned error '%s':\n%s",
-                            s.c_str(), netData);
-                } else {
-                    LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
-                            wxQNH, netData);
-                }
-            }
-            // one more error
-            ++rtWx.nErr;
-            // If we don't yet have any pressure...
-            if (std::isnan(rtWx.QNH)) {
-                // Too many WX errors? We give up and just use standard pressure
-                if (rtWx.nErr >= RT_DRCT_MAX_WX_ERR) {
-                    SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
-                    rtWx.set(HPA_STANDARD, curr.tOff, false);
-                    rtWx.pos = positionTy();
-                } else {
-                    // We will request weather directly again, but need to wait 60s for it
-                    tNextWeather = std::chrono::steady_clock::now() + std::chrono::seconds(60);
-                }
-            }
-            return false;
-        }
-        
-        // If we have METAR info pass that on, too
-        s = jog_s(pObj, "data.ICAO");
-        std::string metar = jog_s(pObj, "data.METAR");
-        
-        if (s.empty() || s == "UNKN") {         // ignore no/unknown METAR
-            s.clear();
-            metar.clear();
-        }
-            
-        // If this is live data, not historic, then we can use it instead of separately querying METAR
-        if (!isHistoric()) {
-            rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH,
-                                                 (float)rtWx.pos.lat(), (float)rtWx.pos.lon(),
-                                                 s, metar);
-        }
-        // historic data
-        else {
-            // Try reading QNH from METAR
-            rtWx.w.qnh_pas = WeatherQNHfromMETAR(metar);
-        }
-        
-        // Successfully received local pressure information
-        rtWx.set(std::isnan(rtWx.w.qnh_pas) ? wxQNH : double(rtWx.w.qnh_pas), curr.tOff);   // Save new QNH
-        LOG_MSG(logDEBUG, "Received RealTraffic Weather with QNH = %.1f", rtWx.QNH);
-        
-        // If requested to set X-Plane's weather based on detailed weather data
-        if (dataRefs.GetWeatherControl() == WC_REAL_TRAFFIC) {
-            ProcessWeather (json_object_get_object(pObj, "data"));
-            if (std::isnan(rtWx.w.qnh_pas))
-                rtWx.w.qnh_pas = float(rtWx.QNH);
-        }
-        
-        return true;
-    }
+        // Weather is in the 'data' object
+        return PreProcessWeather(json_object_get_object(pObj, "data"));
+   }
     
     // --- Parked Aircraft ---
     if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
@@ -1018,7 +923,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         
         // Dynamic data
         LTFlightData::FDDynamicData dyn;
-        dyn.radar.mode          = xpmpTransponderMode_Standby;
+        dyn.radar.mode          = xpmpTransponderMode_Off;
         dyn.gnd                 = true;
         dyn.heading             = pos.heading();
         dyn.ts                  = pos.ts();
@@ -1155,6 +1060,102 @@ void RealTrafficConnection::ProcessNearestMETAR (const JSON_Array* pData)
 }
 
 
+//
+// MARK: Weather Processing for both Direct and UDP connections
+//
+
+
+// weather: process QNH and error, returns if successful
+bool RealTrafficConnection::PreProcessWeather(const JSON_Object* pData)
+{
+    if (!pData) {
+        LOG_MSG(logWARN, "JSON response is missing 'data' object!");
+        ++rtWx.nErr;
+        return false;
+    }
+    
+    // First, we are interested in just a single value: local Pressure
+    double wxQNH = jog_n_nan(pData, "QNH");             // ideally QNH
+    if (std::isnan(wxQNH))
+        wxQNH = jog_n_nan(pData, "locWX.SLP");          // if not given then SLP
+    
+    // Error in locWX data?
+    std::string s = jog_s(pData, "locWX.Error");        // sometimes errors are given in a specific field
+    if (s.empty()) {                                    // and at other times there is something in the 'Info' field...not very consistent
+        s = jog_s(pData, "locWX.Info");
+        if (!s.empty() &&
+            s != "TinyDelta" &&                         // if we request too often then Info is 'TinyDelta', and we let it sit in 's'
+            s.substr(0,6) != "error:")                  // any error starts with "error:" and we let it sit in 's'
+            s.clear();
+    }
+    
+    // Any error, either explicitely or because local pressure is bogus?
+    if (!s.empty() || std::isnan(wxQNH) || wxQNH < 800.0)
+    {
+        if (s == "File requested") {
+            // Error "File requested" often occurs when requesting historic weather that isn't cached on the server, so we only issue debug-level message
+            LOG_MSG(logDEBUG, "Weather details being fetched at RealTraffic, will try again in 60s");
+        } else {
+            // Anything else is unexpected
+            if (!s.empty()) {
+                LOG_MSG(logERR, "Requesting RealTraffic weather returned error '%s':\n%s",
+                        s.c_str(), netData);
+            } else {
+                LOG_MSG(logERR, "RealTraffic returned no or invalid local pressure %.1f:\n%s",
+                        wxQNH, netData);
+            }
+        }
+        // one more error
+        ++rtWx.nErr;
+        // If we don't yet have any pressure...
+        if (std::isnan(rtWx.QNH)) {
+            // Too many WX errors? We give up and just use standard pressure
+            if (rtWx.nErr >= RT_DRCT_MAX_WX_ERR) {
+                SHOW_MSG(logERR, "Too many errors trying to fetch RealTraffic weather, will continue without; planes may appear at slightly wrong altitude.");
+                rtWx.set(HPA_STANDARD, curr.tOff, false);
+                rtWx.pos = positionTy();
+            } else {
+                // We will request weather directly again, but need to wait 60s for it
+                tNextWeather = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+            }
+        }
+        return false;
+    }
+    
+    // If we have METAR info pass that on, too
+    s = jog_s(pData, "ICAO");
+    std::string metar = jog_s(pData, "METAR");
+    
+    if (s.empty() || s == "UNKN") {         // ignore no/unknown METAR
+        s.clear();
+        metar.clear();
+    }
+    
+    // If this is live data, not historic, then we can use it instead of separately querying METAR
+    if (!isHistoric()) {
+        rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH, s, metar);
+    }
+    // historic data
+    else {
+        // Try reading QNH from METAR
+        rtWx.w.qnh_pas = WeatherQNHfromMETAR(metar);
+    }
+    
+    // Successfully received local pressure information
+    rtWx.set(std::isnan(rtWx.w.qnh_pas) ? wxQNH : double(rtWx.w.qnh_pas), curr.tOff);   // Save new QNH
+    LOG_MSG(logDEBUG, "Received RealTraffic Weather with QNH = %.1f", rtWx.QNH);
+    
+    // If requested to set X-Plane's weather based on detailed weather data
+    if (dataRefs.GetWeatherControl() == WC_REAL_TRAFFIC) {
+        ProcessWeather (pData);
+        if (std::isnan(rtWx.w.qnh_pas))
+            rtWx.w.qnh_pas = float(rtWx.QNH);
+    }
+    
+    return true;
+}
+
+
 // in direct mode process detailed weather information
 void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
 {
@@ -1199,7 +1200,7 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
     if (pWSPDs) {
         rtWx.w.Interpolate(rtWx.interp, jag_f_vector(pWSPDs), rtWx.w.wind_speed_msc);
         std::for_each(rtWx.w.wind_speed_msc.begin(), rtWx.w.wind_speed_msc.end(),
-                      [](float& f){ f *= float(NM_per_KM); });                  // convert from km/h to kn=nm/h
+                      [](float& f){ f *= float(MSC_per_KMH); });                // convert from km/h to m/s
     }
     if (pWDIRs)
         rtWx.w.InterpolateDir(rtWx.interp, jag_f_vector(pWDIRs), rtWx.w.wind_direction_degt);
@@ -1255,11 +1256,11 @@ void RealTrafficConnection::ProcessWeather(const JSON_Object* pData)
         rtWx.w.runway_friction = (int)std::lround(rtWx.w.rain_percent * 7.f);
 
     // Have the weather set (force immediate update on first weather data)
-    rtWx.w.update_immediately = IsFirstRequ();
+    rtWx.w.update_immediately = rtWx.IsFirstTime();
     WeatherSet(rtWx.w);
 }
 
-// in direct mode process one cloud layer
+// Process one cloud layer
 void RealTrafficConnection::ProcessCloudLayer(const JSON_Object* pCL, size_t i)
 {
     if (!pCL) return;
@@ -1288,30 +1289,40 @@ void RealTrafficConnection::MainUDP ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_App", LC_ALL_MASK);
-    eConnType = RT_CONN_APP;
+
+    rtWx.QNH = NAN;
+    rtWx.nErr = 0;
+    rtWx.ResetFirstTime();
     lTotalFlights = -1;
 
     // Top-level exception handling
     try {
         // set startup status
         SetStatus(RT_STATUS_STARTING);
-        
+
         // Clear the list of historic time stamp differences
         dequeTS.clear();
 
-        // Start the TCP listening thread, that waits for an incoming TCP connection from the RealTraffic app
-        StartTcpConnection();
-        // Next time we should send a position update
-        std::chrono::time_point<std::chrono::steady_clock> tNextPos =
-        std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+        // If we could theoretically set weather we prepare the interpolation settings
+        if (WeatherCanSet()) {
+            rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
+                                                     rtWx.w.atmosphere_alt_levels_m);
+        }
 
-        // --- UDP Listener ---
-        
-        // Open the UDP port
+        // --- UDP Listeners ---
+
+        // Open the UDP port for traffic data (port 49005 by default)
         udpTrafficData.Open (RT_LOCALHOST,
                              DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
                              RT_NET_BUF_SIZE);
         int maxSock = (int)udpTrafficData.getSocket() + 1;
+
+        // Open the UDP port for weather data (port 49004 by default)
+        udpWeatherData.Open (RT_LOCALHOST,
+                             DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT),
+                             RT_NET_BUF_SIZE);
+        maxSock = std::max(maxSock, (int)udpWeatherData.getSocket() + 1);
+
 #if APL == 1 || LIN == 1
         // the self-pipe to shut down the UDP socket gracefully
         if (pipe(udpPipe) < 0)
@@ -1320,24 +1331,39 @@ void RealTrafficConnection::MainUDP ()
         maxSock = std::max(maxSock, udpPipe[0]+1);
 #endif
 
-        // --- Main Loop ---
+        // Start the TCP listening thread, that waits for an incoming TCP connection from the RealTraffic app
+        StartTcpConnection();
+
+        // Next time we should send a position update
+        std::chrono::time_point<std::chrono::steady_clock> tNextPos;
+        // count position send transmissions...to be able to every once in a while send a time request along with it
+        int nCountPosSent = -1;                             // -1 is a flag to send the initial traffic request
         
-        while (shallRun() && udpTrafficData.isOpen() && IsConnecting())
+        LOG_MSG(logINFO, "RealTraffic Application: Listening for traffic on UDP port %d, weather on UDP port %d",
+                DataRefs::GetCfgInt(DR_CFG_RT_TRAFFIC_PORT),
+                DataRefs::GetCfgInt(DR_CFG_RT_WEATHER_PORT));
+
+        // --- Main Loop ---
+
+        while (shallRun() && udpTrafficData.isOpen() && IsConnecting() && dataRefs.GetRTConnType() == RT_CONN_APP)
         {
             // wait for a UDP datagram on either socket (traffic, weather)
             fd_set sRead;
             FD_ZERO(&sRead);
-            FD_SET(udpTrafficData.getSocket(), &sRead);     // check our sockets
+            FD_SET(udpTrafficData.getSocket(), &sRead);     // check traffic socket
+            FD_SET(udpWeatherData.getSocket(), &sRead);     // check weather socket
 #if APL == 1 || LIN == 1
             FD_SET(udpPipe[0], &sRead);
 #endif
-            // We specify a timeout, which will really rarely trigger,
-            // but this way we make sure that we send our position every once in a while even with no traffic around
-            struct timeval timeout = { dataRefs.GetFdRefreshIntvl(), 0 };
+            // We specify a short timeout (200ms) to ensure we can send position updates at 5 Hz
+            struct timeval timeout = {
+                 dataRefs.GetRTSendPosFrequ() / 1000,           // seconds
+                (dataRefs.GetRTSendPosFrequ() % 1000) * 1000    // microseconds
+            };
             int retval = select(maxSock, &sRead, NULL, NULL, &timeout);
-            
-            // short-cut if we are to shut down (return from 'select' due to closed socket)
-            if (!shallRun()) break;
+
+            // short-cut if we are to shut down or connection type changed
+            if (!shallRun() || dataRefs.GetRTConnType() != RT_CONN_APP) break;
 
             // select call failed???
             if(retval == -1)
@@ -1348,7 +1374,7 @@ void RealTrafficConnection::MainUDP ()
             {
                 // read UDP datagram
                 long rcvdBytes = udpTrafficData.recv();
-                
+
                 // received something?
                 if (rcvdBytes > 0)
                 {
@@ -1361,7 +1387,23 @@ void RealTrafficConnection::MainUDP ()
                 else
                     retval = -1;
             }
-            
+
+            // select successful - weather data
+            if (retval > 0 && FD_ISSET(udpWeatherData.getSocket(), &sRead))
+            {
+                // read UDP datagram
+                long rcvdBytes = udpWeatherData.recv();
+
+/* TODO: Reenable once RT App Weather works
+         Currently disabled because what we get more often than not is a forwarded "tiny delta" notice
+                // received something?
+                if (rcvdBytes > 0)
+                {
+                    // have it processed
+                    ProcessRecvedWeatherData(udpWeatherData.getBuf());
+                }
+ */
+            }
             // handling of errors, both from select and from recv
             if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
                 // not just a normal timeout?
@@ -1375,16 +1417,28 @@ void RealTrafficConnection::MainUDP ()
                     break;
                 }
             }
-            
+
             // --- Maintenance Activities ---
 
             // If we are connected via TCP to RealTraffic
             if (tcpPosSender.IsConnected()) {
-                // Send current position and time every once in a while
+                
+                // Send time and position at 5 Hz (every 200ms) to keep RT App updated
                 if (std::chrono::steady_clock::now() > tNextPos) {
-                    SendXPSimTime();
+                    
+                    SendXPSimTime(nCountPosSent <= 0);  // force every once in a while
                     SendUsersPlanePos();
-                    tNextPos = std::chrono::steady_clock::now() + std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+
+                    // Request initial traffic just once
+                    if (nCountPosSent < 0)
+                        RequestBufferTraffic();
+                        
+                    // next time in about 200ms
+                    tNextPos = std::chrono::steady_clock::now() +
+                    std::chrono::milliseconds(dataRefs.GetRTSendPosFrequ());
+                    // count a times until we send the timing again
+                    if (++nCountPosSent >= RT_CNT_SEND_TIMING)
+                        nCountPosSent = 0;
                 }
             }
             // Not connected by TCP, are we still listening and waiting?
@@ -1393,7 +1447,7 @@ void RealTrafficConnection::MainUDP ()
                 StopTcpConnection();
                 StartTcpConnection();
             }
-            
+
             // cleanup map of last datagrams
             CleanupMapDatagrams();
             // map is empty? That only happens if we don't receive data continuously
@@ -1409,11 +1463,13 @@ void RealTrafficConnection::MainUDP ()
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
         IncErrCnt();
     }
-    
+
     // Let's make absolutely sure that any connection is really closed
     // once we return from this thread
     if (udpTrafficData.isOpen())
         udpTrafficData.Close();
+    if (udpWeatherData.isOpen())
+        udpWeatherData.Close();
 #if APL == 1 || LIN == 1
     // close the self-pipe sockets
     for (SOCKET &s: udpPipe) {
@@ -1424,10 +1480,15 @@ void RealTrafficConnection::MainUDP ()
 
     // Make sure the TCP listener is down
     StopTcpConnection();
-    
+
     // stopped
     SetStatus(RT_STATUS_NONE);
 
+    // Reset weather control (this assumes noone else can control weather and
+    // would need to change once any other source in LiveTraffic can do so)
+    // however only if actually stopping RT, but not in case of a switch between App and UI
+    if (!shallRun())
+        WeatherReset();
 }
 
 // sets the status and updates global text to show elsewhere
@@ -1578,9 +1639,6 @@ void RealTrafficConnection::tcpConnection ()
             // so we did accept a connection!
             LOG_MSG(logDEBUG, "RealTraffic: Accepted TCP connection from RealTraffic App");
             SetStatusTcp(true, false);
-            // send our simulated time and first position
-            SendXPSimTime();
-            SendUsersPlanePos();
         }
         else
         {
@@ -1663,28 +1721,17 @@ void RealTrafficConnection::SendTime (long long ts)
 }
 
 // Send XP's current simulated time to RealTraffic, adapted to "today or earlier"
-void RealTrafficConnection::SendXPSimTime()
+void RealTrafficConnection::SendXPSimTime (bool bForce)
 {
-    // Which time stamp to send?
-    long long ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    
-    switch (dataRefs.GetRTSTC()) {
-        case STC_NO_CTRL:                           // always use system time
-            break;
-            
-        case STC_SIM_TIME_MANUALLY:                 // time offset configured manually: Just deduct from 'now'
-            ts -= ((long long)dataRefs.GetRTManTOfs()) * 60000LL;
-            break;
-            
-        case STC_SIM_TIME_PLUS_BUFFER:              // Simulated time
-            if (!dataRefs.IsUsingSystemTime()) {    // not using system time:
-                ts = dataRefs.GetXPSimTime_ms();    // send simulated time
-                // add buffering period, so planes match up with simulator time exactly instead of being delayed
-                ts += (long long)(dataRefs.GetFdBufPeriod()) * 1000LL;
-            }
+    const long currOff = dataRefs.GetRTHistTimeOff();
+    if (bForce || currOff != curr.tOff) {               // did the historic time offset setting change?
+        curr.tOff = currOff;
+        // Which time stamp to send?
+        const long long ts = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()
+        // reduce by (potential) historic time request, convert to milliseconds
+                             - (long long)curr.tOff * 60000LL;
+        SendTime(ts);
     }
-    
-    SendTime(ts);
 }
 
 
@@ -1702,10 +1749,10 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
     snprintf(s,sizeof(s),
              "Qs121=%ld;%ld;%.15f;%ld;%ld;%.15f;%.15f\n",
              lround(deg2rad(pos.pitch()) * 100000.0),   // pitch
-             lround(deg2rad(pos.roll()) * 100000.0),    // bank/roll
+             lround(deg2rad(-pos.roll()) * 100000.0),   // bank/roll (inverted)
              deg2rad(pos.heading()),                    // heading
-             lround(pos.alt_ft() * 1000.0),             // altitude
-             lround(speed_m),                           // speed
+             lround(pos.alt_ft() * 1000.0),             // altitude (ft * 1000)
+             lround(speed_m * KT_per_M_per_S * 1000.0), // ground speed (knots * 1000)
              deg2rad(pos.lat()),                        // latitude
              deg2rad(pos.lon())                         // longitude
     );
@@ -1717,9 +1764,20 @@ void RealTrafficConnection::SendPos (const positionTy& pos, double speed_m)
 // send the position of the user's plane
 void RealTrafficConnection::SendUsersPlanePos()
 {
-    double airSpeed_m = 0.0;
-    positionTy pos = dataRefs.GetUsersPlanePos(&airSpeed_m);
-    SendPos(pos, airSpeed_m);
+    double groundSpeed_m = 0.0;
+    rtWx.pos = curr.pos = dataRefs.GetUsersPlanePos(nullptr, nullptr, nullptr, &groundSpeed_m);
+    SendPos(curr.pos, groundSpeed_m);
+}
+
+
+// Request data for buffering from the App via the TCP channel
+void RealTrafficConnection::RequestBufferTraffic ()
+{
+    // send the string to request buffer traffic
+    char s[100];
+    snprintf(s, sizeof(s), "Qs999=sendbuffer=%d",
+             std::min<int>(10, dataRefs.GetFdBufPeriod() / 10));
+    SendMsg(s);
 }
 
 
@@ -1741,7 +1799,15 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     
     // not enough fields found for any message?
     if (tfc.size() < RT_MIN_TFC_FIELDS)
-    { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
+    {
+        // RealTraffic sends an "RTPARK_EOT"/"RTTFC_EOT" message when it is done sending one round of updates,
+        // but we don't need it and silently ignore any kind of "_EOT" message
+        if (std::strstr(traffic, "_EOT"))
+            return true;
+        // Otherwise it's worth a warning because it's unexpected
+        LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic);
+        return false;
+    }
     
     // *** Duplicaton Check ***
     
@@ -2116,7 +2182,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
 }
 
 
-// Determine timestamp adjustment necessairy in case of historic data
+// Determine timestamp adjustment necessary in case of historic data
 void RealTrafficConnection::AdjustTimestamp (double& ts)
 {
     // the assumed 'now' is simTime + buffering period
@@ -2144,22 +2210,24 @@ void RealTrafficConnection::AdjustTimestamp (double& ts)
     }
     
     // *** Need to change the timestamp adjustment?
-    // Priority has to change back to zero if we are half the buffering period away from "now"
-    const int halfBufPeriod = dataRefs.GetFdBufPeriod()/2;
-    if (medianTs < 0.0 ||
-        std::abs(medianTs) <= halfBufPeriod) {
+    // Priority has to change back to zero if we are within the buffering period
+    const int bufPeriod = dataRefs.GetFdBufPeriod();
+    if (medianTs < bufPeriod) {
         if (tsAdjust > 0.0) {
             tsAdjust = 0.0;
             SHOW_MSG(logINFO, INFO_RT_REAL_TIME);
         }
     }
     // ...if that median is more than half the buffering period away from current adjustment
-    else if (std::abs(medianTs - tsAdjust) > halfBufPeriod)
+    else if (std::abs(medianTs - tsAdjust) > bufPeriod/2)
     {
         // new adjustment is that median, rounded to 10 seconds
         tsAdjust = std::round(medianTs / 10.0) * 10.0;
         SHOW_MSG(logINFO, INFO_RT_ADJUST_TS, GetAdjustTSText().c_str());
     }
+    
+    // Remember for other calculations, e.g. weather, here in minutes
+    curr.tOff = std::lround(tsAdjust / 60.0);
 
     // Adjust the passed-in timestamp by the determined adjustment
     ts += tsAdjust;
@@ -2237,11 +2305,42 @@ void RealTrafficConnection::CleanupMapDatagrams()
     // or in other words: Remove all data that had no updates for
     // the outdated period, planes will vanish soon anyway
     const double cutOff = dataRefs.GetSimTime() - dataRefs.GetAcOutdatedIntvl();
-    
+
     for (auto it = mapDatagrams.begin(); it != mapDatagrams.end(); ) {
         if (it->second.posTime < cutOff)
             it = mapDatagrams.erase(it);
         else
-            ++it;            
+            ++it;
     }
+}
+
+// Process UDP weather JSON from RT Application
+bool RealTrafficConnection::ProcessRecvedWeatherData (const char* weather)
+{
+    // Silently ignore too frequent weather data
+    if (std::chrono::steady_clock::now() < rtWx.next) {
+        // LOG_MSG(logDEBUG, "RealTraffic: Ignoring too frequent weather updates");
+        return false;
+    }
+    
+    // sanity check: not empty
+    if (!weather || !weather[0])
+        return false;
+
+    // Raw data logging
+    DebugLogRaw(weather, HTTP_FLAG_UDP);
+
+    // Parse JSON, unique_ptr ensures it is freed before leaving the function
+    JSONRootPtr pRoot (weather);
+    const JSON_Object* pMain = json_object(pRoot.get());
+    if (!pMain) {
+        LOG_MSG(logERR, "RealTraffic: Could not parse weather JSON: %s", weather);
+        IncErrCnt();
+        return false;
+    }
+
+    // The weather JSON can have different formats depending on how RT App sends it
+    // Check for 'data' object (similar to direct API response) or use root directly
+    const JSON_Object* pData = json_object_get_object(pMain, "data");
+    return PreProcessWeather (pData ? pData : pMain);
 }
