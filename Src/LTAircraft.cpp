@@ -6,7 +6,7 @@
 ///             LTAircraft calculates the current position and configuration of the aircraft
 ///             in every flighloop cycle while being called from libxplanemp.
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -2453,6 +2453,7 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
     pOut->bits.hidden = !IsVisible();
     pOut->bits.camera = IsInCameraView();
     pOut->bits.multiIdx = tcasTargetIdx;
+    pOut->bits.trspMode = unsigned(acRadar.mode);       // v4.4.0 addition
     pOut->bits.filler2 = 0;
     pOut->bits.filler3 = 0;
     
@@ -2462,6 +2463,14 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
         pOut->lon = GetPPos().lon();
         pOut->alt_ft = GetPPos().alt_ft();
     }
+    
+    // v4.4.0 additions
+    pOut->x     = double(drawInfo.x);           // It is double because X-Plane is moving towards double already...we'll change LiveTraffic probably sometime soon, too
+    pOut->y     = double(drawInfo.y);
+    pOut->z     = double(drawInfo.z);
+    pOut->v_x   = v_x;
+    pOut->v_y   = v_y;
+    pOut->v_z   = v_z;
 }
     
 // copies text information out into the bulk structure for LTAPI usage

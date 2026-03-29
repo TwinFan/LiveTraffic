@@ -10,7 +10,7 @@
 ///             textual info like type, registration, call sign, flight number.
 /// @see        https://twinfan.github.io/LTAPI/
 /// @author     Birger Hoppe
-/// @copyright  (c) 2019-2025 Birger Hoppe
+/// @copyright  (c) 2019-2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -36,6 +36,7 @@
 #include <list>
 #include <map>
 #include <chrono>
+#include <cmath>
 
 #include "XPLMDataAccess.h"
 #include "XPLMGraphics.h"
@@ -85,6 +86,20 @@ public:
         FPH_STOPPED_ON_RWY              ///< Stopped on runway because ran out of tracking data, plane will disappear soon
     };
 
+    /// @brief These enumerations define the way the transponder of a given plane is operating.
+    /// @note as defined by dataRef `sim/cockpit2/tcas/targets/ssr_mode`:
+    ///       "Transponder mode: off=0, stdby=1, on (mode A)=2, alt (mode C)=3, test=4, GND (mode S)=5, ta_only (mode S)=6, ta/ra=7"
+    enum XPMPTransponderMode {
+        xpmpTransponderMode_Off = 0,        ///< transponder is off         not currently sending -> aircraft not visible on TCAS
+        xpmpTransponderMode_Standby,        ///< transponder is in standby, not currently sending -> aircraft not visible on TCAS
+        xpmpTransponderMode_ModeA,          ///< transponder is on, Mode A
+        xpmpTransponderMode_ModeC,          ///< transponder is on, Mode C (Alt)
+        xpmpTransponderMode_Test,           ///< transponder is on, Test
+        xpmpTransponderMode_ModeS_Gnd,      ///< transponder is on, Mode S (Gnd)
+        xpmpTransponderMode_ModeS_TAOnly,   ///< transponder is on, Mode S (TA-Only)
+        xpmpTransponderMode_ModeS_TARA,     ///< transponder is on, Mode S (TA/RA)
+    };
+    
     /// @brief Bulk data transfer structur for communication with LTAPI
     /// @note Structure needs to be in synch with LiveTraffic,
     ///       version differences are handled using a struct size "negotiation",
@@ -126,20 +141,31 @@ public:
             bool        camera     : 1;     ///< is LiveTraffic's camera on this aircraft?
             // Misc
             int         multiIdx    : 8;    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
+            // Transponder Mode (added in LT 4.4.0)
+            unsigned    trspMode    : 4;    ///< Transponder mode, see enum XPMPTransponderMode (filled only as of LT 4.4.0)
             // Filler for 8-byte alignment
-            unsigned    filler2     : 8;
+            unsigned    filler2     : 4;
             unsigned    filler3     : 32;
         } bits;                             ///< Flights phase, on-ground status, lights
         
         // V1.22 additions
-        double          lat             = 0.0f; ///< [°] latitude
-        double          lon             = 0.0f; ///< [°] longitude
-        double          alt_ft          = 0.0f; ///< [ft] altitude
+        double          lat     = 0.0f;     ///< [°] latitude
+        double          lon     = 0.0f;     ///< [°] longitude
+        double          alt_ft  = 0.0f;     ///< [ft] altitude
 
+        // LT v4.4.0 additions
+        // Cartesian location in local coordinates
+        double          x       = NAN;      ///< local Cartesian X coordinate (NAN indicates to delivered by master, e.g. because older version)
+        double          y       = NAN;      ///< local Cartesian Y coordinate
+        double          z       = NAN;      ///< local Cartesian Z coordinate
+        // Cartesian velocity in m/s per axis, updated at least once per second
+        double          v_x     = NAN;      ///< [m/s] Cartesian velocity in X direction
+        double          v_y     = NAN;      ///< [m/s] Cartesian velocity in Y direction
+        double          v_z     = NAN;      ///< [m/s] Cartesian velocity in Z direction
         
         /// Constructor initializes some data without defaults
         LTAPIBulkData()
-        { memset(&bits, 0, sizeof(bits)); }
+        { memset(&bits, 0, sizeof(bits)); bits.trspMode = 4; }
     };
     
     /// @brief Bulk text transfer structur for communication with LTAPI
@@ -275,15 +301,31 @@ public:
     float           getBearing()        const { return bulk.bearing; }          ///< [°] to current camera position
     float           getDistNm()         const { return bulk.dist_nm; }          ///< [nm] distance to current camera
     int             getMultiIdx()       const { return bulk.bits.multiIdx; }    ///< multiplayer index if plane reported via sim/multiplayer/position dataRefs, 0 if not
+    XPMPTransponderMode getTrspMode()   const                                   ///< Transponder mode, like off, Mode_C, Mode_S_TARA
+    { return XPMPTransponderMode(bulk.bits.trspMode); }
+    const char*     getTrspModeTxt()    const;                                  ///< Transponder mode text, like "off", "Mode C", "Mode S TARA"
 
-    // calculated
     /// @brief `lat`/`lon`/`alt` converted to local coordinates
+    /// @see https://developer.x-plane.com/article/screencoordinates/#3-D_Coordinate_System
+    /// @param[out] v_x [m/s] Local cartesian velocity on the x axis of the local coordinate system (roughly "east")
+    /// @param[out] v_y [m/s] Local cartesian velocity on the y axis of the local coordinate system (roughly "up")
+    /// @param[out] v_z [m/s] Local cartesian velocity on the z axis of the local coordinate system (roughly "south")
+    void            getLocalVelocities (double& v_x, double& v_y, double& v_z) const
+    { v_x = bulk.v_x; v_y = bulk.v_y; v_z = bulk.v_z; }
+    
+    /// @brief [m/s] Approximate ground speed based on local coordinates
+    double          getLocalGndSpeed_ms () const { return std::hypot(bulk.v_x, bulk.v_z); }
+    /// @brief [kn] Approximate ground speed based on local coordinates
+    double          getLocalGndSpeed_kn () const { return getLocalGndSpeed_ms() * 1.94384; }
+
+    // calculated (or transferred in newer versions)
+    /// @brief Local coordinates (coverted from `lat`/`lon`/`alt` in older versions)
+    /// @see https://developer.x-plane.com/article/screencoordinates/#3-D_Coordinate_System
     /// @see https://developer.x-plane.com/sdk/XPLMGraphics/#XPLMWorldToLocal
     /// @param[out] x Local x coordinate
     /// @param[out] y Local y coordinate
     /// @param[out] z Local z coordinate
-    void            getLocalCoord (double& x, double& y, double& z) const
-    { XPLMWorldToLocal(bulk.lat,bulk.lon,bulk.alt_ft*0.3048, &x,&y,&z); }
+    void            getLocalCoord (double& x, double& y, double& z) const;
 
 public:
     /// @brief Standard object creation callback.
@@ -509,13 +551,26 @@ protected:
 
 /// Size of original bulk structure as per LiveTraffic v1.20
 constexpr size_t LTAPIBulkData_v120 = 80;
+/// Size of bulk structure as per LiveTraffic v1.22
+#if IBM
+constexpr size_t LTAPIBulkData_v122 = 120;
+#else
+constexpr size_t LTAPIBulkData_v122 = 104;
+#endif
+
 /// Size of current bulk structure
-constexpr size_t LTAPIBulkData_v122 = sizeof(LTAPIAircraft::LTAPIBulkData);
+constexpr size_t LTAPIBulkData_v440 = sizeof(LTAPIAircraft::LTAPIBulkData);
+#if IBM
+static_assert(LTAPIBulkData_v440 == 168, "LTAPIBulkData size is not 152 as expected");
+#else
+static_assert(LTAPIBulkData_v440 == 152, "LTAPIBulkData size is not 152 as expected");
+#endif
 
 /// Size of original bulk info structure as per previous versions of LiveTraffic
 constexpr size_t LTAPIBulkInfoTexts_v120 = 264;
 constexpr size_t LTAPIBulkInfoTexts_v122 = 288;
 /// Size of current bulk info structure
 constexpr size_t LTAPIBulkInfoTexts_v240 = sizeof(LTAPIAircraft::LTAPIBulkInfoTexts);
+static_assert(LTAPIBulkInfoTexts_v240 == 304, "LTAPIBulkInfoTexts size is not 304 as expected");
 
 #endif /* LTAPI_h */
