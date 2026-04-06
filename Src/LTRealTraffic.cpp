@@ -758,6 +758,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
         
         std::string s           = jag_s(pJAc, RT_DRCT_Category);
         stat.catDescr           = GetADSBEmitterCat(s);
+        stat.slug               = GetSlug(fdKey.num);
         
         // RealTraffic often sends ASW20 when it should be AS20, a glider
         if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
@@ -950,7 +951,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         stat.acTypeIcao         = std::move(dat.acType);
         stat.call               = std::move(dat.call);
         stat.reg                = std::move(dat.reg);
-        
+
         // RealTraffic often sends ASW20 when it should be AS20, a glider
         if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
         
@@ -2023,6 +2024,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.call           = tfc[RT_RTTFC_CS_ICAO];
         stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
         stat.setOrigDest(tfc[RT_RTTFC_FROM_IATA], tfc[RT_RTTFC_TO_IATA]);
+        stat.slug           = GetSlug(fdKey.num);
 
         const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
         stat.catDescr       = GetADSBEmitterCat(sCat);
@@ -2180,6 +2182,8 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
             stat.reg = STATIC_OBJECT_TYPE;
             stat.catDescr = GetADSBEmitterCat("C3");
         }
+        
+        stat.slug               = GetSlug(fdKey.num);
 
         // -- dynamic data --
         LTFlightData::FDDynamicData dyn;
@@ -2248,6 +2252,16 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
     // success
     return true;
 }
+
+
+// returns a slug string for a given hex id
+std::string RealTrafficConnection::GetSlug (unsigned long hex) const
+{
+    char buf[100];
+    snprintf(buf, sizeof(buf), RT_SLUG, hex);
+    return std::string(buf);
+}
+
 
 
 // Determine timestamp adjustment necessary in case of historic data

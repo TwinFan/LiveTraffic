@@ -39,6 +39,7 @@
 #define RT_CHECK_NAME           "RealTraffic Web Site"
 #define RT_CHECK_URL            "https://www.flyrealtraffic.com/"
 #define RT_CHECK_POPUP          "Open RealTraffic's web site"
+#define RT_SLUG                 "https://www.flyrealtraffic.com/livemap/?hex=%lx"
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
@@ -434,6 +435,7 @@ protected:
     ///< Process a AITFC or XTRAFFICPSX type message
     bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc, int nBuffer);
     bool ProcessRecvedWeatherData (const char* weather);                                      ///< Process UDP weather JSON from RT Application
+    std::string GetSlug (unsigned long hex) const;          ///< returns a slug string for a given hex id
     
     /// Determine timestamp adjustment necessary in case of historic data
     void AdjustTimestamp (double& ts, int nBuffer);
