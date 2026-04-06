@@ -136,6 +136,8 @@ std::string RealTrafficConnection::GetStatusText () const
     // Add extended information specifically on RealTraffic connection status
     s += " | ";
     s += GetStatusStr();
+    if (bWaitForBuffers)
+        s += " | Waiting for buffered traffic";
     if (IsConnected() && lastReceivedTime > 0.0) {
         // add when the last msg was received
         snprintf(sIntvl,sizeof(sIntvl),MSG_RT_LAST_RCVD,
@@ -165,6 +167,23 @@ void RealTrafficConnection::Main ()
 {
     // Loop to facilitate a change between connection types
     while (shallRun()) {
+        
+        // -- Init --
+
+        // Clear the list of historic time stamp differences
+        dequeTS.clear();
+        // Some more data resets to make sure we start over with the series of requests
+        curr.eRequType = CurrTy::RT_REQU_AUTH;
+        curr.sGUID.clear();
+        rtWx.QNH = NAN;
+        rtWx.nErr = 0;
+        rtWx.ResetFirstTime();
+        lTotalFlights = -1;
+
+        // reset last known values
+        lastReceivedTime = 0.0;
+        lastKnownViewPos = positionTy();
+        
         // Just distinguish between direct R/R and UDP connection
         switch (dataRefs.GetRTConnType())
         {
@@ -192,15 +211,6 @@ void RealTrafficConnection::MainDirect ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_Direct", LC_ALL_MASK);
-    // Clear the list of historic time stamp differences
-    dequeTS.clear();
-    // Some more data resets to make sure we start over with the series of requests
-    curr.eRequType = CurrTy::RT_REQU_AUTH;
-    curr.sGUID.clear();
-    rtWx.QNH = NAN;
-    rtWx.nErr = 0;
-    rtWx.ResetFirstTime();
-    lTotalFlights = -1;
     // can right away read parked traffic if parked aircraft enabled and airport data is already available, otherwise we'll be triggered later when airport data has been processed
     bDoParkedTraffic = dataRefs.ShallKeepParkedAircraft() && LTAptAvailable();
     // If we could theoretically set weather we prepare the interpolation settings
@@ -386,27 +396,48 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                      curr.tOff);
             break;
         case CurrTy::RT_REQU_PARKED:
+        {
+            // we add 10% to the bounding box to have some data ready once the plane is close enough for display
+            const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
+            snprintf(s,sizeof(s),
+                     RT_TRAFFIC_POST_PARKED,
+                     curr.sGUID.c_str(),
+                     box.top(),  box.bottom(),
+                     box.left(), box.right(),
+                     curr.tOff);
+            break;
+        }
         case CurrTy::RT_REQU_TRAFFIC:
         {
             // we add 10% to the bounding box to have some data ready once the plane is close enough for display
             const boundingBoxTy box (curr.pos, double(dataRefs.GetFdStdDistance_m()) * 1.10);
             
-            // If we request traffic for the very first time, then we ask for some buffer into the past for faster plane display
-            if ((curr.eRequType == CurrTy::RT_REQU_TRAFFIC) && IsFirstTrafficRequ()) {
+            // If we request traffic for the very first time or if user jumped far, then we ask for some buffer into the past for faster plane display
+            if (!lastKnownViewPos.isNormal() ||
+                lastKnownViewPos.distRoughSqr(curr.pos) > sqr(dataRefs.GetFdStdDistance_m()/2))
+            {
+                if (lastKnownViewPos.isNormal()) {
+                    LOG_MSG(logDEBUG, "Moved far, by %.1fnm",
+                            lastKnownViewPos.dist(curr.pos) / M_per_NM);
+                }
+                lastKnownViewPos = curr.pos;
+                
+                // Send buffered traffic request
                 snprintf(s,sizeof(s), RT_TRAFFIC_POST_BUFFER,
                          curr.sGUID.c_str(),
-                         box.nw.lat(), box.se.lat(),
-                         box.nw.lon(), box.se.lon(),
+                         box.top(),  box.bottom(),
+                         box.left(), box.right(),
                          curr.tOff,
-                         std::min<int>(10, dataRefs.GetFdBufPeriod() / 10));    // One buffer per 10s of buffering time, max of 10 buffers
+                         GetNumTrafficBuffers(),
+                         RT_BUFFER_PERIOD);
             }
-            // normal un-buffered request for traffic or parked aircraft
+            // normal un-buffered request for traffic
             else {
                 snprintf(s,sizeof(s),
-                         curr.eRequType == CurrTy::RT_REQU_TRAFFIC ? RT_TRAFFIC_POST : RT_TRAFFIC_POST_PARKED,
+                         RT_TRAFFIC_POST,
                          curr.sGUID.c_str(),
-                         box.nw.lat(), box.se.lat(),
-                         box.nw.lon(), box.se.lon(),
+                         box.top(),  box.bottom(),
+                         box.left(), box.right(),
                          curr.tOff);
             }
             break;
@@ -1292,18 +1323,13 @@ void RealTrafficConnection::MainUDP ()
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_RT_App", LC_ALL_MASK);
 
-    rtWx.QNH = NAN;
-    rtWx.nErr = 0;
-    rtWx.ResetFirstTime();
-    lTotalFlights = -1;
-
     // Top-level exception handling
     try {
         // set startup status
         SetStatus(RT_STATUS_STARTING);
-
-        // Clear the list of historic time stamp differences
-        dequeTS.clear();
+        
+        // When starting up we definitely want to request buffered traffic first, so make sure we don't process live traffic
+        bWaitForBuffers = true;
 
         // If we could theoretically set weather we prepare the interpolation settings
         if (WeatherCanSet()) {
@@ -1394,17 +1420,14 @@ void RealTrafficConnection::MainUDP ()
             if (retval > 0 && FD_ISSET(udpWeatherData.getSocket(), &sRead))
             {
                 // read UDP datagram
-                long rcvdBytes = udpWeatherData.recv();
+                const long rcvdBytes = udpWeatherData.recv();
 
-/* TODO: Reenable once RT App Weather works
-         Currently disabled because what we get more often than not is a forwarded "tiny delta" notice
                 // received something?
                 if (rcvdBytes > 0)
                 {
                     // have it processed
                     ProcessRecvedWeatherData(udpWeatherData.getBuf());
                 }
- */
             }
             // handling of errors, both from select and from recv
             if (retval < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
@@ -1430,10 +1453,20 @@ void RealTrafficConnection::MainUDP ()
                     
                     SendXPSimTime(nCountPosSent <= 0);  // force every once in a while
                     SendUsersPlanePos();
-
-                    // Request initial traffic just once
-                    if (nCountPosSent < 0)
-                        RequestBufferTraffic();
+                    
+                    // "fast move" detection
+                    const positionTy viewPos = dataRefs.GetViewPos();
+                    if (!lastKnownViewPos.isNormal() ||
+                        lastKnownViewPos.distRoughSqr(viewPos) > sqr(dataRefs.GetFdStdDistance_m()/2))
+                    {
+                        if (lastKnownViewPos.isNormal()) {
+                            LOG_MSG(logDEBUG, "Moved far, by %.1fnm",
+                                    lastKnownViewPos.dist(viewPos) / M_per_NM);
+                        }
+                        RequestBufferTraffic(viewPos, dataRefs.GetFdStdDistance_m());
+                        lastKnownViewPos = viewPos;
+                        bWaitForBuffers = true;
+                    }
                         
                     // next time in about 200ms
                     tNextPos = std::chrono::steady_clock::now() +
@@ -1773,13 +1806,22 @@ void RealTrafficConnection::SendUsersPlanePos()
 
 
 // Request data for buffering from the App via the TCP channel
-void RealTrafficConnection::RequestBufferTraffic ()
+// Qs999=sendbuffer=count,time,[bottom,left,top,right]\n
+void RealTrafficConnection::RequestBufferTraffic (const positionTy& pos,
+                                                  double radius_m)
 {
+    const boundingBoxTy box (pos, radius_m);
     // send the string to request buffer traffic
     char s[100];
-    snprintf(s, sizeof(s), "Qs999=sendbuffer=%d",
-             std::min<int>(10, dataRefs.GetFdBufPeriod() / 10));
+    snprintf(s, sizeof(s), "Qs999=sendbuffer=%d,%d,%.2f,%.2f,%.2f,%.2f\n",
+             GetNumTrafficBuffers(),
+             RT_BUFFER_PERIOD,
+             box.bottom(), box.left(),
+             box.top(),    box.right());
     SendMsg(s);
+    LOG_MSG(logINFO, "Requested buffered traffic %ldnm around %s",
+            std::lround(radius_m / M_per_NM),
+            std::string(pos).c_str());
 }
 
 
@@ -1802,10 +1844,14 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     // not enough fields found for any message?
     if (tfc.size() < RT_MIN_TFC_FIELDS)
     {
-        // RealTraffic sends an "RTPARK_EOT"/"RTTFC_EOT" message when it is done sending one round of updates,
-        // but we don't need it and silently ignore any kind of "_EOT" message
-        if (std::strstr(traffic, "_EOT"))
+        // RealTraffic sends various markers that we mostly don't need...we just ignore them
+        if (tfc.size() == 1) {
+            if (tfc[0] == "RTBUF_EOT") {        // but when done with buffers process normal traffic again
+                LOG_MSG(logINFO, "RTBUF_EOT Finished receiving buffered traffic");
+                bWaitForBuffers = false;
+            }
             return true;
+        }
         // Otherwise it's worth a warning because it's unexpected
         LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic);
         return false;
@@ -1841,25 +1887,43 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     
     // *** Process different formats ****
     
+    // buffered traffic?
+    int nBuf = 0;
+    if (std::strncmp(tfc[RT_RTTFC_REC_TYPE].c_str(), "RTBUF=", 6) == 0) {
+        nBuf = std::atoi(tfc[RT_RTTFC_REC_TYPE].c_str()+6) + 1;
+        if (bWaitForBuffers) {
+            LOG_MSG(logDEBUG, "RTBUF Received first buffered traffic");
+            bWaitForBuffers = false;        // buffered traffic has arrived, we wait no longer
+        }
+    }
+    else {
+        // live traffic...but if we are waiting for buffered then we skip it silently
+        if (bWaitForBuffers)
+            return true;
+    }
+    
     // There are 3 formats we are _really_ interested in: RTTFC, AITFC, and XTRAFFICPSX
     // Check for them and their correct number of fields
-    if (tfc[RT_RTTFC_REC_TYPE] == RT_TRAFFIC_RTTFC) {
+    if (tfc[RT_RTTFC_REC_TYPE] == RT_TRAFFIC_RTTFC ||                   // regular traffic
+        (nBuf && tfc.size() >= RT_RTTFC_MIN_TFC_FIELDS))                // buffered traffic with many fields
+    {
         if (tfc.size() < RT_RTTFC_MIN_TFC_FIELDS)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
 
-        return ProcessRTTFC(fdKey, tfc);
+        return ProcessRTTFC(fdKey, tfc, nBuf);
     }
-    else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_AITFC) {
+    // Buffered traffic comes with few fields and is typically processed here as AITFC format
+    else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_AITFC || nBuf) {
         if (tfc.size() < RT_AITFC_NUM_FIELDS_MIN)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
 
-        return ProcessAITFC(fdKey, tfc);
+        return ProcessAITFC(fdKey, tfc, nBuf);
     }
     else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
         if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
 
-        return ProcessAITFC(fdKey, tfc);
+        return ProcessAITFC(fdKey, tfc, false);
     }
     else {
         // other format than AITFC or XTRAFFICPSX
@@ -1898,11 +1962,12 @@ double firstPositive (const std::vector<std::string>& tfc,
 ///            35008,-1,71.02, autopilot|vnav|lnav|tcas,0.0,-21.9,223,24,
 ///            -30,0,1,170124
 bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
-                                          const std::vector<std::string>& tfc)
+                                          const std::vector<std::string>& tfc,
+                                          int nBuffer)
 {
     // *** position time ***
     double posTime = std::stod(tfc[RT_RTTFC_TIMESTAMP]);
-    AdjustTimestamp(posTime);
+    AdjustTimestamp(posTime, nBuffer);
 
     // *** Process received data ***
 
@@ -2027,7 +2092,8 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
 ///            XTRAFFICPSX,531917901,40.9145,-73.7625,1975,64,1,218,140,DAL9936(BCS1)
 ///
 bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
-                                          const std::vector<std::string>& tfc)
+                                          const std::vector<std::string>& tfc,
+                                          int nBuffer)
 {
     // *** position time ***
     // There are 2 possibilities:
@@ -2042,7 +2108,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
     {
         // use that delivered timestamp and (potentially) adjust it if it is in the past
         posTime = std::stod(tfc[RT_AITFC_TIMESTAMP]);
-        AdjustTimestamp(posTime);
+        AdjustTimestamp(posTime, nBuffer);
     }
     else
     {
@@ -2185,13 +2251,21 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
 
 
 // Determine timestamp adjustment necessary in case of historic data
-void RealTrafficConnection::AdjustTimestamp (double& ts)
+void RealTrafficConnection::AdjustTimestamp (double& ts, int nBuffer)
 {
+    // If this is a buffered request then it is a timestamp further in the past, adjust for that
+    if (nBuffer) {
+        // buffer number starts with 1 for the oldest buffer all the way up to the GetNumTrafficBuffers
+        // for the last buffer before current time
+        nBuffer = (GetNumTrafficBuffers() - nBuffer + 1) * RT_BUFFER_PERIOD;
+    }
+    
     // the assumed 'now' is simTime + buffering period
+    // minus the buffering time if we are buffering
     const double now = dataRefs.GetSimTime() + dataRefs.GetFdBufPeriod();
     
     // *** Keep the rolling list of timestamps diffs, max length: 11 ***
-    dequeTS.push_back(now - ts);
+    dequeTS.push_back(now - (ts + double(nBuffer)));
     while (dequeTS.size() > 11)
         dequeTS.pop_front();
     

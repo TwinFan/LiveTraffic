@@ -241,10 +241,10 @@ std::string OpenGliderConnection::GetURL (const positionTy& pos)
     char url[128] = "";
     snprintf(url, sizeof(url),
              OPGLIDER_URL,
-             box.nw.lat(),              // lamax
-             box.se.lat(),              // lamin
-             box.se.lon(),              // lomax
-             box.nw.lon());             // lomin
+             box.top(),                 // lamax
+             box.bottom(),              // lamin
+             box.right(),               // lomax
+             box.left());               // lomin
     return std::string(url);
 }
 

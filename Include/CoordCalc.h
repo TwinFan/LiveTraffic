@@ -527,6 +527,16 @@ struct boundingBoxTy {
     positionTy sw () const { return positionTy(se.lat(), nw.lon()); }
     /// north-east corner ("maximum")
     positionTy ne () const { return positionTy(nw.lat(), se.lon()); }
+    
+    double& top ()          { return nw.lat(); }
+    double& bottom ()       { return se.lat(); }
+    double& left ()         { return nw.lon(); }
+    double& right ()        { return se.lon(); }
+
+    double  top ()    const { return nw.lat(); }
+    double  bottom () const { return se.lat(); }
+    double  left ()   const { return nw.lon(); }
+    double  right ()  const { return se.lon(); }
 
     // standard string for any output purposes
     operator std::string() const;
