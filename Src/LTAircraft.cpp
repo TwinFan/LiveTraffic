@@ -1858,13 +1858,7 @@ bool LTAircraft::CalcPPos()
     // calculate timestamp can be a bit off, especially when acceleration is in progress,
     // overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
-/*
-#warning Remove this
-    if (bIsSelected) {
-        LOG_MSG(logDEBUG,"f=%.4f, p={%s}, head=%.1f -> %.1f",
-                f, ppos.dbgTxt().c_str(), prevHead, ppos.heading());
-    }
-*/
+
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
     // catch that case...likely the a/c is to be removed due to outdated data
     // soon anyway, we just speed up things a bit here
@@ -2909,17 +2903,17 @@ void LTAircraft::UpdatePosition (float, int cycle)
         SetThrustReversRatio((float)reversers.get());
 
         // for engine / prop rotation we derive a value based on flight model
-        if (pDoc8643->hasRotor())
+        if (GetFlightPhase() == FPH_PARKED)
+            SetEngineRotRpm(0.0f);
+        else if (pDoc8643->hasRotor())
             SetEngineRotRpm(float(pMdl->PROP_RPM_MAX));
         else
             SetEngineRotRpm(float(pMdl->PROP_RPM_MAX/2 + GetThrustRatio() * pMdl->PROP_RPM_MAX/2));
         SetPropRotRpm(GetEngineRotRpm());
         
         // Make props and rotors move based on rotation speed and time passed since last cycle
-        SetEngineRotAngle(GetEngineRotAngle() + RpmToDegree(GetEngineRotRpm(), currCycle.diffTime));
-
-        while (GetEngineRotAngle() >= 360.0f)
-            SetEngineRotAngle(GetEngineRotAngle() - 360.0f);
+        SetEngineRotAngle(std::fmod(GetEngineRotAngle() + RpmToDegree(GetEngineRotRpm(), currCycle.diffTime),
+                                    360.0f));
         SetPropRotAngle(GetEngineRotAngle());
         
         // Gear deflection - has an effect during touch-down only
