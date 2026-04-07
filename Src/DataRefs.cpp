@@ -784,7 +784,6 @@ ILWrect (0, 400, 965, 0)
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
-    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_SYNTHETIC               - DR_CHANNEL_FIRST] = true;
 
@@ -2028,7 +2027,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420, CFG_V436 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2088,18 +2087,20 @@ bool DataRefs::LoadConfigFile()
                 cfgFileVer += std::stoul(m[3]);
             
             // any conversions required?
-            if (cfgFileVer < 30100)         // < 3.1.0
-                conv = CFG_V31;
-            if (cfgFileVer < 30301)         // < 3.3.1
-                conv = CFG_V331;
-            if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
-                conv = CFG_V342;
+            if (cfgFileVer < 40306)         // < 4.3.6: Switch off OpenSky Master File
+                conv = CFG_V436;
+            if (cfgFileVer < 40200)         // < 4.2.0: Clear ADSBEx API key (switch to other service)
+                conv = CFG_V420;
             if (cfgFileVer < 30500) {       // < 3.5.0
                 rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
                 conv = CFG_V350;
             }
-            if (cfgFileVer < 40200)         // < 4.2.0: Clear ADSBEx API key (switch to other service)
-                conv = CFG_V420;
+            if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
+                conv = CFG_V342;
+            if (cfgFileVer < 30301)         // < 3.3.1
+                conv = CFG_V331;
+            if (cfgFileVer < 30100)         // < 3.1.0
+                conv = CFG_V31;
         }
     }
     
@@ -2175,6 +2176,11 @@ bool DataRefs::LoadConfigFile()
                     case CFG_V420:
                         // Switching to v4.2 we need to disable ADSBEx until a new API key is configured
                         if (*i == DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE])
+                            sVal = "0";
+                        [[fallthrough]];
+                    case CFG_V436:
+                        // Switching off OpenSky Master File
+                        if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE])
                             sVal = "0";
                         break;
                 }
@@ -2471,7 +2477,6 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
     if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
-        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
     }
     
     // if a channel got disabled check if any tracking data channel is left

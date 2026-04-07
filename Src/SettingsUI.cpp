@@ -440,7 +440,6 @@ void LTSettingsUI::buildInterface()
                 // we also make sure that OpenSky Master data is enabled
                 if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
                     dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
                 }
                 
                 // ADSBHub's connection status details
