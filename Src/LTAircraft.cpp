@@ -2992,7 +2992,9 @@ void LTAircraft::UpdatePosition (float, int cycle)
         
     } catch (const std::exception& e) {
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-    } catch (...) {}
+    } catch (...) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown)");
+    }
 
     // for any kind of exception: don't use this object any more!
     SetInvalid();
