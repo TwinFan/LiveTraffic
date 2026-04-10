@@ -355,6 +355,8 @@ enum dataRefsLT {
     DR_SIM_DATE,
     DR_SIM_TIME,
     
+    DR_CAMERA_CONTROL,              ///< Does LiveTraffic have camera control?
+    
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
     
@@ -783,6 +785,10 @@ protected:
     std::string keyAc;                  // key (transpIcao) for a/c whose data is returned
     const LTAircraft* pAc = nullptr;    // ptr to that a/c
     
+    // Track camera control
+    const int MAX_CYCLE_NO_CAMERA_CB = 6;
+    int nCycleWithoutCameraCB = MAX_CYCLE_NO_CAMERA_CB;      ///< How many flight loop cycles did we do without receiving a camera callback? (Anything larger than 5 is considered "No camera control")
+    
     // Weather
     float       lastWeatherAttempt = 0.0f;  ///< last time we _tried_ to update the weather
     float       lastWeatherUpd = 0.0f;  ///< last time the weather was updated? (in XP's network time)
@@ -918,7 +924,11 @@ public:
     static float LTGetAcInfoF(void* p);
     
     void SetCameraAc(const LTAircraft* pCamAc); ///< sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
+    void CntCyclesWithoutCamera();              ///< Count flight loop callbacks without camera callback
+    void CntCameraCallback();                   ///< Count the fact that there was a camera callback -> resets `nCycleWithoutCameraCB`
     static void ClearCameraAc(void*);           ///< shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
+    // livetraffic/camera/control
+    static int LTHasCameraControl(void*);                   ///< Does LT have camera control?
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }

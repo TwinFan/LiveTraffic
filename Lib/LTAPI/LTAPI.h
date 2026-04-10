@@ -445,6 +445,18 @@ public:
     ///       Avoid duplicates, just use LTAPI if doesLTControlAI() is `true`.
     static bool doesLTControlAI ();
     
+    /// @brief Does LiveTraffic control X-Plane's camera?
+    /// @details LiveTraffic controls the camera if a user activates
+    ///          the camera view on a plane ( and no 3rd party plugin
+    ///          takes over immediately)
+    /// @note This can still return `false` at the time `LTAPIAircraft::toggleCamera` is called
+    ///       as at that time it is not yet clear if LiveTraffic will have camera control or a 3rd party plugin.
+    ///       It is `true` as soon as LiveTraffic receives camera callback calls from X-Plane
+    ///       and is reset to `false` as soon as LiveTraffic is informed of having lost camera control,
+    ///       or 5 flight loop callbacks after the last camera callback (in case LiveTraffic wasn't
+    ///       informed of having lost camera control, e.g. because another plugin took over directly).
+    static bool doesLTControlCamera ();
+    
     /// What is current simulated time in LiveTraffic (usually 'now' minus buffering period)?
     static time_t getLTSimTime ();
 

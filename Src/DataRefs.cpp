@@ -508,6 +508,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 
     {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, NULL,               (void*)1, false },
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, NULL,               (void*)2, false },
+    
+    {"livetraffic/camera/control",                  DataRefs::LTHasCameraControl },
 
     {"livetraffic/ver/nr",                          GetLTVerNum,  NULL, NULL, false },
     {"livetraffic/ver/date",                        GetLTVerDate, NULL, NULL, false },
@@ -1500,6 +1502,9 @@ float DataRefs::LTGetAcInfoF(void* p)
 // sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
 void DataRefs::SetCameraAc(const LTAircraft* pCamAc)
 {
+    // If the camera aircraft has just been reset then we also make sure we don't consider us having camera control
+    nCycleWithoutCameraCB = MAX_CYCLE_NO_CAMERA_CB;
+    
     // requires that we could define and find the shared dataRef
     if (!adrXP[DR_CAMERA_TCAS_IDX] ||
         !adrXP[DR_CAMERA_AC_ID])
@@ -1516,6 +1521,20 @@ void DataRefs::SetCameraAc(const LTAircraft* pCamAc)
                  pCamAc ? (int)pCamAc->GetTcasTargetIdx() : 0);
     gbIgnoreItsMe = false;
 }
+
+// Count flight loop callbacks without camera callback
+void DataRefs::CntCyclesWithoutCamera()
+{
+    if (nCycleWithoutCameraCB < MAX_CYCLE_NO_CAMERA_CB)
+        nCycleWithoutCameraCB++;
+}
+
+// Count the fact that there was a camera callback
+void DataRefs::CntCameraCallback()
+{
+    nCycleWithoutCameraCB = 0;
+}
+
 
 // shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
 void DataRefs::ClearCameraAc(void*)
@@ -1589,6 +1608,13 @@ int DataRefs::LTGetSimDateTime(void* p)
             tm.tm_sec;                              // second
     }
 }
+
+// livetraffic/camera/control
+int DataRefs::LTHasCameraControl(void*)
+{
+    return dataRefs.nCycleWithoutCameraCB >= dataRefs.MAX_CYCLE_NO_CAMERA_CB ? 0 : 1;
+}
+
 
 // Enable/Disable display of aircraft
 void DataRefs::LTSetAircraftDisplayed(void*, int i)

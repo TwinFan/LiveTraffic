@@ -2710,6 +2710,7 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     {
         CameraRegisterCommands(false);
         pExtViewAc = nullptr;
+        dataRefs.SetCameraAc(nullptr);
         return 0;
     }
 
@@ -2723,6 +2724,11 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     outCameraPosition->pitch =                              extOffs.pitch;
     outCameraPosition->roll =                               extOffs.roll;
     outCameraPosition->zoom =                               extOffs.zoom;
+    
+    // Reset the counter that counts flight loop calls w/o camera control.
+    // The "loosing control" part above works great if X-Plane itself takes over camera control,
+    // but reportedly not if a 3rd party plugin takes over, so we count ourselves.
+    dataRefs.CntCameraCallback();
     
     return 1;
 }
