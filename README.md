@@ -54,33 +54,15 @@ There are four options to build from sources:
 
 Options            | Windows            | MacOS (universal)   | Linux
 -------------------|--------------------|---------------------|-------------------
-**Github Actions** | Visual Studio 2022 | XCode 13            | Focal
+**Github Actions** | Visual Studio 2022 | XCode 14 / `ninja`  | Ubuntu-22
+**CMake**          | VS 2022 / `NMAKE`  | XCode 14 / `ninja`  | Focal / `ninja`
+**IDE**            | Visual Studio 2019 | XCode 26            | -
 **Docker**         | Mingw64            | clang, SDK 12       | Focal and Bionic
-**CMake**          | VS 2022 / `NMAKE`  | XCode 14 / `ninja`  | Focal and Bionic / `ninja`
-**IDE**            | Visual Studio 2019 | XCode 14            | -
 
 ### Github Actions
 
 LiveTraffic builds on Github, see
 [`.github/workflows/build.yml`](https://github.com/TwinFan/LiveTraffic/blob/master/.github/workflows/build.yml).
-
-### Docker Cross Compile Environment
-
-Locally, LiveTraffic can be build for all platforms using the Docker cross compile environment
-[`twinfan/focal-win-mac-lin-compile-env`](https://hub.docker.com/r/twinfan/focal-win-mac-lin-compile-env).
-Tested on Mac as a host, should work the same way on Linux.
-
-- Install [Docker Desktop](https://www.docker.com/products/docker-desktop) and start it.
-- `cd docker`
-- `make`
-
-In the first run only, it will download the necessary Docker image.
-The actual build takes only a few seconds. Results are written to `build-*/*_x64` folders.
-
-For more background info also see [`docker/README.md`](https://github.com/TwinFan/LiveTraffic/blob/master/docker/README.md).
-
-The `Makefile` also builds the `doc` target, ie. the Doxygen documentation.
-That will only work on a Mac. Otherwise, you may want to remove `doc` from `all`.
 
 ### CMake
 
@@ -115,6 +97,27 @@ so that it is right away available in your installation after build.
 - Build from within Visual Studio
 
 Results are in `build-win`.
+
+### Docker Cross Compile Environment
+
+> **NOTE:** The Docker environment hasn't been maintained for a long time
+>           and is no longer guaranteed to work.
+
+Locally, LiveTraffic can be build for all platforms using the Docker cross compile environment
+[`twinfan/focal-win-mac-lin-compile-env`](https://hub.docker.com/r/twinfan/focal-win-mac-lin-compile-env).
+Tested on Mac as a host, should work the same way on Linux.
+
+- Install [Docker Desktop](https://www.docker.com/products/docker-desktop) and start it.
+- `cd docker`
+- `make`
+
+In the first run only, it will download the necessary Docker image.
+The actual build takes only a few seconds. Results are written to `build-*/*_x64` folders.
+
+For more background info also see [`docker/README.md`](https://github.com/TwinFan/LiveTraffic/blob/master/docker/README.md).
+
+The `Makefile` also builds the `doc` target, ie. the Doxygen documentation.
+That will only work on a Mac. Otherwise, you may want to remove `doc` from `all`.
 
 ### Doxygen Documentation
 

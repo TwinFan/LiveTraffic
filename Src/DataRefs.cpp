@@ -605,8 +605,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/airplanes_live/online",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -782,7 +783,8 @@ ILWrect (0, 400, 965, 0)
         i = false;
 
     // enable all public/free channels by default:
-    // adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
+    // Airplanes.live, adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
+    bChannel[DR_CHANNEL_AIRPLANES_LIVE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;

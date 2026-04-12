@@ -638,6 +638,79 @@ size_t ADSBExchangeConnection::DoTestADSBExAPIKeyCB (char *ptr, size_t, size_t n
 }
 
 //
+// MARK: Airplanes.live
+//
+
+AirplanesLiveConnection::AirplanesLiveConnection () :
+ADSBBase(DR_CHANNEL_AIRPLANES_LIVE, AIRPLANES_NAME, AIRPLANES_SLUG_BASE)
+{
+    // purely informational
+    urlName  = AIRPLANES_CHECK_NAME;
+    urlLink  = AIRPLANES_CHECK_URL;
+    urlPopup = AIRPLANES_CHECK_POPUP;
+}
+
+
+// put together the URL to fetch based on current view position
+std::string AirplanesLiveConnection::GetURL (const positionTy& pos)
+{
+    char url[128] = "";
+    snprintf(url, sizeof(url), AIRPLANES_URL, pos.lat(), pos.lon(),
+             dataRefs.GetFdStdDistance_nm());
+    return std::string(url);
+}
+
+
+// virtual thread main function
+void AirplanesLiveConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_AirplanesLive", LC_ALL_MASK);
+    
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+                
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                    // reduce error count if processed successfully
+                    // as a chance to appear OK in the long run
+                    DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+            
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+}
+
+//
 // MARK: adsb.fi
 //
 
@@ -683,9 +756,9 @@ void ADSBfiConnection::Main ()
                 
                 // fetch data and process it
                 if (FetchAllData(pos) && ProcessFetchedData())
-                        // reduce error count if processed successfully
-                        // as a chance to appear OK in the long run
-                        DecErrCnt();
+                    // reduce error count if processed successfully
+                    // as a chance to appear OK in the long run
+                    DecErrCnt();
             }
             else {
                 // Camera position is yet invalid, retry in a second

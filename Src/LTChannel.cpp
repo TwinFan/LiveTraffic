@@ -893,8 +893,9 @@ bool LTFlightDataEnable()
 
     // load live feed readers (in order of priority)
     listFDC.emplace_back(new RealTrafficConnection());
-    listFDC.emplace_back(new ADSBExchangeConnection);
+    listFDC.emplace_back(new AirplanesLiveConnection);
     listFDC.emplace_back(new ADSBfiConnection);
+    listFDC.emplace_back(new ADSBExchangeConnection);
     listFDC.emplace_back(new OpenSkyConnection);
     listFDC.emplace_back(new ADSBHubConnection());
     listFDC.emplace_back(new OpenGliderConnection);
