@@ -93,6 +93,10 @@ protected:
     std::string gndVehicleEntry;    ///< edit buffer for ground vehicle
     int gndVehicleOK = 0;           ///< -1 error, 0 untested, 1 OK
 
+    // Advanced
+    std::vector<std::string> vecSndDevs;    ///< List of possible sound devices
+    float tsSndDevsLastUpd = 0.0f;  ///< when was that list updated last?
+
     // Debug options
     std::string txtDebugFilter;     ///< filter for single aircraft
     std::string txtFixAcType;       ///< fixed aircraft type

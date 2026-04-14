@@ -530,6 +530,9 @@ PLUGIN_API int  XPluginEnable(void)
     try {
         // Enable showing aircraft
         if (!LTMainEnable()) return 0;
+        
+        // Initialize sound and sound device
+        dataRefs.SetSound();
 
         // Success
         return 1;

@@ -1779,15 +1779,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
     else if (p == &fdLongRefrIntvl && fdCurrRefrIntvl == oldLongRefreshIntvl)
         fdCurrRefrIntvl = fdLongRefrIntvl;
     // Master Volume change to be forwarded to XPMP2, too
-    else if (p == &volMaster) {
-        if (volMaster == 0) {                       // Disable sound altogether
-            XPMPSoundEnable(false);
-        } else {                                    // Sound is (to be) enabled
-            if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
-                XPMPSoundEnable(true);
-            XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
-        }
-    }
+    else if (p == &volMaster)
+        SetSound();                     // Enable/disable sound if and only if volume > 0
     
     // If weather is...
     if (p == &weatherCtl) {
@@ -1901,6 +1894,69 @@ void DataRefs::SetLastCheckedNewVerNow ()
 void DataRefs::GetLabelColor (float outColor[4]) const
 {
     conv_color(labelColor, outColor);
+}
+
+// Set the sound device name
+bool DataRefs::SetSoundDevice (const std::string& dev)
+{
+    if (XPMPSoundSetAudioDeviceName(dev)) {
+        LOG_MSG(logINFO, "Using sound device '%s'", dev.c_str());
+        sSoundDevice = dev;
+        return true;
+    }
+    if (dev != SOUND_DEV_XPLANE) {
+        LOG_MSG(logWARN, "Unable to select sound device '%s'", dev.c_str());
+    }
+    return false;
+}
+
+// Get all possible sound device names.
+// Parameter determines if sSoundDevice is added to the list if needed
+std::vector<std::string> DataRefs::GetAllSoundDeviceNames (bool bForceIncludeCurrent) const
+{
+    // Fetch all device names from XPMP2 and check along the way if the current selected device name is included
+    bool bCurrDevIsIn = false;
+    std::vector<std::string> vec;
+    std::string dev;
+    for (int i = 0; XPMPSoundGetAudioDeviceName(i, dev); ++i) {
+        if (sSoundDevice == dev)
+            bCurrDevIsIn = true;
+        vec.emplace_back(std::move(dev));
+    }
+    // If we didn't get anything then it'll be X-Plane's sound system at work
+    if (vec.empty()) {
+        if (sSoundDevice == SOUND_DEV_XPLANE)
+            bCurrDevIsIn = true;
+        vec.emplace_back(SOUND_DEV_XPLANE);
+    }
+    // Add the current selected device name if not in and so wished
+    if (!bCurrDevIsIn && bForceIncludeCurrent && !sSoundDevice.empty())
+        vec.emplace_back(sSoundDevice);
+    // return all
+    return vec;
+}
+
+// Enable/disable sound
+void DataRefs::SetSound ()
+{
+    if (volMaster > 0) {
+        // Sound is (to be) enabled
+        if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
+            XPMPSoundEnable(true);
+        XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
+        // if setting the output device fails, then figure out what now that device is
+        if (!sSoundDevice.empty() &&                                // there is a device to set
+            !SetSoundDevice(sSoundDevice) &&                        // setting that dev didn't work
+            XPMPSoundGetActiveAudioDevice(&sSoundDevice) == 0 &&    // let's figure out what now the device is
+            sSoundDevice.empty())                                   // but if it is still index 0 and no name
+        {
+            sSoundDevice = SOUND_DEV_XPLANE;                        // then assume it is "X-Plane" itself
+        }
+    }
+    else {
+        // Disable sound altogether
+        XPMPSoundEnable(false);
+    }
 }
 
 //
@@ -2232,6 +2288,8 @@ bool DataRefs::LoadConfigFile()
                 SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
                 SetDefaultCarIcaoType(sVal);
+            else if (sDataRef == CFG_SOUND_DEVICE)
+                sSoundDevice = sVal;            // can't set device now, too early
             else if (sDataRef == CFG_OPENSKY_CLIENT)
                 SetOpenSkyClient(sVal);
             else if (sDataRef == CFG_OPENSKY_SECRET)
@@ -2382,6 +2440,8 @@ bool DataRefs::SaveConfigFile()
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << GetDefaultAcIcaoType() << '\n';
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << GetDefaultCarIcaoType() << '\n';
+    if (!sSoundDevice.empty())
+        fOut << CFG_SOUND_DEVICE << ' ' << sSoundDevice << '\n';
     if (!sOpenSkyClient.empty())
         fOut << CFG_OPENSKY_CLIENT << ' ' << sOpenSkyClient << '\n';
     if (!sOpenSkySecret.empty())

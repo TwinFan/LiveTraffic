@@ -1166,7 +1166,27 @@ void LTSettingsUI::buildInterface()
             {
                 ImGui::FilteredCfgCheckbox("Own FMOD Instance",   sFilter, DR_CFG_SND_FORCE_FMOD_INSTANCE,
                                            "Enforce using separate FMOD instance instead of X-Plane's.\n(Takes effect after restart only.)");
-
+                // Sound Device Selection
+                if (ImGui::FilteredLabel("Sound Device", sFilter)) {
+                    const std::string& devCurr = dataRefs.GetSoundDevice();
+                    if (ImGui::BeginCombo("##SoundDevice", devCurr.c_str())) {
+                        // Get list of sound devices every other second "only"
+                        if (CheckEverySoOften(tsSndDevsLastUpd, 2.0f))
+                            vecSndDevs = dataRefs.GetAllSoundDeviceNames(true);
+                        // List thems
+                        for (const std::string& dev: vecSndDevs) {
+                            bool isSelected = (dev == devCurr);
+                            if (ImGui::Selectable(dev.c_str(), &isSelected)) {  // new selecton made?
+                                if (!dataRefs.SetSoundDevice(dev))              // try to use...didn't work?
+                                    isSelected = false;
+                            }
+                            if (isSelected)                                     // if (now,still) the selected, make it the focused one
+                                ImGui::SetItemDefaultFocus();
+                        }                        
+                        ImGui::EndCombo();
+                    }
+                }
+                
                 if (!*sFilter) ImGui::TreePop();
             }
 

@@ -771,6 +771,7 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sSoundDevice;           ///< Output sound device name
     std::string sOpenSkyClient;         ///< OpenSky Network Client ID
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
@@ -974,6 +975,10 @@ public:
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     int GetVolumeMaster() const { return volMaster; }
     bool ShallForceFmodInstance() const { return sndForceFmodInstance != 0; }
+    const std::string& GetSoundDevice () const { return sSoundDevice; }
+    bool SetSoundDevice (const std::string& dev);
+    std::vector<std::string> GetAllSoundDeviceNames (bool bForceIncludeCurrent) const;;
+    void SetSound ();               ///< Set sound according to volMaster and sSoundDevice
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
     bool IsAINotOnGnd() const { return bAINotOnGnd != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }
