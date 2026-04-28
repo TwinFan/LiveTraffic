@@ -212,7 +212,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_DEFAULT_AC_TYP_INFO "Default a/c type is '%s'"
 #define CFG_DEFAULT_CAR_TYP_INFO "Default car type is '%s'"
 #define CFG_SOUND_DEVICE        "Sound_Device"
-#define SOUND_DEV_XPLANE        "X-Plane"
+#define CFG_SND_NO_DEVICE       "(no change)"
 #define CFG_OPENSKY_CLIENT      "OpenSky_Client"
 #define CFG_OPENSKY_SECRET      "OpenSky_Secret"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"

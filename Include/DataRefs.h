@@ -771,7 +771,7 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
-    std::string sSoundDevice;           ///< Output sound device name
+    std::string sSoundDevice = CFG_SND_NO_DEVICE;               ///< Output sound device name
     std::string sOpenSkyClient;         ///< OpenSky Network Client ID
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key

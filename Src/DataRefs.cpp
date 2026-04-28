@@ -1899,12 +1899,19 @@ void DataRefs::GetLabelColor (float outColor[4]) const
 // Set the sound device name
 bool DataRefs::SetSoundDevice (const std::string& dev)
 {
+    // "no change" always works
+    if (dev == CFG_SND_NO_DEVICE) {
+        sSoundDevice = CFG_SND_NO_DEVICE;
+        return true;
+    }
+    
+    // Try to set the selected device
     if (XPMPSoundSetAudioDeviceName(dev)) {
         LOG_MSG(logINFO, "Using sound device '%s'", dev.c_str());
         sSoundDevice = dev;
         return true;
     }
-    if (dev != SOUND_DEV_XPLANE) {
+    else {
         LOG_MSG(logWARN, "Unable to select sound device '%s'", dev.c_str());
     }
     return false;
@@ -1916,18 +1923,14 @@ std::vector<std::string> DataRefs::GetAllSoundDeviceNames (bool bForceIncludeCur
 {
     // Fetch all device names from XPMP2 and check along the way if the current selected device name is included
     bool bCurrDevIsIn = false;
-    std::vector<std::string> vec;
+    std::vector<std::string> vec = { CFG_SND_NO_DEVICE };       // start with the extra "(no change)" entry
+    if (sSoundDevice == CFG_SND_NO_DEVICE)
+        bCurrDevIsIn = true;
     std::string dev;
     for (int i = 0; XPMPSoundGetAudioDeviceName(i, dev); ++i) {
         if (sSoundDevice == dev)
             bCurrDevIsIn = true;
         vec.emplace_back(std::move(dev));
-    }
-    // If we didn't get anything then it'll be X-Plane's sound system at work
-    if (vec.empty()) {
-        if (sSoundDevice == SOUND_DEV_XPLANE)
-            bCurrDevIsIn = true;
-        vec.emplace_back(SOUND_DEV_XPLANE);
     }
     // Add the current selected device name if not in and so wished
     if (!bCurrDevIsIn && bForceIncludeCurrent && !sSoundDevice.empty())
@@ -1950,7 +1953,7 @@ void DataRefs::SetSound ()
             XPMPSoundGetActiveAudioDevice(&sSoundDevice) == 0 &&    // let's figure out what now the device is
             sSoundDevice.empty())                                   // but if it is still index 0 and no name
         {
-            sSoundDevice = SOUND_DEV_XPLANE;                        // then assume it is "X-Plane" itself
+            sSoundDevice = CFG_SND_NO_DEVICE;                       // then it is "(no change)"
         }
     }
     else {
