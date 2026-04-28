@@ -221,10 +221,10 @@ std::string OpenSkyConnection::GetURL (const positionTy& pos)
     char url[128] = "";
     snprintf(url, sizeof(url),
              OPSKY_URL_ALL,
-             box.se.lat(),              // lamin
-             box.nw.lon(),              // lomin
-             box.nw.lat(),              // lamax
-             box.se.lon() );            // lomax
+             box.bottom(),              // lamin
+             box.left(),                // lomin
+             box.top(),                 // lamax
+             box.right() );             // lomax
     return std::string(url);
 }
 

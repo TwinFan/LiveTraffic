@@ -133,15 +133,50 @@
 
     <h2>v4</h2>
 
+    <h3>v4.4.0</h3>
+
+    <P>
+    <b>Update:</b> In case of doubt you can always just copy all files from the archive
+    over the files of your existing installation.
+    </P>
+    
+    <P>At least copy the following files, which have changed compared to v4.3.5:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li><b>Airplanes.live:</b> New free traffic data channel,
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/airplanes.live">see documentation</a>.
+            On by default.</li>
+        <li><b>RealTraffic</b>:
+            <ul>
+                <li>Link to RealTraffic's aircraft tracking from
+                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/info-list-window/aircraft-list">Aircraft List</a> /
+                    <a href="https://twinfan.gitbook.io/livetraffic/using-lt/aircraft-information-window">Info Window</a>.</li>
+                <li><b>App</b>: Request buffered traffic for faster filling of the sky upon starting / switching airports.</li>
+                <li><b>App</b>: Supports now processing RealTraffic's weather.</li>
+            </ul>
+        </li>
+        <li>
+            <b>Sound</b>: If forcing an <i>Own FMOD instance</i>, then you can now select
+            the <i>Sound Device</i> for sound produced by LiveTraffic in the
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-advanced#miscellaneous">Advanced / Miscellaneous</a> settings.
+        </li>
+        <li>
+            <b>OpenSky</b>: Switched off the "Masterdata File" channel to avoid
+            errors in the log as OpenSky is not currently maintaining that
+            data source. It could be re-activated manually.
+        </li>
+        <li>Sends local cartesian coordinates and transponder mode to LTAPI.</li>
+    </ul>
+
     <h3>v4.3.5</h3>
     
     <P>
     <b>Mandatory Update for X-Plane 12.4.1</b> to prevent X-Plane from stopping.
-    </P>
-    
-    <P>
-    <b>Update:</b> In case of doubt you can always just copy all files from the archive
-    over the files of your existing installation.
     </P>
     
     <P>At least copy the following files, which have changed compared to v4.3.3:</P>

@@ -10,7 +10,7 @@
 /// @see        More information on reading from `apt.dat` is on [a separate page](@ref apt_dat).
 /// @see        `apt.dat` file format specification is [here](https://developer.x-plane.com/article/airport-data-apt-dat-file-format-specification/)
 /// @author     Birger Hoppe
-/// @copyright  (c) 2020 Birger Hoppe
+/// @copyright  (c) 2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -395,9 +395,9 @@ public:
     /// Is given node connected to a rwy?
     bool IsConnectedToRwy (size_t idxN) const
     {
-        const TaxiNode& n = vecTaxiNodes[idxN];
+        const TaxiNode& n = vecTaxiNodes.at(idxN);
         for (size_t idxE: n.vecEdges)
-            if (vecTaxiEdges[idxE].GetType() == TaxiEdge::RUN_WAY)
+            if (vecTaxiEdges.at(idxE).GetType() == TaxiEdge::RUN_WAY)
                 return true;
         return false;
     }
@@ -407,7 +407,7 @@ public:
     {
         const TaxiNode& a = vecTaxiNodes.at(idxA);
         for (size_t idxE: a.vecEdges) {
-            const TaxiEdge& e = vecTaxiEdges[idxE];
+            const TaxiEdge& e = vecTaxiEdges.at(idxE);
             if (e.otherNode(idxA) == idxB)
                 return idxE;
         }
@@ -533,7 +533,7 @@ public:
         if (insNode == e.startNode() || insNode == e.endNode())
             return;
         size_t joinOrigB = e.endNode();
-        TaxiNode& origB = vecTaxiNodes[joinOrigB];
+        TaxiNode& origB = vecTaxiNodes.at(joinOrigB);
         
         // 2. Short-cut existing node at new joint
         const TaxiNode& a = e.GetA(*this);
@@ -589,7 +589,7 @@ public:
             // The edge to work on
             const size_t idxE = oldN.vecEdges.back();
             oldN.vecEdges.pop_back();
-            TaxiEdge& e = vecTaxiEdges[idxE];
+            TaxiEdge& e = vecTaxiEdges.at(idxE);
             
             // Replace the node in the edge and recalculate the edge
             e.ReplaceNode(oldIdxN, newIdxN);
@@ -618,7 +618,7 @@ public:
         vecTaxiEdgesIdxHead.clear();
         vecTaxiEdgesIdxHead.reserve(vecTaxiEdges.size());
         for (size_t eIdx = 0; eIdx < vecTaxiEdges.size(); ++eIdx)
-            if (vecTaxiEdges[eIdx].isValid())
+            if (vecTaxiEdges.at(eIdx).isValid())
                 vecTaxiEdgesIdxHead.push_back(eIdx);
         
         // Now sort the index array by the angle of the linked edge
@@ -676,12 +676,12 @@ public:
                                   rngPair.first,
                                   [&](const size_t& idx, double _angle)
                                   { return vecTaxiEdges[idx].angle < _angle; });
-                 iter != vecTaxiEdgesIdxHead.cend() && vecTaxiEdges[*iter].angle <= rngPair.second;
+                 iter != vecTaxiEdgesIdxHead.cend() && vecTaxiEdges.at(*iter).angle <= rngPair.second;
                  ++iter)
             {
                 // Check for type limitation, then add to `vec`
                 if (_restrictType == TaxiEdge::UNKNOWN_WAY ||
-                    _restrictType == vecTaxiEdges[*iter].GetType())
+                    _restrictType == vecTaxiEdges.at(*iter).GetType())
                     lst.push_back(*iter);
             }
         }
@@ -750,7 +750,7 @@ public:
                 continue;
             
             // Skip edge if invalid
-            const TaxiEdge& e = vecTaxiEdges[eIdx];
+            const TaxiEdge& e = vecTaxiEdges.at(eIdx);
             if (!e.isValid())
                 continue;
             
@@ -979,7 +979,7 @@ public:
         for (size_t idxN: vecPathEnds)
         {
             // The node we deal with
-            TaxiNode& n = vecTaxiNodes[idxN];
+            TaxiNode& n = vecTaxiNodes.at(idxN);
             
             // The exclusion edge list: With these edges we don't want to join:
             // 1. All our direct edges
@@ -990,7 +990,7 @@ public:
             vecEdgeExclusions.erase(lastEExcl,vecEdgeExclusions.end());
 
             // Try finding _another_ edge this one can connect to
-            positionTy pos(n.lat, n.lon, 0.0, NAN, vecTaxiEdges[n.vecEdges.front()].GetAngleFrom(idxN));
+            positionTy pos(n.lat, n.lon, 0.0, NAN, vecTaxiEdges.at(n.vecEdges.front()).GetAngleFrom(idxN));
             const TaxiEdge* pJoinE = FindClosestEdge(pos, pos,
                                                      // larger distance allowed if I'm a single node, smaller only if I already have connections
                                                      n.vecEdges.size() <= 1 ? APT_JOIN_MAX_DIST_M : APT_MAX_SIMILAR_NODE_DIST_M,
@@ -1025,9 +1025,9 @@ public:
             // node now with the already merged node, so that both taxiways
             // join with the rwy in one single joint node.
             size_t nearIdxN = ULONG_MAX;
-            if (n.IsCloseTo(vecTaxiNodes[pJoinE->startNode()], APT_MAX_SIMILAR_NODE_DIST_M))
+            if (n.IsCloseTo(vecTaxiNodes.at(pJoinE->startNode()), APT_MAX_SIMILAR_NODE_DIST_M))
                 nearIdxN = pJoinE->startNode();
-            else if (n.IsCloseTo(vecTaxiNodes[pJoinE->endNode()], APT_MAX_SIMILAR_NODE_DIST_M))
+            else if (n.IsCloseTo(vecTaxiNodes.at(pJoinE->endNode()), APT_MAX_SIMILAR_NODE_DIST_M))
                 nearIdxN = pJoinE->endNode();
             
             // One of the nodes is indeed nearby?
@@ -1097,17 +1097,17 @@ public:
             //  is not simple either. I expect vecVisit to stay short
             //  due to cut-off at _maxLen, so I've decided this way:)
             vecIdxTy::iterator shortestIter = vecVisit.begin();
-            double shortestDist = vecTaxiNodes[*shortestIter].pathLen;
+            double shortestDist = vecTaxiNodes.at(*shortestIter).pathLen;
             for (vecIdxTy::iterator i = std::next(shortestIter);
                  i != vecVisit.end(); ++i)
             {
-                if (vecTaxiNodes[*i].pathLen < shortestDist) {
+                if (vecTaxiNodes.at(*i).pathLen < shortestDist) {
                     shortestIter = i;
-                    shortestDist = vecTaxiNodes[*i].pathLen;
+                    shortestDist = vecTaxiNodes.at(*i).pathLen;
                 }
             }
             const size_t shortestNIdx  = *shortestIter;
-            TaxiNode& shortestN = vecTaxiNodes[shortestNIdx];
+            TaxiNode& shortestN = vecTaxiNodes.at(shortestNIdx);
             
             // To avoid too sharp corners we need to know the angle by which we reach this shortest node
             const size_t idxEdgeToShortestN =
@@ -1116,7 +1116,7 @@ public:
             // start heading for when leaving first node, otherwise heading between previous and current node
             const double angleToShortestN =
             idxEdgeToShortestN == EDGE_UNKNOWN ? _headingAtStart :
-            vecTaxiEdges[idxEdgeToShortestN].GetAngleFrom(shortestN.prevIdx);
+            vecTaxiEdges.at(idxEdgeToShortestN).GetAngleFrom(shortestN.prevIdx);
             
             // This one is now already counted as "visited" so no more updates to its pathLen!
             shortestN.bVisited = true;
@@ -1125,11 +1125,11 @@ public:
             // Update all connected nodes with best possible distance
             for (size_t eIdx: shortestN.vecEdges)
             {
-                const TaxiEdge& e = vecTaxiEdges[eIdx];
+                const TaxiEdge& e = vecTaxiEdges.at(eIdx);
                 if (!e.isValid()) continue;
                 
                 size_t updNIdx    = e.otherNode(shortestNIdx);
-                TaxiNode& updN    = vecTaxiNodes[updNIdx];
+                TaxiNode& updN    = vecTaxiNodes.at(updNIdx);
                 
                 // if aleady visited then no need to re-assess
                 if (updN.bVisited)
@@ -1177,7 +1177,7 @@ public:
         vecVisit.clear();
         for (size_t nIdx = _endN;
              nIdx < ULONG_MAX-1;                    // until nIdx becomes invalid
-             nIdx = vecTaxiNodes[nIdx].prevIdx)     // move on to _previous_ node on shortest path
+             nIdx = vecTaxiNodes.at(nIdx).prevIdx)     // move on to _previous_ node on shortest path
         {
             LOG_ASSERT(nIdx < vecTaxiNodes.size());
             vecVisit.push_back(nIdx);
@@ -1344,10 +1344,10 @@ public:
         
         // previous edge's relevant node
         bool bSkipStart = false;
-        const TaxiEdge& prevE = vecTaxiEdges[pPrevPos->edgeIdx];
+        const TaxiEdge& prevE = vecTaxiEdges.at(pPrevPos->edgeIdx);
         size_t prevErelN = prevE.endByHeading(pPrevPos->heading());
         {
-            const TaxiNode& othN = vecTaxiNodes[prevE.otherNode(prevErelN)];
+            const TaxiNode& othN = vecTaxiNodes.at(prevE.otherNode(prevErelN));
             if (DistLatLonSqr(othN.lat, othN.lon, pPrevPos->lat(), pPrevPos->lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M)) {
                 prevErelN = prevE.otherNode(prevErelN);
                 bSkipStart = true;      // this node is now _before_ prevPos, don't add that to the deque!
@@ -1356,7 +1356,7 @@ public:
             {
                 // Sanity check: if the distance to reaching the first node
                 // is more than we shall travel in total we're making a mistake
-                const TaxiNode& prevErelNode = vecTaxiNodes[prevErelN];
+                const TaxiNode& prevErelNode = vecTaxiNodes.at(prevErelN);
                 if (DistLatLon(pPrevPos->lat(), pPrevPos->lon(),
                                prevErelNode.lat, prevErelNode.lon) > distPrevPosPos)
                     // Then it is simpler to just go straight without any taxiway path
@@ -1368,7 +1368,7 @@ public:
         bool bSkipEnd = false;
         size_t currEstartN = pEdge->startByHeading(pos.heading());
         {
-            const TaxiNode& othN = vecTaxiNodes[pEdge->otherNode(currEstartN)];
+            const TaxiNode& othN = vecTaxiNodes.at(pEdge->otherNode(currEstartN));
             if (DistLatLonSqr(othN.lat, othN.lon, pos.lat(), pos.lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M)) {
                 currEstartN = pEdge->otherNode(currEstartN);
                 bSkipEnd = true;      // this node is now _beyond_ pos, don't add that to the deque!
@@ -1377,7 +1377,7 @@ public:
             {
                 // Sanity check: if the distance to reaching the last node
                 // is more than we shall travel in total we're making a mistake
-                const TaxiNode& currErelNode = vecTaxiNodes[currEstartN];
+                const TaxiNode& currErelNode = vecTaxiNodes.at(currEstartN);
                 if (DistLatLon(pos.lat(), pos.lon(),
                                currErelNode.lat, currErelNode.lon) > distPrevPosPos)
                     // Then it is simpler to just go straight without any taxiway path
@@ -1425,17 +1425,17 @@ public:
         
         // if we removed nodes from the start of the path then we need to adjust path len in the nodes now:
         // The start node has to have pathLen == 0.0
-        if (vecPath.size() >= 2 && vecTaxiNodes[vecPath.back()].pathLen > 0.0) {
-            const double adjust = vecTaxiNodes[vecPath.back()].pathLen;
+        if (vecPath.size() >= 2 && vecTaxiNodes.at(vecPath.back()).pathLen > 0.0) {
+            const double adjust = vecTaxiNodes.at(vecPath.back()).pathLen;
             for (size_t nIdx: vecPath)
-                vecTaxiNodes[nIdx].pathLen -= adjust;
+                vecTaxiNodes.at(nIdx).pathLen -= adjust;
         }
 
         // Some path left?
         if (vecPath.size() >= 2)
         {
-            const TaxiNode& endN = vecTaxiNodes[vecPath.front()];   // end of path
-            const TaxiNode& startN = vecTaxiNodes[vecPath.back()];  // start of path
+            const TaxiNode& endN = vecTaxiNodes.at(vecPath.front());   // end of path
+            const TaxiNode& startN = vecTaxiNodes.at(vecPath.back());  // start of path
 
             // distance from prevPos to path's start
             const double distToStart = DistLatLon(pPrevPos->lat(), pPrevPos->lon(), startN.lat, startN.lon);
@@ -1492,7 +1492,7 @@ public:
                 const bool bLastNode = std::next(iter) == vecPath.crend();
 
                 // create a proper position and insert it into fd's posDeque
-                const TaxiNode& n = vecTaxiNodes[*iter];
+                const TaxiNode& n = vecTaxiNodes.at(*iter);
                 positionTy insPos (n.lat, n.lon, NAN,   // lat, lon, altitude
                                    startTS + timeStartToPos * n.pathLen / distStartToPos,
                                    NAN,                 // heading will be populated later
@@ -1615,7 +1615,7 @@ public:
         // Validate vecTaxiNodes and vecTaxiEdges
         for (size_t idxN = 0; idxN < vecTaxiNodes.size(); ++idxN)
         {
-            const TaxiNode& n = vecTaxiNodes[idxN];
+            const TaxiNode& n = vecTaxiNodes.at(idxN);
             for (size_t idxE: n.vecEdges)
             {
                 const TaxiEdge& e = vecTaxiEdges[idxE];
@@ -1895,7 +1895,7 @@ typedef std::map<std::string, Apt> mapAptTy;
 static mapAptTy gmapApt;
 
 /// Lock to access global map of airports
-static std::mutex mtxGMapApt;
+static std::recursive_timed_mutex mtxGMapApt;
 
 // Temporary storage while reading an airport from apt.dat
 vecTaxiNodesTy Apt::vecRwyNodes;
@@ -1954,7 +1954,7 @@ void Apt::AddApt (Apt&& apt)
     // Access to the list of airports is guarded by a lock
     const std::string key = apt.GetId();          // make a copy of the key, as `apt` gets moved soon:
     {
-        std::lock_guard<std::mutex> lock(mtxGMapApt);
+        std::lock_guard<std::recursive_timed_mutex> lock(mtxGMapApt);
         gmapApt.emplace(key, std::move(apt));
     }
     
@@ -2358,7 +2358,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
 void PurgeApt (const boundingBoxTy& _box)
 {
     // Access is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGMapApt);
+    std::lock_guard<std::recursive_timed_mutex> lock(mtxGMapApt);
 
     // loop all airports and remove those, whose center point is outside the box
     mapAptTy::iterator iter = gmapApt.begin();
@@ -2494,9 +2494,19 @@ void AsyncReadApt (positionTy ctr, double radius)
 /// Find airport, which contains passed-in position, can be `nullptr`
 Apt* LTAptFind (const positionTy& pos)
 {
-    for (auto& pair: gmapApt)
-        if (pair.second.Contains(pos))
-            return &pair.second;
+    // Access to the list of airports is guarded by a lock
+    std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                      dataRefs.IsXPThread() ?
+                                                      std::chrono::milliseconds(100) :
+                                                      std::chrono::milliseconds(500));
+    if (lock) {
+        for (auto& pair: gmapApt)
+            if (pair.second.Contains(pos))
+                return &pair.second;
+    }
+    else {
+        LOG_MSG(logDEBUG, "Locking mtxGMapApt failed");
+    }
     return nullptr;
 }
 
@@ -2521,7 +2531,7 @@ static bool bAptAvailable = false;
 void LTAptUpdateRwyAltitudes ()
 {
     // access is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGMapApt);
+    std::lock_guard<std::recursive_timed_mutex> lock(mtxGMapApt);
 
     // loop all airports and their runways
     for (mapAptTy::value_type& p: gmapApt)
@@ -2610,7 +2620,14 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
     
     // --- Iterate the airports ---
     // Access to the list of airports is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGMapApt);
+    std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                      dataRefs.IsXPThread() ?
+                                                      std::chrono::milliseconds(100) :
+                                                      std::chrono::milliseconds(500));
+    if (!lock) {
+        LOG_MSG(logDEBUG, "Locking mtxGMapApt failed");
+        return positionTy();
+    }
 
     // loop over airports
     for (mapAptTy::const_iterator iterApt = gmapApt.cbegin();
@@ -2707,7 +2724,14 @@ positionTy LTAptFindStartupLoc (const positionTy& pos,
                                 double* outDist)
 {
     // Access to the list of airports is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGMapApt);
+    std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                      dataRefs.IsXPThread() ?
+                                                      std::chrono::milliseconds(100) :
+                                                      std::chrono::milliseconds(500));
+    if (!lock) {
+        LOG_MSG(logDEBUG, "Locking mtxGMapApt failed");
+        return positionTy();
+    }
 
     // Which airport are we looking at?
     Apt* pApt = LTAptFind(pos);
@@ -2741,15 +2765,23 @@ bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
         return false;
     
     // Access to the list of airports is guarded by a lock
-    std::lock_guard<std::mutex> lock(mtxGMapApt);
-
-    // Which airport are we looking at?
-    Apt* pApt = LTAptFind(*posIter);
-    if (!pApt)                          // not a position in any airport's bounding box
+    std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                      dataRefs.IsXPThread() ?
+                                                      std::chrono::milliseconds(100) :
+                                                      std::chrono::milliseconds(500));
+    if (lock) {
+        // Which airport are we looking at?
+        Apt* pApt = LTAptFind(*posIter);
+        if (!pApt)                          // not a position in any airport's bounding box
+            return false;
+        
+        // Let's snap!
+        return pApt->SnapToTaxiway(fd, posIter, bInsertTaxiTurns);
+    }
+    else {
+        LOG_MSG(logDEBUG, "Locking mtxGMapApt failed");
         return false;
-
-    // Let's snap!
-    return pApt->SnapToTaxiway(fd, posIter, bInsertTaxiTurns);
+    }
 }
 
 

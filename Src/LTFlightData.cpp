@@ -1400,6 +1400,7 @@ void LTFlightData::CalcNextPosMain ()
                     LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION " - on aircraft %s", e.what(), pair.first.c_str());
                     fd.SetInvalid();
                 } catch (...) {
+                    LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION " - on aircraft %s", "(unknown)", pair.first.c_str());
                     fd.SetInvalid();
                 }
                 
@@ -1854,6 +1855,7 @@ void LTFlightData::AppendAllNewPos()
                 LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
                 fd.SetInvalid();
             } catch (...) {
+                LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unkown)");
                 fd.SetInvalid();
             }
         }

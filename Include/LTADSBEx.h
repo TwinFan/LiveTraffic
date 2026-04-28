@@ -1,19 +1,22 @@
 /// @file       LTADSBEx.h
 /// @brief      ADS-B Exchange and adsb.fi: Requests and processes live tracking data
+/// @see        Airplanes.live: https://airplanes.live/api-guide/
+/// @see        adsb.fi: https://github.com/adsbfi/opendata
 /// @see        ADSBEx: https://www.adsbexchange.com/
 ///             RAPID API: https://rapidapi.com/adsbx/api/adsbexchange-com1
 ///             RAPID API Endpoint: https://rapidapi.com/adsbx/api/adsbexchange-com1/playground/endpoint_7dee5835-86b3-40ce-a402-f1ab43240884
 ///             ADSBEx v2 API documentation:
 ///             ...on Swagger: https://adsbexchange.com/api/aircraft/v2/docs
 ///             ...fields: https://www.adsbexchange.com/version-2-api-wip/
-/// @see        adsb.fi: https://github.com/adsbfi/opendata
 /// @details    Defines a base class handling the ADSBEx data format,
 ///             which is shared by both ADS-B Exchange and adsb.fi.
+/// @details    Defines AirplanesLiveConnection:\n
+///             - Provides a proper REST-conform URL
+/// @details    Defines ADSBfiConnection:\n
+///             - Provides a proper REST-conform URL
 /// @details    Defines ADSBExchangeConnection:\n
 ///             - Handles the API key\n
 ///             - Provides a proper REST-conform URL for both the original sevrer as well as for the Rapid API server.
-/// @details    Defines ADSBfiConnection:\n
-///             - Provides a proper REST-conform URL
 /// @author     Birger Hoppe
 /// @copyright  (c) 2018-2024 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
@@ -167,6 +170,30 @@ protected:
 };
 
 //
+// MARK: Airplanes.live
+//
+
+#define AIRPLANES_CHECK_NAME    "Airplanes.live Map"
+#define AIRPLANES_CHECK_URL     "https://globe.airplanes.live/?lat=%.3f&lon=%.3f"
+#define AIRPLANES_SLUG_BASE     "https://globe.airplanes.live/?icao=" // + icao24 hex code
+#define AIRPLANES_CHECK_POPUP   "Check Airplane.live's coverage"
+
+#define AIRPLANES_NAME          "Airplanes.live"
+#define AIRPLANES_URL           "https://api.airplanes.live/v2/point/%.3f/%.3f/%d"  // lat/lon/radius
+
+class AirplanesLiveConnection : public ADSBBase
+{
+public:
+    AirplanesLiveConnection ();                             ///< Constructor
+    std::string GetURL (const positionTy& pos) override;    ///< Compile Airplanes.live request URL
+    
+protected:
+    void Main () override;                                  ///< virtual thread main function
+    bool ProcessErrors (const JSON_Object*) override        ///< No specific error processing for Airplanes.live
+    { return true; }
+};
+
+//
 // MARK: adsb.fi
 //
 
@@ -176,7 +203,7 @@ protected:
 #define ADSBFI_CHECK_POPUP      "Check adsb.fi's coverage"
 
 #define ADSBFI_NAME             "adsb.fi"
-#define ADSBFI_URL              "https://opendata.adsb.fi/api/v2/lat/%f/lon/%f/dist/%d/"
+#define ADSBFI_URL              "https://opendata.adsb.fi/api/v2/lat/%.3f/lon/%.3f/dist/%d/"
 
 #define ADSBFI_AIRCRAFT_ARR     "aircraft"
 

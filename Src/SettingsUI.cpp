@@ -263,6 +263,28 @@ void LTSettingsUI::buildInterface()
                 }
             }
             
+            // --- Airplanes.live ---
+            if (ImGui::TreeNodeCbxLinkHelp("Airplanes.live", nCol,
+                                           DR_CHANNEL_AIRPLANES_LIVE, "Connect to Airplanes.live for tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AIRPLANES_CHECK_NAME,
+                                           AIRPLANES_CHECK_URL,
+                                           AIRPLANES_CHECK_POPUP,
+                                           HELP_SET_CH_AIRPLANES, "Open Help on Airplanes.live in Browser",
+                                           sFilter, nOpCl))
+            {
+                // Airplanes.live's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pAirplanesCh = LTFlightDataGetCh(DR_CHANNEL_AIRPLANES_LIVE)) {
+                        ImGui::TextWrapped("%s", pAirplanesCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- adsb.fi ---
             if (ImGui::TreeNodeCbxLinkHelp("adsb.fi", nCol,
                                            DR_CHANNEL_ADSB_FI_ONLINE, "Connect to adsb.fi for tracking data",
@@ -284,7 +306,7 @@ void LTSettingsUI::buildInterface()
                 
                 if (!*sFilter) ImGui::TreePop();
             }
-
+            
             // --- OpenSky ---
             if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
@@ -440,103 +462,12 @@ void LTSettingsUI::buildInterface()
                 // we also make sure that OpenSky Master data is enabled
                 if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
                     dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
                 }
                 
                 // ADSBHub's connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
                         ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
-                    } else {
-                        ImGui::TextUnformatted("Off");
-                    }
-                    ImGui::TableNextCell();
-                }
-                
-                if (!*sFilter) ImGui::TreePop();
-            }
-
-            // --- ADS-B Exchange ---
-            if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
-                                           // we offer the enable checkbox only when an API key is defined
-                                           dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
-                                           dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBEX_CHECK_NAME,
-                                           ADSBEX_CHECK_URL,
-                                           ADSBEX_CHECK_POPUP,
-                                           HELP_SET_CH_ADSBEX, "Open Help on ADS-B Exchange in Browser",
-                                           sFilter, nOpCl))
-            {
-                // Have no ADSBEx key?
-                if (dataRefs.GetADSBExAPIKey().empty()) {
-                    if (ImGui::FilteredLabel("ADS-B Exchange", sFilter, false)) {
-                        ImGui::TextDisabled("%s", "requires an API key:");
-                        ImGui::TableNextCell();
-                    }
-                }
-                
-                // ADS-B Exchange's API key
-                if (ImGui::FilteredLabel("API Key", sFilter)) {
-                    // "Eye" button changes password flag
-                    ImGui::Selectable(ICON_FA_EYE "##ADSBExKeyVisible", &bADSBExKeyClearText,
-                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Show/Hide key");
-                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    if (ImGui::InputTextWithHint("##ADSBExKey",
-                                                 "Enter or paste API key",
-                                                 &sADSBExKeyEntry,
-                                                 // clear text or password mode?
-                                                 (bADSBExKeyClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
-                                                 // prohibit changes to the key while test is underway
-                                                 (eADSBExKeyTest == ADSBX_KEY_TESTING ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None)))
-                        // when key is changing reset a potential previous result
-                        eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
-                    // key is changed and different -> offer to test it
-                    if (eADSBExKeyTest == ADSBX_KEY_NO_ACTION &&
-                        !sADSBExKeyEntry.empty() &&
-                        sADSBExKeyEntry != dataRefs.GetADSBExAPIKey())
-                    {
-                        if (ImGui::ButtonTooltip(ICON_FA_UNDO " Reset to saved", "Resets the key to the previously saved key"))
-                        {
-                            sADSBExKeyEntry = dataRefs.GetADSBExAPIKey();
-                        }
-                        ImGui::SameLine();
-                        if (ImGui::ButtonTooltip(ICON_FA_CHECK " Test and Save Key", "Sends a request to ADS-B Exchange using your entered key to test its validity.\nKey is saved only after a successful test."))
-                        {
-                            ADSBExchangeConnection::TestADSBExAPIKey(sADSBExKeyEntry);
-                            eADSBExKeyTest = ADSBX_KEY_TESTING;
-                        }
-                    }
-                    // Test of key underway? -> check for result
-                    if (eADSBExKeyTest == ADSBX_KEY_TESTING) {
-                        bool bSuccess = false;
-                        if (ADSBExchangeConnection::TestADSBExAPIKeyResult(bSuccess)) {
-                            eADSBExKeyTest = bSuccess ? ADSBX_KEY_SUCCESS : ADSBX_KEY_FAILED;
-                            if (bSuccess) {
-                                dataRefs.SetADSBExAPIKey(sADSBExKeyEntry);
-                                
-                            }
-                        } else {
-                            ImGui::TextUnformatted(ICON_FA_SPINNER " Key is being tested...");
-                        }
-                    }
-                    // Key tested successfully
-                    if (eADSBExKeyTest == ADSBX_KEY_SUCCESS)
-                        ImGui::TextUnformatted(ICON_FA_CHECK_CIRCLE " Key tested successfully");
-                    else if (eADSBExKeyTest == ADSBX_KEY_FAILED)
-                        ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
-                    
-                    ImGui::TableNextCell();
-                }
-
-                // ADSBEx's connection status details (only if there is an API key defined)
-                if (!dataRefs.GetADSBExAPIKey().empty() &&
-                    ImGui::FilteredLabel("Connection Status", sFilter))
-                {
-                    if (const LTChannel* pADSBExbCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_EXCHANGE_ONLINE)) {
-                        ImGui::TextWrapped("%s", pADSBExbCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -764,6 +695,96 @@ void LTSettingsUI::buildInterface()
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     if (pRTCh) {
                         ImGui::TextWrapped("%s", pRTCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // --- ADS-B Exchange ---
+            if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
+                                           // we offer the enable checkbox only when an API key is defined
+                                           dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
+                                           dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBEX_CHECK_NAME,
+                                           ADSBEX_CHECK_URL,
+                                           ADSBEX_CHECK_POPUP,
+                                           HELP_SET_CH_ADSBEX, "Open Help on ADS-B Exchange in Browser",
+                                           sFilter, nOpCl))
+            {
+                // Have no ADSBEx key?
+                if (dataRefs.GetADSBExAPIKey().empty()) {
+                    if (ImGui::FilteredLabel("ADS-B Exchange", sFilter, false)) {
+                        ImGui::TextDisabled("%s", "requires an API key:");
+                        ImGui::TableNextCell();
+                    }
+                }
+                
+                // ADS-B Exchange's API key
+                if (ImGui::FilteredLabel("API Key", sFilter)) {
+                    // "Eye" button changes password flag
+                    ImGui::Selectable(ICON_FA_EYE "##ADSBExKeyVisible", &bADSBExKeyClearText,
+                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Show/Hide key");
+                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    if (ImGui::InputTextWithHint("##ADSBExKey",
+                                                 "Enter or paste API key",
+                                                 &sADSBExKeyEntry,
+                                                 // clear text or password mode?
+                                                 (bADSBExKeyClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
+                                                 // prohibit changes to the key while test is underway
+                                                 (eADSBExKeyTest == ADSBX_KEY_TESTING ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None)))
+                        // when key is changing reset a potential previous result
+                        eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
+                    // key is changed and different -> offer to test it
+                    if (eADSBExKeyTest == ADSBX_KEY_NO_ACTION &&
+                        !sADSBExKeyEntry.empty() &&
+                        sADSBExKeyEntry != dataRefs.GetADSBExAPIKey())
+                    {
+                        if (ImGui::ButtonTooltip(ICON_FA_UNDO " Reset to saved", "Resets the key to the previously saved key"))
+                        {
+                            sADSBExKeyEntry = dataRefs.GetADSBExAPIKey();
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::ButtonTooltip(ICON_FA_CHECK " Test and Save Key", "Sends a request to ADS-B Exchange using your entered key to test its validity.\nKey is saved only after a successful test."))
+                        {
+                            ADSBExchangeConnection::TestADSBExAPIKey(sADSBExKeyEntry);
+                            eADSBExKeyTest = ADSBX_KEY_TESTING;
+                        }
+                    }
+                    // Test of key underway? -> check for result
+                    if (eADSBExKeyTest == ADSBX_KEY_TESTING) {
+                        bool bSuccess = false;
+                        if (ADSBExchangeConnection::TestADSBExAPIKeyResult(bSuccess)) {
+                            eADSBExKeyTest = bSuccess ? ADSBX_KEY_SUCCESS : ADSBX_KEY_FAILED;
+                            if (bSuccess) {
+                                dataRefs.SetADSBExAPIKey(sADSBExKeyEntry);
+                                
+                            }
+                        } else {
+                            ImGui::TextUnformatted(ICON_FA_SPINNER " Key is being tested...");
+                        }
+                    }
+                    // Key tested successfully
+                    if (eADSBExKeyTest == ADSBX_KEY_SUCCESS)
+                        ImGui::TextUnformatted(ICON_FA_CHECK_CIRCLE " Key tested successfully");
+                    else if (eADSBExKeyTest == ADSBX_KEY_FAILED)
+                        ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
+                    
+                    ImGui::TableNextCell();
+                }
+                
+                // ADSBEx's connection status details (only if there is an API key defined)
+                if (!dataRefs.GetADSBExAPIKey().empty() &&
+                    ImGui::FilteredLabel("Connection Status", sFilter))
+                {
+                    if (const LTChannel* pADSBExbCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_EXCHANGE_ONLINE)) {
+                        ImGui::TextWrapped("%s", pADSBExbCh->GetStatusText().c_str());
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
@@ -1145,7 +1166,27 @@ void LTSettingsUI::buildInterface()
             {
                 ImGui::FilteredCfgCheckbox("Own FMOD Instance",   sFilter, DR_CFG_SND_FORCE_FMOD_INSTANCE,
                                            "Enforce using separate FMOD instance instead of X-Plane's.\n(Takes effect after restart only.)");
-
+                // Sound Device Selection
+                if (ImGui::FilteredLabel("Sound Device", sFilter)) {
+                    const std::string& devCurr = dataRefs.GetSoundDevice();
+                    if (ImGui::BeginCombo("##SoundDevice", devCurr.c_str())) {
+                        // Get list of sound devices every other second "only"
+                        if (CheckEverySoOften(tsSndDevsLastUpd, 2.0f))
+                            vecSndDevs = dataRefs.GetAllSoundDeviceNames(true);
+                        // List thems
+                        for (const std::string& dev: vecSndDevs) {
+                            bool isSelected = (dev == devCurr);
+                            if (ImGui::Selectable(dev.c_str(), &isSelected)) {  // new selecton made?
+                                if (!dataRefs.SetSoundDevice(dev))              // try to use...didn't work?
+                                    isSelected = false;
+                            }
+                            if (isSelected)                                     // if (now,still) the selected, make it the focused one
+                                ImGui::SetItemDefaultFocus();
+                        }                        
+                        ImGui::EndCombo();
+                    }
+                }
+                
                 if (!*sFilter) ImGui::TreePop();
             }
 

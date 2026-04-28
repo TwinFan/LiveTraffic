@@ -39,6 +39,7 @@
 #define RT_CHECK_NAME           "RealTraffic Web Site"
 #define RT_CHECK_URL            "https://www.flyrealtraffic.com/"
 #define RT_CHECK_POPUP          "Open RealTraffic's web site"
+#define RT_SLUG                 "https://www.flyrealtraffic.com/livemap/?hex=%lx"
 
 #define REALTRAFFIC_NAME        "RealTraffic"
 
@@ -56,7 +57,7 @@
 #define RT_WEATHER_POST         "GUID=%s&lat=%.2f&lon=%.2f&alt=%ld&airports=%s&querytype=locwx&toffset=%ld"
 #define RT_TRAFFIC_URL          RT_BASE_URL "/traffic"
 #define RT_TRAFFIC_POST         "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld"
-#define RT_TRAFFIC_POST_BUFFER  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=%d&buffertime=10"
+#define RT_TRAFFIC_POST_BUFFER  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=locationtraffic&toffset=%ld&buffercount=%d&buffertime=%d"
 #define RT_TRAFFIC_POST_PARKED  "GUID=%s&top=%.2f&bottom=%.2f&left=%.2f&right=%.2f&querytype=parkedtraffic&toffset=%ld"
 
 #define RT_LOCALHOST            "0.0.0.0"
@@ -90,7 +91,8 @@ constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///<
 constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
 constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
-constexpr int RT_CNT_SEND_TIMING = 240;                                     ///< RT App: After how many position position message also to send a timing message? (with 250ms period, 240 means: every minute)
+constexpr int RT_CNT_SEND_TIMING = 240;                                     ///< RT App: After how many position messages also to send a timing message? (with 250ms period, 240 means: every minute)
+constexpr int RT_BUFFER_PERIOD = 10;                                        ///< [s] When requesting buffered traffic, how much time between two buffers?
 
 /// Fields in a response of a direct connection's request
 enum RT_DIRECT_FIELDS_TY {
@@ -254,7 +256,7 @@ public:
         RT_STATUS_CONNECTED_FULL,           // both connected to, and have received UDP data
         RT_STATUS_STOPPING
     };
-
+    
 protected:
     // general lock to synch thread access to object members
     std::recursive_mutex rtMutex;
@@ -282,18 +284,18 @@ protected:
         positionTy pos;                                 ///< viewer position for which we receive Realtraffic data
         long tOff = 0;                                  ///< [min] time offset for which we request data
     } curr;                                             ///< Data for the current request
-
+    
     /// What's the next time we could send a traffic request?
     std::chrono::time_point<std::chrono::steady_clock> tNextTraffic;
     /// What's the next time we could send a weather request?
     std::chrono::time_point<std::chrono::steady_clock> tNextWeather;
-
+    
     /// METAR entry in the NearestMETAR response
     struct NearestMETAR {
         std::string     ICAO = RT_METAR_UNKN;           ///< ICAO code of METAR station
         double          dist = NAN;                     ///< distance to station
         double          brgTo = NAN;                    ///< bearing to station
-
+        
         NearestMETAR() {}                               ///< Standard constructor, all empty
         NearestMETAR(const JSON_Object* pObj) { Parse (pObj); } ///< Fill from JSON
         
@@ -328,13 +330,13 @@ protected:
     long lTotalFlights = -1;
     /// Shall we check for parked traffic next time around? (Set from main thread after airport data updates)
     bool bDoParkedTraffic = false;
-
+    
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
     XPMP2::TCPConnection tcpPosSender;      ///< TCP connection to communicate with RealTraffic
     /// Status of the separate TCP listening thread
     volatile ThrStatusTy eTcpThrStatus = THR_NONE;
-
+    
     // UDP sockets
     XPMP2::UDPReceiver udpTrafficData;      ///< UDP receiver for traffic data (port 49005)
     XPMP2::UDPReceiver udpWeatherData;      ///< UDP receiver for weather data (port 49004)
@@ -342,19 +344,25 @@ protected:
     // the self-pipe to shut down the UDP listener thread gracefully
     SOCKET udpPipe[2] = { INVALID_SOCKET, INVALID_SOCKET };
 #endif
-    double lastReceivedTime     = 0.0;  // copy of simTime
+    /// last simtime that we received UDP traffic
+    double lastReceivedTime     = 0.0;
+    /// last known position to detect fast movement (to request buffered traffic and the like)
+    positionTy lastKnownViewPos;
+    /// Expecting buffered traffic first?
+    bool bWaitForBuffers = true;
+    /// expected bu
     // map of last received datagrams for duplicate detection
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
     /// rolling list of timestamp (diff to now) for detecting historic sending
     std::deque<double> dequeTS;
     /// [s] current timestamp adjustment
     double tsAdjust = 0.0;
-
+    
 public:
     RealTrafficConnection ();
-
+    
     void Stop (bool bWaitJoin) override;        ///< Stop the UDP listener gracefully
-
+    
     // interface called from LTChannel
     // SetValid also sets internal status
     void SetValid (bool _valid, bool bMsg = true) override;
@@ -362,12 +370,12 @@ public:
     /// Have connection read traffic data at next chance
     void DoReadParkedTraffic () { bDoParkedTraffic = true; }
     
-//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
-//    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
+    //    // shall data of this channel be subject to LTFlightData::DataSmoothing?
+    //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
+    //    { gndRange = RT_SMOOTH_GROUND; airbRange = RT_SMOOTH_AIRBORNE; return true; }
     // shall data of this channel be subject to hovering flight detection?
     bool DoHoverDetection () const override { return true; }
-
+    
     // Status
     std::string GetStatusText () const override;            ///< return a human-readable status
     bool isHistoric () const { return curr.tOff > 0; }      ///< serving historic data?
@@ -382,7 +390,8 @@ protected:
     /// Which request do we need next and when can we send it?
     std::chrono::time_point<std::chrono::steady_clock> SetRequType (const positionTy& pos);
 public:
-    bool IsFirstTrafficRequ () const { return lTotalFlights < 0; } ///< Have not received any traffic data before?
+    int GetNumTrafficBuffers () const                       ///< How many buffers of buffered traffic would we request?
+    { return std::min<int>(10, dataRefs.GetFdBufPeriod() / RT_BUFFER_PERIOD); }
     std::string GetURL (const positionTy&) override;        ///< in direct mode return URL and set
     void ComputeBody (const positionTy& pos) override;      ///< in direct mode puts together the POST request with the position data etc.
     bool ProcessFetchedData () override;                    ///< in direct mode process the received data
@@ -415,17 +424,21 @@ protected:
     void SendXPSimTime(bool bForce);                        ///< Send XP's current simulated time to RealTraffic, adapted to "today or earlier", every once in a while, or if `bForce`
     void SendPos (const positionTy& pos, double speed_m);   ///< Send position/speed info for own ship to RealTraffic
     void SendUsersPlanePos();                               ///< Send user's plane's position/speed to RealTraffic
-    void RequestBufferTraffic();                            ///< Send request for initial traffic for buffering
+    void RequestBufferTraffic(const positionTy& pos,
+                              double radius_m);             ///< Send request for initial traffic for buffering
 
     // MARK: Data Processing
     // Process received datagrams
     bool ProcessRecvedTrafficData (const char* traffic);
-    bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a RTTFC type message
-    bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc);    ///< Process a AITFC or XTRAFFICPSX type message
+    /// Process a RTTFC type message
+    bool ProcessRTTFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc, int nBuffer);
+    ///< Process a AITFC or XTRAFFICPSX type message
+    bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc, int nBuffer);
     bool ProcessRecvedWeatherData (const char* weather);                                      ///< Process UDP weather JSON from RT Application
+    std::string GetSlug (unsigned long hex) const;          ///< returns a slug string for a given hex id
     
     /// Determine timestamp adjustment necessary in case of historic data
-    void AdjustTimestamp (double& ts);
+    void AdjustTimestamp (double& ts, int nBuffer);
     /// Return a string describing the current timestamp adjustment
     std::string GetAdjustTSText () const;
     

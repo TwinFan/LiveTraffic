@@ -6,7 +6,7 @@
 ///             LTAircraft calculates the current position and configuration of the aircraft
 ///             in every flighloop cycle while being called from libxplanemp.
 /// @author     Birger Hoppe
-/// @copyright  (c) 2018-2020 Birger Hoppe
+/// @copyright  (c) 2018-2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -1858,13 +1858,7 @@ bool LTAircraft::CalcPPos()
     // calculate timestamp can be a bit off, especially when acceleration is in progress,
     // overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
-/*
-#warning Remove this
-    if (bIsSelected) {
-        LOG_MSG(logDEBUG,"f=%.4f, p={%s}, head=%.1f -> %.1f",
-                f, ppos.dbgTxt().c_str(), prevHead, ppos.heading());
-    }
-*/
+
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
     // catch that case...likely the a/c is to be removed due to outdated data
     // soon anyway, we just speed up things a bit here
@@ -2453,6 +2447,7 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
     pOut->bits.hidden = !IsVisible();
     pOut->bits.camera = IsInCameraView();
     pOut->bits.multiIdx = tcasTargetIdx;
+    pOut->bits.trspMode = unsigned(acRadar.mode);       // v4.4.0 addition
     pOut->bits.filler2 = 0;
     pOut->bits.filler3 = 0;
     
@@ -2462,6 +2457,14 @@ void LTAircraft::CopyBulkData (LTAPIAircraft::LTAPIBulkData* pOut,
         pOut->lon = GetPPos().lon();
         pOut->alt_ft = GetPPos().alt_ft();
     }
+    
+    // v4.4.0 additions
+    pOut->x     = double(drawInfo.x);           // It is double because X-Plane is moving towards double already...we'll change LiveTraffic probably sometime soon, too
+    pOut->y     = double(drawInfo.y);
+    pOut->z     = double(drawInfo.z);
+    pOut->v_x   = v_x;
+    pOut->v_y   = v_y;
+    pOut->v_z   = v_z;
 }
     
 // copies text information out into the bulk structure for LTAPI usage
@@ -2707,6 +2710,7 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     {
         CameraRegisterCommands(false);
         pExtViewAc = nullptr;
+        dataRefs.SetCameraAc(nullptr);
         return 0;
     }
 
@@ -2720,6 +2724,11 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     outCameraPosition->pitch =                              extOffs.pitch;
     outCameraPosition->roll =                               extOffs.roll;
     outCameraPosition->zoom =                               extOffs.zoom;
+    
+    // Reset the counter that counts flight loop calls w/o camera control.
+    // The "loosing control" part above works great if X-Plane itself takes over camera control,
+    // but reportedly not if a 3rd party plugin takes over, so we count ourselves.
+    dataRefs.CntCameraCallback();
     
     return 1;
 }
@@ -2900,17 +2909,17 @@ void LTAircraft::UpdatePosition (float, int cycle)
         SetThrustReversRatio((float)reversers.get());
 
         // for engine / prop rotation we derive a value based on flight model
-        if (pDoc8643->hasRotor())
+        if (GetFlightPhase() == FPH_PARKED)
+            SetEngineRotRpm(0.0f);
+        else if (pDoc8643->hasRotor())
             SetEngineRotRpm(float(pMdl->PROP_RPM_MAX));
         else
             SetEngineRotRpm(float(pMdl->PROP_RPM_MAX/2 + GetThrustRatio() * pMdl->PROP_RPM_MAX/2));
         SetPropRotRpm(GetEngineRotRpm());
         
         // Make props and rotors move based on rotation speed and time passed since last cycle
-        SetEngineRotAngle(GetEngineRotAngle() + RpmToDegree(GetEngineRotRpm(), currCycle.diffTime));
-
-        while (GetEngineRotAngle() >= 360.0f)
-            SetEngineRotAngle(GetEngineRotAngle() - 360.0f);
+        SetEngineRotAngle(std::fmod(GetEngineRotAngle() + RpmToDegree(GetEngineRotRpm(), currCycle.diffTime),
+                                    360.0f));
         SetPropRotAngle(GetEngineRotAngle());
         
         // Gear deflection - has an effect during touch-down only
@@ -2989,7 +2998,9 @@ void LTAircraft::UpdatePosition (float, int cycle)
         
     } catch (const std::exception& e) {
         LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
-    } catch (...) {}
+    } catch (...) {
+        LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown)");
+    }
 
     // for any kind of exception: don't use this object any more!
     SetInvalid();

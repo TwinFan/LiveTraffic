@@ -1318,11 +1318,9 @@ bool WeatherFetch (float _lat, float _lon, float _radius_nm)
 
         // put together the URL, with a bounding box with _radius_nm in each direction
         const boundingBoxTy box (positionTy(_lat, _lon), _radius_nm * M_per_NM * 2.0);
-        const positionTy minPos = box.sw();
-        const positionTy maxPos = box.ne();
         snprintf(url, sizeof(url), WEATHER_URL,
-                 minPos.lat(), minPos.lon(),
-                 maxPos.lat(), maxPos.lon());
+                 box.bottom(), box.left(),
+                 box.top(),    box.right());
 
         // prepare the handle with the right options
         readBuf.reserve(CURL_MAX_WRITE_SIZE);

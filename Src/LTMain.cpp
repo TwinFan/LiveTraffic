@@ -1099,6 +1099,9 @@ void LTRegularUpdates()
 
     // handle new network data (that func has a short-cut exit if nothing to do)
     LTFlightData::AppendAllNewPos();
+    
+    // Count flight loop callbacks without camera control
+    dataRefs.CntCyclesWithoutCamera();
 
     // Flush out all non-written log messages
     FlushMsg();

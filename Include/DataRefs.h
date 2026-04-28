@@ -355,6 +355,8 @@ enum dataRefsLT {
     DR_SIM_DATE,
     DR_SIM_TIME,
     
+    DR_CAMERA_CONTROL,              ///< Does LiveTraffic have camera control?
+    
     DR_LT_VER,                      ///< LiveTraffic's version number, like 201 for v2.01
     DR_LT_VER_DATE,                 ///< LiveTraffic's version date, like 20200430 for 30-APR-2020
     
@@ -449,8 +451,9 @@ enum dataRefsLT {
     DR_CHANNEL_OPEN_SKY_ONLINE,
     DR_CHANNEL_OPEN_SKY_AC_MASTERDATA,
     DR_CHANNEL_OPEN_SKY_AC_MASTERFILE,
-    DR_CHANNEL_ADSB_FI_ONLINE,
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
+    DR_CHANNEL_ADSB_FI_ONLINE,
+    DR_CHANNEL_AIRPLANES_LIVE,
     DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
     // always last, number of elements:
     CNT_DATAREFS_LT
@@ -768,6 +771,7 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sSoundDevice = CFG_SND_NO_DEVICE;               ///< Output sound device name
     std::string sOpenSkyClient;         ///< OpenSky Network Client ID
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
@@ -782,6 +786,10 @@ protected:
     int cntAc           = 0;            // number of a/c being displayed
     std::string keyAc;                  // key (transpIcao) for a/c whose data is returned
     const LTAircraft* pAc = nullptr;    // ptr to that a/c
+    
+    // Track camera control
+    const int MAX_CYCLE_NO_CAMERA_CB = 6;
+    int nCycleWithoutCameraCB = MAX_CYCLE_NO_CAMERA_CB;      ///< How many flight loop cycles did we do without receiving a camera callback? (Anything larger than 5 is considered "No camera control")
     
     // Weather
     float       lastWeatherAttempt = 0.0f;  ///< last time we _tried_ to update the weather
@@ -918,7 +926,11 @@ public:
     static float LTGetAcInfoF(void* p);
     
     void SetCameraAc(const LTAircraft* pCamAc); ///< sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
+    void CntCyclesWithoutCamera();              ///< Count flight loop callbacks without camera callback
+    void CntCameraCallback();                   ///< Count the fact that there was a camera callback -> resets `nCycleWithoutCameraCB`
     static void ClearCameraAc(void*);           ///< shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
+    // livetraffic/camera/control
+    static int LTHasCameraControl(void*);                   ///< Does LT have camera control?
     
     // seconds since epoch including fractionals
     double GetSimTime() const { return lastSimTime; }
@@ -963,6 +975,10 @@ public:
     inline bool GetAutoStart() const { return bAutoStart != 0; }
     int GetVolumeMaster() const { return volMaster; }
     bool ShallForceFmodInstance() const { return sndForceFmodInstance != 0; }
+    const std::string& GetSoundDevice () const { return sSoundDevice; }
+    bool SetSoundDevice (const std::string& dev);
+    std::vector<std::string> GetAllSoundDeviceNames (bool bForceIncludeCurrent) const;;
+    void SetSound ();               ///< Set sound according to volMaster and sSoundDevice
     inline bool IsAIonRequest() const { return bAIonRequest != 0; }
     bool IsAINotOnGnd() const { return bAINotOnGnd != 0; }
     static int HaveAIUnderControl(void* =NULL) { return XPMPHasControlOfAIAircraft(); }

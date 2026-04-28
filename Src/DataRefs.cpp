@@ -508,6 +508,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
 
     {"livetraffic/sim/date",                        DataRefs::LTGetSimDateTime, NULL,               (void*)1, false },
     {"livetraffic/sim/time",                        DataRefs::LTGetSimDateTime, NULL,               (void*)2, false },
+    
+    {"livetraffic/camera/control",                  DataRefs::LTHasCameraControl },
 
     {"livetraffic/ver/nr",                          GetLTVerNum,  NULL, NULL, false },
     {"livetraffic/ver/date",                        GetLTVerDate, NULL, NULL, false },
@@ -603,8 +605,9 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/open_sky/online",         DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterdata",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/open_sky/ac_masterfile",  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
-    {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/airplanes_live/online",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -780,11 +783,11 @@ ILWrect (0, 400, 965, 0)
         i = false;
 
     // enable all public/free channels by default:
-    // adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
+    // Airplanes.live, adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
+    bChannel[DR_CHANNEL_AIRPLANES_LIVE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
-    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_SYNTHETIC               - DR_CHANNEL_FIRST] = true;
 
@@ -1501,6 +1504,9 @@ float DataRefs::LTGetAcInfoF(void* p)
 // sets the data of the shared datarefs to point to `ac` as the current aircraft under the camera
 void DataRefs::SetCameraAc(const LTAircraft* pCamAc)
 {
+    // If the camera aircraft has just been reset then we also make sure we don't consider us having camera control
+    nCycleWithoutCameraCB = MAX_CYCLE_NO_CAMERA_CB;
+    
     // requires that we could define and find the shared dataRef
     if (!adrXP[DR_CAMERA_TCAS_IDX] ||
         !adrXP[DR_CAMERA_AC_ID])
@@ -1517,6 +1523,20 @@ void DataRefs::SetCameraAc(const LTAircraft* pCamAc)
                  pCamAc ? (int)pCamAc->GetTcasTargetIdx() : 0);
     gbIgnoreItsMe = false;
 }
+
+// Count flight loop callbacks without camera callback
+void DataRefs::CntCyclesWithoutCamera()
+{
+    if (nCycleWithoutCameraCB < MAX_CYCLE_NO_CAMERA_CB)
+        nCycleWithoutCameraCB++;
+}
+
+// Count the fact that there was a camera callback
+void DataRefs::CntCameraCallback()
+{
+    nCycleWithoutCameraCB = 0;
+}
+
 
 // shared dataRef callback: Whenever someone else writes to the shared dataRef we clear our a/c camera information
 void DataRefs::ClearCameraAc(void*)
@@ -1590,6 +1610,13 @@ int DataRefs::LTGetSimDateTime(void* p)
             tm.tm_sec;                              // second
     }
 }
+
+// livetraffic/camera/control
+int DataRefs::LTHasCameraControl(void*)
+{
+    return dataRefs.nCycleWithoutCameraCB >= dataRefs.MAX_CYCLE_NO_CAMERA_CB ? 0 : 1;
+}
+
 
 // Enable/Disable display of aircraft
 void DataRefs::LTSetAircraftDisplayed(void*, int i)
@@ -1752,15 +1779,8 @@ bool DataRefs::SetCfgValue (void* p, int val)
     else if (p == &fdLongRefrIntvl && fdCurrRefrIntvl == oldLongRefreshIntvl)
         fdCurrRefrIntvl = fdLongRefrIntvl;
     // Master Volume change to be forwarded to XPMP2, too
-    else if (p == &volMaster) {
-        if (volMaster == 0) {                       // Disable sound altogether
-            XPMPSoundEnable(false);
-        } else {                                    // Sound is (to be) enabled
-            if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
-                XPMPSoundEnable(true);
-            XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
-        }
-    }
+    else if (p == &volMaster)
+        SetSound();                     // Enable/disable sound if and only if volume > 0
     
     // If weather is...
     if (p == &weatherCtl) {
@@ -1874,6 +1894,72 @@ void DataRefs::SetLastCheckedNewVerNow ()
 void DataRefs::GetLabelColor (float outColor[4]) const
 {
     conv_color(labelColor, outColor);
+}
+
+// Set the sound device name
+bool DataRefs::SetSoundDevice (const std::string& dev)
+{
+    // "no change" always works
+    if (dev == CFG_SND_NO_DEVICE) {
+        sSoundDevice = CFG_SND_NO_DEVICE;
+        return true;
+    }
+    
+    // Try to set the selected device
+    if (XPMPSoundSetAudioDeviceName(dev)) {
+        LOG_MSG(logINFO, "Using sound device '%s'", dev.c_str());
+        sSoundDevice = dev;
+        return true;
+    }
+    else {
+        LOG_MSG(logWARN, "Unable to select sound device '%s'", dev.c_str());
+    }
+    return false;
+}
+
+// Get all possible sound device names.
+// Parameter determines if sSoundDevice is added to the list if needed
+std::vector<std::string> DataRefs::GetAllSoundDeviceNames (bool bForceIncludeCurrent) const
+{
+    // Fetch all device names from XPMP2 and check along the way if the current selected device name is included
+    bool bCurrDevIsIn = false;
+    std::vector<std::string> vec = { CFG_SND_NO_DEVICE };       // start with the extra "(no change)" entry
+    if (sSoundDevice == CFG_SND_NO_DEVICE)
+        bCurrDevIsIn = true;
+    std::string dev;
+    for (int i = 0; XPMPSoundGetAudioDeviceName(i, dev); ++i) {
+        if (sSoundDevice == dev)
+            bCurrDevIsIn = true;
+        vec.emplace_back(std::move(dev));
+    }
+    // Add the current selected device name if not in and so wished
+    if (!bCurrDevIsIn && bForceIncludeCurrent && !sSoundDevice.empty())
+        vec.emplace_back(sSoundDevice);
+    // return all
+    return vec;
+}
+
+// Enable/disable sound
+void DataRefs::SetSound ()
+{
+    if (volMaster > 0) {
+        // Sound is (to be) enabled
+        if (!XPMPSoundIsEnabled() && pluginState >= STATE_INIT)
+            XPMPSoundEnable(true);
+        XPMPSoundSetMasterVolume(float(volMaster) / 100.0f);
+        // if setting the output device fails, then figure out what now that device is
+        if (!sSoundDevice.empty() &&                                // there is a device to set
+            !SetSoundDevice(sSoundDevice) &&                        // setting that dev didn't work
+            XPMPSoundGetActiveAudioDevice(&sSoundDevice) == 0 &&    // let's figure out what now the device is
+            sSoundDevice.empty())                                   // but if it is still index 0 and no name
+        {
+            sSoundDevice = CFG_SND_NO_DEVICE;                       // then it is "(no change)"
+        }
+    }
+    else {
+        // Disable sound altogether
+        XPMPSoundEnable(false);
+    }
 }
 
 //
@@ -2028,7 +2114,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420, CFG_V436 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2088,18 +2174,20 @@ bool DataRefs::LoadConfigFile()
                 cfgFileVer += std::stoul(m[3]);
             
             // any conversions required?
-            if (cfgFileVer < 30100)         // < 3.1.0
-                conv = CFG_V31;
-            if (cfgFileVer < 30301)         // < 3.3.1
-                conv = CFG_V331;
-            if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
-                conv = CFG_V342;
+            if (cfgFileVer < 40306)         // < 4.3.6: Switch off OpenSky Master File
+                conv = CFG_V436;
+            if (cfgFileVer < 40200)         // < 4.2.0: Clear ADSBEx API key (switch to other service)
+                conv = CFG_V420;
             if (cfgFileVer < 30500) {       // < 3.5.0
                 rtConnType = RT_CONN_APP;   //         Switch RealTraffic default to App as it was before
                 conv = CFG_V350;
             }
-            if (cfgFileVer < 40200)         // < 4.2.0: Clear ADSBEx API key (switch to other service)
-                conv = CFG_V420;
+            if (cfgFileVer < 30402)         // < 3.4.2: Reset Force FMOD instance = 0, set network timeout to 5s
+                conv = CFG_V342;
+            if (cfgFileVer < 30301)         // < 3.3.1
+                conv = CFG_V331;
+            if (cfgFileVer < 30100)         // < 3.1.0
+                conv = CFG_V31;
         }
     }
     
@@ -2176,6 +2264,11 @@ bool DataRefs::LoadConfigFile()
                         // Switching to v4.2 we need to disable ADSBEx until a new API key is configured
                         if (*i == DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE])
                             sVal = "0";
+                        [[fallthrough]];
+                    case CFG_V436:
+                        // Switching off OpenSky Master File
+                        if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE])
+                            sVal = "0";
                         break;
                 }
                 
@@ -2198,6 +2291,8 @@ bool DataRefs::LoadConfigFile()
                 SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
                 SetDefaultCarIcaoType(sVal);
+            else if (sDataRef == CFG_SOUND_DEVICE)
+                sSoundDevice = sVal;            // can't set device now, too early
             else if (sDataRef == CFG_OPENSKY_CLIENT)
                 SetOpenSkyClient(sVal);
             else if (sDataRef == CFG_OPENSKY_SECRET)
@@ -2348,6 +2443,8 @@ bool DataRefs::SaveConfigFile()
     // *** Strings ***
     fOut << CFG_DEFAULT_AC_TYPE << ' ' << GetDefaultAcIcaoType() << '\n';
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << GetDefaultCarIcaoType() << '\n';
+    if (!sSoundDevice.empty())
+        fOut << CFG_SOUND_DEVICE << ' ' << sSoundDevice << '\n';
     if (!sOpenSkyClient.empty())
         fOut << CFG_OPENSKY_CLIENT << ' ' << sOpenSkyClient << '\n';
     if (!sOpenSkySecret.empty())
@@ -2471,7 +2568,6 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
     if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
-        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
     }
     
     // if a channel got disabled check if any tracking data channel is left
