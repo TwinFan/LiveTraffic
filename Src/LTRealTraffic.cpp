@@ -1888,43 +1888,43 @@ bool RealTrafficConnection::ProcessRecvedTrafficData (const char* traffic)
     
     // *** Process different formats ****
     
-    // buffered traffic?
-    int nBuf = 0;
-    if (std::strncmp(tfc[RT_RTTFC_REC_TYPE].c_str(), "RTBUF=", 6) == 0) {
-        nBuf = std::atoi(tfc[RT_RTTFC_REC_TYPE].c_str()+6) + 1;
-        if (bWaitForBuffers) {
-            LOG_MSG(logDEBUG, "RTBUF Received first buffered traffic");
-            bWaitForBuffers = false;        // buffered traffic has arrived, we wait no longer
-        }
-    }
-    else {
-        // live traffic...but if we are waiting for buffered then we skip it silently
-        if (bWaitForBuffers)
-            return true;
-    }
-    
-    // There are 3 formats we are _really_ interested in: RTTFC, AITFC, and XTRAFFICPSX
+    // There are 3-4 formats we are _really_ interested in: RTTFC/RTBUF, AITFC, and XTRAFFICPSX
     // Check for them and their correct number of fields
+    const bool bIsRTBUF = std::strncmp(tfc[RT_RTTFC_REC_TYPE].c_str(), "RTBUF=", 6) == 0;
     if (tfc[RT_RTTFC_REC_TYPE] == RT_TRAFFIC_RTTFC ||                   // regular traffic
-        (nBuf && tfc.size() >= RT_RTTFC_MIN_TFC_FIELDS))                // buffered traffic with many fields
+        bIsRTBUF)                                                       // or buffered regular traffic
     {
         if (tfc.size() < RT_RTTFC_MIN_TFC_FIELDS)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
+        
+        // is buffered traffic?
+        int nBuf = 0;
+        if (bIsRTBUF) {
+            nBuf = std::atoi(tfc[RT_RTTFC_REC_TYPE].c_str()+6) + 1;
+            if (bWaitForBuffers) {
+                LOG_MSG(logDEBUG, "RTBUF Received first buffered traffic");
+                bWaitForBuffers = false;        // buffered traffic has arrived, we wait no longer
+            }
+        }
+        else {
+            // live traffic...but if we are waiting for buffered then we skip it silently
+            if (bWaitForBuffers)
+                return true;
+        }
 
         return ProcessRTTFC(fdKey, tfc, nBuf);
     }
-    // Buffered traffic comes with few fields and is typically processed here as AITFC format
-    else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_AITFC || nBuf) {
+    else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_AITFC) {
         if (tfc.size() < RT_AITFC_NUM_FIELDS_MIN)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
 
-        return ProcessAITFC(fdKey, tfc, nBuf);
+        return ProcessAITFC(fdKey, tfc, 0);
     }
     else if (tfc[RT_AITFC_REC_TYPE] == RT_TRAFFIC_XTRAFFICPSX) {
         if (tfc.size() < RT_XTRAFFICPSX_NUM_FIELDS)
         { LOG_MSG(logWARN, ERR_RT_DISCARDED_MSG, traffic); return false; }
 
-        return ProcessAITFC(fdKey, tfc, false);
+        return ProcessAITFC(fdKey, tfc, 0);
     }
     else {
         // other format than AITFC or XTRAFFICPSX

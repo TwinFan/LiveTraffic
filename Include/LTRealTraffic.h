@@ -349,7 +349,7 @@ protected:
     /// last known position to detect fast movement (to request buffered traffic and the like)
     positionTy lastKnownViewPos;
     /// Expecting buffered traffic first?
-    bool bWaitForBuffers = true;
+    bool bWaitForBuffers = false;
     /// expected bu
     // map of last received datagrams for duplicate detection
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;
