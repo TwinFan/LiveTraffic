@@ -149,6 +149,11 @@
     
     <ul>
         <li>
+            Fixed CTD with XP12.4.3-b1 due to "violation by LiveTraffic"
+            calling <code>XPLMIsFeatureEnabled</code> from a worker thread.
+            <a href="https://forums.x-plane.org/forums/topic/346981-crashing-with-livetraffic-440-on-x-plane-1243-b1/">See here</a>.
+        </li>
+        <li>
             Sending traffic from CSV files via <code>SendTraffic.py</code>:
             Fixed for AITFC format, i.e. works again even without
             <a href="https://forums.x-plane.org/forums/topic/218238-injecting-own-traffic-data-into-live-traffic-plugin/?page=4#findComment-3030422">the workaround</a>
