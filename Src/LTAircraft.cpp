@@ -1857,11 +1857,47 @@ bool LTAircraft::CalcPPos()
         ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
         ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
         // we handle roll later separately
-        
+
         // Get heading from moving param
         ppos.heading() = heading.get();
     }
-    
+
+    // ----------------------------------------------------------------------
+    // Per-frame heading rate limit (ground only).
+    //
+    // Even after `LTFlightData::CalcHeading` filtered out stationary jitter
+    // and applied a hysteresis dead-band on the deque side, the *target*
+    // heading that arrives here can still jump abruptly when, e.g., a new
+    // position slot becomes the active `to` and changes the heading
+    // MovingParam's destination. Without rate-limiting, that jump would be
+    // rendered as a single-frame snap-rotation — visually wrong for an
+    // aircraft on the ground. We therefore clamp the per-frame change to
+    // `GND_HEADING_MAX_RATE_DPS * dt`. Anything larger walks toward the
+    // target at the maximum allowed rate; the rendered nose then never
+    // moves faster than `GND_HEADING_MAX_RATE_DPS` (see `Constants.h`).
+    //
+    // We use `HeadingDiff` so that the clamp picks the signed shortest
+    // path across the 360°/0° wrap. The MovingParam is re-synced to the
+    // clamped value so it does not race ahead in subsequent frames.
+    //
+    // Airborne aircraft skip this clamp: in the air, the heading
+    // MovingParam is already smoothed via `defDuration` (TAXI_TURN_TIME
+    // vs FLIGHT_TURN_TIME, see the half-way preparations below) and an
+    // additional clamp here would make en-route course changes lag.
+    // ----------------------------------------------------------------------
+    if (IsOnGrnd() &&
+        !std::isnan(prevHead) &&
+        !std::isnan(ppos.heading()))
+    {
+        const double maxStep_deg = GND_HEADING_MAX_RATE_DPS * currCycle.diffTime;
+        const double delta_deg   = HeadingDiff(prevHead, ppos.heading());
+        if (std::abs(delta_deg) > maxStep_deg) {
+            ppos.heading() = HeadingNormalize(
+                prevHead + std::copysign(maxStep_deg, delta_deg));
+            heading.SetVal(ppos.heading());
+        }
+    }
+
     // calculate timestamp can be a bit off, especially when acceleration is in progress,
     // overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
