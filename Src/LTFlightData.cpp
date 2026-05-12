@@ -1479,6 +1479,77 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     // access guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
+    // ----------------------------------------------------------------------
+    // Ground-stationary freeze.
+    //
+    // Purpose: when an aircraft is on the ground and not really moving, the
+    // raw position samples from a 1 Hz feed carry a few metres of jitter.
+    // If we let the normal vector-between-positions math compute a heading
+    // from that jitter, the rendered nose will swing wildly — the "dance"
+    // symptom users see at gates and slow taxi. This branch detects the
+    // stationary case (low derived groundspeed between this slot and at
+    // least one neighbour) and reuses the previously trusted heading from
+    // the predecessor in the deque, which has already been filtered by the
+    // earlier `CalcHeading` calls that produced it. Threshold:
+    // `GND_STATIONARY_GS_KT` (see `Constants.h` for the rationale).
+    // ----------------------------------------------------------------------
+    if (it->IsOnGnd()) {
+        // Derived groundspeed FROM the predecessor (if any) to this slot,
+        // in knots. We use the position-pair speed helper rather than the
+        // dynamic-data feed value because the feed value is what we are
+        // trying to filter — the derived value tells us whether this slot
+        // is "moving" relative to its neighbour regardless of what the feed
+        // claims.
+        double gsFromPrev_kt = NAN;
+        if (it != posDeque.cbegin()) {
+            const positionTy& prePos = *std::prev(it);
+            if (prePos.IsOnGnd() && it->ts() > prePos.ts())
+                gsFromPrev_kt = prePos.speed_kt(*it);
+        }
+        // Derived groundspeed FROM this slot to the successor (if any)
+        double gsToNext_kt = NAN;
+        if (std::next(it) != posDeque.cend()) {
+            const positionTy& nextPos = *std::next(it);
+            if (nextPos.IsOnGnd() && nextPos.ts() > it->ts())
+                gsToNext_kt = it->speed_kt(nextPos);
+        }
+
+        // Classify each adjacent segment. We require BOTH segments (or the
+        // only available one at the ends of the deque) to be stationary
+        // before we lock the heading. Requiring two consecutive zero-ish
+        // slots avoids reacting to a single isolated tight cluster that
+        // can occur briefly during normal taxi.
+        const bool prevStationary = !std::isnan(gsFromPrev_kt) &&
+                                    gsFromPrev_kt <= GND_STATIONARY_GS_KT;
+        const bool nextStationary = !std::isnan(gsToNext_kt)  &&
+                                    gsToNext_kt  <= GND_STATIONARY_GS_KT;
+        const bool isolated       =  std::isnan(gsFromPrev_kt) ||
+                                     std::isnan(gsToNext_kt);
+
+        if ((prevStationary && nextStationary) ||
+            (isolated && (prevStationary || nextStationary)))
+        {
+            // Prefer the predecessor's heading — it's the most recent
+            // value that already passed through this filter chain.
+            if (it != posDeque.cbegin()) {
+                const double prevHead = std::prev(it)->heading();
+                if (!std::isnan(prevHead)) {
+                    it->heading() = prevHead;
+                    return;
+                }
+            }
+            // No usable predecessor: if the slot already carries a
+            // heading (e.g., a feed channel like RealTraffic provides
+            // one directly), keep it — anything is better than the
+            // jitter-derived value we would otherwise produce.
+            if (!std::isnan(it->heading()))
+                return;
+            // Otherwise fall through to the normal computation below;
+            // the existing `SIMILAR_POS_DIST` short-circuit will likely
+            // still kick in and stabilise this slot from the predecessor.
+        }
+    }
+
     // vectors to / from the position at "it"
     vectorTy vecTo, vecFrom;
     
@@ -1546,6 +1617,36 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
             it->heading() = 0;
     }
     
+    // ----------------------------------------------------------------------
+    // Ground heading hysteresis.
+    //
+    // After the heading for this slot has been (re)computed by the logic
+    // above, snap it back to the predecessor's heading if the difference
+    // is below `GND_HEADING_HYSTERESIS_DEG`. The reasoning: real-feed
+    // ADS-B/MLAT data routinely produces sub-degree variations in the
+    // track-from-pos-delta even when the aircraft is genuinely moving
+    // in a straight line. Those sub-degree changes do not represent
+    // physical reality and, if propagated, accumulate frame-by-frame
+    // into visible nose-wobble at slow ground speeds. The dead-band
+    // matches the convention used for the rendered heading rate-limit
+    // in `LTAircraft::CalcAcPos`, so the two layers reinforce each
+    // other rather than fighting.
+    //
+    // We only do this on the ground — in the air, small heading changes
+    // are usually meaningful (drift, gentle course corrections) and
+    // suppressing them would make en-route tracks look "stairstepped".
+    // ----------------------------------------------------------------------
+    if (it->IsOnGnd() && it != posDeque.cbegin()) {
+        const double prevHead = std::prev(it)->heading();
+        if (!std::isnan(prevHead) && !std::isnan(it->heading())) {
+            if (std::abs(HeadingDiff(prevHead, it->heading())) <
+                GND_HEADING_HYSTERESIS_DEG)
+            {
+                it->heading() = prevHead;
+            }
+        }
+    }
+
     // just as a safeguard...they can't be many situations this triggers,
     // but we don't want nan values any longer after this
     if (std::isnan(it->heading()))
