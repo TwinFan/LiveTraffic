@@ -146,9 +146,49 @@ public:
         std::string route() const;
         // flight + route
         std::string flightRoute() const;
-        // best guess for an airline livery: opIcao if exists, otherwise first 3 digits of call sign
+        /// @brief Best-guess ICAO airline code for XPMP2 livery matching.
+        ///
+        /// Resolution order:
+        /// 1. `opIcao` — set explicitly by channels that fetch master data
+        ///    (OpenSky master, FSCharter, AutoATC). Always trustworthy.
+        /// 2. First three characters of `call` — works for ICAO ATC
+        ///    callsigns of the form `<3-letter-airline><digits>` such as
+        ///    `AAL1146`, `RPA5665`, `QFA1926`. RealTraffic's field 13
+        ///    ("ATC Callsign") delivers this form for commercial flights.
+        /// 3. Empty string — returned when neither source produces a usable
+        ///    code (see below).
+        ///
+        /// Why the alpha test: many callsigns the feed delivers are not
+        /// ICAO airline callsigns at all. Private/GA aircraft commonly
+        /// transmit their registration as the callsign (e.g. `N552FX`,
+        /// `N99ABC`, `9K1876`, `1I637`), and parking-position data uses
+        /// short flight-number-style strings (`QF2`). Blindly substringing
+        /// those gives `"N55"`, `"N99"`, `"9K1"`, `"1I6"` — none of which
+        /// are valid airline codes — and XPMP2 then matches at the
+        /// "ignore-airline" fallback tier, producing visibly random
+        /// liveries. Requiring the first three characters to all be
+        /// letters filters out these false-airline cases; XPMP2 then
+        /// does type-only matching, which is more faithful to reality.
+        ///
+        /// @return ICAO airline code (3 letters, all alphabetic) or empty
+        ///         string when the callsign is not airline-shaped.
         inline std::string airlineCode() const
-            { return opIcao.empty() ? call.substr(0,3) : opIcao; }
+        {
+            if (!opIcao.empty())
+                return opIcao;
+            if (call.length() < 3)
+                return "";
+            // Each of the first three characters must be an alphabetic
+            // letter for the substring to plausibly be an ICAO airline
+            // code. A digit or punctuation in slot 0–2 indicates a
+            // registration (e.g. `N552FX`) or some other non-airline
+            // identifier — return empty so XPMP2 falls back to type-only.
+            if (!std::isalpha(static_cast<unsigned char>(call[0])) ||
+                !std::isalpha(static_cast<unsigned char>(call[1])) ||
+                !std::isalpha(static_cast<unsigned char>(call[2])))
+                return "";
+            return call.substr(0, 3);
+        }
         /// is this a ground vehicle?
         bool isGrndVehicle() const;
         /// is this a static object? (marked by a/c type being TWR)
