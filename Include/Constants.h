@@ -88,6 +88,97 @@ constexpr double BEZIER_MIN_HEAD_DIFF = 2.5;    ///< [°] turns of less than thi
 constexpr float  EXPORT_USER_AC_PERIOD = 15.0f; ///< [s] how often to write user's aircraft data into the export file
 constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's plabe
 
+//MARK: Ground Behavior Stability
+// -----------------------------------------------------------------------------
+// Tunables that govern how aircraft are rendered while on the ground. The
+// underlying problem is that public flight feeds (ADS-B, MLAT, multilat-fused
+// channels) supply position samples roughly once per second with a few metres
+// of positional noise. When an aircraft is stationary or slow-taxiing, that
+// noise — if fed straight into the heading-from-position-delta math — produces
+// wildly varying headings, which renders visually as the aircraft pivoting and
+// "dancing" at the gate. The constants below enable a layered set of
+// countermeasures: stationary detection, heading hysteresis, per-frame
+// heading rate-limiting, a holding mode that ignores trivial position jitter
+// after the aircraft has been parked for a while, hard-set ground attitude,
+// and pushback detection. Every constant here is chosen for *why* documented
+// inline; tweak with that rationale in mind.
+// -----------------------------------------------------------------------------
+
+/// [°] dead-band around the target heading inside which the rendered nose is
+/// not moved. Real-feed ADS-B jitter routinely produces sub-degree variation
+/// in track-from-pos-delta — we want those to be ignored so that a parked or
+/// slow-taxiing aircraft is visually stable. Set just wide enough to absorb
+/// sensor noise without making genuine slow turns look stepped.
+constexpr double GND_HEADING_HYSTERESIS_DEG     = 0.5;
+
+/// [°/s] maximum rate at which the rendered heading is allowed to walk while
+/// on the ground. Even if the *target* heading jumps by a large amount, the
+/// displayed heading walks smoothly at no more than this rate so the eye
+/// never sees a snap-rotation. 60°/s ≈ 1° per frame at a 60 fps draw rate;
+/// real ground turns from taxi-out to runway-line-up rarely exceed this.
+constexpr double GND_HEADING_MAX_RATE_DPS       = 60.0;
+
+/// [kn] groundspeed at-or-below which an aircraft is considered stationary
+/// for the purposes of heading freezing and holding detection. 0.5 kn is
+/// roughly 0.26 m/s — well below the slowest real taxi speed, but above the
+/// numerical noise that can creep in when a parked aircraft's reported
+/// groundspeed is "almost zero" rather than exactly zero in the feed.
+constexpr double GND_STATIONARY_GS_KT           = 0.5;
+
+/// [s] continuous stationary streak after which the aircraft enters "holding"
+/// mode. While holding, trivial position jitter is rejected (see
+/// `GND_HOLDING_TRIVIAL_DIST_M`). 30 s was chosen as long enough that brief
+/// taxi-pauses (e.g., at hold-short lines) do not trip the suppressor, while
+/// short enough that genuinely parked aircraft become rock-steady within
+/// half a minute of arriving at the stand.
+constexpr double GND_HOLDING_TIMEOUT_S          = 30.0;
+
+/// [m] inside holding mode, any new position update whose distance from the
+/// current rendered position is below this threshold AND whose reported
+/// groundspeed is below `GND_STATIONARY_GS_KT` is treated as feed noise and
+/// silently dropped — the rendered aircraft does not move. The value matches
+/// `SIMILAR_POS_DIST` (already used elsewhere in the heading code) so the
+/// two thresholds remain consistent; a future change here should propagate.
+constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 7.0;
+
+/// [°] pitch hard-set on every frame while the aircraft is on the ground
+/// (except during the take-off / flare phases, which manage pitch dynamically).
+/// A real aircraft sits with a slightly nose-up attitude due to gear geometry;
+/// 2° is a good neutral average across narrow-bodies, wide-bodies, and most
+/// GA singles. Hard-setting it (rather than inheriting from the data feed,
+/// which usually has no useful pitch on the ground) prevents pitch drift
+/// caused by inter-position interpolation in the slot pipeline.
+constexpr double GND_PITCH_DEG                  = 2.0;
+
+/// [°] roll hard-set on every frame while on the ground. Real aircraft never
+/// bank while taxiing — they pivot flat — and the existing roll-from-turn-rate
+/// computation can produce micro-banks from heading jitter that look wrong on
+/// a parked aircraft. We zero it explicitly; the in-air banking logic stays
+/// gated behind `!IsOnGnd()` so this only applies on the ground.
+constexpr double GND_ROLL_DEG                   = 0.0;
+
+/// [kn] upper bound on groundspeed for an event to even be considered as
+/// pushback. Typical pushback tugs move aircraft at 1–3 kn; anything faster
+/// is taxi rather than pushback and the normal heading-from-track logic
+/// should apply.
+constexpr double PUSHBACK_DETECT_GS_MAX_KT      = 3.0;
+
+/// [°] absolute heading difference between the track-over-ground (derived
+/// from the current position delta) and the aircraft's last-known good
+/// heading required to classify a slow motion as pushback. 135° is well
+/// inside the "going backwards" half-plane (which begins at 90°) but leaves
+/// margin so that a sharply curving forward taxi never accidentally trips the
+/// pushback heuristic.
+constexpr double PUSHBACK_DETECT_HEAD_DIFF_DEG  = 135.0;
+
+/// [m] distance behind the aircraft's nose along the reversed heading at
+/// which the pushback Bezier curve's control point is placed. ~10 m mid-point
+/// gives a smooth, gentle rearward arc instead of an instant straight-line
+/// reverse; matches the approximate distance a tug pushes an airliner during
+/// the first second of the maneuver.
+constexpr double PUSHBACK_MIDPOINT_DIST_M       = 10.0;
+
+
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude
 constexpr double MDL_ALT_MAX =          60000;  // [ft] maximum allowed altitude
