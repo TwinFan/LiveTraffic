@@ -1990,18 +1990,32 @@ bool LTAircraft::CalcPPos()
         //
         // Exceptions: phases where the nose is genuinely moving relative
         // to the ground — rotation for take-off (`FPH_ROTATE`), the flare
-        // before touchdown (`FPH_FLARE`), and the single-cycle touchdown
-        // event (`FPH_TOUCH_DOWN`). In those phases the flight-model code
-        // is actively driving the `pitch` MovingParam through a planned
-        // transition (e.g., `pitch.max()` on rotate, `pitch.moveTo(
-        // PITCH_FLARE)` on flare), and overriding it here would visibly
-        // freeze the maneuver.
+        // before touchdown (`FPH_FLARE`), the single-cycle touchdown
+        // event (`FPH_TOUCH_DOWN`), and the roll-out that immediately
+        // follows touchdown (`FPH_ROLL_OUT`). In all of these the
+        // flight-model code is actively driving the `pitch` MovingParam
+        // through a planned transition — `pitch.max()` on rotate,
+        // `pitch.moveTo(PITCH_FLARE)` on flare, `pitch.moveTo(
+        // GND_PITCH_DEG)` on touchdown to walk the nose down smoothly
+        // during roll-out. Overriding pitch during any of these phases
+        // would visibly snap the nose: in particular, without the
+        // `FPH_ROLL_OUT` exception the de-rotation animation gets
+        // clobbered one frame after touchdown (touchdown is documented
+        // as a single-frame event) and the aircraft appears to slam
+        // its nose-wheel down. Roll is forced flat in all phases —
+        // ground aircraft never bank, so no exception is needed there.
         if (phase != FPH_ROTATE &&
             phase != FPH_FLARE  &&
-            phase != FPH_TOUCH_DOWN)
+            phase != FPH_TOUCH_DOWN &&
+            phase != FPH_ROLL_OUT)
         {
             ppos.pitch() = GND_PITCH_DEG;
             ppos.roll()  = GND_ROLL_DEG;
+        } else {
+            // Even in the dynamic-pitch phases, roll should still be
+            // forced flat — there is no scenario where a wheeled
+            // aircraft banks during rotation/flare/touchdown/roll-out.
+            ppos.roll() = GND_ROLL_DEG;
         }
     } else {
         // not on the ground
