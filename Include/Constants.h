@@ -143,12 +143,14 @@ constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 7.0;
 
 /// [°] pitch hard-set on every frame while the aircraft is on the ground
 /// (except during the take-off / flare phases, which manage pitch dynamically).
-/// A real aircraft sits with a slightly nose-up attitude due to gear geometry;
-/// 2° is a good neutral average across narrow-bodies, wide-bodies, and most
-/// GA singles. Hard-setting it (rather than inheriting from the data feed,
-/// which usually has no useful pitch on the ground) prevents pitch drift
-/// caused by inter-position interpolation in the slot pipeline.
-constexpr double GND_PITCH_DEG                  = 2.0;
+/// 0° (level) matches LiveTraffic's pre-existing convention (the touch-down
+/// transition previously walked pitch to 0) and avoids the visible "tail-
+/// dragger" look the previous 2° value produced on narrow-body airliners.
+/// Hard-setting it (rather than inheriting from the data feed, which usually
+/// has no useful pitch on the ground) still serves its other purpose:
+/// preventing pitch drift caused by inter-position interpolation in the slot
+/// pipeline.
+constexpr double GND_PITCH_DEG                  = 0.0;
 
 /// [°] roll hard-set on every frame while on the ground. Real aircraft never
 /// bank while taxiing — they pivot flat — and the existing roll-from-turn-rate

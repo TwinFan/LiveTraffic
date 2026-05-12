@@ -1526,6 +1526,22 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         const bool isolated       =  std::isnan(gsFromPrev_kt) ||
                                      std::isnan(gsToNext_kt);
 
+        // ----- TEMPORARY GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_CHD) -----
+        // Captures the per-slot inputs that drive the stationary-freeze
+        // decision in CalcHeading. Fires unconditionally for every ground
+        // slot. Search the log for "GND_DIAG_CHD" to filter.
+        LOG_MSG(logDEBUG,
+                "GND_DIAG_CHD %s ts=%.1f gsPrev=%.2fkt gsNext=%.2fkt"
+                " hdg_in=%.1f prevHdg=%.1f nextHdg=%.1f stationary={p=%d,n=%d,iso=%d}",
+                key().c_str(), it->ts(),
+                gsFromPrev_kt, gsToNext_kt,
+                it->heading(),
+                it != posDeque.cbegin() ? std::prev(it)->heading() : NAN,
+                std::next(it) != posDeque.cend() ? std::next(it)->heading() : NAN,
+                prevStationary ? 1 : 0,
+                nextStationary ? 1 : 0,
+                isolated ? 1 : 0);
+
         if ((prevStationary && nextStationary) ||
             (isolated && (prevStationary || nextStationary)))
         {
@@ -1534,6 +1550,9 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
             if (it != posDeque.cbegin()) {
                 const double prevHead = std::prev(it)->heading();
                 if (!std::isnan(prevHead)) {
+                    LOG_MSG(logDEBUG,
+                            "GND_DIAG_FREEZE %s ts=%.1f kept prevHdg=%.1f",
+                            key().c_str(), it->ts(), prevHead);
                     it->heading() = prevHead;
                     return;
                 }
@@ -1693,8 +1712,14 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     if (it->IsOnGnd() && it != posDeque.cbegin()) {
         const double prevHead = std::prev(it)->heading();
         if (!std::isnan(prevHead) && !std::isnan(it->heading())) {
-            if (std::abs(HeadingDiff(prevHead, it->heading())) <
-                GND_HEADING_HYSTERESIS_DEG)
+            const double dHead = std::abs(HeadingDiff(prevHead, it->heading()));
+            // ----- TEMPORARY GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_HYST) -
+            LOG_MSG(logDEBUG,
+                    "GND_DIAG_HYST %s ts=%.1f prevHdg=%.1f newHdg=%.1f"
+                    " |delta|=%.2f%s",
+                    key().c_str(), it->ts(), prevHead, it->heading(), dHead,
+                    dHead < GND_HEADING_HYSTERESIS_DEG ? " -> SNAP" : "");
+            if (dHead < GND_HEADING_HYSTERESIS_DEG)
             {
                 it->heading() = prevHead;
             }
@@ -1992,6 +2017,21 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                                         !std::isnan(gs_kt) &&
                                         gs_kt <= GND_STATIONARY_GS_KT;
 
+            // ----- TEMPORARY GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_ADD) -
+            // Unconditional, fires once per on-ground feed update.
+            // Captures the parameters used by the stationary / holding
+            // decision so thresholds can be tuned from real data. Search
+            // the log for "GND_DIAG_ADD" to see only these lines.
+            // To remove later: delete this block.
+            if (bothOnGround) {
+                LOG_MSG(logDEBUG,
+                        "GND_DIAG_ADD %s ts=%.1f dt=%.2fs dist=%.2fm gs=%.2fkt"
+                        " hdg_prev=%.1f hdg_in=%.1f holdingSince=%.1f holding=%d",
+                        key().c_str(), pos.ts(), dtTs, dist_m, gs_kt,
+                        pLatestPos->heading(), pos.heading(),
+                        groundHoldingSinceTs, bGroundHolding ? 1 : 0);
+            }
+
             if (isStationary) {
                 // Either continue an existing streak or start a fresh one.
                 // The streak start is the timestamp of the LATEST already-
@@ -2006,12 +2046,11 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     (pos.ts() - groundHoldingSinceTs) >= GND_HOLDING_TIMEOUT_S)
                 {
                     bGroundHolding = true;
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,
-                                "%s: entering ground-holding suppression"
-                                " (stationary for %.1fs)",
-                                key().c_str(),
-                                pos.ts() - groundHoldingSinceTs);
+                    LOG_MSG(logDEBUG,
+                            "GND_DIAG_HOLDIN %s entering ground-holding"
+                            " (stationary for %.1fs)",
+                            key().c_str(),
+                            pos.ts() - groundHoldingSinceTs);
                 }
 
                 // While in holding, drop trivial jitter outright. We still
@@ -2020,11 +2059,10 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 // taxi start that we must not miss.
                 if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M)
                 {
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,
-                                "%s: dropping trivial ground update"
-                                " (dist=%.2fm, gs=%.2fkt)",
-                                key().c_str(), dist_m, gs_kt);
+                    LOG_MSG(logDEBUG,
+                            "GND_DIAG_DROP %s dropping trivial update"
+                            " (dist=%.2fm, gs=%.2fkt)",
+                            key().c_str(), dist_m, gs_kt);
                     return;
                 }
             } else {
@@ -2034,11 +2072,10 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 groundHoldingSinceTs = 0.0;
                 if (bGroundHolding) {
                     bGroundHolding = false;
-                    if (dataRefs.GetDebugAcPos(key()))
-                        LOG_MSG(logDEBUG,
-                                "%s: exiting ground-holding suppression"
-                                " (dist=%.2fm, gs=%.2fkt)",
-                                key().c_str(), dist_m, gs_kt);
+                    LOG_MSG(logDEBUG,
+                            "GND_DIAG_HOLDOUT %s exiting ground-holding"
+                            " (dist=%.2fm, gs=%.2fkt)",
+                            key().c_str(), dist_m, gs_kt);
                 }
             }
         }
