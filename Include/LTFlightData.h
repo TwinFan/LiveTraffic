@@ -252,6 +252,12 @@ protected:
     /// True once the streak has lasted longer than `GND_HOLDING_TIMEOUT_S`.
     /// While true, trivial feed updates are suppressed in `AddNewPos`.
     bool                    bGroundHolding       = false;
+    /// Count of consecutive non-stationary updates seen while in holding.
+    /// We do not exit holding on the first one — see `GND_HOLDING_EXIT_CONSEC`.
+    /// Feed jitter can briefly produce a single 2 kt sample for a truly
+    /// parked aircraft; requiring multiple consecutive non-stationary slots
+    /// before exiting avoids those false-exits.
+    int                     groundNonStationaryCnt = 0;
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;

@@ -105,25 +105,30 @@ constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's p
 // -----------------------------------------------------------------------------
 
 /// [°] dead-band around the target heading inside which the rendered nose is
-/// not moved. Real-feed ADS-B jitter routinely produces sub-degree variation
-/// in track-from-pos-delta — we want those to be ignored so that a parked or
-/// slow-taxiing aircraft is visually stable. Set just wide enough to absorb
-/// sensor noise without making genuine slow turns look stepped.
-constexpr double GND_HEADING_HYSTERESIS_DEG     = 0.5;
+/// not moved. Empirical: RealTraffic feeds without a heading field (e.g. for
+/// some channels) produce track-from-pos-delta wobbles of ~5–7° per slot at
+/// slow taxi (1–6 kt, 10 m chunks). A 4° band absorbs most of that noise
+/// while still letting genuine 5°+ taxi turns propagate. Original 0.5° was
+/// far too tight to catch the real-world jitter envelope.
+constexpr double GND_HEADING_HYSTERESIS_DEG     = 4.0;
 
 /// [°/s] maximum rate at which the rendered heading is allowed to walk while
-/// on the ground. Even if the *target* heading jumps by a large amount, the
-/// displayed heading walks smoothly at no more than this rate so the eye
-/// never sees a snap-rotation. 60°/s ≈ 1° per frame at a 60 fps draw rate;
-/// real ground turns from taxi-out to runway-line-up rarely exceed this.
-constexpr double GND_HEADING_MAX_RATE_DPS       = 60.0;
+/// on the ground. Tuned to roughly match `TAXI_TURN_TIME` in the flight
+/// model (30 s for a 360° turn = 12°/s natural rate). At this clamp a 7°
+/// per-slot wobble takes ~0.6 s to walk through, which the eye reads as
+/// smooth rotation; meanwhile real taxi turns of ~90° finish in ~7.5 s.
+/// Previous value of 60°/s never actually engaged because per-frame heading
+/// changes were always far below it.
+constexpr double GND_HEADING_MAX_RATE_DPS       = 12.0;
 
 /// [kn] groundspeed at-or-below which an aircraft is considered stationary
-/// for the purposes of heading freezing and holding detection. 0.5 kn is
-/// roughly 0.26 m/s — well below the slowest real taxi speed, but above the
-/// numerical noise that can creep in when a parked aircraft's reported
-/// groundspeed is "almost zero" rather than exactly zero in the feed.
-constexpr double GND_STATIONARY_GS_KT           = 0.5;
+/// for the purposes of heading freezing and holding detection. Empirical:
+/// parked aircraft at gates routinely have derived gs of 0.7–1.1 kt purely
+/// from positional jitter in the feed (e.g. ±5 m over 10 s = 1 kt). Setting
+/// the threshold above this band (1.5 kt) ensures parked aircraft stay in
+/// the stationary regime while real slow taxi (≥2 kt observed) is still
+/// classified as moving.
+constexpr double GND_STATIONARY_GS_KT           = 1.5;
 
 /// [s] continuous stationary streak after which the aircraft enters "holding"
 /// mode. While holding, trivial position jitter is rejected (see
@@ -136,10 +141,19 @@ constexpr double GND_HOLDING_TIMEOUT_S          = 30.0;
 /// [m] inside holding mode, any new position update whose distance from the
 /// current rendered position is below this threshold AND whose reported
 /// groundspeed is below `GND_STATIONARY_GS_KT` is treated as feed noise and
-/// silently dropped — the rendered aircraft does not move. The value matches
-/// `SIMILAR_POS_DIST` (already used elsewhere in the heading code) so the
-/// two thresholds remain consistent; a future change here should propagate.
-constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 7.0;
+/// silently dropped — the rendered aircraft does not move. Empirical:
+/// parked-aircraft jitter envelope on the data we observed is up to ~7 m,
+/// occasionally 12 m. 15 m gives comfortable margin so that all jitter is
+/// caught while a single 15 m+ jump (typical of real taxi-leg starts) still
+/// signals genuine motion and breaks the suppression.
+constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 15.0;
+
+/// Consecutive non-stationary feed updates required to actually exit holding.
+/// A single isolated above-threshold slot (which is common — feed jitter can
+/// transiently produce gs of 2 kt for one sample) should not break a stable
+/// holding lock. Requiring two in a row means we're in real-taxi territory
+/// before we trust the motion.
+constexpr int    GND_HOLDING_EXIT_CONSEC        = 2;
 
 /// [°] pitch hard-set on every frame while the aircraft is on the ground
 /// (except during the take-off / flare phases, which manage pitch dynamically).

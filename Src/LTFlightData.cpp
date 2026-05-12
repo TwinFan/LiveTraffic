@@ -2033,6 +2033,10 @@ void LTFlightData::AddNewPos ( positionTy& pos )
             }
 
             if (isStationary) {
+                // Stationary slot: reset the "consecutive non-stationary"
+                // counter — we just saw a moving slot streak interrupted.
+                groundNonStationaryCnt = 0;
+
                 // Either continue an existing streak or start a fresh one.
                 // The streak start is the timestamp of the LATEST already-
                 // known position so the elapsed time below is "how long has
@@ -2066,16 +2070,27 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     return;
                 }
             } else {
-                // Any non-stationary slot ends the streak. We also clear
-                // the holding flag so a fresh stationary period after
-                // genuine taxi motion has to re-earn the suppression.
-                groundHoldingSinceTs = 0.0;
-                if (bGroundHolding) {
+                // Non-stationary slot: increment the consecutive counter.
+                // We do not exit holding on the first one — feed jitter can
+                // briefly produce a single 2 kt sample for a truly parked
+                // aircraft. Only after `GND_HOLDING_EXIT_CONSEC` consecutive
+                // non-stationary slots do we trust that the aircraft is
+                // really moving and break the suppression.
+                groundNonStationaryCnt++;
+                if (bGroundHolding &&
+                    groundNonStationaryCnt >= GND_HOLDING_EXIT_CONSEC)
+                {
                     bGroundHolding = false;
+                    // Reset the streak start to "now" so that if motion
+                    // ceases again immediately, the next holding promotion
+                    // is timed from the resumption of stationarity (not
+                    // from the moment the original streak began long ago).
+                    groundHoldingSinceTs = pos.ts();
                     LOG_MSG(logDEBUG,
                             "GND_DIAG_HOLDOUT %s exiting ground-holding"
-                            " (dist=%.2fm, gs=%.2fkt)",
-                            key().c_str(), dist_m, gs_kt);
+                            " (consec=%d, dist=%.2fm, gs=%.2fkt)",
+                            key().c_str(), groundNonStationaryCnt,
+                            dist_m, gs_kt);
                 }
             }
         }
