@@ -1908,6 +1908,85 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
                 return;
             }
+
+            // --------------------------------------------------------------
+            // Ground holding state machine + trivial-update suppression.
+            //
+            // Purpose: an aircraft that has been parked for longer than
+            // `GND_HOLDING_TIMEOUT_S` should ignore the small-amplitude
+            // position jitter that real feeds keep producing for a
+            // stationary target. Once we enter "holding", we silently
+            // drop incoming slots whose distance from the latest known
+            // position is below `GND_HOLDING_TRIVIAL_DIST_M` AND whose
+            // derived groundspeed (from the time/distance pair) is at or
+            // below `GND_STATIONARY_GS_KT`. That is the data-layer half
+            // of the dance fix: the rendered aircraft never even sees
+            // these updates so it cannot react to them.
+            //
+            // The state machine is driven entirely by `pos.ts()` (the
+            // feed-reported wall-clock timestamp), not by sim time —
+            // that way pause/resume and rate-changes in X-Plane don't
+            // influence the streak length.
+            // --------------------------------------------------------------
+            const bool   bothOnGround = pos.IsOnGnd() && pLatestPos->IsOnGnd();
+            const double dtTs         = pos.ts() - pLatestPos->ts();
+            const double dist_m       = pLatestPos->dist(pos);
+            const double gs_kt        = (dtTs > 0)
+                                      ? pLatestPos->speed_kt(pos)
+                                      : NAN;
+            const bool   isStationary = bothOnGround &&
+                                        !std::isnan(gs_kt) &&
+                                        gs_kt <= GND_STATIONARY_GS_KT;
+
+            if (isStationary) {
+                // Either continue an existing streak or start a fresh one.
+                // The streak start is the timestamp of the LATEST already-
+                // known position so the elapsed time below is "how long has
+                // the aircraft been frozen at this point in space".
+                if (groundHoldingSinceTs <= 0.0)
+                    groundHoldingSinceTs = pLatestPos->ts();
+
+                // Promote to holding once the streak exceeds the timeout.
+                // Threshold lives in `Constants.h` (`GND_HOLDING_TIMEOUT_S`).
+                if (!bGroundHolding &&
+                    (pos.ts() - groundHoldingSinceTs) >= GND_HOLDING_TIMEOUT_S)
+                {
+                    bGroundHolding = true;
+                    if (dataRefs.GetDebugAcPos(key()))
+                        LOG_MSG(logDEBUG,
+                                "%s: entering ground-holding suppression"
+                                " (stationary for %.1fs)",
+                                key().c_str(),
+                                pos.ts() - groundHoldingSinceTs);
+                }
+
+                // While in holding, drop trivial jitter outright. We still
+                // allow through anything that moves more than the trivial
+                // distance, because that may signal a genuine push-back or
+                // taxi start that we must not miss.
+                if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M)
+                {
+                    if (dataRefs.GetDebugAcPos(key()))
+                        LOG_MSG(logDEBUG,
+                                "%s: dropping trivial ground update"
+                                " (dist=%.2fm, gs=%.2fkt)",
+                                key().c_str(), dist_m, gs_kt);
+                    return;
+                }
+            } else {
+                // Any non-stationary slot ends the streak. We also clear
+                // the holding flag so a fresh stationary period after
+                // genuine taxi motion has to re-earn the suppression.
+                groundHoldingSinceTs = 0.0;
+                if (bGroundHolding) {
+                    bGroundHolding = false;
+                    if (dataRefs.GetDebugAcPos(key()))
+                        LOG_MSG(logDEBUG,
+                                "%s: exiting ground-holding suppression"
+                                " (dist=%.2fm, gs=%.2fkt)",
+                                key().c_str(), dist_m, gs_kt);
+                }
+            }
         }
 
         // add pos to the queue of data to be added

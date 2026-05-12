@@ -238,6 +238,21 @@ protected:
     positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
     std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
 
+    // ---- Ground holding state (see Constants.h `GND_HOLDING_TIMEOUT_S`) -----
+    // Once an aircraft has been continuously stationary on the ground for
+    // longer than the holding timeout, `bGroundHolding` flips to true and
+    // subsequent feed updates that fall within the "trivial jitter" envelope
+    // (small distance + low groundspeed) are dropped by `AddNewPos` rather
+    // than being appended to `posToAdd`. The streak start timestamp is the
+    // wall-clock `pos.ts()` of the first stationary slot we observed; it is
+    // reset to 0 whenever the aircraft moves meaningfully or leaves ground.
+    /// First timestamp of the current stationary-on-ground streak (sec).
+    /// 0 means "not currently in a stationary streak".
+    double                  groundHoldingSinceTs = 0.0;
+    /// True once the streak has lasted longer than `GND_HOLDING_TIMEOUT_S`.
+    /// While true, trivial feed updates are suppressed in `AddNewPos`.
+    bool                    bGroundHolding       = false;
+
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
     
