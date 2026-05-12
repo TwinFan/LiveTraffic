@@ -1480,6 +1480,63 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
     // ----------------------------------------------------------------------
+    // Trust feed-provided heading at slow ground speed.
+    //
+    // The position-from-track logic below derives heading by taking
+    // atan2 over consecutive lat/lon pairs. That works well at flying
+    // speeds where the genuine motion vector dwarfs sensor noise — but
+    // on the ground at parked, slow-taxi, or pushback speeds it produces
+    // wildly wrong answers:
+    //   * parked aircraft: the noise vector IS the apparent motion vector
+    //   * pushback: the track points OPPOSITE to the nose (the aircraft
+    //     is moving tail-first), so atan2 gives a heading 180° off
+    //
+    // RealTraffic and most ADS-B feeds provide an explicit `heading`
+    // field per sample, derived from the transponder or magnetic-track
+    // data — which IS the correct nose direction in all of the above
+    // cases. The previous logic ignored that field whenever the
+    // position-derived computation succeeded. We now reverse that
+    // priority below `GND_USE_FEED_HEADING_MAX_KT`: if the feed has
+    // a value and we are slow on the ground, keep it.
+    //
+    // Limitations:
+    //   * Feed heading set to exactly 0.0 may be a "no data" sentinel
+    //     rather than a real measurement (some channels do this). We
+    //     can't distinguish without channel-specific knowledge, so we
+    //     accept the risk — anything is better than rotating a parked
+    //     aircraft by 180° during a real pushback.
+    //   * Above the threshold (≥10 kn) the track-derived heading
+    //     becomes the better source (it reflects the actual curve the
+    //     aircraft is flying) so we fall through to the normal logic.
+    // ----------------------------------------------------------------------
+    if (it->IsOnGnd() && !std::isnan(it->heading())) {
+        // Derive groundspeed from the predecessor pair when possible.
+        // A missing predecessor means this is the head of the deque —
+        // we have no track to compare against anyway, so the feed value
+        // is definitively the best source.
+        double gsDerived_kt = NAN;
+        if (it != posDeque.cbegin()) {
+            const positionTy& prePos = *std::prev(it);
+            if (prePos.IsOnGnd() && it->ts() > prePos.ts())
+                gsDerived_kt = prePos.speed_kt(*it);
+        }
+        if (std::isnan(gsDerived_kt) ||
+            gsDerived_kt < GND_USE_FEED_HEADING_MAX_KT)
+        {
+            // Feed value wins. Leave `it->heading()` untouched and skip
+            // every downstream branch — stationary-freeze, pushback
+            // detection, and the position-delta computation would all
+            // potentially overwrite a perfectly good heading.
+            LOG_MSG(logDEBUG,
+                    "GND_DIAG_FEEDHDG %s ts=%.1f feedHdg=%.1f gs=%.2fkt"
+                    " (trusted)",
+                    key().c_str(), it->ts(), it->heading(),
+                    std::isnan(gsDerived_kt) ? 0.0 : gsDerived_kt);
+            return;
+        }
+    }
+
+    // ----------------------------------------------------------------------
     // Ground-stationary freeze.
     //
     // Purpose: when an aircraft is on the ground and not really moving, the

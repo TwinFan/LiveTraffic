@@ -155,6 +155,20 @@ constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 15.0;
 /// before we trust the motion.
 constexpr int    GND_HOLDING_EXIT_CONSEC        = 2;
 
+/// [kn] groundspeed ceiling under which a feed-provided heading is trusted
+/// in preference to a heading derived from the position track. Rationale:
+/// at low ground speeds (parked, slow taxi, pushback) the track-over-ground
+/// is unreliable because positional jitter dominates the small genuine
+/// motion vector — and during pushback the track is the OPPOSITE direction
+/// to the nose. The feed (ADS-B / RealTraffic / etc.) usually has the
+/// aircraft's actual reported heading available; we should use it whenever
+/// it is present and we are moving slowly enough on the ground that the
+/// position-derived alternative cannot be trusted. 10 kn covers the
+/// pushback band (1–3 kn) and slow taxi (up to ~8 kn) with margin; at
+/// faster speeds the track-derived heading becomes reliable and the feed
+/// value (which can lag during sharp turns) is no longer the better source.
+constexpr double GND_USE_FEED_HEADING_MAX_KT    = 10.0;
+
 /// [°] pitch hard-set on every frame while the aircraft is on the ground
 /// (except during the take-off / flare phases, which manage pitch dynamically).
 /// 0° (level) matches LiveTraffic's pre-existing convention (the touch-down
