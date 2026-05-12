@@ -1706,8 +1706,21 @@ bool LTAircraft::CalcPPos()
             // — see the moveQuickestToBy call below) which is what an aircraft
             // physically does on the ground at speed: nose along the track.
             // See `GND_TRACK_HEADING_MIN_KT` in Constants.h for the rationale.
+            //
+            // We use the leg's AVERAGE speed (`vec.speed_kn()` = dist/dt) and
+            // NOT the current rendered speed. The rendered speed at leg-setup
+            // is the speed the aircraft is *coming into* the leg — so for a
+            // taxi-to-runway-entry leg where the aircraft taxis in slowly and
+            // exits at runway-roll speed (e.g., gs 5 kn → 12 kn over 47 m in
+            // 7.84 s, leg-average ~12 kn), the rendered start speed is 5 kn
+            // and would fail this threshold even though the leg is the very
+            // transition we want to handle straight-line. Using leg-average
+            // catches all legs whose endpoint speed crosses the threshold,
+            // which is what aligns the rendered nose with the runway from
+            // the moment the aircraft starts accelerating onto it.
             const bool bGndFast = IsOnGrnd() &&
-                                  GetSpeed_kt() >= GND_TRACK_HEADING_MIN_KT;
+                                  !std::isnan(vec.speed) &&
+                                  vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT;
             if (to.f.bCutCorner ||                                      // next position is to use a cut-corner curve?
                 vec.dist <= SIMILAR_POS_DIST ||                         // no reasonable leg distance and turn amount?
                 std::abs(HeadingDiff(ppos.heading(), to.heading())) < minHeadDiff ||
@@ -1953,21 +1966,30 @@ bool LTAircraft::CalcPPos()
         }
         // otherwise prepare turning heading to final heading (if not done already).
         //
-        // On the ground at high speed (rollout, takeoff, fast taxi) we
-        // deliberately do NOT retarget heading to `to.heading()` here.
-        // The linear path set up at the start of the leg already aimed
-        // heading at `vec.angle` (the motion direction), which is the
-        // visually correct nose direction during high-speed ground
-        // travel. Retargeting to the next slot's reported heading would
-        // restart the same problem the Bezier-skip above is trying to
-        // avoid: rendered nose pointing away from the direction of
-        // motion. Once the aircraft slows below `GND_TRACK_HEADING_MIN_KT`,
-        // this branch is allowed to fire and the aircraft can begin
-        // converging on the slot's reported orientation for the upcoming
-        // turn-off, gate manoeuvre, or other slow-speed activity.
+        // On the ground at high leg-average speed (rollout, takeoff,
+        // fast taxi) we deliberately do NOT retarget heading to
+        // `to.heading()` here. The linear path set up at the start of
+        // the leg already aimed heading at `vec.angle` (the motion
+        // direction), which is the visually correct nose direction
+        // during high-speed ground travel. Retargeting to the next
+        // slot's reported heading would restart the same problem the
+        // Bezier-skip above is trying to avoid: rendered nose pointing
+        // away from the direction of motion. Once leg-average speed
+        // drops below `GND_TRACK_HEADING_MIN_KT`, this branch is
+        // allowed to fire and the aircraft can begin converging on
+        // the slot's reported orientation for the upcoming turn-off,
+        // gate manoeuvre, or other slow-speed activity.
+        //
+        // The condition uses `vec.speed_kn()` (leg-average) to match
+        // the bGndFast check at leg-setup above. Using the current
+        // rendered `GetSpeed_kt()` here would let the retarget fire
+        // during the acceleration phase of a takeoff leg before the
+        // rendered speed has caught up to the leg average, undoing
+        // the Bezier-skip choice for the very legs that need it most.
         else if (!dequal(heading.toVal(), to.heading()) &&
                  !(IsOnGrnd() &&
-                   GetSpeed_kt() >= GND_TRACK_HEADING_MIN_KT))
+                   !std::isnan(vec.speed) &&
+                   vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT))
         {
             heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
             heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
