@@ -169,6 +169,36 @@ constexpr int    GND_HOLDING_EXIT_CONSEC        = 2;
 /// value (which can lag during sharp turns) is no longer the better source.
 constexpr double GND_USE_FEED_HEADING_MAX_KT    = 10.0;
 
+/// [kn] groundspeed at-or-above which the rendered nose direction is locked
+/// to the direction of motion (the vector from `from` to `to` in the slot
+/// interpolation), and any Bezier path between slots is suppressed in favour
+/// of a straight-line interpolation.
+///
+/// Why this exists: at higher ground speeds (landing rollout, takeoff roll,
+/// fast taxi) the rendered aircraft must visually track ALONG its line of
+/// motion. The slot-side heading filters (stationary freeze, hysteresis,
+/// pushback detect) work correctly here — but the per-leg renderer in
+/// `LTAircraft::CalcAcPos` walks heading toward the NEXT slot's reported
+/// heading via a Bezier whose end-tangent is `to.heading()`. When the next
+/// slot is on a turn-off taxiway (heading 326°) and the current slot is at
+/// end-of-runway (heading 020°), the Bezier arcs across the corner —
+/// aircraft visually "slides off the runway" with its nose pointing 53°
+/// off the direction of motion.
+///
+/// At gs ≥ 10 kn we therefore:
+///   1. Skip Bezier and force linear interpolation between slots, which
+///      walks heading toward `vec.angle` (the direct bearing from `from`
+///      to `to` — i.e., the actual direction of motion).
+///   2. Skip the half-way-through retarget to `to.heading()` so the
+///      rendered heading stays locked to the motion vector for the
+///      entire leg, only converging on the slot's reported heading once
+///      the aircraft has decelerated below this threshold.
+///
+/// 10 kn matches `GND_USE_FEED_HEADING_MAX_KT` so the two thresholds are
+/// the boundary between "trust the feed heading" (slow) and "trust the
+/// motion vector" (fast). No middle ground.
+constexpr double GND_TRACK_HEADING_MIN_KT       = 10.0;
+
 /// [°] pitch hard-set on every frame while the aircraft is on the ground
 /// (except during the take-off / flare phases, which manage pitch dynamically).
 /// 0° (level) matches LiveTraffic's pre-existing convention (the touch-down

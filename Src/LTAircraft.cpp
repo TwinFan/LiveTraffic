@@ -1694,9 +1694,24 @@ bool LTAircraft::CalcPPos()
             // corrections don't constantly enter/exit Bezier mode.
             const double minHeadDiff = IsOnGrnd() ? GND_BEZIER_MIN_HEAD_DIFF
                                                   : BEZIER_MIN_HEAD_DIFF;
+            // At high ground speed (landing rollout, takeoff roll, fast taxi)
+            // we deliberately skip Bezier and use straight-line interpolation
+            // instead. The Bezier's end-tangent comes from `to.heading()` which
+            // is the next slot's reported heading — when that next slot is on
+            // a turn-off taxiway and the current slot is on the runway, the
+            // Bezier arcs the path across the runway corner and the rendered
+            // aircraft visually slides off the runway with its nose pointing
+            // away from its direction of motion. Linear interpolation makes
+            // the renderer walk heading toward `vec.angle` (the motion vector
+            // — see the moveQuickestToBy call below) which is what an aircraft
+            // physically does on the ground at speed: nose along the track.
+            // See `GND_TRACK_HEADING_MIN_KT` in Constants.h for the rationale.
+            const bool bGndFast = IsOnGrnd() &&
+                                  GetSpeed_kt() >= GND_TRACK_HEADING_MIN_KT;
             if (to.f.bCutCorner ||                                      // next position is to use a cut-corner curve?
                 vec.dist <= SIMILAR_POS_DIST ||                         // no reasonable leg distance and turn amount?
                 std::abs(HeadingDiff(ppos.heading(), to.heading())) < minHeadDiff ||
+                bGndFast ||                                             // high-speed ground motion: never Bezier
                 !turn.Define(ppos, to))                                 // or defining the Bezier failed for some other reason?
             {
                 // ...start the turn from the initial heading to the vector heading
@@ -1936,8 +1951,24 @@ bool LTAircraft::CalcPPos()
             // set the flag to fetch the next leg. All the rest is done above
             bNeedCCBezier = true;
         }
-        // otherwise prepare turning heading to final heading (if not done already)
-        else if (!dequal(heading.toVal(), to.heading())) {
+        // otherwise prepare turning heading to final heading (if not done already).
+        //
+        // On the ground at high speed (rollout, takeoff, fast taxi) we
+        // deliberately do NOT retarget heading to `to.heading()` here.
+        // The linear path set up at the start of the leg already aimed
+        // heading at `vec.angle` (the motion direction), which is the
+        // visually correct nose direction during high-speed ground
+        // travel. Retargeting to the next slot's reported heading would
+        // restart the same problem the Bezier-skip above is trying to
+        // avoid: rendered nose pointing away from the direction of
+        // motion. Once the aircraft slows below `GND_TRACK_HEADING_MIN_KT`,
+        // this branch is allowed to fire and the aircraft can begin
+        // converging on the slot's reported orientation for the upcoming
+        // turn-off, gate manoeuvre, or other slow-speed activity.
+        else if (!dequal(heading.toVal(), to.heading()) &&
+                 !(IsOnGrnd() &&
+                   GetSpeed_kt() >= GND_TRACK_HEADING_MIN_KT))
+        {
             heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
             heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
                                      NAN, to.ts(),      // by target timestamp
