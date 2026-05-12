@@ -1550,6 +1550,60 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         }
     }
 
+    // ----------------------------------------------------------------------
+    // Pushback detection (state-free).
+    //
+    // A genuine pushback at a gate has a very recognisable geometric
+    // signature: the aircraft is on the ground, moving slowly (a few
+    // knots — the tug's pace), and the direction of motion (the track
+    // derived from pos[n-1]→pos[n]) is nearly opposite to the
+    // aircraft's previous heading. In that situation the physical
+    // aircraft is moving *backwards* while its nose still points
+    // forward at the gate.
+    //
+    // The default heading-from-track logic would rotate the rendered
+    // aircraft by 180° to face the direction it is moving, producing
+    // a bizarre visual where the airliner appears to taxi tail-first.
+    // We catch this case here and freeze the heading to the
+    // predecessor's value — the rendered aircraft then keeps its nose
+    // pointed at the gate while its world position is interpolated
+    // backwards, which is exactly the correct visual.
+    //
+    // Thresholds:
+    //   - speed in (GND_STATIONARY_GS_KT, PUSHBACK_DETECT_GS_MAX_KT]
+    //     (faster than holding-stationary, slower than taxi)
+    //   - |track − previous heading| ≥ PUSHBACK_DETECT_HEAD_DIFF_DEG
+    //     (well inside the "going backwards" half-plane)
+    //
+    // This is intentionally state-free: every slot is classified on
+    // its own geometry. When the tug stops, the next slot fails the
+    // "moving slowly" check and normal heading logic takes over. When
+    // the aircraft begins forward taxi after pushback, the track
+    // realigns with heading and pushback no longer triggers.
+    // ----------------------------------------------------------------------
+    if (it->IsOnGnd() && it != posDeque.cbegin()) {
+        const positionTy& prePos = *std::prev(it);
+        if (prePos.IsOnGnd() && it->ts() > prePos.ts()) {
+            const double gsDerived_kt = prePos.speed_kt(*it);
+            if (!std::isnan(gsDerived_kt) &&
+                gsDerived_kt >  GND_STATIONARY_GS_KT &&
+                gsDerived_kt <= PUSHBACK_DETECT_GS_MAX_KT)
+            {
+                const vectorTy track  = prePos.between(*it);
+                const double   pHead  = prePos.heading();
+                if (!std::isnan(track.angle) && !std::isnan(pHead)) {
+                    const double trackVsHead =
+                        std::abs(HeadingDiff(pHead, track.angle));
+                    if (trackVsHead >= PUSHBACK_DETECT_HEAD_DIFF_DEG) {
+                        // Pushback: keep nose pointing at gate.
+                        it->heading() = pHead;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     // vectors to / from the position at "it"
     vectorTy vecTo, vecFrom;
     
