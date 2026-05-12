@@ -178,6 +178,17 @@ constexpr double PUSHBACK_DETECT_HEAD_DIFF_DEG  = 135.0;
 /// the first second of the maneuver.
 constexpr double PUSHBACK_MIDPOINT_DIST_M       = 10.0;
 
+/// [°] minimum heading change at which a Bezier curve is constructed for a
+/// ground leg. The general airborne threshold (`BEZIER_MIN_HEAD_DIFF`, 2.5°)
+/// is too coarse for taxi where slow-but-real turns of 1–2° per leg still
+/// benefit visually from being rendered as a curve with tangent-derived
+/// heading rather than a polyline with the heading walking via the linear
+/// MovingParam fallback. We pick 1° so that genuinely tiny noise-driven
+/// "turns" are still ignored (they'll be absorbed by the hysteresis filter
+/// in `LTFlightData::CalcHeading` or by the per-frame rate limit) but any
+/// turn of clear visual significance gets the Bezier treatment.
+constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
+
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude

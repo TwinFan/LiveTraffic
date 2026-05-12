@@ -1685,9 +1685,18 @@ bool LTAircraft::CalcPPos()
             // *** Heading ***
             
             // Try a Bezier curve first, if that doesn't work...
+            //
+            // On the ground we use the lower `GND_BEZIER_MIN_HEAD_DIFF`
+            // threshold so that 1–2° taxi turns also get curve-tangent
+            // heading and are visually rendered as a smooth arc rather than
+            // as a heading walked via the linear MovingParam fallback. In
+            // the air we keep the original 2.5° threshold so en-route course
+            // corrections don't constantly enter/exit Bezier mode.
+            const double minHeadDiff = IsOnGrnd() ? GND_BEZIER_MIN_HEAD_DIFF
+                                                  : BEZIER_MIN_HEAD_DIFF;
             if (to.f.bCutCorner ||                                      // next position is to use a cut-corner curve?
                 vec.dist <= SIMILAR_POS_DIST ||                         // no reasonable leg distance and turn amount?
-                std::abs(HeadingDiff(ppos.heading(), to.heading())) < BEZIER_MIN_HEAD_DIFF ||
+                std::abs(HeadingDiff(ppos.heading(), to.heading())) < minHeadDiff ||
                 !turn.Define(ppos, to))                                 // or defining the Bezier failed for some other reason?
             {
                 // ...start the turn from the initial heading to the vector heading
