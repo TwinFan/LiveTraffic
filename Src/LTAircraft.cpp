@@ -1291,8 +1291,15 @@ probeNextTs(0), terrainAlt_m(0.0)
         // standard internal label (e.g. for logging) is transpIcao + ac type + another id if available
         CalcLabelInternal(statCopy);
         
-        // init moving params where necessary
-        pitch.SetVal(0);
+        // init moving params where necessary.
+        // The pitch is initialised to the static ground attitude
+        // `GND_PITCH_DEG` whenever the aircraft starts its life on the
+        // ground (parked / taxiing) so the first rendered frame already
+        // looks correct — otherwise the MovingParam would briefly target
+        // 0° and produce a visible nose-bob before the ground-attitude
+        // override (in `CalcAcPos`) kicks in. Aircraft created in flight
+        // continue to start at neutral 0°.
+        pitch.SetVal(IsOnGrnd() ? GND_PITCH_DEG : 0);
         corrAngle.SetVal(0);
         
         // calculate our first position, must also succeed
@@ -1922,6 +1929,35 @@ bool LTAircraft::CalcPPos()
         // but tires are rotating
         tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
                                 tireRpm.defMax));
+
+        // ------------------------------------------------------------------
+        // Hard-set ground attitude every frame to defeat feed-driven jitter.
+        //
+        // Why this exists: data feeds and the position-interpolation code
+        // path can produce small drifts in pitch and roll while an aircraft
+        // is sitting on (or rolling along) the ground. Real aircraft are
+        // mechanically held in a fixed attitude by their landing gear —
+        // they do not bank while taxiing and their pitch is determined by
+        // gear geometry rather than dynamic flight forces. So we forcibly
+        // clamp pitch and roll to the constants `GND_PITCH_DEG` /
+        // `GND_ROLL_DEG` defined in `Constants.h`, overriding whatever the
+        // interpolation/flight-model code produced earlier in this frame.
+        //
+        // Exceptions: phases where the nose is genuinely moving relative
+        // to the ground — rotation for take-off (`FPH_ROTATE`), the flare
+        // before touchdown (`FPH_FLARE`), and the single-cycle touchdown
+        // event (`FPH_TOUCH_DOWN`). In those phases the flight-model code
+        // is actively driving the `pitch` MovingParam through a planned
+        // transition (e.g., `pitch.max()` on rotate, `pitch.moveTo(
+        // PITCH_FLARE)` on flare), and overriding it here would visibly
+        // freeze the maneuver.
+        if (phase != FPH_ROTATE &&
+            phase != FPH_FLARE  &&
+            phase != FPH_TOUCH_DOWN)
+        {
+            ppos.pitch() = GND_PITCH_DEG;
+            ppos.roll()  = GND_ROLL_DEG;
+        }
     } else {
         // not on the ground
         // just lifted off? then recalc vsi
@@ -2212,7 +2248,13 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
         ppos.f.onGrnd = GND_ON;
-        pitch.moveTo(0);
+        // After the wheels are firmly down we want the nose to settle at
+        // the static ground attitude `GND_PITCH_DEG` rather than at level
+        // 0°. The MovingParam smoothly walks pitch from its FLARE value
+        // down to this new target over the next few frames; the
+        // ground-attitude override in `CalcAcPos` then keeps it pinned
+        // there during the rest of the taxi/parked life of the aircraft.
+        pitch.moveTo(GND_PITCH_DEG);
     }
     
     // roll-out
@@ -2288,13 +2330,18 @@ void LTAircraft::CalcRoll (double _prevHeading)
     const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
     const double timeFullCircle = currCycle.diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
 
-    // On the ground we should actually better be levelled, but we turn the nose wheel
+    // On the ground we should actually better be levelled, but we turn the nose wheel.
+    // Note: this assignment is "early" — the final ground-attitude clamp in
+    // `CalcAcPos` (the `bOnGrnd` block) will re-assert `GND_ROLL_DEG` after
+    // `CalcFlightModel` has run, so anything we write here is just a sane
+    // intermediate. We still set it explicitly so log output / debug dumps
+    // in between these two points show the correct value.
     if (IsOnGrnd()) {
         // except...if we are a stopped glider ;-)
         if (GetSpeed_m_s() < 0.2 && pMdl->isGlider())
             ppos.roll() = MDL_GLIDER_STOP_ROLL;
         else
-            ppos.roll() = 0.0;
+            ppos.roll() = GND_ROLL_DEG;
         
         // Nose wheel steering: Hm...we would need to know a lot about the plane's
         // geometry to do that exactly right...so we just guess: 30° for a standard turn:
