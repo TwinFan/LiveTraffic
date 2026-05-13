@@ -2564,12 +2564,39 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
 void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
 {
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
-    
+
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
     if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
     }
-    
+
+    // When the user enables a channel we also reset its validity flag.
+    //
+    // Background: an LTChannel goes invalid (`bValid=false`) after too many
+    // consecutive network errors. While invalid the channel's `shallRun()`
+    // returns false and `LTFlightDataAcMaintenance` never restarts its
+    // thread — even when `bChannel[ch]` is true. Without this reset the
+    // intuitive recovery path of toggling the channel checkbox off and back
+    // on does nothing visible, because the toggle only flips `bChannel[ch]`
+    // and leaves `bValid` alone. The user is left to find the separate
+    // "Restart Stopped Channels" button in the settings UI (which calls
+    // `LTFlightDataRestartInvalidChs`). Calling `SetValid(true)` here makes
+    // the toggle do what the user expects: a re-enable revives an
+    // invalidated channel for the next maintenance tick to restart its
+    // network thread.
+    //
+    // Trade-off: this also means a channel invalidated for a *persistent*
+    // reason (e.g. bad credentials) will be retried each time the user
+    // touches the toggle. That is preferable to silent inaction — the
+    // user can see the failure repeat and react accordingly. The error
+    // counter is reset by SetValid(true), so the channel gets a fresh
+    // CH_MAC_ERR_CNT budget before going invalid again.
+    if (bEnable) {
+        LTChannel* pCh = LTFlightDataGetCh(ch);
+        if (pCh && !pCh->IsValid())
+            pCh->SetValid(true);
+    }
+
     // if a channel got disabled check if any tracking data channel is left
     if (!bEnable && AreAircraftDisplayed() &&   // something just got disabled? And A/C are currently displayed?
         !LTFlightDataAnyTrackingChEnabled())    // but no tracking data channel left active?
