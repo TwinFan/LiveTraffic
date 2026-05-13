@@ -848,6 +848,31 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
         statData.isGrndVehicle() ||                 // ground vehicle
         (pAc && pAc->IsGroundVehicle()))
         return;
+
+    // Skip snap-to-taxiway entirely while the aircraft is in ground-holding.
+    //
+    // bGroundHolding is set by AddNewPos after a sustained stationary streak
+    // (see GND_HOLDING_TIMEOUT_S). It is our positive assertion that this
+    // aircraft is parked. Real-feed data for parked aircraft can occasionally
+    // produce isolated large position jumps (observed: ACA34 at YSSY, 105 m
+    // jump while the RT app showed the aircraft stationary). Such jumps
+    // exceed our 15 m trivial-drop threshold and end up in posDeque, but
+    // they are almost always feed glitches rather than real motion.
+    //
+    // If we let SnapToTaxiways run on a glitched 100m+ jump, it computes a
+    // shortest path through the airport's taxi graph and inserts a sequence
+    // of intermediate waypoints with NaN heading. CalcHeading then derives
+    // heading from the vector between those synthesized waypoints — which
+    // reflects the taxiway geometry, not the aircraft's nose direction —
+    // and the rendered aircraft visually dances through the phantom path.
+    //
+    // By suppressing snap during holding, we let the glitched jump pass
+    // through the deque as a single linear interpolation (a one-time visual
+    // wobble at worst, no waypoint procession). When the aircraft genuinely
+    // begins to taxi, AddNewPos's GND_HOLDING_EXIT_CONSEC counter clears
+    // bGroundHolding and snap-to-taxiway resumes for subsequent slots.
+    if (bGroundHolding)
+        return;
     
     // Loop over position in the deque
     dequePositionTy::iterator iter = posDeque.begin();
