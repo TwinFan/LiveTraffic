@@ -1164,7 +1164,41 @@ bool RealTrafficConnection::PreProcessWeather(const JSON_Object* pData)
         s.clear();
         metar.clear();
     }
-    
+
+    // Reject placeholder weather responses.
+    //
+    // RealTraffic sometimes returns a stripped-down weather payload for a
+    // query location whose real weather it previously delivered correctly
+    // — observed: at YSSY, a valid {"ICAO":"YSSY","QNH":1034,"METAR":...}
+    // response was followed ~60 s later by a {"QNH":1013, no ICAO, no METAR}
+    // response for the *same* query coordinates. The 1013 is RT's standard-
+    // pressure placeholder, not a real reading.
+    //
+    // If we accept it, rtWx.QNH gets overwritten to 1013.25 and
+    // BaroAltToGeoAlt_ft stops applying the local-pressure correction —
+    // landing aircraft at high-QNH airports then render ~500 ft below true
+    // and touch down a mile short of the runway.
+    //
+    // A response is treated as a placeholder when ALL of:
+    //   * No ICAO/airport identifier
+    //   * No METAR text
+    //   * QNH equals (within 0.5 hPa) the ISA standard 1013.25 hPa
+    //   * We already hold a *non-standard* QNH that we trust
+    // The last condition lets a real 1013-hPa reading still come in as a
+    // first weather update; we only reject placeholders when they would
+    // overwrite a previously confirmed non-standard value.
+    if (s.empty() && metar.empty() &&
+        std::abs(wxQNH - HPA_STANDARD) < 0.5 &&
+        !std::isnan(rtWx.QNH) &&
+        std::abs(rtWx.QNH - HPA_STANDARD) >= 0.5)
+    {
+        LOG_MSG(logDEBUG,
+                "Ignoring placeholder RealTraffic weather"
+                " (QNH=%.1f, no ICAO, no METAR); keeping previous QNH=%.1f",
+                wxQNH, rtWx.QNH);
+        return true;
+    }
+
     // If this is live data, not historic, then we can use it instead of separately querying METAR
     if (!isHistoric()) {
         rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH, s, metar);
