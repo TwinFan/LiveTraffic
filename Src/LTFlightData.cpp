@@ -1505,58 +1505,117 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
     // ----------------------------------------------------------------------
-    // Trust feed-provided heading at slow ground speed.
+    // Trust feed-provided heading at slow ground speed (with staleness check).
     //
     // The position-from-track logic below derives heading by taking
-    // atan2 over consecutive lat/lon pairs. That works well at flying
-    // speeds where the genuine motion vector dwarfs sensor noise — but
-    // on the ground at parked, slow-taxi, or pushback speeds it produces
-    // wildly wrong answers:
-    //   * parked aircraft: the noise vector IS the apparent motion vector
-    //   * pushback: the track points OPPOSITE to the nose (the aircraft
-    //     is moving tail-first), so atan2 gives a heading 180° off
+    // atan2 over consecutive lat/lon pairs. At parked, slow-taxi, and
+    // pushback speeds that math produces wildly wrong answers:
+    //   * parked aircraft: positional jitter IS the apparent motion vector
+    //   * pushback: the track points OPPOSITE to the nose (tail-first),
+    //     so atan2 gives a heading 180° off
     //
-    // RealTraffic and most ADS-B feeds provide an explicit `heading`
-    // field per sample, derived from the transponder or magnetic-track
-    // data — which IS the correct nose direction in all of the above
-    // cases. The previous logic ignored that field whenever the
-    // position-derived computation succeeded. We now reverse that
-    // priority below `GND_USE_FEED_HEADING_MAX_KT`: if the feed has
-    // a value and we are slow on the ground, keep it.
+    // RealTraffic and most ADS-B feeds provide an explicit heading field
+    // sourced from Mode S Enhanced Surveillance (EHS) — the aircraft's
+    // own reported nose direction. We prefer it for the slow-ground cases.
+    //
+    // *Staleness*: EHS heading typically updates only every 10 s, and is
+    // unavailable entirely in regions without enhanced interrogation
+    // coverage. Between EHS updates the feed value is held constant by
+    // the receiver. During a taxi turn at 5–10 kn that 10 s freshness
+    // window is long enough for the aircraft to change direction by 60°
+    // or more — if we blindly trust the held value the rendered nose
+    // visibly lags the actual motion and the aircraft appears to slide
+    // sideways through the turn.
+    //
+    // Defence: cross-check the feed heading against the *current* track
+    // (bearing from the predecessor slot to this one). Three regimes,
+    // gated by `GND_FEED_TRACK_AGREE_DEG` (see Constants.h):
+    //   * |Δ| < 30°:    feed agrees with track — fresh, or aircraft is
+    //                   going straight. Trust feed.
+    //   * 30° ≤ |Δ| ≤ 150°: feed has lagged during a turn. Fall through
+    //                   to the position-derived branch — track wins.
+    //   * |Δ| > 150°:   track is roughly opposite the feed — pushback.
+    //                   Trust feed (nose stays at gate).
     //
     // Limitations:
-    //   * Feed heading set to exactly 0.0 may be a "no data" sentinel
-    //     rather than a real measurement (some channels do this). We
-    //     can't distinguish without channel-specific knowledge, so we
-    //     accept the risk — anything is better than rotating a parked
-    //     aircraft by 180° during a real pushback.
-    //   * Above the threshold (≥10 kn) the track-derived heading
-    //     becomes the better source (it reflects the actual curve the
-    //     aircraft is flying) so we fall through to the normal logic.
+    //   * Feed heading exactly 0.0 may be a channel "no data" sentinel
+    //     rather than a real reading. We accept that risk — the agree-
+    //     window check filters out the worst cases (a stale 0.0 paired
+    //     with non-zero motion will fall outside the agree window).
+    //   * Above `GND_USE_FEED_HEADING_MAX_KT` (10 kn) the track-derived
+    //     heading is always preferred (real taxi / rollout / takeoff).
     // ----------------------------------------------------------------------
     if (it->IsOnGnd() && !std::isnan(it->heading())) {
-        // Derive groundspeed from the predecessor pair when possible.
-        // A missing predecessor means this is the head of the deque —
-        // we have no track to compare against anyway, so the feed value
-        // is definitively the best source.
+        // Derive groundspeed + track angle from the predecessor pair when
+        // possible. A missing predecessor (head of deque) means we have
+        // no track to cross-check against — feed is the best we have.
         double gsDerived_kt = NAN;
+        double trackAngle   = NAN;
         if (it != posDeque.cbegin()) {
             const positionTy& prePos = *std::prev(it);
-            if (prePos.IsOnGnd() && it->ts() > prePos.ts())
+            if (prePos.IsOnGnd() && it->ts() > prePos.ts()) {
                 gsDerived_kt = prePos.speed_kt(*it);
+                // Only compute a track angle when motion is non-trivial;
+                // for jitter-only displacement the bearing is meaningless
+                // and would force us into the disagreement band by noise
+                // alone.
+                if (gsDerived_kt > GND_STATIONARY_GS_KT) {
+                    const vectorTy vec = prePos.between(*it);
+                    trackAngle = vec.angle;
+                }
+            }
         }
-        if (std::isnan(gsDerived_kt) ||
-            gsDerived_kt < GND_USE_FEED_HEADING_MAX_KT)
-        {
-            // Feed value wins. Leave `it->heading()` untouched and skip
-            // every downstream branch — stationary-freeze, pushback
-            // detection, and the position-delta computation would all
-            // potentially overwrite a perfectly good heading.
+
+        // Decide whether the feed heading is the right source for this
+        // slot. The reason string is purely for the diagnostic log line
+        // that follows — it lets us see WHY a feed value won (or lost)
+        // when investigating regressions from a Log.txt capture.
+        bool trustFeed = false;
+        const char* reason = "";
+        if (std::isnan(gsDerived_kt)) {
+            // No predecessor — no track to compare. Feed is the only
+            // reliable source we have.
+            trustFeed = true;
+            reason = "no predecessor";
+        } else if (gsDerived_kt < GND_STATIONARY_GS_KT) {
+            // Stationary: positional jitter dominates any track we could
+            // compute, so it would be garbage. Feed value wins.
+            trustFeed = true;
+            reason = "stationary";
+        } else if (gsDerived_kt < GND_USE_FEED_HEADING_MAX_KT) {
+            // Slow motion in the band where feed could be used — apply
+            // the cross-check against the track angle.
+            if (!std::isnan(trackAngle)) {
+                const double delta =
+                    std::abs(HeadingDiff(it->heading(), trackAngle));
+                if (delta < GND_FEED_TRACK_AGREE_DEG) {
+                    trustFeed = true;
+                    reason = "agrees with track";
+                } else if (delta > (180.0 - GND_FEED_TRACK_AGREE_DEG)) {
+                    trustFeed = true;
+                    reason = "track reversed (pushback)";
+                }
+                // else: feed has gone stale during a turn — fall through
+                // to the position-derived heading branch below.
+            } else {
+                // No track to compare (shouldn't happen if gsDerived_kt
+                // is non-NaN and above stationary, but be defensive).
+                trustFeed = true;
+                reason = "no track to compare";
+            }
+        }
+        // Above GND_USE_FEED_HEADING_MAX_KT we never trust feed — the
+        // outer-loop track-heading regime in LTAircraft::CalcAcPos owns
+        // that range. Leave `trustFeed=false` so we fall through.
+
+        if (trustFeed) {
             LOG_MSG(logDEBUG,
                     "GND_DIAG_FEEDHDG %s ts=%.1f feedHdg=%.1f gs=%.2fkt"
-                    " (trusted)",
+                    " track=%.1f (%s)",
                     key().c_str(), it->ts(), it->heading(),
-                    std::isnan(gsDerived_kt) ? 0.0 : gsDerived_kt);
+                    std::isnan(gsDerived_kt) ? 0.0 : gsDerived_kt,
+                    std::isnan(trackAngle)   ? -1.0 : trackAngle,
+                    reason);
             return;
         }
     }

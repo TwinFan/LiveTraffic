@@ -155,19 +155,49 @@ constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 15.0;
 /// before we trust the motion.
 constexpr int    GND_HOLDING_EXIT_CONSEC        = 2;
 
-/// [kn] groundspeed ceiling under which a feed-provided heading is trusted
-/// in preference to a heading derived from the position track. Rationale:
-/// at low ground speeds (parked, slow taxi, pushback) the track-over-ground
-/// is unreliable because positional jitter dominates the small genuine
-/// motion vector — and during pushback the track is the OPPOSITE direction
-/// to the nose. The feed (ADS-B / RealTraffic / etc.) usually has the
-/// aircraft's actual reported heading available; we should use it whenever
-/// it is present and we are moving slowly enough on the ground that the
-/// position-derived alternative cannot be trusted. 10 kn covers the
-/// pushback band (1–3 kn) and slow taxi (up to ~8 kn) with margin; at
-/// faster speeds the track-derived heading becomes reliable and the feed
-/// value (which can lag during sharp turns) is no longer the better source.
+/// [kn] groundspeed ceiling under which the feed-provided heading is
+/// considered as a possible source for the rendered nose direction. This
+/// is the OUTER bound — within this band a secondary cross-check against
+/// the position-derived track decides which source actually wins. See
+/// `GND_FEED_TRACK_AGREE_DEG` below. Above this speed the position track
+/// is always preferred (real taxi / rollout / takeoff).
 constexpr double GND_USE_FEED_HEADING_MAX_KT    = 10.0;
+
+/// [°] agreement window between the feed-provided heading and the
+/// position-derived track angle. Used inside the on-ground feed-heading
+/// branch in `LTFlightData::CalcHeading` to decide whether the feed
+/// value is fresh enough to trust or has gone stale during a taxi turn.
+///
+/// Why this matters: the heading reported in ADS-B/Mode S Enhanced
+/// Surveillance (EHS) updates at a low rate — typically every 10 s,
+/// sometimes slower, and not at all in regions without enhanced
+/// interrogation coverage. Between EHS updates the feed value is held
+/// constant by the ground station / receiver, so when an aircraft turns
+/// during taxi the feed heading can lag the actual nose direction by
+/// 10+ seconds (60° or more at a typical 6 °/s taxi turn rate). If the
+/// renderer trusts that stale value, the aircraft visibly slides
+/// sideways through the turn — its nose stays at the pre-turn direction
+/// while its body progresses along the new direction.
+///
+/// We compare the feed heading against the track angle (the bearing
+/// from the previous slot to this one — always "now"). Three regimes:
+///   * `Δ < GND_FEED_TRACK_AGREE_DEG` (default 30°)
+///     — feed and track agree: either the aircraft is going straight, or
+///     the most recent EHS reading is fresh. Trust the feed value
+///     (smooth, matches the transponder-reported nose).
+///   * `GND_FEED_TRACK_AGREE_DEG ≤ Δ ≤ 180° − GND_FEED_TRACK_AGREE_DEG`
+///     — feed has gone stale during a turn. Fall through to the
+///     position-derived heading branch, which uses the current track.
+///   * `Δ > 180° − GND_FEED_TRACK_AGREE_DEG` — track is roughly opposite
+///     of the feed value: this is pushback. Trust the feed (nose stays
+///     pointing at the gate while the body moves backwards).
+///
+/// 30° is wide enough to absorb a few seconds of EHS lag during a slow
+/// taxi turn without flapping between feed and track on every degree of
+/// gentle curvature, and narrow enough to catch the lag before the
+/// sideways look becomes objectionable. Tunable in either direction
+/// if real-world reports suggest a different balance.
+constexpr double GND_FEED_TRACK_AGREE_DEG       = 30.0;
 
 /// [kn] groundspeed at-or-above which the rendered nose direction is locked
 /// to the direction of motion (the vector from `from` to `to` in the slot
