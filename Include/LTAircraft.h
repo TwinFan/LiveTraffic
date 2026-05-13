@@ -300,6 +300,12 @@ protected:
     flightPhaseE         phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
+    /// Sim timestamp at which the aircraft transitioned from on-ground
+    /// to airborne. Used to smooth the altitude render during the first
+    /// `LIFTOFF_BLEND_TIME_S` seconds after lift-off — without this the
+    /// rendered altitude jumps from terrain level to the interpolated
+    /// climb-out altitude on a single frame. NAN when no blend is active.
+    double              liftoffBlendStartTs = NAN;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     bool                bNeedSpeed = false;     ///< need speed calculation?
     bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?

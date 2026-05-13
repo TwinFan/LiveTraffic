@@ -279,6 +279,29 @@ constexpr double PUSHBACK_MIDPOINT_DIST_M       = 10.0;
 /// turn of clear visual significance gets the Bezier treatment.
 constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
 
+/// [s] duration over which the rendered altitude is blended from terrain
+/// level up to the interpolated value at lift-off.
+///
+/// Why this exists: while an aircraft is on the ground LiveTraffic clamps
+/// `ppos.alt_m` to the terrain (so a parked or taxiing aircraft is exactly
+/// at runway/taxiway height, regardless of what the feed says). The
+/// moment the flight-model decides the aircraft has lifted off
+/// (`bOnGrnd` flips from true to false, `phase` becomes `FPH_LIFT_OFF`),
+/// that clamp stops applying. The next-rendered altitude becomes the raw
+/// linear interpolation between the last on-ground slot and the next
+/// airborne slot — which can be 100–500 ft above the runway depending on
+/// how far apart those slots are in time. Without smoothing the aircraft
+/// visibly teleports upwards in a single frame ("jumps into the air on
+/// rotation").
+///
+/// We instead lerp from terrain altitude to the interpolated altitude over
+/// `LIFTOFF_BLEND_TIME_S` using a smoothstep easing curve. 1.5 s is short
+/// enough to match the visual expectation of "rotation → lift-off" (about
+/// the same duration as the pitch-up walk driven by `pitch.max()` on
+/// `FPH_ROTATE`) and long enough that the eye reads it as a gradual
+/// transition rather than a teleport.
+constexpr double LIFTOFF_BLEND_TIME_S           = 1.5;
+
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude

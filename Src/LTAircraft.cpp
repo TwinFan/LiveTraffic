@@ -2076,6 +2076,51 @@ bool LTAircraft::CalcPPos()
         if (phase == FPH_LIFT_OFF && dequal(vsi, 0)) {
             vsi = ppos.vsi_ft(to);
         }
+
+        // ------------------------------------------------------------------
+        // Smooth altitude blend during the first LIFTOFF_BLEND_TIME_S
+        // seconds after the on-ground → airborne transition.
+        //
+        // CalcFlightModel records `liftoffBlendStartTs` on the frame that
+        // bOnGrnd flips from true to false. Up until that moment the
+        // altitude was clamped to `terrainAlt_m` by the `if (bOnGrnd)`
+        // branch above; on the very next frame the clamp goes away and
+        // ppos.alt_m takes on its raw linearly-interpolated value
+        // between the last on-ground slot (at terrain level) and the
+        // next airborne slot (which may be 100-500 ft above the runway,
+        // depending on how far apart the feed samples are in time).
+        // Without intervention the aircraft visibly teleports up to
+        // that interpolated altitude in a single frame — the "jumps
+        // into the air on rotation" symptom.
+        //
+        // We instead lerp from terrain altitude to the interpolated
+        // altitude using a cubic smoothstep easing (f(t) = t² (3-2t)),
+        // which is C¹-continuous at both endpoints — no visible kink
+        // when the blend starts or ends. After LIFTOFF_BLEND_TIME_S
+        // the blend is complete and we revert to the raw interpolated
+        // value (so we don't perpetually drag the aircraft back toward
+        // the runway).
+        // ------------------------------------------------------------------
+        if (!std::isnan(liftoffBlendStartTs)) {
+            const double sinceLiftoff =
+                currCycle.simTime - liftoffBlendStartTs;
+            if (sinceLiftoff < LIFTOFF_BLEND_TIME_S &&
+                ppos.alt_m() > terrainAlt_m)
+            {
+                const double t = sinceLiftoff / LIFTOFF_BLEND_TIME_S;
+                // Cubic smoothstep: 0 at t=0, 1 at t=1, zero slope at
+                // both ends — visually identical to "ease in/out".
+                const double blend = t * t * (3.0 - 2.0 * t);
+                ppos.alt_m() =
+                    terrainAlt_m +
+                    (ppos.alt_m() - terrainAlt_m) * blend;
+            } else {
+                // Blend complete (or terrain probe disagrees with our
+                // notion of liftoff — bail out rather than dragging the
+                // aircraft below its interpolated altitude).
+                liftoffBlendStartTs = NAN;
+            }
+        }
     }
     
     // save this position for (next) camera view position
@@ -2167,6 +2212,15 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // last frame: on ground, this frame: not on ground -> we just lifted off
     if ( bOnGrndPrev && !bOnGrnd && bFPhPrev != FPH_UNKNOWN ) {
         phase = FPH_LIFT_OFF;
+        // Record the wall-clock sim time so CalcPPos can blend the
+        // altitude smoothly upward from terrain over the next
+        // LIFTOFF_BLEND_TIME_S seconds. Without this, the rendered
+        // altitude would jump from terrain level (clamped while on
+        // ground) to the raw interpolated airborne value on this very
+        // frame — the aircraft visually teleports upward. See the
+        // blend application near `if (bOnGrnd) ... else { ... }` in
+        // CalcPPos and the rationale in Constants.h.
+        liftoffBlendStartTs = currCycle.simTime;
     }
     
     // climbing but not even reached gear-up altitude
