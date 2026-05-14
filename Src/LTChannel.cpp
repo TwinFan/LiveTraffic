@@ -604,31 +604,39 @@ bool LTOnlineChannel::InitCurl ()
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
     curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
 
-    // TCP keepalive — defends against the kept-alive HTTP connection
-    // being silently dropped by an intermediate NAT/firewall or by the
-    // server while we are idle between polls.
+    // Connection-handling for short-interval polling.
     //
-    // Without this, libcurl reuses the socket from the previous request
-    // even though some hop in the path has already dropped its half of
-    // the connection. The `send()` then fails (curl reports CURLE_SEND_
-    // ERROR / "Connection died, tried N times before giving up") and we
-    // log a noisy error. Empirically appeared at ~30 s intervals once
-    // the RT poll cadence dropped to 2 s — the connection became stale
-    // between polls just often enough for it to bite.
+    // The RealTraffic channel (and any other channel polled more often
+    // than ~30 s) was producing curl error 55 / "Connection died, tried
+    // N times before giving up" at roughly 30 s intervals — symptomatic
+    // of the kept-alive HTTP connection being recycled mid-flight by
+    // *something* in the network path (an upstream load balancer at the
+    // server, a NAT/firewall idle-drop timer, or curl's own connection
+    // cache hitting an internal age limit). TCP keepalive at the OS
+    // level (CURLOPT_TCP_KEEPALIVE + KEEPIDLE + KEEPINTVL) was tried
+    // first but did NOT prevent the symptom, so whatever is recycling
+    // the connection is doing so actively rather than as a passive
+    // idle-timer expiry. Keepalive probes don't help when the other
+    // side is sending RST or FIN on a schedule of its own.
     //
-    // With keepalive enabled, the OS sends a small TCP-layer heartbeat
-    // every `KEEPIDLE` seconds on each idle socket, so intermediaries
-    // see the connection as active and don't drop it. We set:
-    //   * KEEPALIVE = 1: enable the feature.
-    //   * KEEPIDLE  = 20 s: send the first probe after 20 s of idle
-    //     (well below the typical 30-60 s NAT idle-drop timer).
-    //   * KEEPINTVL = 10 s: subsequent probes every 10 s if no reply.
-    // These options are no-ops at the curl level on platforms that
-    // don't support TCP_KEEPIDLE / TCP_KEEPINTVL (some legacy Windows),
-    // but the underlying SO_KEEPALIVE flag still helps.
+    // Definitive fix: forbid connection reuse entirely (FORBID_REUSE).
+    // Every request opens a fresh TCP+TLS connection and closes it
+    // after the response is received. No kept-alive socket ever sits
+    // around long enough to go stale. The cost is a TLS handshake on
+    // every request — about 100-300 ms with modern TLS 1.3 session
+    // resumption — which is fine at the 2 s polling cadence we use.
+    //
+    // The keepalive options remain set as a defensive measure for any
+    // edge case where reuse still happens (curl can in principle hold
+    // a connection across the boundary between two transfers even with
+    // FORBID_REUSE set on the *previous* one if FORBID_REUSE is only
+    // on the *current* request setup; the option is per-handle but
+    // applies to the transfer-just-completed). Belt-and-braces — no
+    // harm in setting both.
     curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPIDLE,  20L);
     curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPINTVL, 10L);
+    curl_easy_setopt(pCurl, CURLOPT_FORBID_REUSE,  1L);
 
     // success
     return true;
