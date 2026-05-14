@@ -1569,6 +1569,15 @@ bool LTAircraft::CalcPPos()
     // (Must have reach/passed posList[1] and there must be a third position,
     //  which can now serve as 'to')
     while ( posList[1].ts() <= currCycle.simTime && posList.size() >= 3 ) {
+        // Preserve the slot we are about to discard. The Catmull-Rom
+        // spline that renders ground position + heading needs the
+        // *previous* `from` as its P0 control point — the slot that
+        // gave the curve its incoming tangent at P1. Without this
+        // save the spline at the start of each new leg would treat
+        // the leg as the head of the deque and lose its smoothness
+        // at the join.
+        posPrev = posList.front();
+
         // By just removing the first element (current 'from') from the deqeue
         // we make posList[2] the next 'to'
         posList.pop_front();
@@ -1884,11 +1893,83 @@ bool LTAircraft::CalcPPos()
         heading.SetVal(ppos.heading());
     }
     // No Bezier curve currently active:
+    else if (from.IsOnGnd() && to.IsOnGnd()) {
+        // ------------------------------------------------------------------
+        // Ground rendering — centripetal Catmull-Rom spline.
+        //
+        // While both endpoints of the current leg are on the ground we
+        // interpolate position and heading along a smooth curve fit through
+        // four control points: P0 = the previous `from` (preserved in
+        // `posPrev` when the position switch popped it from the deque),
+        // P1 = current from, P2 = current to, and P3 = the slot AFTER `to`
+        // if one is available in `posList`. The curve passes exactly
+        // through P1 and P2, and P0 / P3 set the entry / exit tangents so
+        // adjacent legs join with C¹ continuity.
+        //
+        // Heading is the tangent direction at the spline parameter — by
+        // construction the rendered nose points the way the rendered
+        // position is moving, which is the property that eliminates the
+        // "sideways through a turn" symptom that linear-chord
+        // interpolation produces.
+        //
+        // Math is performed in a local meters frame centred on P1 (see
+        // `CatmullRomEvalCentripetal`). We convert the returned local
+        // (x, y) back to lat/lon using `Dist2Lat` / `Dist2Lon` on the
+        // same origin. Altitude and pitch stay on the linear path:
+        // altitude is irrelevant on the ground (clamped to terrainAlt
+        // later by the bOnGrnd branch), and pitch is hard-set to
+        // GND_PITCH_DEG by the same later block.
+        //
+        // The Bezier curve `turn` is *not* used while the spline is in
+        // effect — turn.GetPos returned false above, otherwise we
+        // wouldn't be in this branch. The spline supersedes Bezier for
+        // ground rendering because Bezier's end-tangents come from
+        // slot.heading() (subject to EHS lag and channel-side filter
+        // ambiguity) while the spline's tangents come from positions
+        // only, so the spline is robust to a stale or missing feed
+        // heading at the segment endpoints.
+        // ------------------------------------------------------------------
+
+        // Choose control points, duplicating endpoints when the deque
+        // does not extend far enough in either direction. A duplicated
+        // endpoint produces a zero entry/exit tangent and the spline
+        // degenerates to a quadratic-like segment at the boundary —
+        // safe, no overshoot.
+        const positionTy& P0 = (!std::isnan(posPrev.lat()) ? posPrev : from);
+        const positionTy& P3 = (posList.size() >= 3 ? posList[2] : to);
+
+        const CatmullRomResult cr =
+            CatmullRomEvalCentripetal(P0, from, to, P3, f);
+
+        // Convert spline result (local meters from P1) back to geographic
+        // coordinates. P1 == from, so the origin is from.lat/lon.
+        ppos.lat() = from.lat() + Dist2Lat(cr.yMtr);
+        ppos.lon() = from.lon() + Dist2Lon(cr.xMtr, from.lat());
+
+        // Altitude and pitch on the linear path — these are not part of
+        // the horizontal-plane spline. On the ground altitude is going
+        // to be clamped to terrainAlt_m below anyway; pitch is forced
+        // to GND_PITCH_DEG by the same block.
+        ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
+        ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
+
+        // Heading from spline tangent. Sync the MovingParam so that any
+        // downstream code that reads `heading.get()` (e.g. the half-way
+        // retarget block below) sees the spline-derived value as the
+        // current state rather than racing ahead toward a separately-
+        // tracked target.
+        ppos.heading() = cr.headingDeg;
+        heading.SetVal(cr.headingDeg);
+    }
     else {
-        // Now we apply the factor so that with time we move from 'from' to 'to'.
-        // Note that this calculation also works if we passed 'to' already
-        // (due to no newer 'to' available): we just keep going the same way.
-        // This is effectively a scaled vector sum, broken down into its components:
+        // Air or air↔ground transition — linear interpolation (existing
+        // behaviour). Used for cruise legs and for the rare leg where
+        // exactly one endpoint is on the ground (touchdown / lift-off
+        // boundaries; the liftoff blend in the airborne branch later in
+        // this function smooths the altitude visual on top of this).
+        // Note that this calculation also works if we passed `to`
+        // already (due to no newer `to` available): we just keep going
+        // the same way.
         ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
         ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
         ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;

@@ -107,6 +107,67 @@ positionTy CoordPlusVector (const positionTy& pos, const vectorTy& vec);
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
 
+/// @brief Result of evaluating a Catmull-Rom spline at one parameter
+/// @details All values are expressed in the local meters frame centred at
+///          the spline's `P1` control point (see `CatmullRomEvalCentripetal`):
+///          `x` increases eastward, `y` increases northward. `headingDeg` is
+///          the curve's tangent direction at this parameter, converted to
+///          the same compass convention LiveTraffic uses elsewhere
+///          (0° = north, 90° = east, range [0, 360)).
+struct CatmullRomResult {
+    double xMtr;            ///< east offset from P1 in metres
+    double yMtr;            ///< north offset from P1 in metres
+    double headingDeg;      ///< curve tangent direction [0, 360)
+};
+
+/// @brief Evaluate a centripetal Catmull-Rom spline through four ground
+///        positions at one parameter, returning both the curve point and
+///        the tangent direction at that point.
+///
+/// @details The spline interpolates **exactly through** `P1` and `P2` and
+///          uses `P0` and `P3` as context to determine the tangent at the
+///          endpoints. The centripetal parameterisation (α = 0.5 in
+///          Lee 2009) makes the curve well-behaved at sharp corners — it
+///          never produces the cusps or self-intersecting loops that
+///          uniform Catmull-Rom can generate at a 90° taxi turn.
+///
+///          The curve is fit in a local meters frame centred at `P1`,
+///          using `Lat2Dist` / `Lon2Dist` for the conversion. This keeps
+///          the math Euclidean (avoids cos(lat) accumulating across
+///          control points) and the result is returned in the same local
+///          frame; callers convert back to lat/lon via `Dist2Lat` /
+///          `Dist2Lon` if a geographic position is needed.
+///
+///          The heading is derived from the curve's tangent
+///          (`atan2(dx, dy)`) so the returned heading is by construction
+///          aligned with the rendered direction of motion at this point —
+///          this is the property that eliminates the "sideways during
+///          turn" symptom that linear-chord interpolation produces.
+///
+/// @param P0 Control point before `P1`. May be a degenerate copy of `P1`
+///           (same lat/lon) when no real predecessor is available — the
+///           curve degenerates to a quadratic segment with zero tangent
+///           at `P1`. Caller is responsible for choosing whether to do
+///           this duplication; the function does NOT check for NaN.
+/// @param P1 First interpolated control point — the curve passes through
+///           this exactly at `u = 0`. Origin of the returned local frame.
+/// @param P2 Second interpolated control point — the curve passes through
+///           this exactly at `u = 1`.
+/// @param P3 Control point after `P2`. May be a degenerate copy of `P2`.
+/// @param u  Curve parameter in `[0, 1]`; `u=0` returns `P1` (with the
+///           local frame's origin), `u=1` returns `P2`.
+/// @return   Curve point in local meters frame relative to `P1`, and
+///           tangent-derived heading at that point in degrees.
+///
+/// @note Only the lat/lon of the control points are used. Altitude,
+///       heading, and timestamps are ignored — the spline is purely a
+///       horizontal-plane construction.
+CatmullRomResult CatmullRomEvalCentripetal(const positionTy& P0,
+                                           const positionTy& P1,
+                                           const positionTy& P2,
+                                           const positionTy& P3,
+                                           double u);
+
 //
 // MARK: Estimated Functions on coordinates
 //

@@ -284,6 +284,13 @@ public:
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame
     dequePositionTy      posList;
+    /// Most-recently-retired `from` position. When `posList.pop_front()` is
+    /// called during the position switch in CalcPPos, the slot being removed
+    /// is copied here first so it remains available as the P0 control point
+    /// for the centripetal Catmull-Rom spline that renders ground position
+    /// and heading. lat() is NaN until the first switch has happened —
+    /// callers must check before use and fall back to duplicating P1.
+    positionTy           posPrev;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
