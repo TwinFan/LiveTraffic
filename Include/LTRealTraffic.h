@@ -67,6 +67,13 @@ constexpr size_t RT_NET_BUF_SIZE    = 8192;
 // constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
+/// [s] interval at which the parked-traffic request is re-issued so RT's
+/// parked snapshot stays fresh while the user sits at an airport. Without
+/// this the parked picture is fetched exactly once (on airport-data load)
+/// and then frozen for the whole visit: new arrivals never appear and
+/// aircraft that have since departed are never reconciled. 300 s = 5 min.
+constexpr double RT_PARKED_REFRESH_INTVL_S = 300.0;
+
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_LAST_RCVD        " | last msg %.0fs ago"
 #define MSG_RT_ADJUST           " | historic traffic from %s"
@@ -348,6 +355,12 @@ protected:
     long lTotalFlights = -1;
     /// Shall we check for parked traffic next time around? (Set from main thread after airport data updates)
     bool bDoParkedTraffic = false;
+    /// Wall-clock time (`std::time`) of the last parked-traffic fetch.
+    /// Drives the periodic re-fetch in `SetRequType` — see
+    /// `RT_PARKED_REFRESH_INTVL_S`. 0 = never fetched yet (so the first
+    /// `SetRequType` call re-arms immediately, which is harmless because
+    /// the connection-init path already arms `bDoParkedTraffic` too).
+    double tLastParkedRefresh = 0.0;
     
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)

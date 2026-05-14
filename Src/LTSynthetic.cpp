@@ -124,8 +124,28 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
                 mapSynData.erase(p.first);
             }
                 
-            // Test if the aircraft came too close to any other parked aircraft on the ground
-            if (ac.IsOnGrnd() && !ac.IsGroundVehicle()) {
+            // Gate handoff: evict a stale "ghost" parked aircraft when a
+            // real one takes its stand.
+            //
+            // A new aircraft pulling into a gate is only ever in the LIVE
+            // feed (it was tracked taxiing in) — never in the parked
+            // feed, which is a periodic snapshot. So if THIS aircraft has
+            // itself come to rest as a parked aircraft, any *other* stored
+            // parked aircraft sitting on the same stand must be a stale
+            // ghost: RT's parked snapshot had the previous occupant, who
+            // has since left. Remove the ghost.
+            //
+            // The trigger is `ac.GetFlightPhase() == FPH_PARKED` rather
+            // than the old "any on-ground non-vehicle aircraft" test, and
+            // that distinction is the whole fix. FPH_PARKED means `ac` is
+            // on the ground, stopped, AND snapped to an apt.dat startup
+            // location — i.e. it has genuinely parked. An aircraft merely
+            // taxiing PAST the gate, or holding short nearby, is not
+            // FPH_PARKED and therefore no longer wrongly evicts parked
+            // traffic. GND_COLLISION_DIST then only has to discriminate
+            // "same stand", which it does easily — distinct stands'
+            // reference points are far further apart than 10 m.
+            if (ac.GetFlightPhase() == FPH_PARKED) {
                 for (auto i = mapSynData.begin(); i != mapSynData.end(); ) {
                     // Only compare to other aircraft (not myself)
                     if (i->first == key) {

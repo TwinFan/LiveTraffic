@@ -323,6 +323,16 @@ std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetReq
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
         return tNextWeather;
     }
+    // Periodically re-arm the parked-traffic request so RT's parked
+    // snapshot stays fresh — new arrivals show up, departed aircraft are
+    // reconciled — without the user having to change airports. The
+    // one-shot trigger (DoReadParkedTraffic, fired on airport-data
+    // refresh) alone would freeze the parked picture for the whole visit.
+    // tLastParkedRefresh starts at 0, so the first call re-arms
+    // immediately; that is harmless as connection-init already arms it.
+    if (dataRefs.ShallKeepParkedAircraft() &&
+        std::time(nullptr) - tLastParkedRefresh >= RT_PARKED_REFRESH_INTVL_S)
+        bDoParkedTraffic = true;
     if (bDoParkedTraffic && LTAptAvailable()) {                 // Do the parked traffic now, and only when airport details are available so we can place the aircraft correctly
         curr.eRequType = CurrTy::RT_REQU_PARKED;
         return tNextTraffic;
@@ -584,6 +594,7 @@ bool RealTrafficConnection::ProcessFetchedData ()
     // --- Parked Aircraft ---
     if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
         bDoParkedTraffic = false;                       // Repeat only when instructed
+        tLastParkedRefresh = std::time(nullptr);        // remember when, for the periodic re-fetch (RT_PARKED_REFRESH_INTVL_S)
         return ProcessParkedAcBuffer(json_object_get_object(pObj, "data"));
     }
 
@@ -888,12 +899,28 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             continue;
         }
         
-        // Get the parking position and timestamp first to check for duplicates
+        // Get the parking position and timestamp first.
         std::string parkPos = jag_s(pJAc, RT_PARK_ParkPosName);
         double ts           = jag_n(pJAc, RT_PARK_LastTimeStamp);
-        if (mapPData.count(parkPos) > 0) {
-            // we know that parking position already!
-            parkedAcData& dat = mapPData.at(parkPos);
+
+        // Decide the dedup key. RT's parked feed retains stale history —
+        // a stand can be listed with several aircraft, the older ones
+        // being departures RT has not yet cleared — so for a *real* stand
+        // we keep only the newest-timestamp entry. BUT RT_PARK_ParkPosName
+        // is frequently EMPTY (GA, cargo, remote stands with no Jeppesen
+        // name). An empty name is not a stand identity: if we used it as
+        // the key, every empty-name aircraft across the whole airport
+        // would collapse into a single map slot and all but one would be
+        // silently dropped — which is exactly the "only a small fraction
+        // of parked traffic shows" symptom. So for empty parkPos we key
+        // on the unique hex id instead, guaranteeing each such aircraft
+        // is kept. The '#' prefix can never collide with a real Jeppesen
+        // parking-position string.
+        const std::string dedupKey = parkPos.empty() ? ('#' + key) : parkPos;
+
+        if (mapPData.count(dedupKey) > 0) {
+            // we already have an aircraft for this stand identity
+            parkedAcData& dat = mapPData.at(dedupKey);
             if (ts > dat.ts) {                  // but new data is newer -> replace
                 dat = {
                     jag_n_nan(pJAc, RT_PARK_Lat),
@@ -906,8 +933,8 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
                 };
             }
         } else {
-            // We don't yet know that parking position, store data in new map record
-            mapPData.emplace(std::move(parkPos),
+            // first aircraft for this stand identity, store in new record
+            mapPData.emplace(dedupKey,
                              parkedAcData {
                 jag_n_nan(pJAc, RT_PARK_Lat),
                 jag_n_nan(pJAc, RT_PARK_Lon),
@@ -965,14 +992,59 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         dyn.vsi                 = 0.0;
         dyn.pChannel            = this;
         
-        // Try to find a matching "startup position" to perfectly put the aircraft in place
-        positionTy startupPos = LTAptFindStartupLoc(pos,
-                                                    (double)dataRefs.GetFdSnapTaxiDist_m());
-        if (startupPos.isNormal(true)) {
+        // Try to find a matching "startup position" to perfectly put the
+        // aircraft in place — a real apt.dat gate/stand with a known
+        // heading. Pass maxDist = NAN so the search uses the generous
+        // internal default (3 × the taxi-snap distance): RT's parked
+        // coordinates are not always precise to the metre, and the old
+        // 1 × radius missed many stands.
+        double startupDist = NAN;
+        positionTy startupPos = LTAptFindStartupLoc(pos, NAN, &startupDist);
+        // A startup location was matched iff startupDist is a real number
+        // (LTAptFindStartupLoc / FindStartupLoc set it to NAN when nothing
+        // is found, to the metre distance when found).
+        //
+        // Do NOT test startupPos.isNormal() here: LTAptFindStartupLoc
+        // returns the matched location with a NaN timestamp — it is a
+        // static apt.dat coordinate, not a tracked position — and
+        // positionTy::isNormal() rejects a NaN ts. So isNormal() would
+        // report "not found" for EVERY successful match, which is exactly
+        // why parked aircraft were all left at the placeholder 0° heading,
+        // facing north. startupDist is the reliable signal.
+        const bool bFoundStartup = !std::isnan(startupDist);
+        if (bFoundStartup) {
+            // Snap exactly onto the apt.dat startup location and adopt
+            // its known heading.
             pos.lat()       = startupPos.lat();
             pos.lon()       = startupPos.lon();
             pos.heading()   = startupPos.heading();
         }
+
+        // Flag the position as a startup/parked placement UNCONDITIONALLY
+        // — whether or not an apt.dat stand was matched. This is
+        // essential, not cosmetic:
+        //  * the FPH_PARKED test in LTAircraft requires SPOS_STARTUP;
+        //    only then does the Synthetic channel adopt the aircraft to
+        //    keep it alive, otherwise it ages out a few minutes after
+        //    creation (its only positions span simTime-45..+90);
+        //  * the ground-holding trivial-drop in LTFlightData::AddNewPos
+        //    exempts SPOS_STARTUP positions — without the flag the four
+        //    identical bootstrap seed positions are dropped as "jitter"
+        //    and the aircraft is left with too few positions to render
+        //    at all (the "no parked traffic showing up" symptom).
+        // RT's parked feed is authoritative that the aircraft is parked;
+        // if we simply could not match an apt.dat stand it still belongs
+        // at its reported lat/lon — just without a precise gate heading
+        // (RT's parked feed carries no heading field, so heading stays
+        // at the 0° set above).
+        pos.f.specialPos = SPOS_STARTUP;
+        pos.f.bHeadFixed = true;
+
+        // Sync the dynamic-data heading with the (possibly startup-loc
+        // corrected) position heading. dyn.heading was captured above
+        // before the startup-location lookup, so without this it would
+        // still hold the placeholder 0°.
+        dyn.heading = pos.heading();
         
         try {
             // from here on access to fdMap guarded by a mutex
@@ -1009,7 +1081,11 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         }
     }
     
-    LOG_MSG(logINFO, "Received %d parked aircraft", int(numVals));
+    // Report both the raw count and the post-dedup count actually
+    // processed — a large gap between them points at parkPos collisions
+    // (stale RT history, or empty Jeppesen names) eating the traffic.
+    LOG_MSG(logINFO, "Received %d parked aircraft, %d after dedup",
+            int(numVals), int(mapPData.size()));
     
     return true;
 }

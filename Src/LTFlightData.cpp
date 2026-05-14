@@ -2230,7 +2230,22 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 // allow through anything that moves more than the trivial
                 // distance, because that may signal a genuine push-back or
                 // taxi start that we must not miss.
-                if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M)
+                //
+                // EXCEPTION: never drop a position flagged SPOS_STARTUP.
+                // Those are not feed jitter — they are *intentional*
+                // placements: the RealTraffic parked-feed bootstrap seeds
+                // (4 identical positions used to bring a parked aircraft
+                // into existence) and the Synthetic channel's keep-alive
+                // re-feeds (which hold an adopted parked aircraft alive).
+                // Both arrive at dist≈0 from the held position, so the
+                // plain trivial-drop would eat them — starving the parked
+                // aircraft of the very positions it needs to exist and to
+                // persist, which is exactly the "no parked traffic at all"
+                // symptom. Raw jittery LIVE-feed positions are NOT
+                // SPOS_STARTUP at this point (taxiway snapping runs later
+                // in the pipeline), so genuine jitter is still suppressed.
+                if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M &&
+                    pos.f.specialPos != SPOS_STARTUP)
                 {
                     LOG_MSG(logDEBUG,
                             "GND_DIAG_DROP %s dropping trivial update"
