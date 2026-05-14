@@ -414,6 +414,103 @@ CatmullRomResult CatmullRomEvalCentripetal(const positionTy& P0,
     return { Cx, Cy, headingDeg };
 }
 
+// ---------------------------------------------------------------------------
+// MARK: Catmull-Rom arc-length LUT
+// ---------------------------------------------------------------------------
+//
+// Why this exists
+// ---------------
+// `CatmullRomEvalCentripetal`'s parameter `u ∈ [0, 1]` is centripetal-knot
+// space, NOT arc length. Arc length per unit `u` along the curve varies with
+// local curvature, so advancing `u` linearly with time makes the rendered
+// aircraft "breathe" — speeding up through low-curvature sections, slowing
+// down through tighter ones — and the rendered velocity at the end of one
+// segment rarely matches the velocity at the start of the next.
+//
+// This LUT subdivides the segment at 16 uniformly-spaced `u` values, chords
+// between successive samples, and accumulates the running total. Given a
+// time-linear progression `f`, the inverse lookup returns the `u` for which
+// the curve has covered `f * totalArc` of arc length — which makes the
+// rendered velocity constant at `totalArc / duration` throughout the segment.
+//
+// Cost analysis: 16 spline evaluations per Build() (called once per segment
+// switch, ~once per 1-5 s of feed cadence), plus a 4-step binary search and
+// one linear interp per render frame. Trivial.
+// ---------------------------------------------------------------------------
+
+void CatmullRomArcLut::Build(const positionTy& P0, const positionTy& P1,
+                             const positionTy& P2, const positionTy& P3)
+{
+    // First sample is the segment's P1, expressed in P1's own local frame —
+    // so by definition (xPrev, yPrev) = (0, 0). We seed the loop from there
+    // and accumulate chord lengths between successive curve samples.
+    sAtU[0] = 0.0;
+    double xPrev = 0.0;
+    double yPrev = 0.0;
+
+    for (int i = 1; i <= N; ++i) {
+        // Sample the spline at u = i / N. We re-use the existing evaluator
+        // rather than inlining the math here — keeps the LUT and the per-frame
+        // evaluation guaranteed to use exactly the same curve.
+        const double u = double(i) / double(N);
+        const CatmullRomResult s = CatmullRomEvalCentripetal(P0, P1, P2, P3, u);
+
+        // Chord length from previous sample to this one. For N=16 samples
+        // across a typical taxi-leg this is well below 0.1% off the true
+        // integral — visually indistinguishable from the continuous curve.
+        const double dx = s.xMtr - xPrev;
+        const double dy = s.yMtr - yPrev;
+        sAtU[i] = sAtU[i - 1] + std::hypot(dx, dy);
+
+        xPrev = s.xMtr;
+        yPrev = s.yMtr;
+    }
+
+    totalArc = sAtU[N];
+    valid = true;
+}
+
+double CatmullRomArcLut::UFromArcFraction(double f) const
+{
+    // Defensive clamp: callers should pass f in [0, 1] but if a per-frame
+    // computation produced a tiny over/undershoot from float rounding we
+    // do not want to walk off either end of the LUT.
+    f = std::clamp(f, 0.0, 1.0);
+
+    // Degenerate segment (all control points coincide → zero arc length).
+    // Returning f directly is correct: the spline evaluator at any u in
+    // this case yields P1, so the choice of u does not matter.
+    if (totalArc <= 0.0)
+        return f;
+
+    // Target arc length to reach.
+    const double sTarget = f * totalArc;
+
+    // Find the LUT bucket j such that sAtU[j] <= sTarget <= sAtU[j+1].
+    // The LUT is monotonically increasing by construction so a simple
+    // upper_bound binary search suffices.
+    auto it = std::upper_bound(sAtU.begin(), sAtU.end(), sTarget);
+    if (it == sAtU.begin()) {
+        // sTarget == 0 within float precision; return u = 0.
+        return 0.0;
+    }
+    if (it == sAtU.end()) {
+        // sTarget == totalArc within float precision; return u = 1.
+        return 1.0;
+    }
+    const int    jUpper = int(it - sAtU.begin());
+    const int    jLower = jUpper - 1;
+    const double sLow   = sAtU[jLower];
+    const double sHigh  = sAtU[jUpper];
+
+    // Linear interpolation in u-space across this LUT bucket. The bucket
+    // covers u in [jLower/N, jUpper/N], which is 1/N wide; we move
+    // proportionally to where sTarget falls between sLow and sHigh.
+    const double bucketWidth = sHigh - sLow;
+    const double frac = (bucketWidth > 0.0) ? (sTarget - sLow) / bucketWidth : 0.0;
+    return (double(jLower) + frac) / double(N);
+}
+
 // returns terrain altitude at given position
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)

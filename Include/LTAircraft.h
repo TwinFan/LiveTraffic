@@ -291,6 +291,33 @@ public:
     /// and heading. lat() is NaN until the first switch has happened —
     /// callers must check before use and fall back to duplicating P1.
     positionTy           posPrev;
+    /// Snapshot of the slot AFTER the current `to`, captured at segment
+    /// switch and held fixed for the duration of the current leg. Serves
+    /// as the P3 control point for the Catmull-Rom spline.
+    ///
+    /// Why snapshotted rather than read live from `posList[2]` each frame:
+    /// `posList[2]` can transition from "does not exist" (deque length < 3,
+    /// in which case we fall back to duplicating P2) to "exists" (a new
+    /// feed update lands) mid-segment. That transition silently changes
+    /// the spline geometry between frames, so the position rendered at
+    /// the current parameter `f` jumps — visible as a brief backward
+    /// snap synchronised with the feed cadence. By capturing P3 once at
+    /// segment start we guarantee the spline coefficients are constant
+    /// for the full leg; the new slot only takes effect on the NEXT
+    /// switch, where the boundary is C¹ continuous by construction.
+    /// lat() is NaN until the first switch has captured a real P3 —
+    /// callers must check and fall back to duplicating P2.
+    positionTy           posNext;
+    /// Arc-length lookup table for the current ground-rendering Catmull-Rom
+    /// segment. Built once per segment switch (in the same `posPrev` /
+    /// `posNext` capture block) and consulted on every render frame to
+    /// re-parameterise the time-linear `f` into a curve parameter `u` that
+    /// advances arc-length-proportionally. Without this the rendered
+    /// position would visibly speed up and slow down within each segment
+    /// because the spline's native parameter does not track arc length.
+    /// `valid` is false until first build; the spline branch builds the
+    /// LUT on demand if it sees an invalid one.
+    CatmullRomArcLut     splineLut;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:

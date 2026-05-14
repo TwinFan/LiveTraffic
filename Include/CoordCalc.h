@@ -24,6 +24,7 @@
 #define CoordCalc_h
 
 #include "XPLMScenery.h"
+#include <array>
 #include <deque>
 
 // positions and angles are in degrees
@@ -167,6 +168,63 @@ CatmullRomResult CatmullRomEvalCentripetal(const positionTy& P0,
                                            const positionTy& P2,
                                            const positionTy& P3,
                                            double u);
+
+/// @brief Cached arc-length lookup table for a Catmull-Rom spline segment,
+///        used to make the rendered animation advance at constant arc-length
+///        speed (rather than constant knot-parameter speed).
+///
+/// @details The native parameter `u ∈ [0, 1]` of `CatmullRomEvalCentripetal`
+///          is NOT proportional to arc length on the curve — the spline's
+///          arc length per unit `u` varies with local curvature. If the
+///          caller advances `u` linearly with time, the rendered position
+///          accelerates and decelerates within the segment (visible as a
+///          "speed up / slow down" pulsation), and the velocity at the start
+///          of leg N+1 does not match the velocity at the end of leg N
+///          (visible as a small velocity pop at every segment boundary).
+///
+///          This LUT subdivides the segment at `N` uniformly-spaced values
+///          of `u`, evaluates the curve at each, and accumulates chord-based
+///          arc length. The mapping s→u is then queried per frame to turn
+///          a time-linear progression (0..1 across the leg duration) into a
+///          curve parameter that advances at constant arc-length-per-time.
+///          Visually the rendered aircraft now moves at the segment's mean
+///          speed (`total_arc / duration`) throughout the segment.
+///
+///          `N = 16` is a deliberate trade-off: the chord error against the
+///          true integral is below 0.1 % on the curvatures we see at airport
+///          ground speeds, the build cost is 16 spline evaluations per
+///          segment switch (~once per 1-5 s of feed), and the per-frame
+///          lookup is a 4-step binary search plus one lerp.
+struct CatmullRomArcLut {
+    static constexpr int N = 16;            ///< number of sample sub-intervals; N+1 entries
+
+    /// Cumulative arc length at each sample. `sAtU[i]` is the arc length
+    /// from `u=0` to `u = i / N`. Always `sAtU[0] == 0`.
+    std::array<double, N + 1> sAtU{};
+    /// Total arc length of the segment (i.e., `sAtU[N]`). Cached for
+    /// quick access in the per-frame lookup.
+    double totalArc = 0.0;
+    /// True once `Build()` has populated the table for the current segment.
+    /// Reset to false when the parent segment switches so the next render
+    /// frame rebuilds with the new control points.
+    bool   valid    = false;
+
+    /// Sample the spline at `N+1` uniformly-spaced `u` values, accumulate
+    /// chord lengths between successive samples, and store the running
+    /// totals in `sAtU`. Must be called whenever the control-point set
+    /// changes (i.e., at every segment switch in `LTAircraft::CalcPPos`).
+    void Build(const positionTy& P0, const positionTy& P1,
+               const positionTy& P2, const positionTy& P3);
+
+    /// Given a time-linear progression `f ∈ [0, 1]` across the segment,
+    /// return the curve parameter `u ∈ [0, 1]` at which the spline has
+    /// covered `f * totalArc` of arc length. The mapping is inverted by
+    /// a short binary search across the LUT plus one linear interpolation.
+    /// If the LUT has zero total arc (e.g., all control points coincided)
+    /// the function returns `f` unchanged — the spline will collapse to
+    /// a point anyway, so the choice of parameter is irrelevant.
+    double UFromArcFraction(double f) const;
+};
 
 //
 // MARK: Estimated Functions on coordinates

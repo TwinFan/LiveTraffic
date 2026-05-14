@@ -82,7 +82,13 @@ bool NextCycle (int newCycle)
     // frames we assume some debugging delay and instead increase buffering time
     if (dataRefs.GetNumAc() > 0)
     {
-        if (currCycle.diffTime < 0) {
+        // Only re-init on a *substantial* backward jump (> 1 s). Sub-second
+        // backward steps caused by frame stutters or brief pause/unpause
+        // cycles are absorbed silently — the per-frame interpolators read
+        // simTime directly, so a small reversal is just a tiny stutter on
+        // the next render, not a state-corrupting event. See
+        // TIME_NONLINEAR_BACKWARD_S in Constants.h for the rationale.
+        if (currCycle.diffTime < TIME_NONLINEAR_BACKWARD_S) {
             // jumped backward...that has nothing to do with debugging
             dataRefs.SetReInitAll(true);
             SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
@@ -110,8 +116,15 @@ bool NextCycle (int newCycle)
     // time should move forward (positive difference) and not too much either
     // If time moved to far between two calls then we better start over
     // (but no problem if no a/c yet displayed anyway)
+    // Backward step: ignore sub-second blips (frame stutter, brief
+    // pause/unpause, autosave). Only a substantial reversal triggers
+    // re-init. Forward step: any jump beyond the buffer period means
+    // our buffered data is stale and re-init is the correct response.
+    // See TIME_NONLINEAR_BACKWARD_S in Constants.h for the rationale
+    // behind the asymmetric thresholds.
     if (dataRefs.GetNumAc() > 0 &&
-        (currCycle.diffTime < 0 || currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
+        (currCycle.diffTime < TIME_NONLINEAR_BACKWARD_S ||
+         currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
         // too much time passed...we start over and reinit all aircraft
         dataRefs.SetReInitAll(true);
         SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
@@ -1581,6 +1594,28 @@ bool LTAircraft::CalcPPos()
         // By just removing the first element (current 'from') from the deqeue
         // we make posList[2] the next 'to'
         posList.pop_front();
+
+        // Snapshot the spline's exit-tangent control point (P3) for the
+        // new leg. After the pop, the new leg is from = posList[0],
+        // to = posList[1], and the slot one beyond `to` is posList[2]
+        // (if it exists). We freeze that value into `posNext` and use
+        // it for the entire leg — see the LTAircraft::posNext docstring
+        // for why we must NOT read posList[2] live each frame. If the
+        // deque does not yet extend that far we leave posNext invalid
+        // (lat()=NaN) and the spline evaluator falls back to
+        // duplicating P2 for a stable, slightly-tighter exit.
+        if (posList.size() >= 3)
+            posNext = posList[2];
+        else
+            posNext = positionTy();         // lat()/lon() default to NaN
+
+        // Invalidate the arc-length LUT. The control points for the new
+        // segment are not yet bound to a numeric value here (we want to
+        // build the LUT only if the spline branch is actually entered —
+        // chord-skip and air legs would not use it). The spline branch
+        // checks `splineLut.valid` and rebuilds on the first render
+        // frame of any segment that needs it.
+        splineLut.valid = false;
         // Now: If running point-to-point, ie. _not_ cutting corners with
         // Bezier curves, then to absolutely ensure we continue seamlessly from current
         // ppos we set posList[0] ('from') to ppos. Should be close anyway in normal
@@ -1902,9 +1937,17 @@ bool LTAircraft::CalcPPos()
         // four control points: P0 = the previous `from` (preserved in
         // `posPrev` when the position switch popped it from the deque),
         // P1 = current from, P2 = current to, and P3 = the slot AFTER `to`
-        // if one is available in `posList`. The curve passes exactly
-        // through P1 and P2, and P0 / P3 set the entry / exit tangents so
-        // adjacent legs join with C¹ continuity.
+        // if one is available in `posList`. P0 / P3 set the entry / exit
+        // tangents so adjacent legs join with C¹ continuity.
+        //
+        // P2 (the look-ahead endpoint) is lightly pre-smoothed against its
+        // neighbours before the curve is fit (see GND_SPLINE_SMOOTH_WEIGHT
+        // and the control-point smoothing block below), which turns the
+        // otherwise strictly-interpolating spline into an approximating
+        // one — the rendered path no longer threads exactly through every
+        // noisy feed sample. P1 is left raw so the curve still returns
+        // `from` exactly at u=0, which the segment-switch continuity
+        // mechanism depends on.
         //
         // Heading is the tangent direction at the spline parameter — by
         // construction the rendered nose points the way the rendered
@@ -1930,36 +1973,162 @@ bool LTAircraft::CalcPPos()
         // heading at the segment endpoints.
         // ------------------------------------------------------------------
 
-        // Choose control points, duplicating endpoints when the deque
-        // does not extend far enough in either direction. A duplicated
-        // endpoint produces a zero entry/exit tangent and the spline
-        // degenerates to a quadratic-like segment at the boundary —
-        // safe, no overshoot.
-        const positionTy& P0 = (!std::isnan(posPrev.lat()) ? posPrev : from);
-        const positionTy& P3 = (posList.size() >= 3 ? posList[2] : to);
+        // Compute the chord length from→to in the local meters frame
+        // first. If it is below GND_SPLINE_MIN_CHORD_M we are looking
+        // at a "no useful motion" leg — parked aircraft jitter or a
+        // near-stationary creep dominated by feed noise — and the
+        // spline tangent through near-coincident control points would
+        // produce a noise-driven heading that overrides the (already
+        // correctly frozen) slot heading. Skip the spline in that
+        // regime: linear position interp + preserve from.heading().
+        const double dyMtr = Lat2Dist(to.lat() - from.lat());
+        const double dxMtr = Lon2Dist(to.lon() - from.lon(), from.lat());
+        const double chordMtr = std::sqrt(dxMtr * dxMtr + dyMtr * dyMtr);
 
-        const CatmullRomResult cr =
-            CatmullRomEvalCentripetal(P0, from, to, P3, f);
+        // Leg-average ground speed (chord / duration). Used purely to
+        // pick the interpolation method below — see GND_SPLINE_MAX_KT.
+        // `duration` is guaranteed positive by the LOG_ASSERT_FD above.
+        const double legSpeedKt = (chordMtr / duration) * KT_per_M_per_S;
 
-        // Convert spline result (local meters from P1) back to geographic
-        // coordinates. P1 == from, so the origin is from.lat/lon.
-        ppos.lat() = from.lat() + Dist2Lat(cr.yMtr);
-        ppos.lon() = from.lon() + Dist2Lon(cr.xMtr, from.lat());
+        if (chordMtr < GND_SPLINE_MIN_CHORD_M) {
+            // Stationary / sub-noise motion — pure linear interp and
+            // pass the slot heading through. CalcHeading has frozen
+            // from.heading() to lastGoodHeading_ in this regime, so
+            // both `from.heading()` and `to.heading()` should agree
+            // and equal the parked heading. We blend them defensively
+            // via shortest-path so a stray 1° slot mismatch does not
+            // unwrap into a 359° backward swing.
+            ppos.lat()    = from.lat() + Dist2Lat(dyMtr * f);
+            ppos.lon()    = from.lon() + Dist2Lon(dxMtr * f, from.lat());
+            ppos.alt_m()  = from.alt_m() * (1 - f) + to.alt_m() * f;
+            ppos.pitch()  = from.pitch() * (1 - f) + to.pitch() * f;
+            const double h0 = from.heading();
+            const double hd = HeadingDiff(h0, to.heading());
+            ppos.heading() = HeadingNormalize(h0 + hd * f);
+            heading.SetVal(ppos.heading());
+        }
+        else if (legSpeedKt > GND_SPLINE_MAX_KT) {
+            // High-speed straight-line runway motion — takeoff roll or
+            // landing rollout. The spline exists to handle TURNS, which
+            // do not happen at this speed; here it would only add
+            // fragility (outlier amplification, arc-length-LUT vs
+            // acceleration-profile interaction, leg-to-leg curve-shape
+            // changes on sparse irregular feed data). Plain linear
+            // interpolation renders the straight centreline track
+            // exactly and returns `from` precisely at f=0, keeping the
+            // segment-switch continuity seamless. See GND_SPLINE_MAX_KT
+            // in Constants.h for the full rationale.
+            ppos.lat()    = from.lat() + Dist2Lat(dyMtr * f);
+            ppos.lon()    = from.lon() + Dist2Lon(dxMtr * f, from.lat());
+            ppos.alt_m()  = from.alt_m() * (1 - f) + to.alt_m() * f;
+            ppos.pitch()  = from.pitch() * (1 - f) + to.pitch() * f;
 
-        // Altitude and pitch on the linear path — these are not part of
-        // the horizontal-plane spline. On the ground altitude is going
-        // to be clamped to terrainAlt_m below anyway; pitch is forced
-        // to GND_PITCH_DEG by the same block.
-        ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
-        ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
+            // Heading from the chord bearing — the direct line of
+            // travel between the two feed positions, which on a runway
+            // IS the aircraft heading. Far-apart high-speed samples
+            // make this rock-solid: ~3 m of feed noise on a 200 m+
+            // chord is well under 1° of heading error. atan2(east,
+            // north) gives the compass-convention bearing, matching
+            // the convention used everywhere else in this file.
+            double hdg = std::atan2(dxMtr, dyMtr) * 180.0 / PI;
+            if (hdg < 0.0)
+                hdg += 360.0;
+            ppos.heading() = hdg;
+            heading.SetVal(hdg);
+        }
+        else {
+            // Choose control points. P0 comes from posPrev (cached at
+            // the previous segment-switch). P3 comes from posNext
+            // (cached at THIS segment's switch — see posNext docstring
+            // in LTAircraft.h for why we MUST NOT read posList[2] live
+            // here). When either snapshot is unavailable (insufficient
+            // deque depth at switch time) we duplicate the adjacent
+            // endpoint, which produces a zero entry/exit tangent and
+            // degenerates the spline to a quadratic-like segment at
+            // the boundary — safe, no overshoot.
+            const bool haveP0 = !std::isnan(posPrev.lat());
+            const bool haveP3 = !std::isnan(posNext.lat());
+            const positionTy& P0 = (haveP0 ? posPrev : from);
+            const positionTy& P3 = (haveP3 ? posNext : to);
 
-        // Heading from spline tangent. Sync the MovingParam so that any
-        // downstream code that reads `heading.get()` (e.g. the half-way
-        // retarget block below) sees the spline-derived value as the
-        // current state rather than racing ahead toward a separately-
-        // tracked target.
-        ppos.heading() = cr.headingDeg;
-        heading.SetVal(cr.headingDeg);
+            // Control-point smoothing — LOOK-AHEAD ENDPOINT (P2) ONLY.
+            //
+            // A centripetal Catmull-Rom spline interpolates: the curve
+            // passes exactly through P1 and P2, so a noisy feed sample at
+            // either endpoint becomes a noisy rendered position. We turn
+            // it into an approximating spline by pre-smoothing P2 with a
+            // 3-tap binomial kernel against its neighbours:
+            //   P2' = w·from + (1−2w)·to + w·P3   (w = GND_SPLINE_SMOOTH_WEIGHT)
+            //
+            // P1 is deliberately NOT smoothed. The position-switch loop
+            // above does `posList.front() = ppos` (line ~1631) to make a
+            // new leg continue seamlessly from wherever the renderer
+            // currently is — a mechanism that only works if the renderer
+            // returns posList[0] (== `from`) EXACTLY at the start of the
+            // leg. The unmodified Catmull-Rom evaluator does exactly that
+            // (it interpolates P1 at u=0). If we smoothed P1 the evaluator
+            // would instead return P1' ≠ from at u=0, so every segment
+            // switch the rendered position would snap from `ppos` to P1' —
+            // the visible ~6 s forward/backward jump.
+            //
+            // Smoothing only P2 still removes the jitter completely:
+            // every feed sample is reached as the *smoothed* P2' endpoint
+            // of its leg, and is then carried into the next leg as `from`
+            // via the ppos overwrite. So the rendered path threads the
+            // smoothed points {P2'_k} — the raw noisy samples are never
+            // visited — while u=0 still yields `from` exactly, keeping the
+            // segment joins seamless.
+            //
+            // P2 is only smoothed when posNext is a *real* slot; when it
+            // fell back to a duplicated `to` the kernel would just bias
+            // the endpoint toward the segment interior, so we keep `to`
+            // raw in that case. See GND_SPLINE_SMOOTH_WEIGHT in
+            // Constants.h for the corner-cutting trade-off.
+            const double w = GND_SPLINE_SMOOTH_WEIGHT;
+            positionTy P2s = to;                // copy ts/flags/alt/heading
+            if (haveP3 && w > 0.0) {
+                P2s.lat() = w * from.lat() + (1.0 - 2.0 * w) * to.lat() + w * P3.lat();
+                P2s.lon() = w * from.lon() + (1.0 - 2.0 * w) * to.lon() + w * P3.lon();
+            }
+
+            // Arc-length reparameterisation. The spline's native u is
+            // centripetal-knot space, NOT arc length, so feeding `f`
+            // directly to the evaluator would make the rendered position
+            // accelerate and decelerate within the segment (the user-
+            // observed "slow down / speed back up" pulsation). Instead
+            // we (re)build the arc-length LUT on the first frame of the
+            // segment and look up the u that corresponds to having
+            // traversed `f * totalArc` along the curve. Result: the
+            // rendered position advances at constant arc-length-per-
+            // time across the leg, with the visible speed equal to
+            // totalArc / duration. The LUT is built from the SAME
+            // control points (raw `from`, smoothed P2s) used for eval.
+            if (!splineLut.valid)
+                splineLut.Build(P0, from, P2s, P3);
+            const double uArc = splineLut.UFromArcFraction(f);
+
+            const CatmullRomResult cr =
+                CatmullRomEvalCentripetal(P0, from, P2s, P3, uArc);
+
+            // Convert spline result (local meters from P1) back to
+            // geographic coordinates. P1 is the raw `from` (NOT smoothed,
+            // see above), so the local-frame origin is from.lat/lon.
+            ppos.lat() = from.lat() + Dist2Lat(cr.yMtr);
+            ppos.lon() = from.lon() + Dist2Lon(cr.xMtr, from.lat());
+
+            // Altitude and pitch on the linear path — these are not
+            // part of the horizontal-plane spline. On the ground
+            // altitude will be clamped to terrainAlt_m below anyway;
+            // pitch is forced to GND_PITCH_DEG by the same block.
+            ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
+            ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
+
+            // Heading from spline tangent. Sync the MovingParam so
+            // any downstream code that reads `heading.get()` sees
+            // the spline-derived value as the current state.
+            ppos.heading() = cr.headingDeg;
+            heading.SetVal(cr.headingDeg);
+        }
     }
     else {
         // Air or air↔ground transition — linear interpolation (existing

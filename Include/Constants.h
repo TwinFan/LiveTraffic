@@ -148,6 +148,121 @@ constexpr double GND_HOLDING_TIMEOUT_S          = 30.0;
 /// signals genuine motion and breaks the suppression.
 constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 15.0;
 
+/// [m] minimum chord length (from→to in the local meters frame) below which
+/// the ground-rendering Catmull-Rom spline is skipped and a linear position
+/// interpolation is used instead.
+///
+/// Why this exists: when the aircraft is parked or barely creeping, all four
+/// spline control points sit within the ADS-B/MLAT feed-noise envelope
+/// (~3 m typical). A Catmull-Rom tangent through 4 near-coincident-but-noisy
+/// points is dominated by noise — the spline-derived heading swings around
+/// even though `CalcHeading` has correctly frozen the slot-level heading to
+/// the last good value. The render path then overwrites that frozen heading
+/// with the noisy tangent, producing visible z-axis wobble on stopped
+/// aircraft.
+///
+/// 5 m is comfortably above the ~3 m noise floor and well below a meaningful
+/// taxi step (a 1 kt creep over a 5 s slot is only ~2.6 m; real slow taxi
+/// at 3 kt produces ~7.7 m per 5 s slot, well above the threshold). Below
+/// 5 m we treat the leg as "no useful motion" and let `from.heading()` —
+/// which is already the frozen lastGood value — pass through unchanged.
+constexpr double GND_SPLINE_MIN_CHORD_M         = 5.0;
+
+/// [kn] leg-average ground speed above which the ground-rendering spline is
+/// skipped in favour of plain linear interpolation.
+///
+/// Why this exists: the centripetal Catmull-Rom spline earns its keep at
+/// *taxi* speed, where the aircraft turns and linear-chord interpolation
+/// would render it sliding sideways through the corner. At runway speed —
+/// takeoff roll and landing rollout — the aircraft tracks a dead-straight
+/// line down the centreline; it does not (and physically cannot) turn. In
+/// that regime the spline adds only fragility:
+///   * a single glitchy feed sample (observed: a 777 takeoff roll with
+///     feed speeds jumping 187→87→159 kt within 3 s) becomes a control
+///     point the curve bulges around — linear interpolation would just
+///     draw a straight line slightly off, far less visible;
+///   * feed positions during the roll are sparse and irregularly spaced
+///     (observed: a 31 s gap between samples while accelerating), so the
+///     per-segment curve shape and the arc-length LUT change drastically
+///     leg to leg;
+///   * the spline's arc-length reparameterisation interacts awkwardly
+///     with the acceleration-profile parameter `speed.getRatio()`.
+/// Linear interpolation renders a straight line exactly, is immune to all
+/// of the above, and returns `from` precisely at f=0 so the segment-switch
+/// continuity mechanism stays seamless.
+///
+/// 40 kn is chosen because normal taxi tops out around 20-25 kn and even
+/// an aggressive high-speed runway turnoff is taken below ~40 kn — so at
+/// 40 kn and above we are unambiguously in straight-line runway motion,
+/// while every speed at which the aircraft actually turns still gets the
+/// spline.
+constexpr double GND_SPLINE_MAX_KT              = 40.0;
+
+/// Neighbour weight for the ground-spline control-point smoothing kernel.
+///
+/// Why this exists: a centripetal Catmull-Rom spline *interpolates* — the
+/// rendered curve passes exactly through control points P1 and P2. So a
+/// single noisy feed sample at P1 or P2 produces a visibly noisy rendered
+/// position, and no amount of look-ahead buffering changes that, because
+/// the curve is still pinned to the raw (noisy) point. To actually reduce
+/// jitter the spline has to *approximate* the data instead of interpolating
+/// it.
+///
+/// We achieve that cheaply by pre-smoothing the *look-ahead* control point
+/// P2 with its immediate neighbours using a 3-tap binomial kernel before
+/// the curve is fit:
+///   P2' = w·P1 + (1−2w)·P2 + w·P3
+/// With w = 0.25 this is the classic [1,2,1]/4 kernel — a mild low-pass
+/// that pulls a noisy point a quarter of the way toward the average of its
+/// neighbours. The points P1..P3 are already cached for the spline, so no
+/// deeper buffer is needed.
+///
+/// Only P2 is smoothed — never P1. The segment-switch logic in
+/// `LTAircraft::CalcPPos` overwrites the new leg's start slot with the
+/// current rendered position (`posList.front() = ppos`) so the leg
+/// continues seamlessly from wherever the renderer is. That only works if
+/// the spline returns P1 (== `from`) EXACTLY at u=0, which the unmodified
+/// centripetal evaluator does. Smoothing P1 would make the evaluator
+/// return P1' ≠ from at u=0, producing a visible position snap at every
+/// segment switch (~6 s cadence). Smoothing P2 alone still removes the
+/// jitter completely: each feed sample is reached as the smoothed P2'
+/// endpoint of its leg and then carried into the next leg as `from`, so
+/// the rendered path threads the smoothed points {P2'_k} without ever
+/// visiting a raw noisy sample.
+///
+/// Trade-off: on a genuine sharp taxi turn the kernel pulls the apex inward
+/// by w of its deviation (corner-cutting). At w = 0.25 this is visually
+/// indistinguishable from a real aircraft arcing through a turn — aircraft
+/// do not pivot on a point — and the centripetal parameterisation already
+/// rounds corners gracefully. Set to 0.0 to disable smoothing entirely and
+/// fall back to pure interpolation.
+constexpr double GND_SPLINE_SMOOTH_WEIGHT       = 0.25;
+
+/// [s] backward sim-time jump tolerated by `LTAircraft::NextCycle` before it
+/// triggers a full plugin re-init.
+///
+/// X-Plane's sim time is supposed to be monotonic, but in practice it can step
+/// backward by small amounts after a frame stutter, a brief pause/unpause, an
+/// autosave hiccup, or any operation that retroactively adjusts the timestamp
+/// of the current frame. A strict `diffTime < 0` test (the original behaviour)
+/// trips on any of these, tearing the entire aircraft fleet down and rebuilding
+/// from buffered data — a very visible "everything disappears, then traffic
+/// fades back in over ~10 s as the deques refill" interruption that is well
+/// out of proportion to a sub-second clock blip.
+///
+/// We tolerate backward jumps shallower than this threshold: the per-frame
+/// interpolators read `simTime` directly so a small reversal just means the
+/// next frame renders at a slightly earlier interpolation point (visually a
+/// brief stutter at most, no state corruption). Genuine time-warps — the user
+/// changing time-of-day in the X-Plane menu, or skipping ahead via the date
+/// dialog — produce jumps far larger than 1 s and still trigger the safety.
+///
+/// Asymmetric on purpose: the *forward* limit stays at GetFdBufPeriod()
+/// because forward-jumping past the buffer window means the data we have is
+/// genuinely stale and re-init is the right response. Only the backward case
+/// got the grace.
+constexpr double TIME_NONLINEAR_BACKWARD_S      = -1.0;
+
 /// Consecutive non-stationary feed updates required to actually exit holding.
 /// A single isolated above-threshold slot (which is common — feed jitter can
 /// transiently produce gs of 2 kt for one sample) should not break a stable
