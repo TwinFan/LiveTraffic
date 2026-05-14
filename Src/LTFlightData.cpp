@@ -883,11 +883,39 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
         positionTy& pos = *iter;
         if (pos.IsOnGnd() && !pos.IsPostProcessed())
         {
+            // Run the EHS-staleness cross-check (and the rest of the
+            // on-ground heading filter chain) on this slot BEFORE
+            // handing it to LTAptSnap.
+            //
+            // Why: `LTAptSnap` uses `pos.heading()` to decide which
+            // direction along a taxi edge to route the aircraft (see
+            // TaxiEdge::startByHeading / endByHeading in LTApt.cpp).
+            // The feed-supplied heading comes from Mode S Enhanced
+            // Surveillance, which updates roughly every 10 s and lags
+            // during turns. If snap reads a stale value the synthesised
+            // taxi path can be routed BACKWARD along the edge — the
+            // rendered aircraft visibly moves the wrong way along its
+            // taxiway between feed samples. Observed for DAL973 and
+            // RPA5716 at YSSY.
+            //
+            // `CalcHeading` (since commit d861869) applies the feed-vs-
+            // track cross-check that catches exactly this case: if the
+            // feed heading disagrees with the actual motion track by
+            // 30-150° it falls through to the track-derived value
+            // instead. Running it here means snap sees the corrected
+            // heading and routes the right way.
+            //
+            // The existing post-snap CalcHeading loop in CalcNextPos
+            // remains responsible for filling in the heading of the
+            // intermediate waypoints that snap itself synthesises
+            // (those are inserted with heading=NaN).
+            CalcHeading(iter);
+
             // Try snapping to a rwy or taxiway
             if (LTAptSnap(*this, iter, true))
                 bChanged = true;
         } // non-artificial ground position
-        
+
         // move on to next
         ++iter;
     } // while all posDeque positions
