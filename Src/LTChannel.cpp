@@ -603,7 +603,33 @@ bool LTOnlineChannel::InitCurl ()
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
     curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    
+
+    // TCP keepalive — defends against the kept-alive HTTP connection
+    // being silently dropped by an intermediate NAT/firewall or by the
+    // server while we are idle between polls.
+    //
+    // Without this, libcurl reuses the socket from the previous request
+    // even though some hop in the path has already dropped its half of
+    // the connection. The `send()` then fails (curl reports CURLE_SEND_
+    // ERROR / "Connection died, tried N times before giving up") and we
+    // log a noisy error. Empirically appeared at ~30 s intervals once
+    // the RT poll cadence dropped to 2 s — the connection became stale
+    // between polls just often enough for it to bite.
+    //
+    // With keepalive enabled, the OS sends a small TCP-layer heartbeat
+    // every `KEEPIDLE` seconds on each idle socket, so intermediaries
+    // see the connection as active and don't drop it. We set:
+    //   * KEEPALIVE = 1: enable the feature.
+    //   * KEEPIDLE  = 20 s: send the first probe after 20 s of idle
+    //     (well below the typical 30-60 s NAT idle-drop timer).
+    //   * KEEPINTVL = 10 s: subsequent probes every 10 s if no reply.
+    // These options are no-ops at the curl level on platforms that
+    // don't support TCP_KEEPIDLE / TCP_KEEPINTVL (some legacy Windows),
+    // but the underlying SO_KEEPALIVE flag still helps.
+    curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPIDLE,  20L);
+    curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPINTVL, 10L);
+
     // success
     return true;
 }
