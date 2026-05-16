@@ -76,6 +76,22 @@ constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching curre
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
+
+/// [m] Maximum distance the rendered (live-tracked) position of an aircraft
+/// may be from a parked-feed gate position before the periodic parked
+/// re-fetch is allowed to re-seed that aircraft with the gate position.
+///
+/// RT's parked DB updates on a daily cadence and lags real-world activity
+/// by hours; once an aircraft has pushed back, taxied, or taken off, RT
+/// can still be reporting it as "parked at gate X" for some time. Without
+/// this skip, the periodic re-fetch (RT_PARKED_REFRESH_INTVL_S) silently
+/// injects seed positions at the original gate into the *back* of the
+/// aircraft's deque (at the current simTime + lookahead window). When the
+/// render clock subsequently advances into those slots the aircraft
+/// visually teleports back to the gate, then forward again as later live
+/// data arrives. 50 m comfortably keeps us inside a stand footprint while
+/// excluding anything past the nearest taxiway centerline.
+constexpr double GATE_REFEED_MAX_DIST_M = 50;
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet

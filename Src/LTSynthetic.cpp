@@ -35,6 +35,40 @@
 // Position information per tracked plane
 SyntheticConnection::mapSynDataTy SyntheticConnection::mapSynData;
 
+// Hex ids that have been evicted from a stand by gate-handoff
+// (see SyntheticConnection::FetchAllData). Persistent for the plugin
+// lifetime: see the rationale in LTSynthetic.h. A `static` member with
+// no destructor is fine here — the set is tiny (one entry per real
+// gate-handoff event observed since plugin load) and is freed when
+// the plugin unloads with the process.
+std::set<unsigned long> SyntheticConnection::evictedHexIds;
+
+// Record that a hex id was evicted from a stand. Called from the
+// gate-handoff eviction site below so that:
+//   - a follow-up Synthetic FetchAllData pass cannot re-adopt the
+//     ghost while the original async SetInvalid() is still tearing
+//     down the parked LTFlightData entry, and
+//   - the periodic RealTraffic parked-feed re-fetch
+//     (RT_PARKED_REFRESH_INTVL_S, see ProcessParkedAcBuffer) cannot
+//     re-seed the same hex id with the stale gate position RT's
+//     parked DB still carries hours after the real aircraft has
+//     departed.
+// Idempotent — repeated calls are harmless.
+void SyntheticConnection::MarkEvicted (unsigned long hex)
+{
+    evictedHexIds.insert(hex);
+}
+
+// Has this hex id been evicted from a stand at some point in this
+// session? Read from both the Synthetic re-adoption path
+// (FetchAllData below) and the RealTraffic parked re-feed path
+// (LTRealTraffic::ProcessParkedAcBuffer) to short-circuit
+// re-introducing a ghost we already decided to remove.
+bool SyntheticConnection::WasEvicted (unsigned long hex)
+{
+    return evictedHexIds.find(hex) != evictedHexIds.end();
+}
+
 // Constructor
 SyntheticConnection::SyntheticConnection () :
 LTFlightDataChannel(DR_CHANNEL_SYNTHETIC, SYNTHETIC_NAME, CHT_SYNTHETIC_DATA)
@@ -109,6 +143,19 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
         if (fd.IsValid() && fd.hasAc()) {
             const LTAircraft& ac = *fd.GetAircraft();
             if (ac.GetFlightPhase() == FPH_PARKED) {
+                // Refuse to re-adopt a hex id we have already evicted
+                // from a stand earlier in this session (task #43). The
+                // race we are blocking: a Synthetic FetchAllData pass
+                // running while the live aircraft is still FPH_PARKED
+                // could otherwise re-create the ghost's mapSynData
+                // entry (and a follow-up RT parked re-fetch could
+                // re-create its LTFlightData entry), making the ghost
+                // visibly resurrect ~40 s after we evicted it.
+                if (WasEvicted(key.num)) {
+                    // Also make sure no stale entry lingers.
+                    mapSynData.erase(p.first);
+                    continue;
+                }
                 // This a/c is parked, find/create the entry in our storage
                 SynDataTy& parkDat = mapSynData[key];
                 // we keep the previous heading because we looked that up from Startup location master data
@@ -156,6 +203,15 @@ bool SyntheticConnection::FetchAllData(const positionTy&)
                         {
                             LOG_MSG(logDEBUG, "%s came too close to parked %s, removing the parked aircraft",
                                     fd.keyDbg().c_str(), i->first.c_str());
+                            // Remember this hex id so neither a subsequent
+                            // Synthetic FetchAllData pass (race against the
+                            // async SetInvalid teardown below) nor the
+                            // 5-minute RealTraffic parked-feed re-fetch
+                            // can resurrect the ghost. Task #43: the
+                            // observed symptom was SLM994 reappearing
+                            // ~40 s after eviction via Synthetic, and
+                            // again later via the parked re-fetch.
+                            MarkEvicted(i->first.num);
                             // find the parked aircraft in the map of active aircraft and have it removed there
                             try {
                                 LTFlightData& fdParked = mapFd.at(i->first);

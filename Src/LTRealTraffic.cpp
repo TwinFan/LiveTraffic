@@ -858,6 +858,32 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
 
+            // --- TEMPORARY FEED_DIAG (HTTP-Direct path) ---
+            // Per-aircraft monotonicity + source check. We want to see
+            // every position the channel accepts: hex, callsign, feed
+            // timestamp, msg_type/source (e.g. V_adsb_icao), age of
+            // position (`seen` / PosAge), elapsed dt since the previous
+            // accepted feed timestamp for the same hex, and a flag for
+            // OK / BACKWARDS / REPEAT / NEW. Helps identify backwards
+            // feeds sneaking in that produce backwards rendered motion.
+            {
+                const std::string srcMsg = jag_s(pJAc, RT_DRCT_MsgSrcType);
+                const std::string callDg = jag_s(pJAc, RT_DRCT_CallSign);
+                const double      srcAge = jag_n(pJAc, RT_DRCT_PosAge);
+                const auto        itLast = lastFeedTs.find(fdKey.num);
+                const double      prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
+                const double      dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
+                const char*       flag   = std::isnan(prevTs)  ? "NEW"
+                                         : (dtFeed > 0.0)      ? "OK"
+                                         : (dtFeed < 0.0)      ? "BACKWARDS"
+                                         :                       "REPEAT";
+                LOG_MSG(logDEBUG,
+                        "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f %s [HTTP]",
+                        fdKey.c_str(), callDg.c_str(),
+                        posTime, srcMsg.c_str(), srcAge, dtFeed, flag);
+                lastFeedTs[fdKey.num] = posTime;
+            }
+
             // add the dynamic data
             fd.AddDynData(dyn, 0, 0, &pos);
 
@@ -866,7 +892,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             IncErrCnt();
         }
     }
-    
+
     return true;
 }
 
@@ -982,13 +1008,63 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         // not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
             continue;
-        
+
+        // Refuse to re-seed a hex id that gate-handoff has already
+        // evicted earlier in this session (task #43). RT's parked DB
+        // can lag for hours: a stand that the live feed has shown
+        // emptying (the parked ghost was evicted when a new aircraft
+        // pulled in) will still appear in the parked re-fetch for a
+        // long time afterwards. Without this guard, every 5 minutes
+        // (RT_PARKED_REFRESH_INTVL_S) the ghost would be created
+        // anew. See SyntheticConnection::MarkEvicted.
+        if (SyntheticConnection::WasEvicted(fdKey.num))
+            continue;
+
         // position
         positionTy pos (dat.lat, dat.lon);
         pos.heading() = 0.0;
         pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
         // see later how TS is used: we send 3 instances to make the a/c appear immediately
         pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
+
+        // Defence-in-depth: if this hex id is *already* being live
+        // tracked by another channel, and that live aircraft has
+        // either left the ground or moved meaningfully away from the
+        // gate, do NOT inject the stale parked seed (TFL3NA-class
+        // bug). Symptom we are blocking: TFL3NA was taxiing out and
+        // then airborne when the 5-minute parked re-fetch fired,
+        // silently appending an SPOS_STARTUP GND_ON seed at the
+        // original gate to the deque with a timestamp *later* than
+        // the live airborne positions. The render clock eventually
+        // walked into the seed and the aircraft visually teleported
+        // back to the gate before snapping forward again. The
+        // GATE_REFEED_MAX_DIST_M (= 50 m) test means "still inside
+        // the stand footprint"; anything beyond that is no longer at
+        // the gate, regardless of what RT's parked DB still believes.
+        {
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+            auto it = mapFd.find(fdKey);
+            if (it != mapFd.end()) {
+                std::lock_guard<std::recursive_mutex> fdLock (it->second.dataAccessMutex);
+                if (it->second.IsValid() && it->second.hasAc()) {
+                    const LTAircraft* pAc = it->second.GetAircraft();
+                    if (pAc) {
+                        // Released both locks via scope exit before
+                        // the `continue` below — they are inside this
+                        // inner block.
+                        if (!pAc->IsOnGrnd()) {
+                            mapFdLock.unlock();         // be explicit
+                            continue;                   // already airborne — never re-seed
+                        }
+                        const positionTy gatePos (dat.lat, dat.lon);
+                        if (pAc->GetPPos().dist(gatePos) > GATE_REFEED_MAX_DIST_M) {
+                            mapFdLock.unlock();
+                            continue;                   // taxied away from the gate
+                        }
+                    }
+                }
+            }
+        }
 
         // position is rather important, we check for validity
         // (we do allow alt=NAN if on ground)
@@ -2215,6 +2291,34 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
 
         // add the static data
         fd.UpdateData(std::move(stat), dist);
+
+        // --- TEMPORARY FEED_DIAG (UDP RTTFC path) ---
+        // Per-aircraft monotonicity + source check; see the HTTP variant
+        // for details. `seen` (RT_RTTFC_SEEN) and msg_type are bounds-
+        // checked because the compact 18-field RT App variant strips
+        // them — for short messages we log empty/NAN placeholders so the
+        // line still shows the timestamp and monotonicity flag.
+        {
+            std::string srcMsg;
+            double      srcAge = NAN;
+            if (tfc.size() > RT_RTTFC_MSG_TYPE)
+                srcMsg = tfc[RT_RTTFC_MSG_TYPE];
+            if (tfc.size() > RT_RTTFC_SEEN && !tfc[RT_RTTFC_SEEN].empty()) {
+                try { srcAge = std::stod(tfc[RT_RTTFC_SEEN]); } catch (...) {}
+            }
+            const auto   itLast = lastFeedTs.find(fdKey.num);
+            const double prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
+            const double dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
+            const char*  flag   = std::isnan(prevTs)  ? "NEW"
+                                : (dtFeed > 0.0)      ? "OK"
+                                : (dtFeed < 0.0)      ? "BACKWARDS"
+                                :                       "REPEAT";
+            LOG_MSG(logDEBUG,
+                    "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f %s [UDP]",
+                    fdKey.c_str(), tfc[RT_RTTFC_CS_ICAO].c_str(),
+                    posTime, srcMsg.c_str(), srcAge, dtFeed, flag);
+            lastFeedTs[fdKey.num] = posTime;
+        }
 
         // add the dynamic data
         fd.AddDynData(dyn, 0, 0, &pos);
