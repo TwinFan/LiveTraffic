@@ -781,7 +781,16 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
         stat.setOrigDest(         jag_s(pJAc, RT_DRCT_Origin),
                                   jag_s(pJAc, RT_DRCT_Dest)  );
         stat.flight             = jag_s(pJAc, RT_DRCT_FlightNum);
-        
+        // v6: ICAO operator/airline flag code, hex-keyed in RT's BaseStation
+        // DB. Authoritative for livery matching — immune to wet-lease /
+        // codeshare callsign confusion that the callsign-substring fallback
+        // in FDStaticData::airlineCode() gets wrong. Empty (~30% of records)
+        // for hexes RT doesn't have in the DB; those fall through to the
+        // existing callsign/type-only path with no behaviour change.
+        std::string opCode      = jag_s(pJAc, RT_DRCT_Operator);
+        if (!opCode.empty())
+            stat.opIcao         = std::move(opCode);
+
         std::string s           = jag_s(pJAc, RT_DRCT_Category);
         stat.catDescr           = GetADSBEmitterCat(s);
         stat.slug               = GetSlug(fdKey.num);
@@ -2150,6 +2159,14 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
         stat.setOrigDest(tfc[RT_RTTFC_FROM_IATA], tfc[RT_RTTFC_TO_IATA]);
         stat.slug           = GetSlug(fdKey.num);
+        // v6 (RealTraffic v11.1.452+): ICAO operator/airline flag code,
+        // hex-keyed. Optional — older RT App builds don't send the
+        // field (so it sits past RT_RTTFC_MIN_TFC_FIELDS) and per the
+        // doc ~30% of records carry an empty string. Bounds-check both.
+        // When present this is authoritative for livery matching and
+        // wins over the callsign-substring guess in airlineCode().
+        if (tfc.size() > RT_RTTFC_OPERATOR && !tfc[RT_RTTFC_OPERATOR].empty())
+            stat.opIcao     = tfc[RT_RTTFC_OPERATOR];
 
         const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
         stat.catDescr       = GetADSBEmitterCat(sCat);

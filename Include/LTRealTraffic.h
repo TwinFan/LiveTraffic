@@ -168,8 +168,9 @@ enum RT_DIRECT_FIELDS_TY {
     RT_DRCT_WindSpeed,              ///< Wind speed (19)
     RT_DRCT_SAT_OAT,                ///< SAT/OAT in C (none)
     RT_DRCT_TAT,                    ///< TAT (none)
-    RT_DRCT_ICAO_ID,                ///< Is this an ICAO valid hex ID (1)
-    RT_DRCT_NUM_FIELDS              ///< Number of known fields
+    RT_DRCT_ICAO_ID,                ///< (47) Is this an ICAO valid hex ID (1)
+    RT_DRCT_Operator,               ///< (48) ICAO operator/airline flag code (e.g. "QFA", "FDX"); empty when the hex is not in the BaseStation DB (~30% of records). Hex-keyed, so unaffected by wet-lease / codeshare callsign confusion. Used to populate `FDStaticData::opIcao` for livery matching. (v6)
+    RT_DRCT_NUM_FIELDS              ///< Number of known fields (= 49 in v6)
 };
 
 /// Fields in a response to a parked aircraft request
@@ -252,9 +253,14 @@ enum RT_RTTFC_FIELDS_TY {
     RT_RTTFC_WINDSPD,               ///< wind speed in kts
     RT_RTTFC_OAT,                   ///< outside air temperature / static air temperature
     RT_RTTFC_TAT,                   ///< total air temperature
-    RT_RTTFC_ISICAOHEX,             ///< is this hexid an ICAO assigned ID.
-    RT_RTTFC_AUGMENTATION_STATUS,   ///< has this record been augmented from multiple sources
-    RT_RTTFC_MIN_TFC_FIELDS         ///< always last, minimum number of fields
+    RT_RTTFC_ISICAOHEX,                 ///< (40) is this hexid an ICAO-assigned ID
+    RT_RTTFC_BARO_ALT_UNCORRECTED,      ///< (41) raw ADS-B baro altitude (1013.25 hPa reference) — v6 occupies this slot; v5 had `augmentation_status` here
+    RT_RTTFC_MIN_TFC_FIELDS,            ///< (= 42) strict minimum-fields parser gate, preserved at the pre-v11.1.452 baseline for backward compat with older RT App builds that don't send the new fields below
+    // ----- v6 OPTIONAL fields (RealTraffic v11.1.452+) -----
+    // These are NOT enforced by the min-fields gate above; readers must
+    // bounds-check `tfc.size() > RT_RTTFC_<field>` before accessing.
+    RT_RTTFC_AUTHENTICATION = RT_RTTFC_MIN_TFC_FIELDS,  ///< (42) authentication checksum (safe to ignore)
+    RT_RTTFC_OPERATOR,                  ///< (43) ICAO operator/airline flag code (e.g. "QFA", "FDX"); empty when the hex is not in the BaseStation DB (~30% of records, mostly private/military). Hex-keyed, so unaffected by wet-lease / codeshare callsign confusion. Used to populate `FDStaticData::opIcao` for livery matching.
 };
 
 // map of id to last received datagram (for duplicate datagram detection)
