@@ -1533,6 +1533,154 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
     // ----------------------------------------------------------------------
+    // TEMPORARY DIAGNOSTIC (tag: PUSHBACK_DIAG) — remove once the
+    // pushback-detection redesign lands.
+    //
+    // For every slow on-ground slot, dump the values a parked-heading-
+    // anchored pushback detector would need: the feed heading, the
+    // position-derived track, the last (near-)stationary heading, the
+    // last apt.dat startup (gate) heading, and the angular gap of the
+    // track from each reference. The point is to learn from a real
+    // pushback which reference heading is trustworthy (stable vs
+    // startup) and what angular threshold actually separates a pushback
+    // from a forward power-out taxi. Search the log for "PUSHBACK_DIAG".
+    // ----------------------------------------------------------------------
+    if (it->IsOnGnd() && it != posDeque.cbegin()) {
+        const positionTy& prePosDg = *std::prev(it);
+        if (prePosDg.IsOnGnd() && it->ts() > prePosDg.ts()) {
+            const double   dgGs  = prePosDg.speed_kt(*it);
+            const vectorTy dgVec = prePosDg.between(*it);
+            // Capture the reference headings while (near-)stationary.
+            if (!std::isnan(dgGs) && dgGs < GND_STATIONARY_GS_KT &&
+                !std::isnan(it->heading())) {
+                headingStable = it->heading();
+                if (it->f.specialPos == SPOS_STARTUP)
+                    headingStartup = it->heading();
+            }
+            // Log every slot in the slow-ground regime a pushback lives in.
+            if (!std::isnan(dgGs) && dgGs < GND_USE_FEED_HEADING_MAX_KT) {
+                const double dgTrack = dgVec.angle;
+                LOG_MSG(logDEBUG,
+                        "PUSHBACK_DIAG %s gs=%.2fkt feedHdg=%.1f track=%.1f"
+                        " stableHdg=%.1f startupHdg=%.1f"
+                        " |trk-stable|=%.0f |trk-startup|=%.0f spos=%d dist=%.1fm",
+                        key().c_str(), dgGs, it->heading(),
+                        std::isnan(dgTrack) ? -1.0 : dgTrack,
+                        headingStable, headingStartup,
+                        (std::isnan(dgTrack) || std::isnan(headingStable)) ? -1.0 :
+                            std::abs(HeadingDiff(headingStable, dgTrack)),
+                        (std::isnan(dgTrack) || std::isnan(headingStartup)) ? -1.0 :
+                            std::abs(HeadingDiff(headingStartup, dgTrack)),
+                        (int)it->f.specialPos, dgVec.dist);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // Pushback state machine.  (Runs BEFORE the feed-heading logic below so
+    // that, once a pushback is recognised, it is fully authoritative for the
+    // heading and the feed-heading cross-check never gets to interfere.)
+    //
+    // A pushback at a gate has a clear geometric signature: the aircraft is
+    // on the ground, moving at tug pace, and the direction of motion (the
+    // track from pos[n-1]→pos[n]) is nearly opposite the heading the
+    // aircraft held just before it started moving. The default
+    // heading-from-track logic would rotate the rendered aircraft 180° to
+    // "face where it is going", producing an airliner that appears to taxi
+    // tail-first.
+    //
+    // ENTRY: not in pushback, this slot has meaningful motion at tug speed
+    //   (GND_STATIONARY_GS_KT < gs ≤ PUSHBACK_DETECT_GS_MAX_KT), and the
+    //   track is ≥ PUSHBACK_DETECT_HEAD_DIFF_DEG away from the predecessor's
+    //   heading. For the first moving slot the predecessor IS the last
+    //   parked slot, so this compares the push direction against the parked
+    //   nose — and an aircraft physically cannot taxi forward 135° off its
+    //   nose, so the test only ever fires on a genuine push (or tow).
+    //
+    // HOLD: while in pushback, pick the heading SOURCE per slot —
+    //   * if the feed heading is well away from the track
+    //     (|feedHdg − track| > PUSHBACK_FEED_IS_NOSE_DEG) the feed is
+    //     reporting the true nose: trust it directly. This is the clean
+    //     case — the feed nose rotates smoothly through a curved push and
+    //     is immune to a single noisy track sample.
+    //   * otherwise the feed heading ≈ the track, i.e. it is course-over-
+    //     ground and useless as a nose reference: derive the nose as
+    //     `track + 180°`.
+    //   A sub-threshold-motion slot carries the predecessor heading forward
+    //   (no reliable track from near-zero motion). `bHeadFixed` is set so
+    //   the renderer uses this slot heading verbatim instead of overriding
+    //   it with the ground-spline tangent (which points along the backward
+    //   motion and would render the aircraft tail-first).
+    //
+    // EXIT: only when a meaningful-motion slot's track points FORWARD
+    //   relative to the maintained nose — within PUSHBACK_EXIT_FWD_DIFF_DEG
+    //   of the predecessor slot's (held) heading. That is the aircraft
+    //   taxiing away under its own power. This direction-reversal test
+    //   cannot fire while the aircraft is still stopped (a stopped aircraft
+    //   produces only sub-threshold slots) and copes with pushes of any
+    //   length. Entry ≥135° / exit ≤45° leave a hysteresis band so a
+    //   sharply curving push never flickers out mid-manoeuvre.
+    // ----------------------------------------------------------------------
+    if (!it->IsOnGnd()) {
+        // Airborne — any pushback is long over; clear the state defensively.
+        bPushback = false;
+    }
+    else if (it != posDeque.cbegin()) {
+        const positionTy& prePosPb = *std::prev(it);
+        if (prePosPb.IsOnGnd() && it->ts() > prePosPb.ts()) {
+            const vectorTy pbTrack    = prePosPb.between(*it);
+            const double   pbNose     = prePosPb.heading();  // maintained nose / parked heading
+            const double   pbFeedHdg  = it->heading();       // feed-delivered heading, before we overwrite it
+            const bool     bPbMotion  = pbTrack.dist >= SIMILAR_POS_DIST;
+            const bool     bPbTrackOK = bPbMotion && !std::isnan(pbTrack.angle)
+                                                  && !std::isnan(pbNose);
+
+            if (!bPushback) {
+                // --- ENTRY ---
+                const double pbGs_kt = prePosPb.speed_kt(*it);
+                if (bPbTrackOK &&
+                    !std::isnan(pbGs_kt) &&
+                    pbGs_kt >  GND_STATIONARY_GS_KT &&
+                    pbGs_kt <= PUSHBACK_DETECT_GS_MAX_KT &&
+                    std::abs(HeadingDiff(pbNose, pbTrack.angle))
+                        >= PUSHBACK_DETECT_HEAD_DIFF_DEG)
+                {
+                    bPushback = true;
+                }
+            }
+            else if (bPbTrackOK) {
+                // --- EXIT test --- only a meaningful-motion slot can be
+                // classified; sub-threshold slots keep the state.
+                if (std::abs(HeadingDiff(pbNose, pbTrack.angle))
+                        <= PUSHBACK_EXIT_FWD_DIFF_DEG)
+                    bPushback = false;          // moving forward — push over
+            }
+
+            // --- HOLD --- drive the heading while the state is active.
+            if (bPushback) {
+                if (bPbMotion && !std::isnan(pbTrack.angle)) {
+                    // Choose the heading source. A feed heading far from
+                    // the track is the genuine nose — trust it (smooth,
+                    // noise-free). A feed heading that tracks the motion
+                    // is course-over-ground — derive the nose as the
+                    // reverse of the track instead.
+                    if (!std::isnan(pbFeedHdg) &&
+                        std::abs(HeadingDiff(pbFeedHdg, pbTrack.angle))
+                            > PUSHBACK_FEED_IS_NOSE_DEG)
+                        it->heading() = pbFeedHdg;
+                    else
+                        it->heading() = HeadingNormalize(pbTrack.angle + 180.0);
+                }
+                else if (!std::isnan(pbNose)) {
+                    it->heading() = pbNose;     // sub-threshold motion — hold
+                }
+                it->f.bHeadFixed = true;
+                return;
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
     // Trust feed-provided heading at slow ground speed (with staleness check).
     //
     // The position-from-track logic below derives heading by taking
@@ -1735,60 +1883,6 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
             // Otherwise fall through to the normal computation below;
             // the existing `SIMILAR_POS_DIST` short-circuit will likely
             // still kick in and stabilise this slot from the predecessor.
-        }
-    }
-
-    // ----------------------------------------------------------------------
-    // Pushback detection (state-free).
-    //
-    // A genuine pushback at a gate has a very recognisable geometric
-    // signature: the aircraft is on the ground, moving slowly (a few
-    // knots — the tug's pace), and the direction of motion (the track
-    // derived from pos[n-1]→pos[n]) is nearly opposite to the
-    // aircraft's previous heading. In that situation the physical
-    // aircraft is moving *backwards* while its nose still points
-    // forward at the gate.
-    //
-    // The default heading-from-track logic would rotate the rendered
-    // aircraft by 180° to face the direction it is moving, producing
-    // a bizarre visual where the airliner appears to taxi tail-first.
-    // We catch this case here and freeze the heading to the
-    // predecessor's value — the rendered aircraft then keeps its nose
-    // pointed at the gate while its world position is interpolated
-    // backwards, which is exactly the correct visual.
-    //
-    // Thresholds:
-    //   - speed in (GND_STATIONARY_GS_KT, PUSHBACK_DETECT_GS_MAX_KT]
-    //     (faster than holding-stationary, slower than taxi)
-    //   - |track − previous heading| ≥ PUSHBACK_DETECT_HEAD_DIFF_DEG
-    //     (well inside the "going backwards" half-plane)
-    //
-    // This is intentionally state-free: every slot is classified on
-    // its own geometry. When the tug stops, the next slot fails the
-    // "moving slowly" check and normal heading logic takes over. When
-    // the aircraft begins forward taxi after pushback, the track
-    // realigns with heading and pushback no longer triggers.
-    // ----------------------------------------------------------------------
-    if (it->IsOnGnd() && it != posDeque.cbegin()) {
-        const positionTy& prePos = *std::prev(it);
-        if (prePos.IsOnGnd() && it->ts() > prePos.ts()) {
-            const double gsDerived_kt = prePos.speed_kt(*it);
-            if (!std::isnan(gsDerived_kt) &&
-                gsDerived_kt >  GND_STATIONARY_GS_KT &&
-                gsDerived_kt <= PUSHBACK_DETECT_GS_MAX_KT)
-            {
-                const vectorTy track  = prePos.between(*it);
-                const double   pHead  = prePos.heading();
-                if (!std::isnan(track.angle) && !std::isnan(pHead)) {
-                    const double trackVsHead =
-                        std::abs(HeadingDiff(pHead, track.angle));
-                    if (trackVsHead >= PUSHBACK_DETECT_HEAD_DIFF_DEG) {
-                        // Pushback: keep nose pointing at gate.
-                        it->heading() = pHead;
-                        return;
-                    }
-                }
-            }
         }
     }
 

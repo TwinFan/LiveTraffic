@@ -362,26 +362,60 @@ constexpr double GND_PITCH_DEG                  = 0.0;
 /// gated behind `!IsOnGnd()` so this only applies on the ground.
 constexpr double GND_ROLL_DEG                   = 0.0;
 
-/// [kn] upper bound on groundspeed for an event to even be considered as
-/// pushback. Typical pushback tugs move aircraft at 1–3 kn; anything faster
-/// is taxi rather than pushback and the normal heading-from-track logic
-/// should apply.
-constexpr double PUSHBACK_DETECT_GS_MAX_KT      = 3.0;
+/// [kn] upper bound on groundspeed for an event to be considered the START
+/// of a pushback. This gates ENTRY into the pushback state only — once the
+/// state is entered it is held regardless of speed, so a long or brisk push
+/// never drops out. The real discriminator for a pushback is the DIRECTION
+/// (the aircraft moving backwards relative to its nose — see
+/// `PUSHBACK_DETECT_HEAD_DIFF_DEG`); nothing else moves backwards on the
+/// ground, so the speed ceiling only needs to be generous enough that the
+/// first feed slot of the push is caught even when the feed cadence is
+/// sparse. Observed: with a sparse RT feed the first slot of a push can
+/// already read 8–9 kn, so 12 kn is used — well above realistic tug speed
+/// (which the direction gate would catch anyway) but a useful guard
+/// against a glitchy high-speed position jump masquerading as a push.
+constexpr double PUSHBACK_DETECT_GS_MAX_KT      = 12.0;
 
-/// [°] absolute heading difference between the track-over-ground (derived
-/// from the current position delta) and the aircraft's last-known good
-/// heading required to classify a slow motion as pushback. 135° is well
-/// inside the "going backwards" half-plane (which begins at 90°) but leaves
-/// margin so that a sharply curving forward taxi never accidentally trips the
-/// pushback heuristic.
+/// [°] minimum |track − nose-heading| to ENTER the pushback state. 135° is
+/// well inside the "going backwards" half-plane (which begins at 90°) and
+/// leaves margin so a sharply curving forward taxi never trips entry. The
+/// track is derived from the current position delta; the nose heading is
+/// the predecessor slot's (last-known-good) heading.
 constexpr double PUSHBACK_DETECT_HEAD_DIFF_DEG  = 135.0;
 
-/// [m] distance behind the aircraft's nose along the reversed heading at
-/// which the pushback Bezier curve's control point is placed. ~10 m mid-point
-/// gives a smooth, gentle rearward arc instead of an instant straight-line
-/// reverse; matches the approximate distance a tug pushes an airliner during
-/// the first second of the maneuver.
-constexpr double PUSHBACK_MIDPOINT_DIST_M       = 10.0;
+/// [°] maximum |track − nose-heading| to EXIT the pushback state. While the
+/// state is held, `CalcHeading` keeps the slot heading updated to
+/// `track + 180°` — i.e. the predecessor slot's heading is always the
+/// current nose direction. When a meaningful-motion slot's track points
+/// within this angle of that nose heading, the aircraft is moving FORWARD
+/// (taxiing away under its own power) — the push is over. This is a far
+/// more reliable end-of-pushback signal than any elapsed-time proxy: it
+/// cannot fire while the aircraft is stopped (tug still attached / just
+/// disconnected produces only sub-threshold motion), and it copes with
+/// pushes of any length or distance.
+///
+/// Entry at ≥135° and exit at ≤45° leave a 45–135° hysteresis band: a slot
+/// whose track falls in the ambiguous "curving" zone keeps the current
+/// state, so a sharply curving push never flickers out mid-manoeuvre.
+constexpr double PUSHBACK_EXIT_FWD_DIFF_DEG     = 45.0;
+
+/// [°] threshold that decides, while in a pushback, WHICH source to use for
+/// the rendered heading.
+///
+/// RealTraffic's heading field is not consistent across aircraft: for some
+/// it is the true nose direction (Mode S EHS), for others it is simply
+/// course-over-ground. During a pushback these look completely different:
+///   * true-nose feed:  feedHdg is ~180° from the track (the aircraft moves
+///     tail-first) — and it is a clean, smooth signal, immune to a single
+///     noisy track sample. We trust it directly.
+///   * course feed:     feedHdg ≈ the track — useless as a nose reference;
+///     we derive the nose as `track + 180°` instead.
+/// So: if |feedHdg − track| exceeds this threshold the feed heading is the
+/// true nose and is used as-is; otherwise it is course and the nose is
+/// derived from the reversed track. 90° is the natural divider — beyond it
+/// the feed points into the rear half-plane relative to the motion, which
+/// only the true-nose interpretation explains.
+constexpr double PUSHBACK_FEED_IS_NOSE_DEG      = 90.0;
 
 /// [°] minimum heading change at which a Bezier curve is constructed for a
 /// ground leg. The general airborne threshold (`BEZIER_MIN_HEAD_DIFF`, 2.5°)

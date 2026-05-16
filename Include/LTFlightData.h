@@ -299,6 +299,28 @@ protected:
     /// before exiting avoids those false-exits.
     int                     groundNonStationaryCnt = 0;
 
+    // ---- Pushback state (see Constants.h `PUSHBACK_*`) --------------------
+    // True while the aircraft is being pushed back from a gate. Entered in
+    // `CalcHeading` on the geometric signature (slow, on-ground, moving
+    // backwards relative to the nose); while true the slot heading is held
+    // at `track + 180°` so the rendered nose stays pointing away from the
+    // direction of travel. Exited only when a meaningful-motion slot shows
+    // the aircraft moving FORWARD again (track within
+    // `PUSHBACK_EXIT_FWD_DIFF_DEG` of the maintained nose heading) — a
+    // direction-reversal test, not a timer, so it copes with pushes of any
+    // length and never exits while the aircraft is still stopped.
+    bool                    bPushback            = false;
+    /// [°] last heading observed while (near-)stationary on the ground.
+    /// Candidate "parked heading" reference for pushback detection — but
+    /// it can drift if the live feed updates the heading while the
+    /// aircraft is nominally parked.
+    double                  headingStable        = NAN;
+    /// [°] last heading observed on a `SPOS_STARTUP` slot, i.e. the
+    /// apt.dat gate heading. Unlike `headingStable` this cannot drift —
+    /// it comes from static airport data, not the live feed — so it is
+    /// the more trustworthy "true nose while parked" reference.
+    double                  headingStartup       = NAN;
+
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
     

@@ -2123,11 +2123,35 @@ bool LTAircraft::CalcPPos()
             ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
             ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
 
-            // Heading from spline tangent. Sync the MovingParam so
-            // any downstream code that reads `heading.get()` sees
-            // the spline-derived value as the current state.
-            ppos.heading() = cr.headingDeg;
-            heading.SetVal(cr.headingDeg);
+            // Heading.
+            //
+            // Normally the spline tangent is the heading: the rendered
+            // nose points along the rendered direction of motion, which
+            // is what eliminates the "sideways through a turn" symptom.
+            //
+            // EXCEPTION: if the leg's start slot carries `bHeadFixed`,
+            // an upstream stage has deliberately set a heading that must
+            // NOT be overridden — currently that means a pushback leg,
+            // where CalcHeading set the slot heading to `track + 180°`
+            // so the nose stays pointed away from the (backward)
+            // direction of travel. The spline tangent here points along
+            // that backward motion, so using it would render the
+            // aircraft tail-first. Instead we interpolate the slot
+            // headings across the leg (shortest-path), preserving the
+            // intended nose direction while still drawing the smooth
+            // spline *position*.
+            if (from.f.bHeadFixed) {
+                const double h0 = from.heading();
+                const double hd = HeadingDiff(h0, to.heading());
+                ppos.heading() = HeadingNormalize(h0 + hd * f);
+                heading.SetVal(ppos.heading());
+            } else {
+                // Sync the MovingParam so any downstream code that reads
+                // `heading.get()` sees the spline-derived value as the
+                // current state.
+                ppos.heading() = cr.headingDeg;
+                heading.SetVal(cr.headingDeg);
+            }
         }
     }
     else {
