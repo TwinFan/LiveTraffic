@@ -593,6 +593,21 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // --- Parked Aircraft ---
     if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
+        // Re-check airport-layout availability at PROCESSING time, not just
+        // at request time. SetRequType already gated the request on
+        // LTAptAvailable(), but the ~1-2 s network round-trip between
+        // issuing the request and the response arriving is long enough for
+        // the camera to have moved — which kicks off an async apt.dat
+        // reload and flips bAptAvailable false. Processing the response
+        // then would run the startup-location lookups in
+        // ProcessParkedAcBuffer against a purged / half-rebuilt airport
+        // map and mis-place every parked aircraft. If the layout is not
+        // ready right now, drop this response and leave bDoParkedTraffic
+        // armed so the next cycle retries once the layout is back.
+        // tLastParkedRefresh is intentionally NOT updated, so a dropped
+        // attempt does not consume the periodic-refresh interval.
+        if (!LTAptAvailable())
+            return true;                                // not an error — just retry next cycle
         bDoParkedTraffic = false;                       // Repeat only when instructed
         tLastParkedRefresh = std::time(nullptr);        // remember when, for the periodic re-fetch (RT_PARKED_REFRESH_INTVL_S)
         return ProcessParkedAcBuffer(json_object_get_object(pObj, "data"));
