@@ -340,6 +340,50 @@ protected:
     /// rendered altitude jumps from terrain level to the interpolated
     /// climb-out altitude on a single frame. NAN when no blend is active.
     double              liftoffBlendStartTs = NAN;
+    /// Sim timestamp at which `FPH_TOUCH_DOWN` was entered. The frame
+    /// loop in `CalcFlightModel` defers the nose-down `pitch.moveTo(
+    /// GND_PITCH_DEG)` until `TOUCHDOWN_HOLD_PITCH_S` seconds have
+    /// elapsed since this timestamp — modelling the aerobrake during
+    /// which a real airliner holds its nose up after the mains touch.
+    /// Cleared back to NAN once the deferred move has fired.
+    double              touchdownTs = NAN;
+    /// Terrain altitude (m, MSL) captured on the frame that the
+    /// aircraft transitioned to airborne. Used as the START of the
+    /// liftoff blend curve. Frozen so the curve does not jitter if
+    /// `terrainAlt_m` from `YProbe` changes slightly as the aircraft
+    /// moves horizontally during the blend. NAN when no blend active.
+    double              liftoffStartAlt_m = NAN;
+    /// @brief Per-aircraft archive of altitude samples used by
+    ///        `LookupAltAtTs` for its Gaussian-weighted local linear
+    ///        regression smoothing.
+    /// @details `fd.posDeque` only retains ONE past slot at any given
+    ///          render time (the loop in `LTFlightData::CalcNextPos`
+    ///          pops slots aggressively to keep the deque short).
+    ///          Running a Gaussian-weighted regression directly on
+    ///          `posDeque` therefore has the regression's weight
+    ///          concentrated on a single past sample whose Gaussian
+    ///          weight near `targetTs` is close to 1.0 — and the
+    ///          moment that sample is popped, the weighted mean
+    ///          recomputes WITHOUT it, in a single frame. For a
+    ///          climbing aircraft the just-popped slot was the low-
+    ///          altitude one, so removing it makes the mean jump up
+    ///          by tens to hundreds of feet. That is the discrete
+    ///          jump symptom the user reported despite "smoothing".
+    ///
+    ///          We mirror every slot we observe in `posDeque` into
+    ///          this archive, and the archive does NOT pop when
+    ///          `posDeque` does. The regression then runs on
+    ///          `pastAltSamples_` + `posDeque` (deduped), so popped
+    ///          slots remain in the regression with their Gaussian
+    ///          weight smoothly decaying toward zero as `targetTs`
+    ///          moves past them. No more discrete jumps at the
+    ///          deque-pop boundary.
+    ///
+    ///          Pruned per frame to keep only samples within
+    ///          ~`±10·σ` of `targetTs` — well beyond the Gaussian
+    ///          tail so the regression result is indistinguishable
+    ///          from one over the unpruned history.
+    mutable std::deque<positionTy> pastAltSamples_;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     bool                bNeedSpeed = false;     ///< need speed calculation?
     bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
@@ -455,6 +499,23 @@ protected:
     void CalcCorrAngle ();
     /// determines terrain altitude via XPLM's Y Probe
     bool YProbe ();
+    /// @brief Interpolate altitude (m, MSL) at an arbitrary timestamp
+    ///        across `posList`, with linear extrapolation past the end.
+    /// @details Used by the liftoff-blend code to look up the natural
+    ///          climb-out altitude at the moment the blend will end
+    ///          (`liftoffBlendStartTs + LIFTOFF_BLEND_TIME_S`). Driving
+    ///          the blend toward this future target — instead of toward
+    ///          the live `from`-to-`to` linear interp — decouples the
+    ///          rendered altitude from the slope discontinuities at each
+    ///          deque-slot boundary, eliminating the visible "kinks"
+    ///          that otherwise show up mid-blend whenever the aircraft
+    ///          crosses from one leg to the next. When the requested
+    ///          timestamp is beyond the deque's last slot, projects
+    ///          forward using the slope of the final two slots.
+    /// @param targetTs Absolute sim timestamp at which alt is wanted.
+    /// @return Interpolated/extrapolated altitude in metres MSL; falls
+    ///         back to `terrainAlt_m` if `posList` is empty.
+    double LookupAltAtTs (double targetTs) const;
     // determines if now visible
     bool CalcVisible ();
     /// Determines AI priority based on bearing to user's plane and ground status

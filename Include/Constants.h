@@ -454,18 +454,51 @@ constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
 /// (`bOnGrnd` flips from true to false, `phase` becomes `FPH_LIFT_OFF`),
 /// that clamp stops applying. The next-rendered altitude becomes the raw
 /// linear interpolation between the last on-ground slot and the next
-/// airborne slot — which can be 100–500 ft above the runway depending on
-/// how far apart those slots are in time. Without smoothing the aircraft
-/// visibly teleports upwards in a single frame ("jumps into the air on
-/// rotation").
+/// airborne slot — which can be hundreds of feet above the runway
+/// depending on how far apart those slots are in time. Without smoothing
+/// the aircraft visibly teleports upwards in a single frame ("jumps into
+/// the air on rotation").
 ///
-/// We instead lerp from terrain altitude to the interpolated altitude over
-/// `LIFTOFF_BLEND_TIME_S` using a smoothstep easing curve. 1.5 s is short
-/// enough to match the visual expectation of "rotation → lift-off" (about
-/// the same duration as the pitch-up walk driven by `pitch.max()` on
-/// `FPH_ROTATE`) and long enough that the eye reads it as a gradual
-/// transition rather than a teleport.
-constexpr double LIFTOFF_BLEND_TIME_S           = 1.5;
+/// We instead lerp from terrain altitude to the interpolated altitude
+/// over `LIFTOFF_BLEND_TIME_S` using a smoothstep easing curve
+/// f(t) = t² (3−2t). Smoothstep is the right choice because it is C¹-
+/// continuous at both endpoints:
+///   - at t=0, f'(0)=0, so the rendered altitude leaves the ground with
+///     a vertical speed of zero — no perceived velocity jump;
+///   - at t=1, f'(1)=0, so the *derivative* of the rendered altitude
+///     matches the derivative of the raw interpolation exactly there
+///     (`result'(1) = smoothstep'(1)·(interp−terrain) + smoothstep(1)·
+///     interp'(1) = interp'(1)`), meaning the climb-rate seam at the
+///     end of the blend is invisible.
+///
+/// 10 s gives a visibly gradual lift-off that tracks the natural shape
+/// of a real climb-out (rotate → wheels-up → gear-up → flap-retraction
+/// span comparable seconds). A shorter blend (the original 1.5 s) made
+/// the aircraft appear to leap from runway level to several hundred
+/// feet within one airframe-length of forward travel; 10 s reads as
+/// "climbing away from the runway" instead of "popping into the sky".
+constexpr double LIFTOFF_BLEND_TIME_S           = 10.0;
+
+/// [s] minimum time the nose is held pitched up at `PITCH_FLARE` after
+/// touchdown before the de-rotation walk to `GND_PITCH_DEG` begins.
+///
+/// Why this exists: real airliners aerobrake by holding the nose high
+/// for several seconds after the main gear touches, until aerodynamic
+/// braking loses authority and the nose-wheel is lowered for wheel
+/// braking. Previously LiveTraffic called `pitch.moveTo(GND_PITCH_DEG)`
+/// on the same frame that `FPH_TOUCH_DOWN` was entered, so the
+/// `PITCH_RATE` walk started immediately and the nose was on the
+/// ground within ~3 s of touchdown — visibly faster than real
+/// aircraft.
+///
+/// 5 s is the lower bound of typical airline practice (longer aircraft
+/// often hold longer); we use it as a floor so even quick rollouts get
+/// a recognisable aerobrake. The hold period sits entirely inside
+/// `FPH_TOUCH_DOWN` / `FPH_ROLL_OUT`, both of which are already
+/// excluded from the ground-attitude pitch override in `CalcAcPos`,
+/// so the MovingParam keeps the pitch at its last-commanded value
+/// (`PITCH_FLARE`) until the deferred `moveTo` fires.
+constexpr double TOUCHDOWN_HOLD_PITCH_S         = 5.0;
 
 
 //MARK: Flight Model
