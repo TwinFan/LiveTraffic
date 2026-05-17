@@ -76,6 +76,120 @@ constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching curre
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
+
+/// [m] Maximum distance the rendered (live-tracked) position of an aircraft
+/// may be from a parked-feed gate position before the periodic parked
+/// re-fetch is allowed to re-seed that aircraft with the gate position.
+///
+/// RT's parked DB updates on a daily cadence and lags real-world activity
+/// by hours; once an aircraft has pushed back, taxied, or taken off, RT
+/// can still be reporting it as "parked at gate X" for some time. Without
+/// this skip, the periodic re-fetch (RT_PARKED_REFRESH_INTVL_S) silently
+/// injects seed positions at the original gate into the *back* of the
+/// aircraft's deque (at the current simTime + lookahead window). When the
+/// render clock subsequently advances into those slots the aircraft
+/// visually teleports back to the gate, then forward again as later live
+/// data arrives. 50 m comfortably keeps us inside a stand footprint while
+/// excluding anything past the nearest taxiway centerline.
+constexpr double GATE_REFEED_MAX_DIST_M = 50;
+
+/// Maximum distance, in metres, between an aircraft's held position and the
+/// nearest apt.dat startup-location (gate / stand / ramp slot) for the
+/// position to be treated as "at a gate". Used as the third gate-detection
+/// path in `LTFlightData::AddNewPos`: when `bGroundHolding` flips true on a
+/// live-tracked aircraft (one that never received a RealTraffic parked-feed
+/// seed), we query `LTAptFindStartupLoc()` and set `bGateParked = true` only
+/// when the apt.dat lookup returns a startup-loc within this radius. The
+/// value is small on purpose — typical stand widths are 20–60 m, and a tight
+/// threshold prevents false positives from runway hold-shorts, taxiway
+/// crossings, or maintenance pads being misclassified as gates (which would
+/// later mis-trigger the pushback state machine).
+constexpr double GATE_DETECT_MAX_DIST_M = 30.0;
+
+/// Maximum angular delta, in degrees, between the prior parked heading and
+/// the first-motion feed heading for the feed to be considered a true-nose
+/// source during a pushback. Used at the PB_NONE→PB_ACTIVE entry in
+/// `LTFlightData::CalcHeading`: if `|feedHdg − prePosPb.heading()| <=` this
+/// value, the feed value is locked in as the nose source for the rest of
+/// the push (so the rendered nose tracks the aircraft's real rotation,
+/// reported by the feed). Otherwise the feed is treated as course-over-
+/// ground and the nose is derived from the motion track instead.
+///
+/// 30° is chosen because a true-nose feed reads exactly the parked heading
+/// when the aircraft is stationary; once motion starts the feed catches up
+/// within a fraction of a second, so the very first motion slot's feedHdg
+/// is still within a handful of degrees of the parked value. A course feed,
+/// on the other hand, reports motion direction once motion starts — and
+/// during a pushback that is ~180° away from the parked heading, well
+/// outside the 30° window. The threshold is therefore comfortably wider
+/// than measurement noise yet far tighter than the course/nose gap.
+constexpr double PB_FEED_NOSE_AGREE_DEG = 30.0;
+
+/// Minimum groundspeed, in knots, for a slot to be classified as
+/// "moving" by the pushback state machine in `LTFlightData::CalcHeading`.
+/// Distinct from (and lower than) `GND_STATIONARY_GS_KT` because real
+/// pushbacks roll at 0.4-1.4 kt — entirely below the global stationary
+/// threshold (1.5 kt). Using the global threshold for the PB bMotion
+/// check would mean the state machine never enters PB_ACTIVE for an
+/// actual slow push, and the entry-gate logic in AddNewPos would keep
+/// suppressing subsequent in-push slots (which depend on
+/// `pbState != PB_NONE` to bypass the gate-hold).
+///
+/// 0.3 kt is a hair above the noise floor of derived gs at sub-second
+/// dt: a 3 m position-fix jitter over a 5 s slot yields ~0.6 m/s ≈
+/// 1.1 kt of false gs. We need a threshold under the actual slow-push
+/// speed but above zero; 0.3 kt is comfortably both. Combined with the
+/// upstream distance gate (GATE_HOLD_MIN_ACCEPT_M ≥ 30 m before the
+/// first slot is accepted), this leaves no realistic path for noise to
+/// trip the state machine.
+constexpr double PB_MOTION_GS_KT        = 0.3;
+
+/// Safety-valve maximum groundspeed, in knots, for the pushback state
+/// machine. If a slot under PB_ACTIVE/PB_PAUSED arrives with `gs` above
+/// this threshold, the state machine FORCES an exit to PB_NONE regardless
+/// of the directional-resumed-motion test.
+///
+/// Why this safety valve is needed: the normal exit logic compares
+/// resumed-motion track against `pbHeldNose` (within 90° → forward
+/// taxi → exit). When the held nose was chosen incorrectly at entry
+/// (e.g. TRACK+180 picked because the feed disagreed with the parked
+/// heading, but the feed was actually right because the aircraft had
+/// already rotated during the GATE_HOLD suppression window), the
+/// directional exit test reads against the wrong reference. The
+/// aircraft then taxis out at 20+ knots while the state machine still
+/// thinks "tug is pushing me backward" and renders the nose stuck at
+/// the wrong angle — aircraft appears tail-first / ass-forward.
+///
+/// 10 kt is a hard upper bound on physical pushback speed (real
+/// pushbacks roll at 1-5 kt; tugs cannot move a 60+ ton airframe
+/// faster than that). Any sustained gs above 10 kt is definitively
+/// taxi, not pushback, and the state machine is wrong to still be
+/// active. Force-exit and let the normal heading logic take over.
+constexpr double PB_MAX_GS_KT           = 10.0;
+
+/// Minimum distance, in metres, between an incoming feed slot and the
+/// latest accepted deque position for the slot to be admitted while the
+/// aircraft is `bGateParked` and not yet in the pushback state machine.
+/// Slots closer than this are treated as feed noise and silently dropped.
+///
+/// Why distance, not groundspeed or a slot counter: real pushbacks roll
+/// at 0.4-1.4 kt, which is well below `GND_STATIONARY_GS_KT` (1.5 kt).
+/// A counter that increments on "non-stationary" slots therefore never
+/// advances during a real slow push, and any threshold based on that
+/// counter would suppress legitimate pushback motion forever. RT-direct
+/// noise at the gate, by contrast, manifests as one or two slots ~15-25 m
+/// off the true position that then return to the gate; their distance
+/// from the held position never sustains beyond ~25 m.
+///
+/// 30 m is a comfortable separator: it sits clearly above the 15-25 m
+/// noise envelope (so single- or paired-slot anomalies stay dropped),
+/// while a real push reaches 30 m within 2-3 slots at typical pushback
+/// speeds. When a slot finally exceeds this distance, the suppression
+/// accepts it AND clears `bGroundHolding` so subsequent in-push slots
+/// (which are typically only 3-6 m from the previous accepted slot, and
+/// would otherwise be trivial-dropped) flow through and the rendered
+/// push continues smoothly.
+constexpr double GATE_HOLD_MIN_ACCEPT_M = 30.0;
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
@@ -87,6 +201,381 @@ constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), s
 constexpr double BEZIER_MIN_HEAD_DIFF = 2.5;    ///< [°] turns of less than this will not be modeled with Bezier curves
 constexpr float  EXPORT_USER_AC_PERIOD = 15.0f; ///< [s] how often to write user's aircraft data into the export file
 constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's plabe
+
+//MARK: Ground Behavior Stability
+// -----------------------------------------------------------------------------
+// Tunables that govern how aircraft are rendered while on the ground. The
+// underlying problem is that public flight feeds (ADS-B, MLAT, multilat-fused
+// channels) supply position samples roughly once per second with a few metres
+// of positional noise. When an aircraft is stationary or slow-taxiing, that
+// noise — if fed straight into the heading-from-position-delta math — produces
+// wildly varying headings, which renders visually as the aircraft pivoting and
+// "dancing" at the gate. The constants below enable a layered set of
+// countermeasures: stationary detection, heading hysteresis, per-frame
+// heading rate-limiting, a holding mode that ignores trivial position jitter
+// after the aircraft has been parked for a while, hard-set ground attitude,
+// and pushback detection. Every constant here is chosen for *why* documented
+// inline; tweak with that rationale in mind.
+// -----------------------------------------------------------------------------
+
+/// [°] dead-band around the target heading inside which the rendered nose is
+/// not moved. Empirical: RealTraffic feeds without a heading field (e.g. for
+/// some channels) produce track-from-pos-delta wobbles of ~5–7° per slot at
+/// slow taxi (1–6 kt, 10 m chunks). A 4° band absorbs most of that noise
+/// while still letting genuine 5°+ taxi turns propagate. Original 0.5° was
+/// far too tight to catch the real-world jitter envelope.
+constexpr double GND_HEADING_HYSTERESIS_DEG     = 4.0;
+
+/// [°/s] maximum rate at which the rendered heading is allowed to walk while
+/// on the ground. Tuned to roughly match `TAXI_TURN_TIME` in the flight
+/// model (30 s for a 360° turn = 12°/s natural rate). At this clamp a 7°
+/// per-slot wobble takes ~0.6 s to walk through, which the eye reads as
+/// smooth rotation; meanwhile real taxi turns of ~90° finish in ~7.5 s.
+/// Previous value of 60°/s never actually engaged because per-frame heading
+/// changes were always far below it.
+constexpr double GND_HEADING_MAX_RATE_DPS       = 12.0;
+
+/// [kn] groundspeed at-or-below which an aircraft is considered stationary
+/// for the purposes of heading freezing and holding detection. Empirical:
+/// parked aircraft at gates routinely have derived gs of 0.7–1.1 kt purely
+/// from positional jitter in the feed (e.g. ±5 m over 10 s = 1 kt). Setting
+/// the threshold above this band (1.5 kt) ensures parked aircraft stay in
+/// the stationary regime while real slow taxi (≥2 kt observed) is still
+/// classified as moving.
+constexpr double GND_STATIONARY_GS_KT           = 1.5;
+
+/// [s] continuous stationary streak after which the aircraft enters "holding"
+/// mode. While holding, trivial position jitter is rejected (see
+/// `GND_HOLDING_TRIVIAL_DIST_M`). 30 s was chosen as long enough that brief
+/// taxi-pauses (e.g., at hold-short lines) do not trip the suppressor, while
+/// short enough that genuinely parked aircraft become rock-steady within
+/// half a minute of arriving at the stand.
+constexpr double GND_HOLDING_TIMEOUT_S          = 30.0;
+
+/// [m] inside holding mode, any new position update whose distance from the
+/// current rendered position is below this threshold AND whose reported
+/// groundspeed is below `GND_STATIONARY_GS_KT` is treated as feed noise and
+/// silently dropped — the rendered aircraft does not move. Empirical:
+/// parked-aircraft jitter envelope on the data we observed is up to ~7 m,
+/// occasionally 12 m. 15 m gives comfortable margin so that all jitter is
+/// caught while a single 15 m+ jump (typical of real taxi-leg starts) still
+/// signals genuine motion and breaks the suppression.
+constexpr double GND_HOLDING_TRIVIAL_DIST_M     = 15.0;
+
+/// [m] minimum chord length (from→to in the local meters frame) below which
+/// the ground-rendering Catmull-Rom spline is skipped and a linear position
+/// interpolation is used instead.
+///
+/// Why this exists: when the aircraft is parked or barely creeping, all four
+/// spline control points sit within the ADS-B/MLAT feed-noise envelope
+/// (~3 m typical). A Catmull-Rom tangent through 4 near-coincident-but-noisy
+/// points is dominated by noise — the spline-derived heading swings around
+/// even though `CalcHeading` has correctly frozen the slot-level heading to
+/// the last good value. The render path then overwrites that frozen heading
+/// with the noisy tangent, producing visible z-axis wobble on stopped
+/// aircraft.
+///
+/// 5 m is comfortably above the ~3 m noise floor and well below a meaningful
+/// taxi step (a 1 kt creep over a 5 s slot is only ~2.6 m; real slow taxi
+/// at 3 kt produces ~7.7 m per 5 s slot, well above the threshold). Below
+/// 5 m we treat the leg as "no useful motion" and let `from.heading()` —
+/// which is already the frozen lastGood value — pass through unchanged.
+constexpr double GND_SPLINE_MIN_CHORD_M         = 5.0;
+
+/// [kn] leg-average ground speed above which the ground-rendering spline is
+/// skipped in favour of plain linear interpolation.
+///
+/// Why this exists: the centripetal Catmull-Rom spline earns its keep at
+/// *taxi* speed, where the aircraft turns and linear-chord interpolation
+/// would render it sliding sideways through the corner. At runway speed —
+/// takeoff roll and landing rollout — the aircraft tracks a dead-straight
+/// line down the centreline; it does not (and physically cannot) turn. In
+/// that regime the spline adds only fragility:
+///   * a single glitchy feed sample (observed: a 777 takeoff roll with
+///     feed speeds jumping 187→87→159 kt within 3 s) becomes a control
+///     point the curve bulges around — linear interpolation would just
+///     draw a straight line slightly off, far less visible;
+///   * feed positions during the roll are sparse and irregularly spaced
+///     (observed: a 31 s gap between samples while accelerating), so the
+///     per-segment curve shape and the arc-length LUT change drastically
+///     leg to leg;
+///   * the spline's arc-length reparameterisation interacts awkwardly
+///     with the acceleration-profile parameter `speed.getRatio()`.
+/// Linear interpolation renders a straight line exactly, is immune to all
+/// of the above, and returns `from` precisely at f=0 so the segment-switch
+/// continuity mechanism stays seamless.
+///
+/// 40 kn is chosen because normal taxi tops out around 20-25 kn and even
+/// an aggressive high-speed runway turnoff is taken below ~40 kn — so at
+/// 40 kn and above we are unambiguously in straight-line runway motion,
+/// while every speed at which the aircraft actually turns still gets the
+/// spline.
+constexpr double GND_SPLINE_MAX_KT              = 40.0;
+
+/// Neighbour weight for the ground-spline control-point smoothing kernel.
+///
+/// Why this exists: a centripetal Catmull-Rom spline *interpolates* — the
+/// rendered curve passes exactly through control points P1 and P2. So a
+/// single noisy feed sample at P1 or P2 produces a visibly noisy rendered
+/// position, and no amount of look-ahead buffering changes that, because
+/// the curve is still pinned to the raw (noisy) point. To actually reduce
+/// jitter the spline has to *approximate* the data instead of interpolating
+/// it.
+///
+/// We achieve that cheaply by pre-smoothing the *look-ahead* control point
+/// P2 with its immediate neighbours using a 3-tap binomial kernel before
+/// the curve is fit:
+///   P2' = w·P1 + (1−2w)·P2 + w·P3
+/// With w = 0.25 this is the classic [1,2,1]/4 kernel — a mild low-pass
+/// that pulls a noisy point a quarter of the way toward the average of its
+/// neighbours. The points P1..P3 are already cached for the spline, so no
+/// deeper buffer is needed.
+///
+/// Only P2 is smoothed — never P1. The segment-switch logic in
+/// `LTAircraft::CalcPPos` overwrites the new leg's start slot with the
+/// current rendered position (`posList.front() = ppos`) so the leg
+/// continues seamlessly from wherever the renderer is. That only works if
+/// the spline returns P1 (== `from`) EXACTLY at u=0, which the unmodified
+/// centripetal evaluator does. Smoothing P1 would make the evaluator
+/// return P1' ≠ from at u=0, producing a visible position snap at every
+/// segment switch (~6 s cadence). Smoothing P2 alone still removes the
+/// jitter completely: each feed sample is reached as the smoothed P2'
+/// endpoint of its leg and then carried into the next leg as `from`, so
+/// the rendered path threads the smoothed points {P2'_k} without ever
+/// visiting a raw noisy sample.
+///
+/// Trade-off: on a genuine sharp taxi turn the kernel pulls the apex inward
+/// by w of its deviation (corner-cutting). At w = 0.25 this is visually
+/// indistinguishable from a real aircraft arcing through a turn — aircraft
+/// do not pivot on a point — and the centripetal parameterisation already
+/// rounds corners gracefully. Set to 0.0 to disable smoothing entirely and
+/// fall back to pure interpolation.
+constexpr double GND_SPLINE_SMOOTH_WEIGHT       = 0.25;
+
+/// [s] backward sim-time jump tolerated by `LTAircraft::NextCycle` before it
+/// triggers a full plugin re-init.
+///
+/// X-Plane's sim time is supposed to be monotonic, but in practice it can step
+/// backward by small amounts after a frame stutter, a brief pause/unpause, an
+/// autosave hiccup, or any operation that retroactively adjusts the timestamp
+/// of the current frame. A strict `diffTime < 0` test (the original behaviour)
+/// trips on any of these, tearing the entire aircraft fleet down and rebuilding
+/// from buffered data — a very visible "everything disappears, then traffic
+/// fades back in over ~10 s as the deques refill" interruption that is well
+/// out of proportion to a sub-second clock blip.
+///
+/// We tolerate backward jumps shallower than this threshold: the per-frame
+/// interpolators read `simTime` directly so a small reversal just means the
+/// next frame renders at a slightly earlier interpolation point (visually a
+/// brief stutter at most, no state corruption). Genuine time-warps — the user
+/// changing time-of-day in the X-Plane menu, or skipping ahead via the date
+/// dialog — produce jumps far larger than 1 s and still trigger the safety.
+///
+/// Asymmetric on purpose: the *forward* limit stays at GetFdBufPeriod()
+/// because forward-jumping past the buffer window means the data we have is
+/// genuinely stale and re-init is the right response. Only the backward case
+/// got the grace.
+constexpr double TIME_NONLINEAR_BACKWARD_S      = -1.0;
+
+/// Consecutive non-stationary feed updates required to actually exit holding.
+/// A single isolated above-threshold slot (which is common — feed jitter can
+/// transiently produce gs of 2 kt for one sample) should not break a stable
+/// holding lock. Requiring two in a row means we're in real-taxi territory
+/// before we trust the motion.
+constexpr int    GND_HOLDING_EXIT_CONSEC        = 2;
+
+/// [kn] groundspeed ceiling under which the feed-provided heading is
+/// considered as a possible source for the rendered nose direction. This
+/// is the OUTER bound — within this band a secondary cross-check against
+/// the position-derived track decides which source actually wins. See
+/// `GND_FEED_TRACK_AGREE_DEG` below. Above this speed the position track
+/// is always preferred (real taxi / rollout / takeoff).
+constexpr double GND_USE_FEED_HEADING_MAX_KT    = 10.0;
+
+/// [°] agreement window between the feed-provided heading and the
+/// position-derived track angle. Used inside the on-ground feed-heading
+/// branch in `LTFlightData::CalcHeading` to decide whether the feed
+/// value is fresh enough to trust or has gone stale during a taxi turn.
+///
+/// Why this matters: the heading reported in ADS-B/Mode S Enhanced
+/// Surveillance (EHS) updates at a low rate — typically every 10 s,
+/// sometimes slower, and not at all in regions without enhanced
+/// interrogation coverage. Between EHS updates the feed value is held
+/// constant by the ground station / receiver, so when an aircraft turns
+/// during taxi the feed heading can lag the actual nose direction by
+/// 10+ seconds (60° or more at a typical 6 °/s taxi turn rate). If the
+/// renderer trusts that stale value, the aircraft visibly slides
+/// sideways through the turn — its nose stays at the pre-turn direction
+/// while its body progresses along the new direction.
+///
+/// We compare the feed heading against the track angle (the bearing
+/// from the previous slot to this one — always "now"). Three regimes:
+///   * `Δ < GND_FEED_TRACK_AGREE_DEG` (default 30°)
+///     — feed and track agree: either the aircraft is going straight, or
+///     the most recent EHS reading is fresh. Trust the feed value
+///     (smooth, matches the transponder-reported nose).
+///   * `GND_FEED_TRACK_AGREE_DEG ≤ Δ ≤ 180° − GND_FEED_TRACK_AGREE_DEG`
+///     — feed has gone stale during a turn. Fall through to the
+///     position-derived heading branch, which uses the current track.
+///   * `Δ > 180° − GND_FEED_TRACK_AGREE_DEG` — track is roughly opposite
+///     of the feed value: this is pushback. Trust the feed (nose stays
+///     pointing at the gate while the body moves backwards).
+///
+/// 30° is wide enough to absorb a few seconds of EHS lag during a slow
+/// taxi turn without flapping between feed and track on every degree of
+/// gentle curvature, and narrow enough to catch the lag before the
+/// sideways look becomes objectionable. Tunable in either direction
+/// if real-world reports suggest a different balance.
+constexpr double GND_FEED_TRACK_AGREE_DEG       = 30.0;
+
+/// [kn] groundspeed at-or-above which the rendered nose direction is locked
+/// to the direction of motion (the vector from `from` to `to` in the slot
+/// interpolation), and any Bezier path between slots is suppressed in favour
+/// of a straight-line interpolation.
+///
+/// Why this exists: at higher ground speeds (landing rollout, takeoff roll,
+/// fast taxi) the rendered aircraft must visually track ALONG its line of
+/// motion. The slot-side heading filters (stationary freeze, hysteresis,
+/// pushback detect) work correctly here — but the per-leg renderer in
+/// `LTAircraft::CalcAcPos` walks heading toward the NEXT slot's reported
+/// heading via a Bezier whose end-tangent is `to.heading()`. When the next
+/// slot is on a turn-off taxiway (heading 326°) and the current slot is at
+/// end-of-runway (heading 020°), the Bezier arcs across the corner —
+/// aircraft visually "slides off the runway" with its nose pointing 53°
+/// off the direction of motion.
+///
+/// At gs ≥ 10 kn we therefore:
+///   1. Skip Bezier and force linear interpolation between slots, which
+///      walks heading toward `vec.angle` (the direct bearing from `from`
+///      to `to` — i.e., the actual direction of motion).
+///   2. Skip the half-way-through retarget to `to.heading()` so the
+///      rendered heading stays locked to the motion vector for the
+///      entire leg, only converging on the slot's reported heading once
+///      the aircraft has decelerated below this threshold.
+///
+/// 10 kn matches `GND_USE_FEED_HEADING_MAX_KT` so the two thresholds are
+/// the boundary between "trust the feed heading" (slow) and "trust the
+/// motion vector" (fast). No middle ground.
+constexpr double GND_TRACK_HEADING_MIN_KT       = 10.0;
+
+/// [°] pitch hard-set on every frame while the aircraft is on the ground
+/// (except during the take-off / flare phases, which manage pitch dynamically).
+/// 0° (level) matches LiveTraffic's pre-existing convention (the touch-down
+/// transition previously walked pitch to 0) and avoids the visible "tail-
+/// dragger" look the previous 2° value produced on narrow-body airliners.
+/// Hard-setting it (rather than inheriting from the data feed, which usually
+/// has no useful pitch on the ground) still serves its other purpose:
+/// preventing pitch drift caused by inter-position interpolation in the slot
+/// pipeline.
+constexpr double GND_PITCH_DEG                  = 0.0;
+
+/// [°] roll hard-set on every frame while on the ground. Real aircraft never
+/// bank while taxiing — they pivot flat — and the existing roll-from-turn-rate
+/// computation can produce micro-banks from heading jitter that look wrong on
+/// a parked aircraft. We zero it explicitly; the in-air banking logic stays
+/// gated behind `!IsOnGnd()` so this only applies on the ground.
+constexpr double GND_ROLL_DEG                   = 0.0;
+
+/// [°] alignment threshold deciding whether motion resuming after a pushback
+/// pause is "forward" (push complete, exit) or "still being pushed" (tug
+/// resumed, stay in pushback). Compared against `|track − pbHeldNose|` where
+/// `pbHeldNose` is the last computed nose direction during the push.
+///
+/// Below this angle: the resumed motion is aligned with the held nose →
+/// aircraft is taxiing forward under its own power → EXIT to PB_NONE.
+/// Above this angle: the resumed motion still points backwards relative
+/// to the nose → the tug is continuing the push → re-enter PB_ACTIVE.
+///
+/// 90° splits the half-planes cleanly: anything moving forward of the
+/// aircraft's beam is taxi, anything moving aft is push.
+constexpr double PB_EXIT_FORWARD_DIFF_DEG       = 90.0;
+
+/// [°] minimum heading change at which a Bezier curve is constructed for a
+/// ground leg. The general airborne threshold (`BEZIER_MIN_HEAD_DIFF`, 2.5°)
+/// is too coarse for taxi where slow-but-real turns of 1–2° per leg still
+/// benefit visually from being rendered as a curve with tangent-derived
+/// heading rather than a polyline with the heading walking via the linear
+/// MovingParam fallback. We pick 1° so that genuinely tiny noise-driven
+/// "turns" are still ignored (they'll be absorbed by the hysteresis filter
+/// in `LTFlightData::CalcHeading` or by the per-frame rate limit) but any
+/// turn of clear visual significance gets the Bezier treatment.
+constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
+
+/// [s] duration over which the rendered altitude is blended from terrain
+/// level up to the interpolated value at lift-off.
+///
+/// Why this exists: while an aircraft is on the ground LiveTraffic clamps
+/// `ppos.alt_m` to the terrain (so a parked or taxiing aircraft is exactly
+/// at runway/taxiway height, regardless of what the feed says). The
+/// moment the flight-model decides the aircraft has lifted off
+/// (`bOnGrnd` flips from true to false, `phase` becomes `FPH_LIFT_OFF`),
+/// that clamp stops applying. The next-rendered altitude becomes the raw
+/// linear interpolation between the last on-ground slot and the next
+/// airborne slot — which can be hundreds of feet above the runway
+/// depending on how far apart those slots are in time. Without smoothing
+/// the aircraft visibly teleports upwards in a single frame ("jumps into
+/// the air on rotation").
+///
+/// We instead lerp from terrain altitude to the interpolated altitude
+/// over `LIFTOFF_BLEND_TIME_S` using a smoothstep easing curve
+/// f(t) = t² (3−2t). Smoothstep is the right choice because it is C¹-
+/// continuous at both endpoints:
+///   - at t=0, f'(0)=0, so the rendered altitude leaves the ground with
+///     a vertical speed of zero — no perceived velocity jump;
+///   - at t=1, f'(1)=0, so the *derivative* of the rendered altitude
+///     matches the derivative of the raw interpolation exactly there
+///     (`result'(1) = smoothstep'(1)·(interp−terrain) + smoothstep(1)·
+///     interp'(1) = interp'(1)`), meaning the climb-rate seam at the
+///     end of the blend is invisible.
+///
+/// 10 s gives a visibly gradual lift-off that tracks the natural shape
+/// of a real climb-out (rotate → wheels-up → gear-up → flap-retraction
+/// span comparable seconds). A shorter blend (the original 1.5 s) made
+/// the aircraft appear to leap from runway level to several hundred
+/// feet within one airframe-length of forward travel; 10 s reads as
+/// "climbing away from the runway" instead of "popping into the sky".
+constexpr double LIFTOFF_BLEND_TIME_S           = 10.0;
+
+/// [°] maximum pitch angle during the take-off rotation phase
+/// (`FPH_ROTATE`), before the aircraft physically leaves the runway.
+///
+/// Why this exists (and is less than the per-flight-model
+/// `PITCH_MAX`): without an explicit cap, `ENTERED(FPH_ROTATE)`
+/// calls `pitch.max()` which walks the pitch MovingParam toward the
+/// flight model's `PITCH_MAX` (15° by default). 15° is well past the
+/// tail-strike geometry of most narrow-bodies — B738 ≈ 11°, A320
+/// ≈ 13.5° — so users were seeing rendered aircraft drag their tails
+/// during rotation. Capping the rotate target at 10° keeps the nose
+/// below the tail-strike envelope while still showing a recognisable
+/// rotation animation. Once the aircraft transitions to
+/// `FPH_LIFT_OFF`, the in-air pitch logic in `LTFlightData::CalcNextPos`
+/// takes over and walks pitch toward the VSI-derived target —
+/// clamped to the flight model's `PITCH_MAX` — so steep initial
+/// climbs can still reach the full 15°, just not during the on-
+/// runway rotation phase.
+constexpr double ROTATE_PITCH_MAX_DEG           = 10.0;
+
+/// [s] minimum time the nose is held pitched up at `PITCH_FLARE` after
+/// touchdown before the de-rotation walk to `GND_PITCH_DEG` begins.
+///
+/// Why this exists: real airliners aerobrake by holding the nose high
+/// for several seconds after the main gear touches, until aerodynamic
+/// braking loses authority and the nose-wheel is lowered for wheel
+/// braking. Previously LiveTraffic called `pitch.moveTo(GND_PITCH_DEG)`
+/// on the same frame that `FPH_TOUCH_DOWN` was entered, so the
+/// `PITCH_RATE` walk started immediately and the nose was on the
+/// ground within ~3 s of touchdown — visibly faster than real
+/// aircraft.
+///
+/// 5 s is the lower bound of typical airline practice (longer aircraft
+/// often hold longer); we use it as a floor so even quick rollouts get
+/// a recognisable aerobrake. The hold period sits entirely inside
+/// `FPH_TOUCH_DOWN` / `FPH_ROLL_OUT`, both of which are already
+/// excluded from the ground-attitude pitch override in `CalcAcPos`,
+/// so the MovingParam keeps the pitch at its last-commanded value
+/// (`PITCH_FLARE`) until the deferred `moveTo` fires.
+constexpr double TOUCHDOWN_HOLD_PITCH_S         = 5.0;
+
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude

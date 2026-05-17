@@ -249,6 +249,268 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
 }
 
 
+// ---------------------------------------------------------------------------
+// Centripetal Catmull-Rom spline evaluation
+// ---------------------------------------------------------------------------
+//
+// Background
+// ----------
+// LiveTraffic previously interpolated the rendered ground position linearly
+// between two consecutive feed positions (chord interpolation), and walked
+// the rendered heading toward the chord direction via a MovingParam. That
+// works well when the aircraft is going straight, but during a curved taxi
+// turn the chord between two feed samples does NOT match the arc the
+// aircraft actually flew along the taxiway — the chord cuts across the
+// corner. The rendered aircraft visibly slides through the turn at an
+// angle that matches neither the entry nor the exit taxiway centreline.
+//
+// A smooth curve fit through several consecutive ground positions captures
+// the actual arc — and its tangent at the current rendered point is the
+// correct nose direction at that point. Position and heading then come
+// from the same curve, which guarantees they are aligned.
+//
+// Centripetal Catmull-Rom (vs uniform / chordal)
+// -----------------------------------------------
+// All Catmull-Rom variants interpolate exactly through their control points
+// and are C¹-continuous. They differ in how the knot intervals between
+// control points are spaced:
+//
+//   * Uniform:    dt_i = 1 (each segment gets equal parametric weight)
+//   * Chordal:    dt_i = |P_{i+1} - P_i|
+//   * Centripetal: dt_i = sqrt(|P_{i+1} - P_i|)
+//
+// At a sharp turn the uniform variant overshoots and can even produce a
+// self-intersecting loop; the chordal variant pulls the curve so close
+// to the control polygon that it loses its smoothness. The centripetal
+// variant — Lee 2009 — is the unique choice that avoids cusps and loops
+// at any control-point configuration, including 90° corners. That is
+// precisely what we want for taxi turns.
+//
+// Algorithm
+// ---------
+// We use the barycentric form (Lee's algorithm), which evaluates the
+// non-uniform Catmull-Rom curve at a single parameter `t` ∈ [t1, t2]
+// without needing to construct an explicit Bezier or Hermite spline.
+//
+//   A1 = lerp_t(P0, P1, t, [t0, t1])
+//   A2 = lerp_t(P1, P2, t, [t1, t2])
+//   A3 = lerp_t(P2, P3, t, [t2, t3])
+//   B1 = lerp_t(A1, A2, t, [t0, t2])
+//   B2 = lerp_t(A2, A3, t, [t1, t3])
+//   C  = lerp_t(B1, B2, t, [t1, t2])
+//
+// where `lerp_t(p, q, t, [ta, tb]) = ((tb-t)*p + (t-ta)*q) / (tb - ta)`.
+//
+// The knot intervals are `dt_i = sqrt(|P_{i+1} - P_i|)` (centripetal); the
+// knots are accumulated as `t_{i+1} = t_i + dt_i` starting from `t_0 = 0`.
+// A floor of 1e-6 is applied to each chord distance before the sqrt to
+// avoid division by zero when two consecutive positions coincide (which
+// can happen when the feed delivers a duplicate or a "trivial" position
+// that wasn't dropped upstream).
+//
+// The tangent direction at `t` is obtained by a small finite difference
+// in the curve parameter (0.1 % of the central segment length in `t`-
+// space). For our purposes the magnitude of the tangent does not matter;
+// only its direction, converted to a compass bearing in [0, 360).
+// Analytical derivatives of the barycentric form are tractable but messy
+// enough that the finite difference approach is preferred for clarity
+// and adds only ~30 multiplies per evaluation.
+//
+// Coordinate frame
+// ----------------
+// The math is performed in a local meters frame centred at `P1`. We
+// compute east/north offsets for each control point using `Lat2Dist` and
+// `Lon2Dist` (the latter takes a reference latitude for the cos(lat)
+// factor, for which we use `P1`'s latitude). Over the typical span of
+// four taxi positions (a few hundred metres at most) this approximation
+// is accurate to centimetres — far below any rendering precision we
+// care about, and avoids the multi-degree accumulation that would
+// happen if we treated raw lat/lon as Euclidean.
+// ---------------------------------------------------------------------------
+
+/// Linear interpolation by parameter on a non-uniform knot interval.
+/// Returns ((tb - t) * a + (t - ta) * b) / (tb - ta).
+static inline double NonUniformLerp(double a, double b,
+                                    double ta, double tb, double t)
+{
+    return ((tb - t) * a + (t - ta) * b) / (tb - ta);
+}
+
+CatmullRomResult CatmullRomEvalCentripetal(const positionTy& P0,
+                                           const positionTy& P1,
+                                           const positionTy& P2,
+                                           const positionTy& P3,
+                                           double u)
+{
+    // Convert all four control points to a local meters frame centred on
+    // P1. Use P1's latitude for the cos(lat) factor in Lon2Dist — over
+    // the small span of four taxi positions this is more than accurate
+    // enough and keeps the calculation Euclidean.
+    const double refLat = P1.lat();
+    const double x1 = 0.0, y1 = 0.0;                                // P1 at origin
+    const double x0 = Lon2Dist(P0.lon() - P1.lon(), refLat);
+    const double y0 = Lat2Dist(P0.lat() - P1.lat());
+    const double x2 = Lon2Dist(P2.lon() - P1.lon(), refLat);
+    const double y2 = Lat2Dist(P2.lat() - P1.lat());
+    const double x3 = Lon2Dist(P3.lon() - P1.lon(), refLat);
+    const double y3 = Lat2Dist(P3.lat() - P1.lat());
+
+    // Centripetal knot intervals: dt_i = sqrt(chord distance).
+    // Apply a floor (1e-6) on each chord before the sqrt so that
+    // coincident control points (duplicate feed samples) don't divide
+    // by zero — the spline will just degenerate to a near-quadratic
+    // segment with vanishing derivative through that knot.
+    const double t0 = 0.0;
+    const double t1 = t0 + std::sqrt(std::max(std::hypot(x1 - x0, y1 - y0), 1e-6));
+    const double t2 = t1 + std::sqrt(std::max(std::hypot(x2 - x1, y2 - y1), 1e-6));
+    const double t3 = t2 + std::sqrt(std::max(std::hypot(x3 - x2, y3 - y2), 1e-6));
+
+    // Map the user's u ∈ [0, 1] (fraction of the segment from P1 to P2)
+    // to the spline parameter t ∈ [t1, t2].
+    const double t = t1 + std::clamp(u, 0.0, 1.0) * (t2 - t1);
+
+    // Barycentric evaluation at parameter t (Lee 2009).
+    // The same six lerps are needed for x and y, so we evaluate both
+    // coordinates in parallel inside a lambda — keeps the math readable.
+    auto eval = [&](double tEval) -> std::pair<double, double>
+    {
+        // First-tier lerps along the three input segments.
+        const double Ax1 = NonUniformLerp(x0, x1, t0, t1, tEval);
+        const double Ay1 = NonUniformLerp(y0, y1, t0, t1, tEval);
+        const double Ax2 = NonUniformLerp(x1, x2, t1, t2, tEval);
+        const double Ay2 = NonUniformLerp(y1, y2, t1, t2, tEval);
+        const double Ax3 = NonUniformLerp(x2, x3, t2, t3, tEval);
+        const double Ay3 = NonUniformLerp(y2, y3, t2, t3, tEval);
+        // Second-tier lerps across the wider intervals.
+        const double Bx1 = NonUniformLerp(Ax1, Ax2, t0, t2, tEval);
+        const double By1 = NonUniformLerp(Ay1, Ay2, t0, t2, tEval);
+        const double Bx2 = NonUniformLerp(Ax2, Ax3, t1, t3, tEval);
+        const double By2 = NonUniformLerp(Ay2, Ay3, t1, t3, tEval);
+        // Final lerp — the actual curve point.
+        const double Cx  = NonUniformLerp(Bx1, Bx2, t1, t2, tEval);
+        const double Cy  = NonUniformLerp(By1, By2, t1, t2, tEval);
+        return { Cx, Cy };
+    };
+
+    // Curve point at the requested parameter.
+    const auto [Cx, Cy] = eval(t);
+
+    // Tangent by small finite difference in curve-parameter space.
+    // Step size is 0.1 % of the central segment in t-space, which is
+    // plenty for numerical stability and well below any wavelength of
+    // detail in the spline. Direction matters; magnitude does not.
+    const double eps = (t2 - t1) * 1e-3;
+    const auto [Cx2, Cy2] = eval(t + eps);
+    const double dx = Cx2 - Cx;
+    const double dy = Cy2 - Cy;
+
+    // Convert tangent (x = east, y = north) to a compass bearing
+    // (0 = north, 90 = east). atan2 with the arguments swapped gives
+    // the compass-convention angle; then normalise into [0, 360).
+    double headingDeg = std::atan2(dx, dy) * 180.0 / PI;
+    if (headingDeg < 0.0)
+        headingDeg += 360.0;
+
+    return { Cx, Cy, headingDeg };
+}
+
+// ---------------------------------------------------------------------------
+// MARK: Catmull-Rom arc-length LUT
+// ---------------------------------------------------------------------------
+//
+// Why this exists
+// ---------------
+// `CatmullRomEvalCentripetal`'s parameter `u ∈ [0, 1]` is centripetal-knot
+// space, NOT arc length. Arc length per unit `u` along the curve varies with
+// local curvature, so advancing `u` linearly with time makes the rendered
+// aircraft "breathe" — speeding up through low-curvature sections, slowing
+// down through tighter ones — and the rendered velocity at the end of one
+// segment rarely matches the velocity at the start of the next.
+//
+// This LUT subdivides the segment at 16 uniformly-spaced `u` values, chords
+// between successive samples, and accumulates the running total. Given a
+// time-linear progression `f`, the inverse lookup returns the `u` for which
+// the curve has covered `f * totalArc` of arc length — which makes the
+// rendered velocity constant at `totalArc / duration` throughout the segment.
+//
+// Cost analysis: 16 spline evaluations per Build() (called once per segment
+// switch, ~once per 1-5 s of feed cadence), plus a 4-step binary search and
+// one linear interp per render frame. Trivial.
+// ---------------------------------------------------------------------------
+
+void CatmullRomArcLut::Build(const positionTy& P0, const positionTy& P1,
+                             const positionTy& P2, const positionTy& P3)
+{
+    // First sample is the segment's P1, expressed in P1's own local frame —
+    // so by definition (xPrev, yPrev) = (0, 0). We seed the loop from there
+    // and accumulate chord lengths between successive curve samples.
+    sAtU[0] = 0.0;
+    double xPrev = 0.0;
+    double yPrev = 0.0;
+
+    for (int i = 1; i <= N; ++i) {
+        // Sample the spline at u = i / N. We re-use the existing evaluator
+        // rather than inlining the math here — keeps the LUT and the per-frame
+        // evaluation guaranteed to use exactly the same curve.
+        const double u = double(i) / double(N);
+        const CatmullRomResult s = CatmullRomEvalCentripetal(P0, P1, P2, P3, u);
+
+        // Chord length from previous sample to this one. For N=16 samples
+        // across a typical taxi-leg this is well below 0.1% off the true
+        // integral — visually indistinguishable from the continuous curve.
+        const double dx = s.xMtr - xPrev;
+        const double dy = s.yMtr - yPrev;
+        sAtU[i] = sAtU[i - 1] + std::hypot(dx, dy);
+
+        xPrev = s.xMtr;
+        yPrev = s.yMtr;
+    }
+
+    totalArc = sAtU[N];
+    valid = true;
+}
+
+double CatmullRomArcLut::UFromArcFraction(double f) const
+{
+    // Defensive clamp: callers should pass f in [0, 1] but if a per-frame
+    // computation produced a tiny over/undershoot from float rounding we
+    // do not want to walk off either end of the LUT.
+    f = std::clamp(f, 0.0, 1.0);
+
+    // Degenerate segment (all control points coincide → zero arc length).
+    // Returning f directly is correct: the spline evaluator at any u in
+    // this case yields P1, so the choice of u does not matter.
+    if (totalArc <= 0.0)
+        return f;
+
+    // Target arc length to reach.
+    const double sTarget = f * totalArc;
+
+    // Find the LUT bucket j such that sAtU[j] <= sTarget <= sAtU[j+1].
+    // The LUT is monotonically increasing by construction so a simple
+    // upper_bound binary search suffices.
+    auto it = std::upper_bound(sAtU.begin(), sAtU.end(), sTarget);
+    if (it == sAtU.begin()) {
+        // sTarget == 0 within float precision; return u = 0.
+        return 0.0;
+    }
+    if (it == sAtU.end()) {
+        // sTarget == totalArc within float precision; return u = 1.
+        return 1.0;
+    }
+    const int    jUpper = int(it - sAtU.begin());
+    const int    jLower = jUpper - 1;
+    const double sLow   = sAtU[jLower];
+    const double sHigh  = sAtU[jUpper];
+
+    // Linear interpolation in u-space across this LUT bucket. The bucket
+    // covers u in [jLower/N, jUpper/N], which is 1/N wide; we move
+    // proportionally to where sTarget falls between sLow and sHigh.
+    const double bucketWidth = sHigh - sLow;
+    const double frac = (bucketWidth > 0.0) ? (sTarget - sLow) / bucketWidth : 0.0;
+    return (double(jLower) + frac) / double(N);
+}
+
 // returns terrain altitude at given position
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)

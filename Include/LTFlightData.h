@@ -146,9 +146,49 @@ public:
         std::string route() const;
         // flight + route
         std::string flightRoute() const;
-        // best guess for an airline livery: opIcao if exists, otherwise first 3 digits of call sign
+        /// @brief Best-guess ICAO airline code for XPMP2 livery matching.
+        ///
+        /// Resolution order:
+        /// 1. `opIcao` — set explicitly by channels that fetch master data
+        ///    (OpenSky master, FSCharter, AutoATC). Always trustworthy.
+        /// 2. First three characters of `call` — works for ICAO ATC
+        ///    callsigns of the form `<3-letter-airline><digits>` such as
+        ///    `AAL1146`, `RPA5665`, `QFA1926`. RealTraffic's field 13
+        ///    ("ATC Callsign") delivers this form for commercial flights.
+        /// 3. Empty string — returned when neither source produces a usable
+        ///    code (see below).
+        ///
+        /// Why the alpha test: many callsigns the feed delivers are not
+        /// ICAO airline callsigns at all. Private/GA aircraft commonly
+        /// transmit their registration as the callsign (e.g. `N552FX`,
+        /// `N99ABC`, `9K1876`, `1I637`), and parking-position data uses
+        /// short flight-number-style strings (`QF2`). Blindly substringing
+        /// those gives `"N55"`, `"N99"`, `"9K1"`, `"1I6"` — none of which
+        /// are valid airline codes — and XPMP2 then matches at the
+        /// "ignore-airline" fallback tier, producing visibly random
+        /// liveries. Requiring the first three characters to all be
+        /// letters filters out these false-airline cases; XPMP2 then
+        /// does type-only matching, which is more faithful to reality.
+        ///
+        /// @return ICAO airline code (3 letters, all alphabetic) or empty
+        ///         string when the callsign is not airline-shaped.
         inline std::string airlineCode() const
-            { return opIcao.empty() ? call.substr(0,3) : opIcao; }
+        {
+            if (!opIcao.empty())
+                return opIcao;
+            if (call.length() < 3)
+                return "";
+            // Each of the first three characters must be an alphabetic
+            // letter for the substring to plausibly be an ICAO airline
+            // code. A digit or punctuation in slot 0–2 indicates a
+            // registration (e.g. `N552FX`) or some other non-airline
+            // identifier — return empty so XPMP2 falls back to type-only.
+            if (!std::isalpha(static_cast<unsigned char>(call[0])) ||
+                !std::isalpha(static_cast<unsigned char>(call[1])) ||
+                !std::isalpha(static_cast<unsigned char>(call[2])))
+                return "";
+            return call.substr(0, 3);
+        }
         /// is this a ground vehicle?
         bool isGrndVehicle() const;
         /// is this a static object? (marked by a/c type being TWR)
@@ -237,6 +277,71 @@ protected:
     double                  youngestTS;
     positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
     std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
+
+    // ---- Ground holding state (see Constants.h `GND_HOLDING_TIMEOUT_S`) -----
+    // Once an aircraft has been continuously stationary on the ground for
+    // longer than the holding timeout, `bGroundHolding` flips to true and
+    // subsequent feed updates that fall within the "trivial jitter" envelope
+    // (small distance + low groundspeed) are dropped by `AddNewPos` rather
+    // than being appended to `posToAdd`. The streak start timestamp is the
+    // wall-clock `pos.ts()` of the first stationary slot we observed; it is
+    // reset to 0 whenever the aircraft moves meaningfully or leaves ground.
+    /// First timestamp of the current stationary-on-ground streak (sec).
+    /// 0 means "not currently in a stationary streak".
+    double                  groundHoldingSinceTs = 0.0;
+    /// True once the streak has lasted longer than `GND_HOLDING_TIMEOUT_S`.
+    /// While true, trivial feed updates are suppressed in `AddNewPos`.
+    bool                    bGroundHolding       = false;
+    /// Count of consecutive non-stationary updates seen while in holding.
+    /// We do not exit holding on the first one — see `GND_HOLDING_EXIT_CONSEC`.
+    /// Feed jitter can briefly produce a single 2 kt sample for a truly
+    /// parked aircraft; requiring multiple consecutive non-stationary slots
+    /// before exiting avoids those false-exits.
+    int                     groundNonStationaryCnt = 0;
+
+    // ---- Pushback state (simplified state machine) -----------------------
+    // PB_NONE   : not in pushback (taxiing, parked, airborne).
+    // PB_ACTIVE : currently being pushed; aircraft is moving and the
+    //             heading is overridden to `track + 180°` so the tail
+    //             leads the direction of motion. Naturally tracks
+    //             rotating pushes because the nose is recomputed every
+    //             motion slot.
+    // PB_PAUSED : was in pushback, now stationary. The next motion slot
+    //             decides: aligned with held nose ⇒ taxi (EXIT); against
+    //             held nose ⇒ tug continuing (back to PB_ACTIVE).
+    //
+    // Entry signal: `bGateParked` is true (we have observed a
+    // SPOS_STARTUP slot — the aircraft is parked at a gate) AND a slot
+    // with meaningful motion arrives. Exit clears `bGateParked` so the
+    // aircraft must return to a gate before another pushback can fire.
+    enum PushbackStateE { PB_NONE = 0, PB_ACTIVE, PB_PAUSED };
+    PushbackStateE          pbState              = PB_NONE;
+    /// [°] last nose direction computed during pushback. May be sourced
+    /// either from the feed (`feedHdg` — true-nose case) or derived from
+    /// motion (`HeadingNormalize(track + 180°)` — course-feed case). The
+    /// choice is locked once at PB_NONE→PB_ACTIVE entry (see
+    /// `pbUseFeedNose`) and is NOT re-evaluated mid-push, to avoid the
+    /// per-slot flip-flop that produced visible spinning in earlier
+    /// revisions. Held through PB_PAUSED so the exit-direction test
+    /// (resumed motion vs this nose) has a stable reference even if the
+    /// pause lasted many slots.
+    double                  pbHeldNose           = NAN;
+    /// True when the nose source for this pushback is the FEED heading
+    /// (`it->heading()` captured before override). False when the source
+    /// is the position-derived motion track (`track + 180°`). Decided
+    /// once at PB_NONE→PB_ACTIVE entry by comparing the first-motion
+    /// feedHdg against the prior parked heading: if they are within
+    /// ~30° the feed is reporting true nose (rotates accurately during
+    /// the push) — trust it. Otherwise the feed is reporting course-
+    /// over-ground (≈ motion direction during push, useless as a nose
+    /// reference) — derive nose from track. Locked for the duration of
+    /// the push; cleared on exit (PB_NONE) or airborne transition.
+    bool                    pbUseFeedNose        = false;
+    /// True once a SPOS_STARTUP slot has been added to the deque (i.e.
+    /// the aircraft is/was parked at an apt.dat startup location).
+    /// Required for `PB_NONE → PB_ACTIVE` entry. Cleared on the same
+    /// frame the state machine exits to `PB_NONE`.
+    bool                    bGateParked          = false;
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
@@ -436,6 +541,26 @@ public:
     // actions on all flight data / treating mapFd as lists
     static void UpdateAllModels ();
     static const LTFlightData* FindFocusAc (const double bearing);
+
+    /// Prune `FF****` placeholder-hex duplicates.
+    ///
+    /// Some upstream ingest paths emit aircraft with synthetic hex
+    /// IDs of the form `FF****` when the source does not carry a real
+    /// ICAO transponder code. When a real-ICAO source (X_adsb_icao,
+    /// V_adsb_icao, V_mlat) later picks up the same aircraft and
+    /// reports its actual hex, the LiveTraffic side ends up with TWO
+    /// LTFlightData entries for the same physical aircraft — one keyed
+    /// by the FF placeholder, one by the real hex — both rendered as
+    /// separate aircraft in the sim. The duplicate at the FF key
+    /// cannot reconcile by itself because FDKeyTy is the primary key
+    /// in `mapFd` and changing it isn't supported.
+    ///
+    /// This periodic prune scans `mapFd`: any entry whose hex starts
+    /// with "FF" and whose callsign matches a non-FF entry's callsign
+    /// is invalidated (`SetInvalid`), letting the standard cleanup
+    /// pipeline remove it. Callable from the main thread only — takes
+    /// the mapFd mutex.
+    static void PrunePlaceholderHexDuplicates ();
 #ifdef DEBUG
     static void RemoveAllAcButSelected ();
 #endif
