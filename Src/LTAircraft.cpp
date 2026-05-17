@@ -2330,22 +2330,37 @@ bool LTAircraft::CalcPPos()
         // interpolation/flight-model code produced earlier in this frame.
         //
         // Exceptions: phases where the nose is genuinely moving relative
-        // to the ground — rotation for take-off (`FPH_ROTATE`), the flare
-        // before touchdown (`FPH_FLARE`), the single-cycle touchdown
-        // event (`FPH_TOUCH_DOWN`), and the roll-out that immediately
-        // follows touchdown (`FPH_ROLL_OUT`). In all of these the
-        // flight-model code is actively driving the `pitch` MovingParam
-        // through a planned transition — `pitch.max()` on rotate,
-        // `pitch.moveTo(PITCH_FLARE)` on flare, `pitch.moveTo(
-        // GND_PITCH_DEG)` on touchdown to walk the nose down smoothly
-        // during roll-out. Overriding pitch during any of these phases
-        // would visibly snap the nose: in particular, without the
-        // `FPH_ROLL_OUT` exception the de-rotation animation gets
-        // clobbered one frame after touchdown (touchdown is documented
-        // as a single-frame event) and the aircraft appears to slam
-        // its nose-wheel down. Roll is forced flat in all phases —
-        // ground aircraft never bank, so no exception is needed there.
+        // to the ground — rotation for take-off (`FPH_ROTATE`), lift-off
+        // itself (`FPH_LIFT_OFF`), the flare before touchdown
+        // (`FPH_FLARE`), the single-cycle touchdown event
+        // (`FPH_TOUCH_DOWN`), and the roll-out that immediately follows
+        // touchdown (`FPH_ROLL_OUT`). In all of these the flight-model
+        // code is actively driving the `pitch` MovingParam through a
+        // planned transition — `pitch.moveTo(ROTATE_PITCH_MAX_DEG)` on
+        // rotate, VSI-derived target on lift-off,
+        // `pitch.moveTo(PITCH_FLARE)` on flare,
+        // `pitch.moveTo(GND_PITCH_DEG)` on touchdown to walk the nose
+        // down smoothly during roll-out. Overriding pitch during any of
+        // these phases would visibly snap the nose. In particular:
+        //   - Without the `FPH_ROLL_OUT` exception, the de-rotation
+        //     animation gets clobbered one frame after touchdown
+        //     (touchdown is documented as a single-frame event) and
+        //     the aircraft appears to slam its nose-wheel down.
+        //   - Without the `FPH_LIFT_OFF` exception, an aircraft whose
+        //     phase advances ROTATE → LIFT_OFF *while still bOnGrnd*
+        //     (VSI crossed `VSI_STABLE` before the aircraft physically
+        //     left the runway — common on takeoff rolls where the
+        //     altitude is barometric and the smoothed value crosses
+        //     `MDL_CLOSE_TO_GND` a frame or two before the deque
+        //     bracket itself leaves the ground) gets its rotation pitch
+        //     forcibly reset to `GND_PITCH_DEG = 2°` for as many frames
+        //     as it takes for bOnGrnd to flip false. Visible as: nose
+        //     pitches up, briefly flips level on the runway, then
+        //     pitches up again once airborne. Reported on AAL2449.
+        // Roll is forced flat in all phases — ground aircraft never
+        // bank, so no exception is needed there.
         if (phase != FPH_ROTATE &&
+            phase != FPH_LIFT_OFF &&
             phase != FPH_FLARE  &&
             phase != FPH_TOUCH_DOWN &&
             phase != FPH_ROLL_OUT)
@@ -2718,7 +2733,16 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE) {
-            pitch.max();
+            // Cap the rotate-phase pitch target at `ROTATE_PITCH_MAX_DEG`
+            // (10°) instead of `pMdl->PITCH_MAX` (15°). On the runway
+            // the latter exceeds the tail-strike geometry of most
+            // narrow-bodies. Once the aircraft transitions to
+            // FPH_LIFT_OFF the in-air pitch logic in
+            // `LTFlightData::CalcNextPos` (line ~1700) takes over and
+            // walks pitch toward the VSI-derived target, clamped to
+            // `pMdl->PITCH_MAX` — so steep climbs can still reach the
+            // full 15°, just not while the gear is still on the runway.
+            pitch.moveTo(ROTATE_PITCH_MAX_DEG);
             gearDeflection.min();               // and start easing up on the wheels
         }
     }
