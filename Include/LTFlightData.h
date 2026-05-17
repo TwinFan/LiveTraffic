@@ -541,6 +541,26 @@ public:
     // actions on all flight data / treating mapFd as lists
     static void UpdateAllModels ();
     static const LTFlightData* FindFocusAc (const double bearing);
+
+    /// Prune `FF****` placeholder-hex duplicates.
+    ///
+    /// Some upstream ingest paths emit aircraft with synthetic hex
+    /// IDs of the form `FF****` when the source does not carry a real
+    /// ICAO transponder code. When a real-ICAO source (X_adsb_icao,
+    /// V_adsb_icao, V_mlat) later picks up the same aircraft and
+    /// reports its actual hex, the LiveTraffic side ends up with TWO
+    /// LTFlightData entries for the same physical aircraft — one keyed
+    /// by the FF placeholder, one by the real hex — both rendered as
+    /// separate aircraft in the sim. The duplicate at the FF key
+    /// cannot reconcile by itself because FDKeyTy is the primary key
+    /// in `mapFd` and changing it isn't supported.
+    ///
+    /// This periodic prune scans `mapFd`: any entry whose hex starts
+    /// with "FF" and whose callsign matches a non-FF entry's callsign
+    /// is invalidated (`SetInvalid`), letting the standard cleanup
+    /// pipeline remove it. Callable from the main thread only — takes
+    /// the mapFd mutex.
+    static void PrunePlaceholderHexDuplicates ();
 #ifdef DEBUG
     static void RemoveAllAcButSelected ();
 #endif

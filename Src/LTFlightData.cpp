@@ -1775,6 +1775,52 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                 return HeadingNormalize(pbTrack.angle + 180.0);
             };
 
+            // ---------------------------------------------------------
+            // Safety-valve: emergency exit on excessive groundspeed.
+            //
+            // Real pushbacks roll at 1-5 kt — a tug cannot move a 60+
+            // ton airframe faster than that. A slot with gs above
+            // PB_MAX_GS_KT (10 kt) under PB_ACTIVE/PB_PAUSED is
+            // definitively taxi, not pushback, and the state machine
+            // is wrong to still be active.
+            //
+            // This valve catches the case where the held nose was
+            // chosen incorrectly at PB_NONE→PB_ACTIVE entry (e.g.
+            // TRACK+180 was picked because feedHdg disagreed with
+            // parkedHdg, but the feed was actually right because the
+            // aircraft had already rotated during the GATE_HOLD
+            // suppression window). With a wrong held nose, the
+            // directional exit test in PB_PAUSED reads against the
+            // wrong reference and the state machine stays "ACTIVE /
+            // PAUSED" indefinitely while the real aircraft taxis out.
+            // Observed for UAL1240 (28 kt taxi still in PB_ACTIVE) and
+            // JIA5575 (8 kt taxi-out, never exited).
+            //
+            // Force-exit lets the normal heading logic (FEEDHDG cross-
+            // check, position-derived heading) take over. Visually a
+            // small heading jump may occur at the moment of exit but
+            // that is preferable to several minutes of tail-first
+            // rendering.
+            if ((pbState == PB_ACTIVE || pbState == PB_PAUSED) &&
+                !std::isnan(pbGs_kt) &&
+                pbGs_kt > PB_MAX_GS_KT)
+            {
+                LOG_MSG(logDEBUG,
+                        "PUSHBACK_DIAG %s FORCE_EXIT gs=%.2fkt > %.1fkt"
+                        " — exiting %s to PB_NONE",
+                        key().c_str(),
+                        pbGs_kt, PB_MAX_GS_KT,
+                        pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED");
+                pbState        = PB_NONE;
+                pbHeldNose     = NAN;
+                pbUseFeedNose  = false;
+                bGateParked    = false;
+                // Fall through to the switch below; PB_NONE branch
+                // will simply do nothing on this slot (no entry test
+                // because bGateParked is now false), and the rest of
+                // CalcHeading runs normally.
+            }
+
             switch (pbState) {
                 case PB_NONE:
                     // Enter pushback only when:
@@ -3904,6 +3950,72 @@ void LTFlightData::UpdateAllModels ()
             LTAircraft* pAc = fdPair.second.GetAircraft();
             if (pAc)
                 pAc->SetUpdateModel();
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+    }
+}
+
+// Prune `FF****` placeholder-hex duplicates.
+//
+// See header doc for full rationale. Two-pass design:
+//   pass 1 — collect callsigns held by non-FF (real-hex) entries
+//   pass 2 — invalidate any FF entry whose callsign is in the set
+//
+// Two passes are necessary because we cannot decide-and-invalidate in
+// a single sweep: a real-hex entry may be discovered AFTER its FF
+// counterpart in map iteration order, and we would miss the prune.
+//
+// Performance: O(N) for N entries in mapFd, run from the main thread.
+// The scan walks raw `mapFd` keys and uses `GetUnsafeStat()` to read
+// callsigns without per-entry mutex acquisition — racy but acceptable:
+// the worst case is a stale callsign read that we re-evaluate on the
+// next call (this method is intended to be invoked periodically, not
+// once-per-frame).
+void LTFlightData::PrunePlaceholderHexDuplicates ()
+{
+    try {
+        // Hold the map mutex for the whole pass: we both read and
+        // potentially SetInvalid entries within it, and any concurrent
+        // erase from the cleanup pipeline must not race with our
+        // iteration.
+        std::lock_guard<std::mutex> lock (mapFdMutex);
+
+        // Lambda: does the hex key start with "FF" (case-insensitive)?
+        // FDKeyTy::key is the canonical uppercase hex string per
+        // SetKey()'s normalization, but we tolerate either case here
+        // for robustness.
+        auto isPlaceholderHex = [](const std::string& hex) -> bool {
+            return hex.length() >= 2 &&
+                   (hex[0] == 'F' || hex[0] == 'f') &&
+                   (hex[1] == 'F' || hex[1] == 'f');
+        };
+
+        // Pass 1: collect callsigns from real-hex (non-FF) entries.
+        // Skip entries with empty callsigns — they cannot be matched.
+        std::set<std::string> realHexCallsigns;
+        for (const auto& fdPair : mapFd) {
+            if (isPlaceholderHex(fdPair.first.key))
+                continue;
+            const std::string& call = fdPair.second.GetUnsafeStat().call;
+            if (!call.empty())
+                realHexCallsigns.insert(call);
+        }
+
+        // Pass 2: invalidate FF entries whose callsign is held by a
+        // real-hex entry. SetInvalid(true) also drops the rendered
+        // aircraft so the visual duplicate disappears immediately.
+        for (auto& fdPair : mapFd) {
+            if (!isPlaceholderHex(fdPair.first.key))
+                continue;
+            const std::string& call = fdPair.second.GetUnsafeStat().call;
+            if (!call.empty() && realHexCallsigns.count(call) > 0) {
+                LOG_MSG(logINFO,
+                        "PRUNE_FF: removing placeholder-hex %s (cs=%s)"
+                        " — real-hex entry exists for same callsign",
+                        fdPair.first.key.c_str(), call.c_str());
+                fdPair.second.SetInvalid();
+            }
         }
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

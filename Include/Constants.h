@@ -144,6 +144,29 @@ constexpr double PB_FEED_NOSE_AGREE_DEG = 30.0;
 /// trip the state machine.
 constexpr double PB_MOTION_GS_KT        = 0.3;
 
+/// Safety-valve maximum groundspeed, in knots, for the pushback state
+/// machine. If a slot under PB_ACTIVE/PB_PAUSED arrives with `gs` above
+/// this threshold, the state machine FORCES an exit to PB_NONE regardless
+/// of the directional-resumed-motion test.
+///
+/// Why this safety valve is needed: the normal exit logic compares
+/// resumed-motion track against `pbHeldNose` (within 90° → forward
+/// taxi → exit). When the held nose was chosen incorrectly at entry
+/// (e.g. TRACK+180 picked because the feed disagreed with the parked
+/// heading, but the feed was actually right because the aircraft had
+/// already rotated during the GATE_HOLD suppression window), the
+/// directional exit test reads against the wrong reference. The
+/// aircraft then taxis out at 20+ knots while the state machine still
+/// thinks "tug is pushing me backward" and renders the nose stuck at
+/// the wrong angle — aircraft appears tail-first / ass-forward.
+///
+/// 10 kt is a hard upper bound on physical pushback speed (real
+/// pushbacks roll at 1-5 kt; tugs cannot move a 60+ ton airframe
+/// faster than that). Any sustained gs above 10 kt is definitively
+/// taxi, not pushback, and the state machine is wrong to still be
+/// active. Force-exit and let the normal heading logic take over.
+constexpr double PB_MAX_GS_KT           = 10.0;
+
 /// Minimum distance, in metres, between an incoming feed slot and the
 /// latest accepted deque position for the slot to be admitted while the
 /// aircraft is `bGateParked` and not yet in the pushback state machine.
