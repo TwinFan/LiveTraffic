@@ -42,7 +42,7 @@ PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         4    # [°] to add if flaps extended
-PITCH_FLARE           10    # [°] pitch during flare
+PITCH_FLARE            7    # [°] pitch during flare, and also for rotate
 PITCH_RATE             3    # [°/s] pitch rate of change
 LIGHT_LL_ALT       10000    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
 EXT_CAMERA_LON_OFS   -45    # longitudinal external camera offset
@@ -118,7 +118,7 @@ PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         2    # [°] to add if flaps extended
-PITCH_FLARE            5    # [°] pitch during flare
+PITCH_FLARE            5    # [°] pitch during flare, and also for rotate
 PITCH_RATE             3    # [°/s] pitch rate of change
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
 LABEL_COLOR       00FF00    # green labels for GA and smaller
@@ -149,7 +149,7 @@ PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         3    # [°] to add if flaps extended
-PITCH_FLARE           10    # [°] pitch during flare
+PITCH_FLARE            7    # [°] pitch during flare, also for rotate
 PITCH_RATE             3    # [°/s] pitch rate of change
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
 EXT_CAMERA_LON_OFS   -30    # longitudinal external camera offset
@@ -188,7 +188,7 @@ PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX              5    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       1000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         1    # [°] to add if flaps extended
-PITCH_FLARE            3    # [°] pitch during flare
+PITCH_FLARE            3    # [°] pitch during flare, and also for rotate
 PITCH_RATE             1    # [°/s] pitch rate of change
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
 LABEL_COLOR       00FF00    # green labels for GA and smaller

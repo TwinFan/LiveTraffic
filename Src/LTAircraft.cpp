@@ -2745,16 +2745,15 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE) {
-            // Cap the rotate-phase pitch target at `ROTATE_PITCH_MAX_DEG`
-            // (10°) instead of `pMdl->PITCH_MAX` (15°). On the runway
-            // the latter exceeds the tail-strike geometry of most
-            // narrow-bodies. Once the aircraft transitions to
+            // Cap the rotate-phase pitch target at the same angle as
+            // during a flare to prevent tail strike.
+            // Once the aircraft transitions to
             // FPH_LIFT_OFF the in-air pitch logic in
             // `LTFlightData::CalcNextPos` (line ~1700) takes over and
             // walks pitch toward the VSI-derived target, clamped to
             // `pMdl->PITCH_MAX` — so steep climbs can still reach the
             // full 15°, just not while the gear is still on the runway.
-            pitch.moveTo(ROTATE_PITCH_MAX_DEG);
+            pitch.moveTo(pMdl->PITCH_FLARE);
             gearDeflection.min();               // and start easing up on the wheels
         }
     }

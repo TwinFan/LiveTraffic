@@ -536,25 +536,6 @@ constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
 /// "climbing away from the runway" instead of "popping into the sky".
 constexpr double LIFTOFF_BLEND_TIME_S           = 10.0;
 
-/// [°] maximum pitch angle during the take-off rotation phase
-/// (`FPH_ROTATE`), before the aircraft physically leaves the runway.
-///
-/// Why this exists (and is less than the per-flight-model
-/// `PITCH_MAX`): without an explicit cap, `ENTERED(FPH_ROTATE)`
-/// calls `pitch.max()` which walks the pitch MovingParam toward the
-/// flight model's `PITCH_MAX` (15° by default). 15° is well past the
-/// tail-strike geometry of most narrow-bodies — B738 ≈ 11°, A320
-/// ≈ 13.5° — so users were seeing rendered aircraft drag their tails
-/// during rotation. Capping the rotate target at 10° keeps the nose
-/// below the tail-strike envelope while still showing a recognisable
-/// rotation animation. Once the aircraft transitions to
-/// `FPH_LIFT_OFF`, the in-air pitch logic in `LTFlightData::CalcNextPos`
-/// takes over and walks pitch toward the VSI-derived target —
-/// clamped to the flight model's `PITCH_MAX` — so steep initial
-/// climbs can still reach the full 15°, just not during the on-
-/// runway rotation phase.
-constexpr double ROTATE_PITCH_MAX_DEG           = 10.0;
-
 /// [s] minimum time the nose is held pitched up at `PITCH_FLARE` after
 /// touchdown before the de-rotation walk to `GND_PITCH_DEG` begins.
 ///
