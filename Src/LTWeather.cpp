@@ -1403,6 +1403,9 @@ static bool bSetWeather = false;                ///< is there a next weather to 
 static bool bResetWeather = false;              ///< Shall weather be reset, ie. handed back to XP?
 static LTWeather setWeather;                    ///< the weather we set last time
 
+/// Is currently an async operation running to fetch METAR?
+static std::future<bool> futWeather;
+
 // Initialize Weather module, dataRefs
 bool WeatherInit_xp ()
 {
@@ -1421,6 +1424,10 @@ bool WeatherInit_xp ()
 void WeatherStop ()
 {
     WeatherReset();
+    
+    // thread cleanup: if a request still underway wait for the thread to end
+    if (futWeather.valid())
+        futWeather.wait_for(std::chrono::seconds(5));
 }
 
 // Can we set weather? (X-Plane 12 forward only)
@@ -1815,9 +1822,6 @@ float WeatherQNHfromMETAR (const std::string& metar)
     return NAN;
 }
 
-
-/// Is currently an async operation running to fetch METAR?
-static std::future<bool> futWeather;
 
 // Asynchronously, fetch fresh weather information
 bool WeatherFetchUpdate (const positionTy& pos, float radius_nm)
