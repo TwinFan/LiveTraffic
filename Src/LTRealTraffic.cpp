@@ -744,30 +744,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             continue;
 
         // position time
-        //
-        // RealTraffic v6 carries two time-related fields per position:
-        //   * RT_DRCT_TimeStamp — server timestamp of the position update
-        //     record (when RT's ingestion produced this row).
-        //   * RT_DRCT_PosAge    — seconds since the underlying position
-        //     was actually measured at the source.
-        // Different sources (ADS-B vs MLAT vs satellite multilateration
-        // etc.) have very different ingest latencies, so two consecutive
-        // records can have identical TimeStamp values while representing
-        // measurements taken seconds apart at the source. If we use the
-        // raw TimeStamp as the position's deque key, those measurement-
-        // time discrepancies show up as altitude jumps in the rendered
-        // climb (the position is placed at the wrong moment, then the
-        // next position arrives at "later" TimeStamp but with a much
-        // smaller alt delta than would be expected from the apparent
-        // time gap — or vice versa, depending on which source has the
-        // larger delay). Subtracting PosAge here normalises every
-        // position to its actual measurement time so the deque is
-        // ordered and spaced by *what the aircraft did when*, not by
-        // *when RT happened to ingest it*.
         double posTime = jag_n(pJAc, RT_DRCT_TimeStamp);
-        const double posAge = jag_n(pJAc, RT_DRCT_PosAge);
-        if (!std::isnan(posAge))
-            posTime -= posAge;
         //  (needs adjustment in case we are receiving historical data)
         posTime += tsAdjust;
         
@@ -2204,24 +2181,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
                                           int nBuffer)
 {
     // *** position time ***
-    // Normalise to actual measurement time by subtracting RTTFC_SEEN
-    // (seconds since the underlying position was measured at source).
-    // See the HTTP-Direct path comment on RT_DRCT_TimeStamp /
-    // RT_DRCT_PosAge for the full rationale: different sources have
-    // different ingest delays, so two records with the same
-    // RT_RTTFC_TIMESTAMP can represent positions measured seconds
-    // apart at the source. Subtracting SEEN places each position at
-    // its actual measurement time in the deque. The SEEN field is
-    // optional in the compact 18-field RT App variant, so we only
-    // apply the adjustment when the field is present and parses.
     double posTime = std::stod(tfc[RT_RTTFC_TIMESTAMP]);
-    if (tfc.size() > RT_RTTFC_SEEN && !tfc[RT_RTTFC_SEEN].empty()) {
-        try {
-            const double posAge = std::stod(tfc[RT_RTTFC_SEEN]);
-            if (!std::isnan(posAge))
-                posTime -= posAge;
-        } catch (...) { /* leave posTime as-is */ }
-    }
     AdjustTimestamp(posTime, nBuffer);
 
     // *** Process received data ***
