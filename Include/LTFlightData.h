@@ -299,27 +299,49 @@ protected:
     /// before exiting avoids those false-exits.
     int                     groundNonStationaryCnt = 0;
 
-    // ---- Pushback state (see Constants.h `PUSHBACK_*`) --------------------
-    // True while the aircraft is being pushed back from a gate. Entered in
-    // `CalcHeading` on the geometric signature (slow, on-ground, moving
-    // backwards relative to the nose); while true the slot heading is held
-    // at `track + 180°` so the rendered nose stays pointing away from the
-    // direction of travel. Exited only when a meaningful-motion slot shows
-    // the aircraft moving FORWARD again (track within
-    // `PUSHBACK_EXIT_FWD_DIFF_DEG` of the maintained nose heading) — a
-    // direction-reversal test, not a timer, so it copes with pushes of any
-    // length and never exits while the aircraft is still stopped.
-    bool                    bPushback            = false;
-    /// [°] last heading observed while (near-)stationary on the ground.
-    /// Candidate "parked heading" reference for pushback detection — but
-    /// it can drift if the live feed updates the heading while the
-    /// aircraft is nominally parked.
-    double                  headingStable        = NAN;
-    /// [°] last heading observed on a `SPOS_STARTUP` slot, i.e. the
-    /// apt.dat gate heading. Unlike `headingStable` this cannot drift —
-    /// it comes from static airport data, not the live feed — so it is
-    /// the more trustworthy "true nose while parked" reference.
-    double                  headingStartup       = NAN;
+    // ---- Pushback state (simplified state machine) -----------------------
+    // PB_NONE   : not in pushback (taxiing, parked, airborne).
+    // PB_ACTIVE : currently being pushed; aircraft is moving and the
+    //             heading is overridden to `track + 180°` so the tail
+    //             leads the direction of motion. Naturally tracks
+    //             rotating pushes because the nose is recomputed every
+    //             motion slot.
+    // PB_PAUSED : was in pushback, now stationary. The next motion slot
+    //             decides: aligned with held nose ⇒ taxi (EXIT); against
+    //             held nose ⇒ tug continuing (back to PB_ACTIVE).
+    //
+    // Entry signal: `bGateParked` is true (we have observed a
+    // SPOS_STARTUP slot — the aircraft is parked at a gate) AND a slot
+    // with meaningful motion arrives. Exit clears `bGateParked` so the
+    // aircraft must return to a gate before another pushback can fire.
+    enum PushbackStateE { PB_NONE = 0, PB_ACTIVE, PB_PAUSED };
+    PushbackStateE          pbState              = PB_NONE;
+    /// [°] last nose direction computed during pushback. May be sourced
+    /// either from the feed (`feedHdg` — true-nose case) or derived from
+    /// motion (`HeadingNormalize(track + 180°)` — course-feed case). The
+    /// choice is locked once at PB_NONE→PB_ACTIVE entry (see
+    /// `pbUseFeedNose`) and is NOT re-evaluated mid-push, to avoid the
+    /// per-slot flip-flop that produced visible spinning in earlier
+    /// revisions. Held through PB_PAUSED so the exit-direction test
+    /// (resumed motion vs this nose) has a stable reference even if the
+    /// pause lasted many slots.
+    double                  pbHeldNose           = NAN;
+    /// True when the nose source for this pushback is the FEED heading
+    /// (`it->heading()` captured before override). False when the source
+    /// is the position-derived motion track (`track + 180°`). Decided
+    /// once at PB_NONE→PB_ACTIVE entry by comparing the first-motion
+    /// feedHdg against the prior parked heading: if they are within
+    /// ~30° the feed is reporting true nose (rotates accurately during
+    /// the push) — trust it. Otherwise the feed is reporting course-
+    /// over-ground (≈ motion direction during push, useless as a nose
+    /// reference) — derive nose from track. Locked for the duration of
+    /// the push; cleared on exit (PB_NONE) or airborne transition.
+    bool                    pbUseFeedNose        = false;
+    /// True once a SPOS_STARTUP slot has been added to the deque (i.e.
+    /// the aircraft is/was parked at an apt.dat startup location).
+    /// Required for `PB_NONE → PB_ACTIVE` entry. Cleared on the same
+    /// frame the state machine exits to `PB_NONE`.
+    bool                    bGateParked          = false;
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;

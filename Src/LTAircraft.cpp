@@ -2129,18 +2129,30 @@ bool LTAircraft::CalcPPos()
             // nose points along the rendered direction of motion, which
             // is what eliminates the "sideways through a turn" symptom.
             //
-            // EXCEPTION: if the leg's start slot carries `bHeadFixed`,
+            // EXCEPTION: if EITHER end of the leg carries `bHeadFixed`,
             // an upstream stage has deliberately set a heading that must
             // NOT be overridden — currently that means a pushback leg,
-            // where CalcHeading set the slot heading to `track + 180°`
-            // so the nose stays pointed away from the (backward)
-            // direction of travel. The spline tangent here points along
-            // that backward motion, so using it would render the
-            // aircraft tail-first. Instead we interpolate the slot
-            // headings across the leg (shortest-path), preserving the
-            // intended nose direction while still drawing the smooth
-            // spline *position*.
-            if (from.f.bHeadFixed) {
+            // where CalcHeading set the slot heading to the held nose
+            // direction so the nose stays pointed away from the
+            // (backward) direction of travel. The spline tangent here
+            // points along that backward motion, so using it would
+            // render the aircraft tail-first the wrong way. Instead we
+            // interpolate the slot headings across the leg (shortest-
+            // path), preserving the intended nose direction while still
+            // drawing the smooth spline *position*.
+            //
+            // Why both ends, not just `from`: at the PB_NONE→PB_ACTIVE
+            // transition the previous leg's `to` (now `from` here) came
+            // from the parked era and has bHeadFixed=false. Pinning
+            // bHeadFixed retroactively onto the predecessor slot is not
+            // always possible — when posDeque has been drained during a
+            // long stationary period, CalcHeading uses pAc->GetToPos()
+            // as a virtual predecessor and that slot is not writable
+            // from CalcHeading. Honouring `to.f.bHeadFixed` here covers
+            // that case from the destination side: as long as the slot
+            // we are transitioning *into* has its heading fixed (PB
+            // override), interpolate instead of tangent.
+            if (from.f.bHeadFixed || to.f.bHeadFixed) {
                 const double h0 = from.heading();
                 const double hd = HeadingDiff(h0, to.heading());
                 ppos.heading() = HeadingNormalize(h0 + hd * f);

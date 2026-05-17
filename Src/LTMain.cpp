@@ -1088,12 +1088,12 @@ void LTRegularUpdates()
     if (lstCycleNum == currCycleNum)
         return;
     lstCycleNum = currCycleNum;
-    
+
     // all calls needed (up to) every flight loop:
-    
+
     // Update cached values
     dataRefs.UpdateCachedValues();
-    
+
     // Check if some msg window needs to show
     CheckThenShowMsgWindow();
 

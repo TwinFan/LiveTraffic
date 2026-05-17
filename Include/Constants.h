@@ -92,6 +92,81 @@ constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes
 /// data arrives. 50 m comfortably keeps us inside a stand footprint while
 /// excluding anything past the nearest taxiway centerline.
 constexpr double GATE_REFEED_MAX_DIST_M = 50;
+
+/// Maximum distance, in metres, between an aircraft's held position and the
+/// nearest apt.dat startup-location (gate / stand / ramp slot) for the
+/// position to be treated as "at a gate". Used as the third gate-detection
+/// path in `LTFlightData::AddNewPos`: when `bGroundHolding` flips true on a
+/// live-tracked aircraft (one that never received a RealTraffic parked-feed
+/// seed), we query `LTAptFindStartupLoc()` and set `bGateParked = true` only
+/// when the apt.dat lookup returns a startup-loc within this radius. The
+/// value is small on purpose — typical stand widths are 20–60 m, and a tight
+/// threshold prevents false positives from runway hold-shorts, taxiway
+/// crossings, or maintenance pads being misclassified as gates (which would
+/// later mis-trigger the pushback state machine).
+constexpr double GATE_DETECT_MAX_DIST_M = 30.0;
+
+/// Maximum angular delta, in degrees, between the prior parked heading and
+/// the first-motion feed heading for the feed to be considered a true-nose
+/// source during a pushback. Used at the PB_NONE→PB_ACTIVE entry in
+/// `LTFlightData::CalcHeading`: if `|feedHdg − prePosPb.heading()| <=` this
+/// value, the feed value is locked in as the nose source for the rest of
+/// the push (so the rendered nose tracks the aircraft's real rotation,
+/// reported by the feed). Otherwise the feed is treated as course-over-
+/// ground and the nose is derived from the motion track instead.
+///
+/// 30° is chosen because a true-nose feed reads exactly the parked heading
+/// when the aircraft is stationary; once motion starts the feed catches up
+/// within a fraction of a second, so the very first motion slot's feedHdg
+/// is still within a handful of degrees of the parked value. A course feed,
+/// on the other hand, reports motion direction once motion starts — and
+/// during a pushback that is ~180° away from the parked heading, well
+/// outside the 30° window. The threshold is therefore comfortably wider
+/// than measurement noise yet far tighter than the course/nose gap.
+constexpr double PB_FEED_NOSE_AGREE_DEG = 30.0;
+
+/// Minimum groundspeed, in knots, for a slot to be classified as
+/// "moving" by the pushback state machine in `LTFlightData::CalcHeading`.
+/// Distinct from (and lower than) `GND_STATIONARY_GS_KT` because real
+/// pushbacks roll at 0.4-1.4 kt — entirely below the global stationary
+/// threshold (1.5 kt). Using the global threshold for the PB bMotion
+/// check would mean the state machine never enters PB_ACTIVE for an
+/// actual slow push, and the entry-gate logic in AddNewPos would keep
+/// suppressing subsequent in-push slots (which depend on
+/// `pbState != PB_NONE` to bypass the gate-hold).
+///
+/// 0.3 kt is a hair above the noise floor of derived gs at sub-second
+/// dt: a 3 m position-fix jitter over a 5 s slot yields ~0.6 m/s ≈
+/// 1.1 kt of false gs. We need a threshold under the actual slow-push
+/// speed but above zero; 0.3 kt is comfortably both. Combined with the
+/// upstream distance gate (GATE_HOLD_MIN_ACCEPT_M ≥ 30 m before the
+/// first slot is accepted), this leaves no realistic path for noise to
+/// trip the state machine.
+constexpr double PB_MOTION_GS_KT        = 0.3;
+
+/// Minimum distance, in metres, between an incoming feed slot and the
+/// latest accepted deque position for the slot to be admitted while the
+/// aircraft is `bGateParked` and not yet in the pushback state machine.
+/// Slots closer than this are treated as feed noise and silently dropped.
+///
+/// Why distance, not groundspeed or a slot counter: real pushbacks roll
+/// at 0.4-1.4 kt, which is well below `GND_STATIONARY_GS_KT` (1.5 kt).
+/// A counter that increments on "non-stationary" slots therefore never
+/// advances during a real slow push, and any threshold based on that
+/// counter would suppress legitimate pushback motion forever. RT-direct
+/// noise at the gate, by contrast, manifests as one or two slots ~15-25 m
+/// off the true position that then return to the gate; their distance
+/// from the held position never sustains beyond ~25 m.
+///
+/// 30 m is a comfortable separator: it sits clearly above the 15-25 m
+/// noise envelope (so single- or paired-slot anomalies stay dropped),
+/// while a real push reaches 30 m within 2-3 slots at typical pushback
+/// speeds. When a slot finally exceeds this distance, the suppression
+/// accepts it AND clears `bGroundHolding` so subsequent in-push slots
+/// (which are typically only 3-6 m from the previous accepted slot, and
+/// would otherwise be trivial-dropped) flow through and the rendered
+/// push continues smoothly.
+constexpr double GATE_HOLD_MIN_ACCEPT_M = 30.0;
 constexpr double FD_GND_AGL =       10;         // [m] consider pos 'ON GRND' if this close to YProbe
 constexpr double FD_GND_AGL_EXT =   20;         // [m] consider pos 'ON GRND' if this close to YProbe - extended, e.g. for RealTraffic
 constexpr double PROBE_HEIGHT_LIM[] = {5000,1000,500,-999999};  // if height AGL is more than ... feet
@@ -378,60 +453,19 @@ constexpr double GND_PITCH_DEG                  = 0.0;
 /// gated behind `!IsOnGnd()` so this only applies on the ground.
 constexpr double GND_ROLL_DEG                   = 0.0;
 
-/// [kn] upper bound on groundspeed for an event to be considered the START
-/// of a pushback. This gates ENTRY into the pushback state only — once the
-/// state is entered it is held regardless of speed, so a long or brisk push
-/// never drops out. The real discriminator for a pushback is the DIRECTION
-/// (the aircraft moving backwards relative to its nose — see
-/// `PUSHBACK_DETECT_HEAD_DIFF_DEG`); nothing else moves backwards on the
-/// ground, so the speed ceiling only needs to be generous enough that the
-/// first feed slot of the push is caught even when the feed cadence is
-/// sparse. Observed: with a sparse RT feed the first slot of a push can
-/// already read 8–9 kn, so 12 kn is used — well above realistic tug speed
-/// (which the direction gate would catch anyway) but a useful guard
-/// against a glitchy high-speed position jump masquerading as a push.
-constexpr double PUSHBACK_DETECT_GS_MAX_KT      = 12.0;
-
-/// [°] minimum |track − nose-heading| to ENTER the pushback state. 135° is
-/// well inside the "going backwards" half-plane (which begins at 90°) and
-/// leaves margin so a sharply curving forward taxi never trips entry. The
-/// track is derived from the current position delta; the nose heading is
-/// the predecessor slot's (last-known-good) heading.
-constexpr double PUSHBACK_DETECT_HEAD_DIFF_DEG  = 135.0;
-
-/// [°] maximum |track − nose-heading| to EXIT the pushback state. While the
-/// state is held, `CalcHeading` keeps the slot heading updated to
-/// `track + 180°` — i.e. the predecessor slot's heading is always the
-/// current nose direction. When a meaningful-motion slot's track points
-/// within this angle of that nose heading, the aircraft is moving FORWARD
-/// (taxiing away under its own power) — the push is over. This is a far
-/// more reliable end-of-pushback signal than any elapsed-time proxy: it
-/// cannot fire while the aircraft is stopped (tug still attached / just
-/// disconnected produces only sub-threshold motion), and it copes with
-/// pushes of any length or distance.
+/// [°] alignment threshold deciding whether motion resuming after a pushback
+/// pause is "forward" (push complete, exit) or "still being pushed" (tug
+/// resumed, stay in pushback). Compared against `|track − pbHeldNose|` where
+/// `pbHeldNose` is the last computed nose direction during the push.
 ///
-/// Entry at ≥135° and exit at ≤45° leave a 45–135° hysteresis band: a slot
-/// whose track falls in the ambiguous "curving" zone keeps the current
-/// state, so a sharply curving push never flickers out mid-manoeuvre.
-constexpr double PUSHBACK_EXIT_FWD_DIFF_DEG     = 45.0;
-
-/// [°] threshold that decides, while in a pushback, WHICH source to use for
-/// the rendered heading.
+/// Below this angle: the resumed motion is aligned with the held nose →
+/// aircraft is taxiing forward under its own power → EXIT to PB_NONE.
+/// Above this angle: the resumed motion still points backwards relative
+/// to the nose → the tug is continuing the push → re-enter PB_ACTIVE.
 ///
-/// RealTraffic's heading field is not consistent across aircraft: for some
-/// it is the true nose direction (Mode S EHS), for others it is simply
-/// course-over-ground. During a pushback these look completely different:
-///   * true-nose feed:  feedHdg is ~180° from the track (the aircraft moves
-///     tail-first) — and it is a clean, smooth signal, immune to a single
-///     noisy track sample. We trust it directly.
-///   * course feed:     feedHdg ≈ the track — useless as a nose reference;
-///     we derive the nose as `track + 180°` instead.
-/// So: if |feedHdg − track| exceeds this threshold the feed heading is the
-/// true nose and is used as-is; otherwise it is course and the nose is
-/// derived from the reversed track. 90° is the natural divider — beyond it
-/// the feed points into the rear half-plane relative to the motion, which
-/// only the true-nose interpretation explains.
-constexpr double PUSHBACK_FEED_IS_NOSE_DEG      = 90.0;
+/// 90° splits the half-planes cleanly: anything moving forward of the
+/// aircraft's beam is taxi, anything moving aft is push.
+constexpr double PB_EXIT_FORWARD_DIFF_DEG       = 90.0;
 
 /// [°] minimum heading change at which a Bezier curve is constructed for a
 /// ground leg. The general airborne threshold (`BEZIER_MIN_HEAD_DIFF`, 2.5°)
