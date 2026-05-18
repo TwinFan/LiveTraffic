@@ -1805,12 +1805,14 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                 !std::isnan(pbGs_kt) &&
                 pbGs_kt > PB_MAX_GS_KT)
             {
-                LOG_MSG(logDEBUG,
-                        "PUSHBACK_DIAG %s FORCE_EXIT gs=%.2fkt > %.1fkt"
-                        " — exiting %s to PB_NONE",
-                        key().c_str(),
-                        pbGs_kt, PB_MAX_GS_KT,
-                        pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED");
+                if (dataRefs.ShallLogDiagnostics()) {
+                    LOG_MSG(logDEBUG,
+                            "PUSHBACK_DIAG %s FORCE_EXIT gs=%.2fkt > %.1fkt"
+                            " — exiting %s to PB_NONE",
+                            key().c_str(),
+                            pbGs_kt, PB_MAX_GS_KT,
+                            pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED");
+                }
                 pbState        = PB_NONE;
                 pbHeldNose     = NAN;
                 pbUseFeedNose  = false;
@@ -1907,16 +1909,18 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                         if (it != posDeque.cbegin())
                             std::prev(it)->f.bHeadFixed = true;
 
-                        LOG_MSG(logDEBUG,
-                                "PUSHBACK_DIAG %s ENTRY src=%s parkedHdg=%.1f"
-                                " firstFeedHdg=%.1f firstTrack=%.1f"
-                                " heldNose=%.1f (predBHF pinned)",
-                                key().c_str(),
-                                pbUseFeedNose ? "FEED" : "TRACK+180",
-                                prePosPb.heading(),
-                                std::isnan(pbFeedHdg) ? -1.0 : pbFeedHdg,
-                                pbTrack.angle,
-                                pbHeldNose);
+                        if (dataRefs.ShallLogDiagnostics()) {
+                            LOG_MSG(logDEBUG,
+                                    "PUSHBACK_DIAG %s ENTRY src=%s parkedHdg=%.1f"
+                                    " firstFeedHdg=%.1f firstTrack=%.1f"
+                                    " heldNose=%.1f (predBHF pinned)",
+                                    key().c_str(),
+                                    pbUseFeedNose ? "FEED" : "TRACK+180",
+                                    prePosPb.heading(),
+                                    std::isnan(pbFeedHdg) ? -1.0 : pbFeedHdg,
+                                    pbTrack.angle,
+                                    pbHeldNose);
+                        }
                     } else if (bGateParked && bMotion) {
                         // Forward motion from a gate-parked aircraft —
                         // this is not a push. Clear bGateParked so the
@@ -1994,16 +1998,18 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                     // Per-slot diagnostic line — emitted only on the
                     // initial override pass (when bHeadFixed flips
                     // false→true), not on every re-eval.
-                    LOG_MSG(logDEBUG,
-                            "PUSHBACK_DIAG %s state=%s gs=%.2fkt track=%.1f"
-                            " heldNose=%.1f assigned=%.1f bGateParked=%d",
-                            key().c_str(),
-                            pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED",
-                            std::isnan(pbGs_kt) ? -1.0 : pbGs_kt,
-                            std::isnan(pbTrack.angle) ? -1.0 : pbTrack.angle,
-                            std::isnan(pbHeldNose) ? -1.0 : pbHeldNose,
-                            it->heading(),
-                            int(bGateParked));
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "PUSHBACK_DIAG %s state=%s gs=%.2fkt track=%.1f"
+                                " heldNose=%.1f assigned=%.1f bGateParked=%d",
+                                key().c_str(),
+                                pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED",
+                                std::isnan(pbGs_kt) ? -1.0 : pbGs_kt,
+                                std::isnan(pbTrack.angle) ? -1.0 : pbTrack.angle,
+                                std::isnan(pbHeldNose) ? -1.0 : pbHeldNose,
+                                it->heading(),
+                                int(bGateParked));
+                    }
                 }
                 return;
             }
@@ -2123,7 +2129,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         // outer-loop track-heading regime in LTAircraft::CalcAcPos owns
         // that range. Leave `trustFeed=false` so we fall through.
 
-        if (trustFeed) {
+        if (trustFeed && dataRefs.ShallLogDiagnostics()) {
             LOG_MSG(logDEBUG,
                     "GND_DIAG_FEEDHDG %s ts=%.1f feedHdg=%.1f gs=%.2fkt"
                     " track=%.1f (%s)",
@@ -2182,21 +2188,23 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         const bool isolated       =  std::isnan(gsFromPrev_kt) ||
                                      std::isnan(gsToNext_kt);
 
-        // ----- TEMPORARY GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_CHD) -----
+        // ----- GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_CHD) -----
         // Captures the per-slot inputs that drive the stationary-freeze
         // decision in CalcHeading. Fires unconditionally for every ground
         // slot. Search the log for "GND_DIAG_CHD" to filter.
-        LOG_MSG(logDEBUG,
-                "GND_DIAG_CHD %s ts=%.1f gsPrev=%.2fkt gsNext=%.2fkt"
-                " hdg_in=%.1f prevHdg=%.1f nextHdg=%.1f stationary={p=%d,n=%d,iso=%d}",
-                key().c_str(), it->ts(),
-                gsFromPrev_kt, gsToNext_kt,
-                it->heading(),
-                it != posDeque.cbegin() ? std::prev(it)->heading() : NAN,
-                std::next(it) != posDeque.cend() ? std::next(it)->heading() : NAN,
-                prevStationary ? 1 : 0,
-                nextStationary ? 1 : 0,
-                isolated ? 1 : 0);
+        if (dataRefs.ShallLogDiagnostics()) {
+            LOG_MSG(logDEBUG,
+                    "GND_DIAG_CHD %s ts=%.1f gsPrev=%.2fkt gsNext=%.2fkt"
+                    " hdg_in=%.1f prevHdg=%.1f nextHdg=%.1f stationary={p=%d,n=%d,iso=%d}",
+                    key().c_str(), it->ts(),
+                    gsFromPrev_kt, gsToNext_kt,
+                    it->heading(),
+                    it != posDeque.cbegin() ? std::prev(it)->heading() : NAN,
+                    std::next(it) != posDeque.cend() ? std::next(it)->heading() : NAN,
+                    prevStationary ? 1 : 0,
+                    nextStationary ? 1 : 0,
+                    isolated ? 1 : 0);
+        }
 
         if ((prevStationary && nextStationary) ||
             (isolated && (prevStationary || nextStationary)))
@@ -2206,9 +2214,11 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
             if (it != posDeque.cbegin()) {
                 const double prevHead = std::prev(it)->heading();
                 if (!std::isnan(prevHead)) {
-                    LOG_MSG(logDEBUG,
-                            "GND_DIAG_FREEZE %s ts=%.1f kept prevHdg=%.1f",
-                            key().c_str(), it->ts(), prevHead);
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_FREEZE %s ts=%.1f kept prevHdg=%.1f",
+                                key().c_str(), it->ts(), prevHead);
+                    }
                     it->heading() = prevHead;
                     return;
                 }
@@ -2315,12 +2325,14 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         const double prevHead = std::prev(it)->heading();
         if (!std::isnan(prevHead) && !std::isnan(it->heading())) {
             const double dHead = std::abs(HeadingDiff(prevHead, it->heading()));
-            // ----- TEMPORARY GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_HYST) -
-            LOG_MSG(logDEBUG,
-                    "GND_DIAG_HYST %s ts=%.1f prevHdg=%.1f newHdg=%.1f"
-                    " |delta|=%.2f%s",
-                    key().c_str(), it->ts(), prevHead, it->heading(), dHead,
-                    dHead < GND_HEADING_HYSTERESIS_DEG ? " -> SNAP" : "");
+            // ----- GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_HYST) -
+            if (dataRefs.ShallLogDiagnostics()) {
+                LOG_MSG(logDEBUG,
+                        "GND_DIAG_HYST %s ts=%.1f prevHdg=%.1f newHdg=%.1f"
+                        " |delta|=%.2f%s",
+                        key().c_str(), it->ts(), prevHead, it->heading(), dHead,
+                        dHead < GND_HEADING_HYSTERESIS_DEG ? " -> SNAP" : "");
+            }
             if (dHead < GND_HEADING_HYSTERESIS_DEG)
             {
                 it->heading() = prevHead;
@@ -2619,13 +2631,13 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                                         !std::isnan(gs_kt) &&
                                         gs_kt <= GND_STATIONARY_GS_KT;
 
-            // ----- TEMPORARY GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_ADD) -
+            // ----- GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_ADD) -
             // Unconditional, fires once per on-ground feed update.
             // Captures the parameters used by the stationary / holding
             // decision so thresholds can be tuned from real data. Search
             // the log for "GND_DIAG_ADD" to see only these lines.
             // To remove later: delete this block.
-            if (bothOnGround) {
+            if (bothOnGround && dataRefs.ShallLogDiagnostics()) {
                 LOG_MSG(logDEBUG,
                         "GND_DIAG_ADD %s ts=%.1f dt=%.2fs dist=%.2fm gs=%.2fkt"
                         " hdg_prev=%.1f hdg_in=%.1f holdingSince=%.1f holding=%d",
@@ -2652,11 +2664,13 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     (pos.ts() - groundHoldingSinceTs) >= GND_HOLDING_TIMEOUT_S)
                 {
                     bGroundHolding = true;
-                    LOG_MSG(logDEBUG,
-                            "GND_DIAG_HOLDIN %s entering ground-holding"
-                            " (stationary for %.1fs)",
-                            key().c_str(),
-                            pos.ts() - groundHoldingSinceTs);
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_HOLDIN %s entering ground-holding"
+                                " (stationary for %.1fs)",
+                                key().c_str(),
+                                pos.ts() - groundHoldingSinceTs);
+                    }
 
                     // ------------------------------------------------------
                     // Third gate-detection path (apt.dat startup-locations).
@@ -2726,13 +2740,15 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                         gateDist <= GATE_DETECT_MAX_DIST_M)
                     {
                         bGateParked = true;
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_GATE %s HIT lat=%.6f lon=%.6f"
-                                " startup-loc at %.1fm (hdg=%.1f)"
-                                " — bGateParked=true",
-                                key().c_str(),
-                                pos.lat(), pos.lon(),
-                                gateDist, gatePos.heading());
+                        if (dataRefs.ShallLogDiagnostics()) {
+                            LOG_MSG(logDEBUG,
+                                    "GND_DIAG_GATE %s HIT lat=%.6f lon=%.6f"
+                                    " startup-loc at %.1fm (hdg=%.1f)"
+                                    " — bGateParked=true",
+                                    key().c_str(),
+                                    pos.lat(), pos.lon(),
+                                    gateDist, gatePos.heading());
+                        }
                     } else {
                         // Tight lookup failed. Probe a wide radius and
                         // log the position so the failure mode can be
@@ -2746,15 +2762,17 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                         if (!aptAvail)                  mode = "APT_UNAVAIL";
                         else if (!std::isnan(probeDist)) mode = "NEAR";
                         else                            mode = "NOAPT";
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_GATE %s %s lat=%.6f lon=%.6f"
-                                " (tight %.0fm, probe %.0fm: nearest=%.1fm)"
-                                " — bGateParked stays false",
-                                key().c_str(), mode,
-                                pos.lat(), pos.lon(),
-                                GATE_DETECT_MAX_DIST_M,
-                                GATE_DETECT_MAX_DIST_M * 10.0,
-                                std::isnan(probeDist) ? -1.0 : probeDist);
+                        if (dataRefs.ShallLogDiagnostics()) {
+                            LOG_MSG(logDEBUG,
+                                    "GND_DIAG_GATE %s %s lat=%.6f lon=%.6f"
+                                    " (tight %.0fm, probe %.0fm: nearest=%.1fm)"
+                                    " — bGateParked stays false",
+                                    key().c_str(), mode,
+                                    pos.lat(), pos.lon(),
+                                    GATE_DETECT_MAX_DIST_M,
+                                    GATE_DETECT_MAX_DIST_M * 10.0,
+                                    std::isnan(probeDist) ? -1.0 : probeDist);
+                        }
                     }
                 }
 
@@ -2779,10 +2797,12 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M &&
                     pos.f.specialPos != SPOS_STARTUP)
                 {
-                    LOG_MSG(logDEBUG,
-                            "GND_DIAG_DROP %s dropping trivial update"
-                            " (dist=%.2fm, gs=%.2fkt)",
-                            key().c_str(), dist_m, gs_kt);
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_DROP %s dropping trivial update"
+                                " (dist=%.2fm, gs=%.2fkt)",
+                                key().c_str(), dist_m, gs_kt);
+                    }
                     // Update `youngestTS` to the dropped slot's feed ts.
                     // Without this, an aircraft that sits at the gate
                     // receiving valid feed updates (all trivial-dropped)
@@ -2814,11 +2834,13 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     // is timed from the resumption of stationarity (not
                     // from the moment the original streak began long ago).
                     groundHoldingSinceTs = pos.ts();
-                    LOG_MSG(logDEBUG,
-                            "GND_DIAG_HOLDOUT %s exiting ground-holding"
-                            " (consec=%d, dist=%.2fm, gs=%.2fkt)",
-                            key().c_str(), groundNonStationaryCnt,
-                            dist_m, gs_kt);
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_HOLDOUT %s exiting ground-holding"
+                                " (consec=%d, dist=%.2fm, gs=%.2fkt)",
+                                key().c_str(), groundNonStationaryCnt,
+                                dist_m, gs_kt);
+                    }
                 }
             }
 
@@ -2861,12 +2883,14 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 pos.f.specialPos != SPOS_STARTUP)
             {
                 if (dist_m < GATE_HOLD_MIN_ACCEPT_M) {
-                    LOG_MSG(logDEBUG,
-                            "GND_DIAG_GATE_HOLD %s dropping motion at gate"
-                            " (dist=%.2fm/%.0fm, gs=%.2fkt, isStat=%d)",
-                            key().c_str(), dist_m,
-                            GATE_HOLD_MIN_ACCEPT_M, gs_kt,
-                            isStationary ? 1 : 0);
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_GATE_HOLD %s dropping motion at gate"
+                                " (dist=%.2fm/%.0fm, gs=%.2fkt, isStat=%d)",
+                                key().c_str(), dist_m,
+                                GATE_HOLD_MIN_ACCEPT_M, gs_kt,
+                                isStationary ? 1 : 0);
+                    }
                     // Advance freshness timestamp even on drop — see the
                     // matching update in the trivial-drop branch above.
                     if (pos.ts() > youngestTS)
@@ -2882,12 +2906,14 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 if (bGroundHolding) {
                     bGroundHolding = false;
                     groundHoldingSinceTs = pos.ts();
-                    LOG_MSG(logDEBUG,
-                            "GND_DIAG_GATE_RELEASE %s accepting motion at"
-                            " gate (dist=%.2fm >= %.0fm, gs=%.2fkt) —"
-                            " bGroundHolding cleared",
-                            key().c_str(), dist_m,
-                            GATE_HOLD_MIN_ACCEPT_M, gs_kt);
+                    if (dataRefs.ShallLogDiagnostics()) {
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_GATE_RELEASE %s accepting motion at"
+                                " gate (dist=%.2fm >= %.0fm, gs=%.2fkt) —"
+                                " bGroundHolding cleared",
+                                key().c_str(), dist_m,
+                                GATE_HOLD_MIN_ACCEPT_M, gs_kt);
+                    }
                 }
             }
         }

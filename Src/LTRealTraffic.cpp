@@ -858,7 +858,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
 
-            // --- TEMPORARY FEED_DIAG (HTTP-Direct path) ---
+            // --- FEED_DIAG (HTTP-Direct path) ---
             // Per-aircraft monotonicity + source check. We want to see
             // every position the channel accepts: hex, callsign, feed
             // timestamp, msg_type/source (e.g. V_adsb_icao), age of
@@ -866,6 +866,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             // accepted feed timestamp for the same hex, and a flag for
             // OK / BACKWARDS / REPEAT / NEW. Helps identify backwards
             // feeds sneaking in that produce backwards rendered motion.
+            if (dataRefs.ShallLogDiagnostics())
             {
                 const std::string srcMsg = jag_s(pJAc, RT_DRCT_MsgSrcType);
                 const std::string callDg = jag_s(pJAc, RT_DRCT_CallSign);
@@ -2296,12 +2297,13 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         // add the static data
         fd.UpdateData(std::move(stat), dist);
 
-        // --- TEMPORARY FEED_DIAG (UDP RTTFC path) ---
+        // --- FEED_DIAG (UDP RTTFC path) ---
         // Per-aircraft monotonicity + source check; see the HTTP variant
         // for details. `seen` (RT_RTTFC_SEEN) and msg_type are bounds-
         // checked because the compact 18-field RT App variant strips
         // them — for short messages we log empty/NAN placeholders so the
         // line still shows the timestamp and monotonicity flag.
+        if (dataRefs.ShallLogDiagnostics())
         {
             std::string srcMsg;
             double      srcAge = NAN;

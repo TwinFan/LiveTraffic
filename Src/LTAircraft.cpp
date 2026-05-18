@@ -2585,7 +2585,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // Single line per transition, per aircraft — low volume in the log
     // but enough to reconstruct any takeoff sequence and rule out (or
     // catch) repeat lift-off/slam-to-ground events.
-    if (bOnGrndPrev != bOnGrnd && bFPhPrev != FPH_UNKNOWN) {
+    if (dataRefs.ShallLogDiagnostics() &&
+        bOnGrndPrev != bOnGrnd && bFPhPrev != FPH_UNKNOWN) {
         const bool blendActive =
             !std::isnan(liftoffBlendStartTs) &&
             (currCycle.simTime - liftoffBlendStartTs) < LIFTOFF_BLEND_TIME_S;
