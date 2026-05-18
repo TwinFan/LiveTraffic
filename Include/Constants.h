@@ -536,27 +536,6 @@ constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
 /// "climbing away from the runway" instead of "popping into the sky".
 constexpr double LIFTOFF_BLEND_TIME_S           = 10.0;
 
-/// [s] minimum time the nose is held pitched up at `PITCH_FLARE` after
-/// touchdown before the de-rotation walk to `GND_PITCH_DEG` begins.
-///
-/// Why this exists: real airliners aerobrake by holding the nose high
-/// for several seconds after the main gear touches, until aerodynamic
-/// braking loses authority and the nose-wheel is lowered for wheel
-/// braking. Previously LiveTraffic called `pitch.moveTo(GND_PITCH_DEG)`
-/// on the same frame that `FPH_TOUCH_DOWN` was entered, so the
-/// `PITCH_RATE` walk started immediately and the nose was on the
-/// ground within ~3 s of touchdown — visibly faster than real
-/// aircraft.
-///
-/// 5 s is the lower bound of typical airline practice (longer aircraft
-/// often hold longer); we use it as a floor so even quick rollouts get
-/// a recognisable aerobrake. The hold period sits entirely inside
-/// `FPH_TOUCH_DOWN` / `FPH_ROLL_OUT`, both of which are already
-/// excluded from the ground-attitude pitch override in `CalcAcPos`,
-/// so the MovingParam keeps the pitch at its last-commanded value
-/// (`PITCH_FLARE`) until the deferred `moveTo` fires.
-constexpr double TOUCHDOWN_HOLD_PITCH_S         = 5.0;
-
 
 //MARK: Flight Model
 constexpr double MDL_ALT_MIN =         -1500;   // [ft] minimum allowed altitude

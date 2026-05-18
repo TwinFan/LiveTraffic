@@ -881,6 +881,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_FLAP_ADD);
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN_MIN(PITCH_RATE, 1.0);    // avoid zero - this becomes a divisor
+    else FM_ASSIGN(PITCH_HOLD_TOUCHDOWN);
     else FM_ASSIGN(PROP_RPM_MAX);
     else FM_ASSIGN(LIGHT_LL_ALT);
     else FM_ASSIGN(EXT_CAMERA_LON_OFS);
@@ -2842,7 +2843,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // (e.g. porpoising) before we fire, the ENTERED(FPH_TOUCH_DOWN)
     // block above simply re-stamps the timestamp, restarting the hold.
     if (!std::isnan(touchdownTs) &&
-        currCycle.simTime >= touchdownTs + TOUCHDOWN_HOLD_PITCH_S)
+        currCycle.simTime >= touchdownTs + pMdl->PITCH_HOLD_TOUCHDOWN)
     {
         pitch.moveTo(GND_PITCH_DEG);
         touchdownTs = NAN;

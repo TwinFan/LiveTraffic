@@ -234,8 +234,9 @@ public:
         double PITCH_MAX =        15;     // [°] maximum pitch angle (aoa)
         double PITCH_MAX_VSI =    2000;   // [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
         double PITCH_FLAP_ADD =   4;      // [°] to add if flaps extended
-        double PITCH_FLARE =      10;     // [°] pitch during flare
+        double PITCH_FLARE =      10;     ///< [°] pitch during flare, and also used for rotate
         double PITCH_RATE =       3;      // [°/s] pitch rate of change
+        double PITCH_HOLD_TOUCHDOWN = 3;  ///< [s] How long to keep PITCH_FLARE after touch-down before lowering the nose?
         double PROP_RPM_MAX =     1200;   // [rpm] maximum propeller revolutions per minute
         double LIGHT_LL_ALT =     100000; // [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
         float  LABEL_COLOR[4] = {1.0f, 1.0f, 0.0f, 1.0f};   // base color of a/c label
