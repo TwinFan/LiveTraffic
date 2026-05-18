@@ -879,6 +879,7 @@ bool fm_processModelLine (const char* fileName, int ln,
     else FM_ASSIGN(PITCH_MAX);
     else FM_ASSIGN(PITCH_MAX_VSI);
     else FM_ASSIGN(PITCH_FLAP_ADD);
+    else FM_ASSIGN(PITCH_ROTATE);
     else FM_ASSIGN(PITCH_FLARE);
     else FM_ASSIGN_MIN(PITCH_RATE, 1.0);    // avoid zero - this becomes a divisor
     else FM_ASSIGN(PITCH_HOLD_TOUCHDOWN);
@@ -970,7 +971,7 @@ bool LTAircraft::FlightModel::ReadFlightModelFile ()
         return false;
     }
     
-    // first line is supposed to be the version - and we know of exactly one:
+    // first line is supposed to be the version - and we expect exactly one:
     std::vector<std::string> lnVer;
     std::string text;
     if (!safeGetline(fIn, text) ||                          // read a line
@@ -2747,15 +2748,13 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE) {
-            // Cap the rotate-phase pitch target at the same angle as
-            // during a flare to prevent tail strike.
-            // Once the aircraft transitions to
-            // FPH_LIFT_OFF the in-air pitch logic in
+            // Cap the rotate-phase pitch target at `pMdl->PITCH_ROTATE`.
+            // Once the aircraft transitions to FPH_LIFT_OFF the in-air pitch logic in
             // `LTFlightData::CalcNextPos` (line ~1700) takes over and
             // walks pitch toward the VSI-derived target, clamped to
             // `pMdl->PITCH_MAX` — so steep climbs can still reach the
             // full 15°, just not while the gear is still on the runway.
-            pitch.moveTo(pMdl->PITCH_FLARE);
+            pitch.moveTo(pMdl->PITCH_ROTATE);
             gearDeflection.min();               // and start easing up on the wheels
         }
     }

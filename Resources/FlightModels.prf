@@ -1,4 +1,4 @@
-LiveTraffic 2.2
+LiveTraffic 4.5.0
 
 # LiveTraffic FlightModels configuration file
 
@@ -42,7 +42,8 @@ PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         4    # [°] to add if flaps extended
-PITCH_FLARE            7    # [°] pitch during flare, and also for rotate
+PITCH_ROTATE           8    # [°] pitch during rotate
+PITCH_FLARE            6    # [°] pitch during flare
 PITCH_RATE             3    # [°/s] pitch rate of change
 PITCH_HOLD_TOUCHDOWN   3    # [s] How long to keep PITCH_FLARE after touch-down before lowering the nose?
 LIGHT_LL_ALT       10000    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
@@ -60,8 +61,10 @@ AGL_FLARE             30    # [ft] height AGL to start flare
 ROLL_RATE              3    # [°/s] roll rate in normal turns
 MIN_FLIGHT_SPEED     120    # [kn] minimum flight speed, below that not considered valid data
 MAX_FLIGHT_SPEED     600    # [kn] maximum flight speed, above that not considered valid data
-PITCH_MAX             10    # [°] maximum pitch angle (aoa)
+PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2500    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
+PITCH_ROTATE          11    # [°] pitch during rotate
+PITCH_FLARE            7    # [°] pitch during flare
 PITCH_RATE             2    # [°/s] pitch rate of change
 PITCH_HOLD_TOUCHDOWN   5    # [s] How long to keep PITCH_FLARE after touch-down before lowering the nose?
 LABEL_COLOR       FF0000    # red label for huge jets
@@ -122,7 +125,8 @@ PITCH_MIN_VSI       -500    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX             10    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI        600    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         2    # [°] to add if flaps extended
-PITCH_FLARE            5    # [°] pitch during flare, and also for rotate
+PITCH_ROTATE           5    # [°] pitch during rotate
+PITCH_FLARE            4    # [°] pitch during flare
 PITCH_RATE             3    # [°/s] pitch rate of change
 PITCH_HOLD_TOUCHDOWN   1    # [s] How long to keep PITCH_FLARE after touch-down before lowering the nose?
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for climb/approach only (GA)
@@ -154,7 +158,8 @@ PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX             15    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       2000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         3    # [°] to add if flaps extended
-PITCH_FLARE            7    # [°] pitch during flare, also for rotate
+PITCH_ROTATE           7.5  # [°] pitch during rotate
+PITCH_FLARE            4    # [°] pitch during flare
 PITCH_RATE             3    # [°/s] pitch rate of change
 PITCH_HOLD_TOUCHDOWN   2    # [s] How long to keep PITCH_FLARE after touch-down before lowering the nose?
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
@@ -194,7 +199,8 @@ PITCH_MIN_VSI      -1000    # [ft/min] minimal vsi below which pitch is MDL_PITC
 PITCH_MAX              5    # [°] maximum pitch angle (aoa)
 PITCH_MAX_VSI       1000    # [ft/min] maximum vsi above which pitch is MDL_PITCH_MAX
 PITCH_FLAP_ADD         1    # [°] to add if flaps extended
-PITCH_FLARE            3    # [°] pitch during flare, and also for rotate
+PITCH_ROTATE           5    # [°] pitch during rotate
+PITCH_FLARE            3    # [°] pitch during flare
 PITCH_RATE             1    # [°/s] pitch rate of change
 PITCH_HOLD_TOUCHDOWN   0    # [s] How long to keep PITCH_FLARE after touch-down before lowering the nose?
 LIGHT_LL_ALT           0    # [ft] Landing Lights on below this altitude; set zero for take-off/final only (GA)
@@ -220,6 +226,8 @@ FLAPS_UP_SPEED         5    # [kt] below that: initial climb, above that: climb
 FLAPS_DOWN_SPEED      15    # [kt] above that: descend, below that: approach
 MAX_FLIGHT_SPEED     300    # [kn] maximum flight speed, above that not considered valid data
 PROP_RPM_MAX         400    # [rpm] maximum propeller revolutions per minute
+PITCH_ROTATE           0    # [°] pitch during rotate
+PITCH_FLARE            0.5  # [°] pitch during flare
 EXT_CAMERA_LON_OFS   -20    # longitudinal external camera offset
 EXT_CAMERA_LAT_OFS     0    # lateral...
 EXT_CAMERA_VERT_OFS    5    # vertical...

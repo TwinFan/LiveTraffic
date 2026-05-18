@@ -600,7 +600,7 @@ constexpr int LT_NEW_VER_CHECK_TIME = 24;   ///< [h] between two checks for a ne
 //MARK: Text Constants
 #define LIVE_TRAFFIC            "LiveTraffic"
 #define LIVE_TRAFFIC_XPMP2      "   LT"      ///< short form for logging by XPMP2, so that log entries are aligned
-#define LT_FM_VERSION           "2.2"        // expected version of flight model file format
+#define LT_FM_VERSION           "4.5.0"      ///< expected version of flight model file format
 #define PLUGIN_SIGNATURE        "TwinFan.plugin.LiveTraffic"
 #define PLUGIN_DESCRIPTION      "Create Multiplayer Aircraft based on live traffic."
 constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
