@@ -323,6 +323,16 @@ std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetReq
         curr.eRequType = CurrTy::RT_REQU_WEATHER;
         return tNextWeather;
     }
+    // Periodically re-arm the parked-traffic request so RT's parked
+    // snapshot stays fresh — new arrivals show up, departed aircraft are
+    // reconciled — without the user having to change airports. The
+    // one-shot trigger (DoReadParkedTraffic, fired on airport-data
+    // refresh) alone would freeze the parked picture for the whole visit.
+    // tLastParkedRefresh starts at 0, so the first call re-arms
+    // immediately; that is harmless as connection-init already arms it.
+    if (dataRefs.ShallKeepParkedAircraft() &&
+        std::time(nullptr) - tLastParkedRefresh >= RT_PARKED_REFRESH_INTVL_S)
+        bDoParkedTraffic = true;
     if (bDoParkedTraffic && LTAptAvailable()) {                 // Do the parked traffic now, and only when airport details are available so we can place the aircraft correctly
         curr.eRequType = CurrTy::RT_REQU_PARKED;
         return tNextTraffic;
@@ -583,7 +593,23 @@ bool RealTrafficConnection::ProcessFetchedData ()
     
     // --- Parked Aircraft ---
     if (curr.eRequType == CurrTy::RT_REQU_PARKED) {
+        // Re-check airport-layout availability at PROCESSING time, not just
+        // at request time. SetRequType already gated the request on
+        // LTAptAvailable(), but the ~1-2 s network round-trip between
+        // issuing the request and the response arriving is long enough for
+        // the camera to have moved — which kicks off an async apt.dat
+        // reload and flips bAptAvailable false. Processing the response
+        // then would run the startup-location lookups in
+        // ProcessParkedAcBuffer against a purged / half-rebuilt airport
+        // map and mis-place every parked aircraft. If the layout is not
+        // ready right now, drop this response and leave bDoParkedTraffic
+        // armed so the next cycle retries once the layout is back.
+        // tLastParkedRefresh is intentionally NOT updated, so a dropped
+        // attempt does not consume the periodic-refresh interval.
+        if (!LTAptAvailable())
+            return true;                                // not an error — just retry next cycle
         bDoParkedTraffic = false;                       // Repeat only when instructed
+        tLastParkedRefresh = std::time(nullptr);        // remember when, for the periodic re-fetch (RT_PARKED_REFRESH_INTVL_S)
         return ProcessParkedAcBuffer(json_object_get_object(pObj, "data"));
     }
 
@@ -755,7 +781,16 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
         stat.setOrigDest(         jag_s(pJAc, RT_DRCT_Origin),
                                   jag_s(pJAc, RT_DRCT_Dest)  );
         stat.flight             = jag_s(pJAc, RT_DRCT_FlightNum);
-        
+        // v6: ICAO operator/airline flag code, hex-keyed in RT's BaseStation
+        // DB. Authoritative for livery matching — immune to wet-lease /
+        // codeshare callsign confusion that the callsign-substring fallback
+        // in FDStaticData::airlineCode() gets wrong. Empty (~30% of records)
+        // for hexes RT doesn't have in the DB; those fall through to the
+        // existing callsign/type-only path with no behaviour change.
+        std::string opCode      = jag_s(pJAc, RT_DRCT_Operator);
+        if (!opCode.empty())
+            stat.opIcao         = std::move(opCode);
+
         std::string s           = jag_s(pJAc, RT_DRCT_Category);
         stat.catDescr           = GetADSBEmitterCat(s);
         stat.slug               = GetSlug(fdKey.num);
@@ -823,6 +858,37 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
 
+            // --- FEED_DIAG (HTTP-Direct path) ---
+            // Per-aircraft monotonicity + source check. We want to see
+            // every position the channel accepts: hex, callsign, feed
+            // timestamp, msg_type/source (e.g. V_adsb_icao), age of
+            // position (`seen` / PosAge), elapsed dt since the previous
+            // accepted feed timestamp for the same hex, and a flag for
+            // OK / BACKWARDS / REPEAT / NEW. Helps identify backwards
+            // feeds sneaking in that produce backwards rendered motion.
+            if (dataRefs.ShallLogDiagnostics())
+            {
+                const std::string srcMsg = jag_s(pJAc, RT_DRCT_MsgSrcType);
+                const std::string callDg = jag_s(pJAc, RT_DRCT_CallSign);
+                const double      srcAge = jag_n(pJAc, RT_DRCT_PosAge);
+                const auto        itLast = lastFeedTs.find(fdKey.num);
+                const double      prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
+                const double      dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
+                const char*       flag   = std::isnan(prevTs)  ? "NEW"
+                                         : (dtFeed > 0.0)      ? "OK"
+                                         : (dtFeed < 0.0)      ? "BACKWARDS"
+                                         :                       "REPEAT";
+                LOG_MSG(logDEBUG,
+                        "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f alt=%.0fft gnd=%d vsi=%+.0ffpm %s [HTTP]",
+                        fdKey.c_str(), callDg.c_str(),
+                        posTime, srcMsg.c_str(), srcAge, dtFeed,
+                        pos.alt_ft(),
+                        pos.f.onGrnd == GND_ON ? 1 : 0,
+                        dyn.vsi,
+                        flag);
+                lastFeedTs[fdKey.num] = posTime;
+            }
+
             // add the dynamic data
             fd.AddDynData(dyn, 0, 0, &pos);
 
@@ -831,7 +897,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             IncErrCnt();
         }
     }
-    
+
     return true;
 }
 
@@ -888,12 +954,28 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             continue;
         }
         
-        // Get the parking position and timestamp first to check for duplicates
+        // Get the parking position and timestamp first.
         std::string parkPos = jag_s(pJAc, RT_PARK_ParkPosName);
         double ts           = jag_n(pJAc, RT_PARK_LastTimeStamp);
-        if (mapPData.count(parkPos) > 0) {
-            // we know that parking position already!
-            parkedAcData& dat = mapPData.at(parkPos);
+
+        // Decide the dedup key. RT's parked feed retains stale history —
+        // a stand can be listed with several aircraft, the older ones
+        // being departures RT has not yet cleared — so for a *real* stand
+        // we keep only the newest-timestamp entry. BUT RT_PARK_ParkPosName
+        // is frequently EMPTY (GA, cargo, remote stands with no Jeppesen
+        // name). An empty name is not a stand identity: if we used it as
+        // the key, every empty-name aircraft across the whole airport
+        // would collapse into a single map slot and all but one would be
+        // silently dropped — which is exactly the "only a small fraction
+        // of parked traffic shows" symptom. So for empty parkPos we key
+        // on the unique hex id instead, guaranteeing each such aircraft
+        // is kept. The '#' prefix can never collide with a real Jeppesen
+        // parking-position string.
+        const std::string dedupKey = parkPos.empty() ? ('#' + key) : parkPos;
+
+        if (mapPData.count(dedupKey) > 0) {
+            // we already have an aircraft for this stand identity
+            parkedAcData& dat = mapPData.at(dedupKey);
             if (ts > dat.ts) {                  // but new data is newer -> replace
                 dat = {
                     jag_n_nan(pJAc, RT_PARK_Lat),
@@ -906,8 +988,8 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
                 };
             }
         } else {
-            // We don't yet know that parking position, store data in new map record
-            mapPData.emplace(std::move(parkPos),
+            // first aircraft for this stand identity, store in new record
+            mapPData.emplace(dedupKey,
                              parkedAcData {
                 jag_n_nan(pJAc, RT_PARK_Lat),
                 jag_n_nan(pJAc, RT_PARK_Lon),
@@ -931,13 +1013,63 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         // not matching a/c filter? -> skip it
         if ((!acFilter.empty() && (fdKey != acFilter)) )
             continue;
-        
+
+        // Refuse to re-seed a hex id that gate-handoff has already
+        // evicted earlier in this session (task #43). RT's parked DB
+        // can lag for hours: a stand that the live feed has shown
+        // emptying (the parked ghost was evicted when a new aircraft
+        // pulled in) will still appear in the parked re-fetch for a
+        // long time afterwards. Without this guard, every 5 minutes
+        // (RT_PARKED_REFRESH_INTVL_S) the ghost would be created
+        // anew. See SyntheticConnection::MarkEvicted.
+        if (SyntheticConnection::WasEvicted(fdKey.num))
+            continue;
+
         // position
         positionTy pos (dat.lat, dat.lon);
         pos.heading() = 0.0;
         pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
         // see later how TS is used: we send 3 instances to make the a/c appear immediately
         pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
+
+        // Defence-in-depth: if this hex id is *already* being live
+        // tracked by another channel, and that live aircraft has
+        // either left the ground or moved meaningfully away from the
+        // gate, do NOT inject the stale parked seed (TFL3NA-class
+        // bug). Symptom we are blocking: TFL3NA was taxiing out and
+        // then airborne when the 5-minute parked re-fetch fired,
+        // silently appending an SPOS_STARTUP GND_ON seed at the
+        // original gate to the deque with a timestamp *later* than
+        // the live airborne positions. The render clock eventually
+        // walked into the seed and the aircraft visually teleported
+        // back to the gate before snapping forward again. The
+        // GATE_REFEED_MAX_DIST_M (= 50 m) test means "still inside
+        // the stand footprint"; anything beyond that is no longer at
+        // the gate, regardless of what RT's parked DB still believes.
+        {
+            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+            auto it = mapFd.find(fdKey);
+            if (it != mapFd.end()) {
+                std::lock_guard<std::recursive_mutex> fdLock (it->second.dataAccessMutex);
+                if (it->second.IsValid() && it->second.hasAc()) {
+                    const LTAircraft* pAc = it->second.GetAircraft();
+                    if (pAc) {
+                        // Released both locks via scope exit before
+                        // the `continue` below — they are inside this
+                        // inner block.
+                        if (!pAc->IsOnGrnd()) {
+                            mapFdLock.unlock();         // be explicit
+                            continue;                   // already airborne — never re-seed
+                        }
+                        const positionTy gatePos (dat.lat, dat.lon);
+                        if (pAc->GetPPos().dist(gatePos) > GATE_REFEED_MAX_DIST_M) {
+                            mapFdLock.unlock();
+                            continue;                   // taxied away from the gate
+                        }
+                    }
+                }
+            }
+        }
 
         // position is rather important, we check for validity
         // (we do allow alt=NAN if on ground)
@@ -965,14 +1097,59 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         dyn.vsi                 = 0.0;
         dyn.pChannel            = this;
         
-        // Try to find a matching "startup position" to perfectly put the aircraft in place
-        positionTy startupPos = LTAptFindStartupLoc(pos,
-                                                    (double)dataRefs.GetFdSnapTaxiDist_m());
-        if (startupPos.isNormal(true)) {
+        // Try to find a matching "startup position" to perfectly put the
+        // aircraft in place — a real apt.dat gate/stand with a known
+        // heading. Pass maxDist = NAN so the search uses the generous
+        // internal default (3 × the taxi-snap distance): RT's parked
+        // coordinates are not always precise to the metre, and the old
+        // 1 × radius missed many stands.
+        double startupDist = NAN;
+        positionTy startupPos = LTAptFindStartupLoc(pos, NAN, &startupDist);
+        // A startup location was matched iff startupDist is a real number
+        // (LTAptFindStartupLoc / FindStartupLoc set it to NAN when nothing
+        // is found, to the metre distance when found).
+        //
+        // Do NOT test startupPos.isNormal() here: LTAptFindStartupLoc
+        // returns the matched location with a NaN timestamp — it is a
+        // static apt.dat coordinate, not a tracked position — and
+        // positionTy::isNormal() rejects a NaN ts. So isNormal() would
+        // report "not found" for EVERY successful match, which is exactly
+        // why parked aircraft were all left at the placeholder 0° heading,
+        // facing north. startupDist is the reliable signal.
+        const bool bFoundStartup = !std::isnan(startupDist);
+        if (bFoundStartup) {
+            // Snap exactly onto the apt.dat startup location and adopt
+            // its known heading.
             pos.lat()       = startupPos.lat();
             pos.lon()       = startupPos.lon();
             pos.heading()   = startupPos.heading();
         }
+
+        // Flag the position as a startup/parked placement UNCONDITIONALLY
+        // — whether or not an apt.dat stand was matched. This is
+        // essential, not cosmetic:
+        //  * the FPH_PARKED test in LTAircraft requires SPOS_STARTUP;
+        //    only then does the Synthetic channel adopt the aircraft to
+        //    keep it alive, otherwise it ages out a few minutes after
+        //    creation (its only positions span simTime-45..+90);
+        //  * the ground-holding trivial-drop in LTFlightData::AddNewPos
+        //    exempts SPOS_STARTUP positions — without the flag the four
+        //    identical bootstrap seed positions are dropped as "jitter"
+        //    and the aircraft is left with too few positions to render
+        //    at all (the "no parked traffic showing up" symptom).
+        // RT's parked feed is authoritative that the aircraft is parked;
+        // if we simply could not match an apt.dat stand it still belongs
+        // at its reported lat/lon — just without a precise gate heading
+        // (RT's parked feed carries no heading field, so heading stays
+        // at the 0° set above).
+        pos.f.specialPos = SPOS_STARTUP;
+        pos.f.bHeadFixed = true;
+
+        // Sync the dynamic-data heading with the (possibly startup-loc
+        // corrected) position heading. dyn.heading was captured above
+        // before the startup-location lookup, so without this it would
+        // still hold the placeholder 0°.
+        dyn.heading = pos.heading();
         
         try {
             // from here on access to fdMap guarded by a mutex
@@ -1009,7 +1186,11 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         }
     }
     
-    LOG_MSG(logINFO, "Received %d parked aircraft", int(numVals));
+    // Report both the raw count and the post-dedup count actually
+    // processed — a large gap between them points at parkPos collisions
+    // (stale RT history, or empty Jeppesen names) eating the traffic.
+    LOG_MSG(logINFO, "Received %d parked aircraft, %d after dedup",
+            int(numVals), int(mapPData.size()));
     
     return true;
 }
@@ -1164,7 +1345,41 @@ bool RealTrafficConnection::PreProcessWeather(const JSON_Object* pData)
         s.clear();
         metar.clear();
     }
-    
+
+    // Reject placeholder weather responses.
+    //
+    // RealTraffic sometimes returns a stripped-down weather payload for a
+    // query location whose real weather it previously delivered correctly
+    // — observed: at YSSY, a valid {"ICAO":"YSSY","QNH":1034,"METAR":...}
+    // response was followed ~60 s later by a {"QNH":1013, no ICAO, no METAR}
+    // response for the *same* query coordinates. The 1013 is RT's standard-
+    // pressure placeholder, not a real reading.
+    //
+    // If we accept it, rtWx.QNH gets overwritten to 1013.25 and
+    // BaroAltToGeoAlt_ft stops applying the local-pressure correction —
+    // landing aircraft at high-QNH airports then render ~500 ft below true
+    // and touch down a mile short of the runway.
+    //
+    // A response is treated as a placeholder when ALL of:
+    //   * No ICAO/airport identifier
+    //   * No METAR text
+    //   * QNH equals (within 0.5 hPa) the ISA standard 1013.25 hPa
+    //   * We already hold a *non-standard* QNH that we trust
+    // The last condition lets a real 1013-hPa reading still come in as a
+    // first weather update; we only reject placeholders when they would
+    // overwrite a previously confirmed non-standard value.
+    if (s.empty() && metar.empty() &&
+        std::abs(wxQNH - HPA_STANDARD) < 0.5 &&
+        !std::isnan(rtWx.QNH) &&
+        std::abs(rtWx.QNH - HPA_STANDARD) >= 0.5)
+    {
+        LOG_MSG(logDEBUG,
+                "Ignoring placeholder RealTraffic weather"
+                " (QNH=%.1f, no ICAO, no METAR); keeping previous QNH=%.1f",
+                wxQNH, rtWx.QNH);
+        return true;
+    }
+
     // If this is live data, not historic, then we can use it instead of separately querying METAR
     if (!isHistoric()) {
         rtWx.w.qnh_pas = dataRefs.SetWeather((float)wxQNH, s, metar);
@@ -2025,6 +2240,14 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.reg            = tfc[RT_RTTFC_AC_TAILNO];
         stat.setOrigDest(tfc[RT_RTTFC_FROM_IATA], tfc[RT_RTTFC_TO_IATA]);
         stat.slug           = GetSlug(fdKey.num);
+        // v6 (RealTraffic v11.1.452+): ICAO operator/airline flag code,
+        // hex-keyed. Optional — older RT App builds don't send the
+        // field (so it sits past RT_RTTFC_MIN_TFC_FIELDS) and per the
+        // doc ~30% of records carry an empty string. Bounds-check both.
+        // When present this is authoritative for livery matching and
+        // wins over the callsign-substring guess in airlineCode().
+        if (tfc.size() > RT_RTTFC_OPERATOR && !tfc[RT_RTTFC_OPERATOR].empty())
+            stat.opIcao     = tfc[RT_RTTFC_OPERATOR];
 
         const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
         stat.catDescr       = GetADSBEmitterCat(sCat);
@@ -2073,6 +2296,39 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
 
         // add the static data
         fd.UpdateData(std::move(stat), dist);
+
+        // --- FEED_DIAG (UDP RTTFC path) ---
+        // Per-aircraft monotonicity + source check; see the HTTP variant
+        // for details. `seen` (RT_RTTFC_SEEN) and msg_type are bounds-
+        // checked because the compact 18-field RT App variant strips
+        // them — for short messages we log empty/NAN placeholders so the
+        // line still shows the timestamp and monotonicity flag.
+        if (dataRefs.ShallLogDiagnostics())
+        {
+            std::string srcMsg;
+            double      srcAge = NAN;
+            if (tfc.size() > RT_RTTFC_MSG_TYPE)
+                srcMsg = tfc[RT_RTTFC_MSG_TYPE];
+            if (tfc.size() > RT_RTTFC_SEEN && !tfc[RT_RTTFC_SEEN].empty()) {
+                try { srcAge = std::stod(tfc[RT_RTTFC_SEEN]); } catch (...) {}
+            }
+            const auto   itLast = lastFeedTs.find(fdKey.num);
+            const double prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
+            const double dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
+            const char*  flag   = std::isnan(prevTs)  ? "NEW"
+                                : (dtFeed > 0.0)      ? "OK"
+                                : (dtFeed < 0.0)      ? "BACKWARDS"
+                                :                       "REPEAT";
+            LOG_MSG(logDEBUG,
+                    "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f alt=%.0fft gnd=%d vsi=%+.0ffpm %s [UDP]",
+                    fdKey.c_str(), tfc[RT_RTTFC_CS_ICAO].c_str(),
+                    posTime, srcMsg.c_str(), srcAge, dtFeed,
+                    pos.alt_ft(),
+                    pos.f.onGrnd == GND_ON ? 1 : 0,
+                    dyn.vsi,
+                    flag);
+            lastFeedTs[fdKey.num] = posTime;
+        }
 
         // add the dynamic data
         fd.AddDynData(dyn, 0, 0, &pos);

@@ -603,7 +603,41 @@ bool LTOnlineChannel::InitCurl ()
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, LTOnlineChannel::ReceiveData);
     curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, this);
     curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
-    
+
+    // Connection-handling for short-interval polling.
+    //
+    // The RealTraffic channel (and any other channel polled more often
+    // than ~30 s) was producing curl error 55 / "Connection died, tried
+    // N times before giving up" at roughly 30 s intervals — symptomatic
+    // of the kept-alive HTTP connection being recycled mid-flight by
+    // *something* in the network path (an upstream load balancer at the
+    // server, a NAT/firewall idle-drop timer, or curl's own connection
+    // cache hitting an internal age limit). TCP keepalive at the OS
+    // level (CURLOPT_TCP_KEEPALIVE + KEEPIDLE + KEEPINTVL) was tried
+    // first but did NOT prevent the symptom, so whatever is recycling
+    // the connection is doing so actively rather than as a passive
+    // idle-timer expiry. Keepalive probes don't help when the other
+    // side is sending RST or FIN on a schedule of its own.
+    //
+    // Definitive fix: forbid connection reuse entirely (FORBID_REUSE).
+    // Every request opens a fresh TCP+TLS connection and closes it
+    // after the response is received. No kept-alive socket ever sits
+    // around long enough to go stale. The cost is a TLS handshake on
+    // every request — about 100-300 ms with modern TLS 1.3 session
+    // resumption — which is fine at the 2 s polling cadence we use.
+    //
+    // The keepalive options remain set as a defensive measure for any
+    // edge case where reuse still happens (curl can in principle hold
+    // a connection across the boundary between two transfers even with
+    // FORBID_REUSE set on the *previous* one if FORBID_REUSE is only
+    // on the *current* request setup; the option is per-handle but
+    // applies to the transfer-just-completed). Belt-and-braces — no
+    // harm in setting both.
+    curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPIDLE,  20L);
+    curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPINTVL, 10L);
+    curl_easy_setopt(pCurl, CURLOPT_FORBID_REUSE,  1L);
+
     // success
     return true;
 }
