@@ -2193,7 +2193,8 @@ bool LTAircraft::CalcPPos()
         // post-blend rendering uses the very same value.
         ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
         ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
-        ppos.alt_m() = LookupAltAtTs(currCycle.simTime);
+        if (std::isnan(ppos.alt_m() = LookupAltAtTs(currCycle.simTime)))
+            ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
         ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
         // we handle roll later separately
 
@@ -3002,21 +3003,29 @@ double LTAircraft::LookupAltAtTs (double targetTs) const
     // dataAccessMutex is recursive, so if a caller already holds it
     // the inner lock is a no-op. The fit is a single linear pass
     // over the archive, so the critical section is short.
-    std::lock_guard<std::recursive_mutex> lock(fd.dataAccessMutex);
-    const dequePositionTy& fullDeque = fd.GetPosDeque();
-
-    // Append any slots we have not yet archived. Both `pastAltSamples_`
-    // and `fullDeque` are individually sorted by ts; the boundary
-    // condition is that everything in `pastAltSamples_` came from
-    // earlier observations of `fullDeque` and is therefore older than
-    // or equal to the deque's current contents. We append every slot
-    // whose ts is strictly greater than the last archived ts.
-    for (const auto& p : fullDeque) {
-        if (pastAltSamples_.empty() ||
-            p.ts() > pastAltSamples_.back().ts())
-        {
-            pastAltSamples_.push_back(p);
+    
+    
+    // Inside XP's flight loop we must not block.
+    // So we TRY to get the lock, but don't wait if not
+    if (fd.dataAccessMutex.try_lock()) {
+        const dequePositionTy& fullDeque = fd.GetPosDeque();
+        
+        // Append any slots we have not yet archived. Both `pastAltSamples_`
+        // and `fullDeque` are individually sorted by ts; the boundary
+        // condition is that everything in `pastAltSamples_` came from
+        // earlier observations of `fullDeque` and is therefore older than
+        // or equal to the deque's current contents. We append every slot
+        // whose ts is strictly greater than the last archived ts.
+        for (const auto& p : fullDeque) {
+            if (pastAltSamples_.empty() ||
+                p.ts() > pastAltSamples_.back().ts())
+            {
+                pastAltSamples_.push_back(p);
+            }
         }
+        
+        // Unlock as soon as we no longer need fullDeque
+        fd.dataAccessMutex.unlock();
     }
     // Prune samples well outside the Gaussian tail. We keep ±30 s
     // around `targetTs`: with σ = 5 s the weight at ±30 s = ±6 σ is
@@ -3041,11 +3050,8 @@ double LTAircraft::LookupAltAtTs (double targetTs) const
     }
 
     if (pastAltSamples_.empty()) {
-        // Nothing to regress against. Fall back to the freshest
-        // available value: deque front if any, else terrain.
-        if (!fullDeque.empty())
-            return fullDeque.front().alt_m();
-        return terrainAlt_m;
+        // Nothing to regress against, will be replaced by caller
+        return NAN;
     }
     if (pastAltSamples_.size() == 1)
         return pastAltSamples_.front().alt_m();
